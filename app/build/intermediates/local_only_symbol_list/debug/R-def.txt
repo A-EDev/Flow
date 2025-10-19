@@ -1,0 +1,13 @@
+R_DEF: Internal format may change without notice
+local
+color ic_launcher_background
+drawable ic_music_note
+drawable ic_next
+drawable ic_pause
+drawable ic_play
+drawable ic_previous
+mipmap ic_launcher
+mipmap ic_launcher_foreground
+mipmap ic_launcher_round
+string app_name
+style Theme.Flow

@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:ns1="urn:oasis:names:tc:xliff:document:1.2">
+    <string-array name="exo_controls_playback_speeds">
+    <item>0,25x</item>
+    <item>0,5x</item>
+    <item>0,75x</item>
+    <item>Звычайная</item>
+    <item>1,25x</item>
+    <item>1,5x</item>
+    <item>2х</item>
+  </string-array>
+    <plurals name="exo_controls_fastforward_by_amount_description">
+    <item quantity="one">Пераматаць уперад на %d секунду</item>
+    <item quantity="few">Пераматаць уперад на %d секунды</item>
+    <item quantity="many">Пераматаць уперад на %d секунд</item>
+    <item quantity="other">Пераматаць уперад на %d секунды</item>
+  </plurals>
+    <plurals name="exo_controls_rewind_by_amount_description">
+    <item quantity="one">Пераматаць назад на %d секунду</item>
+    <item quantity="few">Пераматаць назад на %d секунды</item>
+    <item quantity="many">Пераматаць назад на %d секунд</item>
+    <item quantity="other">Пераматаць назад на %d секунды</item>
+  </plurals>
+    <string name="authentication_required">Патрабуецца аўтэнтыфікацыя</string>
+    <string msgid="6128938260108474660" name="bottom_sheet_collapse_description">"Згарнуць ніжні аркуш"</string>
+    <string msgid="1918297411568599192" name="bottom_sheet_dismiss_description">"Закрыць ніжні аркуш"</string>
+    <string msgid="7772321844937772780" name="bottom_sheet_drag_handle_description">"Маркер перацягвання"</string>
+    <string msgid="4324434199045499117" name="bottom_sheet_expand_description">"Разгарнуць ніжні аркуш"</string>
+    <string msgid="881409763997275156" name="call_notification_answer_action">"Адказаць"</string>
+    <string msgid="8793775615905189152" name="call_notification_answer_video_action">"Відэа"</string>
+    <string msgid="3229508546291798546" name="call_notification_decline_action">"Адхіліць"</string>
+    <string msgid="2659457946726154263" name="call_notification_hang_up_action">"Завяршыць"</string>
+    <string msgid="6107532579223922871" name="call_notification_incoming_text">"Уваходны выклік"</string>
+    <string msgid="8623827134497363134" name="call_notification_ongoing_text">"Бягучы выклік"</string>
+    <string msgid="59049573811482460" name="call_notification_screening_text">"Фільтраванне ўваходнага выкліку"</string>
+    <string msgid="406453423630273620" name="close_drawer">"Закрыць меню навігацыі"</string>
+    <string msgid="7573152094250666567" name="close_sheet">"Закрыць аркуш"</string>
+    <string msgid="5389587048670450460" name="collapsed">"Згорнута"</string>
+    <string msgid="3499643850558715142" name="date_input_headline">"Уведзеная дата"</string>
+    <string msgid="8562356184193964298" name="date_input_headline_description">"Уведзеная дата: %1$s"</string>
+    <string msgid="5281836720766682161" name="date_input_invalid_for_pattern">"Дата не адпавядае ўзору: %1$s"</string>
+    <string msgid="6114792992433444995" name="date_input_invalid_not_allowed">"Дата забаронена: %1$s"</string>
+    <string msgid="8434112129235255568" name="date_input_invalid_year_range">"Дата выходзіць за дазволены дыяпазон гадоў %1$s-%2$s"</string>
+    <string msgid="5194825853981987218" name="date_input_label">"Дата"</string>
+    <string msgid="5722931102250207748" name="date_input_no_input_description">"Без абмежаванняў"</string>
+    <string msgid="3010396677286327048" name="date_input_title">"Выберыце дату"</string>
+    <string msgid="2846784065735639969" name="date_picker_headline">"Выбраная дата"</string>
+    <string msgid="4627306862713137085" name="date_picker_headline_description">"Бягучы выбар: %1$s"</string>
+    <string msgid="5152441868029453612" name="date_picker_navigate_to_year_description">"Перайсці ў год %1$s"</string>
+    <string msgid="5724377114289981899" name="date_picker_no_selection_description">"Не выбрана"</string>
+    <string msgid="8911933542023210271" name="date_picker_scroll_to_earlier_years">"Прагартайце экран, каб праглядзець ранейшыя гады"</string>
+    <string msgid="3226341140390493774" name="date_picker_scroll_to_later_years">"Прагартайце экран, каб праглядзець пазнейшыя гады"</string>
+    <string msgid="9029369254443419167" name="date_picker_switch_to_calendar_mode">"Пераключыцца ў рэжым уводу \"Каляндар\""</string>
+    <string msgid="145089358343568971" name="date_picker_switch_to_day_selection">"Правядзіце пальцам, каб выбраць год, або націсніце, каб вярнуцца да выбару даты"</string>
+    <string msgid="1496750567914156598" name="date_picker_switch_to_input_mode">"Пераключыцца ў рэжым уводу \"Тэкст\""</string>
+    <string msgid="8313783187901412102" name="date_picker_switch_to_next_month">"Перайсці да наступнага месяца"</string>
+    <string msgid="7596294429748914881" name="date_picker_switch_to_previous_month">"Перайсці да папярэдняга месяца"</string>
+    <string msgid="3412370019845183965" name="date_picker_switch_to_year_selection">"Перайсці да выбару года"</string>
+    <string msgid="9208721003668059792" name="date_picker_title">"Выберыце дату"</string>
+    <string msgid="4775802721403526937" name="date_picker_today_description">"Сёння"</string>
+    <string msgid="8140324713311804736" name="date_picker_year_picker_pane_title">"Бачны інструмент выбару года"</string>
+    <string msgid="1891592555781755601" name="date_range_input_invalid_range_input">"Уведзены няправільны дыяпазон дат"</string>
+    <string msgid="2366412111888449406" name="date_range_input_title">"Увядзіце даты"</string>
+    <string msgid="9048690781645835833" name="date_range_picker_day_in_range">"У зоне дасягальнасці"</string>
+    <string msgid="4766270708882012148" name="date_range_picker_end_headline">"Дата заканчэння"</string>
+    <string msgid="51495506931835470" name="date_range_picker_scroll_to_next_month">"Прагартайце экран, каб праглядзець наступны месяц"</string>
+    <string msgid="4371570854614540700" name="date_range_picker_scroll_to_previous_month">"Прагартайце экран, каб праглядзець мінулы месяц"</string>
+    <string msgid="5759491386723090559" name="date_range_picker_start_headline">"Дата пачатку"</string>
+    <string msgid="690080476639943577" name="date_range_picker_title">"Выберыце даты"</string>
+    <string msgid="8038256446254964252" name="default_error_message">"Памылка ўводу"</string>
+    <string name="default_notification_channel_name">Зараз іграе</string>
+    <string msgid="6312721426453364202" name="default_popup_window_title">"Усплывальнае акно"</string>
+    <string msgid="4057925834421392736" name="dialog">"Дыялогавае акно"</string>
+    <string msgid="1890207353314751437" name="dropdown_menu">"Выпадное меню"</string>
+    <string name="exo_controls_cc_disabled_description">Уключыць субцітры</string>
+    <string name="exo_controls_cc_enabled_description">Выключыць субцітры</string>
+    <string name="exo_controls_fastforward_description">Пераматаць уперад</string>
+    <string name="exo_controls_fullscreen_enter_description">Уключыць поўнаэкранны рэжым</string>
+    <string name="exo_controls_fullscreen_exit_description">Выключыць поўнаэкранны рэжым</string>
+    <string name="exo_controls_hide">Схаваць элементы кіравання прайгравальніка</string>
+    <string name="exo_controls_next_description">Далей</string>
+    <string name="exo_controls_overflow_hide_description">Схаваць дадатковыя налады</string>
+    <string name="exo_controls_overflow_show_description">Паказаць дадатковыя налады</string>
+    <string name="exo_controls_pause_description">Паўза</string>
+    <string name="exo_controls_play_description">Гуляць</string>
+    <string name="exo_controls_playback_speed">Хуткасць</string>
+    <string name="exo_controls_previous_description">Назад</string>
+    <string name="exo_controls_repeat_all_description">Цяпер: паўтараць усё. Змяніць.</string>
+    <string name="exo_controls_repeat_off_description">Цяпер: без паўтораў. Змяніць.</string>
+    <string name="exo_controls_repeat_one_description">Цяпер: паўтараць фрагмент. Змяніць.</string>
+    <string name="exo_controls_rewind_description">Пераматаць назад</string>
+    <string name="exo_controls_seek_bar_description">Ход прайгравання</string>
+    <string name="exo_controls_settings_description">Налады</string>
+    <string name="exo_controls_show">Паказаць элементы кіравання прайгравальніка</string>
+    <string name="exo_controls_shuffle_off_description">Уключыць рэжым перамешвання</string>
+    <string name="exo_controls_shuffle_on_description">Выключыць рэжым перамешвання</string>
+    <string name="exo_controls_stop_description">Спыніць</string>
+    <string name="exo_controls_vr_description">VR-рэжым</string>
+    <string name="exo_download_completed">Спампоўка завершана</string>
+    <string name="exo_download_description">Спампаваць</string>
+    <string name="exo_download_downloading">Спампоўваецца</string>
+    <string name="exo_download_failed">Збой спампоўкі</string>
+    <string name="exo_download_notification_channel_name">Спампоўкі</string>
+    <string name="exo_download_paused">Спампоўкі прыпынены</string>
+    <string name="exo_download_paused_for_network">Спампоўкі чакаюць падключэння да сеткі</string>
+    <string name="exo_download_paused_for_wifi">Спампоўкі чакаюць падключэння да Wi-Fi</string>
+    <string name="exo_download_removing">Выдаленне спамповак</string>
+    <string name="exo_item_list">%1$s, %2$s</string>
+    <string name="exo_track_bitrate">%1$.2f Мбіт/с</string>
+    <string name="exo_track_mono">Мона</string>
+    <string name="exo_track_resolution">%1$d × %2$d</string>
+    <string name="exo_track_role_alternate">Альтэрнатыўны запіс</string>
+    <string name="exo_track_role_closed_captions">Субцітры</string>
+    <string name="exo_track_role_commentary">Каментарыі</string>
+    <string name="exo_track_role_supplementary">Дадатковы запіс</string>
+    <string name="exo_track_selection_auto">Аўтаматычна</string>
+    <string name="exo_track_selection_none">Няма</string>
+    <string name="exo_track_selection_title_audio">Аўдыя</string>
+    <string name="exo_track_selection_title_text">Тэкст</string>
+    <string name="exo_track_selection_title_video">Відэа</string>
+    <string name="exo_track_stereo">Стэрэа</string>
+    <string name="exo_track_surround">Аб\'ёмны гук</string>
+    <string name="exo_track_surround_5_point_1">Аб\'ёмны гук 5.1</string>
+    <string name="exo_track_surround_7_point_1">Аб\'ёмны гук 7.1</string>
+    <string name="exo_track_unknown">Невядома</string>
+    <string msgid="5974471714631304645" name="expanded">"Разгорнута"</string>
+    <string msgid="6827826412747255547" name="in_progress">"У працэсе"</string>
+    <string msgid="7933458017204019916" name="indeterminate">"Выбрана часткова"</string>
+    <string name="media3_controls_pause_description">Прыпыніць</string>
+    <string name="media3_controls_play_description">Прайграць</string>
+    <string name="media3_controls_seek_back_description">Перайсці назад</string>
+    <string name="media3_controls_seek_forward_description">Перайсці ўперад</string>
+    <string name="media3_controls_seek_to_next_description">Перайсці да наступнага элемента</string>
+    <string name="media3_controls_seek_to_previous_description">Перайсці да папярэдняга элемента</string>
+    <string msgid="542007171693138492" name="navigation_menu">"Меню навігацыі"</string>
+    <string msgid="6610465462668679431" name="not_selected">"Не выбрана"</string>
+    <string msgid="875452955155264703" name="off">"Выключана"</string>
+    <string msgid="8655164131929253426" name="on">"Уключана"</string>
+    <string msgid="5941395253238309765" name="range_end">"Канец пераліку"</string>
+    <string msgid="7097486360902471446" name="range_start">"Пачатак пераліку"</string>
+    <string msgid="6420018528474762666" name="search_bar_search">"Пошук"</string>
+    <string msgid="6043586758067023" name="selected">"Выбрана"</string>
+    <string msgid="3962933905051144957" name="snackbar_dismiss">"Закрыць"</string>
+    <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
+    <string msgid="7189888345201419934" name="suggestions_available">"Прапановы ўнізе"</string>
+    <string msgid="2561197295334830845" name="switch_role">"Пераключальнік"</string>
+    <string msgid="1672349317127674378" name="tab">"Укладка"</string>
+    <string msgid="5946805113151406391" name="template_percent">"Працэнтаў: <ns1:g id="PERCENTAGE">%1$d</ns1:g>."</string>
+    <string msgid="5096144640014509074" name="time_picker_am">"да паўдня"</string>
+    <string msgid="7241191970823415723" name="time_picker_hour">"Гадзіны"</string>
+    <string msgid="4149641012513526783" name="time_picker_hour_24h_suffix">"%1$d гадз"</string>
+    <string msgid="6081676287789101196" name="time_picker_hour_selection">"Выберыце гадзіны"</string>
+    <string msgid="6952032626122080528" name="time_picker_hour_suffix">"%1$d гадз"</string>
+    <string msgid="5298761125390275834" name="time_picker_hour_text_field">"гадзіны"</string>
+    <string msgid="6116528647594005945" name="time_picker_minute">"Хвіліны"</string>
+    <string msgid="8494777394375441602" name="time_picker_minute_selection">"Выберыце хвіліны"</string>
+    <string msgid="3206486707779478173" name="time_picker_minute_suffix">"%1$d хв"</string>
+    <string msgid="994099543833979061" name="time_picker_minute_text_field">"хвіліны"</string>
+    <string msgid="7352665290700284516" name="time_picker_period_toggle_description">"Выберыце AM (да паўдня) або PM (пасля паўдня)"</string>
+    <string msgid="2232702812657998674" name="time_picker_pm">"пасля паўдня"</string>
+    <string msgid="2732804537909054941" name="tooltip_long_press_label">"Паказваць усплывальную падказку"</string>
+    <string msgid="8191239805703103845" name="tooltip_pane_description">"Падказка"</string>
+</resources>

@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:ns1="urn:oasis:names:tc:xliff:document:1.2">
+    <string-array name="exo_controls_playback_speeds">
+    <item>०.२५ गुणा</item>
+    <item>०.५ गुणा</item>
+    <item>०.७५ गुणा</item>
+    <item>सामान्य</item>
+    <item>१.२५ गुणा</item>
+    <item>१.५ गुणा</item>
+    <item>२ गुणा</item>
+  </string-array>
+    <plurals name="exo_controls_fastforward_by_amount_description">
+    <item quantity="one">%d सेकेन्ड फास्ट फर्वार्ड गर्नुहोस्</item>
+    <item quantity="other">%d सेकेन्ड फास्ट फर्वार्ड गर्नुहोस्</item>
+  </plurals>
+    <plurals name="exo_controls_rewind_by_amount_description">
+    <item quantity="one">%d सेकेन्ड रिवाइन्ड गर्नुहोस्</item>
+    <item quantity="other">%d सेकेन्ड रिवाइन्ड गर्नुहोस्</item>
+  </plurals>
+    <string name="authentication_required">पुष्टि गर्नु पर्ने हुन्छ</string>
+    <string msgid="6128938260108474660" name="bottom_sheet_collapse_description">"पुछारको पाना कोल्याप्स गर्नुहोस्"</string>
+    <string msgid="1918297411568599192" name="bottom_sheet_dismiss_description">"पुछारको पाना हटाउनुहोस्"</string>
+    <string msgid="7772321844937772780" name="bottom_sheet_drag_handle_description">"ड्र्याग ह्यान्डल"</string>
+    <string msgid="4324434199045499117" name="bottom_sheet_expand_description">"पुछारको पाना एक्स्पान्ड गर्नुहोस्"</string>
+    <string msgid="881409763997275156" name="call_notification_answer_action">"जवाफ दिनुहोस्"</string>
+    <string msgid="8793775615905189152" name="call_notification_answer_video_action">"भिडियो"</string>
+    <string msgid="3229508546291798546" name="call_notification_decline_action">"काट्नुहोस्"</string>
+    <string msgid="2659457946726154263" name="call_notification_hang_up_action">"फोन राख्नुहोस्"</string>
+    <string msgid="6107532579223922871" name="call_notification_incoming_text">"आगमन कल"</string>
+    <string msgid="8623827134497363134" name="call_notification_ongoing_text">"भइरहेको कल"</string>
+    <string msgid="59049573811482460" name="call_notification_screening_text">"आगमन कल जाँचिँदै छ"</string>
+    <string msgid="406453423630273620" name="close_drawer">"नेभिगेसन मेनु बन्द गर्नुहोस्"</string>
+    <string msgid="7573152094250666567" name="close_sheet">"पाना बन्द गर्नुहोस्"</string>
+    <string msgid="5389587048670450460" name="collapsed">"कोल्याप्स गरियो"</string>
+    <string msgid="3499643850558715142" name="date_input_headline">"हालिएको मिति"</string>
+    <string msgid="8562356184193964298" name="date_input_headline_description">"हालिएको मिति: %1$s"</string>
+    <string msgid="5281836720766682161" name="date_input_invalid_for_pattern">"हालिएको मितिको ढाँचा अपेक्षित ढाँचासँग मिलेन: %1$s"</string>
+    <string msgid="6114792992433444995" name="date_input_invalid_not_allowed">"यो मिति हाल्न पाइँदैन: %1$s"</string>
+    <string msgid="8434112129235255568" name="date_input_invalid_year_range">"हालिएको मिति सालको अपेक्षित दायरा (%1$s - %2$s) भित्र पर्दैन"</string>
+    <string msgid="5194825853981987218" name="date_input_label">"मिति"</string>
+    <string msgid="5722931102250207748" name="date_input_no_input_description">"कुनै पनि होइन"</string>
+    <string msgid="3010396677286327048" name="date_input_title">"मिति चयन गर्नुहोस्"</string>
+    <string msgid="2846784065735639969" name="date_picker_headline">"चयन गरिएको मिति"</string>
+    <string msgid="4627306862713137085" name="date_picker_headline_description">"हालको छनौट: %1$s"</string>
+    <string msgid="5152441868029453612" name="date_picker_navigate_to_year_description">"साल %1$s मा जानुहोस्"</string>
+    <string msgid="5724377114289981899" name="date_picker_no_selection_description">"कुनै पनि होइन"</string>
+    <string msgid="8911933542023210271" name="date_picker_scroll_to_earlier_years">"विगतका सालहरूको जानकारी हेर्न स्क्रोल गर्नुहोस्"</string>
+    <string msgid="3226341140390493774" name="date_picker_scroll_to_later_years">"आगामी सालहरूको जानकारी हेर्न स्क्रोल गर्नुहोस्"</string>
+    <string msgid="9029369254443419167" name="date_picker_switch_to_calendar_mode">"पात्रोको इनपुट मोड प्रयोग गर्नुहोस्"</string>
+    <string msgid="145089358343568971" name="date_picker_switch_to_day_selection">"कुनै साल छनौट गर्न स्वाइप गर्नुहोस् वा दिन चयन गर्न ट्याप गर्नुहोस्"</string>
+    <string msgid="1496750567914156598" name="date_picker_switch_to_input_mode">"टेक्स्ट इनपुट मोड प्रयोग गर्नुहोस्"</string>
+    <string msgid="8313783187901412102" name="date_picker_switch_to_next_month">"हाल चयन गरिएको महिना परिवर्तन गरी आगामी महिना बनाउनुहोस्"</string>
+    <string msgid="7596294429748914881" name="date_picker_switch_to_previous_month">"हाल चयन गरिएको महिना परिवर्तन गरी अघिल्लो महिना बनाउनुहोस्"</string>
+    <string msgid="3412370019845183965" name="date_picker_switch_to_year_selection">"साल चयन गर्ने फिल्डमा जानुहोस्"</string>
+    <string msgid="9208721003668059792" name="date_picker_title">"मिति चयन गर्नुहोस्"</string>
+    <string msgid="4775802721403526937" name="date_picker_today_description">"आज"</string>
+    <string msgid="8140324713311804736" name="date_picker_year_picker_pane_title">"साल पिकर देखिएको छ"</string>
+    <string msgid="1891592555781755601" name="date_range_input_invalid_range_input">"मितिको अवैध दायरा तोकियो"</string>
+    <string msgid="2366412111888449406" name="date_range_input_title">"मितिहरू हाल्नुहोस्"</string>
+    <string msgid="9048690781645835833" name="date_range_picker_day_in_range">"चयन गरिएका मितिभित्र पर्ने"</string>
+    <string msgid="4766270708882012148" name="date_range_picker_end_headline">"समापन हुने मिति"</string>
+    <string msgid="51495506931835470" name="date_range_picker_scroll_to_next_month">"अर्को महिनाको जानकारी हेर्न स्क्रोल गर्नुहोस्"</string>
+    <string msgid="4371570854614540700" name="date_range_picker_scroll_to_previous_month">"गत महिनाको जानकारी हेर्न स्क्रोल गर्नुहोस्"</string>
+    <string msgid="5759491386723090559" name="date_range_picker_start_headline">"सुरु हुने मिति"</string>
+    <string msgid="690080476639943577" name="date_range_picker_title">"मितिहरू चयन गर्नुहोस्"</string>
+    <string msgid="8038256446254964252" name="default_error_message">"अवैद्य इन्पुट"</string>
+    <string name="default_notification_channel_name">अहिले प्ले भइरहेको</string>
+    <string msgid="6312721426453364202" name="default_popup_window_title">"पपअप विन्डो"</string>
+    <string msgid="4057925834421392736" name="dialog">"डायलग"</string>
+    <string msgid="1890207353314751437" name="dropdown_menu">"ड्रपडाउन मेनु"</string>
+    <string name="exo_controls_cc_disabled_description">सबटाइटलहरू सक्षम पार्नुहोस्</string>
+    <string name="exo_controls_cc_enabled_description">सबटाइटलहरू असक्षम पार्नुहोस्</string>
+    <string name="exo_controls_fastforward_description">फास्ट फर्वार्ड गर्नुहोस्</string>
+    <string name="exo_controls_fullscreen_enter_description">पूर्ण स्क्रिन मोडमा खोल्नुहोस्</string>
+    <string name="exo_controls_fullscreen_exit_description">पूर्ण स्क्रिन मोडबाट बाहिरिनुहोस्</string>
+    <string name="exo_controls_hide">प्लेयरसम्बन्धी नियन्त्रणहरू लुकाउनुहोस्</string>
+    <string name="exo_controls_next_description">अर्को</string>
+    <string name="exo_controls_overflow_hide_description">अतिरिक्त सेटिङहरू लुकाइयोस्</string>
+    <string name="exo_controls_overflow_show_description">अतिरिक्त सेटिङहरू देखाइयोस्</string>
+    <string name="exo_controls_pause_description">पज गर्नुहोस्</string>
+    <string name="exo_controls_play_description">प्ले गर्नुहोस्</string>
+    <string name="exo_controls_playback_speed">गति</string>
+    <string name="exo_controls_previous_description">अघिल्लो</string>
+    <string name="exo_controls_repeat_all_description">हालको मोड: सबै दोहोरिने। दोहोरिने मोड टगल गर्नुहोस्।</string>
+    <string name="exo_controls_repeat_off_description">हालको मोड: नदोहोरिने। दोहोरिने मोड टगल गर्नुहोस्।</string>
+    <string name="exo_controls_repeat_one_description">हालको मोड: एक पटक दोहोरिने। दोहोरिने मोड टगल गर्नुहोस्।</string>
+    <string name="exo_controls_rewind_description">रिवाइन्ड गर्नुहोस्</string>
+    <string name="exo_controls_seek_bar_description">हालसम्म भिडियो प्ले भएको अवधि</string>
+    <string name="exo_controls_settings_description">सेटिङ</string>
+    <string name="exo_controls_show">प्लेयरसम्बन्धी नियन्त्रणहरू देखाउनुहोस्</string>
+    <string name="exo_controls_shuffle_off_description">सफल मोड अन गर्नुहोस्</string>
+    <string name="exo_controls_shuffle_on_description">सफल मोड अफ गर्नुहोस्</string>
+    <string name="exo_controls_stop_description">रोक्नुहोस्</string>
+    <string name="exo_controls_vr_description">VR मोड</string>
+    <string name="exo_download_completed">डाउनलोड सम्पन्न भयो</string>
+    <string name="exo_download_description">डाउनलोड गर्नुहोस्</string>
+    <string name="exo_download_downloading">डाउनलोड गरिँदै छ</string>
+    <string name="exo_download_failed">डाउनलोड गर्न सकिएन</string>
+    <string name="exo_download_notification_channel_name">डाउनलोडहरू</string>
+    <string name="exo_download_paused">डाउनलोड गर्ने कार्य पज गरियो</string>
+    <string name="exo_download_paused_for_network">इन्टरनेटमा कनेक्ट भएपछि डाउनलोड गरिने छ</string>
+    <string name="exo_download_paused_for_wifi">WiFi मा कनेक्ट भएपछि डाउनलोड गरिने छ</string>
+    <string name="exo_download_removing">डाउनलोडहरू हटाउँदै</string>
+    <string name="exo_item_list">%1$s, %2$s</string>
+    <string name="exo_track_bitrate">%1$.2f Mbps</string>
+    <string name="exo_track_mono">मोनो</string>
+    <string name="exo_track_resolution">%1$d × %2$d</string>
+    <string name="exo_track_role_alternate">वैकल्पिक</string>
+    <string name="exo_track_role_closed_captions">उपशीर्षकहरू</string>
+    <string name="exo_track_role_commentary">टिप्पणी</string>
+    <string name="exo_track_role_supplementary">पूरक</string>
+    <string name="exo_track_selection_auto">स्वतः</string>
+    <string name="exo_track_selection_none">कुनै पनि होइन</string>
+    <string name="exo_track_selection_title_audio">अडियो</string>
+    <string name="exo_track_selection_title_text">पाठ</string>
+    <string name="exo_track_selection_title_video">भिडियो</string>
+    <string name="exo_track_stereo">स्टेरियो</string>
+    <string name="exo_track_surround">सराउन्ड साउन्ड</string>
+    <string name="exo_track_surround_5_point_1">5.1 सराउन्ड साउन्ड</string>
+    <string name="exo_track_surround_7_point_1">7.1 सराउन्ड साउन्ड</string>
+    <string name="exo_track_unknown">अज्ञात</string>
+    <string msgid="5974471714631304645" name="expanded">"एक्स्पान्ड गरियो"</string>
+    <string msgid="6827826412747255547" name="in_progress">"काम हुँदै छ"</string>
+    <string msgid="7933458017204019916" name="indeterminate">"आंशिक रूपमा जाँच गरिएको"</string>
+    <string name="media3_controls_pause_description">पज गर्नुहोस्</string>
+    <string name="media3_controls_play_description">प्ले गर्नुहोस्</string>
+    <string name="media3_controls_seek_back_description">पछाडि जानुहोस्</string>
+    <string name="media3_controls_seek_forward_description">अगाडि जानुहोस्</string>
+    <string name="media3_controls_seek_to_next_description">अर्को वस्तुमा जानुहोस्</string>
+    <string name="media3_controls_seek_to_previous_description">अघिल्लो वस्तुमा जानुहोस्</string>
+    <string msgid="542007171693138492" name="navigation_menu">"नेभिगेसन मेनु"</string>
+    <string msgid="6610465462668679431" name="not_selected">"चयन गरिएको छैन"</string>
+    <string msgid="875452955155264703" name="off">"अफ छ"</string>
+    <string msgid="8655164131929253426" name="on">"अन छ"</string>
+    <string msgid="5941395253238309765" name="range_end">"दायराको अन्तिम बिन्दु"</string>
+    <string msgid="7097486360902471446" name="range_start">"दायराको सुरुवात बिन्दु"</string>
+    <string msgid="6420018528474762666" name="search_bar_search">"खोज्नुहोस्"</string>
+    <string msgid="6043586758067023" name="selected">"चयन गरिएको छ"</string>
+    <string msgid="3962933905051144957" name="snackbar_dismiss">"हटाउनुहोस्"</string>
+    <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"९९९+"</string>
+    <string msgid="7189888345201419934" name="suggestions_available">"सुझावहरू तल दिइएका छन्"</string>
+    <string msgid="2561197295334830845" name="switch_role">"बदल्नुहोस्"</string>
+    <string msgid="1672349317127674378" name="tab">"ट्याब"</string>
+    <string msgid="5946805113151406391" name="template_percent">"<ns1:g id="PERCENTAGE">%1$d</ns1:g> प्रतिशत।"</string>
+    <string msgid="5096144640014509074" name="time_picker_am">"AM"</string>
+    <string msgid="7241191970823415723" name="time_picker_hour">"घण्टा"</string>
+    <string msgid="4149641012513526783" name="time_picker_hour_24h_suffix">"%1$d घण्टा"</string>
+    <string msgid="6081676287789101196" name="time_picker_hour_selection">"घण्टा चयन गर्नुहोस्"</string>
+    <string msgid="6952032626122080528" name="time_picker_hour_suffix">"%1$d बजे"</string>
+    <string msgid="5298761125390275834" name="time_picker_hour_text_field">"घण्टाका लागि"</string>
+    <string msgid="6116528647594005945" name="time_picker_minute">"मिनेट"</string>
+    <string msgid="8494777394375441602" name="time_picker_minute_selection">"मिनेट चयन गर्नुहोस्"</string>
+    <string msgid="3206486707779478173" name="time_picker_minute_suffix">"%1$d मिनेट"</string>
+    <string msgid="994099543833979061" name="time_picker_minute_text_field">"मिनेटका लागि"</string>
+    <string msgid="7352665290700284516" name="time_picker_period_toggle_description">"पूर्वाह्न वा अपराह्न चयन गर्नुहोस्"</string>
+    <string msgid="2232702812657998674" name="time_picker_pm">"PM"</string>
+    <string msgid="2732804537909054941" name="tooltip_long_press_label">"टुलटिप देखाइयोस्"</string>
+    <string msgid="8191239805703103845" name="tooltip_pane_description">"टुलटिप"</string>
+</resources>

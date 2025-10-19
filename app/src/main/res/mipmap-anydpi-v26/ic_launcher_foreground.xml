@@ -1,0 +1,35 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Clean Professional Logo - Modern Play Button with Gradient Ring -->
+    
+    <!-- Outer gradient ring - Purple to Blue -->
+    <path
+        android:fillColor="#6366F1"
+        android:pathData="M54,24 A30,30 0 1,1 54,84 A30,30 0 1,1 54,24 Z M54,30 A24,24 0 1,0 54,78 A24,24 0 1,0 54,30 Z"/>
+    
+    <!-- Inner circle background -->
+    <path
+        android:fillColor="#1E293B"
+        android:pathData="M54,32 A22,22 0 1,1 54,76 A22,22 0 1,1 54,32 Z"/>
+    
+    <!-- Play button triangle - White with subtle gradient -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46,42 L46,66 L68,54 Z"/>
+    
+    <!-- Accent highlight on ring -->
+    <path
+        android:fillColor="#8B5CF6"
+        android:pathData="M54,24 A30,30 0 0,1 74,36 L68,40 A24,24 0 0,0 54,30 Z"/>
+    
+    <!-- Subtle shadow for depth -->
+    <path
+        android:fillColor="#0F172A"
+        android:fillAlpha="0.3"
+        android:pathData="M54,76 A22,22 0 0,1 38,66 L38,67 A23,23 0 0,0 54,77 Z"/>
+        
+</vector>

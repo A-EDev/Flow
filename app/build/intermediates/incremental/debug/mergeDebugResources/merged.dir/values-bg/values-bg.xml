@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:ns1="urn:oasis:names:tc:xliff:document:1.2">
+    <string-array name="exo_controls_playback_speeds">
+    <item>0,25x</item>
+    <item>0,5x</item>
+    <item>0,75x</item>
+    <item>Нормално</item>
+    <item>1,25x</item>
+    <item>1,5x</item>
+    <item>2x</item>
+  </string-array>
+    <plurals name="exo_controls_fastforward_by_amount_description">
+    <item quantity="one">Превъртане с %d секунда напред</item>
+    <item quantity="other">Превъртане с(ъс) %d секунди напред</item>
+  </plurals>
+    <plurals name="exo_controls_rewind_by_amount_description">
+    <item quantity="one">Превъртане с %d секунда назад</item>
+    <item quantity="other">Превъртане с(ъс) %d секунди назад</item>
+  </plurals>
+    <string name="authentication_required">Изисква се удостоверяване</string>
+    <string msgid="6128938260108474660" name="bottom_sheet_collapse_description">"Свиване на долния лист"</string>
+    <string msgid="1918297411568599192" name="bottom_sheet_dismiss_description">"Отхвърляне на долния лист"</string>
+    <string msgid="7772321844937772780" name="bottom_sheet_drag_handle_description">"Манипулатор за преместване с плъзгане"</string>
+    <string msgid="4324434199045499117" name="bottom_sheet_expand_description">"Разгъване на долния лист"</string>
+    <string msgid="881409763997275156" name="call_notification_answer_action">"Отговор"</string>
+    <string msgid="8793775615905189152" name="call_notification_answer_video_action">"Видеообаждане"</string>
+    <string msgid="3229508546291798546" name="call_notification_decline_action">"Отхвърляне"</string>
+    <string msgid="2659457946726154263" name="call_notification_hang_up_action">"Затваряне"</string>
+    <string msgid="6107532579223922871" name="call_notification_incoming_text">"Входящо обаждане"</string>
+    <string msgid="8623827134497363134" name="call_notification_ongoing_text">"Текущо обаждане"</string>
+    <string msgid="59049573811482460" name="call_notification_screening_text">"Преглежда се входящо обаждане"</string>
+    <string msgid="406453423630273620" name="close_drawer">"Затваряне на менюто за навигация"</string>
+    <string msgid="7573152094250666567" name="close_sheet">"Затваряне на таблицата"</string>
+    <string msgid="5389587048670450460" name="collapsed">"Свито"</string>
+    <string msgid="3499643850558715142" name="date_input_headline">"Въведена дата"</string>
+    <string msgid="8562356184193964298" name="date_input_headline_description">"Въведена дата: %1$s"</string>
+    <string msgid="5281836720766682161" name="date_input_invalid_for_pattern">"Датата не е в очаквания формат: %1$s"</string>
+    <string msgid="6114792992433444995" name="date_input_invalid_not_allowed">"Датата не е разрешена: %1$s"</string>
+    <string msgid="8434112129235255568" name="date_input_invalid_year_range">"Датата е извън очаквания годишен диапазон: %1$s – %2$s"</string>
+    <string msgid="5194825853981987218" name="date_input_label">"Дата"</string>
+    <string msgid="5722931102250207748" name="date_input_no_input_description">"Няма"</string>
+    <string msgid="3010396677286327048" name="date_input_title">"Избиране на дата"</string>
+    <string msgid="2846784065735639969" name="date_picker_headline">"Избрана дата"</string>
+    <string msgid="4627306862713137085" name="date_picker_headline_description">"Текущ избор: %1$s"</string>
+    <string msgid="5152441868029453612" name="date_picker_navigate_to_year_description">"Навигиране до %1$s година"</string>
+    <string msgid="5724377114289981899" name="date_picker_no_selection_description">"Без"</string>
+    <string msgid="8911933542023210271" name="date_picker_scroll_to_earlier_years">"Превъртете, за да видите миналите години"</string>
+    <string msgid="3226341140390493774" name="date_picker_scroll_to_later_years">"Превъртете, за да видите следващите години"</string>
+    <string msgid="9029369254443419167" name="date_picker_switch_to_calendar_mode">"Превключване към режим за въвеждане в календар"</string>
+    <string msgid="145089358343568971" name="date_picker_switch_to_day_selection">"Прекарайте пръст, за да изберете година, или докоснете, за да се върнете към избора на ден"</string>
+    <string msgid="1496750567914156598" name="date_picker_switch_to_input_mode">"Превключване към режим за въвеждане на текст"</string>
+    <string msgid="8313783187901412102" name="date_picker_switch_to_next_month">"Преминаване към следващия месец"</string>
+    <string msgid="7596294429748914881" name="date_picker_switch_to_previous_month">"Преминаване към предишния месец"</string>
+    <string msgid="3412370019845183965" name="date_picker_switch_to_year_selection">"Превключване към избиране на година"</string>
+    <string msgid="9208721003668059792" name="date_picker_title">"Избиране на дата"</string>
+    <string msgid="4775802721403526937" name="date_picker_today_description">"Днес"</string>
+    <string msgid="8140324713311804736" name="date_picker_year_picker_pane_title">"Инструментът за избор на година е видим"</string>
+    <string msgid="1891592555781755601" name="date_range_input_invalid_range_input">"Въведен е невалиден период от време"</string>
+    <string msgid="2366412111888449406" name="date_range_input_title">"Въведете дати"</string>
+    <string msgid="9048690781645835833" name="date_range_picker_day_in_range">"В диапазона"</string>
+    <string msgid="4766270708882012148" name="date_range_picker_end_headline">"Крайна дата"</string>
+    <string msgid="51495506931835470" name="date_range_picker_scroll_to_next_month">"Превъртете, за да видите следващия месец"</string>
+    <string msgid="4371570854614540700" name="date_range_picker_scroll_to_previous_month">"Превъртете, за да видите предишния месец"</string>
+    <string msgid="5759491386723090559" name="date_range_picker_start_headline">"Начална дата"</string>
+    <string msgid="690080476639943577" name="date_range_picker_title">"Избиране на дати"</string>
+    <string msgid="8038256446254964252" name="default_error_message">"Въведеното е невалидно"</string>
+    <string name="default_notification_channel_name">Възпроизвеждано сега съдържание</string>
+    <string msgid="6312721426453364202" name="default_popup_window_title">"Изскачащ прозорец"</string>
+    <string msgid="4057925834421392736" name="dialog">"Диалогов прозорец"</string>
+    <string msgid="1890207353314751437" name="dropdown_menu">"Падащо меню"</string>
+    <string name="exo_controls_cc_disabled_description">Активиране на субтитрите</string>
+    <string name="exo_controls_cc_enabled_description">Деактивиране на субтитрите</string>
+    <string name="exo_controls_fastforward_description">Превъртане напред</string>
+    <string name="exo_controls_fullscreen_enter_description">Вход в цял екран</string>
+    <string name="exo_controls_fullscreen_exit_description">Изход от цял екран</string>
+    <string name="exo_controls_hide">Скриване на контролите на плейъра</string>
+    <string name="exo_controls_next_description">Напред</string>
+    <string name="exo_controls_overflow_hide_description">Скриване на допълнителните настройки</string>
+    <string name="exo_controls_overflow_show_description">Показване на допълнителните настройки</string>
+    <string name="exo_controls_pause_description">Поставяне на пауза</string>
+    <string name="exo_controls_play_description">Възпроизвеждане</string>
+    <string name="exo_controls_playback_speed">Скорост</string>
+    <string name="exo_controls_previous_description">Назад</string>
+    <string name="exo_controls_repeat_all_description">Текущ режим: Повтар. на всички. Превкл. режима за повтаряне.</string>
+    <string name="exo_controls_repeat_off_description">Текущ режим: Без повтаряне. Превкл. режима за повтаряне.</string>
+    <string name="exo_controls_repeat_one_description">Текущ режим: Повтар. на 1 елемент. Превкл. режима за повтаряне.</string>
+    <string name="exo_controls_rewind_description">Превъртане назад</string>
+    <string name="exo_controls_seek_bar_description">Напредък на възпроизвеждането</string>
+    <string name="exo_controls_settings_description">Настройки</string>
+    <string name="exo_controls_show">Показване на контролите на плейъра</string>
+    <string name="exo_controls_shuffle_off_description">Активиране на режима за разбъркване</string>
+    <string name="exo_controls_shuffle_on_description">Деактивиране на режима за разбъркване</string>
+    <string name="exo_controls_stop_description">Спиране</string>
+    <string name="exo_controls_vr_description">режим за VR</string>
+    <string name="exo_download_completed">Изтеглянето завърши</string>
+    <string name="exo_download_description">Изтегляне</string>
+    <string name="exo_download_downloading">Изтегля се</string>
+    <string name="exo_download_failed">Изтеглянето не бе успешно</string>
+    <string name="exo_download_notification_channel_name">Изтегляния</string>
+    <string name="exo_download_paused">Изтеглянията са на пауза</string>
+    <string name="exo_download_paused_for_network">Изтеглянията чакат връзка с интернет</string>
+    <string name="exo_download_paused_for_wifi">Изтеглянията чакат връзка с Wi-Fi</string>
+    <string name="exo_download_removing">Изтеглянията се премахват</string>
+    <string name="exo_item_list">%1$s – %2$s</string>
+    <string name="exo_track_bitrate">%1$.2f Мб/сек</string>
+    <string name="exo_track_mono">Моно</string>
+    <string name="exo_track_resolution">%1$d × %2$d</string>
+    <string name="exo_track_role_alternate">Алтернативен запис</string>
+    <string name="exo_track_role_closed_captions">Субтитри</string>
+    <string name="exo_track_role_commentary">Коментар</string>
+    <string name="exo_track_role_supplementary">Допълнителен запис</string>
+    <string name="exo_track_selection_auto">Автоматично</string>
+    <string name="exo_track_selection_none">Нищо</string>
+    <string name="exo_track_selection_title_audio">Аудиозапис</string>
+    <string name="exo_track_selection_title_text">Текст</string>
+    <string name="exo_track_selection_title_video">Видеозапис</string>
+    <string name="exo_track_stereo">Стерео</string>
+    <string name="exo_track_surround">Обемен звук</string>
+    <string name="exo_track_surround_5_point_1">5,1-канален обемен звук</string>
+    <string name="exo_track_surround_7_point_1">7,1-канален обемен звук</string>
+    <string name="exo_track_unknown">Неизвестно</string>
+    <string msgid="5974471714631304645" name="expanded">"Разгънато"</string>
+    <string msgid="6827826412747255547" name="in_progress">"В ход"</string>
+    <string msgid="7933458017204019916" name="indeterminate">"Частично отметнато"</string>
+    <string name="media3_controls_pause_description">Пауза</string>
+    <string name="media3_controls_play_description">Пускане</string>
+    <string name="media3_controls_seek_back_description">Придвижване назад</string>
+    <string name="media3_controls_seek_forward_description">Придвижване напред</string>
+    <string name="media3_controls_seek_to_next_description">Придвижване към следващия елемент</string>
+    <string name="media3_controls_seek_to_previous_description">Придвижване към предишния елемент</string>
+    <string msgid="542007171693138492" name="navigation_menu">"Меню за навигация"</string>
+    <string msgid="6610465462668679431" name="not_selected">"Не е избрано"</string>
+    <string msgid="875452955155264703" name="off">"Изкл."</string>
+    <string msgid="8655164131929253426" name="on">"Вкл."</string>
+    <string msgid="5941395253238309765" name="range_end">"Край на обхвата"</string>
+    <string msgid="7097486360902471446" name="range_start">"Начало на обхвата"</string>
+    <string msgid="6420018528474762666" name="search_bar_search">"Търсене"</string>
+    <string msgid="6043586758067023" name="selected">"Избрано"</string>
+    <string msgid="3962933905051144957" name="snackbar_dismiss">"Отхвърляне"</string>
+    <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
+    <string msgid="7189888345201419934" name="suggestions_available">"Предложенията са по-долу"</string>
+    <string msgid="2561197295334830845" name="switch_role">"Превключване"</string>
+    <string msgid="1672349317127674378" name="tab">"Раздел"</string>
+    <string msgid="5946805113151406391" name="template_percent">"<ns1:g id="PERCENTAGE">%1$d</ns1:g> процента."</string>
+    <string msgid="5096144640014509074" name="time_picker_am">"AM"</string>
+    <string msgid="7241191970823415723" name="time_picker_hour">"Час"</string>
+    <string msgid="4149641012513526783" name="time_picker_hour_24h_suffix">"%1$d часа"</string>
+    <string msgid="6081676287789101196" name="time_picker_hour_selection">"Избиране на час"</string>
+    <string msgid="6952032626122080528" name="time_picker_hour_suffix">"%1$d часа"</string>
+    <string msgid="5298761125390275834" name="time_picker_hour_text_field">"за часа"</string>
+    <string msgid="6116528647594005945" name="time_picker_minute">"Минута"</string>
+    <string msgid="8494777394375441602" name="time_picker_minute_selection">"Избиране на минути"</string>
+    <string msgid="3206486707779478173" name="time_picker_minute_suffix">"%1$d минути"</string>
+    <string msgid="994099543833979061" name="time_picker_minute_text_field">"за минутите"</string>
+    <string msgid="7352665290700284516" name="time_picker_period_toggle_description">"Изберете AM или PM"</string>
+    <string msgid="2232702812657998674" name="time_picker_pm">"PM"</string>
+    <string msgid="2732804537909054941" name="tooltip_long_press_label">"Показване на подсказка"</string>
+    <string msgid="8191239805703103845" name="tooltip_pane_description">"Подсказка"</string>
+</resources>

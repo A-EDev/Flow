@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:ns1="urn:oasis:names:tc:xliff:document:1.2">
+    <string-array name="exo_controls_playback_speeds">
+    <item>0,25x</item>
+    <item>0,5x</item>
+    <item>0,75x</item>
+    <item>Normale</item>
+    <item>1,25x</item>
+    <item>1,5x</item>
+    <item>2x</item>
+  </string-array>
+    <plurals name="exo_controls_fastforward_by_amount_description">
+    <item quantity="one">Shpejt përpara %d sekondë</item>
+    <item quantity="other">Shpejt përpara %d sekonda</item>
+  </plurals>
+    <plurals name="exo_controls_rewind_by_amount_description">
+    <item quantity="one">Shko prapa %d sekondë</item>
+    <item quantity="other">Shko prapa %d sekonda</item>
+  </plurals>
+    <string name="authentication_required">Kërkohet vërtetimi</string>
+    <string msgid="6128938260108474660" name="bottom_sheet_collapse_description">"Palos fletën e poshtme"</string>
+    <string msgid="1918297411568599192" name="bottom_sheet_dismiss_description">"Hiq fletën e poshtme"</string>
+    <string msgid="7772321844937772780" name="bottom_sheet_drag_handle_description">"Doreza e zvarritjes"</string>
+    <string msgid="4324434199045499117" name="bottom_sheet_expand_description">"Zgjero fletën e poshtme"</string>
+    <string msgid="881409763997275156" name="call_notification_answer_action">"Përgjigju"</string>
+    <string msgid="8793775615905189152" name="call_notification_answer_video_action">"Video"</string>
+    <string msgid="3229508546291798546" name="call_notification_decline_action">"Refuzo"</string>
+    <string msgid="2659457946726154263" name="call_notification_hang_up_action">"Mbyll"</string>
+    <string msgid="6107532579223922871" name="call_notification_incoming_text">"Telefonatë hyrëse"</string>
+    <string msgid="8623827134497363134" name="call_notification_ongoing_text">"Telefonatë në vazhdim"</string>
+    <string msgid="59049573811482460" name="call_notification_screening_text">"Po filtron një telefonatë hyrëse"</string>
+    <string msgid="406453423630273620" name="close_drawer">"Mbyll menynë e navigimit"</string>
+    <string msgid="7573152094250666567" name="close_sheet">"Mbyll fletën"</string>
+    <string msgid="5389587048670450460" name="collapsed">"U palos"</string>
+    <string msgid="3499643850558715142" name="date_input_headline">"Data e futur"</string>
+    <string msgid="8562356184193964298" name="date_input_headline_description">"Data e futur: %1$s"</string>
+    <string msgid="5281836720766682161" name="date_input_invalid_for_pattern">"Data nuk përputhet me motivin e pritur: %1$s"</string>
+    <string msgid="6114792992433444995" name="date_input_invalid_not_allowed">"Data nuk lejohet: %1$s"</string>
+    <string msgid="8434112129235255568" name="date_input_invalid_year_range">"Data jashtë diapazonit të pritur të vitit %1$s - %2$s"</string>
+    <string msgid="5194825853981987218" name="date_input_label">"Data"</string>
+    <string msgid="5722931102250207748" name="date_input_no_input_description">"Asnjë"</string>
+    <string msgid="3010396677286327048" name="date_input_title">"Zgjidh datën"</string>
+    <string msgid="2846784065735639969" name="date_picker_headline">"Data e zgjedhur"</string>
+    <string msgid="4627306862713137085" name="date_picker_headline_description">"Zgjedhja aktuale: %1$s"</string>
+    <string msgid="5152441868029453612" name="date_picker_navigate_to_year_description">"Navigo në vitin %1$s"</string>
+    <string msgid="5724377114289981899" name="date_picker_no_selection_description">"Asnjë"</string>
+    <string msgid="8911933542023210271" name="date_picker_scroll_to_earlier_years">"Lëviz për të shfaqur vitet e mëparshme"</string>
+    <string msgid="3226341140390493774" name="date_picker_scroll_to_later_years">"Lëviz për të shfaqur vitet e ardhshme"</string>
+    <string msgid="9029369254443419167" name="date_picker_switch_to_calendar_mode">"Kalo te modaliteti i \"Hyrjes së kalendarit\""</string>
+    <string msgid="145089358343568971" name="date_picker_switch_to_day_selection">"Rrëshqit shpejt për të zgjedhur një vit ose trokit për të kaluar sërish te zgjedhja e ditës"</string>
+    <string msgid="1496750567914156598" name="date_picker_switch_to_input_mode">"Kalo te modaliteti i \"Hyrjes së tekstit\""</string>
+    <string msgid="8313783187901412102" name="date_picker_switch_to_next_month">"Ndrysho te muaji i ardhshëm"</string>
+    <string msgid="7596294429748914881" name="date_picker_switch_to_previous_month">"Ndrysho te muaji i kaluar"</string>
+    <string msgid="3412370019845183965" name="date_picker_switch_to_year_selection">"Kalo te zgjedhja e një viti"</string>
+    <string msgid="9208721003668059792" name="date_picker_title">"Zgjidh datën"</string>
+    <string msgid="4775802721403526937" name="date_picker_today_description">"Sot"</string>
+    <string msgid="8140324713311804736" name="date_picker_year_picker_pane_title">"Zgjedhësi i vitit i dukshëm"</string>
+    <string msgid="1891592555781755601" name="date_range_input_invalid_range_input">"Hyrje e pavlefshme e diapazonit të datave"</string>
+    <string msgid="2366412111888449406" name="date_range_input_title">"Fut datat"</string>
+    <string msgid="9048690781645835833" name="date_range_picker_day_in_range">"Brenda rrezes"</string>
+    <string msgid="4766270708882012148" name="date_range_picker_end_headline">"Data e mbarimit"</string>
+    <string msgid="51495506931835470" name="date_range_picker_scroll_to_next_month">"Lëviz për të shfaqur muajin e ardhshëm"</string>
+    <string msgid="4371570854614540700" name="date_range_picker_scroll_to_previous_month">"Lëviz për të shfaqur muajin e mëparshëm"</string>
+    <string msgid="5759491386723090559" name="date_range_picker_start_headline">"Data e fillimit"</string>
+    <string msgid="690080476639943577" name="date_range_picker_title">"Zgjidh datat"</string>
+    <string msgid="8038256446254964252" name="default_error_message">"Hyrje e pavlefshme"</string>
+    <string name="default_notification_channel_name">Gjej këngën</string>
+    <string msgid="6312721426453364202" name="default_popup_window_title">"Dritare kërcyese"</string>
+    <string msgid="4057925834421392736" name="dialog">"Dialogu"</string>
+    <string msgid="1890207353314751437" name="dropdown_menu">"Menyja me lëshim poshtë"</string>
+    <string name="exo_controls_cc_disabled_description">Aktivizo titrat</string>
+    <string name="exo_controls_cc_enabled_description">Çaktivizo titrat</string>
+    <string name="exo_controls_fastforward_description">Përparo me shpejtësi</string>
+    <string name="exo_controls_fullscreen_enter_description">Hyr në luajtjen me ekran të plotë</string>
+    <string name="exo_controls_fullscreen_exit_description">Dil nga ekrani i plotë</string>
+    <string name="exo_controls_hide">Fshih komandat e luajtësit</string>
+    <string name="exo_controls_next_description">Para</string>
+    <string name="exo_controls_overflow_hide_description">Fshih cilësimet shtesë</string>
+    <string name="exo_controls_overflow_show_description">Shfaq cilësimet shtesë</string>
+    <string name="exo_controls_pause_description">Pauzë</string>
+    <string name="exo_controls_play_description">Luaj</string>
+    <string name="exo_controls_playback_speed">Shpejtësia</string>
+    <string name="exo_controls_previous_description">Prapa</string>
+    <string name="exo_controls_repeat_all_description">Modaliteti aktual: Përsërit të gjitha. Aktivizo/çaktivizo modalitetin e përsëritjes.</string>
+    <string name="exo_controls_repeat_off_description">Modaliteti aktual: Mos përsërit asnjë. Aktivizo/çaktivizo modalitetin e përsëritjes.</string>
+    <string name="exo_controls_repeat_one_description">Modaliteti aktual: Përsërit një. Aktivizo/çaktivizo modalitetin e përsëritjes.</string>
+    <string name="exo_controls_rewind_description">Rikthe</string>
+    <string name="exo_controls_seek_bar_description">Progresi i luajtjes</string>
+    <string name="exo_controls_settings_description">Cilësimet</string>
+    <string name="exo_controls_show">Shfaq komandat e luajtësit</string>
+    <string name="exo_controls_shuffle_off_description">Aktivizo modalitetin e përzierjes</string>
+    <string name="exo_controls_shuffle_on_description">Çaktivizo modalitetin e përzierjes</string>
+    <string name="exo_controls_stop_description">Ndalo</string>
+    <string name="exo_controls_vr_description">Modaliteti RV</string>
+    <string name="exo_download_completed">Shkarkimi përfundoi</string>
+    <string name="exo_download_description">Shkarko</string>
+    <string name="exo_download_downloading">Po shkarkohet</string>
+    <string name="exo_download_failed">Shkarkimi dështoi</string>
+    <string name="exo_download_notification_channel_name">Shkarkimet</string>
+    <string name="exo_download_paused">Shkarkimet u vendosën në pauzë</string>
+    <string name="exo_download_paused_for_network">Shkarkimet në pritje të rrjetit</string>
+    <string name="exo_download_paused_for_wifi">Shkarkimet në pritje të WiFi</string>
+    <string name="exo_download_removing">Shkarkimet po hiqen</string>
+    <string name="exo_item_list">%1$s, %2$s</string>
+    <string name="exo_track_bitrate">%1$.2f Mbps</string>
+    <string name="exo_track_mono">Mono</string>
+    <string name="exo_track_resolution">%1$d × %2$d</string>
+    <string name="exo_track_role_alternate">Alternative</string>
+    <string name="exo_track_role_closed_captions">Titrat</string>
+    <string name="exo_track_role_commentary">Komente</string>
+    <string name="exo_track_role_supplementary">Plotësuese</string>
+    <string name="exo_track_selection_auto">Automatike</string>
+    <string name="exo_track_selection_none">Asnjë</string>
+    <string name="exo_track_selection_title_audio">Audio</string>
+    <string name="exo_track_selection_title_text">Tekst</string>
+    <string name="exo_track_selection_title_video">Video</string>
+    <string name="exo_track_stereo">Stereo</string>
+    <string name="exo_track_surround">Tingulli rrethues</string>
+    <string name="exo_track_surround_5_point_1">Tingull rrethues 5.1</string>
+    <string name="exo_track_surround_7_point_1">Tingull rrethues 7.1</string>
+    <string name="exo_track_unknown">E panjohur</string>
+    <string msgid="5974471714631304645" name="expanded">"U zgjerua"</string>
+    <string msgid="6827826412747255547" name="in_progress">"Në vazhdim"</string>
+    <string msgid="7933458017204019916" name="indeterminate">"Pjesërisht e shënuar"</string>
+    <string name="media3_controls_pause_description">Vendos në pauzë</string>
+    <string name="media3_controls_play_description">Luaj</string>
+    <string name="media3_controls_seek_back_description">Kërko prapa</string>
+    <string name="media3_controls_seek_forward_description">Kërko përpara</string>
+    <string name="media3_controls_seek_to_next_description">Kërko te artikulli tjetër</string>
+    <string name="media3_controls_seek_to_previous_description">Kërko te artikulli i mëparshëm</string>
+    <string msgid="542007171693138492" name="navigation_menu">"Menyja e navigimit"</string>
+    <string msgid="6610465462668679431" name="not_selected">"Nuk është zgjedhur"</string>
+    <string msgid="875452955155264703" name="off">"Joaktiv"</string>
+    <string msgid="8655164131929253426" name="on">"Aktiv"</string>
+    <string msgid="5941395253238309765" name="range_end">"Fundi i diapazonit"</string>
+    <string msgid="7097486360902471446" name="range_start">"Fillimi i diapazonit"</string>
+    <string msgid="6420018528474762666" name="search_bar_search">"Kërko"</string>
+    <string msgid="6043586758067023" name="selected">"Zgjedhur"</string>
+    <string msgid="3962933905051144957" name="snackbar_dismiss">"Hiq"</string>
+    <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
+    <string msgid="7189888345201419934" name="suggestions_available">"Sugjerimet më poshtë"</string>
+    <string msgid="2561197295334830845" name="switch_role">"Ndërro"</string>
+    <string msgid="1672349317127674378" name="tab">"Tab"</string>
+    <string msgid="5946805113151406391" name="template_percent">"<ns1:g id="PERCENTAGE">%1$d</ns1:g> për qind."</string>
+    <string msgid="5096144640014509074" name="time_picker_am">"PD"</string>
+    <string msgid="7241191970823415723" name="time_picker_hour">"Ora"</string>
+    <string msgid="4149641012513526783" name="time_picker_hour_24h_suffix">"%1$d orë"</string>
+    <string msgid="6081676287789101196" name="time_picker_hour_selection">"Zgjidh orën"</string>
+    <string msgid="6952032626122080528" name="time_picker_hour_suffix">"ora %1$d"</string>
+    <string msgid="5298761125390275834" name="time_picker_hour_text_field">"për orë"</string>
+    <string msgid="6116528647594005945" name="time_picker_minute">"Minuta"</string>
+    <string msgid="8494777394375441602" name="time_picker_minute_selection">"Përzgjidh minutat"</string>
+    <string msgid="3206486707779478173" name="time_picker_minute_suffix">"%1$d minuta"</string>
+    <string msgid="994099543833979061" name="time_picker_minute_text_field">"për minuta"</string>
+    <string msgid="7352665290700284516" name="time_picker_period_toggle_description">"Zgjidh paradite ose pasdite"</string>
+    <string msgid="2232702812657998674" name="time_picker_pm">"MD"</string>
+    <string msgid="2732804537909054941" name="tooltip_long_press_label">"Shfaq këshillat për veglën"</string>
+    <string msgid="8191239805703103845" name="tooltip_pane_description">"Këshilla për veglën"</string>
+</resources>

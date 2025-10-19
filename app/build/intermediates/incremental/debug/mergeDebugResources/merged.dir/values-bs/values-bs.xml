@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:ns1="urn:oasis:names:tc:xliff:document:1.2">
+    <string-array name="exo_controls_playback_speeds">
+    <item>0,25 x</item>
+    <item>0,5 x</item>
+    <item>0,75 x</item>
+    <item>Normalno</item>
+    <item>1,25 x</item>
+    <item>1,5 x</item>
+    <item>2 x</item>
+  </string-array>
+    <plurals name="exo_controls_fastforward_by_amount_description">
+    <item quantity="one">Premotavanje %d sekundu naprijed</item>
+    <item quantity="few">Premotavanje %d sekunde naprijed</item>
+    <item quantity="other">Premotavanje %d sekundi naprijed</item>
+  </plurals>
+    <plurals name="exo_controls_rewind_by_amount_description">
+    <item quantity="one">Premotavanje %d sekundu nazad</item>
+    <item quantity="few">Premotavanje %d sekunde nazad</item>
+    <item quantity="other">Premotavanje %d sekundi nazad</item>
+  </plurals>
+    <string name="authentication_required">Potrebna je autentifikacija</string>
+    <string msgid="6128938260108474660" name="bottom_sheet_collapse_description">"Sužavanje donje tabele"</string>
+    <string msgid="1918297411568599192" name="bottom_sheet_dismiss_description">"Odbacivanje donje tabele"</string>
+    <string msgid="7772321844937772780" name="bottom_sheet_drag_handle_description">"Ručica za prevlačenje"</string>
+    <string msgid="4324434199045499117" name="bottom_sheet_expand_description">"Proširivanje donje tabele"</string>
+    <string msgid="881409763997275156" name="call_notification_answer_action">"Odgovori"</string>
+    <string msgid="8793775615905189152" name="call_notification_answer_video_action">"Video"</string>
+    <string msgid="3229508546291798546" name="call_notification_decline_action">"Odbaci"</string>
+    <string msgid="2659457946726154263" name="call_notification_hang_up_action">"Prekini vezu"</string>
+    <string msgid="6107532579223922871" name="call_notification_incoming_text">"Dolazni poziv"</string>
+    <string msgid="8623827134497363134" name="call_notification_ongoing_text">"Poziv u toku"</string>
+    <string msgid="59049573811482460" name="call_notification_screening_text">"Filtriranje dolaznog poziva"</string>
+    <string msgid="406453423630273620" name="close_drawer">"Zatvaranje navigacionog menija"</string>
+    <string msgid="7573152094250666567" name="close_sheet">"Zatvaranje tabele"</string>
+    <string msgid="5389587048670450460" name="collapsed">"Suženo"</string>
+    <string msgid="3499643850558715142" name="date_input_headline">"Unesen je datum"</string>
+    <string msgid="8562356184193964298" name="date_input_headline_description">"Unesen je datum: %1$s"</string>
+    <string msgid="5281836720766682161" name="date_input_invalid_for_pattern">"Datumi se ne podudaraju s očekivanim obrascem: %1$s"</string>
+    <string msgid="6114792992433444995" name="date_input_invalid_not_allowed">"Datum nije dozvoljen: %1$s"</string>
+    <string msgid="8434112129235255568" name="date_input_invalid_year_range">"Datum je izvan očekivanog raspona %1$s – %2$s"</string>
+    <string msgid="5194825853981987218" name="date_input_label">"Datum"</string>
+    <string msgid="5722931102250207748" name="date_input_no_input_description">"Ništa"</string>
+    <string msgid="3010396677286327048" name="date_input_title">"Odaberite datum"</string>
+    <string msgid="2846784065735639969" name="date_picker_headline">"Odabrani datum"</string>
+    <string msgid="4627306862713137085" name="date_picker_headline_description">"Trenutni odabir: %1$s"</string>
+    <string msgid="5152441868029453612" name="date_picker_navigate_to_year_description">"Odlazak na %1$s. godinu"</string>
+    <string msgid="5724377114289981899" name="date_picker_no_selection_description">"Ništa"</string>
+    <string msgid="8911933542023210271" name="date_picker_scroll_to_earlier_years">"Kliznite da se prikažu ranije godine"</string>
+    <string msgid="3226341140390493774" name="date_picker_scroll_to_later_years">"Kliznite da se prikažu kasnije godine"</string>
+    <string msgid="9029369254443419167" name="date_picker_switch_to_calendar_mode">"Prebacivanje na način rada unosa kalendara"</string>
+    <string msgid="145089358343568971" name="date_picker_switch_to_day_selection">"Prevucite da odaberete godinu ili dodirnite da se vratite na odabir dana"</string>
+    <string msgid="1496750567914156598" name="date_picker_switch_to_input_mode">"Prebacivanje na način rada unosa teksta"</string>
+    <string msgid="8313783187901412102" name="date_picker_switch_to_next_month">"Promijeni na sljedeći mjesec"</string>
+    <string msgid="7596294429748914881" name="date_picker_switch_to_previous_month">"Promijeni na prethodni mjesec"</string>
+    <string msgid="3412370019845183965" name="date_picker_switch_to_year_selection">"Prebaci na odabir godine"</string>
+    <string msgid="9208721003668059792" name="date_picker_title">"Odabir datuma"</string>
+    <string msgid="4775802721403526937" name="date_picker_today_description">"Danas"</string>
+    <string msgid="8140324713311804736" name="date_picker_year_picker_pane_title">"Birač godine je vidljiv"</string>
+    <string msgid="1891592555781755601" name="date_range_input_invalid_range_input">"Nevažeći unos raspona datuma"</string>
+    <string msgid="2366412111888449406" name="date_range_input_title">"Unesite datume"</string>
+    <string msgid="9048690781645835833" name="date_range_picker_day_in_range">"U dometu"</string>
+    <string msgid="4766270708882012148" name="date_range_picker_end_headline">"Datum završetka"</string>
+    <string msgid="51495506931835470" name="date_range_picker_scroll_to_next_month">"Kliznite da se prikaže sljedeći mjesec"</string>
+    <string msgid="4371570854614540700" name="date_range_picker_scroll_to_previous_month">"Kliznite da se prikaže prethodni mjesec"</string>
+    <string msgid="5759491386723090559" name="date_range_picker_start_headline">"Datum početka"</string>
+    <string msgid="690080476639943577" name="date_range_picker_title">"Odaberite datume"</string>
+    <string msgid="8038256446254964252" name="default_error_message">"Pogrešan unos"</string>
+    <string name="default_notification_channel_name">Trenutno se reproducira</string>
+    <string msgid="6312721426453364202" name="default_popup_window_title">"Skočni prozor"</string>
+    <string msgid="4057925834421392736" name="dialog">"Dijaloški okvir"</string>
+    <string msgid="1890207353314751437" name="dropdown_menu">"Padajući meni"</string>
+    <string name="exo_controls_cc_disabled_description">Omogućavanje titlova</string>
+    <string name="exo_controls_cc_enabled_description">Onemogućavanje titlova</string>
+    <string name="exo_controls_fastforward_description">Premotavanje unaprijed</string>
+    <string name="exo_controls_fullscreen_enter_description">Prikaz preko cijelog ekrana</string>
+    <string name="exo_controls_fullscreen_exit_description">Isključ. prikaza preko cijelog ekrana</string>
+    <string name="exo_controls_hide">Sakrij kontrole plejera</string>
+    <string name="exo_controls_next_description">Naprijed</string>
+    <string name="exo_controls_overflow_hide_description">Sakrivanje dodatnih postavki</string>
+    <string name="exo_controls_overflow_show_description">Prikaz dodatnih postavki</string>
+    <string name="exo_controls_pause_description">Pauza</string>
+    <string name="exo_controls_play_description">Reproduciranje</string>
+    <string name="exo_controls_playback_speed">Brzina</string>
+    <string name="exo_controls_previous_description">Nazad</string>
+    <string name="exo_controls_repeat_all_description">Trenutni način: Ponovi sve. Uklj./isklj. ponavlj.</string>
+    <string name="exo_controls_repeat_off_description">Trenutni način: Ne ponavljaj. Uklj./isklj. ponavlj.</string>
+    <string name="exo_controls_repeat_one_description">Trenutni način: Ponovi jedno. Uklj./isklj. ponavlj.</string>
+    <string name="exo_controls_rewind_description">Premotavanje unazad</string>
+    <string name="exo_controls_seek_bar_description">Napredak reprodukcije</string>
+    <string name="exo_controls_settings_description">Postavke</string>
+    <string name="exo_controls_show">Prikaži kontrole plejera</string>
+    <string name="exo_controls_shuffle_off_description">Omogućavanje nasumičnog načina rada</string>
+    <string name="exo_controls_shuffle_on_description">Onemogućavanje nasumičnog načina rada</string>
+    <string name="exo_controls_stop_description">Zaustavljanje</string>
+    <string name="exo_controls_vr_description">VR način rada</string>
+    <string name="exo_download_completed">Preuzimanje je završeno</string>
+    <string name="exo_download_description">Preuzmi</string>
+    <string name="exo_download_downloading">Preuzimanje</string>
+    <string name="exo_download_failed">Preuzimanje nije uspjelo</string>
+    <string name="exo_download_notification_channel_name">Preuzimanja</string>
+    <string name="exo_download_paused">Preuzimanja su pauzirana</string>
+    <string name="exo_download_paused_for_network">Preuzimanja čekaju povezivanje s mrežom</string>
+    <string name="exo_download_paused_for_wifi">Preuzimanja čekaju WiFi</string>
+    <string name="exo_download_removing">Uklanjanje preuzimanja</string>
+    <string name="exo_item_list">%1$s, %2$s</string>
+    <string name="exo_track_bitrate">%1$.2f Mbps</string>
+    <string name="exo_track_mono">Mono</string>
+    <string name="exo_track_resolution">%1$d × %2$d</string>
+    <string name="exo_track_role_alternate">Alternativni zapis</string>
+    <string name="exo_track_role_closed_captions">Titlovi</string>
+    <string name="exo_track_role_commentary">Komentari</string>
+    <string name="exo_track_role_supplementary">Dodatni zapis</string>
+    <string name="exo_track_selection_auto">Automatski</string>
+    <string name="exo_track_selection_none">Ništa</string>
+    <string name="exo_track_selection_title_audio">Zvuk</string>
+    <string name="exo_track_selection_title_text">Tekst</string>
+    <string name="exo_track_selection_title_video">Videozapis</string>
+    <string name="exo_track_stereo">Stereo</string>
+    <string name="exo_track_surround">Prostorno ozvučenje</string>
+    <string name="exo_track_surround_5_point_1">Prostorno ozvučenje 5.1</string>
+    <string name="exo_track_surround_7_point_1">Prostorno ozvučenje 7.1</string>
+    <string name="exo_track_unknown">Nepoznato</string>
+    <string msgid="5974471714631304645" name="expanded">"Prošireno"</string>
+    <string msgid="6827826412747255547" name="in_progress">"U toku"</string>
+    <string msgid="7933458017204019916" name="indeterminate">"Djelimično označeno"</string>
+    <string name="media3_controls_pause_description">Pauziranje</string>
+    <string name="media3_controls_play_description">Reproduciranje</string>
+    <string name="media3_controls_seek_back_description">Pomicanje nazad</string>
+    <string name="media3_controls_seek_forward_description">Pomicanje naprijed</string>
+    <string name="media3_controls_seek_to_next_description">Pomicanje na sljedeću stavku</string>
+    <string name="media3_controls_seek_to_previous_description">Pomicanje na prethodnu stavku</string>
+    <string msgid="542007171693138492" name="navigation_menu">"Meni za navigaciju"</string>
+    <string msgid="6610465462668679431" name="not_selected">"Nije odabrano"</string>
+    <string msgid="875452955155264703" name="off">"Isključeno"</string>
+    <string msgid="8655164131929253426" name="on">"Uključeno"</string>
+    <string msgid="5941395253238309765" name="range_end">"Kraj raspona"</string>
+    <string msgid="7097486360902471446" name="range_start">"Početak raspona"</string>
+    <string msgid="6420018528474762666" name="search_bar_search">"Pretraživanje"</string>
+    <string msgid="6043586758067023" name="selected">"Odabrano"</string>
+    <string msgid="3962933905051144957" name="snackbar_dismiss">"Odbacivanje"</string>
+    <string msgid="6277540029070332960" name="status_bar_notification_info_overflow">"999+"</string>
+    <string msgid="7189888345201419934" name="suggestions_available">"Prijedlozi su u nastavku"</string>
+    <string msgid="2561197295334830845" name="switch_role">"Promijeni"</string>
+    <string msgid="1672349317127674378" name="tab">"Kartica"</string>
+    <string msgid="5946805113151406391" name="template_percent">"<ns1:g id="PERCENTAGE">%1$d</ns1:g> posto."</string>
+    <string msgid="5096144640014509074" name="time_picker_am">"prij."</string>
+    <string msgid="7241191970823415723" name="time_picker_hour">"Sat"</string>
+    <string msgid="4149641012513526783" name="time_picker_hour_24h_suffix">"%1$d h"</string>
+    <string msgid="6081676287789101196" name="time_picker_hour_selection">"Odaberite sate"</string>
+    <string msgid="6952032626122080528" name="time_picker_hour_suffix">"%1$d h"</string>
+    <string msgid="5298761125390275834" name="time_picker_hour_text_field">"za sat"</string>
+    <string msgid="6116528647594005945" name="time_picker_minute">"Minuta"</string>
+    <string msgid="8494777394375441602" name="time_picker_minute_selection">"Odaberite minute"</string>
+    <string msgid="3206486707779478173" name="time_picker_minute_suffix">"%1$d min"</string>
+    <string msgid="994099543833979061" name="time_picker_minute_text_field">"za minute"</string>
+    <string msgid="7352665290700284516" name="time_picker_period_toggle_description">"Odaberite prijepodne ili poslijepodne"</string>
+    <string msgid="2232702812657998674" name="time_picker_pm">"poslijepodne"</string>
+    <string msgid="2732804537909054941" name="tooltip_long_press_label">"Prikaži skočni opis"</string>
+    <string msgid="8191239805703103845" name="tooltip_pane_description">"Skočni opis"</string>
+</resources>
