@@ -3,6 +3,7 @@ package com.flow.youtube.ui.screens.music
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.flow.youtube.data.music.MusicCache
 import com.flow.youtube.data.music.YouTubeMusicService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,17 +22,48 @@ class MusicViewModel : ViewModel() {
 
     private fun loadMusicContent() {
         viewModelScope.launch {
+            // Try to load from cache first for instant display
+            val cachedTrending = MusicCache.getTrendingMusic(100)
+            if (cachedTrending != null) {
+                Log.d("MusicViewModel", "Loading from cache: ${cachedTrending.size} trending tracks")
+                _uiState.value = _uiState.value.copy(
+                    trendingSongs = cachedTrending,
+                    allSongs = cachedTrending,
+                    isLoading = false
+                )
+                
+                // Load cached genre data
+                val genres = YouTubeMusicService.getPopularGenres()
+                val genreTracks = mutableMapOf<String, List<MusicTrack>>()
+                
+                listOf("Popular Artists", "Editor's Picks").plus(genres).forEach { genre ->
+                    val cached = MusicCache.getGenreTracks(genre, 40)
+                    if (cached != null) {
+                        genreTracks[genre] = cached
+                    }
+                }
+                
+                if (genreTracks.isNotEmpty()) {
+                    _uiState.value = _uiState.value.copy(
+                        genreTracks = genreTracks,
+                        genres = listOf("Popular Artists", "Editor's Picks") + genres
+                    )
+                }
+            }
+            
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             
             try {
-                // Load trending music from YouTube with improved filtering
-                val trending = YouTubeMusicService.fetchTrendingMusic(50)
+                // Load MORE trending music from YouTube with improved filtering
+                val trending = YouTubeMusicService.fetchTrendingMusic(100)
+                MusicCache.cacheTrendingMusic(100, trending)
                 
                 // Load tracks from popular artists for better quality
-                val popularArtistTracks = YouTubeMusicService.fetchPopularArtistMusic(30)
+                val popularArtistTracks = YouTubeMusicService.fetchPopularArtistMusic(50)
+                MusicCache.cacheGenreTracks("Popular Artists", 50, popularArtistTracks)
                 
-                // Load tracks by popular genres
-                val genres = YouTubeMusicService.getPopularGenres().take(5)
+                // Load tracks by ALL popular genres for maximum variety
+                val genres = YouTubeMusicService.getPopularGenres()
                 val genreTracks = mutableMapOf<String, List<MusicTrack>>()
                 
                 // Add popular artist tracks as first genre section
@@ -39,20 +71,34 @@ class MusicViewModel : ViewModel() {
                     genreTracks["Popular Artists"] = popularArtistTracks
                 }
                 
+                // Load MORE tracks for each genre
                 genres.forEach { genre ->
-                    val tracks = YouTubeMusicService.fetchMusicByGenre(genre, 20)
+                    val tracks = YouTubeMusicService.fetchMusicByGenre(genre, 40)
                     if (tracks.isNotEmpty()) {
                         genreTracks[genre] = tracks
+                        MusicCache.cacheGenreTracks(genre, 40, tracks)
                     }
                 }
                 
-                Log.d("MusicViewModel", "Loaded ${trending.size} trending tracks, ${popularArtistTracks.size} popular artist tracks, ${genreTracks.size} genre sections")
+                // Get top picks for additional variety
+                val topPicks = try {
+                    YouTubeMusicService.fetchTopPicks(30)
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                
+                if (topPicks.isNotEmpty()) {
+                    genreTracks["Editor's Picks"] = topPicks
+                    MusicCache.cacheGenreTracks("Editor's Picks", 30, topPicks)
+                }
+                
+                Log.d("MusicViewModel", "Loaded ${trending.size} trending tracks, ${popularArtistTracks.size} popular artist tracks, ${genreTracks.size} genre sections with ${genreTracks.values.sumOf { it.size }} total tracks")
                 
                 _uiState.value = _uiState.value.copy(
                     trendingSongs = trending,
                     allSongs = trending,
                     genreTracks = genreTracks,
-                    genres = listOf("Popular Artists") + genres,
+                    genres = listOf("Popular Artists", "Editor's Picks") + genres,
                     isLoading = false
                 )
             } catch (e: Exception) {
@@ -75,10 +121,23 @@ class MusicViewModel : ViewModel() {
         }
         
         viewModelScope.launch {
+            // Check cache first
+            val cached = MusicCache.getSearchResults(query)
+            if (cached != null) {
+                Log.d("MusicViewModel", "Search cache hit: ${cached.size} tracks")
+                _uiState.value = _uiState.value.copy(
+                    allSongs = cached,
+                    isSearching = false
+                )
+                return@launch
+            }
+            
             _uiState.value = _uiState.value.copy(isSearching = true)
             
             try {
-                val results = YouTubeMusicService.searchMusic(query, 50)
+                // Search with MORE results for better variety
+                val results = YouTubeMusicService.searchMusic(query, 100)
+                MusicCache.cacheSearchResults(query, results)
                 
                 Log.d("MusicViewModel", "Search found ${results.size} music tracks")
                 
@@ -98,10 +157,24 @@ class MusicViewModel : ViewModel() {
 
     fun loadGenreTracks(genre: String) {
         viewModelScope.launch {
+            // Check cache first
+            val cached = MusicCache.getGenreTracks(genre, 100)
+            if (cached != null) {
+                Log.d("MusicViewModel", "Genre cache hit: ${cached.size} tracks")
+                _uiState.value = _uiState.value.copy(
+                    allSongs = cached,
+                    selectedGenre = genre,
+                    isLoading = false
+                )
+                return@launch
+            }
+            
             _uiState.value = _uiState.value.copy(isLoading = true)
             
             try {
-                val tracks = YouTubeMusicService.fetchMusicByGenre(genre, 50)
+                // Load MORE tracks for the selected genre
+                val tracks = YouTubeMusicService.fetchMusicByGenre(genre, 100)
+                MusicCache.cacheGenreTracks(genre, 100, tracks)
                 
                 _uiState.value = _uiState.value.copy(
                     allSongs = tracks,

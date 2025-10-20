@@ -27,7 +27,7 @@ import com.flow.youtube.ui.screens.home.HomeScreen
 import com.flow.youtube.ui.screens.history.HistoryScreen
 import com.flow.youtube.ui.screens.library.LibraryScreen
 import com.flow.youtube.ui.screens.likedvideos.LikedVideosScreen
-import com.flow.youtube.ui.screens.music.EnhancedMusicScreen
+import com.flow.youtube.ui.screens.music.PremiumMusicScreen
 import com.flow.youtube.ui.screens.music.EnhancedMusicPlayerScreen
 import com.flow.youtube.ui.screens.music.MusicScreen
 import com.flow.youtube.ui.screens.music.MusicTrack
@@ -332,7 +332,7 @@ fun FlowApp(
                     musicPlayerViewModel.initialize(context)
                 }
                 
-                EnhancedMusicScreen(
+                PremiumMusicScreen(
                     onBackClick = { navController.popBackStack() },
                     onSongClick = { track ->
                         // Load and play the track immediately

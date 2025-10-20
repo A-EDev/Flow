@@ -3,6 +3,7 @@ package com.flow.youtube.ui.screens.music
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.flow.youtube.data.music.PlaylistRepository
 import com.flow.youtube.data.music.YouTubeMusicService
 import com.flow.youtube.player.EnhancedMusicPlayerManager
 import com.flow.youtube.player.RepeatMode
@@ -17,10 +18,12 @@ class MusicPlayerViewModel : ViewModel() {
     val uiState: StateFlow<MusicPlayerUiState> = _uiState.asStateFlow()
     
     private var isInitialized = false
+    private lateinit var playlistRepository: PlaylistRepository
 
     fun initialize(context: Context) {
         if (!isInitialized) {
             EnhancedMusicPlayerManager.initialize(context)
+            playlistRepository = PlaylistRepository(context)
             isInitialized = true
             
             // Observe player state
@@ -38,6 +41,8 @@ class MusicPlayerViewModel : ViewModel() {
             viewModelScope.launch {
                 EnhancedMusicPlayerManager.currentTrack.collect { track ->
                     _uiState.value = _uiState.value.copy(currentTrack = track)
+                    // Check if current track is favorite
+                    track?.let { checkIfFavorite(it.videoId) }
                 }
             }
             
@@ -68,6 +73,20 @@ class MusicPlayerViewModel : ViewModel() {
                     _uiState.value = _uiState.value.copy(repeatMode = mode)
                 }
             }
+            
+            // Observe playlists
+            viewModelScope.launch {
+                playlistRepository.playlists.collect { playlists ->
+                    _uiState.value = _uiState.value.copy(playlists = playlists)
+                }
+            }
+        }
+    }
+    
+    private fun checkIfFavorite(videoId: String) {
+        viewModelScope.launch {
+            val isFav = playlistRepository.isFavorite(videoId)
+            _uiState.value = _uiState.value.copy(isLiked = isFav)
         }
     }
 
@@ -188,10 +207,37 @@ class MusicPlayerViewModel : ViewModel() {
     }
 
     fun toggleLike() {
-        _uiState.value = _uiState.value.copy(
-            isLiked = !_uiState.value.isLiked
-        )
-        // TODO: Implement like/unlike with repository
+        val currentTrack = _uiState.value.currentTrack ?: return
+        
+        viewModelScope.launch {
+            val isNowFavorite = playlistRepository.toggleFavorite(currentTrack)
+            _uiState.value = _uiState.value.copy(isLiked = isNowFavorite)
+        }
+    }
+    
+    fun addToPlaylist(playlistId: String, track: MusicTrack? = null) {
+        val trackToAdd = track ?: _uiState.value.currentTrack ?: return
+        
+        viewModelScope.launch {
+            playlistRepository.addTrackToPlaylist(playlistId, trackToAdd)
+        }
+    }
+    
+    fun createPlaylist(name: String, description: String = "", track: MusicTrack? = null) {
+        viewModelScope.launch {
+            val playlist = playlistRepository.createPlaylist(name, description)
+            track?.let {
+                playlistRepository.addTrackToPlaylist(playlist.id, it)
+            }
+        }
+    }
+    
+    fun showAddToPlaylistDialog(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showAddToPlaylistDialog = show)
+    }
+    
+    fun showCreatePlaylistDialog(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showCreatePlaylistDialog = show)
     }
 
     fun updateProgress() {
@@ -222,5 +268,8 @@ data class MusicPlayerUiState(
     val repeatMode: RepeatMode = RepeatMode.OFF,
     val isLiked: Boolean = false,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val playlists: List<com.flow.youtube.data.music.Playlist> = emptyList(),
+    val showAddToPlaylistDialog: Boolean = false,
+    val showCreatePlaylistDialog: Boolean = false
 )
