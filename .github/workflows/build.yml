@@ -28,10 +28,10 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace -Pandroid.useAndroidX=true
 
       - name: Build Release APK
-        run: ./gradlew assembleRelease --stacktrace
+        run: ./gradlew assembleRelease --stacktrace -Pandroid.useAndroidX=true
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -66,7 +66,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build Release APK
-        run: ./gradlew assembleRelease --stacktrace
+        run: ./gradlew assembleRelease --stacktrace -Pandroid.useAndroidX=true
 
       - name: Get version from tag
         id: get_version
