@@ -280,9 +280,7 @@ app/src/main/java/com/flow/youtube/ui/theme/Color.kt
 - [ ] Tablet-optimized UI
 - [ ] Wear OS companion app
 - [ ] Custom video filters/effects
-- [ ] Video editing features
 - [ ] Community playlists
-- [ ] Multi-account support
 - [ ] Import YouTube subscriptions
 - [ ] Sponsorblock integration
 - [ ] Picture-in-Picture enhancements
