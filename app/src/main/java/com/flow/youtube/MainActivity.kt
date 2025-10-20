@@ -340,6 +340,30 @@ fun FlowApp(
                         
                         // Navigate to player
                         navController.navigate("musicPlayer/${track.videoId}")
+                    },
+                    onLibraryClick = {
+                        navController.navigate("musicLibrary")
+                    }
+                )
+            }
+            
+            // Library Screen - Playlists, Favorites, Downloads
+            composable("musicLibrary") {
+                currentRoute.value = "musicLibrary"
+                showBottomNav = false
+                
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val musicPlayerViewModel: MusicPlayerViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+                
+                LaunchedEffect(Unit) {
+                    musicPlayerViewModel.initialize(context)
+                }
+                
+                com.flow.youtube.ui.screens.music.LibraryScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onTrackClick = { track ->
+                        musicPlayerViewModel.loadAndPlayTrack(track)
+                        navController.navigate("musicPlayer/${track.videoId}")
                     }
                 )
             }

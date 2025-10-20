@@ -44,6 +44,7 @@ import kotlin.math.absoluteValue
 fun PremiumMusicScreen(
     onBackClick: () -> Unit,
     onSongClick: (MusicTrack) -> Unit,
+    onLibraryClick: () -> Unit = {},
     viewModel: MusicViewModel = viewModel(),
     playerViewModel: MusicPlayerViewModel = viewModel()
 ) {
@@ -114,7 +115,8 @@ fun PremiumMusicScreen(
             } else {
                 MusicTopBar(
                     onBackClick = onBackClick,
-                    onSearchClick = { isSearchActive = "active" }
+                    onSearchClick = { isSearchActive = "active" },
+                    onLibraryClick = onLibraryClick
                 )
             }
         }
@@ -204,7 +206,8 @@ fun PremiumMusicScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 private fun MusicTopBar(
     onBackClick: () -> Unit,
-    onSearchClick: () -> Unit
+    onSearchClick: () -> Unit,
+    onLibraryClick: () -> Unit = {}
 ) {
     TopAppBar(
         title = {
@@ -247,6 +250,9 @@ private fun MusicTopBar(
             }
         },
         actions = {
+            IconButton(onClick = onLibraryClick) {
+                Icon(Icons.Outlined.LibraryMusic, "Library", tint = MaterialTheme.colorScheme.primary)
+            }
             IconButton(onClick = onSearchClick) {
                 Icon(Icons.Outlined.Search, "Search", tint = MaterialTheme.colorScheme.primary)
             }

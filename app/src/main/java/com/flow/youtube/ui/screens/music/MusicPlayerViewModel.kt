@@ -3,6 +3,7 @@ package com.flow.youtube.ui.screens.music
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.flow.youtube.data.music.DownloadManager
 import com.flow.youtube.data.music.PlaylistRepository
 import com.flow.youtube.data.music.YouTubeMusicService
 import com.flow.youtube.player.EnhancedMusicPlayerManager
@@ -19,11 +20,13 @@ class MusicPlayerViewModel : ViewModel() {
     
     private var isInitialized = false
     private lateinit var playlistRepository: PlaylistRepository
+    private lateinit var downloadManager: DownloadManager
 
     fun initialize(context: Context) {
         if (!isInitialized) {
             EnhancedMusicPlayerManager.initialize(context)
             playlistRepository = PlaylistRepository(context)
+            downloadManager = DownloadManager(context)
             isInitialized = true
             
             // Observe player state
@@ -238,6 +241,30 @@ class MusicPlayerViewModel : ViewModel() {
     
     fun showCreatePlaylistDialog(show: Boolean) {
         _uiState.value = _uiState.value.copy(showCreatePlaylistDialog = show)
+    }
+    
+    fun downloadTrack(track: MusicTrack? = null) {
+        val trackToDownload = track ?: _uiState.value.currentTrack ?: return
+        
+        viewModelScope.launch {
+            // Get audio URL first
+            try {
+                val audioUrl = YouTubeMusicService.getAudioUrl(trackToDownload.videoId)
+                if (audioUrl != null) {
+                    downloadManager.downloadTrack(trackToDownload, audioUrl)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    suspend fun isTrackDownloaded(videoId: String): Boolean {
+        return downloadManager.isDownloaded(videoId)
+    }
+    
+    suspend fun isTrackFavorite(videoId: String): Boolean {
+        return playlistRepository.isFavorite(videoId)
     }
 
     fun updateProgress() {

@@ -1,14 +1,14 @@
 package com.flow.youtube.ui.screens.music
 
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,8 +29,14 @@ fun SleekMusicCard(
     track: MusicTrack,
     onClick: () -> Unit,
     onMoreClick: () -> Unit = {},
+    onFavoriteClick: () -> Unit = {},
+    onDownloadClick: () -> Unit = {},
+    onAddToPlaylistClick: () -> Unit = {},
+    isFavorite: Boolean = false,
+    isDownloaded: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    var showQuickActions by remember { mutableStateOf(false) }
     Box(
         modifier = modifier
             .height(200.dp)
@@ -69,13 +75,41 @@ fun SleekMusicCard(
                 .padding(16.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top bar with more button
+            // Top bar with quick actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                // Quick action buttons (show on hover/tap)
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showQuickActions,
+                    enter = fadeIn() + expandHorizontally(),
+                    exit = fadeOut() + shrinkHorizontally()
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        QuickActionButton(
+                            icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            onClick = onFavoriteClick,
+                            tint = if (isFavorite) Color.Red else Color.White
+                        )
+                        QuickActionButton(
+                            icon = if (isDownloaded) Icons.Default.Download else Icons.Default.DownloadForOffline,
+                            onClick = onDownloadClick,
+                            tint = if (isDownloaded) Color.Green else Color.White
+                        )
+                        QuickActionButton(
+                            icon = Icons.Default.PlaylistAdd,
+                            onClick = onAddToPlaylistClick
+                        )
+                    }
+                }
+                
+                Spacer(Modifier.weight(1f))
+                
                 IconButton(
-                    onClick = onMoreClick,
+                    onClick = { showQuickActions = !showQuickActions },
                     modifier = Modifier
                         .size(32.dp)
                         .background(
@@ -392,5 +426,33 @@ fun GridMusicCard(
                 modifier = Modifier.padding(top = 2.dp)
             )
         }
+    }
+}
+
+/**
+ * Quick action button for card overlays
+ */
+@Composable
+private fun QuickActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit,
+    tint: Color = Color.White,
+    modifier: Modifier = Modifier
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier
+            .size(32.dp)
+            .background(
+                Color.Black.copy(alpha = 0.4f),
+                RoundedCornerShape(8.dp)
+            )
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(18.dp)
+        )
     }
 }
