@@ -22,10 +22,35 @@
 -keep interface org.schabi.newpipe.** { *; }
 -keepclassmembers class org.schabi.newpipe.** { *; }
 -keepnames class org.schabi.newpipe.** { *; }
+-keepattributes Signature,InnerClasses,EnclosingMethod
 -dontwarn org.schabi.newpipe.**
 
 # Keep NewPipe Downloader
 -keep class com.flow.youtube.data.repository.NewPipeDownloader { *; }
+-keepclassmembers class com.flow.youtube.data.repository.NewPipeDownloader { *; }
+
+# Keep NewPipe ServiceList - Essential for YouTube service access
+-keep class org.schabi.newpipe.extractor.ServiceList { *; }
+-keep class org.schabi.newpipe.extractor.ServiceList$* { *; }
+
+# Keep StreamingService and related classes
+-keep class org.schabi.newpipe.extractor.StreamingService { *; }
+-keep class org.schabi.newpipe.extractor.services.** { *; }
+-keepclassmembers class org.schabi.newpipe.extractor.services.** { *; }
+
+# Keep YouTube service classes
+-keep class org.schabi.newpipe.extractor.services.youtube.** { *; }
+-keepclassmembers class org.schabi.newpipe.extractor.services.youtube.** { *; }
+
+# Keep extractors and info classes
+-keep class * extends org.schabi.newpipe.extractor.Extractor { *; }
+-keep class * extends org.schabi.newpipe.extractor.Info { *; }
+-keep class org.schabi.newpipe.extractor.stream.** { *; }
+-keep class org.schabi.newpipe.extractor.playlist.** { *; }
+-keep class org.schabi.newpipe.extractor.search.** { *; }
+
+# Keep NewPipe exceptions
+-keep class org.schabi.newpipe.extractor.exceptions.** { *; }
 
 # Keep ExoPlayer classes
 -keep class androidx.media3.** { *; }

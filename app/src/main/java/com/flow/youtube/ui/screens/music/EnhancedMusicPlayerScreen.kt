@@ -46,6 +46,30 @@ fun EnhancedMusicPlayerScreen(
     var showQueue by remember { mutableStateOf(false) }
     var showLyrics by remember { mutableStateOf(false) }
     
+    // Dialogs
+    if (uiState.showCreatePlaylistDialog) {
+        CreatePlaylistDialog(
+            onDismiss = { viewModel.showCreatePlaylistDialog(false) },
+            onConfirm = { name, desc ->
+                viewModel.createPlaylist(name, desc, uiState.currentTrack)
+            }
+        )
+    }
+    
+    if (uiState.showAddToPlaylistDialog) {
+        AddToPlaylistDialog(
+            playlists = uiState.playlists,
+            onDismiss = { viewModel.showAddToPlaylistDialog(false) },
+            onSelectPlaylist = { playlistId ->
+                viewModel.addToPlaylist(playlistId)
+            },
+            onCreateNew = {
+                viewModel.showAddToPlaylistDialog(false)
+                viewModel.showCreatePlaylistDialog(true)
+            }
+        )
+    }
+    
     // Gesture states
     var dragOffset by remember { mutableStateOf(0f) }
     var showSkipAnimation by remember { mutableStateOf<SkipDirection?>(null) }
@@ -381,27 +405,64 @@ fun EnhancedMusicPlayerScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    IconButton(onClick = { showLyrics = !showLyrics }) {
+                    // Favorite button
+                    IconButton(onClick = { viewModel.toggleLike() }) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                imageVector = Icons.Outlined.Lyrics,
-                                contentDescription = "Lyrics",
-                                tint = if (showLyrics) 
-                                    MaterialTheme.colorScheme.primary 
+                                imageVector = if (uiState.isLiked) 
+                                    Icons.Filled.Favorite 
+                                else 
+                                    Icons.Outlined.FavoriteBorder,
+                                contentDescription = "Favorite",
+                                tint = if (uiState.isLiked) 
+                                    Color.Red 
                                 else 
                                     MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "Lyrics",
+                                text = "Favorite",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (showLyrics) 
-                                    MaterialTheme.colorScheme.primary 
+                                color = if (uiState.isLiked) 
+                                    Color.Red 
                                 else 
                                     MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                     
+                    // Download button
+                    IconButton(onClick = { viewModel.downloadTrack() }) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.DownloadForOffline,
+                                contentDescription = "Download",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "Download",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    
+                    // Add to Playlist button
+                    IconButton(onClick = { viewModel.showAddToPlaylistDialog(true) }) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.PlaylistAdd,
+                                contentDescription = "Add to Playlist",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "Playlist",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    
+                    // Queue button
                     IconButton(onClick = { showQueue = !showQueue }) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
@@ -419,21 +480,6 @@ fun EnhancedMusicPlayerScreen(
                                     MaterialTheme.colorScheme.primary 
                                 else 
                                     MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    
-                    IconButton(onClick = { /* Sleep timer */ }) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Outlined.Timer,
-                                contentDescription = "Timer",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "Timer",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }

@@ -98,8 +98,8 @@ dependencies {
     // Coil for image loading
     implementation("io.coil-kt:coil-compose:2.5.0")
 
-    // NewPipeExtractor - Official JitPack dependency
-    implementation("com.github.teamnewpipe:newpipeextractor:0.24.8")
+    // NewPipeExtractor - Official JitPack dependency (updated to latest version)
+    implementation("com.github.teamnewpipe:newpipeextractor:v0.24.8")
     
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")

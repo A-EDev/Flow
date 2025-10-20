@@ -172,17 +172,20 @@ fun PremiumMusicScreen(
                                         onGenreClick = { genre -> 
                                             selectedTab = 2
                                             viewModel.loadGenreTracks(genre)
-                                        }
+                                        },
+                                        playerViewModel = playerViewModel
                                     )
                                     1 -> ChartsTab(
                                         songs = uiState.trendingSongs,
-                                        onSongClick = onSongClick
+                                        onSongClick = onSongClick,
+                                        playerViewModel = playerViewModel
                                     )
                                     2 -> GenresTab(
                                         genres = uiState.genres,
                                         genreTracks = uiState.genreTracks,
                                         onGenreClick = { viewModel.loadGenreTracks(it) },
-                                        selectedGenre = uiState.selectedGenre
+                                        selectedGenre = uiState.selectedGenre,
+                                        playerViewModel = playerViewModel
                                     )
                                     3 -> ArtistsTab(
                                         artists = extractArtists(uiState.trendingSongs),
@@ -421,8 +424,11 @@ private fun ErrorView(error: String, onRetry: () -> Unit) {
 private fun HomeTab(
     uiState: MusicUiState,
     onSongClick: (MusicTrack) -> Unit,
-    onGenreClick: (String) -> Unit
+    onGenreClick: (String) -> Unit,
+    playerViewModel: MusicPlayerViewModel
 ) {
+    val scope = rememberCoroutineScope()
+    
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 100.dp),
@@ -451,9 +457,35 @@ private fun HomeTab(
                 contentPadding = PaddingValues(horizontal = 16.dp)
             ) {
                 items(uiState.trendingSongs.take(10)) { track ->
+                    var isFavorite by remember { mutableStateOf(false) }
+                    var isDownloaded by remember { mutableStateOf(false) }
+                    
+                    LaunchedEffect(track.videoId) {
+                        isFavorite = playerViewModel.isTrackFavorite(track.videoId)
+                        isDownloaded = playerViewModel.isTrackDownloaded(track.videoId)
+                    }
+                    
                     SleekMusicCard(
                         track = track,
                         onClick = { onSongClick(track) },
+                        onFavoriteClick = {
+                            playerViewModel.toggleLike()
+                            scope.launch {
+                                isFavorite = playerViewModel.isTrackFavorite(track.videoId)
+                            }
+                        },
+                        onDownloadClick = {
+                            playerViewModel.downloadTrack(track)
+                            scope.launch {
+                                kotlinx.coroutines.delay(1000)
+                                isDownloaded = playerViewModel.isTrackDownloaded(track.videoId)
+                            }
+                        },
+                        onAddToPlaylistClick = {
+                            playerViewModel.showAddToPlaylistDialog(true)
+                        },
+                        isFavorite = isFavorite,
+                        isDownloaded = isDownloaded,
                         modifier = Modifier.width(180.dp)
                     )
                 }
@@ -479,9 +511,35 @@ private fun HomeTab(
                             contentPadding = PaddingValues(horizontal = 16.dp)
                         ) {
                             items(tracks.take(15)) { track ->
+                                var isFavorite by remember { mutableStateOf(false) }
+                                var isDownloaded by remember { mutableStateOf(false) }
+                                
+                                LaunchedEffect(track.videoId) {
+                                    isFavorite = playerViewModel.isTrackFavorite(track.videoId)
+                                    isDownloaded = playerViewModel.isTrackDownloaded(track.videoId)
+                                }
+                                
                                 SleekMusicCard(
                                     track = track,
                                     onClick = { onSongClick(track) },
+                                    onFavoriteClick = {
+                                        playerViewModel.toggleLike()
+                                        scope.launch {
+                                            isFavorite = playerViewModel.isTrackFavorite(track.videoId)
+                                        }
+                                    },
+                                    onDownloadClick = {
+                                        playerViewModel.downloadTrack(track)
+                                        scope.launch {
+                                            kotlinx.coroutines.delay(1000)
+                                            isDownloaded = playerViewModel.isTrackDownloaded(track.videoId)
+                                        }
+                                    },
+                                    onAddToPlaylistClick = {
+                                        playerViewModel.showAddToPlaylistDialog(true)
+                                    },
+                                    isFavorite = isFavorite,
+                                    isDownloaded = isDownloaded,
                                     modifier = Modifier.width(180.dp)
                                 )
                             }
@@ -939,7 +997,8 @@ private fun GridTrackCard(
 @Composable
 private fun ChartsTab(
     songs: List<MusicTrack>,
-    onSongClick: (MusicTrack) -> Unit
+    onSongClick: (MusicTrack) -> Unit,
+    playerViewModel: MusicPlayerViewModel
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1052,7 +1111,8 @@ private fun GenresTab(
     genres: List<String>,
     genreTracks: Map<String, List<MusicTrack>>,
     onGenreClick: (String) -> Unit,
-    selectedGenre: String?
+    selectedGenre: String?,
+    playerViewModel: MusicPlayerViewModel
 ) {
     if (selectedGenre != null && genreTracks.containsKey(selectedGenre)) {
         // Show tracks for selected genre
