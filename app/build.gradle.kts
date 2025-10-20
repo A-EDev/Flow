@@ -27,6 +27,19 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Only apply signing config if keystore exists
+            if (file("release.keystore").exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file("release.keystore")
+            storePassword = System.getenv("STORE_PASSWORD") ?: "your_store_password"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "your_key_alias"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "your_key_password"
         }
     }
 

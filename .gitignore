@@ -11,3 +11,8 @@ local.properties
 /notes
 algo.md
 
+# Signing keystore - NEVER COMMIT THIS FILE!
+release.keystore
+generate_key.ps1
+generate_key.bat
+

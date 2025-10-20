@@ -341,16 +341,11 @@ object EnhancedMusicPlayerManager {
     }
     
     /**
-     * Release player resources
+     * Clear current track (for dismiss functionality)
      */
-    fun release() {
-        player?.release()
-        player = null
-        isInitialized = false
-        _playerState.value = MusicPlayerState()
-        _queue.value = emptyList()
-        _originalQueue.clear()
+    fun clearCurrentTrack() {
         _currentTrack.value = null
+        _playerState.value = _playerState.value.copy(isPlaying = false)
     }
 }
 

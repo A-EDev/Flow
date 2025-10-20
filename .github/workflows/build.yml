@@ -35,6 +35,10 @@ jobs:
 
       - name: Build Release APK
         run: ./gradlew assembleRelease --stacktrace -Pandroid.useAndroidX=true -Dorg.gradle.jvmargs="-Xmx1024m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8"
+        env:
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
@@ -46,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: app/build/outputs/apk/release/app-release-unsigned.apk
+          path: app/build/outputs/apk/release/app-release.apk
 
   release:
     name: Create Release
@@ -70,6 +74,10 @@ jobs:
 
       - name: Build Release APK
         run: ./gradlew assembleRelease --stacktrace -Pandroid.useAndroidX=true -Dorg.gradle.jvmargs="-Xmx1024m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8"
+        env:
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Get version from tag
         id: get_version
@@ -84,10 +92,10 @@ jobs:
             ## 🎬 Flow - Release ${{ steps.get_version.outputs.VERSION }}
 
             ### 📱 Download
-            Download the APK file below and install it on your Android device.
+            Download the signed APK file below and install it on your Android device.
 
             ### ⚠️ Note
-            This is an unsigned APK. You may need to enable "Install from Unknown Sources" in your device settings.
+            This is a signed release APK. Install directly on your Android device.
 
             ### 🆕 What's New
             - See commits for detailed changes
@@ -97,7 +105,7 @@ jobs:
             - Minimum 2GB RAM recommended
 
           files: |
-            app/build/outputs/apk/release/app-release-unsigned.apk
+            app/build/outputs/apk/release/app-release.apk
           draft: false
           prerelease: false
         env:

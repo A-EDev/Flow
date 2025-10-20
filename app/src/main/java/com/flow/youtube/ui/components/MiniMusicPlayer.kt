@@ -13,7 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -24,8 +24,7 @@ import com.flow.youtube.player.EnhancedMusicPlayerManager
 import com.flow.youtube.ui.screens.music.MusicTrack
 
 /**
- * Mini floating music player that appears at the bottom of all screens
- * when music is playing. Can be expanded to full player.
+  mini floating music player with modern design and dismiss functionality
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,6 +33,7 @@ fun MiniMusicPlayer(
     onExpandClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit,
+    onDismiss: () -> Unit, // New dismiss callback
     currentTrack: MusicTrack?,
     isPlaying: Boolean,
     progress: Float
@@ -42,52 +42,73 @@ fun MiniMusicPlayer(
         visible = currentTrack != null,
         enter = slideInVertically(
             initialOffsetY = { it },
-            animationSpec = tween(300, easing = FastOutSlowInEasing)
-        ),
+            animationSpec = tween(400, easing = FastOutSlowInEasing)
+        ) + fadeIn(animationSpec = tween(400)),
         exit = slideOutVertically(
             targetOffsetY = { it },
             animationSpec = tween(300, easing = FastOutSlowInEasing)
-        )
+        ) + fadeOut(animationSpec = tween(300))
     ) {
         Surface(
             modifier = modifier
                 .fillMaxWidth()
-                .height(72.dp)
-                .clickable(onClick = onExpandClick),
-            shadowElevation = 8.dp,
-            tonalElevation = 3.dp,
-            shape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
+                .height(76.dp)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            shadowElevation = 16.dp,
+            tonalElevation = 4.dp,
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface
         ) {
             Box {
-                // Progress bar at the top
-                LinearProgressIndicator(
-                    progress = progress,
+                // Premium gradient background
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)
+                                )
+                            )
+                        )
+                )
+
+                // Progress indicator with glow effect
+                Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(2.dp)
+                        .height(3.dp)
                         .align(Alignment.TopCenter),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-                
+                    color = Color.Transparent
+                ) {
+                    LinearProgressIndicator(
+                        progress = progress,
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                    )
+                }
+
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     // Album art + track info
                     Row(
                         modifier = Modifier.weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Album art with pulsing animation
+                        // Premium album art with enhanced styling
                         Surface(
-                            modifier = Modifier.size(56.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            shadowElevation = 4.dp
+                            modifier = Modifier.size(52.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            shadowElevation = 8.dp,
+                            tonalElevation = 2.dp
                         ) {
                             Box {
                                 AsyncImage(
@@ -95,66 +116,98 @@ fun MiniMusicPlayer(
                                     contentDescription = "Album art",
                                     modifier = Modifier.fillMaxSize()
                                 )
-                                
-                                // Playing animation overlay
+
+                                // Playing state indicator
                                 if (isPlaying) {
-                                    PulsingOverlay()
+                                    PlayingIndicator()
                                 }
                             }
                         }
-                        
-                        // Track info
+
+                        // Enhanced track info
                         Column(
                             modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.Center
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.Start
                         ) {
                             Text(
                                 text = currentTrack?.title ?: "",
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = currentTrack?.artist ?: "",
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
-                    
-                    // Playback controls
+
+                    // Premium playback controls
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Play/Pause button
+                        // Previous button (compact)
                         IconButton(
-                            onClick = onPlayPauseClick,
-                            modifier = Modifier.size(48.dp)
+                            onClick = { /* Previous track */ },
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                imageVector = if (isPlaying) 
-                                    Icons.Filled.Pause 
-                                else 
-                                    Icons.Filled.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                modifier = Modifier.size(32.dp),
-                                tint = MaterialTheme.colorScheme.primary
+                                imageVector = Icons.Filled.SkipPrevious,
+                                contentDescription = "Previous",
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                        
+
+                        // Enhanced play/pause button
+                        FilledIconButton(
+                            onClick = onPlayPauseClick,
+                            modifier = Modifier.size(48.dp),
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Icon(
+                                imageVector = if (isPlaying)
+                                    Icons.Filled.Pause
+                                else
+                                    Icons.Filled.PlayArrow,
+                                contentDescription = if (isPlaying) "Pause" else "Play",
+                                modifier = Modifier.size(24.dp),
+                                tint = MaterialTheme.colorScheme.onPrimary
+                            )
+                        }
+
                         // Next button
                         IconButton(
                             onClick = onNextClick,
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.SkipNext,
                                 contentDescription = "Next",
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        // Dismiss/Close button
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Close player",
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
@@ -165,26 +218,52 @@ fun MiniMusicPlayer(
 }
 
 /**
- * Pulsing overlay for playing state
+ * Modern playing state indicator with subtle glow effect
  */
 @Composable
-private fun PulsingOverlay() {
-    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+private fun PlayingIndicator() {
+    val infiniteTransition = rememberInfiniteTransition(label = "playing")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+
     val alpha by infiniteTransition.animateFloat(
         initialValue = 0.1f,
-        targetValue = 0.3f,
+        targetValue = 0.2f,
         animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = FastOutSlowInEasing),
+            animation = tween(800, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "alpha"
     )
-    
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.primary.copy(alpha = alpha))
-    )
+            .scale(scale)
+            .background(
+                Brush.radialGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary.copy(alpha = alpha),
+                        Color.Transparent
+                    )
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Equalizer,
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
+        )
+    }
 }
 
 /**
@@ -196,25 +275,27 @@ fun CompactMiniPlayer(
     currentTrack: MusicTrack?,
     isPlaying: Boolean,
     onExpandClick: () -> Unit,
-    onPlayPauseClick: () -> Unit
+    onPlayPauseClick: () -> Unit,
+    onDismiss: () -> Unit // New dismiss callback
 ) {
     AnimatedVisibility(
         visible = currentTrack != null,
-        enter = fadeIn() + expandVertically(),
-        exit = fadeOut() + shrinkVertically()
+        enter = fadeIn(animationSpec = tween(300)) + expandVertically(),
+        exit = fadeOut(animationSpec = tween(200)) + shrinkVertically()
     ) {
         Surface(
             modifier = modifier
                 .fillMaxWidth()
-                .height(56.dp)
-                .clickable(onClick = onExpandClick),
-            color = MaterialTheme.colorScheme.surfaceVariant,
-            tonalElevation = 2.dp
+                .height(60.dp)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 3.dp,
+            shape = RoundedCornerShape(16.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -223,36 +304,77 @@ fun CompactMiniPlayer(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Small album art
+                    // Modern album art
                     Surface(
-                        modifier = Modifier.size(40.dp),
-                        shape = RoundedCornerShape(6.dp)
+                        modifier = Modifier.size(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        shadowElevation = 4.dp
                     ) {
-                        AsyncImage(
-                            model = currentTrack?.thumbnailUrl,
-                            contentDescription = null
-                        )
+                        Box {
+                            AsyncImage(
+                                model = currentTrack?.thumbnailUrl,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            if (isPlaying) {
+                                PlayingIndicator()
+                            }
+                        }
                     }
-                    
+
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = currentTrack?.title ?: "",
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = currentTrack?.artist ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
-                
-                IconButton(onClick = onPlayPauseClick) {
-                    Icon(
-                        imageVector = if (isPlaying) 
-                            Icons.Filled.Pause 
-                        else 
-                            Icons.Filled.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play"
-                    )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Play/Pause button
+                    FilledIconButton(
+                        onClick = onPlayPauseClick,
+                        modifier = Modifier.size(44.dp),
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying)
+                                Icons.Filled.Pause
+                            else
+                                Icons.Filled.PlayArrow,
+                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            modifier = Modifier.size(20.dp),
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+
+                    // Dismiss button
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Close,
+                            contentDescription = "Close player",
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
@@ -260,7 +382,7 @@ fun CompactMiniPlayer(
 }
 
 /**
- * Enhanced mini player with waveform visualization
+ * Enhanced mini player with waveform visualization and premium design
  */
 @Composable
 fun VisualizerMiniPlayer(
@@ -271,128 +393,165 @@ fun VisualizerMiniPlayer(
     onExpandClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit,
-    onPreviousClick: () -> Unit
+    onPreviousClick: () -> Unit,
+    onDismiss: () -> Unit // New dismiss callback
 ) {
     AnimatedVisibility(
         visible = currentTrack != null,
-        enter = slideInVertically { it },
-        exit = slideOutVertically { it }
+        enter = slideInVertically { it } + fadeIn(),
+        exit = slideOutVertically { it } + fadeOut()
     ) {
         Surface(
             modifier = modifier
                 .fillMaxWidth()
-                .height(80.dp)
-                .clickable(onClick = onExpandClick),
-            shadowElevation = 12.dp,
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                .height(84.dp)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            shadowElevation = 20.dp,
+            tonalElevation = 6.dp,
+            shape = RoundedCornerShape(24.dp)
         ) {
             Box {
-                // Gradient background
+                // Premium gradient background with blur effect
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(
-                            Brush.horizontalGradient(
+                            Brush.verticalGradient(
                                 colors = listOf(
-                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.4f),
+                                    MaterialTheme.colorScheme.surface,
                                     MaterialTheme.colorScheme.surfaceVariant
                                 )
                             )
                         )
                 )
-                
+
                 Column(modifier = Modifier.fillMaxSize()) {
-                    // Progress bar
-                    LinearProgressIndicator(
-                        progress = progress,
+                    // Enhanced progress bar
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(3.dp),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = Color.Transparent
-                    )
-                    
+                            .height(4.dp),
+                        color = Color.Transparent
+                    ) {
+                        LinearProgressIndicator(
+                            progress = progress,
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = Color.Transparent
+                        )
+                    }
+
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = 20.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Track info with larger album art
+                        // Premium track info with larger album art
                         Row(
                             modifier = Modifier.weight(1f),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Surface(
                                 modifier = Modifier.size(60.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                shadowElevation = 6.dp
+                                shape = RoundedCornerShape(14.dp),
+                                shadowElevation = 10.dp,
+                                tonalElevation = 4.dp
                             ) {
-                                AsyncImage(
-                                    model = currentTrack?.thumbnailUrl,
-                                    contentDescription = "Album art"
-                                )
+                                Box {
+                                    AsyncImage(
+                                        model = currentTrack?.thumbnailUrl,
+                                        contentDescription = "Album art",
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                    if (isPlaying) {
+                                        PlayingIndicator()
+                                    }
+                                }
                             }
-                            
+
                             Column(
                                 modifier = Modifier.weight(1f),
                                 verticalArrangement = Arrangement.Center
                             ) {
                                 Text(
                                     text = currentTrack?.title ?: "",
-                                    style = MaterialTheme.typography.titleSmall,
+                                    style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = currentTrack?.artist ?: "",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
-                        
-                        // Full controls
+
+                        // Premium full controls
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(onClick = onPreviousClick) {
+                            IconButton(
+                                onClick = onPreviousClick,
+                                modifier = Modifier.size(42.dp)
+                            ) {
                                 Icon(
                                     imageVector = Icons.Filled.SkipPrevious,
                                     contentDescription = "Previous",
-                                    modifier = Modifier.size(28.dp)
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
                                 )
                             }
-                            
+
                             FilledIconButton(
                                 onClick = onPlayPauseClick,
-                                modifier = Modifier.size(52.dp),
+                                modifier = Modifier.size(56.dp),
                                 colors = IconButtonDefaults.filledIconButtonColors(
                                     containerColor = MaterialTheme.colorScheme.primary
                                 )
                             ) {
                                 Icon(
-                                    imageVector = if (isPlaying) 
-                                        Icons.Filled.Pause 
-                                    else 
+                                    imageVector = if (isPlaying)
+                                        Icons.Filled.Pause
+                                    else
                                         Icons.Filled.PlayArrow,
                                     contentDescription = if (isPlaying) "Pause" else "Play",
-                                    modifier = Modifier.size(32.dp),
+                                    modifier = Modifier.size(28.dp),
                                     tint = MaterialTheme.colorScheme.onPrimary
                                 )
                             }
-                            
-                            IconButton(onClick = onNextClick) {
+
+                            IconButton(
+                                onClick = onNextClick,
+                                modifier = Modifier.size(42.dp)
+                            ) {
                                 Icon(
                                     imageVector = Icons.Filled.SkipNext,
                                     contentDescription = "Next",
-                                    modifier = Modifier.size(28.dp)
+                                    modifier = Modifier.size(24.dp),
+                                    tint = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            // Dismiss button
+                            IconButton(
+                                onClick = onDismiss,
+                                modifier = Modifier.size(42.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Close,
+                                    contentDescription = "Close player",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -404,19 +563,21 @@ fun VisualizerMiniPlayer(
 }
 
 /**
- * Global mini player state manager
+ * Enhanced mini player state manager with dismiss functionality
  */
 @Composable
 fun rememberMiniPlayerState(
     currentTrack: MusicTrack?,
     isPlaying: Boolean,
-    progress: Float
+    progress: Float,
+    onDismiss: () -> Unit
 ): MiniPlayerState {
     return remember(currentTrack, isPlaying, progress) {
         MiniPlayerState(
             currentTrack = currentTrack,
             isPlaying = isPlaying,
-            progress = progress
+            progress = progress,
+            onDismiss = onDismiss
         )
     }
 }
@@ -424,5 +585,6 @@ fun rememberMiniPlayerState(
 data class MiniPlayerState(
     val currentTrack: MusicTrack?,
     val isPlaying: Boolean,
-    val progress: Float
+    val progress: Float,
+    val onDismiss: () -> Unit = {}
 )

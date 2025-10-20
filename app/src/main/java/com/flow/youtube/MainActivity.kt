@@ -169,6 +169,11 @@ fun FlowApp(
                         currentMusicTrack?.let { track ->
                             navController.navigate("musicPlayer/${track.videoId}")
                         }
+                    },
+                    onDismiss = {
+                        // Stop music and clear current track
+                        EnhancedMusicPlayerManager.stop()
+                        EnhancedMusicPlayerManager.clearCurrentTrack()
                     }
                 )
             }
