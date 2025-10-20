@@ -73,38 +73,29 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Flow ${{ steps.get_version.outputs.VERSION }}
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          name: Flow ${{ steps.get_version.outputs.VERSION }}
           body: |
             ## 🎬 Flow - Release ${{ steps.get_version.outputs.VERSION }}
-            
+
             ### 📱 Download
             Download the APK file below and install it on your Android device.
-            
+
             ### ⚠️ Note
             This is an unsigned APK. You may need to enable "Install from Unknown Sources" in your device settings.
-            
+
             ### 🆕 What's New
             - See commits for detailed changes
-            
+
             ### 📋 System Requirements
             - Android 5.0 (API 21) or higher
             - Minimum 2GB RAM recommended
-            
+
+          files: |
+            app/build/outputs/apk/release/app-release-unsigned.apk
           draft: false
           prerelease: false
-
-      - name: Upload Release APK
-        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: app/build/outputs/apk/release/app-release-unsigned.apk
-          asset_name: Flow-${{ steps.get_version.outputs.VERSION }}.apk
-          asset_content_type: application/vnd.android.package-archive
