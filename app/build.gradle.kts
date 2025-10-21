@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.flow.youtube"
-        minSdk = 24
+        minSdk = 21
         targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
@@ -45,12 +45,11 @@ android {
         }
         release {
             isDebuggable = false
-            // Disable minification to avoid memory issues and compatibility problems
-            // The app works fine without it since we're using proper error handling
-            isMinifyEnabled = false
-            isShrinkResources = false
+            // Follow NewPipe approach: minify but don't shrink resources
+            isMinifyEnabled = true
+            isShrinkResources = false // disabled for reproducible builds
             proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
+                getDefaultProguardFile("proguard-android.txt"),
                 "proguard-rules.pro"
             )
             // Use debug signing for testing
