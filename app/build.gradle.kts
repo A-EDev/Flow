@@ -18,6 +18,14 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        
+        // Support all architectures for maximum device compatibility
+        ndk {
+            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64"))
+        }
+        
+        // Enable multidex for older devices
+        multiDexEnabled = true
     }
 
     signingConfigs {
@@ -37,16 +45,16 @@ android {
         }
         release {
             isDebuggable = false
+            // Disable minification to avoid memory issues and compatibility problems
+            // The app works fine without it since we're using proper error handling
             isMinifyEnabled = false
             isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // Only apply signing config if keystore exists
-            if (rootProject.file("release.keystore").exists()) {
-                signingConfig = signingConfigs.getByName("release")
-            }
+            // Use debug signing for testing
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
@@ -79,6 +87,9 @@ dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
     implementation("androidx.activity:activity-compose:1.8.0")
+    
+    // Multidex support for older devices
+    implementation("androidx.multidex:multidex:2.0.1")
 
     // Compose BOM
     implementation(platform("androidx.compose:compose-bom:2023.10.01"))
