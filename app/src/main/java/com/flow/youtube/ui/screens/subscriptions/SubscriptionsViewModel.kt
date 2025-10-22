@@ -9,8 +9,10 @@ import com.flow.youtube.data.local.VideoHistoryEntry
 import com.flow.youtube.data.local.ViewHistory
 import com.flow.youtube.data.model.Channel
 import com.flow.youtube.data.model.Video
+import com.flow.youtube.data.repository.YouTubeRepository
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+// duplicate import removed
 
 class SubscriptionsViewModel : ViewModel() {
     
@@ -19,12 +21,15 @@ class SubscriptionsViewModel : ViewModel() {
     
     private val _uiState = MutableStateFlow(SubscriptionsUiState())
     val uiState: StateFlow<SubscriptionsUiState> = _uiState.asStateFlow()
+
+    // Repository to fetch feeds and video details
+    private val ytRepository: YouTubeRepository = YouTubeRepository.getInstance()
     
     fun initialize(context: Context) {
         subscriptionRepository = SubscriptionRepository.getInstance(context)
         viewHistory = ViewHistory.getInstance(context)
         
-        // Load subscriptions
+        // Load subscriptions and then load feeds
         viewModelScope.launch {
             subscriptionRepository.getAllSubscriptions().collect { subscriptions ->
                 val channels = subscriptions.map { sub ->
@@ -32,11 +37,21 @@ class SubscriptionsViewModel : ViewModel() {
                         id = sub.channelId,
                         name = sub.channelName,
                         thumbnailUrl = sub.channelThumbnail,
-                        subscriberCount = 0L, // We don't store this
+                        subscriberCount = 0L, // We don't store this locally
                         isSubscribed = true
                     )
                 }
                 _uiState.update { it.copy(subscribedChannels = channels) }
+
+                // Fetch feeds for these channels
+                if (channels.isNotEmpty()) {
+                    _uiState.update { it.copy(isLoading = true) }
+                    val ids = channels.map { it.id }
+                    val videos = ytRepository.getVideosForChannels(ids, perChannelLimit = 4, totalLimit = 80)
+                    _uiState.update { it.copy(recentVideos = videos, isLoading = false) }
+                } else {
+                    _uiState.update { it.copy(recentVideos = emptyList()) }
+                }
             }
         }
         
@@ -63,6 +78,48 @@ class SubscriptionsViewModel : ViewModel() {
     
     fun selectChannel(channelId: String?) {
         _uiState.update { it.copy(selectedChannelId = channelId) }
+    }
+
+    /**
+     * Manually refresh subscription feed
+     */
+    fun refreshFeed() {
+        viewModelScope.launch {
+            val channels = _uiState.value.subscribedChannels
+            if (channels.isEmpty()) return@launch
+            _uiState.update { it.copy(isLoading = true) }
+            val ids = channels.map { it.id }
+            val videos = ytRepository.getVideosForChannels(ids, perChannelLimit = 6, totalLimit = 100)
+            _uiState.update { it.copy(recentVideos = videos, isLoading = false) }
+        }
+    }
+
+    fun unsubscribe(channelId: String) {
+        viewModelScope.launch {
+            subscriptionRepository.getSubscription(channelId).firstOrNull()?.let {
+                subscriptionRepository.unsubscribe(channelId)
+                // trigger refresh
+                refreshFeed()
+            }
+        }
+    }
+
+    /**
+     * Get a single subscription snapshot (suspend) - useful before removing so we can undo
+     */
+    suspend fun getSubscriptionOnce(channelId: String): ChannelSubscription? {
+        return subscriptionRepository.getSubscription(channelId).firstOrNull()
+    }
+
+    /**
+     * Subscribe a channel (used for undo)
+     */
+    fun subscribeChannel(channel: ChannelSubscription) {
+        viewModelScope.launch {
+            subscriptionRepository.subscribe(channel)
+            // trigger refresh
+            refreshFeed()
+        }
     }
     
     private fun formatTimestamp(timestamp: Long): String {

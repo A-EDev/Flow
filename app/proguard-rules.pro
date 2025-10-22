@@ -102,3 +102,14 @@
 
 ## Java Beans (not available on Android)
 -dontwarn java.beans.**
+
+
+
+## Additional rules for NewPipeExtractor stability
+-keep class com.grack.nanojson.** { *; }
+-keep class org.schabi.newpipe.extractor.services.** { *; }
+-keep class org.schabi.newpipe.extractor.services.youtube.** { *; }
+-keep class org.schabi.newpipe.extractor.services.soundcloud.** { *; }
+-keep class * extends org.schabi.newpipe.extractor.Extractor { *; }
+-keep class * implements org.schabi.newpipe.extractor.Service { *; }
+-keepattributes Exceptions, InnerClasses

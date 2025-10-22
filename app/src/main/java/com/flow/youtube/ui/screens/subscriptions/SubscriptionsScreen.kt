@@ -5,9 +5,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -28,6 +34,8 @@ fun SubscriptionsScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     
     // Initialize view model
     LaunchedEffect(Unit) {
@@ -43,17 +51,33 @@ fun SubscriptionsScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         // Header
-        Text(
-            text = "Subscriptions",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Subscriptions",
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            IconButton(onClick = { viewModel.refreshFeed() }) {
+                Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh")
+            }
+        }
 
         if (subscribedChannels.isEmpty()) {
             // Empty State
             EmptySubscriptionsState(modifier = Modifier.fillMaxSize())
         } else {
+            if (uiState.isLoading) {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            }
             // Channel Carousel
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
@@ -70,6 +94,18 @@ fun SubscriptionsScreen(
                             // Navigate to channel screen
                             val channelUrl = "https://youtube.com/channel/${channel.id}"
                             onChannelClick(channelUrl)
+                        },
+                        onLongClick = {
+                            // Unsubscribe with Undo snackbar
+                            scope.launch {
+                                // capture subscription snapshot to allow undo
+                                val sub = viewModel.getSubscriptionOnce(channel.id)
+                                viewModel.unsubscribe(channel.id)
+                                val result = snackbarHostState.showSnackbar("Unsubscribed from ${channel.name}", actionLabel = "Undo")
+                                if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                                    sub?.let { viewModel.subscribeChannel(it) }
+                                }
+                            }
                         }
                     )
                 }
@@ -88,6 +124,11 @@ fun SubscriptionsScreen(
                 }
             }
         }
+    }
+
+    // Snackbar host
+    Box(modifier = Modifier.fillMaxSize()) {
+        androidx.compose.material3.SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 

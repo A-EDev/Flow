@@ -401,22 +401,22 @@ fun FlowApp(
                 showBottomNav = false
                 val videoId = backStackEntry.arguments?.getString("videoId")
 
-                // Create sample video for demonstration
-                val sampleVideo = Video(
+                // Pass a minimal placeholder Video (id only). Real metadata will be loaded by the player via extractor.
+                val placeholder = Video(
                     id = videoId ?: "sample",
-                    title = "Amazing Video Title - Full Tutorial",
-                    channelName = "Tech Channel",
-                    channelId = "tech_channel",
-                    thumbnailUrl = "https://picsum.photos/1280/720",
-                    duration = 600,
-                    viewCount = 5000000L,
-                    uploadDate = "2 days ago",
-                    description = "This is a comprehensive tutorial on building modern Android apps with Jetpack Compose. We'll cover everything from basics to advanced topics including state management, navigation, and theming.",
-                    channelThumbnailUrl = "https://picsum.photos/200/200"
+                    title = "",
+                    channelName = "",
+                    channelId = "",
+                    thumbnailUrl = "",
+                    duration = 0,
+                    viewCount = 0L,
+                    uploadDate = "",
+                    description = "",
+                    channelThumbnailUrl = ""
                 )
 
                 EnhancedVideoPlayerScreen(
-                    video = sampleVideo,
+                    video = placeholder,
                     onBack = { 
                         // Show mini player when exiting
                         GlobalPlayerState.showMiniPlayer()

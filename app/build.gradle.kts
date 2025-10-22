@@ -60,6 +60,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        isCoreLibraryDesugaringEnabled = true  // Enable desugaring
+
     }
 
     kotlinOptions {
@@ -128,9 +130,13 @@ dependencies {
     implementation("androidx.media3:media3-ui:1.2.0")
     implementation("androidx.media3:media3-common:1.2.0")
     implementation("androidx.media3:media3-session:1.2.0")
+    implementation("androidx.media3:media3-exoplayer-hls:1.2.0")
+    implementation("androidx.media3:media3-exoplayer-dash:1.2.0")
     
     // Media Session support for notifications
     implementation("androidx.media:media:1.7.0")
+
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.0.4")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

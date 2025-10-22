@@ -103,6 +103,105 @@ class YouTubeRepository {
             emptyList()
         }
     }
+
+    /**
+     * Fetch recent uploads for a single channel (by channelId or channel URL).
+     * Limits to `limitPerChannel` videos per channel to avoid OOM and long runs.
+     */
+    suspend fun getChannelUploads(
+        channelIdOrUrl: String,
+        limitPerChannel: Int = 6
+    ): List<Video> = withContext(Dispatchers.IO) {
+        try {
+            // Try to extract a channelId (UC...) from the input
+            val channelId = when {
+                channelIdOrUrl.startsWith("UC") -> channelIdOrUrl
+                channelIdOrUrl.contains("/channel/") -> channelIdOrUrl.substringAfter("/channel/").substringBefore("/").substringBefore("?")
+                else -> null
+            }
+
+            // If we have a channelId (starts with UC) we can use the uploads playlist which is more reliable
+            if (channelId != null && channelId.startsWith("UC")) {
+                val uploadsId = "UU" + channelId.removePrefix("UC")
+                val playlistUrl = "https://www.youtube.com/playlist?list=$uploadsId"
+                val playlistExtractor = service.getPlaylistExtractor(playlistUrl)
+                playlistExtractor.fetchPage()
+                val page = playlistExtractor.initialPage
+                val items = page.items.filterIsInstance<StreamInfoItem>()
+                    .take(limitPerChannel)
+                    .map { it.toVideo() }
+                return@withContext items
+            }
+
+            // Fallback: attempt to use channel extractor directly (best-effort)
+            val channelUrl = if (channelIdOrUrl.startsWith("http")) channelIdOrUrl else "https://www.youtube.com/channel/$channelIdOrUrl"
+            val extractor = service.getChannelExtractor(channelUrl)
+            extractor.fetchPage()
+            // Many ChannelExtractor implementations expose page items via getPage/getInitialPage; try to access a first page safely
+            val pageItems = try {
+                // Use reflection-safe approach: call getPage on extractor with null if available
+                val method = extractor::class.java.methods.firstOrNull { it.name == "getInitialPage" || it.name == "getInitialItems" }
+                if (method != null) {
+                    val result = method.invoke(extractor)
+                    // Best-effort: if result is a Page-like object with 'items' field
+                    val itemsField = result!!::class.java.getMethod("getItems")
+                    @Suppress("UNCHECKED_CAST")
+                    (itemsField.invoke(result) as? List<*>)?.filterIsInstance<StreamInfoItem>() ?: emptyList()
+                } else {
+                    emptyList()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                emptyList()
+            }
+
+            pageItems.take(limitPerChannel).map { it.toVideo() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    /**
+     * Fetch channel info (best-effort) using NewPipe's channel extractor.
+     * Returns org.schabi.newpipe.extractor.channel.ChannelInfo or null on failure.
+     */
+    suspend fun getChannelInfo(channelIdOrUrl: String): org.schabi.newpipe.extractor.channel.ChannelInfo? = withContext(Dispatchers.IO) {
+        try {
+            val channelUrl = if (channelIdOrUrl.startsWith("http")) channelIdOrUrl else "https://www.youtube.com/channel/$channelIdOrUrl"
+            val extractor = service.getChannelExtractor(channelUrl)
+            extractor.fetchPage()
+            val channelInfo = org.schabi.newpipe.extractor.channel.ChannelInfo.getInfo(extractor)
+            channelInfo
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * Aggregate uploads from multiple channels, shuffle results and limit total items.
+     */
+    suspend fun getVideosForChannels(
+        channelIdsOrUrls: List<String>,
+        perChannelLimit: Int = 5,
+        totalLimit: Int = 50
+    ): List<Video> = withContext(Dispatchers.IO) {
+        try {
+            val deferred = channelIdsOrUrls.map { id ->
+                // fetch sequentially to avoid high concurrency in CI; it's still IO dispatcher
+                getChannelUploads(id, perChannelLimit)
+            }
+
+            val combined = deferred.flatten()
+            // Shuffle to mix channels and then limit
+            val shuffled = combined.shuffled()
+            shuffled.take(totalLimit)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
     
     /**
      * Extension function to convert StreamInfoItem to our Video model

@@ -13,6 +13,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -36,6 +37,9 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import android.text.TextUtils
+import android.text.method.LinkMovementMethod
+import android.widget.TextView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -45,6 +49,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
+import androidx.core.text.HtmlCompat
+import com.flow.youtube.ui.components.ShimmerVideoCardHorizontal
+import com.flow.youtube.ui.components.shimmerEffect
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.player.EnhancedPlayerManager
 import com.flow.youtube.ui.components.SubtitleCue
@@ -56,6 +63,12 @@ import com.flow.youtube.ui.screens.player.VideoPlayerViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlinx.coroutines.flow.first
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.ui.graphics.toArgb
+import com.flow.youtube.data.local.PlaylistRepository
+import com.flow.youtube.ui.components.VideoQuickActionsBottomSheet
+import androidx.compose.material3.ButtonDefaults
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,10 +84,13 @@ fun EnhancedVideoPlayerScreen(
     val activity = context as? Activity
     val configuration = LocalConfiguration.current
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
+    val musicVm: com.flow.youtube.ui.screens.music.MusicPlayerViewModel = viewModel()
     
     // State
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playerState by EnhancedPlayerManager.playerState.collectAsStateWithLifecycle()
+    var showQuickActions by remember { mutableStateOf(false) }
     
     var showControls by remember { mutableStateOf(true) }
     var isFullscreen by remember { mutableStateOf(false) }
@@ -123,6 +139,11 @@ fun EnhancedVideoPlayerScreen(
         }
     }
     
+    // Snackbar host
+    Box(modifier = Modifier.fillMaxSize()) {
+        androidx.compose.material3.SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
+    }
+
     // Track position
     LaunchedEffect(playerState.isPlaying) {
         while (playerState.isPlaying) {
@@ -697,6 +718,7 @@ fun EnhancedVideoPlayerScreen(
                                         tint = Color.White
                                     )
                                 }
+                                // (Save button moved below the player in the details section)
                                 
                                 // Fullscreen toggle
                                 IconButton(
@@ -834,11 +856,34 @@ fun EnhancedVideoPlayerScreen(
                                 .fillMaxWidth()
                                 .padding(16.dp)
                         ) {
-                            Text(
-                                text = uiState.streamInfo?.name ?: video.title,
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
+                            if (uiState.isLoading || uiState.streamInfo == null) {
+                                // Show small shimmer placeholders instead of the mock title while loading
+                                Column {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(20.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .shimmerEffect()
+                                    )
+
+                                    Spacer(Modifier.height(8.dp))
+
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(0.6f)
+                                            .height(14.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .shimmerEffect()
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = uiState.streamInfo?.name ?: video.title,
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
                             
                             Spacer(Modifier.height(12.dp))
                             
@@ -908,46 +953,134 @@ fun EnhancedVideoPlayerScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
+                                    // Prefer the video's stored channel thumbnail, fall back to uploader url
+                                    val avatarModel = if (video.channelThumbnailUrl.isNotBlank()) video.channelThumbnailUrl else (streamInfo.uploaderUrl ?: "")
                                     AsyncImage(
-                                        model = streamInfo.uploaderUrl, // Using URL as fallback
-                                        contentDescription = null,
+                                        model = avatarModel,
+                                        contentDescription = "Channel Avatar",
                                         modifier = Modifier
                                             .size(40.dp)
                                             .clip(CircleShape)
                                     )
                                     
-                                    Column {
-                                        Text(
-                                            text = streamInfo.uploaderName ?: "",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onBackground
-                                        )
-                                    }
+                                            val channelIdSafe = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId
+                                            val channelNameSafe = streamInfo.uploaderName ?: video.channelName
+                                            val channelThumbSafe = streamInfo.uploaderUrl ?: video.thumbnailUrl
+
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                        // Channel name
+                                                        Text(
+                                                            text = channelNameSafe,
+                                                            style = MaterialTheme.typography.bodyMedium,
+                                                            color = MaterialTheme.colorScheme.onBackground
+                                                        )
+
+                                                        // Subscriber count (use stream/viewmodel-provided value if available)
+                                                        val subscriberText = uiState.channelSubscriberCount?.let { cnt ->
+                                                            com.flow.youtube.utils.formatSubscriberCount(cnt)
+                                                        } ?: com.flow.youtube.utils.formatSubscriberCount(0L)
+
+                                                        Text(
+                                                            text = "$subscriberText subscribers",
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = MaterialTheme.extendedColors.textSecondary
+                                                        )
+                                                    }
+
+                                            // Subscribe button styled like YouTube
+                                            if (!uiState.isSubscribed) {
+                                                Button(
+                                                    onClick = {
+                                                        viewModel.toggleSubscription(channelIdSafe, channelNameSafe, channelThumbSafe)
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar("Subscribed to $channelNameSafe", actionLabel = "Undo")
+                                                        }
+                                                    },
+                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCC0000)),
+                                                    shape = RoundedCornerShape(20.dp),
+                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                                ) {
+                                                    Icon(Icons.Filled.PersonAdd, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text("Subscribe", color = Color.White)
+                                                }
+                                            } else {
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        // Unsubscribe and show Undo
+                                                        scope.launch {
+                                                            val wasSubscribed = true
+                                                            viewModel.toggleSubscription(channelIdSafe, channelNameSafe, channelThumbSafe)
+                                                            val result = snackbarHostState.showSnackbar("Unsubscribed from $channelNameSafe", actionLabel = "Undo")
+                                                            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                                                                // Re-subscribe
+                                                                viewModel.toggleSubscription(channelIdSafe, channelNameSafe, channelThumbSafe)
+                                                            }
+                                                        }
+                                                    },
+                                                    shape = RoundedCornerShape(20.dp),
+                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                                                ) {
+                                                    Icon(Icons.Filled.Notifications, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Text("Subscribed", color = Color.White)
+                                                }
+                                            }
                                 }
                             }
                             
-                            // Description
-                            uiState.streamInfo?.description?.let { description ->
-                                val descriptionText = description.content ?: ""
-                                if (descriptionText.isNotBlank()) {
-                                    Spacer(Modifier.height(16.dp))
-                                    
-                                    var expanded by remember { mutableStateOf(false) }
-                                    
-                                    Column {
-                                        Text(
-                                            text = descriptionText,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = if (expanded) Int.MAX_VALUE else 3,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        
-                                        if (descriptionText.length > 100) {
-                                            TextButton(onClick = { expanded = !expanded }) {
-                                                Text(if (expanded) "Show less" else "Show more")
-                                            }
+                            // Save button (below player / full-width outlined style)
+                            Spacer(Modifier.height(12.dp))
+                            OutlinedButton(
+                                onClick = { showQuickActions = true },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onBackground)
+                            ) {
+                                Icon(Icons.Outlined.PlaylistAdd, contentDescription = "Save")
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Save")
+                            }
+
+                            // Description section — improved layout and styling
+                            val descriptionRaw = uiState.streamInfo?.description?.content ?: video.description
+                            if (!descriptionRaw.isNullOrBlank()) {
+                                Spacer(Modifier.height(16.dp))
+                                Text(
+                                    text = "Description",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Spacer(Modifier.height(8.dp))
+
+                                var expandedDesc by remember { mutableStateOf(false) }
+
+                                val descTextColor = MaterialTheme.colorScheme.onBackground.toArgb()
+
+                                AndroidView(
+                                    factory = { ctx ->
+                                        TextView(ctx).apply {
+                                            setTextAppearance(android.R.style.TextAppearance_Material_Body1)
+                                            movementMethod = LinkMovementMethod.getInstance()
+                                            setLineSpacing(0f, 1.1f)
+                                            // initial content
+                                            text = HtmlCompat.fromHtml(descriptionRaw, HtmlCompat.FROM_HTML_MODE_LEGACY)
+                                            maxLines = if (expandedDesc) Int.MAX_VALUE else 4
+                                            ellipsize = TextUtils.TruncateAt.END
+                                            setTextColor(descTextColor)
                                         }
+                                    },
+                                    update = { tv ->
+                                        tv.text = HtmlCompat.fromHtml(descriptionRaw, HtmlCompat.FROM_HTML_MODE_LEGACY)
+                                        tv.maxLines = if (expandedDesc) Int.MAX_VALUE else 4
+                                        tv.setTextColor(descTextColor)
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+
+                                if (descriptionRaw.length > 200) {
+                                    TextButton(onClick = { expandedDesc = !expandedDesc }) {
+                                        Text(if (expandedDesc) "Show less" else "Show more")
                                     }
                                 }
                             }
@@ -982,6 +1115,26 @@ fun EnhancedVideoPlayerScreen(
                 }
             }
         }
+    }
+    // Quick actions sheet
+    if (showQuickActions) {
+        VideoQuickActionsBottomSheet(
+            video = video,
+            onDismiss = { showQuickActions = false },
+            onAddToPlaylist = {
+                // open AddToPlaylistDialog flow using MusicPlayerViewModel
+                showQuickActions = false
+                musicVm.showAddToPlaylistDialog(true)
+            },
+            onWatchLater = {
+                // Use the simple PlaylistRepository to persist watch-later by id
+                showQuickActions = false
+                scope.launch {
+                    val repo = PlaylistRepository(context)
+                    repo.addToWatchLater(video)
+                }
+            }
+        )
     }
     
     // ============ DIALOGS ============
@@ -1146,7 +1299,10 @@ fun EnhancedVideoPlayerScreen(
                         val subtitle = playerState.availableSubtitles[index]
                         Surface(
                             onClick = {
+                                // Select subtitle in manager and update local state
                                 selectedSubtitleUrl = subtitle.url
+                                EnhancedPlayerManager.selectSubtitle(index)
+                                subtitlesEnabled = true
                                 showSubtitleSelector = false
                             },
                             color = if (subtitle.url == selectedSubtitleUrl) 

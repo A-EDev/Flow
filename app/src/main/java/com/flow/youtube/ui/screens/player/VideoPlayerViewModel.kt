@@ -1,5 +1,7 @@
 package com.flow.youtube.ui.screens.player
 
+import com.flow.youtube.player.EnhancedPlayerManager
+
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -66,9 +68,41 @@ class VideoPlayerViewModel(
                         selectedQuality = selectedStreams.third,
                         subtitles = subtitles,
                         isLoading = false,
+                        // channelSubscriberCount will be filled below if available
                         savedPosition = savedPosition,
                         isAdaptiveMode = preferredQuality == VideoQuality.AUTO
                     )
+
+                    // Fetch channel info (subscriber count) asynchronously
+                    try {
+                        val channelUrl = streamInfo.uploaderUrl ?: ""
+                        if (channelUrl.isNotBlank()) {
+                            val channelInfo = repository.getChannelInfo(channelUrl)
+                            channelInfo?.let { ci ->
+                                // ChannelInfo may expose subscriberCount as Long if available
+                                val subCount = try {
+                                    // NewPipe's ChannelInfo may expose a textual subscriber count; try best-effort numeric parse
+                                    val method = ci::class.java.methods.firstOrNull { it.name.equals("getSubscriberCount", true) }
+                                    if (method != null) {
+                                        (method.invoke(ci) as? Long) ?: 0L
+                                    } else {
+                                        // Some implementations may expose subscriberCount as a string field
+                                        val textMethod = ci::class.java.methods.firstOrNull { it.name.equals("getSubscriberCountText", true) || it.name.equals("getSubscriberCountString", true) }
+                                        val textVal = textMethod?.invoke(ci) as? String
+                                        textVal?.filter { it.isDigit() }?.toLongOrNull() ?: 0L
+                                    }
+                                } catch (ex: Exception) {
+                                    0L
+                                }
+
+                                _uiState.value = _uiState.value.copy(
+                                    channelSubscriberCount = subCount
+                                )
+                            }
+                        }
+                    } catch (e: Exception) {
+                        // ignore best-effort
+                    }
                 } else {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -216,6 +250,11 @@ class VideoPlayerViewModel(
     
     fun selectSubtitleTrack(subtitle: SubtitleInfo) {
         _uiState.value = _uiState.value.copy(selectedSubtitle = subtitle)
+        // Find index in the stream's subtitles and instruct the player manager
+        val idx = _uiState.value.subtitles.indexOfFirst { it.languageCode == subtitle.languageCode && it.url == subtitle.url }
+        if (idx >= 0) {
+            EnhancedPlayerManager.selectSubtitle(idx)
+        }
     }
     
     fun setMiniPlayerMode(enabled: Boolean) {
@@ -230,9 +269,25 @@ class VideoPlayerViewModel(
         streamInfo: StreamInfo,
         preferredQuality: VideoQuality
     ): Triple<VideoStream?, AudioStream?, VideoQuality> {
-        // Get best audio stream
-        val audioStream = streamInfo.audioStreams
-            .maxByOrNull { it.bitrate }
+        // Dedupe audio streams by url and prefer highest bitrate
+        val audioCandidates = streamInfo.audioStreams
+            .distinctBy { it.url ?: "" }
+            .sortedByDescending { it.bitrate }
+
+        // Preferred audio: try to match the stream's original language (fallback to English, then highest bitrate)
+        val originalLang = streamInfo.uploaderName?.let { null } // extractor may not provide language; keep null for now
+
+        val audioStream = audioCandidates.firstOrNull { a ->
+            // prefer explicit locale matches
+            val lang = a.audioLocale?.language ?: ""
+            if (!originalLang.isNullOrBlank() && !lang.isNullOrBlank()) {
+                lang.equals(originalLang, true)
+            } else false
+        } ?: audioCandidates.firstOrNull { a ->
+            // prefer english if present
+            val lang = a.audioLocale?.language ?: ""
+            lang?.startsWith("en", true) == true
+        } ?: audioCandidates.firstOrNull()
         
         // Get video streams with audio if available, otherwise video-only
         val videoStreamsWithAudio = streamInfo.videoStreams
@@ -260,6 +315,19 @@ class VideoPlayerViewModel(
         }
         
         val actualQuality = videoStream?.let { VideoQuality.fromHeight(it.height) } ?: VideoQuality.Q_720p
+
+        // Make manager aware of available streams (so EnhancedPlayerManager can prefer adaptive formats)
+        val safeAudio = audioStream ?: streamInfo.audioStreams.firstOrNull()
+        if (safeAudio != null) {
+            EnhancedPlayerManager.setStreams(
+                videoId = streamInfo.url ?: "",
+                videoStream = videoStream,
+                audioStream = safeAudio,
+                videoStreams = (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>(),
+                audioStreams = streamInfo.audioStreams,
+                subtitles = streamInfo.subtitles
+            )
+        }
         
         return Triple(videoStream, audioStream, actualQuality)
     }
@@ -306,8 +374,12 @@ data class VideoPlayerUiState(
     val isMiniPlayer: Boolean = false,
     val isFullscreen: Boolean = false,
     val isSubscribed: Boolean = false,
-    val likeState: String? = null // LIKED, DISLIKED, or null
+    val likeState: String? = null, // LIKED, DISLIKED, or null
+    val channelSubscriberCount: Long? = null
 )
+
+
+
 
 data class SubtitleInfo(
     val url: String,
