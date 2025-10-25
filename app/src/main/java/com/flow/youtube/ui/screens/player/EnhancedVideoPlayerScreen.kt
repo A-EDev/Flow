@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
 import android.provider.Settings
+import android.util.Log
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -40,16 +41,16 @@ import androidx.compose.ui.viewinterop.AndroidView
 import android.text.TextUtils
 import android.text.method.LinkMovementMethod
 import android.widget.TextView
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.border
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
-import androidx.core.text.HtmlCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.flow.youtube.ui.components.ShimmerVideoCardHorizontal
 import com.flow.youtube.ui.components.shimmerEffect
 import com.flow.youtube.data.model.Video
@@ -67,8 +68,11 @@ import kotlinx.coroutines.flow.first
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.ui.graphics.toArgb
 import com.flow.youtube.data.local.PlaylistRepository
+import com.flow.youtube.player.seekbarpreview.SeekbarPreviewThumbnailHelper
+import com.flow.youtube.player.seekbarpreview.SeekbarPreviewThumbnailQuality
+
 import com.flow.youtube.ui.components.VideoQuickActionsBottomSheet
-import androidx.compose.material3.ButtonDefaults
+import androidx.core.text.HtmlCompat
 
 @androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,7 +93,7 @@ fun EnhancedVideoPlayerScreen(
     
     // State
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val playerState by EnhancedPlayerManager.playerState.collectAsStateWithLifecycle()
+    val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
     var showQuickActions by remember { mutableStateOf(false) }
     
     var showControls by remember { mutableStateOf(true) }
@@ -124,18 +128,37 @@ fun EnhancedVideoPlayerScreen(
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
     val windowManager = remember { context.getSystemService(Context.WINDOW_SERVICE) as WindowManager }
     
-    // Initialize volume level
-    LaunchedEffect(Unit) {
-        volumeLevel = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVolume
-        
-        try {
-            val currentBrightness = Settings.System.getInt(
-                context.contentResolver,
-                Settings.System.SCREEN_BRIGHTNESS
-            )
-            brightnessLevel = currentBrightness / 255f
-        } catch (e: Exception) {
-            brightnessLevel = 0.5f
+    // Seekbar preview helper
+    var seekbarPreviewHelper by remember { mutableStateOf<SeekbarPreviewThumbnailHelper?>(null) }
+    
+    // Initialize seekbar preview helper when stream info is available
+    LaunchedEffect(uiState.streamInfo) {
+        uiState.streamInfo?.let { streamInfo ->
+            try {
+                val player = EnhancedPlayerManager.getInstance().getPlayer()
+                if (player != null) {
+                    seekbarPreviewHelper = SeekbarPreviewThumbnailHelper(
+                        context = context,
+                        player = player,
+                        timeBar = object : androidx.media3.ui.TimeBar {
+                            override fun addListener(listener: androidx.media3.ui.TimeBar.OnScrubListener) {}
+                            override fun removeListener(listener: androidx.media3.ui.TimeBar.OnScrubListener) {}
+                            override fun getPreferredUpdateDelay(): Long = 1000L
+                            override fun setAdGroupTimesMs(adGroupTimesMs: LongArray?, playedAdGroups: BooleanArray?, adGroupCount: Int) {}
+                            override fun setBufferedPosition(positionMs: Long) {}
+                            override fun setDuration(durationMs: Long) {}
+                            override fun setEnabled(enabled: Boolean) {}
+                            override fun setKeyCountIncrement(increment: Int) {}
+                            override fun setKeyTimeIncrement(increment: Long) {}
+                            override fun setPosition(positionMs: Long) {}
+                        }
+                    ).apply {
+                        setupSeekbarPreview(streamInfo)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("EnhancedVideoPlayerScreen", "Failed to initialize seekbar preview helper", e)
+            }
         }
     }
     
@@ -147,11 +170,32 @@ fun EnhancedVideoPlayerScreen(
     // Track position
     LaunchedEffect(playerState.isPlaying) {
         while (playerState.isPlaying) {
-            EnhancedPlayerManager.getPlayer()?.let { player ->
+            EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
                 currentPosition = player.currentPosition
                 duration = player.duration.coerceAtLeast(0)
             }
             delay(100)
+        }
+    }
+    
+    // Periodic watch progress saving (every 10 seconds while playing)
+    LaunchedEffect(video.id, playerState.isPlaying) {
+        while (playerState.isPlaying) {
+            delay(10000) // Save every 10 seconds
+            val channelId = uiState.streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
+            val channelName = uiState.streamInfo?.uploaderName ?: video.channelName
+            
+            if (currentPosition > 0 && duration > 0) {
+                viewModel.savePlaybackPosition(
+                    videoId = video.id,
+                    position = currentPosition,
+                    duration = duration,
+                    title = uiState.streamInfo?.name ?: video.title,
+                    thumbnailUrl = video.thumbnailUrl,
+                    channelName = channelName,
+                    channelId = channelId
+                )
+            }
         }
     }
     
@@ -234,16 +278,41 @@ fun EnhancedVideoPlayerScreen(
     
     // Load video info from NewPipe extractor
     LaunchedEffect(video.id) {
+        // Reset UI state for new video
+        showControls = true
+        currentPosition = 0L
+        duration = 0L
+        subtitlesEnabled = false
+        currentSubtitles = emptyList()
+        selectedSubtitleUrl = null
+        seekbarPreviewHelper = null
+        showBrightnessOverlay = false
+        showVolumeOverlay = false
+        showSeekBackAnimation = false
+        showSeekForwardAnimation = false
+
+        // Stop any existing playback and clear player before loading new video
+        EnhancedPlayerManager.getInstance().pause()
+        EnhancedPlayerManager.getInstance().clearCurrentVideo()
+
         viewModel.loadVideoInfo(video.id)
     }
     
     // Initialize player when streams are available
-    LaunchedEffect(uiState.videoStream, uiState.audioStream) {
+    LaunchedEffect(uiState.videoStream, uiState.audioStream, video.id) {
         val videoStream = uiState.videoStream
         val audioStream = uiState.audioStream
         
         if (videoStream != null && audioStream != null) {
-            EnhancedPlayerManager.initialize(context)
+            // Clear previous video if this is a different video
+            val currentVideoId = EnhancedPlayerManager.getInstance().playerState.value.currentVideoId
+            if (currentVideoId != null && currentVideoId != video.id) {
+                Log.d("EnhancedVideoPlayerScreen", "Switching from $currentVideoId to ${video.id}")
+                EnhancedPlayerManager.getInstance().clearCurrentVideo()
+                // No delay needed - setStreams will await surface readiness
+            }
+            
+            EnhancedPlayerManager.getInstance().initialize(context)
             
             // Get all available streams
             val streamInfo = uiState.streamInfo
@@ -251,7 +320,7 @@ fun EnhancedVideoPlayerScreen(
             val audioStreams = streamInfo?.audioStreams ?: emptyList()
             val subtitles = streamInfo?.subtitles ?: emptyList()
             
-            EnhancedPlayerManager.setStreams(
+            EnhancedPlayerManager.getInstance().setStreams(
                 videoId = video.id,
                 videoStream = videoStream,
                 audioStream = audioStream,
@@ -260,14 +329,24 @@ fun EnhancedVideoPlayerScreen(
                 subtitles = subtitles
             )
             
-            // Resume from saved position
-            uiState.savedPosition?.collect { position ->
-                if (position > 0) {
-                    EnhancedPlayerManager.seekTo(position)
+            // Initialize seekbar preview helper
+            streamInfo?.let { info ->
+                val player = EnhancedPlayerManager.getInstance().getPlayer()
+                if (player != null) {
+                    seekbarPreviewHelper = SeekbarPreviewThumbnailHelper(context, player, null).apply {
+                        setupSeekbarPreview(info)
+                    }
                 }
             }
             
-            EnhancedPlayerManager.play()
+            // Resume from saved position
+            uiState.savedPosition?.collect { position ->
+                if (position > 0) {
+                    EnhancedPlayerManager.getInstance().seekTo(position)
+                }
+            }
+            
+            EnhancedPlayerManager.getInstance().play()
         }
     }
     
@@ -283,17 +362,17 @@ fun EnhancedVideoPlayerScreen(
     
     // Back handler
     BackHandler(enabled = !isFullscreen) {
-        EnhancedPlayerManager.pause()
+        EnhancedPlayerManager.getInstance().pause()
         onBack()
     }
     
-    // Cleanup on dispose
-    DisposableEffect(Unit) {
+    // Cleanup when this video's composable leaves (e.g., switching to another video)
+    DisposableEffect(video.id) {
         onDispose {
-            // Save playback position
+            // Save playback position for the video that's being disposed
             val channelId = uiState.streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
             val channelName = uiState.streamInfo?.uploaderName ?: video.channelName
-            
+
             viewModel.savePlaybackPosition(
                 videoId = video.id,
                 position = currentPosition,
@@ -303,18 +382,17 @@ fun EnhancedVideoPlayerScreen(
                 channelName = channelName,
                 channelId = channelId
             )
-            
-            // Stop playback and release player
-            EnhancedPlayerManager.stop()
-            EnhancedPlayerManager.release()
-            
-            // Reset orientation
-            activity?.let { act ->
-                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-            }
+
+            // DON'T release player - just clear current video to allow switching
+            // The player instance stays alive and keeps the surface binding intact
+            EnhancedPlayerManager.getInstance().clearCurrentVideo()
+            Log.d("EnhancedVideoPlayerScreen", "Video ID changed, cleared player state (player kept alive)")
         }
     }
+    
+    // Note: We no longer release the player when leaving the screen to maintain
+    // player state across navigation. The player lifecycle is now managed globally.
+    // If you need to release on back navigation, handle it in the BackHandler instead.
     
     val playerHeight = if (isFullscreen) {
         configuration.screenHeightDp.dp
@@ -346,21 +424,21 @@ fun EnhancedVideoPlayerScreen(
                                 if (tapPosition < screenWidth * 0.4f) {
                                     // Seek backward 10s
                                     showSeekBackAnimation = true
-                                    EnhancedPlayerManager.seekTo(
+                                    EnhancedPlayerManager.getInstance().seekTo(
                                         (currentPosition - 10000).coerceAtLeast(0)
                                     )
                                 } else if (tapPosition > screenWidth * 0.6f) {
                                     // Seek forward 10s
                                     showSeekForwardAnimation = true
-                                    EnhancedPlayerManager.seekTo(
+                                    EnhancedPlayerManager.getInstance().seekTo(
                                         (currentPosition + 10000).coerceAtMost(duration)
                                     )
                                 } else {
                                     // Center tap - play/pause
                                     if (playerState.isPlaying) {
-                                        EnhancedPlayerManager.pause()
+                                        EnhancedPlayerManager.getInstance().pause()
                                     } else {
-                                        EnhancedPlayerManager.play()
+                                        EnhancedPlayerManager.getInstance().play()
                                     }
                                 }
                             }
@@ -425,21 +503,91 @@ fun EnhancedVideoPlayerScreen(
                         )
                     }
             ) {
-                // ExoPlayer view
+                // ExoPlayer view - create new instance per video to ensure fresh surface
+                // This guarantees surfaceCreated() fires for every video switch
+                val playerView = remember(video.id) {
+                    Log.d("EnhancedVideoPlayer", "Creating new PlayerView for video ${video.id}")
+                    PlayerView(context).apply {
+                        useController = false
+                        layoutParams = FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                    }
+                }
+                
+                // Setup surface callback immediately when playerView changes
+                DisposableEffect(playerView) {
+                    val surfaceView = playerView.videoSurfaceView as? android.view.SurfaceView
+                    val callback = if (surfaceView != null) {
+                        object : android.view.SurfaceHolder.Callback {
+                            override fun surfaceCreated(holder: android.view.SurfaceHolder) {
+                                Log.d("EnhancedVideoPlayer", "Surface created for video ${video.id}")
+                                EnhancedPlayerManager.getInstance().attachVideoSurface(holder)
+                            }
+                            
+                            override fun surfaceChanged(
+                                holder: android.view.SurfaceHolder,
+                                format: Int,
+                                width: Int,
+                                height: Int
+                            ) {
+                                // Surface resized but still valid
+                            }
+                            
+                            override fun surfaceDestroyed(holder: android.view.SurfaceHolder) {
+                                Log.d("EnhancedVideoPlayer", "Surface destroyed for video ${video.id}")
+                                EnhancedPlayerManager.getInstance().detachVideoSurface()
+                            }
+                        }.also { surfaceView.holder.addCallback(it) }
+                    } else null
+                    
+                    onDispose {
+                        callback?.let { surfaceView?.holder?.removeCallback(it) }
+                    }
+                }
+                
                 AndroidView(
-                    factory = { ctx ->
-                        PlayerView(ctx).apply {
-                            player = EnhancedPlayerManager.getPlayer()
-                            useController = false
-                            layoutParams = FrameLayout.LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.MATCH_PARENT
-                            )
-                            setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                    factory = { playerView },
+                    update = { view ->
+                        view.player = EnhancedPlayerManager.getInstance().getPlayer()
+                        
+                        // CRITICAL: Ensure surface is attached whenever this view updates
+                        // This handles the case where PlayerView is recreated after navigation
+                        try {
+                            val surfaceView = view.videoSurfaceView
+                            if (surfaceView is android.view.SurfaceView) {
+                                val holder = surfaceView.holder
+                                val surface = holder.surface
+                                if (surface != null && surface.isValid) {
+                                    EnhancedPlayerManager.getInstance().attachVideoSurface(holder)
+                                    Log.d("EnhancedVideoPlayer", "Surface reattached in update block")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.w("EnhancedVideoPlayer", "Failed to reattach surface in update", e)
                         }
-                    },
-                    update = { playerView ->
-                        playerView.player = EnhancedPlayerManager.getPlayer()
+                        
+                        // Fallback: If surface is still not ready after update, mark it as ready
+                        // This ensures media loads even if the surface callback doesn't fire properly
+                        if (!EnhancedPlayerManager.getInstance().isSurfaceReady) {
+                            try {
+                                val surfaceView = view.videoSurfaceView
+                                Log.d("EnhancedVideoPlayer", "Fallback check - videoSurfaceView: ${surfaceView?.javaClass?.simpleName}, width=${(surfaceView as? android.view.SurfaceView)?.width}, height=${(surfaceView as? android.view.SurfaceView)?.height}, isSurfaceReady: ${EnhancedPlayerManager.getInstance().isSurfaceReady}")
+                                if (surfaceView is android.view.SurfaceView) {
+                                    EnhancedPlayerManager.getInstance().attachVideoSurface(surfaceView.holder)
+                                    val holderIsValid = runCatching { surfaceView.holder.surface?.isValid == true }.getOrDefault(false)
+                                    if (holderIsValid) {
+                                        Log.d("EnhancedVideoPlayer", "Surface exists, marking as ready (fallback)")
+                                        EnhancedPlayerManager.getInstance().setSurfaceReady(true)
+                                        EnhancedPlayerManager.getInstance().retryLoadMediaIfSurfaceReady()
+                                    }
+                                }
+                            } catch (e: Exception) {
+                                Log.d("EnhancedVideoPlayer", "Fallback surface ready check error: ${e.message}")
+                            }
+                        }
                     },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -758,9 +906,9 @@ fun EnhancedVideoPlayerScreen(
                                 }
                                 
                                 if (playerState.isPlaying) {
-                                    EnhancedPlayerManager.pause()
+                                    EnhancedPlayerManager.getInstance().pause()
                                 } else {
-                                    EnhancedPlayerManager.play()
+                                    EnhancedPlayerManager.getInstance().play()
                                 }
                             },
                             modifier = Modifier
@@ -814,12 +962,13 @@ fun EnhancedVideoPlayerScreen(
                                     Box(
                                         modifier = Modifier.weight(1f)
                                     ) {
-                                        Slider(
+                                        SeekbarWithPreview(
                                             value = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
                                             onValueChange = { progress ->
                                                 val newPosition = (progress * duration).toLong()
-                                                EnhancedPlayerManager.seekTo(newPosition)
+                                                EnhancedPlayerManager.getInstance().seekTo(newPosition)
                                             },
+                                            seekbarPreviewHelper = seekbarPreviewHelper,
                                             modifier = Modifier.fillMaxWidth(),
                                             colors = SliderDefaults.colors(
                                                 thumbColor = MaterialTheme.colorScheme.primary,
@@ -1149,7 +1298,7 @@ fun EnhancedVideoPlayerScreen(
                     items(playerState.availableQualities.sortedByDescending { it.height }) { quality ->
                         Surface(
                             onClick = {
-                                EnhancedPlayerManager.switchQuality(quality.height)
+                                EnhancedPlayerManager.getInstance().switchQuality(quality.height)
                                 showQualitySelector = false
                             },
                             color = if (quality.height == playerState.currentQuality) 
@@ -1201,7 +1350,7 @@ fun EnhancedVideoPlayerScreen(
                         val track = playerState.availableAudioTracks[index]
                         Surface(
                             onClick = {
-                                EnhancedPlayerManager.switchAudioTrack(index)
+                                EnhancedPlayerManager.getInstance().switchAudioTrack(index)
                                 showAudioTrackSelector = false
                             },
                             color = if (index == playerState.currentAudioTrack) 
@@ -1301,7 +1450,7 @@ fun EnhancedVideoPlayerScreen(
                             onClick = {
                                 // Select subtitle in manager and update local state
                                 selectedSubtitleUrl = subtitle.url
-                                EnhancedPlayerManager.selectSubtitle(index)
+                                EnhancedPlayerManager.getInstance().selectSubtitle(index)
                                 subtitlesEnabled = true
                                 showSubtitleSelector = false
                             },
@@ -1419,12 +1568,98 @@ fun EnhancedVideoPlayerScreen(
     }
 }
 
-// Helper function
-private fun formatTime(milliseconds: Long): String {
-    val seconds = (milliseconds / 1000) % 60
-    val minutes = (milliseconds / (1000 * 60)) % 60
-    val hours = milliseconds / (1000 * 60 * 60)
-    
+// Custom seekbar with preview thumbnails
+@Composable
+fun SeekbarWithPreview(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
+    steps: Int = 0,
+    onValueChangeFinished: (() -> Unit)? = null,
+    colors: SliderColors = SliderDefaults.colors(),
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+    seekbarPreviewHelper: SeekbarPreviewThumbnailHelper? = null
+) {
+    var showPreview by remember { mutableStateOf(false) }
+    var previewPosition by remember { mutableFloatStateOf(0f) }
+    var previewBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+
+    Box(modifier = modifier) {
+        // Preview thumbnail overlay
+        if (showPreview && previewBitmap != null) {
+            Box(
+                modifier = Modifier
+                    .offset(x = previewPosition.dp - 80.dp, y = (-120).dp)
+                    .size(160.dp, 90.dp)
+                    .background(Color.Black, RoundedCornerShape(8.dp))
+                    .border(2.dp, Color.White, RoundedCornerShape(8.dp))
+            ) {
+                AndroidView(
+                    factory = { ctx ->
+                        android.widget.ImageView(ctx).apply {
+                            scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                            setImageBitmap(previewBitmap)
+                        }
+                    },
+                    update = { imageView ->
+                        imageView.setImageBitmap(previewBitmap)
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
+
+        // The actual slider
+        Slider(
+            value = value,
+            onValueChange = { newValue ->
+                onValueChange(newValue)
+
+                // Update preview position and show thumbnail
+                if (seekbarPreviewHelper != null) {
+                    val sliderWidth = 300f // Approximate width, could be improved
+                    previewPosition = newValue * sliderWidth
+
+                    // Load thumbnail for this position
+                    val duration = seekbarPreviewHelper.getPlayer().duration
+                    if (duration > 0) {
+                        val positionMs = (newValue * duration).toLong()
+
+                        try {
+                            val bitmap = seekbarPreviewHelper.loadThumbnailForPosition(positionMs)
+                            previewBitmap = bitmap
+                            showPreview = true
+                        } catch (e: Exception) {
+                            previewBitmap = null
+                            showPreview = false
+                        }
+                    }
+                }
+            },
+            onValueChangeFinished = {
+                onValueChangeFinished?.invoke()
+                showPreview = false
+                previewBitmap = null
+            },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = enabled,
+            valueRange = valueRange,
+            steps = steps,
+            colors = colors,
+            interactionSource = interactionSource
+        )
+    }
+}
+
+// Helper function to format time
+private fun formatTime(timeMs: Long): String {
+    val totalSeconds = timeMs / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+
     return if (hours > 0) {
         String.format("%d:%02d:%02d", hours, minutes, seconds)
     } else {

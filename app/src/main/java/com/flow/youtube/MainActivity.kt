@@ -401,9 +401,16 @@ fun FlowApp(
                 showBottomNav = false
                 val videoId = backStackEntry.arguments?.getString("videoId")
 
+                // Use a real YouTube video ID for testing if available
+                // Otherwise use the provided videoId or a known test video
+                val effectiveVideoId = when {
+                    !videoId.isNullOrEmpty() && videoId != "sample" -> videoId
+                    else -> "jNQXAC9IVRw"  // Default to popular "Me at the zoo" video for testing
+                }
+
                 // Pass a minimal placeholder Video (id only). Real metadata will be loaded by the player via extractor.
                 val placeholder = Video(
-                    id = videoId ?: "sample",
+                    id = effectiveVideoId,
                     title = "",
                     channelName = "",
                     channelId = "",

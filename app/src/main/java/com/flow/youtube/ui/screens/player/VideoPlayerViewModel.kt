@@ -1,13 +1,13 @@
 package com.flow.youtube.ui.screens.player
 
-import com.flow.youtube.player.EnhancedPlayerManager
-
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.local.*
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.repository.YouTubeRepository
+import com.flow.youtube.player.EnhancedPlayerManager
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.schabi.newpipe.extractor.stream.*
@@ -73,15 +73,14 @@ class VideoPlayerViewModel(
                         isAdaptiveMode = preferredQuality == VideoQuality.AUTO
                     )
 
-                    // Fetch channel info (subscriber count) asynchronously
+                    // Fetch channel info (subscriber count + avatar) asynchronously
                     try {
                         val channelUrl = streamInfo.uploaderUrl ?: ""
                         if (channelUrl.isNotBlank()) {
                             val channelInfo = repository.getChannelInfo(channelUrl)
                             channelInfo?.let { ci ->
-                                // ChannelInfo may expose subscriberCount as Long if available
+                                // Get subscriber count (numeric)
                                 val subCount = try {
-                                    // NewPipe's ChannelInfo may expose a textual subscriber count; try best-effort numeric parse
                                     val method = ci::class.java.methods.firstOrNull { it.name.equals("getSubscriberCount", true) }
                                     if (method != null) {
                                         (method.invoke(ci) as? Long) ?: 0L
@@ -94,13 +93,33 @@ class VideoPlayerViewModel(
                                 } catch (ex: Exception) {
                                     0L
                                 }
+                                
+                                // Get avatar URL from thumbnails
+                                val avatarUrl = try {
+                                    // NewPipe's ChannelInfo exposes getThumbnails() or getAvatars()
+                                    val thumbnailsMethod = ci::class.java.methods.firstOrNull { 
+                                        it.name.equals("getThumbnails", true) || it.name.equals("getAvatars", true)
+                                    }
+                                    val thumbnails = thumbnailsMethod?.invoke(ci) as? List<*>
+                                    
+                                    // Extract URL from Image objects
+                                    thumbnails?.firstOrNull()?.let { img ->
+                                        val urlMethod = img::class.java.methods.firstOrNull { it.name.equals("getUrl", true) }
+                                        urlMethod?.invoke(img) as? String
+                                    } ?: ""
+                                } catch (ex: Exception) {
+                                    Log.w("VideoPlayerViewModel", "Could not extract avatar URL", ex)
+                                    ""
+                                }
 
                                 _uiState.value = _uiState.value.copy(
-                                    channelSubscriberCount = subCount
+                                    channelSubscriberCount = subCount,
+                                    channelAvatarUrl = avatarUrl
                                 )
                             }
                         }
                     } catch (e: Exception) {
+                        Log.w("VideoPlayerViewModel", "Could not fetch channel info", e)
                         // ignore best-effort
                     }
                 } else {
@@ -253,7 +272,7 @@ class VideoPlayerViewModel(
         // Find index in the stream's subtitles and instruct the player manager
         val idx = _uiState.value.subtitles.indexOfFirst { it.languageCode == subtitle.languageCode && it.url == subtitle.url }
         if (idx >= 0) {
-            EnhancedPlayerManager.selectSubtitle(idx)
+            EnhancedPlayerManager.getInstance().selectSubtitle(idx)
         }
     }
     
@@ -318,18 +337,8 @@ class VideoPlayerViewModel(
 
         // Make manager aware of available streams (so EnhancedPlayerManager can prefer adaptive formats)
         val safeAudio = audioStream ?: streamInfo.audioStreams.firstOrNull()
-        if (safeAudio != null) {
-            EnhancedPlayerManager.setStreams(
-                videoId = streamInfo.url ?: "",
-                videoStream = videoStream,
-                audioStream = safeAudio,
-                videoStreams = (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>(),
-                audioStreams = streamInfo.audioStreams,
-                subtitles = streamInfo.subtitles
-            )
-        }
-        
-        return Triple(videoStream, audioStream, actualQuality)
+
+        return Triple(videoStream, safeAudio, actualQuality)
     }
     
     private fun extractAvailableQualities(streamInfo: StreamInfo): List<VideoQuality> {
@@ -375,7 +384,8 @@ data class VideoPlayerUiState(
     val isFullscreen: Boolean = false,
     val isSubscribed: Boolean = false,
     val likeState: String? = null, // LIKED, DISLIKED, or null
-    val channelSubscriberCount: Long? = null
+    val channelSubscriberCount: Long? = null,
+    val channelAvatarUrl: String? = null
 )
 
 

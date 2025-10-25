@@ -122,16 +122,27 @@ dependencies {
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")
 
-    // Gson for JSON
+    // Gson for JSON serialization
     implementation("com.google.code.gson:gson:2.10.1")
 
-    // ExoPlayer for video playback
-    implementation("androidx.media3:media3-exoplayer:1.2.0")
-    implementation("androidx.media3:media3-ui:1.2.0")
-    implementation("androidx.media3:media3-common:1.2.0")
-    implementation("androidx.media3:media3-session:1.2.0")
-    implementation("androidx.media3:media3-exoplayer-hls:1.2.0")
-    implementation("androidx.media3:media3-exoplayer-dash:1.2.0")
+    // Picasso for image loading (used for seekbar preview thumbnails)
+    implementation("com.squareup.picasso:picasso:2.8")
+
+    // HTML compatibility library
+    implementation("androidx.core:core:1.12.0")
+
+    // RxJava3 for reactive state management
+    implementation("io.reactivex.rxjava3:rxjava:3.1.8")
+    implementation("io.reactivex.rxjava3:rxandroid:3.0.2")
+
+    // Media3 (latest stable) for video playback - corresponds to ExoPlayer 2.19.1 improvements
+    implementation("androidx.media3:media3-exoplayer:1.4.1")
+    implementation("androidx.media3:media3-ui:1.4.1")
+    implementation("androidx.media3:media3-common:1.4.1")
+    implementation("androidx.media3:media3-session:1.4.1")
+    implementation("androidx.media3:media3-exoplayer-hls:1.4.1")
+    implementation("androidx.media3:media3-exoplayer-dash:1.4.1")
+    implementation("androidx.media3:media3-datasource:1.4.1")
     
     // Media Session support for notifications
     implementation("androidx.media:media:1.7.0")

@@ -44,7 +44,7 @@ fun EnhancedMiniPlayer(
     onCloseClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val playerState by EnhancedPlayerManager.playerState.collectAsState()
+    val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsState()
     
     var offsetY by remember { mutableStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
@@ -70,8 +70,8 @@ fun EnhancedMiniPlayer(
     // Update position continuously
     LaunchedEffect(playerState.isPlaying) {
         while (true) {
-            currentPosition = EnhancedPlayerManager.getCurrentPosition()
-            duration = EnhancedPlayerManager.getDuration()
+            currentPosition = EnhancedPlayerManager.getInstance().getCurrentPosition()
+            duration = EnhancedPlayerManager.getInstance().getDuration()
             delay(100)
         }
     }
@@ -155,11 +155,11 @@ fun EnhancedMiniPlayer(
                         .clip(RoundedCornerShape(8.dp))
                         .background(Color.Black)
                 ) {
-                    if (EnhancedPlayerManager.getPlayer() != null) {
+                    if (EnhancedPlayerManager.getInstance().getPlayer() != null) {
                         AndroidView(
                             factory = { ctx ->
                                 PlayerView(ctx).apply {
-                                    player = EnhancedPlayerManager.getPlayer()
+                                    player = EnhancedPlayerManager.getInstance().getPlayer()
                                     layoutParams = FrameLayout.LayoutParams(
                                         ViewGroup.LayoutParams.MATCH_PARENT,
                                         ViewGroup.LayoutParams.MATCH_PARENT
@@ -231,9 +231,9 @@ fun EnhancedMiniPlayer(
                 Surface(
                     onClick = {
                         if (playerState.isPlaying) {
-                            EnhancedPlayerManager.pause()
+                            EnhancedPlayerManager.getInstance().pause()
                         } else {
-                            EnhancedPlayerManager.play()
+                            EnhancedPlayerManager.getInstance().play()
                         }
                     },
                     modifier = Modifier.size(44.dp),
@@ -265,8 +265,8 @@ fun EnhancedMiniPlayer(
                 // Close button
                 IconButton(
                     onClick = {
-                        EnhancedPlayerManager.stop()
-                        EnhancedPlayerManager.release()
+                        EnhancedPlayerManager.getInstance().stop()
+                        EnhancedPlayerManager.getInstance().release()
                         onCloseClick()
                     },
                     modifier = Modifier.size(40.dp)
