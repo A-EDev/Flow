@@ -39,6 +39,7 @@ import coil.compose.AsyncImage
 import com.flow.youtube.data.local.SearchHistoryRepository
 import com.flow.youtube.data.local.SearchType
 import com.flow.youtube.data.model.*
+import com.flow.youtube.data.recommendation.InterestProfile
 import com.flow.youtube.ui.components.*
 import com.flow.youtube.ui.theme.extendedColors
 import kotlinx.coroutines.FlowPreview
@@ -56,6 +57,7 @@ fun SearchScreen(
 ) {
     val context = LocalContext.current
     val searchHistoryRepo = remember { SearchHistoryRepository(context) }
+    val interestProfile = remember { InterestProfile.getInstance(context) }
     
     var searchQuery by remember { mutableStateOf("") }
     var isSearchFocused by remember { mutableStateOf(false) }
@@ -114,6 +116,8 @@ fun SearchScreen(
     LaunchedEffect(uiState.query) {
         if (uiState.query.isNotBlank()) {
             searchHistoryRepo.saveSearchQuery(uiState.query)
+            // Record search to interest profile for smarter recommendations
+            interestProfile.recordSearch(uiState.query)
         }
     }
 

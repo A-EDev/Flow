@@ -49,7 +49,6 @@ import com.flow.youtube.data.model.Video
 import com.flow.youtube.player.GlobalPlayerState
 import com.flow.youtube.player.PictureInPictureHelper
 import com.flow.youtube.ui.components.VideoCardFullWidth
-import com.flow.youtube.ui.components.VideoPlayerGestureOverlay
 import com.flow.youtube.ui.theme.extendedColors
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -429,34 +428,32 @@ fun VideoPlayerScreen(
                     
                     // Enhanced Gesture Overlay (only when not in PiP)
                     if (!isInPipMode) {
-                        VideoPlayerGestureOverlay(
-                            modifier = Modifier.fillMaxSize(),
-                            currentPosition = currentPosition,
-                            duration = duration,
-                            isPlaying = isPlaying,
-                            onSeek = { delta ->
-                                val newPosition = (exoPlayer.currentPosition + delta).coerceIn(0L, duration)
-                                exoPlayer.seekTo(newPosition)
-                            },
-                            onPlayPause = {
-                                if (exoPlayer.isPlaying) {
-                                    exoPlayer.pause()
-                                } else {
-                                    exoPlayer.play()
+                        // Simple tap to toggle controls and double-tap seek
+                        var lastTapTime by remember { mutableStateOf(0L) }
+                        var lastTapX by remember { mutableFloatStateOf(0f) }
+                        val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+                        
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onTap = { offset ->
+                                            val now = System.currentTimeMillis()
+                                            if (now - lastTapTime < 300 && abs(offset.x - lastTapX) < 100) {
+                                                // Double tap - seek forward or backward
+                                                val seekAmount = if (offset.x < size.width / 2) -10000L else 10000L
+                                                val newPosition = (exoPlayer.currentPosition + seekAmount).coerceIn(0L, duration)
+                                                exoPlayer.seekTo(newPosition)
+                                            } else {
+                                                // Single tap - toggle controls
+                                                showControls = !showControls
+                                            }
+                                            lastTapTime = now
+                                            lastTapX = offset.x
+                                        }
+                                    )
                                 }
-                            },
-                            onToggleControls = {
-                                showControls = !showControls
-                            },
-                            onVolumeChange = { /* Handled in overlay */ },
-                            onBrightnessChange = { brightness ->
-                                currentBrightness = brightness
-                                activity?.window?.let { window ->
-                                    val layoutParams = window.attributes
-                                    layoutParams.screenBrightness = brightness
-                                    window.attributes = layoutParams
-                                }
-                            }
                         )
                     }
                 }
@@ -584,6 +581,7 @@ fun VideoPlayerScreen(
                                     }
                                 }
                             }
+                        }
                         }
                         
                         // Center play/pause button
@@ -997,7 +995,7 @@ fun VideoPlayerScreen(
     }
 }
 
-fun formatTime(timeMs: Long): String {
+private fun formatTime(timeMs: Long): String {
     val totalSeconds = timeMs / 1000
     val hours = totalSeconds / 3600
     val minutes = (totalSeconds % 3600) / 60

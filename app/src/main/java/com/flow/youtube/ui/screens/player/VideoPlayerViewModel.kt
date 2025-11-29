@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.local.*
 import com.flow.youtube.data.model.Video
+import com.flow.youtube.data.recommendation.InterestProfile
 import com.flow.youtube.data.repository.YouTubeRepository
 import com.flow.youtube.player.EnhancedPlayerManager
 import kotlinx.coroutines.flow.*
@@ -22,17 +23,20 @@ class VideoPlayerViewModel(
     private var viewHistory: ViewHistory? = null
     private var subscriptionRepository: SubscriptionRepository? = null
     private var likedVideosRepository: LikedVideosRepository? = null
+    private var interestProfile: InterestProfile? = null
     
     fun initialize(context: Context) {
         viewHistory = ViewHistory.getInstance(context)
         subscriptionRepository = SubscriptionRepository.getInstance(context)
         likedVideosRepository = LikedVideosRepository.getInstance(context)
+        interestProfile = InterestProfile.getInstance(context)
     }
     
     fun initializeViewHistory(context: Context) {
         viewHistory = ViewHistory.getInstance(context)
         subscriptionRepository = SubscriptionRepository.getInstance(context)
         likedVideosRepository = LikedVideosRepository.getInstance(context)
+        interestProfile = InterestProfile.getInstance(context)
     }
     
     fun loadVideoInfo(videoId: String, preferredQuality: VideoQuality = VideoQuality.AUTO) {
@@ -200,6 +204,17 @@ class VideoPlayerViewModel(
                 channelName = channelName,
                 channelId = channelId
             )
+            
+            // Update interest profile to learn from watch behavior
+            if (duration > 0) {
+                interestProfile?.recordWatch(
+                    videoTitle = title,
+                    channelId = channelId,
+                    channelName = channelName,
+                    watchDuration = (position / 1000).toInt(),
+                    totalDuration = (duration / 1000).toInt()
+                )
+            }
         }
     }
     
@@ -218,11 +233,14 @@ class VideoPlayerViewModel(
                     )
                 )
                 _uiState.value = _uiState.value.copy(isSubscribed = true)
+                
+                // Learn from subscription - strong signal
+                interestProfile?.recordSubscription(channelId, channelName)
             }
         }
     }
     
-    fun likeVideo(videoId: String, title: String, thumbnail: String, channelName: String) {
+    fun likeVideo(videoId: String, title: String, thumbnail: String, channelName: String, channelId: String = "") {
         viewModelScope.launch {
             likedVideosRepository?.likeVideo(
                 LikedVideoInfo(
@@ -233,6 +251,9 @@ class VideoPlayerViewModel(
                 )
             )
             _uiState.value = _uiState.value.copy(likeState = "LIKED")
+            
+            // Learn from like - strong positive signal
+            interestProfile?.recordLike(title, channelId, channelName)
         }
     }
     

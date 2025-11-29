@@ -5,18 +5,20 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.ui.components.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     onVideoClick: (Video) -> Unit,
@@ -26,10 +28,16 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel()
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     
-    // Infinite scroll detection
+    // Initialize ViewModel with context
+    LaunchedEffect(Unit) {
+        viewModel.initialize(context)
+    }
+    
+    // Infinite scroll detection (when hasMorePages is true, meaning trending fallback)
     val isScrolledToEnd by remember {
         derivedStateOf {
             val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
@@ -79,63 +87,112 @@ fun HomeScreen(
             }
             
             else -> {
-                // Content state
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    state = listState,
-                    contentPadding = PaddingValues(bottom = 80.dp)
-                ) {
-                    items(
-                        items = uiState.videos,
-                        key = { video -> video.id }
-                    ) { video ->
-                        VideoCardFullWidth(
-                            video = video,
-                            onClick = { onVideoClick(video) }
+                // Content state - LazyColumn with manual refresh via indicator
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // Refresh indicator at top when refreshing
+                    if (uiState.isRefreshing) {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.TopCenter),
+                            color = MaterialTheme.colorScheme.primary
                         )
-                        
-                        // Insert Shorts shelf after the first video
-                        if (uiState.videos.indexOf(video) == 0 && uiState.videos.size > 4) {
-                            ShortsShelf(
-                                shorts = uiState.videos.take(5), // Mock shorts using regular videos for now
-                                onShortClick = { onVideoClick(it) }
-                            )
-                        }
                     }
                     
-                    // Loading more indicator
-                    if (uiState.isLoadingMore) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator()
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        state = listState,
+                        contentPadding = PaddingValues(bottom = 80.dp)
+                    ) {
+                        items(
+                            items = uiState.videos,
+                            key = { video -> video.id }
+                        ) { video ->
+                            VideoCardFullWidth(
+                                video = video,
+                                onClick = { onVideoClick(video) }
+                            )
+                            
+                            // Insert Shorts shelf after the first video
+                            if (uiState.videos.indexOf(video) == 0 && uiState.videos.size > 4) {
+                                ShortsShelf(
+                                    shorts = uiState.videos.take(5),
+                                    onShortClick = { onVideoClick(it) }
+                                )
                             }
                         }
-                    }
-                    
-                    // End of content message
-                    if (!uiState.hasMorePages && uiState.videos.isNotEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "You've reached the end",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                        
+                        // Loading more indicator (only for trending)
+                        if (uiState.isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+                        }
+                        
+                        // Flow feed footer with refresh
+                        if (uiState.videos.isNotEmpty()) {
+                            item {
+                                FlowFeedFooter(
+                                    videoCount = uiState.videos.size,
+                                    onRefresh = { viewModel.refreshFeed(context) }
                                 )
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+
+
+@Composable
+private fun FlowFeedFooter(
+    videoCount: Int,
+    onRefresh: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.AutoAwesome,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(32.dp)
+        )
+        Text(
+            text = "Your personalized feed",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = "$videoCount videos curated just for you",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        OutlinedButton(
+            onClick = onRefresh,
+            modifier = Modifier.padding(top = 8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Refresh,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Refresh Feed")
         }
     }
 }
