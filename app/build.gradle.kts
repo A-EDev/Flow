@@ -121,6 +121,10 @@ dependencies {
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+    
+    // Paging 3 for infinite scroll
+    implementation("androidx.paging:paging-runtime-ktx:3.2.1")
+    implementation("androidx.paging:paging-compose:3.2.1")
 
     // Gson for JSON serialization
     implementation("com.google.code.gson:gson:2.10.1")
@@ -146,6 +150,9 @@ dependencies {
     
     // Media Session support for notifications
     implementation("androidx.media:media:1.7.0")
+    
+    // WorkManager for background tasks (subscription checks, etc.)
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.0.4")
 

@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +31,7 @@ import com.flow.youtube.utils.formatViewCount
 fun ExploreScreen(
     onVideoClick: (Video) -> Unit,
     onSettingsClick: () -> Unit,
+    onShortsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ExploreViewModel = viewModel()
 ) {
@@ -54,12 +56,36 @@ fun ExploreScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
             
-            IconButton(onClick = onSettingsClick) {
-                Icon(
-                    imageVector = Icons.Outlined.Settings,
-                    contentDescription = "Settings",
-                    tint = MaterialTheme.colorScheme.onBackground
-                )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // Shorts button
+                Button(
+                    onClick = onShortsClick,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    modifier = Modifier.height(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Videocam,
+                        contentDescription = "Shorts",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Shorts",
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+                
+                IconButton(onClick = onSettingsClick) {
+                    Icon(
+                        imageVector = Icons.Outlined.Settings,
+                        contentDescription = "Settings",
+                        tint = MaterialTheme.colorScheme.onBackground
+                    )
+                }
             }
         }
         

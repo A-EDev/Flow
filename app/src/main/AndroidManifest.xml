@@ -19,8 +19,9 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
             android:launchMode="singleTop"
+            android:supportsPictureInPicture="true"
             android:theme="@style/Theme.Flow">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -49,6 +50,20 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
+            </intent-filter>
+        </receiver>
+        
+        <!-- Notification action receiver for downloads and other actions -->
+        <receiver 
+            android:name=".notification.NotificationActionReceiver"
+            android:enabled="true"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.flow.youtube.action.CANCEL_DOWNLOAD" />
+                <action android:name="com.flow.youtube.action.RETRY_DOWNLOAD" />
+                <action android:name="com.flow.youtube.action.PAUSE_DOWNLOAD" />
+                <action android:name="com.flow.youtube.action.RESUME_DOWNLOAD" />
+                <action android:name="com.flow.youtube.action.DISMISS_NOTIFICATION" />
             </intent-filter>
         </receiver>
     </application>

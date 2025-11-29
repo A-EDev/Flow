@@ -37,10 +37,10 @@ class LocalDataManager(private val context: Context) {
 
     // Theme Settings
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
-        when (prefs[THEME_MODE]) {
-            "DARK" -> ThemeMode.DARK
-            "OLED" -> ThemeMode.OLED
-            else -> ThemeMode.LIGHT
+        try {
+            prefs[THEME_MODE]?.let { ThemeMode.valueOf(it) } ?: ThemeMode.LIGHT
+        } catch (e: Exception) {
+            ThemeMode.LIGHT
         }
     }
 

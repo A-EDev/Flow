@@ -6,13 +6,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,32 +40,32 @@ fun FloatingBottomNavBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             BottomNavItem(
-                icon = Icons.Outlined.Home,
+                icon = if (selectedIndex == 0) Icons.Filled.Home else Icons.Outlined.Home,
                 label = "Home",
                 selected = selectedIndex == 0,
                 onClick = { onItemSelected(0) }
             )
             BottomNavItem(
-                icon = Icons.Outlined.Explore,
-                label = "Explore",
+                icon = if (selectedIndex == 1) Icons.Filled.PlayCircle else Icons.Outlined.PlayCircleOutline,
+                label = "Shorts",
                 selected = selectedIndex == 1,
                 onClick = { onItemSelected(1) }
             )
             BottomNavItem(
-                icon = Icons.Outlined.Subscriptions,
-                label = "Subscriptions",
+                icon = if (selectedIndex == 2) Icons.Filled.MusicNote else Icons.Outlined.MusicNote,
+                label = "Music",
                 selected = selectedIndex == 2,
                 onClick = { onItemSelected(2) }
             )
             BottomNavItem(
-                icon = Icons.Outlined.VideoLibrary,
-                label = "Library",
+                icon = if (selectedIndex == 3) Icons.Filled.Subscriptions else Icons.Outlined.Subscriptions,
+                label = "Subscriptions",
                 selected = selectedIndex == 3,
                 onClick = { onItemSelected(3) }
             )
             BottomNavItem(
-                icon = Icons.Outlined.Search,
-                label = "Search",
+                icon = if (selectedIndex == 4) Icons.Filled.VideoLibrary else Icons.Outlined.VideoLibrary,
+                label = "Library",
                 selected = selectedIndex == 4,
                 onClick = { onItemSelected(4) }
             )
@@ -110,7 +110,8 @@ private fun BottomNavItem(
 fun TopAppBarWithActions(
     title: String,
     modifier: Modifier = Modifier,
-    onMusicClick: () -> Unit = {},
+    onSearchClick: () -> Unit = {},
+    onNotificationClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {}
 ) {
     Surface(
@@ -121,36 +122,36 @@ fun TopAppBarWithActions(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Logo/Title with gradient effect
+            // Logo/Title
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // App icon/logo
                 Surface(
-                    modifier = Modifier.size(40.dp),
-                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.size(32.dp),
+                    shape = CircleShape,
                     color = MaterialTheme.colorScheme.primary
                 ) {
                     Box(
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "F",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            fontWeight = FontWeight.Bold
+                        Icon(
+                            imageVector = Icons.Filled.PlayArrow,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
                 
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = MaterialTheme.typography.titleLarge,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold
                 )
@@ -158,32 +159,26 @@ fun TopAppBarWithActions(
 
             // Action buttons row
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Music icon
-                IconButton(
-                    onClick = onMusicClick,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                ) {
+                IconButton(onClick = onNotificationClick) {
                     Icon(
-                        imageVector = Icons.Outlined.MusicNote,
-                        contentDescription = "Music",
+                        imageVector = Icons.Outlined.Notifications,
+                        contentDescription = "Notifications",
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                IconButton(onClick = onSearchClick) {
+                    Icon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = "Search",
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
                 
-                // Settings icon
-                IconButton(
-                    onClick = onSettingsClick,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                ) {
+                IconButton(onClick = onSettingsClick) {
                     Icon(
                         imageVector = Icons.Outlined.Settings,
                         contentDescription = "Settings",

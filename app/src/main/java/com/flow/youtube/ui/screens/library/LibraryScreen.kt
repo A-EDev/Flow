@@ -26,6 +26,7 @@ fun LibraryScreen(
     onNavigateToHistory: () -> Unit,
     onNavigateToPlaylists: () -> Unit,
     onNavigateToLikedVideos: () -> Unit,
+    onNavigateToWatchLater: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     onManageData: () -> Unit,
     modifier: Modifier = Modifier,
@@ -103,6 +104,23 @@ fun LibraryScreen(
                     },
                     count = uiState.likedVideosCount,
                     onClick = onNavigateToLikedVideos
+                )
+            }
+
+            item { Spacer(modifier = Modifier.height(12.dp)) }
+
+            // Watch Later
+            item {
+                LibraryItem(
+                    icon = Icons.Outlined.WatchLater,
+                    title = "Watch Later",
+                    subtitle = if (uiState.watchLaterCount > 0) {
+                        "${uiState.watchLaterCount} video${if (uiState.watchLaterCount > 1) "s" else ""} saved"
+                    } else {
+                        "Save videos to watch later"
+                    },
+                    count = uiState.watchLaterCount,
+                    onClick = onNavigateToWatchLater
                 )
             }
 

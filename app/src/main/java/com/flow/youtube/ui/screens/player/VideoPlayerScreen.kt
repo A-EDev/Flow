@@ -2,6 +2,7 @@ package com.flow.youtube.ui.screens.player
 
 import android.app.Activity
 import android.content.pm.ActivityInfo
+import android.os.Build
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
@@ -24,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -31,6 +33,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.*
 import androidx.media3.datasource.DefaultDataSource
@@ -43,7 +47,9 @@ import coil.compose.AsyncImage
 import com.flow.youtube.data.local.VideoQuality
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.player.GlobalPlayerState
+import com.flow.youtube.player.PictureInPictureHelper
 import com.flow.youtube.ui.components.VideoCardFullWidth
+import com.flow.youtube.ui.components.VideoPlayerGestureOverlay
 import com.flow.youtube.ui.theme.extendedColors
 import kotlinx.coroutines.delay
 import kotlin.math.abs
@@ -62,6 +68,7 @@ fun VideoPlayerScreen(
     val activity = context as? Activity
     val configuration = LocalConfiguration.current
     val view = LocalView.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsState()
     
     var showQualitySelector by remember { mutableStateOf(false) }
@@ -73,6 +80,36 @@ fun VideoPlayerScreen(
     var bufferedPercentage by remember { mutableStateOf(0) }
     var isBuffering by remember { mutableStateOf(false) }
     var isFullscreen by remember { mutableStateOf(false) }
+    var isInPipMode by remember { mutableStateOf(false) }
+    
+    // Brightness state for gesture overlay
+    var currentBrightness by remember { mutableFloatStateOf(0.5f) }
+    
+    // PiP support - update params when playback state changes
+    LaunchedEffect(isPlaying) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
+            PictureInPictureHelper.updatePipParams(
+                activity = activity,
+                aspectRatioWidth = 16,
+                aspectRatioHeight = 9,
+                isPlaying = isPlaying,
+                autoEnterEnabled = true
+            )
+        }
+    }
+    
+    // Handle PiP mode changes via lifecycle
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
+                isInPipMode = activity.isInPictureInPictureMode
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
     
     // Initialize view history
     LaunchedEffect(Unit) {
@@ -348,24 +385,6 @@ fun VideoPlayerScreen(
                     .fillMaxWidth()
                     .height(playerHeight)
                     .background(Color.Black)
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onTap = {
-                                showControls = !showControls
-                            },
-                            onDoubleTap = { offset ->
-                                // Double tap to seek
-                                val screenWidth = size.width
-                                if (offset.x < screenWidth / 2) {
-                                    // Seek backward 10s
-                                    exoPlayer.seekTo((exoPlayer.currentPosition - 10000).coerceAtLeast(0))
-                                } else {
-                                    // Seek forward 10s
-                                    exoPlayer.seekTo((exoPlayer.currentPosition + 10000).coerceAtMost(duration))
-                                }
-                            }
-                        )
-                    }
             ) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(
@@ -407,6 +426,39 @@ fun VideoPlayerScreen(
                         },
                         modifier = Modifier.fillMaxSize()
                     )
+                    
+                    // Enhanced Gesture Overlay (only when not in PiP)
+                    if (!isInPipMode) {
+                        VideoPlayerGestureOverlay(
+                            modifier = Modifier.fillMaxSize(),
+                            currentPosition = currentPosition,
+                            duration = duration,
+                            isPlaying = isPlaying,
+                            onSeek = { delta ->
+                                val newPosition = (exoPlayer.currentPosition + delta).coerceIn(0L, duration)
+                                exoPlayer.seekTo(newPosition)
+                            },
+                            onPlayPause = {
+                                if (exoPlayer.isPlaying) {
+                                    exoPlayer.pause()
+                                } else {
+                                    exoPlayer.play()
+                                }
+                            },
+                            onToggleControls = {
+                                showControls = !showControls
+                            },
+                            onVolumeChange = { /* Handled in overlay */ },
+                            onBrightnessChange = { brightness ->
+                                currentBrightness = brightness
+                                activity?.window?.let { window ->
+                                    val layoutParams = window.attributes
+                                    layoutParams.screenBrightness = brightness
+                                    window.attributes = layoutParams
+                                }
+                            }
+                        )
+                    }
                 }
                 
                 // Buffering indicator
@@ -417,40 +469,41 @@ fun VideoPlayerScreen(
                     )
                 }
                 
-                // Custom Controls Overlay
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = showControls,
-                    enter = fadeIn(animationSpec = tween(200)),
-                    exit = fadeOut(animationSpec = tween(200)),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.3f))
+                // Custom Controls Overlay (hide in PiP mode)
+                if (!isInPipMode) {
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showControls,
+                        enter = fadeIn(animationSpec = tween(200)),
+                        exit = fadeOut(animationSpec = tween(200)),
+                        modifier = Modifier.fillMaxSize()
                     ) {
-                        // Top controls
-                        Row(
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .align(Alignment.TopStart)
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.3f))
                         ) {
-                            IconButton(
-                                onClick = onBack,
+                            // Top controls
+                            Row(
                                 modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Black.copy(alpha = 0.5f))
+                                    .fillMaxWidth()
+                                    .align(Alignment.TopStart)
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.ArrowBack,
-                                    contentDescription = "Back",
-                                    tint = Color.White
-                                )
-                            }
+                                IconButton(
+                                    onClick = onBack,
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Black.copy(alpha = 0.5f))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.ArrowBack,
+                                        contentDescription = "Back",
+                                        tint = Color.White
+                                    )
+                                }
                             
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -502,6 +555,33 @@ fun VideoPlayerScreen(
                                         contentDescription = if (isFullscreen) "Exit Fullscreen" else "Fullscreen",
                                         tint = Color.White
                                     )
+                                }
+                                
+                                // PiP button (Android O+)
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && 
+                                    PictureInPictureHelper.isPipSupported(context)) {
+                                    IconButton(
+                                        onClick = {
+                                            activity?.let { act ->
+                                                PictureInPictureHelper.enterPipMode(
+                                                    activity = act,
+                                                    aspectRatioWidth = 16,
+                                                    aspectRatioHeight = 9,
+                                                    isPlaying = isPlaying
+                                                )
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.Black.copy(alpha = 0.5f))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.PictureInPictureAlt,
+                                            contentDescription = "Picture in Picture",
+                                            tint = Color.White
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -576,9 +656,7 @@ fun VideoPlayerScreen(
             // Video details and related videos (only if not fullscreen)
             if (!isFullscreen) {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
                     // Video Information
@@ -919,7 +997,7 @@ fun VideoPlayerScreen(
     }
 }
 
-private fun formatTime(timeMs: Long): String {
+fun formatTime(timeMs: Long): String {
     val totalSeconds = timeMs / 1000
     val hours = totalSeconds / 3600
     val minutes = (totalSeconds % 3600) / 60

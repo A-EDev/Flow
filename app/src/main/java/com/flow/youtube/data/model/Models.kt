@@ -19,7 +19,8 @@ data class Channel(
     val thumbnailUrl: String,
     val subscriberCount: Long,
     val description: String = "",
-    val isSubscribed: Boolean = false
+    val isSubscribed: Boolean = false,
+    val url: String = "" // Full channel URL for navigation
 )
 
 data class Playlist(

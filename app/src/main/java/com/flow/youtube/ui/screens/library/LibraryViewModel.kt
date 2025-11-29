@@ -40,15 +40,14 @@ class LibraryViewModel : ViewModel() {
         // Load playlists count and watch-later count
         playlistRepository?.let { repo ->
             viewModelScope.launch {
-                repo.getPlaylistIdsFlow().collect { playlists ->
+                repo.getAllPlaylistsFlow().collect { playlists ->
                     _uiState.update { it.copy(playlistsCount = playlists.size) }
                 }
             }
 
             viewModelScope.launch {
-                repo.getWatchLaterIdsFlow().collect { ids ->
-                    // watchLater entries are counted in the library view
-                    _uiState.update { it.copy(downloadsCount = it.downloadsCount) }
+                repo.getWatchLaterVideosFlow().collect { videos ->
+                    _uiState.update { it.copy(watchLaterCount = videos.size) }
                 }
             }
         }
@@ -59,5 +58,6 @@ data class LibraryUiState(
     val likedVideosCount: Int = 0,
     val watchHistoryCount: Int = 0,
     val playlistsCount: Int = 0,
+    val watchLaterCount: Int = 0,
     val downloadsCount: Int = 0
 )

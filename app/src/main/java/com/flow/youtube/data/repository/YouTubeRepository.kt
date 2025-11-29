@@ -75,6 +75,68 @@ class YouTubeRepository {
     }
     
     /**
+     * Search with support for different content types (videos, channels, playlists)
+     */
+    suspend fun search(
+        query: String,
+        contentFilters: List<String> = emptyList(),
+        nextPage: Page? = null
+    ): com.flow.youtube.data.model.SearchResult = withContext(Dispatchers.IO) {
+        try {
+            val searchExtractor = service.getSearchExtractor(query, contentFilters, "")
+            searchExtractor.fetchPage()
+            
+            val infoItems = if (nextPage != null) {
+                searchExtractor.getPage(nextPage)
+            } else {
+                searchExtractor.initialPage
+            }
+            
+            val videos = mutableListOf<Video>()
+            val channels = mutableListOf<com.flow.youtube.data.model.Channel>()
+            val playlists = mutableListOf<com.flow.youtube.data.model.Playlist>()
+            
+            infoItems.items.forEach { item ->
+                when (item) {
+                    is StreamInfoItem -> {
+                        videos.add(item.toVideo())
+                    }
+                    is org.schabi.newpipe.extractor.channel.ChannelInfoItem -> {
+                        channels.add(item.toChannel())
+                    }
+                    is org.schabi.newpipe.extractor.playlist.PlaylistInfoItem -> {
+                        playlists.add(item.toPlaylist())
+                    }
+                }
+            }
+            
+            com.flow.youtube.data.model.SearchResult(
+                videos = videos,
+                channels = channels,
+                playlists = playlists
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            com.flow.youtube.data.model.SearchResult()
+        }
+    }
+    
+    /**
+     * Get search suggestions from YouTube
+     */
+    suspend fun getSearchSuggestions(query: String): List<String> = withContext(Dispatchers.IO) {
+        try {
+            if (query.length < 2) return@withContext emptyList()
+            
+            val suggestionExtractor = service.suggestionExtractor
+            suggestionExtractor.suggestionList(query)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+    
+    /**
      * Get video stream info for playback
      */
     suspend fun getVideoStreamInfo(videoId: String): StreamInfo? = withContext(Dispatchers.IO) {
@@ -231,6 +293,50 @@ class YouTubeRepository {
                 else -> "Unknown"
             },
             channelThumbnailUrl = bestAvatar
+        )
+    }
+    
+    /**
+     * Extension function to convert ChannelInfoItem to our Channel model
+     */
+    private fun org.schabi.newpipe.extractor.channel.ChannelInfoItem.toChannel(): com.flow.youtube.data.model.Channel {
+        val bestThumbnail = thumbnails
+            .sortedByDescending { it.height }
+            .firstOrNull()?.url ?: ""
+        
+        // Extract the channel ID properly from the URL
+        val channelId = when {
+            url.contains("/channel/") -> url.substringAfter("/channel/").substringBefore("/").substringBefore("?")
+            url.contains("/@") -> url.substringAfter("/@").substringBefore("/").substringBefore("?")
+            url.contains("/c/") -> url.substringAfter("/c/").substringBefore("/").substringBefore("?")
+            url.contains("/user/") -> url.substringAfter("/user/").substringBefore("/").substringBefore("?")
+            else -> url.substringAfterLast("/").substringBefore("?")
+        }
+        
+        return com.flow.youtube.data.model.Channel(
+            id = channelId,
+            name = name ?: "Unknown Channel",
+            thumbnailUrl = bestThumbnail,
+            subscriberCount = subscriberCount,
+            description = description ?: "",
+            url = url // Store the full URL
+        )
+    }
+    
+    /**
+     * Extension function to convert PlaylistInfoItem to our Playlist model
+     */
+    private fun org.schabi.newpipe.extractor.playlist.PlaylistInfoItem.toPlaylist(): com.flow.youtube.data.model.Playlist {
+        val bestThumbnail = thumbnails
+            .sortedByDescending { it.height }
+            .firstOrNull()?.url ?: ""
+        
+        return com.flow.youtube.data.model.Playlist(
+            id = url.substringAfterLast("="),
+            name = name ?: "Unknown Playlist",
+            thumbnailUrl = bestThumbnail,
+            videoCount = streamCount.toInt(),
+            isLocal = false
         )
     }
     

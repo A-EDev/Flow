@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.flow.youtube.ui.theme.ThemeMode
 import com.flow.youtube.ui.theme.extendedColors
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
@@ -26,10 +27,25 @@ fun SettingsScreen(
     onThemeChange: (ThemeMode) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val searchHistoryRepo = remember { com.flow.youtube.data.local.SearchHistoryRepository(context) }
+    
     var showThemeDialog by remember { mutableStateOf(false) }
     var showVideoQualityDialog by remember { mutableStateOf(false) }
     var showRegionDialog by remember { mutableStateOf(false) }
+    var showClearSearchDialog by remember { mutableStateOf(false) }
+    var showHistorySizeDialog by remember { mutableStateOf(false) }
+    var showRetentionDaysDialog by remember { mutableStateOf(false) }
+    
     var backgroundPlayEnabled by remember { mutableStateOf(false) }
+    
+    // Search settings states
+    val searchHistoryEnabled by searchHistoryRepo.isSearchHistoryEnabledFlow().collectAsState(initial = true)
+    val searchSuggestionsEnabled by searchHistoryRepo.isSearchSuggestionsEnabledFlow().collectAsState(initial = true)
+    val maxHistorySize by searchHistoryRepo.getMaxHistorySizeFlow().collectAsState(initial = 50)
+    val autoDeleteHistory by searchHistoryRepo.isAutoDeleteHistoryEnabledFlow().collectAsState(initial = false)
+    val historyRetentionDays by searchHistoryRepo.getHistoryRetentionDaysFlow().collectAsState(initial = 90)
 
     Column(
         modifier = modifier
@@ -115,6 +131,94 @@ fun SettingsScreen(
 
             item { Spacer(modifier = Modifier.height(24.dp)) }
 
+            // Search Settings Section
+            item {
+                SectionHeader(text = "Search Settings")
+            }
+
+            item {
+                SettingsSwitchItem(
+                    icon = Icons.Outlined.History,
+                    title = "Save Search History",
+                    subtitle = "Save your searches for quick access",
+                    checked = searchHistoryEnabled,
+                    onCheckedChange = { enabled ->
+                        coroutineScope.launch {
+                            searchHistoryRepo.setSearchHistoryEnabled(enabled)
+                        }
+                    }
+                )
+            }
+
+            item { Spacer(modifier = Modifier.height(8.dp)) }
+
+            item {
+                SettingsSwitchItem(
+                    icon = Icons.Outlined.TrendingUp,
+                    title = "Search Suggestions",
+                    subtitle = "Show suggestions while typing",
+                    checked = searchSuggestionsEnabled,
+                    onCheckedChange = { enabled ->
+                        coroutineScope.launch {
+                            searchHistoryRepo.setSearchSuggestionsEnabled(enabled)
+                        }
+                    }
+                )
+            }
+
+            item { Spacer(modifier = Modifier.height(8.dp)) }
+
+            item {
+                SettingsItem(
+                    icon = Icons.Outlined.Storage,
+                    title = "Max History Size",
+                    subtitle = "Currently: $maxHistorySize searches",
+                    onClick = { showHistorySizeDialog = true }
+                )
+            }
+
+            item { Spacer(modifier = Modifier.height(8.dp)) }
+
+            item {
+                SettingsSwitchItem(
+                    icon = Icons.Outlined.AutoDelete,
+                    title = "Auto-Delete History",
+                    subtitle = if (autoDeleteHistory) "Delete after $historyRetentionDays days" else "Never delete automatically",
+                    checked = autoDeleteHistory,
+                    onCheckedChange = { enabled ->
+                        coroutineScope.launch {
+                            searchHistoryRepo.setAutoDeleteHistory(enabled)
+                        }
+                    }
+                )
+            }
+
+            if (autoDeleteHistory) {
+                item { Spacer(modifier = Modifier.height(8.dp)) }
+
+                item {
+                    SettingsItem(
+                        icon = Icons.Outlined.Schedule,
+                        title = "Retention Period",
+                        subtitle = "Delete searches older than $historyRetentionDays days",
+                        onClick = { showRetentionDaysDialog = true }
+                    )
+                }
+            }
+
+            item { Spacer(modifier = Modifier.height(8.dp)) }
+
+            item {
+                SettingsItem(
+                    icon = Icons.Outlined.ManageSearch,
+                    title = "Clear Search History",
+                    subtitle = "Remove all search queries",
+                    onClick = { showClearSearchDialog = true }
+                )
+            }
+
+            item { Spacer(modifier = Modifier.height(24.dp)) }
+
             // Privacy & Data Section
             item {
                 SectionHeader(text = "Privacy & Data Management")
@@ -125,17 +229,6 @@ fun SettingsScreen(
                     icon = Icons.Outlined.DeleteSweep,
                     title = "Clear Watch History",
                     subtitle = "Remove all watched videos",
-                    onClick = { /* Show confirmation */ }
-                )
-            }
-
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
-            item {
-                SettingsItem(
-                    icon = Icons.Outlined.ManageSearch,
-                    title = "Clear Search History",
-                    subtitle = "Remove all search queries",
                     onClick = { /* Show confirmation */ }
                 )
             }
@@ -215,6 +308,158 @@ fun SettingsScreen(
                 showThemeDialog = false
             },
             onDismiss = { showThemeDialog = false }
+        )
+    }
+    
+    // Clear Search History Dialog
+    if (showClearSearchDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearSearchDialog = false },
+            icon = {
+                Icon(Icons.Outlined.ManageSearch, contentDescription = null)
+            },
+            title = {
+                Text("Clear Search History?")
+            },
+            text = {
+                Text("This will permanently delete all your search history.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            searchHistoryRepo.clearSearchHistory()
+                            showClearSearchDialog = false
+                        }
+                    }
+                ) {
+                    Text("Clear")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearSearchDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+    
+    // Max History Size Dialog
+    if (showHistorySizeDialog) {
+        var selectedSize by remember { mutableStateOf(maxHistorySize) }
+        
+        AlertDialog(
+            onDismissRequest = { showHistorySizeDialog = false },
+            icon = {
+                Icon(Icons.Outlined.Storage, contentDescription = null)
+            },
+            title = {
+                Text("Max History Size")
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Choose how many searches to keep:")
+                    
+                    listOf(25, 50, 100, 200, 500).forEach { size ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { selectedSize = size }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedSize == size,
+                                onClick = { selectedSize = size }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("$size searches")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            searchHistoryRepo.setMaxHistorySize(selectedSize)
+                            showHistorySizeDialog = false
+                        }
+                    }
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showHistorySizeDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+    
+    // Retention Days Dialog
+    if (showRetentionDaysDialog) {
+        var selectedDays by remember { mutableStateOf(historyRetentionDays) }
+        
+        AlertDialog(
+            onDismissRequest = { showRetentionDaysDialog = false },
+            icon = {
+                Icon(Icons.Outlined.Schedule, contentDescription = null)
+            },
+            title = {
+                Text("Retention Period")
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Delete searches older than:")
+                    
+                    listOf(7, 30, 90, 180, 365).forEach { days ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { selectedDays = days }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedDays == days,
+                                onClick = { selectedDays = days }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                when (days) {
+                                    7 -> "1 week"
+                                    30 -> "1 month"
+                                    90 -> "3 months"
+                                    180 -> "6 months"
+                                    365 -> "1 year"
+                                    else -> "$days days"
+                                }
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            searchHistoryRepo.setHistoryRetentionDays(selectedDays)
+                            showRetentionDaysDialog = false
+                        }
+                    }
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRetentionDaysDialog = false }) {
+                    Text("Cancel")
+                }
+            }
         )
     }
 }

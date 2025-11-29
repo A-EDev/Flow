@@ -19,9 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -74,15 +76,6 @@ fun EnhancedMusicPlayerScreen(
     var dragOffset by remember { mutableStateOf(0f) }
     var showSkipAnimation by remember { mutableStateOf<SkipDirection?>(null) }
     
-    // Audio manager for volume
-    val audioManager = remember { 
-        context.getSystemService(android.content.Context.AUDIO_SERVICE) as AudioManager 
-    }
-    val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
-    var volumeLevel by remember { 
-        mutableStateOf(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC).toFloat() / maxVolume) 
-    }
-    
     LaunchedEffect(track.videoId) {
         viewModel.initialize(context)
         
@@ -90,12 +83,9 @@ fun EnhancedMusicPlayerScreen(
         val currentTrack = viewModel.uiState.value.currentTrack
         val isPlaying = viewModel.uiState.value.isPlaying
         
-        // Only skip loading if the exact same track is currently playing
-        // This allows changing tracks but prevents restart when coming from mini player
         if (currentTrack?.videoId == track.videoId && isPlaying) {
             // Track is already playing, don't reload
         } else {
-            // Different track or not playing, load it
             viewModel.loadAndPlayTrack(track)
         }
     }
@@ -111,7 +101,7 @@ fun EnhancedMusicPlayerScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Blurred background
         AsyncImage(
@@ -119,8 +109,9 @@ fun EnhancedMusicPlayerScreen(
             contentDescription = null,
             modifier = Modifier
                 .fillMaxSize()
-                .blur(50.dp),
-            alpha = 0.3f
+                .blur(80.dp),
+            alpha = 0.4f,
+            contentScale = ContentScale.Crop
         )
         
         // Gradient overlay
@@ -130,9 +121,9 @@ fun EnhancedMusicPlayerScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
-                            MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                            MaterialTheme.colorScheme.surface
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.5f),
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
+                            MaterialTheme.colorScheme.background
                         )
                     )
                 )
@@ -153,12 +144,6 @@ fun EnhancedMusicPlayerScreen(
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text(
-                            text = "from YouTube Music",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.SemiBold
-                        )
                     }
                 },
                 navigationIcon = {
@@ -166,16 +151,25 @@ fun EnhancedMusicPlayerScreen(
                         Icon(
                             imageVector = Icons.Filled.KeyboardArrowDown,
                             contentDescription = "Close",
-                            modifier = Modifier.size(32.dp)
+                            modifier = Modifier.size(32.dp),
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 },
                 actions = {
                     IconButton(onClick = { /* Share */ }) {
-                        Icon(Icons.Outlined.Share, "Share")
+                        Icon(
+                            Icons.Outlined.Share, 
+                            "Share",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                     IconButton(onClick = { /* More options */ }) {
-                        Icon(Icons.Outlined.MoreVert, "More")
+                        Icon(
+                            Icons.Outlined.MoreVert, 
+                            "More",
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -186,28 +180,24 @@ fun EnhancedMusicPlayerScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 24.dp),
+                    .padding(horizontal = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceEvenly
             ) {
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                // Album art with rotation and swipe gestures
+                // Album art with swipe gestures
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .padding(32.dp)
+                        .weight(1f)
+                        .padding(vertical = 16.dp)
                         .pointerInput(Unit) {
                             detectHorizontalDragGestures(
                                 onDragEnd = {
                                     if (kotlin.math.abs(dragOffset) > 100) {
                                         if (dragOffset > 0) {
-                                            // Swipe right - previous
                                             showSkipAnimation = SkipDirection.PREVIOUS
                                             viewModel.skipToPrevious()
                                         } else {
-                                            // Swipe left - next
                                             showSkipAnimation = SkipDirection.NEXT
                                             viewModel.skipToNext()
                                         }
@@ -226,14 +216,25 @@ fun EnhancedMusicPlayerScreen(
                         showSkipAnimation = null
                     }
                     
-                    // Rotating album art
-                    RotatingAlbumArt(
-                        imageUrl = uiState.currentTrack?.thumbnailUrl ?: "",
-                        isPlaying = uiState.isPlaying
-                    )
+                    // Album art card
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f),
+                        shape = RoundedCornerShape(24.dp),
+                        shadowElevation = 24.dp,
+                        tonalElevation = 4.dp
+                    ) {
+                        AsyncImage(
+                            model = uiState.currentTrack?.thumbnailUrl ?: track.thumbnailUrl,
+                            contentDescription = "Album art",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 }
                 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 
                 // Track info with love button
                 Row(
@@ -243,15 +244,16 @@ fun EnhancedMusicPlayerScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = uiState.currentTrack?.title ?: "Loading...",
+                            text = uiState.currentTrack?.title ?: track.title,
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
                             maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = uiState.currentTrack?.artist ?: "",
+                            text = uiState.currentTrack?.artist ?: track.artist,
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -265,13 +267,13 @@ fun EnhancedMusicPlayerScreen(
                         Icon(
                             imageVector = if (uiState.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                             contentDescription = "Like",
-                            tint = if (uiState.isLiked) Color.Red else MaterialTheme.colorScheme.onSurface,
+                            tint = if (uiState.isLiked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.size(32.dp)
                         )
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 
                 // Progress bar and time
                 Column(modifier = Modifier.fillMaxWidth()) {
@@ -315,7 +317,7 @@ fun EnhancedMusicPlayerScreen(
                     // Shuffle
                     IconButton(
                         onClick = { viewModel.toggleShuffle() },
-                        modifier = Modifier.size(56.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Shuffle,
@@ -324,26 +326,27 @@ fun EnhancedMusicPlayerScreen(
                                 MaterialTheme.colorScheme.primary 
                             else 
                                 MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                     
                     // Previous
                     IconButton(
                         onClick = { viewModel.skipToPrevious() },
-                        modifier = Modifier.size(64.dp)
+                        modifier = Modifier.size(56.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.SkipPrevious,
                             contentDescription = "Previous",
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(40.dp),
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     
                     // Play/Pause - Large button
                     FilledIconButton(
                         onClick = { viewModel.togglePlayPause() },
-                        modifier = Modifier.size(80.dp),
+                        modifier = Modifier.size(72.dp),
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = MaterialTheme.colorScheme.primary
                         )
@@ -351,7 +354,8 @@ fun EnhancedMusicPlayerScreen(
                         if (uiState.isBuffering) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(32.dp),
-                                color = MaterialTheme.colorScheme.onPrimary
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 3.dp
                             )
                         } else {
                             Icon(
@@ -360,7 +364,7 @@ fun EnhancedMusicPlayerScreen(
                                 else 
                                     Icons.Filled.PlayArrow,
                                 contentDescription = if (uiState.isPlaying) "Pause" else "Play",
-                                modifier = Modifier.size(48.dp),
+                                modifier = Modifier.size(40.dp),
                                 tint = MaterialTheme.colorScheme.onPrimary
                             )
                         }
@@ -369,19 +373,20 @@ fun EnhancedMusicPlayerScreen(
                     // Next
                     IconButton(
                         onClick = { viewModel.skipToNext() },
-                        modifier = Modifier.size(64.dp)
+                        modifier = Modifier.size(56.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.SkipNext,
                             contentDescription = "Next",
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(40.dp),
+                            tint = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     
                     // Repeat
                     IconButton(
                         onClick = { viewModel.toggleRepeat() },
-                        modifier = Modifier.size(56.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = when (uiState.repeatMode) {
@@ -393,78 +398,62 @@ fun EnhancedMusicPlayerScreen(
                                 MaterialTheme.colorScheme.primary 
                             else 
                                 MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
                 
                 // Bottom actions
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
-                    // Favorite button
-                    IconButton(onClick = { viewModel.toggleLike() }) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = if (uiState.isLiked) 
-                                    Icons.Filled.Favorite 
-                                else 
-                                    Icons.Outlined.FavoriteBorder,
-                                contentDescription = "Favorite",
-                                tint = if (uiState.isLiked) 
-                                    Color.Red 
-                                else 
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "Favorite",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (uiState.isLiked) 
-                                    Color.Red 
-                                else 
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    
                     // Download button
-                    IconButton(onClick = { viewModel.downloadTrack() }) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        IconButton(onClick = { viewModel.downloadTrack() }) {
                             Icon(
                                 imageVector = Icons.Outlined.DownloadForOffline,
                                 contentDescription = "Download",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Text(
-                                text = "Download",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
+                        Text(
+                            text = "Download",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                     
                     // Add to Playlist button
-                    IconButton(onClick = { viewModel.showAddToPlaylistDialog(true) }) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        IconButton(onClick = { viewModel.showAddToPlaylistDialog(true) }) {
                             Icon(
                                 imageVector = Icons.Outlined.PlaylistAdd,
                                 contentDescription = "Add to Playlist",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Text(
-                                text = "Playlist",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
+                        Text(
+                            text = "Playlist",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                     
                     // Queue button
-                    IconButton(onClick = { showQueue = !showQueue }) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        IconButton(onClick = { showQueue = !showQueue }) {
                             Icon(
                                 imageVector = Icons.Outlined.QueueMusic,
                                 contentDescription = "Queue",
@@ -473,19 +462,19 @@ fun EnhancedMusicPlayerScreen(
                                 else 
                                     MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                            Text(
-                                text = "Queue",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = if (showQueue) 
-                                    MaterialTheme.colorScheme.primary 
-                                else 
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                            )
                         }
+                        Text(
+                            text = "Queue",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (showQueue) 
+                                MaterialTheme.colorScheme.primary 
+                            else 
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
         
@@ -513,17 +502,18 @@ fun EnhancedMusicPlayerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)),
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     Text(
                         text = "Loading track...",
-                        style = MaterialTheme.typography.bodyLarge
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -539,73 +529,11 @@ fun EnhancedMusicPlayerScreen(
                     TextButton(onClick = onBackClick) {
                         Text("Close")
                     }
-                }
+                },
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer
             ) {
                 Text(uiState.error ?: "An error occurred")
-            }
-        }
-    }
-}
-
-@Composable
-private fun RotatingAlbumArt(
-    imageUrl: String,
-    isPlaying: Boolean
-) {
-    val rotation = remember { Animatable(0f) }
-    
-    LaunchedEffect(isPlaying) {
-        if (isPlaying) {
-            rotation.animateTo(
-                targetValue = 360f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(20000, easing = LinearEasing),
-                    repeatMode = androidx.compose.animation.core.RepeatMode.Restart
-                )
-            )
-        } else {
-            rotation.stop()
-        }
-    }
-    
-    Surface(
-        modifier = Modifier
-            .fillMaxSize()
-            .rotate(rotation.value),
-        shape = CircleShape,
-        shadowElevation = 16.dp,
-        tonalElevation = 8.dp
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        ) {
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = "Album art",
-                modifier = Modifier.fillMaxSize()
-            )
-            
-            // Center hole (vinyl effect)
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(60.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 8.dp
-            ) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Surface(
-                        modifier = Modifier.size(20.dp),
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceVariant
-                    ) {}
-                }
             }
         }
     }

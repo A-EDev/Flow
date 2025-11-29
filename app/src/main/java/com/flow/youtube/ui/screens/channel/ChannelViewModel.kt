@@ -1,22 +1,42 @@
 package com.flow.youtube.ui.screens.channel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.flow.youtube.data.local.SubscriptionRepository
 import com.flow.youtube.data.local.ChannelSubscription
+import com.flow.youtube.data.model.Video
+import com.flow.youtube.data.paging.ChannelVideosPagingSource
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.StreamingService
 import org.schabi.newpipe.extractor.channel.ChannelInfo
+import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
+import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler
 
 class ChannelViewModel : ViewModel() {
     
     private val _uiState = MutableStateFlow(ChannelUiState())
     val uiState: StateFlow<ChannelUiState> = _uiState.asStateFlow()
     
+    // Paging flow for channel videos with infinite scroll
+    private val _videosPagingFlow = MutableStateFlow<Flow<PagingData<Video>>?>(null)
+    val videosPagingFlow: StateFlow<Flow<PagingData<Video>>?> = _videosPagingFlow.asStateFlow()
+    
     private var subscriptionRepository: SubscriptionRepository? = null
+    private var currentVideosTab: ListLinkHandler? = null
+    
+    companion object {
+        private const val TAG = "ChannelViewModel"
+    }
     
     fun initialize(context: android.content.Context) {
         if (subscriptionRepository == null) {
@@ -25,19 +45,30 @@ class ChannelViewModel : ViewModel() {
     }
     
     fun loadChannel(channelUrl: String) {
+        if (channelUrl.isBlank()) {
+            _uiState.update { it.copy(error = "Invalid channel URL", isLoading = false) }
+            return
+        }
+        
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             
             try {
-                // Use NewPipe to fetch channel info
-                val service: StreamingService = NewPipe.getService(0) // YouTube service
-                val extractor = service.getChannelExtractor(channelUrl)
-                extractor.fetchPage()
+                Log.d(TAG, "Loading channel: $channelUrl")
                 
-                val channelInfo = ChannelInfo.getInfo(extractor)
+                // Normalize the URL
+                val normalizedUrl = normalizeChannelUrl(channelUrl)
+                Log.d(TAG, "Normalized URL: $normalizedUrl")
+                
+                val channelInfo = withContext(Dispatchers.IO) {
+                    // Use NewPipe to fetch channel info
+                    ChannelInfo.getInfo(NewPipe.getService(0), normalizedUrl)
+                }
+                
+                Log.d(TAG, "Channel loaded: ${channelInfo.name}")
                 
                 // Extract channel ID from URL
-                val channelId = extractChannelId(channelUrl)
+                val channelId = extractChannelId(normalizedUrl)
                 
                 _uiState.update { 
                     it.copy(
@@ -50,7 +81,11 @@ class ChannelViewModel : ViewModel() {
                 // Load subscription state
                 loadSubscriptionState(channelId)
                 
+                // Load channel videos
+                loadChannelVideos(channelInfo)
+                
             } catch (e: Exception) {
+                Log.e(TAG, "Failed to load channel", e)
                 _uiState.update { 
                     it.copy(
                         error = e.message ?: "Failed to load channel",
@@ -58,6 +93,94 @@ class ChannelViewModel : ViewModel() {
                     )
                 }
             }
+        }
+    }
+    
+    private fun normalizeChannelUrl(url: String): String {
+        // If already a full URL, return as is
+        if (url.startsWith("http://") || url.startsWith("https://")) {
+            return url
+        }
+        
+        // If it looks like a channel ID (starts with UC), construct URL
+        if (url.startsWith("UC") && url.length >= 24) {
+            return "https://www.youtube.com/channel/$url"
+        }
+        
+        // If it's a handle (starts with @), construct URL
+        if (url.startsWith("@")) {
+            return "https://www.youtube.com/$url"
+        }
+        
+        // Default: assume it's a channel ID
+        return "https://www.youtube.com/channel/$url"
+    }
+    
+    private fun loadChannelVideos(channelInfo: ChannelInfo) {
+        viewModelScope.launch {
+            try {
+                _uiState.update { it.copy(isLoadingVideos = true) }
+                
+                withContext(Dispatchers.IO) {
+                    // Find the videos tab
+                    for (tab in channelInfo.tabs) {
+                        try {
+                            val tabName = tab.contentFilters.joinToString()
+                            Log.d(TAG, "Checking tab: $tabName")
+                            
+                            if (tabName.contains("video", ignoreCase = true) || 
+                                tabName.contains("Videos", ignoreCase = true)) {
+                                
+                                currentVideosTab = tab
+                                Log.d(TAG, "Found videos tab: $tabName")
+                                break
+                            }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error checking tab", e)
+                        }
+                    }
+                }
+                
+                // Create the paging flow
+                if (currentVideosTab != null) {
+                    val pagingFlow = Pager(
+                        config = PagingConfig(
+                            pageSize = 20,
+                            enablePlaceholders = false,
+                            prefetchDistance = 5,
+                            initialLoadSize = 20
+                        ),
+                        pagingSourceFactory = {
+                            ChannelVideosPagingSource(channelInfo, currentVideosTab)
+                        }
+                    ).flow.cachedIn(viewModelScope)
+                    
+                    _videosPagingFlow.value = pagingFlow
+                    Log.d(TAG, "Paging flow created for channel videos")
+                } else {
+                    Log.w(TAG, "No videos tab found, falling back to empty list")
+                }
+                
+                _uiState.update { it.copy(isLoadingVideos = false) }
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load channel videos", e)
+                _uiState.update { 
+                    it.copy(
+                        isLoadingVideos = false,
+                        videosError = e.message
+                    )
+                }
+            }
+        }
+    }
+    
+    private fun extractVideoId(url: String): String {
+        return when {
+            url.contains("v=") -> url.substringAfter("v=").substringBefore("&")
+            url.contains("/watch/") -> url.substringAfter("/watch/").substringBefore("?")
+            url.contains("/shorts/") -> url.substringAfter("/shorts/").substringBefore("?")
+            else -> url.substringAfterLast("/").substringBefore("?")
         }
     }
     
@@ -124,8 +247,11 @@ class ChannelViewModel : ViewModel() {
 data class ChannelUiState(
     val channelId: String? = null,
     val channelInfo: ChannelInfo? = null,
+    val channelVideos: List<Video> = emptyList(),
     val isLoading: Boolean = false,
+    val isLoadingVideos: Boolean = false,
     val error: String? = null,
+    val videosError: String? = null,
     val isSubscribed: Boolean = false,
     val selectedTab: Int = 0 // 0: Videos, 1: Playlists, 2: About
 )

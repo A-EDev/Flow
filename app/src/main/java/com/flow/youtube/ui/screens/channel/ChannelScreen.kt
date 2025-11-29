@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,10 +21,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
 import coil.compose.AsyncImage
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.ui.theme.extendedColors
-import org.schabi.newpipe.extractor.stream.StreamInfoItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,6 +39,10 @@ fun ChannelScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    val videosPagingFlow by viewModel.videosPagingFlow.collectAsState()
+    
+    // Collect paging items when flow is available
+    val videosLazyPagingItems = videosPagingFlow?.collectAsLazyPagingItems()
     
     // Initialize view model
     LaunchedEffect(Unit) {
@@ -106,6 +113,7 @@ fun ChannelScreen(
                 uiState.channelInfo != null -> {
                     ChannelContent(
                         uiState = uiState,
+                        videosLazyPagingItems = videosLazyPagingItems,
                         onVideoClick = onVideoClick,
                         onSubscribeClick = { viewModel.toggleSubscription() },
                         onTabSelected = { viewModel.selectTab(it) }
@@ -119,6 +127,7 @@ fun ChannelScreen(
 @Composable
 private fun ChannelContent(
     uiState: ChannelUiState,
+    videosLazyPagingItems: LazyPagingItems<Video>?,
     onVideoClick: (String) -> Unit,
     onSubscribeClick: () -> Unit,
     onTabSelected: (Int) -> Unit
@@ -167,19 +176,120 @@ private fun ChannelContent(
         // Tab content
         when (uiState.selectedTab) {
             0 -> {
-                // Videos tab - Coming soon placeholder
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Channel videos - Coming Soon",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
+                // Videos tab with Paging 3
+                if (videosLazyPagingItems != null) {
+                    // Handle loading states
+                    when (videosLazyPagingItems.loadState.refresh) {
+                        is LoadState.Loading -> {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator()
+                                }
+                            }
+                        }
+                        is LoadState.Error -> {
+                            val error = (videosLazyPagingItems.loadState.refresh as LoadState.Error).error
+                            item {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        text = error.localizedMessage ?: "Failed to load videos",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                    TextButton(onClick = { videosLazyPagingItems.retry() }) {
+                                        Icon(Icons.Default.Refresh, contentDescription = null)
+                                        Spacer(Modifier.width(4.dp))
+                                        Text("Retry")
+                                    }
+                                }
+                            }
+                        }
+                        is LoadState.NotLoading -> {
+                            if (videosLazyPagingItems.itemCount == 0) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "No videos found",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Video items
+                    items(
+                        count = videosLazyPagingItems.itemCount,
+                        key = { index -> videosLazyPagingItems[index]?.id ?: index }
+                    ) { index ->
+                        val video = videosLazyPagingItems[index]
+                        if (video != null) {
+                            VideoCard(
+                                video = video,
+                                onClick = { onVideoClick("https://www.youtube.com/watch?v=${video.id}") }
+                            )
+                        }
+                    }
+                    
+                    // Loading more indicator
+                    when (videosLazyPagingItems.loadState.append) {
+                        is LoadState.Loading -> {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                            }
+                        }
+                        is LoadState.Error -> {
+                            item {
+                                TextButton(
+                                    onClick = { videosLazyPagingItems.retry() },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp)
+                                ) {
+                                    Text("Load more failed. Tap to retry")
+                                }
+                            }
+                        }
+                        else -> {}
+                    }
+                } else if (uiState.isLoadingVideos) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
                     }
                 }
             }
@@ -309,11 +419,9 @@ private fun ChannelHeader(
 
 @Composable
 private fun VideoCard(
-    videoItem: StreamInfoItem,
+    video: Video,
     onClick: () -> Unit
 ) {
-    val thumbnailUrl = try { videoItem.thumbnails?.firstOrNull()?.url } catch (e: Exception) { null }
-    
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -323,7 +431,7 @@ private fun VideoCard(
     ) {
         // Thumbnail
         AsyncImage(
-            model = thumbnailUrl,
+            model = video.thumbnailUrl,
             contentDescription = null,
             modifier = Modifier
                 .width(150.dp)
@@ -341,7 +449,7 @@ private fun VideoCard(
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = videoItem.name,
+                text = video.title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -353,15 +461,14 @@ private fun VideoCard(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
-                    text = "${formatViewCount(videoItem.viewCount)} views",
+                    text = "${formatViewCount(video.viewCount)} views",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.extendedColors.textSecondary
                 )
                 
-                val uploadDate = videoItem.uploadDate
-                if (uploadDate != null) {
+                if (video.uploadDate.isNotEmpty()) {
                     Text(
-                        text = uploadDate.date().toString(),
+                        text = video.uploadDate,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.extendedColors.textSecondary
                     )

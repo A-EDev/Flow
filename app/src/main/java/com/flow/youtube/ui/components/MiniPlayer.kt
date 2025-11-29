@@ -20,10 +20,14 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.zIndex
 import androidx.media3.common.util.UnstableApi
@@ -45,27 +49,26 @@ fun EnhancedMiniPlayer(
     modifier: Modifier = Modifier
 ) {
     val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsState()
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
     
-    var offsetY by remember { mutableStateOf(0f) }
-    var isDragging by remember { mutableStateOf(false) }
-    var currentPosition by remember { mutableStateOf(0L) }
-    var duration by remember { mutableStateOf(0L) }
+    // Screen dimensions
+    val screenWidth = with(density) { configuration.screenWidthDp.dp.toPx() }
+    val screenHeight = with(density) { configuration.screenHeightDp.dp.toPx() }
     
-    val progress = if (duration > 0) {
-        (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
+    // Mini player dimensions
+    val playerWidth = 200.dp
+    val playerHeight = 112.dp // 16:9 aspect ratio approx
+    val playerWidthPx = with(density) { playerWidth.toPx() }
+    val playerHeightPx = with(density) { playerHeight.toPx() }
     
-    // Animate slide in/out
-    val animatedOffsetY by animateFloatAsState(
-        targetValue = if (isDragging) offsetY else 0f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "miniPlayerOffset"
-    )
+    // Initial position (Bottom Right, with some padding)
+    // We use a persistent offset state
+    var offsetX by remember { mutableFloatStateOf(screenWidth - playerWidthPx - 32f) }
+    var offsetY by remember { mutableFloatStateOf(screenHeight - playerHeightPx - 200f) } // Above bottom nav
+    
+    var currentPosition by remember { mutableLongStateOf(0L) }
+    var duration by remember { mutableLongStateOf(0L) }
     
     // Update position continuously
     LaunchedEffect(playerState.isPlaying) {
@@ -76,222 +79,153 @@ fun EnhancedMiniPlayer(
         }
     }
     
+    val progress = if (duration > 0) {
+        (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    
+    val progressPercent = (progress * 100).toInt()
+
     Box(
         modifier = modifier
-            .fillMaxWidth()
-            .height(72.dp)
-            .offset { IntOffset(0, animatedOffsetY.roundToInt()) }
+            .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+            .width(playerWidth)
+            .height(playerHeight)
             .zIndex(1000f)
             .shadow(
-                elevation = 8.dp,
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                elevation = 12.dp,
+                shape = RoundedCornerShape(12.dp)
             )
-            .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.surface,
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    )
-                ),
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-            )
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color.Black)
             .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onDragStart = { isDragging = true },
-                    onDragEnd = {
-                        isDragging = false
-                        // Dismiss if dragged down more than 100dp
-                        if (offsetY > 100f) {
-                            onCloseClick()
-                        } else {
-                            offsetY = 0f
-                        }
-                    },
-                    onDragCancel = {
-                        isDragging = false
-                        offsetY = 0f
-                    },
-                    onVerticalDrag = { _, dragAmount ->
-                        // Only allow dragging down
-                        offsetY = (offsetY + dragAmount).coerceAtLeast(0f).coerceAtMost(200f)
-                    }
-                )
+                detectDragGestures { change, dragAmount ->
+                    change.consume()
+                    offsetX = (offsetX + dragAmount.x).coerceIn(0f, screenWidth - playerWidthPx)
+                    offsetY = (offsetY + dragAmount.y).coerceIn(0f, screenHeight - playerHeightPx)
+                }
             }
             .clickable(onClick = onExpandClick)
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
+        // Video Surface
+        if (EnhancedPlayerManager.getInstance().getPlayer() != null) {
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        player = EnhancedPlayerManager.getInstance().getPlayer()
+                        layoutParams = FrameLayout.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        useController = false
+                        controllerShowTimeoutMs = 0
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            AsyncImage(
+                model = video.thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+            )
+        }
+        
+        // Overlay Gradient
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.3f),
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.6f)
+                        )
+                    )
+                )
+        )
+
+        // Controls Overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp)
         ) {
-            // Drag handle
-            Box(
+            // Close Button (Top Right)
+            IconButton(
+                onClick = {
+                    EnhancedPlayerManager.getInstance().stop()
+                    EnhancedPlayerManager.getInstance().release()
+                    onCloseClick()
+                },
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .padding(horizontal = 150.dp),
-                contentAlignment = Alignment.Center
+                    .align(Alignment.TopEnd)
+                    .size(24.dp)
+                    .background(Color.Black.copy(alpha = 0.5f), androidx.compose.foundation.shape.CircleShape)
             ) {
-                Box(
-                    modifier = Modifier
-                        .width(40.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(MaterialTheme.extendedColors.textSecondary.copy(alpha = 0.5f))
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Close",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
                 )
             }
             
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Mini video player with thumbnail overlay
-                Box(
-                    modifier = Modifier
-                        .width(100.dp)
-                        .height(56.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color.Black)
-                ) {
-                    if (EnhancedPlayerManager.getInstance().getPlayer() != null) {
-                        AndroidView(
-                            factory = { ctx ->
-                                PlayerView(ctx).apply {
-                                    player = EnhancedPlayerManager.getInstance().getPlayer()
-                                    layoutParams = FrameLayout.LayoutParams(
-                                        ViewGroup.LayoutParams.MATCH_PARENT,
-                                        ViewGroup.LayoutParams.MATCH_PARENT
-                                    )
-                                    useController = false
-                                    controllerShowTimeoutMs = 0
-                                }
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
+            // Play/Pause (Center)
+            IconButton(
+                onClick = {
+                    if (playerState.isPlaying) {
+                        EnhancedPlayerManager.getInstance().pause()
                     } else {
-                        AsyncImage(
-                            model = video.thumbnailUrl,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        EnhancedPlayerManager.getInstance().play()
                     }
-                    
-                    // Buffering indicator
-                    if (playerState.isBuffering) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .align(Alignment.Center),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
-                    }
-                }
-                
-                // Video info
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = video.title,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                },
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(40.dp)
+                    .background(Color.Black.copy(alpha = 0.5f), androidx.compose.foundation.shape.CircleShape)
+            ) {
+                if (playerState.isBuffering) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
                     )
-                    
-                    Spacer(modifier = Modifier.height(2.dp))
-                    
-                    Text(
-                        text = video.channelName,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.extendedColors.textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    
-                    Spacer(modifier = Modifier.height(2.dp))
-                    
-                    // Time display
-                    if (duration > 0) {
-                        Text(
-                            text = "${formatTime(currentPosition)} / ${formatTime(duration)}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.extendedColors.textSecondary
-                        )
-                    }
-                }
-                
-                // Play/Pause button with animation
-                Surface(
-                    onClick = {
-                        if (playerState.isPlaying) {
-                            EnhancedPlayerManager.getInstance().pause()
-                        } else {
-                            EnhancedPlayerManager.getInstance().play()
-                        }
-                    },
-                    modifier = Modifier.size(44.dp),
-                    shape = RoundedCornerShape(22.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        androidx.compose.animation.AnimatedContent(
-                            targetState = playerState.isPlaying,
-                            transitionSpec = {
-                                fadeIn(animationSpec = tween(150)) togetherWith
-                                        fadeOut(animationSpec = tween(150))
-                            },
-                            label = "playPauseAnimation"
-                        ) { isPlaying ->
-                            Icon(
-                                imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                }
-                
-                // Close button
-                IconButton(
-                    onClick = {
-                        EnhancedPlayerManager.getInstance().stop()
-                        EnhancedPlayerManager.getInstance().release()
-                        onCloseClick()
-                    },
-                    modifier = Modifier.size(40.dp)
-                ) {
+                } else {
                     Icon(
-                        imageVector = Icons.Filled.Close,
-                        contentDescription = "Close",
-                        tint = MaterialTheme.colorScheme.onSurface
+                        imageVector = if (playerState.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (playerState.isPlaying) "Pause" else "Play",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
-        }
-        
-        // Progress bar at bottom with gradient
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(3.dp)
-                .align(Alignment.BottomCenter)
-        ) {
+            
+            // Progress Percentage (Bottom Right)
+            Text(
+                text = "$progressPercent%",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 10.sp
+                ),
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(4.dp)
+            )
+            
+            // Progress Bar (Bottom Edge)
             LinearProgressIndicator(
                 progress = progress,
-                modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .align(Alignment.BottomCenter),
+                color = Color.Red,
+                trackColor = Color.White.copy(alpha = 0.3f)
             )
         }
     }

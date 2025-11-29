@@ -97,7 +97,7 @@ class EnhancedPlayerManager private constructor() {
         if (player == null) {
             // Initialize bandwidth meter for ABR
             bandwidthMeter = DefaultBandwidthMeter.Builder(context)
-                .setInitialBitrateEstimate(1_000_000) // 1 Mbps initial estimate
+                .setInitialBitrateEstimate(2_000_000) // 2 Mbps initial estimate for faster start
                 .build()
             
             trackSelector = DefaultTrackSelector(context).apply {
@@ -140,14 +140,20 @@ class EnhancedPlayerManager private constructor() {
                 sharedDataSourceFactory = upstream
             }
 
+            // Optimized LoadControl for buttery smooth playback with aggressive buffering
             val loadControl = DefaultLoadControl.Builder()
                 .setBufferDurationsMs(
-                    /* minBufferMs = */ 3000,      // Slightly lower minimum buffer for faster starts
-                    /* maxBufferMs = */ 15000,     // Keep cap modest to limit latency
-                    /* bufferForPlaybackMs = */ 500,   // Allow playback to begin quickly
-                    /* bufferForPlaybackAfterRebufferMs = */ 1500  // Resume promptly after stalls
+                    /* minBufferMs = */ 15000,     // Buffer 15s minimum before starting (smooth playback)
+                    /* maxBufferMs = */ 50000,     // Buffer up to 50s ahead (good margin)
+                    /* bufferForPlaybackMs = */ 1000,  // Start playback after 1s buffered (Super Sonic Speed)
+                    /* bufferForPlaybackAfterRebufferMs = */ 5000  // Rebuffer 5s after stall
                 )
-                .setPrioritizeTimeOverSizeThresholds(false)
+                .setBackBuffer(
+                    /* backBufferDurationMs = */ 10000,  // Keep 10s behind playback position
+                    /* retainBackBufferFromKeyframe = */ true
+                )
+                .setPrioritizeTimeOverSizeThresholds(true)  // Prioritize time for smoother playback
+                .setTargetBufferBytes(DefaultLoadControl.DEFAULT_TARGET_BUFFER_BYTES * 2)  // 2x buffer size
                 .build()
 
             player = ExoPlayer.Builder(context)

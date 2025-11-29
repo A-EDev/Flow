@@ -20,7 +20,8 @@ import com.flow.youtube.ui.components.*
 @Composable
 fun HomeScreen(
     onVideoClick: (Video) -> Unit,
-    onMusicClick: () -> Unit,
+    onSearchClick: () -> Unit,
+    onNotificationClick: () -> Unit,
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = viewModel()
@@ -51,7 +52,8 @@ fun HomeScreen(
     ) {
         TopAppBarWithActions(
             title = "Flow",
-            onMusicClick = onMusicClick,
+            onSearchClick = onSearchClick,
+            onNotificationClick = onNotificationClick,
             onSettingsClick = onSettingsClick
         )
 
@@ -91,6 +93,14 @@ fun HomeScreen(
                             video = video,
                             onClick = { onVideoClick(video) }
                         )
+                        
+                        // Insert Shorts shelf after the first video
+                        if (uiState.videos.indexOf(video) == 0 && uiState.videos.size > 4) {
+                            ShortsShelf(
+                                shorts = uiState.videos.take(5), // Mock shorts using regular videos for now
+                                onShortClick = { onVideoClick(it) }
+                            )
+                        }
                     }
                     
                     // Loading more indicator

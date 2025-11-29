@@ -2,13 +2,17 @@ package com.flow.youtube.ui.screens.player
 
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ActivityInfo
 import android.media.AudioManager
+import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -43,8 +47,12 @@ import android.text.method.LinkMovementMethod
 import android.widget.TextView
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.border
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.core.content.ContextCompat
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
@@ -55,6 +63,7 @@ import com.flow.youtube.ui.components.ShimmerVideoCardHorizontal
 import com.flow.youtube.ui.components.shimmerEffect
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.player.EnhancedPlayerManager
+import com.flow.youtube.player.PictureInPictureHelper
 import com.flow.youtube.ui.components.SubtitleCue
 import com.flow.youtube.ui.components.SubtitleOverlay
 import com.flow.youtube.ui.components.VideoCardFullWidth
@@ -72,6 +81,7 @@ import com.flow.youtube.player.seekbarpreview.SeekbarPreviewThumbnailHelper
 import com.flow.youtube.player.seekbarpreview.SeekbarPreviewThumbnailQuality
 
 import com.flow.youtube.ui.components.VideoQuickActionsBottomSheet
+import com.flow.youtube.ui.components.VideoInfoSection
 import androidx.core.text.HtmlCompat
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -90,6 +100,7 @@ fun EnhancedVideoPlayerScreen(
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     val musicVm: com.flow.youtube.ui.screens.music.MusicPlayerViewModel = viewModel()
+    val lifecycleOwner = LocalLifecycleOwner.current
     
     // State
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -98,6 +109,7 @@ fun EnhancedVideoPlayerScreen(
     
     var showControls by remember { mutableStateOf(true) }
     var isFullscreen by remember { mutableStateOf(false) }
+    var isInPipMode by remember { mutableStateOf(false) }
     var currentPosition by remember { mutableLongStateOf(0L) }
     var duration by remember { mutableLongStateOf(0L) }
     
@@ -122,6 +134,10 @@ fun EnhancedVideoPlayerScreen(
     var subtitlesEnabled by remember { mutableStateOf(false) }
     var currentSubtitles by remember { mutableStateOf<List<SubtitleCue>>(emptyList()) }
     var selectedSubtitleUrl by remember { mutableStateOf<String?>(null) }
+    
+    // Speed control states
+    var isSpeedBoostActive by remember { mutableStateOf(false) }
+    var normalSpeed by remember { mutableStateOf(1.0f) }
     
     // System managers
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
@@ -162,6 +178,59 @@ fun EnhancedVideoPlayerScreen(
         }
     }
     
+    // PiP mode support - detect PiP state changes
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
+                isInPipMode = activity.isInPictureInPictureMode
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+    
+    // PiP broadcast receiver for play/pause controls
+    DisposableEffect(Unit) {
+        val receiver = PictureInPictureHelper.createPipActionReceiver(
+            onPlay = { EnhancedPlayerManager.getInstance().play() },
+            onPause = { EnhancedPlayerManager.getInstance().pause() }
+        )
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.registerReceiver(
+                context,
+                receiver,
+                PictureInPictureHelper.getPipIntentFilter(),
+                ContextCompat.RECEIVER_NOT_EXPORTED
+            )
+        } else {
+            context.registerReceiver(receiver, PictureInPictureHelper.getPipIntentFilter())
+        }
+        
+        onDispose {
+            try {
+                context.unregisterReceiver(receiver)
+            } catch (e: Exception) {
+                // Receiver may not be registered
+            }
+        }
+    }
+    
+    // Update PiP params when playback state changes
+    LaunchedEffect(playerState.isPlaying) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
+            PictureInPictureHelper.updatePipParams(
+                activity = activity,
+                aspectRatioWidth = 16,
+                aspectRatioHeight = 9,
+                isPlaying = playerState.isPlaying,
+                autoEnterEnabled = true
+            )
+        }
+    }
+    
     // Snackbar host
     Box(modifier = Modifier.fillMaxSize()) {
         androidx.compose.material3.SnackbarHost(hostState = snackbarHostState, modifier = Modifier.align(Alignment.BottomCenter))
@@ -182,16 +251,18 @@ fun EnhancedVideoPlayerScreen(
     LaunchedEffect(video.id, playerState.isPlaying) {
         while (playerState.isPlaying) {
             delay(10000) // Save every 10 seconds
-            val channelId = uiState.streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
-            val channelName = uiState.streamInfo?.uploaderName ?: video.channelName
+            val streamInfo = uiState.streamInfo
+            val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
+            val channelName = streamInfo?.uploaderName ?: video.channelName
+            val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url ?: video.thumbnailUrl
             
             if (currentPosition > 0 && duration > 0) {
                 viewModel.savePlaybackPosition(
                     videoId = video.id,
                     position = currentPosition,
                     duration = duration,
-                    title = uiState.streamInfo?.name ?: video.title,
-                    thumbnailUrl = video.thumbnailUrl,
+                    title = streamInfo?.name ?: video.title,
+                    thumbnailUrl = thumbnailUrl,
                     channelName = channelName,
                     channelId = channelId
                 )
@@ -370,15 +441,17 @@ fun EnhancedVideoPlayerScreen(
     DisposableEffect(video.id) {
         onDispose {
             // Save playback position for the video that's being disposed
-            val channelId = uiState.streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
-            val channelName = uiState.streamInfo?.uploaderName ?: video.channelName
+            val streamInfo = uiState.streamInfo
+            val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
+            val channelName = streamInfo?.uploaderName ?: video.channelName
+            val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url ?: video.thumbnailUrl
 
             viewModel.savePlaybackPosition(
                 videoId = video.id,
                 position = currentPosition,
                 duration = duration,
-                title = uiState.streamInfo?.name ?: video.title,
-                thumbnailUrl = video.thumbnailUrl,
+                title = streamInfo?.name ?: video.title,
+                thumbnailUrl = thumbnailUrl,
                 channelName = channelName,
                 channelId = channelId
             )
@@ -439,6 +512,34 @@ fun EnhancedVideoPlayerScreen(
                                         EnhancedPlayerManager.getInstance().pause()
                                     } else {
                                         EnhancedPlayerManager.getInstance().play()
+                                    }
+                                }
+                            },
+                            onLongPress = { offset ->
+                                val screenWidth = size.width
+                                val tapPosition = offset.x
+                                
+                                // Long press on left or right side for 2x speed
+                                if (tapPosition < screenWidth * 0.3f || tapPosition > screenWidth * 0.7f) {
+                                    val player = EnhancedPlayerManager.getInstance().getPlayer()
+                                    if (player != null && !isSpeedBoostActive) {
+                                        normalSpeed = player.playbackParameters.speed
+                                        player.setPlaybackSpeed(2.0f)
+                                        isSpeedBoostActive = true
+                                    }
+                                }
+                            },
+                            onPress = { offset ->
+                                val screenWidth = size.width
+                                val tapPosition = offset.x
+                                
+                                // Detect when finger is released to restore speed
+                                if (tapPosition < screenWidth * 0.3f || tapPosition > screenWidth * 0.7f) {
+                                    tryAwaitRelease()
+                                    if (isSpeedBoostActive) {
+                                        val player = EnhancedPlayerManager.getInstance().getPlayer()
+                                        player?.setPlaybackSpeed(normalSpeed)
+                                        isSpeedBoostActive = false
                                     }
                                 }
                             }
@@ -739,9 +840,46 @@ fun EnhancedVideoPlayerScreen(
                     }
                 }
                 
-                // ============ CUSTOM CONTROLS OVERLAY ============
+                // Speed boost overlay (2x speed indicator)
                 androidx.compose.animation.AnimatedVisibility(
-                    visible = showControls,
+                    visible = isSpeedBoostActive,
+                    enter = fadeIn() + scaleIn(),
+                    exit = fadeOut() + scaleOut(),
+                    modifier = Modifier.align(Alignment.Center)
+                ) {
+                    Surface(
+                        modifier = Modifier.size(80.dp),
+                        color = Color(0xFFFF6B35).copy(alpha = 0.9f),
+                        shape = RoundedCornerShape(40.dp)
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.FastForward,
+                                    contentDescription = "2x Speed",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                                Text(
+                                    text = "2x",
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                // ============ CUSTOM CONTROLS OVERLAY ============
+                // ============ CUSTOM CONTROLS OVERLAY (hidden in PiP mode) ============
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showControls && !isInPipMode,
                     enter = fadeIn(animationSpec = tween(300)),
                     exit = fadeOut(animationSpec = tween(300)),
                     modifier = Modifier.fillMaxSize()
@@ -866,7 +1004,31 @@ fun EnhancedVideoPlayerScreen(
                                         tint = Color.White
                                     )
                                 }
-                                // (Save button moved below the player in the details section)
+                                
+                                // Picture-in-Picture button (Android 8.0+)
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && 
+                                    PictureInPictureHelper.isPipSupported(context)) {
+                                    IconButton(
+                                        onClick = {
+                                            activity?.let { act ->
+                                                PictureInPictureHelper.enterPipMode(
+                                                    activity = act,
+                                                    isPlaying = playerState.isPlaying
+                                                )
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.Black.copy(alpha = 0.3f))
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Filled.PictureInPicture,
+                                            contentDescription = "Picture in Picture",
+                                            tint = Color.White
+                                        )
+                                    }
+                                }
                                 
                                 // Fullscreen toggle
                                 IconButton(
@@ -998,242 +1160,77 @@ fun EnhancedVideoPlayerScreen(
                         .weight(1f),
                     contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
-                    // Video info
                     item {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        ) {
-                            if (uiState.isLoading || uiState.streamInfo == null) {
-                                // Show small shimmer placeholders instead of the mock title while loading
-                                Column {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(20.dp)
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .shimmerEffect()
-                                    )
-
-                                    Spacer(Modifier.height(8.dp))
-
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth(0.6f)
-                                            .height(14.dp)
-                                            .clip(RoundedCornerShape(4.dp))
-                                            .shimmerEffect()
-                                    )
-                                }
-                            } else {
-                                Text(
-                                    text = uiState.streamInfo?.name ?: video.title,
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                            }
-                            
-                            Spacer(Modifier.height(12.dp))
-                            
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                uiState.streamInfo?.let { streamInfo ->
-                                    Text(
-                                        text = "${streamInfo.viewCount} views",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        color = MaterialTheme.extendedColors.textSecondary
-                                    )
-                                }
+                        VideoInfoSection(
+                            video = video,
+                            viewCount = uiState.streamInfo?.viewCount ?: video.viewCount,
+                            uploadDate = uiState.streamInfo?.uploadDate?.toString() ?: video.uploadDate,
+                            description = uiState.streamInfo?.description?.content ?: video.description,
+                            channelName = uiState.streamInfo?.uploaderName ?: video.channelName,
+                            channelAvatarUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
+                            subscriberCount = uiState.channelSubscriberCount,
+                            isSubscribed = uiState.isSubscribed,
+                            likeState = uiState.likeState ?: "NONE",
+                            onLikeClick = {
+                                val streamInfo = uiState.streamInfo
+                                val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url ?: video.thumbnailUrl
                                 
-                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    IconButton(
-                                        onClick = {
-                                            when (uiState.likeState) {
-                                                "LIKED" -> viewModel.removeLikeState(video.id)
-                                                else -> viewModel.likeVideo(
-                                                    video.id,
-                                                    uiState.streamInfo?.name ?: video.title,
-                                                    video.thumbnailUrl,
-                                                    uiState.streamInfo?.uploaderName ?: video.channelName
-                                                )
-                                            }
-                                        }
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.ThumbUp,
-                                            contentDescription = "Like",
-                                            tint = if (uiState.likeState == "LIKED") 
-                                                MaterialTheme.colorScheme.primary 
-                                            else 
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    
-                                    IconButton(
-                                        onClick = {
-                                            when (uiState.likeState) {
-                                                "DISLIKED" -> viewModel.removeLikeState(video.id)
-                                                else -> viewModel.dislikeVideo(video.id)
-                                            }
-                                        }
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.ThumbDown,
-                                            contentDescription = "Dislike",
-                                            tint = if (uiState.likeState == "DISLIKED") 
-                                                MaterialTheme.colorScheme.primary 
-                                            else 
-                                                MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-                            
-                            Spacer(Modifier.height(16.dp))
-                            
-                            // Channel info
-                            uiState.streamInfo?.let { streamInfo ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    // Prefer the video's stored channel thumbnail, fall back to uploader url
-                                    val avatarModel = if (video.channelThumbnailUrl.isNotBlank()) video.channelThumbnailUrl else (streamInfo.uploaderUrl ?: "")
-                                    AsyncImage(
-                                        model = avatarModel,
-                                        contentDescription = "Channel Avatar",
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
+                                when (uiState.likeState) {
+                                    "LIKED" -> viewModel.removeLikeState(video.id)
+                                    else -> viewModel.likeVideo(
+                                        video.id,
+                                        streamInfo?.name ?: video.title,
+                                        thumbnailUrl,
+                                        streamInfo?.uploaderName ?: video.channelName
                                     )
-                                    
-                                            val channelIdSafe = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId
-                                            val channelNameSafe = streamInfo.uploaderName ?: video.channelName
-                                            val channelThumbSafe = streamInfo.uploaderUrl ?: video.thumbnailUrl
-
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                        // Channel name
-                                                        Text(
-                                                            text = channelNameSafe,
-                                                            style = MaterialTheme.typography.bodyMedium,
-                                                            color = MaterialTheme.colorScheme.onBackground
-                                                        )
-
-                                                        // Subscriber count (use stream/viewmodel-provided value if available)
-                                                        val subscriberText = uiState.channelSubscriberCount?.let { cnt ->
-                                                            com.flow.youtube.utils.formatSubscriberCount(cnt)
-                                                        } ?: com.flow.youtube.utils.formatSubscriberCount(0L)
-
-                                                        Text(
-                                                            text = "$subscriberText subscribers",
-                                                            style = MaterialTheme.typography.bodySmall,
-                                                            color = MaterialTheme.extendedColors.textSecondary
-                                                        )
-                                                    }
-
-                                            // Subscribe button styled like YouTube
-                                            if (!uiState.isSubscribed) {
-                                                Button(
-                                                    onClick = {
-                                                        viewModel.toggleSubscription(channelIdSafe, channelNameSafe, channelThumbSafe)
-                                                        scope.launch {
-                                                            snackbarHostState.showSnackbar("Subscribed to $channelNameSafe", actionLabel = "Undo")
-                                                        }
-                                                    },
-                                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFCC0000)),
-                                                    shape = RoundedCornerShape(20.dp),
-                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                                                ) {
-                                                    Icon(Icons.Filled.PersonAdd, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Text("Subscribe", color = Color.White)
-                                                }
-                                            } else {
-                                                OutlinedButton(
-                                                    onClick = {
-                                                        // Unsubscribe and show Undo
-                                                        scope.launch {
-                                                            val wasSubscribed = true
-                                                            viewModel.toggleSubscription(channelIdSafe, channelNameSafe, channelThumbSafe)
-                                                            val result = snackbarHostState.showSnackbar("Unsubscribed from $channelNameSafe", actionLabel = "Undo")
-                                                            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
-                                                                // Re-subscribe
-                                                                viewModel.toggleSubscription(channelIdSafe, channelNameSafe, channelThumbSafe)
-                                                            }
-                                                        }
-                                                    },
-                                                    shape = RoundedCornerShape(20.dp),
-                                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                                                ) {
-                                                    Icon(Icons.Filled.Notifications, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Text("Subscribed", color = Color.White)
-                                                }
-                                            }
                                 }
-                            }
-                            
-                            // Save button (below player / full-width outlined style)
-                            Spacer(Modifier.height(12.dp))
-                            OutlinedButton(
-                                onClick = { showQuickActions = true },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onBackground)
-                            ) {
-                                Icon(Icons.Outlined.PlaylistAdd, contentDescription = "Save")
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Save")
-                            }
-
-                            // Description section — improved layout and styling
-                            val descriptionRaw = uiState.streamInfo?.description?.content ?: video.description
-                            if (!descriptionRaw.isNullOrBlank()) {
-                                Spacer(Modifier.height(16.dp))
-                                Text(
-                                    text = "Description",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                                Spacer(Modifier.height(8.dp))
-
-                                var expandedDesc by remember { mutableStateOf(false) }
-
-                                val descTextColor = MaterialTheme.colorScheme.onBackground.toArgb()
-
-                                AndroidView(
-                                    factory = { ctx ->
-                                        TextView(ctx).apply {
-                                            setTextAppearance(android.R.style.TextAppearance_Material_Body1)
-                                            movementMethod = LinkMovementMethod.getInstance()
-                                            setLineSpacing(0f, 1.1f)
-                                            // initial content
-                                            text = HtmlCompat.fromHtml(descriptionRaw, HtmlCompat.FROM_HTML_MODE_LEGACY)
-                                            maxLines = if (expandedDesc) Int.MAX_VALUE else 4
-                                            ellipsize = TextUtils.TruncateAt.END
-                                            setTextColor(descTextColor)
+                            },
+                            onDislikeClick = {
+                                when (uiState.likeState) {
+                                    "DISLIKED" -> viewModel.removeLikeState(video.id)
+                                    else -> viewModel.dislikeVideo(video.id)
+                                }
+                            },
+                            onSubscribeClick = {
+                                uiState.streamInfo?.let { streamInfo ->
+                                    val channelIdSafe = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId
+                                    val channelNameSafe = streamInfo.uploaderName ?: video.channelName
+                                    val channelThumbSafe = streamInfo.uploaderUrl ?: video.thumbnailUrl
+                                    
+                                    viewModel.toggleSubscription(channelIdSafe, channelNameSafe, channelThumbSafe)
+                                    
+                                    scope.launch {
+                                        val message = if (uiState.isSubscribed) 
+                                            "Unsubscribed from $channelNameSafe" 
+                                        else 
+                                            "Subscribed to $channelNameSafe"
+                                            
+                                        val result = snackbarHostState.showSnackbar(message, actionLabel = if (uiState.isSubscribed) "Undo" else null)
+                                        
+                                        if (result == androidx.compose.material3.SnackbarResult.ActionPerformed && uiState.isSubscribed) {
+                                            // Undo unsubscribe
+                                            viewModel.toggleSubscription(channelIdSafe, channelNameSafe, channelThumbSafe)
                                         }
-                                    },
-                                    update = { tv ->
-                                        tv.text = HtmlCompat.fromHtml(descriptionRaw, HtmlCompat.FROM_HTML_MODE_LEGACY)
-                                        tv.maxLines = if (expandedDesc) Int.MAX_VALUE else 4
-                                        tv.setTextColor(descTextColor)
-                                    },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-
-                                if (descriptionRaw.length > 200) {
-                                    TextButton(onClick = { expandedDesc = !expandedDesc }) {
-                                        Text(if (expandedDesc) "Show less" else "Show more")
                                     }
                                 }
+                            },
+                            onChannelClick = {
+                                // Navigate to channel
+                                // Note: We need to handle navigation here or pass a callback
+                            },
+                            onSaveClick = { showQuickActions = true },
+                            onShareClick = {
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, video.title)
+                                    putExtra(Intent.EXTRA_TEXT, "Check out this video: ${video.title}\nhttps://youtube.com/watch?v=${video.id}")
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, "Share video"))
+                            },
+                            onDownloadClick = {
+                                Toast.makeText(context, "Download feature coming soon!", Toast.LENGTH_SHORT).show()
                             }
-                        }
+                        )
                     }
                     
                     // Related videos
@@ -1276,12 +1273,59 @@ fun EnhancedVideoPlayerScreen(
                 musicVm.showAddToPlaylistDialog(true)
             },
             onWatchLater = {
-                // Use the simple PlaylistRepository to persist watch-later by id
+                // Create a complete Video object from streamInfo
                 showQuickActions = false
                 scope.launch {
                     val repo = PlaylistRepository(context)
-                    repo.addToWatchLater(video)
+                    val streamInfo = uiState.streamInfo
+                    
+                    // Create a complete Video object with all metadata
+                    val completeVideo = if (streamInfo != null) {
+                        Video(
+                            id = streamInfo.id ?: video.id,
+                            title = streamInfo.name ?: video.title,
+                            channelName = streamInfo.uploaderName ?: video.channelName,
+                            channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
+                            thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: video.thumbnailUrl,
+                            duration = streamInfo.duration.toInt(),
+                            viewCount = streamInfo.viewCount,
+                            uploadDate = streamInfo.uploadDate?.toString() ?: video.uploadDate,
+                            description = streamInfo.description?.content ?: video.description,
+                            channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl
+                        )
+                    } else {
+                        video // Fallback to original video if streamInfo not loaded yet
+                    }
+                    
+                    repo.addToWatchLater(completeVideo)
+                    Toast.makeText(context, "Added to Watch Later", Toast.LENGTH_SHORT).show()
                 }
+            },
+            onShare = {
+                showQuickActions = false
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, video.title)
+                    putExtra(Intent.EXTRA_TEXT, "Check out this video: ${video.title}\nhttps://youtube.com/watch?v=${video.id}")
+                }
+                context.startActivity(Intent.createChooser(shareIntent, "Share video"))
+            },
+            onDownload = {
+                showQuickActions = false
+                Toast.makeText(context, "Download feature coming soon!", Toast.LENGTH_SHORT).show()
+            },
+            onNotInterested = {
+                showQuickActions = false
+                Toast.makeText(context, "Video marked as not interested", Toast.LENGTH_SHORT).show()
+            },
+            onReport = {
+                showQuickActions = false
+                val reportIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, "Report video: ${video.title}")
+                    putExtra(Intent.EXTRA_TEXT, "Video ID: ${video.id}\nReason: ")
+                }
+                context.startActivity(Intent.createChooser(reportIntent, "Report video"))
             }
         )
     }
