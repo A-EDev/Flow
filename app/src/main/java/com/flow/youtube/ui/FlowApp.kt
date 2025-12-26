@@ -148,6 +148,10 @@ fun FlowApp(
                         onVideoClick = { video ->
                             navController.navigate("player/${video.id}")
                         },
+                        onShortClick = { video ->
+                            // Navigate to shorts screen with the clicked short's ID
+                            navController.navigate("shorts?startVideoId=${video.id}")
+                        },
                         onSearchClick = {
                             navController.navigate("search")
                         },
@@ -177,11 +181,22 @@ fun FlowApp(
                     )
                 }
 
-                composable("shorts") {
+                composable(
+                    route = "shorts?startVideoId={startVideoId}",
+                    arguments = listOf(
+                        navArgument("startVideoId") { 
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        }
+                    )
+                ) { backStackEntry ->
                     currentRoute.value = "shorts"
                     showBottomNav = true
                     selectedBottomNavIndex = 1
+                    val startVideoId = backStackEntry.arguments?.getString("startVideoId")
                     ShortsScreen(
+                        startVideoId = startVideoId,
                         onBack = {
                             navController.popBackStack()
                         },

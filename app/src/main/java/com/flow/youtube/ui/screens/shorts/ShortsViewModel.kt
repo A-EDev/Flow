@@ -8,11 +8,13 @@ import com.flow.youtube.data.local.LikedVideosRepository
 import com.flow.youtube.data.local.SubscriptionRepository
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.repository.YouTubeRepository
+import com.flow.youtube.data.shorts.ShortsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.random.Random
 
 class ShortsViewModel(
     private val repository: YouTubeRepository = YouTubeRepository.getInstance()
@@ -23,28 +25,49 @@ class ShortsViewModel(
     
     private var likedVideosRepository: LikedVideosRepository? = null
     private var subscriptionRepository: SubscriptionRepository? = null
+    private var shortsRepository: ShortsRepository? = null
     private var isLoadingMore = false
     
     fun initialize(context: Context) {
         likedVideosRepository = LikedVideosRepository.getInstance(context)
         subscriptionRepository = SubscriptionRepository.getInstance(context)
+        shortsRepository = ShortsRepository.getInstance(context)
     }
     
-    fun loadShorts() {
+    fun loadShorts(startVideoId: String? = null) {
         if (_uiState.value.isLoading) return
         
         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
         
         viewModelScope.launch {
             try {
-                // Fetch dedicated shorts using search/filtering
-                val (shorts, nextPage) = repository.getShorts()
+                // Try to get shorts from ShortsRepository first (better variety)
+                val repoShorts = shortsRepository?.getHomeFeedShorts() ?: emptyList()
+                
+                // If ShortsRepository has content, use it; otherwise fallback
+                val shorts = if (repoShorts.isNotEmpty()) {
+                    // Apply session-based shuffling for variety
+                    val sessionSeed = System.currentTimeMillis() / (15 * 60 * 1000L) // 15 min sessions
+                    repoShorts.shuffled(Random(sessionSeed))
+                } else {
+                    // Fallback to basic YouTube search
+                    val (basicShorts, nextPage) = repository.getShorts()
+                    _uiState.value = _uiState.value.copy(nextPage = nextPage)
+                    basicShorts
+                }
+                
+                // Find start index if startVideoId is provided
+                val startIndex = if (startVideoId != null) {
+                    shorts.indexOfFirst { it.id == startVideoId }.coerceAtLeast(0)
+                } else {
+                    0
+                }
                 
                 _uiState.value = _uiState.value.copy(
                     shorts = shorts,
-                    nextPage = nextPage,
+                    currentIndex = startIndex,
                     isLoading = false,
-                    hasMorePages = nextPage != null
+                    hasMorePages = shorts.size >= 8
                 )
             } catch (e: Exception) {
                 Log.e("ShortsViewModel", "Error loading shorts", e)

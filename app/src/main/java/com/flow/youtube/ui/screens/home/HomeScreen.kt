@@ -22,6 +22,7 @@ import com.flow.youtube.ui.components.*
 @Composable
 fun HomeScreen(
     onVideoClick: (Video) -> Unit,
+    onShortClick: (Video) -> Unit,  // Separate callback for shorts navigation
     onSearchClick: () -> Unit,
     onNotificationClick: () -> Unit,
     onSettingsClick: () -> Unit,
@@ -117,7 +118,7 @@ fun HomeScreen(
                             if (uiState.videos.indexOf(video) == 0 && uiState.shorts.isNotEmpty()) {
                                 ShortsShelf(
                                     shorts = uiState.shorts,
-                                    onShortClick = { onVideoClick(it) }
+                                    onShortClick = { onShortClick(it) }  // Route to ShortsScreen
                                 )
                             }
                         }

@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 fun ShortsScreen(
     onBack: () -> Unit,
     onChannelClick: (String) -> Unit,
+    startVideoId: String? = null,  // Optional: scroll to this video when coming from home
     modifier: Modifier = Modifier,
     viewModel: ShortsViewModel = viewModel()
 ) {
@@ -36,10 +37,10 @@ fun ShortsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     
-    // Initialize repositories
+    // Initialize repositories and load shorts
     LaunchedEffect(Unit) {
         viewModel.initialize(context)
-        viewModel.loadShorts()
+        viewModel.loadShorts(startVideoId = startVideoId)
     }
     
     // Hide system bars for immersive experience

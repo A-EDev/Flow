@@ -137,6 +137,10 @@ fun EnhancedVideoPlayerScreen(
     var currentSubtitles by remember { mutableStateOf<List<SubtitleCue>>(emptyList()) }
     var selectedSubtitleUrl by remember { mutableStateOf<String?>(null) }
     
+    // Video resize mode
+    var resizeMode by remember { mutableIntStateOf(0) } // 0=Fit, 1=Fill, 2=Zoom
+    val resizeModes = listOf("Fit", "Fill", "Zoom")
+    
     // Speed control states
     var isSpeedBoostActive by remember { mutableStateOf(false) }
     var normalSpeed by remember { mutableStateOf(1.0f) }
@@ -656,6 +660,14 @@ fun EnhancedVideoPlayerScreen(
                     update = { view ->
                         view.player = EnhancedPlayerManager.getInstance().getPlayer()
                         
+                        // Apply resize mode
+                        view.resizeMode = when (resizeMode) {
+                            0 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                            1 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
+                            2 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                            else -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                        }
+                        
                         // CRITICAL: Ensure surface is attached whenever this view updates
                         // This handles the case where PlayerView is recreated after navigation
                         try {
@@ -992,6 +1004,36 @@ fun EnhancedVideoPlayerScreen(
                                     }
                                 }
                                 
+                                // Resize mode button
+                                Surface(
+                                    onClick = { resizeMode = (resizeMode + 1) % 3 },
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = Color.Black.copy(alpha = 0.4f),
+                                    modifier = Modifier.height(32.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = when (resizeMode) {
+                                                0 -> Icons.Outlined.FitScreen
+                                                1 -> Icons.Outlined.ZoomOutMap
+                                                else -> Icons.Outlined.ZoomIn
+                                            },
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Text(
+                                            text = resizeModes[resizeMode],
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+                                
                                 // Settings button
                                 IconButton(
                                     onClick = { showSettingsMenu = true },
@@ -1165,6 +1207,7 @@ fun EnhancedVideoPlayerScreen(
                     item {
                         VideoInfoSection(
                             video = video,
+                            title = uiState.streamInfo?.name ?: video.title,
                             viewCount = uiState.streamInfo?.viewCount ?: video.viewCount,
                             uploadDate = uiState.streamInfo?.uploadDate?.toString() ?: video.uploadDate,
                             description = uiState.streamInfo?.description?.content ?: video.description,

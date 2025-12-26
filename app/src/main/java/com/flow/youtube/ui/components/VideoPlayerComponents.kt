@@ -42,6 +42,7 @@ import com.flow.youtube.utils.formatViewCount
 @Composable
 fun VideoInfoSection(
     video: Video,
+    title: String,  // Actual title from streamInfo
     viewCount: Long,
     uploadDate: String?,
     description: String?,
@@ -67,7 +68,7 @@ fun VideoInfoSection(
         // ============ TITLE SECTION (Directly Below Player) ============
         // Title - Now prominently displayed first
         Text(
-            text = video.title,
+            text = title,  // Use title parameter, not video.title
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp,
