@@ -30,7 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.flow.youtube.player.RepeatMode
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
@@ -40,7 +40,7 @@ import kotlinx.coroutines.delay
 fun EnhancedMusicPlayerScreen(
     track: MusicTrack,
     onBackClick: () -> Unit,
-    viewModel: MusicPlayerViewModel = viewModel()
+    viewModel: MusicPlayerViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()

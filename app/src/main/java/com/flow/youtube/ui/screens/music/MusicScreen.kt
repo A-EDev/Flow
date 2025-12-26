@@ -504,5 +504,6 @@ data class MusicTrack(
     val thumbnailUrl: String,
     val duration: Int,
     val views: Long = 0,
-    val sourceUrl: String = "" // Full URL for NewPipe extraction
+    val sourceUrl: String = "", // Full URL for NewPipe extraction
+    val album: String = ""
 )

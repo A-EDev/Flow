@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import java.io.IOException
+import java.util.concurrent.TimeUnit
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
@@ -83,30 +85,36 @@ class DownloadManager(private val context: Context) {
             val fileName = "${track.videoId}_${sanitizedTitle}.m4a"
             val outputFile = File(downloadsDir, fileName)
             
-            // Download file with progress tracking
-            val url = URL(audioUrl)
-            val connection = url.openConnection()
-            connection.connect()
+            var success = false
             
-            val fileLength = connection.contentLength
-            
-            connection.getInputStream().use { input ->
-                FileOutputStream(outputFile).use { output ->
-                    val buffer = ByteArray(8192)
-                    var bytesRead: Int
-                    var totalBytesRead = 0L
-                    
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        output.write(buffer, 0, bytesRead)
-                        totalBytesRead += bytesRead
-                        
-                        // Update progress
-                        if (fileLength > 0) {
-                            val progress = ((totalBytesRead * 100) / fileLength).toInt()
-                            updateDownloadProgress(track.videoId, progress)
-                        }
-                    }
+            // STRATEGY 1: Internal Downloader (OkHttp) using provided URL
+            try {
+                Log.d("DownloadManager", "Attempting Strategy 1: Direct URL download")
+                downloadWithOkHttp(audioUrl, outputFile) { progress ->
+                    updateDownloadProgress(track.videoId, progress)
                 }
+                success = true
+            } catch (e: Exception) {
+                Log.e("DownloadManager", "Strategy 1 failed", e)
+                // Fallthrough to strategy 2
+            }
+            
+            // STRATEGY 2: yt-dlp Fallback
+            if (!success) {
+                 Log.d("DownloadManager", "Attempting Strategy 2: yt-dlp fallback")
+                 try {
+                     val helper = com.flow.youtube.data.download.YtDlpHelper(context)
+                     val result = helper.downloadAudio(track.videoId, outputFile)
+                     if (result.isSuccess) {
+                         success = true
+                         updateDownloadProgress(track.videoId, 100)
+                     } else {
+                         throw result.exceptionOrNull() ?: Exception("yt-dlp failed")
+                     }
+                 } catch (e: Exception) {
+                     Log.e("DownloadManager", "Strategy 2 failed", e)
+                     throw e // Both strategies failed
+                 }
             }
             
             // Save to DataStore
@@ -125,9 +133,41 @@ class DownloadManager(private val context: Context) {
             Result.success(outputFile.absolutePath)
             
         } catch (e: Exception) {
-            Log.e("DownloadManager", "Download failed for ${track.title}", e)
+            Log.e("DownloadManager", "Download failed for ${track.title} (All strategies)", e)
             updateDownloadStatus(track.videoId, DownloadStatus.FAILED)
             Result.failure(e)
+        }
+    }
+
+    private fun downloadWithOkHttp(url: String, outputFile: File, onProgress: (Int) -> Unit) {
+        val client = okhttp3.OkHttpClient.Builder()
+            .readTimeout(60, TimeUnit.SECONDS)
+            .build()
+            
+        val request = okhttp3.Request.Builder().url(url).build()
+        val response = client.newCall(request).execute()
+        
+        if (!response.isSuccessful) throw IOException("Unexpected code $response")
+        
+        val body = response.body ?: throw IOException("Empty body")
+        val contentLength = body.contentLength()
+        
+        body.byteStream().use { input ->
+            java.io.FileOutputStream(outputFile).use { output ->
+                val buffer = ByteArray(8192)
+                var bytesRead: Int
+                var totalBytesRead = 0L
+                
+                while (input.read(buffer).also { bytesRead = it } != -1) {
+                    output.write(buffer, 0, bytesRead)
+                    totalBytesRead += bytesRead
+                    
+                    if (contentLength > 0) {
+                        val progress = ((totalBytesRead * 100) / contentLength).toInt()
+                        onProgress(progress)
+                    }
+                }
+            }
         }
     }
     

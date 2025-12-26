@@ -14,74 +14,92 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class MusicPlayerViewModel : ViewModel() {
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import dagger.hilt.android.qualifiers.ApplicationContext
+
+@HiltViewModel
+class MusicPlayerViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val playlistRepository: PlaylistRepository,
+    private val downloadManager: DownloadManager
+) : ViewModel() {
     private val _uiState = MutableStateFlow(MusicPlayerUiState())
     val uiState: StateFlow<MusicPlayerUiState> = _uiState.asStateFlow()
     
     private var isInitialized = false
-    private lateinit var playlistRepository: PlaylistRepository
-    private lateinit var downloadManager: DownloadManager
+    // private lateinit var playlistRepository: PlaylistRepository // Injected
+    // private lateinit var downloadManager: DownloadManager // Injected
+
+    init {
+        // We initialize EnhancedMusicPlayerManager here as it needs context. 
+        // Ideally this should be in Application or a separate Manager that is injected.
+        // But for now, using the injected ApplicationContext is safe.
+        EnhancedMusicPlayerManager.initialize(context)
+        initializeObservers()
+    }
 
     fun initialize(context: Context) {
-        if (!isInitialized) {
-            EnhancedMusicPlayerManager.initialize(context)
-            playlistRepository = PlaylistRepository(context)
-            downloadManager = DownloadManager(context)
-            isInitialized = true
-            
-            // Observe player state
-            viewModelScope.launch {
-                EnhancedMusicPlayerManager.playerState.collect { playerState ->
-                    _uiState.value = _uiState.value.copy(
-                        isPlaying = playerState.isPlaying,
-                        isBuffering = playerState.isBuffering,
-                        duration = playerState.duration
-                    )
-                }
+        // No-op or call init logic if not done
+        // initializeObservers() // Moved to init
+    }
+    
+    private fun initializeObservers() {
+        if (isInitialized) return
+        isInitialized = true
+        
+        // Observe player state
+        viewModelScope.launch {
+            EnhancedMusicPlayerManager.playerState.collect { playerState ->
+                _uiState.value = _uiState.value.copy(
+                    isPlaying = playerState.isPlaying,
+                    isBuffering = playerState.isBuffering,
+                    duration = playerState.duration
+                )
             }
+        }
             
-            // Observe current track
-            viewModelScope.launch {
-                EnhancedMusicPlayerManager.currentTrack.collect { track ->
-                    _uiState.value = _uiState.value.copy(currentTrack = track)
-                    // Check if current track is favorite
-                    track?.let { checkIfFavorite(it.videoId) }
-                }
+        // Observe current track
+        viewModelScope.launch {
+            EnhancedMusicPlayerManager.currentTrack.collect { track ->
+                _uiState.value = _uiState.value.copy(currentTrack = track)
+                // Check if current track is favorite
+                track?.let { checkIfFavorite(it.videoId) }
             }
+        }
             
-            // Observe queue
-            viewModelScope.launch {
-                EnhancedMusicPlayerManager.queue.collect { queue ->
-                    _uiState.value = _uiState.value.copy(queue = queue)
-                }
+        // Observe queue
+        viewModelScope.launch {
+            EnhancedMusicPlayerManager.queue.collect { queue ->
+                _uiState.value = _uiState.value.copy(queue = queue)
             }
+        }
             
-            // Observe queue index
-            viewModelScope.launch {
-                EnhancedMusicPlayerManager.currentQueueIndex.collect { index ->
-                    _uiState.value = _uiState.value.copy(currentQueueIndex = index)
-                }
+        // Observe queue index
+        viewModelScope.launch {
+            EnhancedMusicPlayerManager.currentQueueIndex.collect { index ->
+                _uiState.value = _uiState.value.copy(currentQueueIndex = index)
             }
+        }
             
-            // Observe shuffle
-            viewModelScope.launch {
-                EnhancedMusicPlayerManager.shuffleEnabled.collect { enabled ->
-                    _uiState.value = _uiState.value.copy(shuffleEnabled = enabled)
-                }
+        // Observe shuffle
+        viewModelScope.launch {
+            EnhancedMusicPlayerManager.shuffleEnabled.collect { enabled ->
+                _uiState.value = _uiState.value.copy(shuffleEnabled = enabled)
             }
+        }
             
-            // Observe repeat mode
-            viewModelScope.launch {
-                EnhancedMusicPlayerManager.repeatMode.collect { mode ->
-                    _uiState.value = _uiState.value.copy(repeatMode = mode)
-                }
+        // Observe repeat mode
+        viewModelScope.launch {
+            EnhancedMusicPlayerManager.repeatMode.collect { mode ->
+                _uiState.value = _uiState.value.copy(repeatMode = mode)
             }
+        }
             
-            // Observe playlists
-            viewModelScope.launch {
-                playlistRepository.playlists.collect { playlists ->
-                    _uiState.value = _uiState.value.copy(playlists = playlists)
-                }
+        // Observe playlists
+        viewModelScope.launch {
+            playlistRepository.playlists.collect { playlists ->
+                _uiState.value = _uiState.value.copy(playlists = playlists)
             }
         }
     }

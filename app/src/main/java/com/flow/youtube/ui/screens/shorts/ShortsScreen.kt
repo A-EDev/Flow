@@ -139,41 +139,32 @@ fun VerticalShortsPager(
     scope: kotlinx.coroutines.CoroutineScope,
     viewModel: ShortsViewModel
 ) {
-    val listState = rememberLazyListState()
-    val snapBehavior = rememberSnapFlingBehavior(lazyListState = listState)
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState(
+        initialPage = currentIndex,
+        pageCount = { shorts.size }
+    )
     
     // Track visible item
-    LaunchedEffect(listState.firstVisibleItemIndex) {
-        if (listState.firstVisibleItemIndex != currentIndex) {
-            onIndexChanged(listState.firstVisibleItemIndex)
-        }
+    LaunchedEffect(pagerState.currentPage) {
+        onIndexChanged(pagerState.currentPage)
     }
     
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize(),
-        flingBehavior = snapBehavior,
-        verticalArrangement = Arrangement.spacedBy(0.dp)
-    ) {
-        items(
-            count = shorts.size,
-            key = { index -> shorts[index].id }
-        ) { index ->
-            val short = shorts[index]
-            val isVisible = index == listState.firstVisibleItemIndex
-            
-            ShortVideoPlayer(
-                video = short,
-                isVisible = isVisible,
-                onBack = onBack,
-                onChannelClick = onChannelClick,
-                onLikeClick = { onLikeClick(short) },
-                onSubscribeClick = { onSubscribeClick(short) },
-                viewModel = viewModel,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .fillMaxWidth()
-            )
-        }
+    androidx.compose.foundation.pager.VerticalPager(
+        state = pagerState,
+        modifier = Modifier.fillMaxSize()
+    ) { page ->
+        val short = shorts[page]
+        val isVisible = page == pagerState.currentPage
+        
+        ShortVideoPlayer(
+            video = short,
+            isVisible = isVisible,
+            onBack = onBack,
+            onChannelClick = onChannelClick,
+            onLikeClick = { onLikeClick(short) },
+            onSubscribeClick = { onSubscribeClick(short) },
+            viewModel = viewModel,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }

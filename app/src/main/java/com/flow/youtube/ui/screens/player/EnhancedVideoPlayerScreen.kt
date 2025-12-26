@@ -84,6 +84,8 @@ import com.flow.youtube.ui.components.VideoQuickActionsBottomSheet
 import com.flow.youtube.ui.components.VideoInfoSection
 import androidx.core.text.HtmlCompat
 
+import androidx.hilt.navigation.compose.hiltViewModel
+
 @androidx.annotation.OptIn(UnstableApi::class)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,14 +94,14 @@ fun EnhancedVideoPlayerScreen(
     onBack: () -> Unit,
     onVideoClick: (Video) -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: VideoPlayerViewModel = viewModel()
+    viewModel: VideoPlayerViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
     val configuration = LocalConfiguration.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
-    val musicVm: com.flow.youtube.ui.screens.music.MusicPlayerViewModel = viewModel()
+    val musicVm: com.flow.youtube.ui.screens.music.MusicPlayerViewModel = hiltViewModel()
     val lifecycleOwner = LocalLifecycleOwner.current
     
     // State
@@ -342,10 +344,10 @@ fun EnhancedVideoPlayerScreen(
         }
     }
     
-    // Initialize ViewModel
-    LaunchedEffect(Unit) {
-        viewModel.initializeViewHistory(context)
-    }
+    // Initialize ViewModel - Handled by Hilt
+    // LaunchedEffect(Unit) {
+    //    viewModel.initializeViewHistory(context)
+    // }
     
     // Load video info from NewPipe extractor
     LaunchedEffect(video.id) {

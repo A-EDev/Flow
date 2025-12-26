@@ -1,7 +1,7 @@
 package com.flow.youtube.ui.screens.music
 
 import android.app.Application
-import androidx.lifecycle.AndroidViewModel
+
 import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.music.DownloadManager
 import com.flow.youtube.data.music.DownloadStatus
@@ -13,9 +13,17 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
-class LibraryViewModel(application: Application) : AndroidViewModel(application) {
-    private val playlistRepository = PlaylistRepository(application)
-    private val downloadManager = DownloadManager(application)
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import androidx.lifecycle.ViewModel
+
+@HiltViewModel
+class LibraryViewModel @Inject constructor(
+    private val playlistRepository: PlaylistRepository,
+    private val downloadManager: DownloadManager
+) : ViewModel() {
+    // private val playlistRepository = PlaylistRepository(application) // Injected
+    // private val downloadManager = DownloadManager(application) // Injected
     
     private val _uiState = MutableStateFlow(LibraryUiState())
     val uiState: StateFlow<LibraryUiState> = _uiState.asStateFlow()

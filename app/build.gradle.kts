@@ -1,6 +1,8 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("kotlin-kapt")
+    id("com.google.dagger.hilt.android")
 }
 
 android {
@@ -111,7 +113,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.5.0")
 
     // NewPipeExtractor - Official JitPack dependency (updated to latest version)
-    implementation("com.github.teamnewpipe:newpipeextractor:v0.24.8")
+    implementation("com.github.TeamNewPipe.NewPipeExtractor:NewPipeExtractor:v0.24.8")
     
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
@@ -155,6 +157,16 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.0.4")
+    
+    // Hilt
+    implementation("com.google.dagger:hilt-android:2.48")
+    kapt("com.google.dagger:hilt-android-compiler:2.48")
+    implementation("androidx.hilt:hilt-navigation-compose:1.0.0")
+
+    // Room
+    implementation("androidx.room:room-runtime:2.6.0")
+    implementation("androidx.room:room-ktx:2.6.0")
+    kapt("androidx.room:room-compiler:2.6.0")
 
     // Testing
     testImplementation("junit:junit:4.13.2")
@@ -164,4 +176,11 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+
+    // YouTubeDL-Android
+    // implementation("com.github.yausername.youtubedl-android:library:0.14.0") // Dependency failing resolution
+    // implementation("com.github.yausername.youtubedl-android:ffmpeg:v0.17.1") // Disabled
+    
+    // OkHttp
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

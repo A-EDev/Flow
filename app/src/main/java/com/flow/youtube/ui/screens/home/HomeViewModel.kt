@@ -13,10 +13,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import org.schabi.newpipe.extractor.Page
 
-class HomeViewModel(
-    private val repository: YouTubeRepository = YouTubeRepository.getInstance()
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
+@HiltViewModel
+class HomeViewModel @Inject constructor(
+    private val repository: YouTubeRepository,
+    private val recommendationRepository: RecommendationRepository
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -24,23 +31,34 @@ class HomeViewModel(
     
     private var currentPage: Page? = null
     private var isLoadingMore = false
-    private var recommendationRepository: RecommendationRepository? = null
+    // private var recommendationRepository: RecommendationRepository? = null // Injected
     private var isInitialized = false
+    
+    init {
+        // We can initialize immediately or wait for explicit call. 
+        // Previously initialize(context) was called.
+        // RecommendationRepository is already initialized via Hilt provider.
+        // RecommendationWorker scheduling might still need context, but that should ideally go to Application or WorkerFactory.
+        // For now, let's keep the load logic, but remove the context-dependent repo init.
+        loadFlowFeed()
+    }
     
     /**
      * Initialize with context for accessing recommendation repository
+     * Kept for compatibility if needed, but repo is now injected.
+     * RecommendationWorker.schedulePeriodicRefresh(context) needs context.
      */
     fun initialize(context: Context) {
         if (isInitialized) return
         isInitialized = true
         
-        recommendationRepository = RecommendationRepository.getInstance(context)
+        // recommendationRepository = RecommendationRepository.getInstance(context) // Handled by Hilt
         
         // Schedule periodic background refresh
         RecommendationWorker.schedulePeriodicRefresh(context)
         
-        // Load feed
-        loadFlowFeed()
+        // Load feed (if not already loaded by init)
+        // loadFlowFeed() 
     }
     
     /**
@@ -57,22 +75,38 @@ class HomeViewModel(
             try {
                 val repo = recommendationRepository
                 
-                // Try to get personalized content
-                val scoredVideos = if (repo != null) {
-                    val cacheValid = repo.isCacheValid()
-                    if (!forceRefresh && cacheValid) {
-                        repo.getCachedFeed().first()
+                // PARALLEL FETCHING: Optimize start-up time by acting speculatively
+                // 1. Try to get personalized feed
+                // 2. Concurrently fetch trending as a backup to avoid waterfall delay if personalized is empty/fails
+                
+                val personalizedJob = async {
+                    if (true) { // Repo is always inclusive now
+                        val cacheValid = repo.isCacheValid()
+                        if (!forceRefresh && cacheValid) {
+                            repo.getCachedFeed().first()
+                        } else {
+                            repo.refreshFeed()
+                        }
                     } else {
-                        repo.refreshFeed()
+                        emptyList()
                     }
-                } else {
-                    emptyList()
                 }
+
+                // Fetch trending in parallel as backup
+                val trendingJob = async {
+                    try {
+                         repository.getTrendingVideos("US", null)
+                    } catch (e: Exception) {
+                        Pair(emptyList<Video>(), null)
+                    }
+                }
+                
+                val scoredVideos = personalizedJob.await()
                 
                 // If we have personalized content, use it
                 if (scoredVideos.isNotEmpty()) {
                     val videos = scoredVideos.map { it.video }
-                    val lastRefresh = repo?.getLastRefreshTime()?.first() ?: 0L
+                    val lastRefresh = repo.getLastRefreshTime().first()
                     
                     _uiState.value = _uiState.value.copy(
                         videos = videos,
@@ -85,8 +119,8 @@ class HomeViewModel(
                     return@launch
                 }
                 
-                // No personalized content, load trending as "For You" fallback
-                val (trendingVideos, nextPage) = repository.getTrendingVideos("US", null)
+                // No personalized content, use the pre-fetched trending data
+                val (trendingVideos, nextPage) = trendingJob.await()
                 
                 if (trendingVideos.isNotEmpty()) {
                     currentPage = nextPage
@@ -102,7 +136,7 @@ class HomeViewModel(
                     return@launch
                 }
                 
-                // Trending is empty, try search fallback
+                // Trending is also empty, try search fallback (rare case, can stay sequential)
                 val (searchVideos, _) = repository.searchVideos("popular videos today")
                 _uiState.value = _uiState.value.copy(
                     videos = searchVideos,
@@ -114,8 +148,9 @@ class HomeViewModel(
                 )
                 
             } catch (e: Exception) {
+                // ... same fallback logic ...
                 // Even on error, try to load trending as fallback
-                try {
+                 try {
                     val (trendingVideos, nextPage) = repository.getTrendingVideos("US", null)
                     if (trendingVideos.isNotEmpty()) {
                         currentPage = nextPage
@@ -175,7 +210,7 @@ class HomeViewModel(
                 val repo = recommendationRepository
                 var gotPersonalizedContent = false
                 
-                if (repo != null) {
+                if (true) { // Always true now
                     val scoredVideos = repo.refreshFeed()
                     if (scoredVideos.isNotEmpty()) {
                         val videos = scoredVideos.map { it.video }

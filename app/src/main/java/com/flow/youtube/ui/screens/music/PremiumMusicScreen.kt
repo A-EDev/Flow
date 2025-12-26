@@ -37,6 +37,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+import androidx.hilt.navigation.compose.hiltViewModel
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PremiumMusicScreen(
@@ -45,8 +47,8 @@ fun PremiumMusicScreen(
     onLibraryClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
-    viewModel: MusicViewModel = viewModel(),
-    playerViewModel: MusicPlayerViewModel = viewModel()
+    viewModel: MusicViewModel = hiltViewModel(),
+    playerViewModel: MusicPlayerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
@@ -250,7 +252,7 @@ fun PremiumMusicScreen(
                         }
 
                         // New Releases
-                        if (uiState.trendingSongs.size > 15) {
+                        if (uiState.newReleases.isNotEmpty()) {
                             item {
                                 Spacer(modifier = Modifier.height(24.dp))
                                 SectionHeader(title = "New releases")
@@ -258,7 +260,7 @@ fun PremiumMusicScreen(
                                     contentPadding = PaddingValues(horizontal = 16.dp),
                                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
-                                    items(uiState.trendingSongs.drop(15).take(10)) { track ->
+                                    items(uiState.newReleases) { track ->
                                         NewReleaseItem(track = track, onClick = { onSongClick(track) })
                                     }
                                 }

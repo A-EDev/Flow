@@ -29,6 +29,10 @@ import com.flow.youtube.data.model.Video
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+import androidx.hilt.navigation.compose.hiltViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaylistsScreen(
@@ -37,15 +41,14 @@ fun PlaylistsScreen(
     onNavigateToWatchLater: () -> Unit,
     onNavigateToLikedVideos: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: PlaylistsViewModel = viewModel()
+    viewModel: PlaylistsViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
+    // val context = LocalContext.current // Not used anymore for initialization
     val uiState by viewModel.uiState.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
     
-    LaunchedEffect(Unit) {
-        viewModel.initialize(context)
-    }
+    // Initialization moved to ViewModel init block
+
     
     Scaffold(
         topBar = {
@@ -469,17 +472,21 @@ private fun CreatePlaylistDialog(
 }
 
 // ViewModel
-class PlaylistsViewModel : ViewModel() {
-    private lateinit var repo: PlaylistRepository
+
+@HiltViewModel
+class PlaylistsViewModel @Inject constructor(
+    private val repo: PlaylistRepository
+) : ViewModel() {
     
     private val _uiState = MutableStateFlow(PlaylistsUiState())
     val uiState: StateFlow<PlaylistsUiState> = _uiState.asStateFlow()
     
-    fun initialize(context: android.content.Context) {
-        repo = PlaylistRepository(context)
+    init {
         loadPlaylists()
     }
     
+    // fun initialize(context: android.content.Context) { ... } // Removed
+
     private fun loadPlaylists() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }

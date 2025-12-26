@@ -200,7 +200,8 @@ object SoundCloudMusicService {
             thumbnailUrl = item.thumbnails.maxByOrNull { it.height }?.url ?: "",
             duration = item.duration.toInt(),
             views = item.viewCount,
-            sourceUrl = item.url
+            sourceUrl = item.url,
+            album = "SoundCloud"
         )
     }
     

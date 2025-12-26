@@ -36,18 +36,23 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+import androidx.hilt.navigation.compose.hiltViewModel
+
+import androidx.lifecycle.SavedStateHandle
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaylistDetailScreen(
-    playlistId: String,
-    playlistRepository: PlaylistRepository,
     onNavigateBack: () -> Unit,
     onVideoClick: (Video) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: PlaylistDetailViewModel = hiltViewModel()
 ) {
-    val viewModel: PlaylistDetailViewModel = viewModel(
-        factory = PlaylistDetailViewModelFactory(playlistRepository, playlistId)
-    )
+    // playlistId is now retrieved from SavedStateHandle inside ViewModel
+    // playlistRepository is injected by Hilt
+    // val viewModel: PlaylistDetailViewModel = viewModel(...) // Removed manual setup
     val uiState by viewModel.uiState.collectAsState()
 
     var showEditDialog by remember { mutableStateOf(false) }
@@ -618,10 +623,14 @@ private fun formatViewCount(count: Long): String {
 }
 
 // ViewModel
-class PlaylistDetailViewModel(
+
+@HiltViewModel
+class PlaylistDetailViewModel @Inject constructor(
     private val repository: PlaylistRepository,
-    private val playlistId: String
+    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
+
+    private val playlistId: String = checkNotNull(savedStateHandle["playlistId"])
 
     data class UiState(
         val playlistName: String = "",
@@ -693,18 +702,5 @@ class PlaylistDetailViewModel(
         viewModelScope.launch {
             repository.deletePlaylist(playlistId)
         }
-    }
-}
-
-class PlaylistDetailViewModelFactory(
-    private val repository: PlaylistRepository,
-    private val playlistId: String
-) : ViewModelProvider.Factory {
-    override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        if (modelClass.isAssignableFrom(PlaylistDetailViewModel::class.java)) {
-            @Suppress("UNCHECKED_CAST")
-            return PlaylistDetailViewModel(repository, playlistId) as T
-        }
-        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

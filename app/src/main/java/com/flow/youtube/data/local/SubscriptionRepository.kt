@@ -106,7 +106,7 @@ class SubscriptionRepository private constructor(private val context: Context) {
     }
     
     private fun serializeChannel(channel: ChannelSubscription): String {
-        return "${channel.channelId}|${channel.channelName}|${channel.channelThumbnail}|${channel.subscribedAt}"
+        return "${channel.channelId}|${channel.channelName}|${channel.channelThumbnail}|${channel.subscribedAt}|${channel.lastVideoId ?: ""}|${channel.lastCheckTime}"
     }
     
     private fun deserializeChannel(data: String): ChannelSubscription? {
@@ -117,7 +117,9 @@ class SubscriptionRepository private constructor(private val context: Context) {
                     channelId = parts[0],
                     channelName = parts[1],
                     channelThumbnail = parts[2],
-                    subscribedAt = parts[3].toLong()
+                    subscribedAt = parts[3].toLong(),
+                    lastVideoId = if (parts.size > 4 && parts[4].isNotEmpty()) parts[4] else null,
+                    lastCheckTime = if (parts.size > 5 && parts[5].isNotEmpty()) parts[5].toLong() else 0L
                 )
             } else {
                 null
@@ -126,11 +128,32 @@ class SubscriptionRepository private constructor(private val context: Context) {
             null
         }
     }
+    
+    /**
+     * Update the last seen video for a channel
+     */
+    suspend fun updateChannelLatestVideo(channelId: String, videoId: String) {
+        context.subscriptionsDataStore.edit { preferences ->
+            val channelData = preferences[channelKey(channelId)]
+            if (channelData != null) {
+                val subscription = deserializeChannel(channelData)
+                if (subscription != null) {
+                    val updated = subscription.copy(
+                        lastVideoId = videoId,
+                        lastCheckTime = System.currentTimeMillis()
+                    )
+                    preferences[channelKey(channelId)] = serializeChannel(updated)
+                }
+            }
+        }
+    }
 }
 
 data class ChannelSubscription(
     val channelId: String,
     val channelName: String,
     val channelThumbnail: String,
-    val subscribedAt: Long = System.currentTimeMillis()
+    val subscribedAt: Long = System.currentTimeMillis(),
+    val lastVideoId: String? = null,
+    val lastCheckTime: Long = 0L
 )

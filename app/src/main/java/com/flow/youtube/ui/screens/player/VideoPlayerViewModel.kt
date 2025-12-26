@@ -13,30 +13,27 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.schabi.newpipe.extractor.stream.*
 
-class VideoPlayerViewModel(
-    private val repository: YouTubeRepository = YouTubeRepository.getInstance()
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
+@HiltViewModel
+class VideoPlayerViewModel @Inject constructor(
+    private val repository: YouTubeRepository,
+    private val viewHistory: ViewHistory,
+    private val subscriptionRepository: SubscriptionRepository,
+    private val likedVideosRepository: LikedVideosRepository,
+    private val interestProfile: InterestProfile
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(VideoPlayerUiState())
     val uiState: StateFlow<VideoPlayerUiState> = _uiState.asStateFlow()
     
-    private var viewHistory: ViewHistory? = null
-    private var subscriptionRepository: SubscriptionRepository? = null
-    private var likedVideosRepository: LikedVideosRepository? = null
-    private var interestProfile: InterestProfile? = null
-    
     fun initialize(context: Context) {
-        viewHistory = ViewHistory.getInstance(context)
-        subscriptionRepository = SubscriptionRepository.getInstance(context)
-        likedVideosRepository = LikedVideosRepository.getInstance(context)
-        interestProfile = InterestProfile.getInstance(context)
+        // Handled by Hilt
     }
     
     fun initializeViewHistory(context: Context) {
-        viewHistory = ViewHistory.getInstance(context)
-        subscriptionRepository = SubscriptionRepository.getInstance(context)
-        likedVideosRepository = LikedVideosRepository.getInstance(context)
-        interestProfile = InterestProfile.getInstance(context)
+        // Handled by Hilt
     }
     
     fun loadVideoInfo(videoId: String, preferredQuality: VideoQuality = VideoQuality.AUTO) {

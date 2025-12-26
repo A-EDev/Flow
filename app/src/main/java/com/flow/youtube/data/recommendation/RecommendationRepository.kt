@@ -186,6 +186,24 @@ class RecommendationRepository private constructor(private val context: Context)
                 val relatedLikedDeferred = async { 
                     fetchRelatedVideosFromLiked(likedVideos.take(MAX_LIKED_FOR_RELATED)) 
                 }
+
+                // 2-HOP DISCOVERY: Get related videos of related videos (Graph-based)
+                // Select a few random related videos from history to explore deeper
+                val graphExplorationDeferred = async {
+                     val primaryRelated = fetchRelatedVideosFromHistory(watchHistory.take(3))
+                     if (primaryRelated.isNotEmpty()) {
+                         val seeds = primaryRelated.shuffled().take(3)
+                         fetchRelatedVideosOfRelated(seeds)
+                     } else {
+                         emptyList()
+                     }
+                }
+                
+                // CATEGORY MIXING: Fetch trending for specific categories to break bubbles
+                // e.g. Music, Gaming
+                val categoryTrendingDeferred = async {
+                    fetchCategoryTrending()
+                }
                 
                 // Fetch from search interests
                 val searchDeferred = async { 
@@ -209,13 +227,17 @@ class RecommendationRepository private constructor(private val context: Context)
                     relatedFromLiked = relatedLikedDeferred.await(),
                     searchVideos = searchDeferred.await(),
                     discoveryVideos = discoveryDeferred.await(),
-                    channelExplorationVideos = channelExplorationDeferred.await()
+                    channelExplorationVideos = channelExplorationDeferred.await(),
+                    graphExplorationVideos = graphExplorationDeferred.await(),
+                    categoryTrendingVideos = categoryTrendingDeferred.await()
                 )
             }
             
             Log.d(TAG, "📦 Fetch Results:")
             Log.d(TAG, "   • ${fetchResults.subscriptionVideos.size} from subscriptions")
             Log.d(TAG, "   • ${fetchResults.relatedFromHistory.size} related (history)")
+            Log.d(TAG, "   • ${fetchResults.graphExplorationVideos.size} graph exploration")
+            Log.d(TAG, "   • ${fetchResults.categoryTrendingVideos.size} category trending")
             Log.d(TAG, "   • ${fetchResults.relatedFromLiked.size} related (liked)")
             Log.d(TAG, "   • ${fetchResults.searchVideos.size} from search interests")
             Log.d(TAG, "   • ${fetchResults.discoveryVideos.size} from discovery")
@@ -240,7 +262,7 @@ class RecommendationRepository private constructor(private val context: Context)
                 subscriptionVideos = fetchResults.subscriptionVideos,
                 relatedVideos = allRelatedVideos,
                 searchInterestVideos = fetchResults.searchVideos,
-                discoveryVideos = fetchResults.discoveryVideos + fetchResults.channelExplorationVideos,
+                discoveryVideos = fetchResults.discoveryVideos + fetchResults.channelExplorationVideos + fetchResults.graphExplorationVideos + fetchResults.categoryTrendingVideos,
                 watchedVideoIds = excludeIds
             )
             
@@ -345,7 +367,7 @@ class RecommendationRepository private constructor(private val context: Context)
             }
         }
         
-        results.flatten()
+        results.flatMap { it }
     }
     
     /**
@@ -382,7 +404,7 @@ class RecommendationRepository private constructor(private val context: Context)
                     emptyList()
                 }
             }
-        }.awaitAll().flatten()
+        }.awaitAll().flatMap { it }
     }
     
     /**
@@ -419,7 +441,7 @@ class RecommendationRepository private constructor(private val context: Context)
                     emptyList()
                 }
             }
-        }.awaitAll().flatten()
+        }.awaitAll().flatMap { it }
     }
     
     /**
@@ -443,7 +465,7 @@ class RecommendationRepository private constructor(private val context: Context)
                     emptyList()
                 }
             }
-        }.awaitAll().flatten()
+        }.awaitAll().flatMap { it }
     }
     
     /**
@@ -467,7 +489,7 @@ class RecommendationRepository private constructor(private val context: Context)
                     emptyList()
                 }
             }
-        }.awaitAll().flatten()
+        }.awaitAll().flatMap { it }
     }
     
     /**
@@ -505,7 +527,7 @@ class RecommendationRepository private constructor(private val context: Context)
                     emptyList()
                 }
             }
-        }.awaitAll().flatten()
+        }.awaitAll().flatMap { it }
     }
     
     /**
@@ -532,6 +554,52 @@ class RecommendationRepository private constructor(private val context: Context)
     }
     
     /**
+     * 2-HOP: Fetch related videos of related videos (Graph exploration)
+     */
+    private suspend fun fetchRelatedVideosOfRelated(
+        seeds: List<RelatedVideoInfo>
+    ): List<Video> = coroutineScope {
+         if (seeds.isEmpty()) return@coroutineScope emptyList()
+         
+         Log.d(TAG, "Running Graph Exploration on ${seeds.size} seeds")
+         
+         seeds.map { seed ->
+             async {
+                 try {
+                     val related = youtubeRepository.getRelatedVideos(seed.video.id)
+                        .take(5) // Take top 5 from this "next hop"
+                     related
+                 } catch (e: Exception) {
+                     emptyList<Video>()
+                 }
+             }
+         }.awaitAll().flatMap { it }
+    }
+
+    /**
+     * Fetch trending from specific categories (Gaming, Music) to mix in
+     */
+    private suspend fun fetchCategoryTrending(): List<Video> = coroutineScope {
+        // IDs for categories can be specific, here we use generic queries for simpler NewPipe mapping
+        // or usage of getTrending(region, type) if supported. NewPipeExtractor supports specific tabs.
+        // For simplicity, we'll use search for "Trending Music", "Trending Gaming" etc or just "Gaming" filter.
+        // Actually Repository.getTrendingVideos supports type? No, currently just region.
+        // We'll use search for broad category discovery.
+        
+        val categories = listOf("Music", "Gaming", "News")
+        categories.map { category ->
+            async {
+                try {
+                    val (videos, _) = youtubeRepository.searchVideos(category) // Broad search acts as category trending
+                    videos.take(5)
+                } catch (e: Exception) {
+                    emptyList<Video>()
+                }
+            }
+        }.awaitAll().flatMap { it }
+    }
+
+    /**
      * Fetch results container
      */
     private data class FetchResults(
@@ -540,7 +608,9 @@ class RecommendationRepository private constructor(private val context: Context)
         val relatedFromLiked: List<RelatedVideoInfo>,
         val searchVideos: List<Video>,
         val discoveryVideos: List<Video>,
-        val channelExplorationVideos: List<Video>
+        val channelExplorationVideos: List<Video>,
+        val graphExplorationVideos: List<Video> = emptyList(),
+        val categoryTrendingVideos: List<Video> = emptyList()
     )
 }
 

@@ -37,16 +37,14 @@ class ShortsViewModel(
         
         viewModelScope.launch {
             try {
-                // Fetch trending videos as shorts (filter by duration < 60 seconds)
-                val (allVideos, _) = repository.getTrendingVideos()
-                
-                // Filter for short-form content (under 60 seconds)
-                val shorts = allVideos.filter { it.duration in 1..60 }
+                // Fetch dedicated shorts using search/filtering
+                val (shorts, nextPage) = repository.getShorts()
                 
                 _uiState.value = _uiState.value.copy(
                     shorts = shorts,
+                    nextPage = nextPage,
                     isLoading = false,
-                    hasMorePages = true
+                    hasMorePages = nextPage != null
                 )
             } catch (e: Exception) {
                 Log.e("ShortsViewModel", "Error loading shorts", e)
@@ -66,17 +64,16 @@ class ShortsViewModel(
         
         viewModelScope.launch {
             try {
-                // In a real implementation, you would pass the nextPage token
-                val (allVideos, _) = repository.getTrendingVideos()
-                val newShorts = allVideos.filter { it.duration in 1..60 }
+                val (newShorts, nextPage) = repository.getShorts(_uiState.value.nextPage)
                 
                 val currentShorts = _uiState.value.shorts
                 val updatedShorts = (currentShorts + newShorts).distinctBy { it.id }
                 
                 _uiState.value = _uiState.value.copy(
                     shorts = updatedShorts,
+                    nextPage = nextPage,
                     isLoadingMore = false,
-                    hasMorePages = true
+                    hasMorePages = nextPage != null
                 )
             } catch (e: Exception) {
                 Log.e("ShortsViewModel", "Error loading more shorts", e)
@@ -150,6 +147,8 @@ class ShortsViewModel(
             loadMoreShorts()
         }
     }
+
+    suspend fun getVideoStreamInfo(videoId: String) = repository.getVideoStreamInfo(videoId)
 }
 
 data class ShortsUiState(
@@ -158,5 +157,6 @@ data class ShortsUiState(
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val hasMorePages: Boolean = true,
+    val nextPage: org.schabi.newpipe.extractor.Page? = null,
     val error: String? = null
 )

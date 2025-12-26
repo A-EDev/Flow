@@ -2,6 +2,10 @@ package com.flow.youtube.data.repository
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.Deferred
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
@@ -40,6 +44,36 @@ class YouTubeRepository {
             }
             
             Pair(videos, infoItems.nextPage)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Pair(emptyList(), null)
+        }
+    }
+
+    /**
+     * Fetch YouTube Shorts specifically
+     * Uses search with #shorts and duration filtering
+     */
+    suspend fun getShorts(
+        nextPage: Page? = null
+    ): Pair<List<Video>, Page?> = withContext(Dispatchers.IO) {
+        try {
+            // Search for #shorts which often returns actual shorts
+            val searchExtractor = service.getSearchExtractor("#shorts")
+            searchExtractor.fetchPage()
+            
+            val infoItems = if (nextPage != null) {
+                searchExtractor.getPage(nextPage)
+            } else {
+                searchExtractor.initialPage
+            }
+            
+            val shorts = infoItems.items
+                .filterIsInstance<StreamInfoItem>()
+                .filter { it.duration in 1..60 } // Actual shorts are <= 60s
+                .map { it.toVideo() }
+            
+            Pair(shorts, infoItems.nextPage)
         } catch (e: Exception) {
             e.printStackTrace()
             Pair(emptyList(), null)
@@ -244,21 +278,35 @@ class YouTubeRepository {
     /**
      * Aggregate uploads from multiple channels, shuffle results and limit total items.
      */
+    /**
+     * Aggregate uploads from multiple channels, shuffle results and limit total items.
+     * Use parallel fetching for speed.
+     */
     suspend fun getVideosForChannels(
         channelIdsOrUrls: List<String>,
         perChannelLimit: Int = 5,
         totalLimit: Int = 50
     ): List<Video> = withContext(Dispatchers.IO) {
         try {
-            val deferred = channelIdsOrUrls.map { id ->
-                // fetch sequentially to avoid high concurrency in CI; it's still IO dispatcher
-                getChannelUploads(id, perChannelLimit)
+            // Use coroutineScope to enable concurrent execution
+            kotlinx.coroutines.coroutineScope {
+                val deferred = channelIdsOrUrls.map { id ->
+                    async { getChannelUploads(id, perChannelLimit) }
+                }
+                
+                val combined = mutableListOf<Video>()
+                deferred.forEach { 
+                    try {
+                        combined.addAll(it.await()) 
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+                
+                // Shuffle to mix channels and then limit
+                val shuffled = combined.shuffled()
+                shuffled.take(totalLimit)
             }
-
-            val combined = deferred.flatten()
-            // Shuffle to mix channels and then limit
-            val shuffled = combined.shuffled()
-            shuffled.take(totalLimit)
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()

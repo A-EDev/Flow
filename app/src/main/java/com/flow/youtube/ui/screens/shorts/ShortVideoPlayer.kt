@@ -35,7 +35,9 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.flow.youtube.data.model.Video
+import com.flow.youtube.player.EnhancedMusicPlayerManager
 import com.flow.youtube.player.EnhancedPlayerManager
+import com.flow.youtube.player.RepeatMode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -71,16 +73,68 @@ fun ShortVideoPlayer(
         isSubscribed = viewModel.isChannelSubscribed(video.channelId)
     }
     
-    // Initialize player when visible
+    // Video player instance moved up for scope access
+    val playerView = remember(video.id) {
+        PlayerView(context).apply {
+            useController = false
+            layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+        }
+    }
+
+    // Initialize player and handle playback when visibility changes
     LaunchedEffect(isVisible) {
         if (isVisible) {
             playerManager.initialize(context)
-            // Note: Actual video loading will be handled by the EnhancedVideoPlayerScreen integration
-            // For now, we'll use the player manager's existing functionality
-            delay(300) // Small delay for surface attachment
+            
+            // Pause music player to prevent multiple audios
+            EnhancedMusicPlayerManager.pause()
+            
+            // Attach surface and player
+            playerView.player = playerManager.getPlayer()
+            (playerView.videoSurfaceView as? android.view.SurfaceView)?.holder?.let { holder ->
+                if (holder.surface?.isValid == true) {
+                    playerManager.attachVideoSurface(holder)
+                }
+            }
+            
+            // Fetch streams for the short
+            try {
+                val streamInfo = viewModel.getVideoStreamInfo(video.id)
+                if (streamInfo != null && isVisible) {
+                    val videoStream = streamInfo.videoStreams?.firstOrNull { it.height >= 720 } 
+                                     ?: streamInfo.videoStreams?.firstOrNull()
+                                     ?: streamInfo.videoOnlyStreams?.firstOrNull()
+                    
+                    val audioStream = streamInfo.audioStreams?.maxByOrNull { it.averageBitrate }
+                    
+                    if (audioStream != null) {
+                        playerManager.setStreams(
+                            videoId = video.id,
+                            videoStream = videoStream,
+                            audioStream = audioStream,
+                            videoStreams = (streamInfo.videoStreams ?: emptyList()) + (streamInfo.videoOnlyStreams ?: emptyList()),
+                            audioStreams = streamInfo.audioStreams ?: emptyList(),
+                            subtitles = streamInfo.subtitles ?: emptyList()
+                        )
+                        if (isVisible) {
+                            playerManager.play()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("ShortVideoPlayer", "Error loading short streams", e)
+            }
         } else {
-            // Pause when not visible
-            playerManager.pause()
+            // Only pause if this is the video currently being managed by the singleton player
+            if (playerManager.playerState.value.currentVideoId == video.id) {
+                playerManager.pause()
+            }
+            // Clear player from view when not visible to avoid surface conflicts
+            playerView.player = null
         }
     }
     
@@ -91,6 +145,21 @@ fun ShortVideoPlayer(
         isPlaying = playerState.isPlaying
         isBuffering = playerState.isBuffering
         // Handle position and duration from player state
+        playerManager.getPlayer()?.let { player ->
+            duration = player.duration.coerceAtLeast(0)
+            currentPosition = player.currentPosition
+        }
+    }
+    
+    // Progress update loop
+    LaunchedEffect(isPlaying) {
+        while (isPlaying) {
+            playerManager.getPlayer()?.let { player ->
+                currentPosition = player.currentPosition
+                duration = player.duration.coerceAtLeast(0)
+            }
+            delay(500)
+        }
     }
     
     // Auto-hide controls
@@ -106,6 +175,15 @@ fun ShortVideoPlayer(
         if (showLikeAnimation) {
             delay(800)
             showLikeAnimation = false
+        }
+    }
+    
+    DisposableEffect(video.id) {
+        onDispose {
+            // Detach surface when this specific short's view is disposed
+            if (playerManager.playerState.value.currentVideoId == video.id) {
+                playerManager.detachVideoSurface()
+            }
         }
     }
     
@@ -129,40 +207,32 @@ fun ShortVideoPlayer(
                 )
             }
     ) {
-        // Video player
-        val playerView = remember(video.id) {
-            PlayerView(context).apply {
-                useController = false
-                layoutParams = FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT
-                )
-                setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
-            }
-        }
+        // AndroidView moved to use the pre-initialized playerView
         
-        DisposableEffect(playerView) {
+        DisposableEffect(playerView, isVisible) {
             val surfaceView = playerView.videoSurfaceView as? android.view.SurfaceView
-            val callback = surfaceView?.let {
-                object : SurfaceHolder.Callback {
-                    override fun surfaceCreated(holder: SurfaceHolder) {
-                        Log.d("ShortVideoPlayer", "Surface created for ${video.id}")
+            val callback = object : SurfaceHolder.Callback {
+                override fun surfaceCreated(holder: SurfaceHolder) {
+                    if (isVisible) {
+                        Log.d("ShortVideoPlayer", "Surface created and visible for ${video.id}")
                         playerManager.attachVideoSurface(holder)
                     }
-                    
-                    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
-                    
-                    override fun surfaceDestroyed(holder: SurfaceHolder) {
-                        Log.d("ShortVideoPlayer", "Surface destroyed for ${video.id}")
-                    }
+                }
+                
+                override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
+                
+                override fun surfaceDestroyed(holder: SurfaceHolder) {
+                    Log.d("ShortVideoPlayer", "Surface destroyed for ${video.id}")
                 }
             }
             
-            callback?.let { surfaceView.holder.addCallback(it) }
-            playerView.player = playerManager.getPlayer()
+            surfaceView?.holder?.addCallback(callback)
             
             onDispose {
-                callback?.let { surfaceView?.holder?.removeCallback(it) }
+                surfaceView?.holder?.removeCallback(callback)
+                if (isVisible) {
+                    playerView.player = null
+                }
             }
         }
         

@@ -31,12 +31,14 @@ import coil.compose.AsyncImage
 /**
  * Library Screen - Shows Playlists, Favorites, and Downloads
  */
+import androidx.hilt.navigation.compose.hiltViewModel
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     onBackClick: () -> Unit,
     onTrackClick: (MusicTrack) -> Unit,
-    viewModel: LibraryViewModel = viewModel()
+    viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
