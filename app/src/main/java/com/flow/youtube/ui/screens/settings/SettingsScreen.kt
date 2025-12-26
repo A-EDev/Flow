@@ -19,6 +19,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.flow.youtube.ui.theme.ThemeMode
 import com.flow.youtube.ui.theme.extendedColors
+import com.flow.youtube.data.local.PlayerPreferences
+import com.flow.youtube.data.local.VideoQuality
 import kotlinx.coroutines.launch
 
 @Composable
@@ -30,6 +32,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val searchHistoryRepo = remember { com.flow.youtube.data.local.SearchHistoryRepository(context) }
+    val playerPreferences = remember { PlayerPreferences(context) }
     
     var showThemeDialog by remember { mutableStateOf(false) }
     var showVideoQualityDialog by remember { mutableStateOf(false) }
@@ -38,7 +41,11 @@ fun SettingsScreen(
     var showHistorySizeDialog by remember { mutableStateOf(false) }
     var showRetentionDaysDialog by remember { mutableStateOf(false) }
     
-    var backgroundPlayEnabled by remember { mutableStateOf(false) }
+    // Player preferences states
+    val backgroundPlayEnabled by playerPreferences.backgroundPlayEnabled.collectAsState(initial = false)
+    val currentRegion by playerPreferences.trendingRegion.collectAsState(initial = "US")
+    val wifiQuality by playerPreferences.defaultQualityWifi.collectAsState(initial = VideoQuality.Q_1080p)
+    val cellularQuality by playerPreferences.defaultQualityCellular.collectAsState(initial = VideoQuality.Q_480p)
     
     // Search settings states
     val searchHistoryEnabled by searchHistoryRepo.isSearchHistoryEnabledFlow().collectAsState(initial = true)
@@ -46,6 +53,25 @@ fun SettingsScreen(
     val maxHistorySize by searchHistoryRepo.getMaxHistorySizeFlow().collectAsState(initial = 50)
     val autoDeleteHistory by searchHistoryRepo.isAutoDeleteHistoryEnabledFlow().collectAsState(initial = false)
     val historyRetentionDays by searchHistoryRepo.getHistoryRetentionDaysFlow().collectAsState(initial = 90)
+    
+    // Region name mapping
+    val regionNames = mapOf(
+        "US" to "United States",
+        "GB" to "United Kingdom",
+        "CA" to "Canada",
+        "AU" to "Australia",
+        "DE" to "Germany",
+        "FR" to "France",
+        "JP" to "Japan",
+        "KR" to "South Korea",
+        "IN" to "India",
+        "BR" to "Brazil",
+        "MX" to "Mexico",
+        "ES" to "Spain",
+        "IT" to "Italy",
+        "NL" to "Netherlands",
+        "RU" to "Russia"
+    )
 
     Column(
         modifier = modifier
@@ -101,7 +127,7 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = Icons.Outlined.TrendingUp,
                     title = "Trending Region",
-                    subtitle = "United States",
+                    subtitle = regionNames[currentRegion] ?: currentRegion,
                     onClick = { showRegionDialog = true }
                 )
             }
@@ -112,7 +138,7 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = Icons.Outlined.HighQuality,
                     title = "Default Video Quality",
-                    subtitle = "Wi-Fi: 1080p • Cellular: 480p",
+                    subtitle = "Wi-Fi: ${wifiQuality.label} • Cellular: ${cellularQuality.label}",
                     onClick = { showVideoQualityDialog = true }
                 )
             }
@@ -125,7 +151,11 @@ fun SettingsScreen(
                     title = "Background Play",
                     subtitle = "Continue playing when app is in background",
                     checked = backgroundPlayEnabled,
-                    onCheckedChange = { backgroundPlayEnabled = it }
+                    onCheckedChange = { enabled ->
+                        coroutineScope.launch {
+                            playerPreferences.setBackgroundPlayEnabled(enabled)
+                        }
+                    }
                 )
             }
 
@@ -457,6 +487,173 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showRetentionDaysDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+    
+    // Region Selection Dialog
+    if (showRegionDialog) {
+        var selectedRegion by remember { mutableStateOf(currentRegion) }
+        
+        AlertDialog(
+            onDismissRequest = { showRegionDialog = false },
+            icon = {
+                Icon(Icons.Outlined.TrendingUp, contentDescription = null)
+            },
+            title = {
+                Text("Select Region")
+            },
+            text = {
+                LazyColumn(
+                    modifier = Modifier.heightIn(max = 400.dp)
+                ) {
+                    items(regionNames.entries.toList().size) { index ->
+                        val (code, name) = regionNames.entries.toList()[index]
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { selectedRegion = code }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedRegion == code,
+                                onClick = { selectedRegion = code }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(name)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            playerPreferences.setTrendingRegion(selectedRegion)
+                            showRegionDialog = false
+                        }
+                    }
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRegionDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+    
+    // Video Quality Dialog
+    if (showVideoQualityDialog) {
+        var selectedWifiQuality by remember { mutableStateOf(wifiQuality) }
+        var selectedCellularQuality by remember { mutableStateOf(cellularQuality) }
+        
+        val qualities = listOf(
+            VideoQuality.Q_144p,
+            VideoQuality.Q_240p,
+            VideoQuality.Q_360p,
+            VideoQuality.Q_480p,
+            VideoQuality.Q_720p,
+            VideoQuality.Q_1080p,
+            VideoQuality.Q_1440p,
+            VideoQuality.Q_2160p,
+            VideoQuality.AUTO
+        )
+        
+        AlertDialog(
+            onDismissRequest = { showVideoQualityDialog = false },
+            icon = {
+                Icon(Icons.Outlined.HighQuality, contentDescription = null)
+            },
+            title = {
+                Text("Video Quality")
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Wi-Fi Quality
+                    Text(
+                        text = "Wi-Fi Quality",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 150.dp)
+                    ) {
+                        items(qualities.size) { index ->
+                            val quality = qualities[index]
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { selectedWifiQuality = quality }
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = selectedWifiQuality == quality,
+                                    onClick = { selectedWifiQuality = quality }
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(quality.label)
+                            }
+                        }
+                    }
+                    
+                    Spacer(Modifier.height(8.dp))
+                    
+                    // Cellular Quality
+                    Text(
+                        text = "Cellular Quality",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 150.dp)
+                    ) {
+                        items(qualities.size) { index ->
+                            val quality = qualities[index]
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { selectedCellularQuality = quality }
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = selectedCellularQuality == quality,
+                                    onClick = { selectedCellularQuality = quality }
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(quality.label)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            playerPreferences.setDefaultQualityWifi(selectedWifiQuality)
+                            playerPreferences.setDefaultQualityCellular(selectedCellularQuality)
+                            showVideoQualityDialog = false
+                        }
+                    }
+                ) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showVideoQualityDialog = false }) {
                     Text("Cancel")
                 }
             }

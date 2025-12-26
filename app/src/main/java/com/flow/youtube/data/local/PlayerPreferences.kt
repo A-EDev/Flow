@@ -19,6 +19,19 @@ class PlayerPreferences(private val context: Context) {
         val SUBTITLES_ENABLED = booleanPreferencesKey("subtitles_enabled")
         val PREFERRED_SUBTITLE_LANGUAGE = stringPreferencesKey("preferred_subtitle_language")
         val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
+        val TRENDING_REGION = stringPreferencesKey("trending_region")
+    }
+    
+    // Region preference
+    val trendingRegion: Flow<String> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.TRENDING_REGION] ?: "US"
+        }
+    
+    suspend fun setTrendingRegion(region: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.TRENDING_REGION] = region
+        }
     }
     
     // Quality preferences

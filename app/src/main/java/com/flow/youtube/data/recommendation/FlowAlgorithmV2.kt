@@ -6,6 +6,7 @@ import com.flow.youtube.data.model.Video
 import kotlin.math.ln
 import kotlin.math.pow
 import kotlin.random.Random
+import java.util.Calendar
 
 /**
  * Flow Recommendation Algorithm V2 - Professional-Grade Recommendations
@@ -87,6 +88,14 @@ object FlowAlgorithmV2 {
     private const val HOURS_24_MS = 24 * 60 * 60 * 1000L
     private const val DAYS_3_MS = 3 * 24 * 60 * 60 * 1000L
     private const val DAYS_7_MS = 7 * 24 * 60 * 60 * 1000L
+    
+    // Session variety
+    private const val SESSION_VARIETY_SEED_INTERVAL_MS = 30 * 60 * 1000L // New seed every 30 min
+    
+    // Time-of-day variety categories
+    private val MORNING_BOOST_KEYWORDS = listOf("news", "morning", "podcast", "motivation")
+    private val EVENING_BOOST_KEYWORDS = listOf("relaxing", "music", "movie", "entertainment")
+    private val WEEKEND_BOOST_KEYWORDS = listOf("vlog", "travel", "cooking", "diy")
     
     /**
      * Enhanced candidate with all scoring metadata
@@ -490,10 +499,15 @@ object FlowAlgorithmV2 {
     }
     
     /**
-     * Light shuffle maintaining rough score order
+     * Light shuffle maintaining rough score order with time-based variety
+     * Uses current time bucket for seed so content varies on each app launch
      */
     fun lightShuffle(videos: List<ScoredVideo>, bucketSize: Int = 6): List<ScoredVideo> {
         if (videos.size <= bucketSize) return videos
+        
+        // Generate session-specific seed for variety on each launch
+        val sessionSeed = System.currentTimeMillis() / SESSION_VARIETY_SEED_INTERVAL_MS
+        val random = Random(sessionSeed)
         
         val result = mutableListOf<ScoredVideo>()
         
@@ -505,8 +519,8 @@ object FlowAlgorithmV2 {
             if (shuffleCount > 0 && bucket.size > 1) {
                 val shuffled = bucket.toMutableList()
                 repeat(shuffleCount) {
-                    val i = Random.nextInt(shuffled.size)
-                    val j = Random.nextInt(shuffled.size)
+                    val i = random.nextInt(shuffled.size)
+                    val j = random.nextInt(shuffled.size)
                     val temp = shuffled[i]
                     shuffled[i] = shuffled[j]
                     shuffled[j] = temp
@@ -518,6 +532,44 @@ object FlowAlgorithmV2 {
         }
         
         return result
+    }
+    
+    /**
+     * Get time-of-day variety boost for a video
+     * Boosts different content types based on time
+     */
+    fun getTimeOfDayBoost(title: String): Int {
+        val calendar = Calendar.getInstance()
+        val hour = calendar.get(Calendar.HOUR_OF_DAY)
+        val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+        val isWeekend = dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY
+        
+        val lowerTitle = title.lowercase()
+        
+        var boost = 0
+        
+        // Morning (6-11): News, podcasts, motivation
+        if (hour in 6..11) {
+            if (MORNING_BOOST_KEYWORDS.any { lowerTitle.contains(it) }) {
+                boost += 10
+            }
+        }
+        
+        // Evening (18-23): Entertainment, music, relaxing
+        if (hour in 18..23) {
+            if (EVENING_BOOST_KEYWORDS.any { lowerTitle.contains(it) }) {
+                boost += 10
+            }
+        }
+        
+        // Weekend: Vlogs, travel, DIY
+        if (isWeekend) {
+            if (WEEKEND_BOOST_KEYWORDS.any { lowerTitle.contains(it) }) {
+                boost += 8
+            }
+        }
+        
+        return boost
     }
     
     private fun extractNumber(text: String): Int {

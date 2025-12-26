@@ -380,7 +380,7 @@ fun ShortsCard(
             fontWeight = FontWeight.SemiBold
         )
         Text(
-            text = " views",
+            text = "${formatViewCount(video.viewCount)} views",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.extendedColors.textSecondary
         )

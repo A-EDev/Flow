@@ -8,6 +8,7 @@ import com.flow.youtube.data.recommendation.RecommendationRepository
 import com.flow.youtube.data.recommendation.RecommendationWorker
 import com.flow.youtube.data.recommendation.ScoredVideo
 import com.flow.youtube.data.repository.YouTubeRepository
+import com.flow.youtube.data.shorts.ShortsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +33,7 @@ class HomeViewModel @Inject constructor(
     private var currentPage: Page? = null
     private var isLoadingMore = false
     // private var recommendationRepository: RecommendationRepository? = null // Injected
+    private var shortsRepository: ShortsRepository? = null
     private var isInitialized = false
     
     init {
@@ -52,13 +54,29 @@ class HomeViewModel @Inject constructor(
         if (isInitialized) return
         isInitialized = true
         
-        // recommendationRepository = RecommendationRepository.getInstance(context) // Handled by Hilt
+        // Initialize shorts repository
+        shortsRepository = ShortsRepository.getInstance(context)
         
         // Schedule periodic background refresh
         RecommendationWorker.schedulePeriodicRefresh(context)
         
-        // Load feed (if not already loaded by init)
-        // loadFlowFeed() 
+        // Load shorts for home feed
+        loadHomeShorts()
+    }
+    
+    /**
+     * Load shorts specifically for the home screen
+     */
+    private fun loadHomeShorts() {
+        viewModelScope.launch {
+            try {
+                val shorts = shortsRepository?.getHomeFeedShorts() ?: emptyList()
+                _uiState.value = _uiState.value.copy(shorts = shorts)
+            } catch (e: Exception) {
+                // Shorts loading failure shouldn't block the feed
+                android.util.Log.e("HomeViewModel", "Failed to load shorts", e)
+            }
+        }
     }
     
     /**
@@ -317,6 +335,7 @@ class HomeViewModel @Inject constructor(
 
 data class HomeUiState(
     val videos: List<Video> = emptyList(),
+    val shorts: List<Video> = emptyList(),  // Dedicated shorts for home display
     val scoredVideos: List<ScoredVideo> = emptyList(),
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,

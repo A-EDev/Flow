@@ -113,10 +113,10 @@ fun HomeScreen(
                                 onClick = { onVideoClick(video) }
                             )
                             
-                            // Insert Shorts shelf after the first video
-                            if (uiState.videos.indexOf(video) == 0 && uiState.videos.size > 4) {
+                            // Insert Shorts shelf after the first video (only if shorts are available)
+                            if (uiState.videos.indexOf(video) == 0 && uiState.shorts.isNotEmpty()) {
                                 ShortsShelf(
-                                    shorts = uiState.videos.take(5),
+                                    shorts = uiState.shorts,
                                     onShortClick = { onVideoClick(it) }
                                 )
                             }
