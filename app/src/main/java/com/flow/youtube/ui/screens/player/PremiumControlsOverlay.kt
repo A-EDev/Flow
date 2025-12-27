@@ -106,7 +106,7 @@ fun PremiumControlsOverlay(
                     if (qualityLabel != null) {
                         TextButton(onClick = onSettingsClick) {
                             Text(
-                                text = "${qualityLabel}p",
+                                text = if (qualityLabel.all { it.isDigit() }) "${qualityLabel}p" else qualityLabel,
                                 color = Color.White,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold
@@ -286,6 +286,8 @@ fun PremiumControlsOverlay(
                                 onSeek(newPosition)
                             },
                             seekbarPreviewHelper = seekbarPreviewHelper,
+                            chapters = chapters,
+                            duration = duration,
                             modifier = Modifier.fillMaxWidth(),
                             colors = SliderDefaults.colors(
                                 thumbColor = primaryColor, // Dynamic Red/Theme Color

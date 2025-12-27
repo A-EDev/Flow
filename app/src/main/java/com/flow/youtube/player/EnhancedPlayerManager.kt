@@ -10,6 +10,7 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.common.PlaybackException
@@ -91,6 +92,15 @@ class EnhancedPlayerManager private constructor() {
     // Quality mode tracking
     private var isAdaptiveQualityEnabled = true  // Auto quality by default
     private var manualQualityHeight: Int? = null  // Track manually selected quality
+
+    // Buffering watchdog
+    private val bufferingHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val bufferingRunnable = Runnable {
+        if (_playerState.value.isBuffering && isAdaptiveQualityEnabled) {
+            Log.w(TAG, "Buffering too long (>5s) - attempting quality downgrade")
+            downgradeQualityDueToBandwidth()
+        }
+    }
 
     fun initialize(context: Context) {
         appContext = context.applicationContext
@@ -199,6 +209,12 @@ class EnhancedPlayerManager private constructor() {
 
     private fun setupPlayerListener() {
         player?.addListener(object : Player.Listener {
+            override fun onVideoSizeChanged(videoSize: VideoSize) {
+                if (videoSize.height > 0) {
+                    _playerState.value = _playerState.value.copy(effectiveQuality = videoSize.height)
+                }
+            }
+
             override fun onPlaybackStateChanged(playbackState: Int) {
                 _playerState.value = _playerState.value.copy(
                     isBuffering = playbackState == Player.STATE_BUFFERING,
@@ -208,6 +224,9 @@ class EnhancedPlayerManager private constructor() {
                 // Log bandwidth when buffering to help diagnose issues
                 if (playbackState == Player.STATE_BUFFERING) {
                     logBandwidthInfo()
+                    startBufferingWatchdog()
+                } else {
+                    stopBufferingWatchdog()
                 }
             }
             
@@ -479,6 +498,7 @@ class EnhancedPlayerManager private constructor() {
         }
         _playerState.value = _playerState.value.copy(
             currentVideoId = videoId,
+            effectiveQuality = currentVideoStream?.height ?: 0,
             availableQualities = listOf(
                 QualityOption(height = 0, label = "Auto", bitrate = 0L)  // Add Auto option at top
             ) + videoStreams
@@ -784,7 +804,7 @@ class EnhancedPlayerManager private constructor() {
                 }
             }
             
-            _playerState.value = _playerState.value.copy(currentQuality = height)
+            _playerState.value = _playerState.value.copy(currentQuality = height, effectiveQuality = height)
             Log.d(TAG, "Locked to fixed quality: ${height}p (adaptive disabled)")
         }
     }
@@ -825,7 +845,10 @@ class EnhancedPlayerManager private constructor() {
             }
         }
         
-        _playerState.value = _playerState.value.copy(currentQuality = 0)  // 0 = Auto
+        _playerState.value = _playerState.value.copy(
+            currentQuality = 0,
+            effectiveQuality = currentVideoStream?.height ?: 0
+        )  // 0 = Auto
         Log.d(TAG, "Adaptive quality mode enabled")
     }
 
@@ -1369,6 +1392,50 @@ class EnhancedPlayerManager private constructor() {
         isWatchdogActive = false
         stuckCounter = 0
     }
+
+    private fun startBufferingWatchdog() {
+        bufferingHandler.removeCallbacks(bufferingRunnable)
+        bufferingHandler.postDelayed(bufferingRunnable, 5000) // 5 seconds timeout
+    }
+
+    private fun stopBufferingWatchdog() {
+        bufferingHandler.removeCallbacks(bufferingRunnable)
+    }
+
+    private fun downgradeQualityDueToBandwidth() {
+        if (!isAdaptiveQualityEnabled) return
+        
+        val currentHeight = currentVideoStream?.height ?: return
+        
+        // Find next lower quality
+        val lowerQualityStream = availableVideoStreams
+            .filter { it.height < currentHeight }
+            .maxByOrNull { it.height } // Highest of the lower qualities (e.g. 1080 -> 720)
+            
+        if (lowerQualityStream != null) {
+            Log.w(TAG, "Bandwidth adaptation: Downgrading from ${currentHeight}p to ${lowerQualityStream.height}p")
+            
+            currentVideoStream = lowerQualityStream
+            
+            // Reload media at current position
+            val currentPos = player?.currentPosition ?: 0L
+            loadMedia(
+                videoStream = currentVideoStream,
+                audioStream = currentAudioStream ?: availableAudioStreams.firstOrNull() ?: return,
+                preservePosition = currentPos
+            )
+            
+            // Update state
+            _playerState.value = _playerState.value.copy(
+                effectiveQuality = lowerQualityStream.height
+            )
+            
+            // Restart watchdog in case this one is also too slow
+            startBufferingWatchdog()
+        } else {
+            Log.w(TAG, "Bandwidth adaptation: No lower quality available")
+        }
+    }
     
     /**
      * Attempt quality downgrade when stream is corrupted
@@ -1448,6 +1515,7 @@ data class EnhancedPlayerState(
     val isPrepared: Boolean = false,
     val hasEnded: Boolean = false,
     val currentQuality: Int = 0,
+    val effectiveQuality: Int = 0,
     val currentAudioTrack: Int = 0,
     val availableQualities: List<QualityOption> = emptyList(),
     val availableAudioTracks: List<AudioTrackOption> = emptyList(),

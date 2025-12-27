@@ -551,6 +551,7 @@ fun EnhancedDescriptionBox(
 
 /**
  * Formats the description text with proper styling for links, timestamps, and hashtags
+ * Also handles basic HTML tags like <br> and <a href>
  */
 @Composable
 private fun formatDescription(
@@ -558,8 +559,15 @@ private fun formatDescription(
     primaryColor: Color,
     textColor: Color
 ): AnnotatedString {
+    // First, convert HTML to plain text but preserve line breaks
+    // We use HtmlCompat to handle the HTML parsing
+    val spanned = HtmlCompat.fromHtml(
+        description.replace("<br>", "\n").replace("<br/>", "\n"), 
+        HtmlCompat.FROM_HTML_MODE_COMPACT
+    )
+    val text = spanned.toString()
+
     return buildAnnotatedString {
-        val text = description.trim()
         var currentIndex = 0
         
         // Regex patterns

@@ -24,7 +24,8 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: YouTubeRepository,
-    private val recommendationRepository: RecommendationRepository
+    private val recommendationRepository: RecommendationRepository,
+    private val playerPreferences: com.flow.youtube.data.local.PlayerPreferences
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -113,7 +114,8 @@ class HomeViewModel @Inject constructor(
                 // Fetch trending in parallel as backup
                 val trendingJob = async {
                     try {
-                         repository.getTrendingVideos("US", null)
+                         val region = playerPreferences.trendingRegion.first()
+                         repository.getTrendingVideos(region, null)
                     } catch (e: Exception) {
                         Pair(emptyList<Video>(), null)
                     }
@@ -169,7 +171,8 @@ class HomeViewModel @Inject constructor(
                 // ... same fallback logic ...
                 // Even on error, try to load trending as fallback
                  try {
-                    val (trendingVideos, nextPage) = repository.getTrendingVideos("US", null)
+                    val region = playerPreferences.trendingRegion.first()
+                    val (trendingVideos, nextPage) = repository.getTrendingVideos(region, null)
                     if (trendingVideos.isNotEmpty()) {
                         currentPage = nextPage
                         
@@ -248,7 +251,8 @@ class HomeViewModel @Inject constructor(
                 
                 // If no personalized content, refresh trending
                 if (!gotPersonalizedContent) {
-                    val (trendingVideos, nextPage) = repository.getTrendingVideos("US", null)
+                    val region = playerPreferences.trendingRegion.first()
+                    val (trendingVideos, nextPage) = repository.getTrendingVideos(region, null)
                     currentPage = nextPage
                     
                     _uiState.value = _uiState.value.copy(

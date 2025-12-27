@@ -15,6 +15,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 data class SubtitleCue(
     val startTime: Long,
@@ -216,17 +218,59 @@ private fun parseTime(timeString: String): Long {
  * Fetch and parse subtitles from URL
  */
 suspend fun fetchSubtitles(url: String): List<SubtitleCue> {
-    return try {
-        // Download subtitle content
-        val response = java.net.URL(url).readText()
+    return withContext(Dispatchers.IO) {
+        try {
+            // Download subtitle content
+            val response = java.net.URL(url).readText()
+            
+            // Detect format and parse
+            when {
+                response.contains("WEBVTT") -> parseVTT(response)
+                response.contains("-->") -> parseSRT(response)
+                response.contains("<tt") || response.contains("<transcript") -> parseTTML(response) // Add TTML support
+                else -> emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+}
+
+/**
+ * Basic TTML/XML parser for YouTube subtitles
+ */
+fun parseTTML(content: String): List<SubtitleCue> {
+    val cues = mutableListOf<SubtitleCue>()
+    try {
+        // Simple regex-based parsing for <p t="start_ms" d="duration_ms">Text</p>
+        // or <text start="3.4" dur="2.1">Hello</text>
         
-        // Detect format and parse
-        when {
-            response.startsWith("WEBVTT") -> parseVTT(response)
-            response.contains("-->") -> parseSRT(response)
-            else -> emptyList()
+        // Regex for: <text start="3.4" dur="2.1">Hello</text> (Common in YouTube XML)
+        val regex = "<text start=\"([0-9.]+)\" dur=\"([0-9.]+)\"[^>]*>(.*?)</text>".toRegex()
+        
+        regex.findAll(content).forEach { match ->
+            val (startSec, durSec, text) = match.destructured
+            val startTime = (startSec.toDouble() * 1000).toLong()
+            val duration = (durSec.toDouble() * 1000).toLong()
+            val endTime = startTime + duration
+            
+            // Decode HTML entities
+            val decodedText = text
+                .replace("&quot;", "\"")
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&#39;", "'")
+                .replace("<br />", "\n")
+                .replace("<br>", "\n")
+            
+            if (decodedText.isNotBlank()) {
+                cues.add(SubtitleCue(startTime, endTime, decodedText))
+            }
         }
     } catch (e: Exception) {
-        emptyList()
+        e.printStackTrace()
     }
+    return cues
 }

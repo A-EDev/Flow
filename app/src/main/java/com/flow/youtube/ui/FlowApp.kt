@@ -536,7 +536,10 @@ fun FlowApp(
                             }
                         },
                         onChannelClick = { channelId ->
-                            navController.navigate("channel/$channelId")
+                            // Construct a URL for the channel since the route expects one
+                            val channelUrl = "https://www.youtube.com/channel/$channelId"
+                            val encodedUrl = java.net.URLEncoder.encode(channelUrl, "UTF-8")
+                            navController.navigate("channel?url=$encodedUrl")
                         }
                     )
                 }

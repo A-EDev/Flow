@@ -29,6 +29,11 @@ class YouTubeRepository {
         nextPage: Page? = null
     ): Pair<List<Video>, Page?> = withContext(Dispatchers.IO) {
         try {
+            // Update localization based on region
+            val country = ContentCountry(region)
+            val localization = Localization.fromLocale(java.util.Locale.ENGLISH)
+            NewPipe.init(NewPipe.getDownloader(), localization, country)
+
             val kioskList = service.kioskList
             val trendingExtractor = kioskList.getExtractorById("Trending", null)
             trendingExtractor.fetchPage()

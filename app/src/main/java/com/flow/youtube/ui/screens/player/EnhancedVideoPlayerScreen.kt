@@ -18,6 +18,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.*
 import androidx.compose.foundation.clickable
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import android.text.TextUtils
 import android.text.method.LinkMovementMethod
+import org.schabi.newpipe.extractor.stream.StreamSegment
 import android.widget.TextView
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.border
@@ -924,7 +926,7 @@ fun EnhancedVideoPlayerScreen(
                     currentPosition = currentPosition,
                     duration = duration,
                     title = uiState.streamInfo?.name ?: video.title,
-                    qualityLabel = playerState.currentQuality.toString(),
+                    qualityLabel = if (playerState.currentQuality == 0) "Auto (${playerState.effectiveQuality}p)" else playerState.currentQuality.toString(),
                     resizeMode = resizeMode,
                     onResizeClick = {
                         resizeMode = (resizeMode + 1) % 3
@@ -1086,8 +1088,29 @@ fun EnhancedVideoPlayerScreen(
     }
     // Quick actions sheet
     if (showQuickActions) {
+        // Create a complete Video object from streamInfo if available
+        val completeVideo = remember(uiState.streamInfo, video) {
+            val streamInfo = uiState.streamInfo
+            if (streamInfo != null) {
+                Video(
+                    id = streamInfo.id ?: video.id,
+                    title = streamInfo.name ?: video.title,
+                    channelName = streamInfo.uploaderName ?: video.channelName,
+                    channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
+                    thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: video.thumbnailUrl,
+                    duration = streamInfo.duration.toInt(),
+                    viewCount = streamInfo.viewCount,
+                    uploadDate = streamInfo.uploadDate?.toString() ?: video.uploadDate,
+                    description = streamInfo.description?.content ?: video.description,
+                    channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl
+                )
+            } else {
+                video
+            }
+        }
+
         VideoQuickActionsBottomSheet(
-            video = video,
+            video = completeVideo,
             onDismiss = { showQuickActions = false },
             onAddToPlaylist = {
                 // open AddToPlaylistDialog flow using MusicPlayerViewModel
@@ -1095,29 +1118,8 @@ fun EnhancedVideoPlayerScreen(
                 musicVm.showAddToPlaylistDialog(true)
             },
             onWatchLater = {
-                // Create a complete Video object from streamInfo
                 showQuickActions = false
                 scope.launch {
-                    val streamInfo = uiState.streamInfo
-                    
-                    // Create a complete Video object with all metadata
-                    val completeVideo = if (streamInfo != null) {
-                        Video(
-                            id = streamInfo.id ?: video.id,
-                            title = streamInfo.name ?: video.title,
-                            channelName = streamInfo.uploaderName ?: video.channelName,
-                            channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
-                            thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: video.thumbnailUrl,
-                            duration = streamInfo.duration.toInt(),
-                            viewCount = streamInfo.viewCount,
-                            uploadDate = streamInfo.uploadDate?.toString() ?: video.uploadDate,
-                            description = streamInfo.description?.content ?: video.description,
-                            channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl
-                        )
-                    } else {
-                        video // Fallback to original video if streamInfo not loaded yet
-                    }
-                    
                     viewModel.toggleWatchLater(completeVideo)
                     Toast.makeText(context, "Updated Watch Later", Toast.LENGTH_SHORT).show()
                 }
@@ -1126,8 +1128,8 @@ fun EnhancedVideoPlayerScreen(
                 showQuickActions = false
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, video.title)
-                    putExtra(Intent.EXTRA_TEXT, "Check out this video: ${video.title}\nhttps://youtube.com/watch?v=${video.id}")
+                    putExtra(Intent.EXTRA_SUBJECT, completeVideo.title)
+                    putExtra(Intent.EXTRA_TEXT, "Check out this video: ${completeVideo.title}\nhttps://youtube.com/watch?v=${completeVideo.id}")
                 }
                 context.startActivity(Intent.createChooser(shareIntent, "Share video"))
             },
@@ -1143,8 +1145,8 @@ fun EnhancedVideoPlayerScreen(
                 showQuickActions = false
                 val reportIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, "Report video: ${video.title}")
-                    putExtra(Intent.EXTRA_TEXT, "Video ID: ${video.id}\nReason: ")
+                    putExtra(Intent.EXTRA_SUBJECT, "Report video: ${completeVideo.title}")
+                    putExtra(Intent.EXTRA_TEXT, "Video ID: ${completeVideo.id}\nReason: ")
                 }
                 context.startActivity(Intent.createChooser(reportIntent, "Report video"))
             }
@@ -1155,6 +1157,9 @@ fun EnhancedVideoPlayerScreen(
     
     // Download Quality Dialog
     if (showDownloadDialog) {
+        // Ensure we have the latest video details for download
+        val downloadVideoTitle = uiState.streamInfo?.name ?: video.title
+        
         AlertDialog(
             onDismissRequest = { showDownloadDialog = false },
             title = { Text("Download Video") },
@@ -1175,7 +1180,7 @@ fun EnhancedVideoPlayerScreen(
                                         ?: uiState.streamInfo?.videoStreams?.maxByOrNull { it.height }
                                     
                                     if (stream != null && stream.url != null) {
-                                        startDownload(context, video.title, stream.url!!, "mp4")
+                                        startDownload(context, downloadVideoTitle, stream.url!!, "mp4")
                                         Toast.makeText(context, "Downloading ${quality.label}...", Toast.LENGTH_SHORT).show()
                                     } else {
                                         Toast.makeText(context, "Stream not found", Toast.LENGTH_SHORT).show()
@@ -1506,13 +1511,66 @@ fun SeekbarWithPreview(
     onValueChangeFinished: (() -> Unit)? = null,
     colors: SliderColors = SliderDefaults.colors(),
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
-    seekbarPreviewHelper: SeekbarPreviewThumbnailHelper? = null
+    seekbarPreviewHelper: SeekbarPreviewThumbnailHelper? = null,
+    chapters: List<StreamSegment> = emptyList(),
+    duration: Long = 0L
 ) {
     var showPreview by remember { mutableStateOf(false) }
     var previewPosition by remember { mutableFloatStateOf(0f) }
     var previewBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    val primaryColor = MaterialTheme.colorScheme.primary
 
     Box(modifier = modifier) {
+        // Custom Track with Segments
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .align(Alignment.Center)
+        ) {
+            val trackHeight = size.height
+            val trackWidth = size.width
+            
+            // Draw inactive track (background)
+            drawRoundRect(
+                color = Color.White.copy(alpha = 0.3f),
+                size = androidx.compose.ui.geometry.Size(trackWidth, trackHeight),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackHeight / 2)
+            )
+            
+            // Draw active track (progress)
+            val activeWidth = trackWidth * value
+            drawRoundRect(
+                color = primaryColor, // Use theme primary color
+                size = androidx.compose.ui.geometry.Size(activeWidth, trackHeight),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(trackHeight / 2)
+            )
+            
+            // Draw Chapter Separators (Gaps)
+            if (chapters.isNotEmpty() && duration > 0) {
+                val gapWidth = 2.dp.toPx()
+                
+                chapters.forEach { chapter ->
+                    if (chapter.startTimeSeconds > 0) {
+                        val chapterStartMs = chapter.startTimeSeconds * 1000
+                        val chapterProgress = chapterStartMs.toFloat() / duration.toFloat()
+                        
+                        if (chapterProgress in 0f..1f) {
+                            val gapX = trackWidth * chapterProgress
+                            
+                            // Draw a clear/black line to simulate a gap
+                            drawLine(
+                                color = Color.Black, 
+                                start = androidx.compose.ui.geometry.Offset(gapX, -trackHeight), 
+                                end = androidx.compose.ui.geometry.Offset(gapX, trackHeight * 2),
+                                strokeWidth = gapWidth
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // Preview thumbnail overlay
         if (showPreview && previewBitmap != null) {
             Box(
@@ -1574,7 +1632,11 @@ fun SeekbarWithPreview(
             enabled = enabled,
             valueRange = valueRange,
             steps = steps,
-            colors = colors,
+            colors = SliderDefaults.colors(
+                thumbColor = MaterialTheme.colorScheme.primary,
+                activeTrackColor = Color.Transparent,
+                inactiveTrackColor = Color.Transparent
+            ),
             interactionSource = interactionSource,
             thumb = {
                 Box(
