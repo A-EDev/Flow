@@ -134,7 +134,7 @@ fun SettingsScreen(
 
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
-            item {
+            /* item {
                 SettingsItem(
                     icon = Icons.Outlined.HighQuality,
                     title = "Default Video Quality",
@@ -143,7 +143,7 @@ fun SettingsScreen(
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
+            item { Spacer(modifier = Modifier.height(8.dp)) } */
 
             item {
                 SettingsSwitchItem(
@@ -293,10 +293,13 @@ fun SettingsScreen(
             }
 
             item {
+                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+                val versionName = packageInfo.versionName ?: "Unknown"
+                
                 SettingsItem(
                     icon = Icons.Outlined.Info,
                     title = "App Version",
-                    subtitle = "1.0.0",
+                    subtitle = versionName,
                     onClick = { }
                 )
             }
@@ -304,7 +307,6 @@ fun SettingsScreen(
             item { Spacer(modifier = Modifier.height(8.dp)) }
 
             item {
-                val context = LocalContext.current
                 SettingsItem(
                     icon = Icons.Outlined.Person,
                     title = "Made By A-EDev",

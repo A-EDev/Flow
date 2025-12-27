@@ -9,6 +9,8 @@ import android.media.AudioManager
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -372,7 +374,13 @@ fun EnhancedVideoPlayerScreen(
         EnhancedPlayerManager.getInstance().pause()
         EnhancedPlayerManager.getInstance().clearCurrentVideo()
 
-        viewModel.loadVideoInfo(video.id)
+        // Detect if on Wifi for preferred quality
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val activeNetwork = connectivityManager.activeNetwork
+        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
+        val isWifi = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ?: true
+        
+        viewModel.loadVideoInfo(video.id, isWifi)
     }
     
     // Initialize player when streams are available
@@ -1209,7 +1217,13 @@ fun EnhancedVideoPlayerScreen(
                             video = video,
                             title = uiState.streamInfo?.name ?: video.title,
                             viewCount = uiState.streamInfo?.viewCount ?: video.viewCount,
-                            uploadDate = uiState.streamInfo?.uploadDate?.toString() ?: video.uploadDate,
+                            uploadDate = uiState.streamInfo?.uploadDate?.let { 
+                                try { 
+                                    val cal = it.date()
+                                    val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
+                                    sdf.format(cal.time)
+                                } catch(e: Exception) { null } 
+                            } ?: video.uploadDate,
                             description = uiState.streamInfo?.description?.content ?: video.description,
                             channelName = uiState.streamInfo?.uploaderName ?: video.channelName,
                             channelAvatarUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,

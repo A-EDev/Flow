@@ -22,7 +22,8 @@ class VideoPlayerViewModel @Inject constructor(
     private val viewHistory: ViewHistory,
     private val subscriptionRepository: SubscriptionRepository,
     private val likedVideosRepository: LikedVideosRepository,
-    private val interestProfile: InterestProfile
+    private val interestProfile: InterestProfile,
+    private val playerPreferences: PlayerPreferences
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(VideoPlayerUiState())
@@ -36,11 +37,20 @@ class VideoPlayerViewModel @Inject constructor(
         // Handled by Hilt
     }
     
-    fun loadVideoInfo(videoId: String, preferredQuality: VideoQuality = VideoQuality.AUTO) {
+    fun loadVideoInfo(videoId: String, isWifi: Boolean = true) {
         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
         
         viewModelScope.launch {
             try {
+                // Determine preferred quality from preferences
+                val preferredQuality = if (isWifi) {
+                    playerPreferences.defaultQualityWifi.first()
+                } else {
+                    playerPreferences.defaultQualityCellular.first()
+                }
+                
+                Log.d("VideoPlayerViewModel", "Loading video $videoId with preferred quality: ${preferredQuality.label} (isWifi=$isWifi)")
+                
                 val streamInfo = repository.getVideoStreamInfo(videoId)
                 
                 if (streamInfo != null) {

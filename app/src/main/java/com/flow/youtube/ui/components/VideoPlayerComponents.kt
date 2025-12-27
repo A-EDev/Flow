@@ -87,7 +87,7 @@ fun VideoInfoSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "${formatViewCount(viewCount)} views",
+                text = formatViewCount(viewCount),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

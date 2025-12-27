@@ -168,7 +168,7 @@ fun VideoPlayerScreen(
     
     // Load video info on first composition
     LaunchedEffect(video.id) {
-        viewModel.loadVideoInfo(video.id, VideoQuality.AUTO)
+        viewModel.loadVideoInfo(video.id, true)
         // Load subscription and like state
         viewModel.loadSubscriptionAndLikeState(video.channelId, video.id)
     }

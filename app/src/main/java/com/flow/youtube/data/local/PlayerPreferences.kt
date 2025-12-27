@@ -126,7 +126,7 @@ enum class VideoQuality(val label: String, val height: Int) {
     Q_1080p("1080p", 1080),
     Q_1440p("1440p", 1440),
     Q_2160p("2160p", 2160), // 4K
-    AUTO("Auto", Int.MAX_VALUE);
+    AUTO("Auto", 0);
     
     companion object {
         fun fromString(label: String): VideoQuality {

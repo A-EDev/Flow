@@ -335,10 +335,19 @@ class YouTubeRepository {
             thumbnailUrl = bestThumbnail,
             duration = duration.toInt(),
             viewCount = viewCount,
-            uploadDate = when {
-                textualUploadDate != null -> textualUploadDate!!
-                uploadDate != null -> uploadDate.toString()
-                else -> "Unknown"
+            uploadDate = run {
+                val date = uploadDate
+                when {
+                    textualUploadDate != null -> textualUploadDate!!
+                    date != null -> try {
+                        val cal = date.date()
+                        val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
+                        sdf.format(cal.time)
+                    } catch (e: Exception) {
+                        "Unknown"
+                    }
+                    else -> "Unknown"
+                }
             },
             channelThumbnailUrl = bestAvatar
         )
