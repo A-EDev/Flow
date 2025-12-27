@@ -55,10 +55,13 @@ android {
                 "proguard-rules.pro"
             )
             // Use release signing if configured, otherwise fallback to debug
-            signingConfig = if (signingConfigs.getByName("release").storeFile?.exists() == true) {
-                signingConfigs.getByName("release")
+            val releaseKeystore = signingConfigs.getByName("release").storeFile
+            if (releaseKeystore?.exists() == true) {
+                signingConfig = signingConfigs.getByName("release")
+                println("Using RELEASE signing config with keystore: ${releaseKeystore.absolutePath}")
             } else {
-                signingConfigs.getByName("debug")
+                signingConfig = signingConfigs.getByName("debug")
+                println("WARNING: Release keystore not found. Using DEBUG signing config for release build.")
             }
         }
     }
@@ -163,8 +166,8 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.0.4")
     
     // Hilt
-    implementation("com.google.dagger:hilt-android:2.48")
-    kapt("com.google.dagger:hilt-android-compiler:2.48")
+    implementation("com.google.dagger:hilt-android:2.51.1")
+    kapt("com.google.dagger:hilt-android-compiler:2.51.1")
     implementation("androidx.hilt:hilt-navigation-compose:1.0.0")
 
     // Room
@@ -187,4 +190,13 @@ dependencies {
     
     // OkHttp
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+}
+
+// Allow references to generated code
+kapt {
+    correctErrorTypes = true
+}
+
+hilt {
+    enableTransformForLocalTests = false
 }

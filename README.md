@@ -361,6 +361,22 @@ SOFTWARE.
 
 ---
 
+## 🔧 Troubleshooting
+
+### Installation Issues
+
+**"App not installed" or "Package conflict" error**
+
+If you see an error like "Installing the new update has conflict of package may be due to....signing key", it means the signature of the new version doesn't match the one currently installed on your device.
+
+**Solution:**
+1. Uninstall the existing version of the app.
+2. Install the new version.
+
+*Note: This will clear your app data (settings, history, etc.). We are working on a backup/restore feature to mitigate this in the future.*
+
+---
+
 ## ⭐ Star History
 
 If you find this project useful, please consider giving it a star! ⭐
