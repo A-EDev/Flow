@@ -18,17 +18,20 @@ import com.flow.youtube.data.local.PlaylistRepository
 import com.flow.youtube.data.model.Video
 import kotlinx.coroutines.launch
 
+import androidx.hilt.navigation.compose.hiltViewModel
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoQuickActionsBottomSheet(
     video: Video,
     onDismiss: () -> Unit,
     onAddToPlaylist: () -> Unit = {},
-    onWatchLater: () -> Unit = {},
+    onWatchLater: (() -> Unit)? = null,
     onShare: () -> Unit = {},
-    onDownload: () -> Unit = {},
+    onDownload: (() -> Unit)? = null,
     onNotInterested: () -> Unit = {},
-    onReport: () -> Unit = {}
+    onReport: () -> Unit = {},
+    viewModel: QuickActionsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -81,9 +84,12 @@ fun VideoQuickActionsBottomSheet(
                 icon = Icons.Outlined.WatchLater,
                 text = "Save to Watch later",
                 onClick = {
-                    scope.launch {
-                        repo.addToWatchLater(video)
+                    if (onWatchLater != null) {
                         onWatchLater()
+                    } else {
+                        scope.launch {
+                            repo.addToWatchLater(video)
+                        }
                     }
                     onDismiss()
                 }
@@ -102,7 +108,11 @@ fun VideoQuickActionsBottomSheet(
                 icon = Icons.Outlined.Download,
                 text = "Download",
                 onClick = {
-                    onDownload()
+                    if (onDownload != null) {
+                        onDownload()
+                    } else {
+                        viewModel.downloadVideo(video.id, video.title)
+                    }
                     onDismiss()
                 }
             )

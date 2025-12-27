@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -45,7 +46,12 @@ fun HistoryScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Watch History") },
+                title = { 
+                    Text(
+                        text = "Watch History",
+                        style = MaterialTheme.typography.headlineMedium
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
@@ -59,7 +65,7 @@ fun HistoryScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         }
@@ -88,7 +94,7 @@ fun HistoryScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(
                             items = uiState.historyEntries,
@@ -131,6 +137,7 @@ fun HistoryScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HistoryVideoCard(
     entry: VideoHistoryEntry,
@@ -138,13 +145,13 @@ private fun HistoryVideoCard(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier
@@ -157,13 +164,12 @@ private fun HistoryVideoCard(
                 modifier = Modifier
                     .width(160.dp)
                     .height(90.dp)
+                    .clip(RoundedCornerShape(12.dp))
             ) {
                 AsyncImage(
                     model = entry.thumbnailUrl,
                     contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(8.dp)),
+                    modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
                 
@@ -174,7 +180,7 @@ private fun HistoryVideoCard(
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
                             .height(3.dp)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     ) {
                         Box(
                             modifier = Modifier
@@ -191,12 +197,13 @@ private fun HistoryVideoCard(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(4.dp),
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                        color = Color.Black.copy(alpha = 0.7f),
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Text(
                             text = formatDuration(entry.duration),
                             style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                         )
                     }
@@ -213,7 +220,7 @@ private fun HistoryVideoCard(
                 Column {
                     Text(
                         text = entry.title,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
@@ -224,19 +231,21 @@ private fun HistoryVideoCard(
                     Text(
                         text = formatTimestamp(entry.timestamp),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.extendedColors.textSecondary
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 
                 // Delete button
                 IconButton(
                     onClick = onDeleteClick,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier
+                        .size(32.dp)
+                        .align(Alignment.End)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Delete,
                         contentDescription = "Delete",
-                        tint = MaterialTheme.extendedColors.textSecondary,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -256,7 +265,7 @@ private fun EmptyHistoryState(modifier: Modifier = Modifier) {
             imageVector = Icons.Outlined.History,
             contentDescription = null,
             modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.extendedColors.textSecondary
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
@@ -269,7 +278,7 @@ private fun EmptyHistoryState(modifier: Modifier = Modifier) {
         Text(
             text = "Videos you watch will appear here",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.extendedColors.textSecondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
     }

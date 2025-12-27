@@ -44,14 +44,19 @@ fun LikedVideosScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Liked Videos") },
+                title = { 
+                    Text(
+                        text = "Liked Videos",
+                        style = MaterialTheme.typography.headlineMedium
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         }
@@ -80,7 +85,7 @@ fun LikedVideosScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(
                             items = uiState.likedVideos,
@@ -99,6 +104,7 @@ fun LikedVideosScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun LikedVideoCard(
     video: LikedVideoInfo,
@@ -106,13 +112,13 @@ private fun LikedVideoCard(
     onUnlikeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier
@@ -121,15 +127,19 @@ private fun LikedVideoCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Thumbnail
-            AsyncImage(
-                model = video.thumbnail,
-                contentDescription = null,
+            Box(
                 modifier = Modifier
                     .width(160.dp)
                     .height(90.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
+                    .clip(RoundedCornerShape(12.dp))
+            ) {
+                AsyncImage(
+                    model = video.thumbnail,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
             
             // Video info
             Column(
@@ -141,7 +151,7 @@ private fun LikedVideoCard(
                 Column {
                     Text(
                         text = video.title,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
@@ -156,7 +166,7 @@ private fun LikedVideoCard(
                         Text(
                             text = video.channelName,
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.extendedColors.textSecondary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -164,13 +174,13 @@ private fun LikedVideoCard(
                         Text(
                             text = "•",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.extendedColors.textSecondary
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         
                         Text(
                             text = formatTimestamp(video.likedAt),
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.extendedColors.textSecondary
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -178,7 +188,9 @@ private fun LikedVideoCard(
                 // Unlike button
                 IconButton(
                     onClick = onUnlikeClick,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier
+                        .size(32.dp)
+                        .align(Alignment.End)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.ThumbUp,
@@ -203,7 +215,7 @@ private fun EmptyLikedVideosState(modifier: Modifier = Modifier) {
             imageVector = Icons.Outlined.ThumbUp,
             contentDescription = null,
             modifier = Modifier.size(80.dp),
-            tint = MaterialTheme.extendedColors.textSecondary
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
@@ -216,7 +228,7 @@ private fun EmptyLikedVideosState(modifier: Modifier = Modifier) {
         Text(
             text = "Videos you like will appear here",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.extendedColors.textSecondary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
         )
     }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,10 +24,13 @@ import com.flow.youtube.data.local.PlayerPreferences
 import com.flow.youtube.data.local.VideoQuality
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     currentTheme: ThemeMode,
     onThemeChange: (ThemeMode) -> Unit,
+    onNavigateBack: () -> Unit,
+    onNavigateToAppearance: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -34,7 +38,6 @@ fun SettingsScreen(
     val searchHistoryRepo = remember { com.flow.youtube.data.local.SearchHistoryRepository(context) }
     val playerPreferences = remember { PlayerPreferences(context) }
     
-    var showThemeDialog by remember { mutableStateOf(false) }
     var showVideoQualityDialog by remember { mutableStateOf(false) }
     var showRegionDialog by remember { mutableStateOf(false) }
     var showClearSearchDialog by remember { mutableStateOf(false) }
@@ -73,22 +76,34 @@ fun SettingsScreen(
         "RU" to "Russia"
     )
 
-    Column(
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { 
+                    Text(
+                        text = "Settings",
+                        style = MaterialTheme.typography.headlineMedium
+                    ) 
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        },
         modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        // Header
-        Text(
-            text = "Settings",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-        )
-
+    ) { paddingValues ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(MaterialTheme.colorScheme.background),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Appearance Section
             item {
@@ -99,24 +114,10 @@ fun SettingsScreen(
                 SettingsItem(
                     icon = Icons.Outlined.Palette,
                     title = "Theme",
-                    subtitle = when (currentTheme) {
-                        ThemeMode.LIGHT -> "Light"
-                        ThemeMode.DARK -> "Dark"
-                        ThemeMode.OLED -> "OLED Black"
-                        ThemeMode.OCEAN_BLUE -> "Ocean Blue"
-                        ThemeMode.FOREST_GREEN -> "Forest Green"
-                        ThemeMode.SUNSET_ORANGE -> "Sunset Orange"
-                        ThemeMode.PURPLE_NEBULA -> "Purple Nebula"
-                        ThemeMode.MIDNIGHT_BLACK -> "Midnight Black"
-                        ThemeMode.ROSE_GOLD -> "Rose Gold"
-                        ThemeMode.ARCTIC_ICE -> "Arctic Ice"
-                        ThemeMode.CRIMSON_RED -> "Crimson Red"
-                    },
-                    onClick = { showThemeDialog = true }
+                    subtitle = formatThemeName(currentTheme),
+                    onClick = onNavigateToAppearance
                 )
             }
-
-            item { Spacer(modifier = Modifier.height(24.dp)) }
 
             // Content & Playback Section
             item {
@@ -132,19 +133,6 @@ fun SettingsScreen(
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
-            /* item {
-                SettingsItem(
-                    icon = Icons.Outlined.HighQuality,
-                    title = "Default Video Quality",
-                    subtitle = "Wi-Fi: ${wifiQuality.label} • Cellular: ${cellularQuality.label}",
-                    onClick = { showVideoQualityDialog = true }
-                )
-            }
-
-            item { Spacer(modifier = Modifier.height(8.dp)) } */
-
             item {
                 SettingsSwitchItem(
                     icon = Icons.Outlined.PlayCircle,
@@ -158,8 +146,6 @@ fun SettingsScreen(
                     }
                 )
             }
-
-            item { Spacer(modifier = Modifier.height(24.dp)) }
 
             // Search Settings Section
             item {
@@ -180,8 +166,6 @@ fun SettingsScreen(
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
             item {
                 SettingsSwitchItem(
                     icon = Icons.Outlined.TrendingUp,
@@ -196,8 +180,6 @@ fun SettingsScreen(
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
             item {
                 SettingsItem(
                     icon = Icons.Outlined.Storage,
@@ -206,8 +188,6 @@ fun SettingsScreen(
                     onClick = { showHistorySizeDialog = true }
                 )
             }
-
-            item { Spacer(modifier = Modifier.height(8.dp)) }
 
             item {
                 SettingsSwitchItem(
@@ -224,8 +204,6 @@ fun SettingsScreen(
             }
 
             if (autoDeleteHistory) {
-                item { Spacer(modifier = Modifier.height(8.dp)) }
-
                 item {
                     SettingsItem(
                         icon = Icons.Outlined.Schedule,
@@ -236,8 +214,6 @@ fun SettingsScreen(
                 }
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
             item {
                 SettingsItem(
                     icon = Icons.Outlined.ManageSearch,
@@ -246,8 +222,6 @@ fun SettingsScreen(
                     onClick = { showClearSearchDialog = true }
                 )
             }
-
-            item { Spacer(modifier = Modifier.height(24.dp)) }
 
             // Privacy & Data Section
             item {
@@ -263,8 +237,6 @@ fun SettingsScreen(
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
             item {
                 SettingsItem(
                     icon = Icons.Outlined.FileUpload,
@@ -274,8 +246,6 @@ fun SettingsScreen(
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
             item {
                 SettingsItem(
                     icon = Icons.Outlined.FileDownload,
@@ -284,8 +254,6 @@ fun SettingsScreen(
                     onClick = { /* Import */ }
                 )
             }
-
-            item { Spacer(modifier = Modifier.height(24.dp)) }
 
             // About Section
             item {
@@ -304,8 +272,6 @@ fun SettingsScreen(
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
             item {
                 SettingsItem(
                     icon = Icons.Outlined.Person,
@@ -318,8 +284,6 @@ fun SettingsScreen(
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
             item {
                 SettingsItem(
                     icon = Icons.Outlined.Code,
@@ -331,18 +295,6 @@ fun SettingsScreen(
         }
     }
 
-    // Theme Dialog
-    if (showThemeDialog) {
-        ThemeSelectionDialog(
-            currentTheme = currentTheme,
-            onThemeSelected = {
-                onThemeChange(it)
-                showThemeDialog = false
-            },
-            onDismiss = { showThemeDialog = false }
-        )
-    }
-    
     // Clear Search History Dialog
     if (showClearSearchDialog) {
         AlertDialog(
@@ -673,6 +625,12 @@ private fun SectionHeader(text: String) {
     )
 }
 
+private fun formatThemeName(theme: ThemeMode): String {
+    return theme.name.split("_")
+        .joinToString(" ") { it.lowercase().replaceFirstChar { char -> char.uppercase() } }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SettingsItem(
     icon: ImageVector,
@@ -681,12 +639,13 @@ private fun SettingsItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick),
-        color = MaterialTheme.colorScheme.surface
+    Card(
+        onClick = onClick,
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier
@@ -728,10 +687,12 @@ private fun SettingsSwitchItem(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    Card(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(12.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Row(
             modifier = Modifier
@@ -769,58 +730,4 @@ private fun SettingsSwitchItem(
     }
 }
 
-@Composable
-private fun ThemeSelectionDialog(
-    currentTheme: ThemeMode,
-    onThemeSelected: (ThemeMode) -> Unit,
-    onDismiss: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Select Theme") },
-        text = {
-            Column {
-                ThemeMode.values().forEach { theme ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { onThemeSelected(theme) }
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = when (theme) {
-                                ThemeMode.LIGHT -> "Light"
-                                ThemeMode.DARK -> "Dark"
-                                ThemeMode.OLED -> "OLED Black"
-                                ThemeMode.OCEAN_BLUE -> "Ocean Blue"
-                                ThemeMode.FOREST_GREEN -> "Forest Green"
-                                ThemeMode.SUNSET_ORANGE -> "Sunset Orange"
-                                ThemeMode.PURPLE_NEBULA -> "Purple Nebula"
-                                ThemeMode.MIDNIGHT_BLACK -> "Midnight Black"
-                                ThemeMode.ROSE_GOLD -> "Rose Gold"
-                                ThemeMode.ARCTIC_ICE -> "Arctic Ice"
-                                ThemeMode.CRIMSON_RED -> "Crimson Red"
-                            },
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        if (theme == currentTheme) {
-                            Icon(
-                                imageVector = Icons.Outlined.Check,
-                                contentDescription = "Selected",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}
+

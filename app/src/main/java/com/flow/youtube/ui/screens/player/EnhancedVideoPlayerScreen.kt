@@ -28,6 +28,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import com.flow.youtube.data.local.VideoQuality
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -95,6 +97,7 @@ fun EnhancedVideoPlayerScreen(
     video: Video,
     onBack: () -> Unit,
     onVideoClick: (Video) -> Unit,
+    onChannelClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: VideoPlayerViewModel = hiltViewModel()
 ) {
@@ -122,6 +125,7 @@ fun EnhancedVideoPlayerScreen(
     var showAudioTrackSelector by remember { mutableStateOf(false) }
     var showSubtitleSelector by remember { mutableStateOf(false) }
     var showSettingsMenu by remember { mutableStateOf(false) }
+    var showDownloadDialog by remember { mutableStateOf(false) }
     
     // Gesture states
     var brightnessLevel by remember { mutableFloatStateOf(0.5f) }
@@ -732,19 +736,26 @@ fun EnhancedVideoPlayerScreen(
                     exit = fadeOut() + scaleOut(),
                     modifier = Modifier.align(Alignment.CenterStart).padding(start = 60.dp)
                 ) {
-                    Surface(
-                        modifier = Modifier.size(60.dp),
-                        color = Color.Black.copy(alpha = 0.7f),
-                        shape = CircleShape
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.6f))
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Filled.FastRewind,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Rounded.FastRewind,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Text(
+                            text = "10s",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
                     }
                 }
                 
@@ -754,19 +765,26 @@ fun EnhancedVideoPlayerScreen(
                     exit = fadeOut() + scaleOut(),
                     modifier = Modifier.align(Alignment.CenterEnd).padding(end = 60.dp)
                 ) {
-                    Surface(
-                        modifier = Modifier.size(60.dp),
-                        color = Color.Black.copy(alpha = 0.7f),
-                        shape = CircleShape
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.6f))
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Filled.FastForward,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Rounded.FastForward,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                        Text(
+                            text = "10s",
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                        )
                     }
                 }
                 
@@ -899,309 +917,52 @@ fun EnhancedVideoPlayerScreen(
                 }
                 
                 // ============ CUSTOM CONTROLS OVERLAY ============
-                // ============ CUSTOM CONTROLS OVERLAY (hidden in PiP mode) ============
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = showControls && !isInPipMode,
-                    enter = fadeIn(animationSpec = tween(300)),
-                    exit = fadeOut(animationSpec = tween(300)),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Black.copy(alpha = 0.7f),
-                                        Color.Transparent,
-                                        Color.Transparent,
-                                        Color.Black.copy(alpha = 0.7f)
-                                    )
-                                )
+                PremiumControlsOverlay(
+                    isVisible = showControls && !isInPipMode,
+                    isPlaying = playerState.isPlaying,
+                    isBuffering = playerState.isBuffering,
+                    currentPosition = currentPosition,
+                    duration = duration,
+                    title = uiState.streamInfo?.name ?: video.title,
+                    qualityLabel = playerState.currentQuality.toString(),
+                    resizeMode = resizeMode,
+                    onResizeClick = {
+                        resizeMode = (resizeMode + 1) % 3
+                    },
+                    onPlayPause = {
+                        if (playerState.isPlaying) {
+                            EnhancedPlayerManager.getInstance().pause()
+                        } else {
+                            EnhancedPlayerManager.getInstance().play()
+                        }
+                    },
+                    onSeek = { newPosition ->
+                        EnhancedPlayerManager.getInstance().seekTo(newPosition)
+                    },
+                    onBack = {
+                        if (isFullscreen) {
+                            isFullscreen = false
+                        } else {
+                            onBack()
+                        }
+                    },
+                    onSettingsClick = { showSettingsMenu = true },
+                    onFullscreenClick = { isFullscreen = !isFullscreen },
+                    isFullscreen = isFullscreen,
+                    isPipSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && PictureInPictureHelper.isPipSupported(context),
+                    onPipClick = {
+                        activity?.let { act ->
+                            PictureInPictureHelper.enterPipMode(
+                                activity = act,
+                                isPlaying = playerState.isPlaying
                             )
-                    ) {
-                        // Top bar with quality and subtitle badges
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .align(Alignment.TopStart)
-                                .padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Back button
-                            IconButton(
-                                onClick = { 
-                                    if (isFullscreen) {
-                                        isFullscreen = false
-                                    } else {
-                                        onBack()
-                                    }
-                                },
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Black.copy(alpha = 0.3f))
-                            ) {
-                                Icon(
-                                    imageVector = if (isFullscreen) Icons.Filled.FullscreenExit else Icons.Filled.ArrowBack,
-                                    contentDescription = "Back",
-                                    tint = Color.White
-                                )
-                            }
-                            
-                            // Quality, subtitle, and control buttons
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Quality badge
-                                if (playerState.availableQualities.isNotEmpty()) {
-                                    Surface(
-                                        onClick = { showQualitySelector = true },
-                                        color = MaterialTheme.colorScheme.primary,
-                                        shape = RoundedCornerShape(6.dp),
-                                        modifier = Modifier.height(32.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.HighQuality,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                            Text(
-                                                text = "${playerState.currentQuality}p",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = Color.White
-                                            )
-                                        }
-                                    }
-                                }
-                                
-                                // Subtitle badge
-                                if (playerState.availableSubtitles.isNotEmpty()) {
-                                    Surface(
-                                        onClick = { showSubtitleSelector = true },
-                                        color = if (subtitlesEnabled) MaterialTheme.colorScheme.primary 
-                                                else Color.Black.copy(alpha = 0.5f),
-                                        shape = RoundedCornerShape(6.dp),
-                                        modifier = Modifier.height(32.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Filled.Subtitles,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                            Text(
-                                                text = "CC",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = Color.White
-                                            )
-                                        }
-                                    }
-                                }
-                                
-                                // Resize mode button
-                                Surface(
-                                    onClick = { resizeMode = (resizeMode + 1) % 3 },
-                                    shape = RoundedCornerShape(20.dp),
-                                    color = Color.Black.copy(alpha = 0.4f),
-                                    modifier = Modifier.height(32.dp)
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(
-                                            imageVector = when (resizeMode) {
-                                                0 -> Icons.Outlined.FitScreen
-                                                1 -> Icons.Outlined.ZoomOutMap
-                                                else -> Icons.Outlined.ZoomIn
-                                            },
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Text(
-                                            text = resizeModes[resizeMode],
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = Color.White
-                                        )
-                                    }
-                                }
-                                
-                                // Settings button
-                                IconButton(
-                                    onClick = { showSettingsMenu = true },
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.Black.copy(alpha = 0.3f))
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Filled.Settings,
-                                        contentDescription = "Settings",
-                                        tint = Color.White
-                                    )
-                                }
-                                
-                                // Picture-in-Picture button (Android 8.0+)
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && 
-                                    PictureInPictureHelper.isPipSupported(context)) {
-                                    IconButton(
-                                        onClick = {
-                                            activity?.let { act ->
-                                                PictureInPictureHelper.enterPipMode(
-                                                    activity = act,
-                                                    isPlaying = playerState.isPlaying
-                                                )
-                                            }
-                                        },
-                                        modifier = Modifier
-                                            .size(40.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.Black.copy(alpha = 0.3f))
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Filled.PictureInPicture,
-                                            contentDescription = "Picture in Picture",
-                                            tint = Color.White
-                                        )
-                                    }
-                                }
-                                
-                                // Fullscreen toggle
-                                IconButton(
-                                    onClick = { isFullscreen = !isFullscreen },
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.Black.copy(alpha = 0.3f))
-                                ) {
-                                    Icon(
-                                        imageVector = if (isFullscreen) Icons.Filled.FullscreenExit else Icons.Filled.Fullscreen,
-                                        contentDescription = if (isFullscreen) "Exit Fullscreen" else "Fullscreen",
-                                        tint = Color.White
-                                    )
-                                }
-                            }
                         }
-                        
-                        // Center play/pause button - Improved and robust
-                        val infiniteTransition = rememberInfiniteTransition(label = "loading")
-                        val loadingRotation by infiniteTransition.animateFloat(
-                            initialValue = 0f,
-                            targetValue = 360f,
-                            animationSpec = infiniteRepeatable(
-                                animation = tween(1000, easing = LinearEasing),
-                                repeatMode = RepeatMode.Restart
-                            ),
-                            label = "rotation"
-                        )
-                        
-                        Surface(
-                            onClick = {
-                                scope.launch {
-                                    playPauseScale = 0.8f
-                                    delay(100)
-                                    playPauseScale = 1f
-                                }
-                                
-                                if (playerState.isPlaying) {
-                                    EnhancedPlayerManager.getInstance().pause()
-                                } else {
-                                    EnhancedPlayerManager.getInstance().play()
-                                }
-                            },
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .size(90.dp)
-                                .scale(playPauseScale),
-                            shape = CircleShape,
-                            color = Color.Black.copy(alpha = 0.6f),
-                            tonalElevation = 8.dp,
-                            shadowElevation = 8.dp
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                if (playerState.isBuffering) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(40.dp),
-                                        color = Color.White,
-                                        strokeWidth = 3.dp
-                                    )
-                                } else {
-                                    Icon(
-                                        imageVector = if (playerState.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                        contentDescription = if (playerState.isPlaying) "Pause" else "Play",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(50.dp)
-                                    )
-                                }
-                            }
-                        }
-                        
-                        // Bottom controls
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .align(Alignment.BottomCenter)
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            // Progress bar with time indicators
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    Text(
-                                        text = formatTime(currentPosition),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = Color.White
-                                    )
-                                    
-                                    Box(
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        SeekbarWithPreview(
-                                            value = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
-                                            onValueChange = { progress ->
-                                                val newPosition = (progress * duration).toLong()
-                                                EnhancedPlayerManager.getInstance().seekTo(newPosition)
-                                            },
-                                            seekbarPreviewHelper = seekbarPreviewHelper,
-                                            modifier = Modifier.fillMaxWidth(),
-                                            colors = SliderDefaults.colors(
-                                                thumbColor = MaterialTheme.colorScheme.primary,
-                                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                                                inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                                            )
-                                        )
-                                    }
-                                    
-                                    Text(
-                                        text = formatTime(duration),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = Color.White
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                    },
+                    seekbarPreviewHelper = seekbarPreviewHelper,
+                    chapters = uiState.chapters,
+                    onSubtitleClick = { subtitlesEnabled = !subtitlesEnabled },
+                    isSubtitlesEnabled = subtitlesEnabled
+                )
             }
             
             // ============ VIDEO DETAILS AND RELATED (Only when not fullscreen) ============
@@ -1274,8 +1035,10 @@ fun EnhancedVideoPlayerScreen(
                                 }
                             },
                             onChannelClick = {
-                                // Navigate to channel
-                                // Note: We need to handle navigation here or pass a callback
+                                uiState.streamInfo?.let { streamInfo ->
+                                    val channelIdSafe = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId
+                                    onChannelClick(channelIdSafe)
+                                } ?: onChannelClick(video.channelId)
                             },
                             onSaveClick = { showQuickActions = true },
                             onShareClick = {
@@ -1287,7 +1050,7 @@ fun EnhancedVideoPlayerScreen(
                                 context.startActivity(Intent.createChooser(shareIntent, "Share video"))
                             },
                             onDownloadClick = {
-                                Toast.makeText(context, "Download feature coming soon!", Toast.LENGTH_SHORT).show()
+                                showDownloadDialog = true
                             }
                         )
                     }
@@ -1335,7 +1098,6 @@ fun EnhancedVideoPlayerScreen(
                 // Create a complete Video object from streamInfo
                 showQuickActions = false
                 scope.launch {
-                    val repo = PlaylistRepository(context)
                     val streamInfo = uiState.streamInfo
                     
                     // Create a complete Video object with all metadata
@@ -1356,8 +1118,8 @@ fun EnhancedVideoPlayerScreen(
                         video // Fallback to original video if streamInfo not loaded yet
                     }
                     
-                    repo.addToWatchLater(completeVideo)
-                    Toast.makeText(context, "Added to Watch Later", Toast.LENGTH_SHORT).show()
+                    viewModel.toggleWatchLater(completeVideo)
+                    Toast.makeText(context, "Updated Watch Later", Toast.LENGTH_SHORT).show()
                 }
             },
             onShare = {
@@ -1371,7 +1133,7 @@ fun EnhancedVideoPlayerScreen(
             },
             onDownload = {
                 showQuickActions = false
-                Toast.makeText(context, "Download feature coming soon!", Toast.LENGTH_SHORT).show()
+                showDownloadDialog = true
             },
             onNotInterested = {
                 showQuickActions = false
@@ -1391,6 +1153,67 @@ fun EnhancedVideoPlayerScreen(
     
     // ============ DIALOGS ============
     
+    // Download Quality Dialog
+    if (showDownloadDialog) {
+        AlertDialog(
+            onDismissRequest = { showDownloadDialog = false },
+            title = { Text("Download Video") },
+            text = {
+                Column {
+                    Text(
+                        text = "Select quality",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    LazyColumn {
+                        items(uiState.availableQualities.filter { it != VideoQuality.AUTO }.sortedByDescending { it.height }) { quality ->
+                            Surface(
+                                onClick = {
+                                    showDownloadDialog = false
+                                    // Start download
+                                    val stream = uiState.streamInfo?.videoStreams?.find { it.height == quality.height }
+                                        ?: uiState.streamInfo?.videoStreams?.maxByOrNull { it.height }
+                                    
+                                    if (stream != null && stream.url != null) {
+                                        startDownload(context, video.title, stream.url!!, "mp4")
+                                        Toast.makeText(context, "Downloading ${quality.label}...", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Stream not found", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp, horizontal = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Download,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Text(
+                                        text = quality.label,
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDownloadDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     // Quality selector
     if (showQualitySelector) {
         AlertDialog(
@@ -1715,6 +1538,7 @@ fun SeekbarWithPreview(
         }
 
         // The actual slider
+        @OptIn(ExperimentalMaterial3Api::class)
         Slider(
             value = value,
             onValueChange = { newValue ->
@@ -1751,7 +1575,14 @@ fun SeekbarWithPreview(
             valueRange = valueRange,
             steps = steps,
             colors = colors,
-            interactionSource = interactionSource
+            interactionSource = interactionSource,
+            thumb = {
+                Box(
+                    modifier = Modifier
+                        .size(12.dp)
+                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                )
+            }
         )
     }
 }
@@ -1767,5 +1598,22 @@ private fun formatTime(timeMs: Long): String {
         String.format("%d:%02d:%02d", hours, minutes, seconds)
     } else {
         String.format("%d:%02d", minutes, seconds)
+    }
+}
+
+private fun startDownload(context: Context, title: String, url: String, extension: String) {
+    try {
+        val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
+            .setTitle(title)
+            .setDescription("Downloading video...")
+            .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+            .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_MOVIES, "$title.$extension")
+            .setAllowedOverMetered(true)
+            .setAllowedOverRoaming(true)
+        
+        val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+        downloadManager.enqueue(request)
+    } catch (e: Exception) {
+        Toast.makeText(context, "Download failed: ${e.message}", Toast.LENGTH_SHORT).show()
     }
 }

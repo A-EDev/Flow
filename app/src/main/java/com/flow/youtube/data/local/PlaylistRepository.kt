@@ -9,6 +9,7 @@ import com.flow.youtube.data.model.Video
 import com.flow.youtube.ui.screens.playlists.PlaylistInfo
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -83,11 +84,8 @@ class PlaylistRepository @Inject constructor(
         }
 
     suspend fun isInWatchLater(videoId: String): Boolean {
-        // This is not efficient, should use specific DAO query strictly, but flow is okay for small lists.
-        // Better:
-        // return playlistDao.isVideoInPlaylist(WATCH_LATER_ID, videoId)
-        // Creating a temporary implementation using getVideosForPlaylist logic
-        return true // Placeholder, actually need to implement boolean check in DAO or efficient check
+        val videos = playlistDao.getVideosForPlaylist(WATCH_LATER_ID).firstOrNull() ?: emptyList()
+        return videos.any { it.id == videoId }
     }
 
     // Playlist Management

@@ -271,7 +271,19 @@ fun FlowApp(
                     showBottomNav = false
                     SettingsScreen(
                         currentTheme = currentTheme,
-                        onThemeChange = onThemeChange
+                        onThemeChange = onThemeChange,
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToAppearance = { navController.navigate("settings/appearance") }
+                    )
+                }
+
+                composable("settings/appearance") {
+                    currentRoute.value = "settings/appearance"
+                    showBottomNav = false
+                    com.flow.youtube.ui.screens.settings.AppearanceScreen(
+                        currentTheme = currentTheme,
+                        onThemeChange = onThemeChange,
+                        onNavigateBack = { navController.popBackStack() }
                     )
                 }
                 
@@ -522,6 +534,9 @@ fun FlowApp(
                             navController.navigate("player/${video.id}") {
                                 popUpTo("player/{videoId}") { inclusive = true }
                             }
+                        },
+                        onChannelClick = { channelId ->
+                            navController.navigate("channel/$channelId")
                         }
                     )
                 }

@@ -50,9 +50,6 @@ fun PlaylistDetailScreen(
     modifier: Modifier = Modifier,
     viewModel: PlaylistDetailViewModel = hiltViewModel()
 ) {
-    // playlistId is now retrieved from SavedStateHandle inside ViewModel
-    // playlistRepository is injected by Hilt
-    // val viewModel: PlaylistDetailViewModel = viewModel(...) // Removed manual setup
     val uiState by viewModel.uiState.collectAsState()
 
     var showEditDialog by remember { mutableStateOf(false) }
@@ -62,7 +59,12 @@ fun PlaylistDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Playlist") },
+                title = { 
+                    Text(
+                        text = "Playlist",
+                        style = MaterialTheme.typography.headlineMedium
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, "Back")
@@ -108,7 +110,7 @@ fun PlaylistDetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    containerColor = MaterialTheme.colorScheme.background
                 )
             )
         },
@@ -117,7 +119,8 @@ fun PlaylistDetailScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
+                .padding(paddingValues)
+                .background(MaterialTheme.colorScheme.background),
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
             // Playlist Header
@@ -154,7 +157,7 @@ fun PlaylistDetailScreen(
                         position = index + 1,
                         onVideoClick = { onVideoClick(video) },
                         onRemove = { viewModel.removeVideo(video.id) },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
                     )
                 }
             }
@@ -228,7 +231,7 @@ private fun PlaylistHeader(
             Box(
                 modifier = Modifier
                     .size(140.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 if (thumbnailUrl.isNotEmpty()) {
@@ -344,7 +347,8 @@ private fun PlaylistHeader(
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary
-                    )
+                    ),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
@@ -357,7 +361,8 @@ private fun PlaylistHeader(
 
                 OutlinedButton(
                     onClick = onShuffle,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Shuffle,
@@ -372,6 +377,7 @@ private fun PlaylistHeader(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlaylistVideoItem(
     video: Video,
@@ -382,142 +388,150 @@ private fun PlaylistVideoItem(
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
-    Row(
-        modifier = modifier
-            .clickable(onClick = onVideoClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    Card(
+        onClick = onVideoClick,
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(16.dp)
     ) {
-        // Position Number
-        Text(
-            text = position.toString(),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Row(
             modifier = Modifier
-                .width(32.dp)
-                .align(Alignment.Top)
-                .padding(top = 8.dp)
-        )
-
-        // Thumbnail
-        Box(
-            modifier = Modifier
-                .width(120.dp)
-                .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            AsyncImage(
-                model = video.thumbnailUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-
-            // Duration overlay (if available)
-            video.duration?.let { duration ->
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(4.dp)
-                        .background(
-                            color = Color.Black.copy(alpha = 0.7f),
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = formatDuration(duration),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White
-                    )
-                }
-            }
-        }
-
-        // Video Info
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(vertical = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
+            // Position Number
             Text(
-                text = video.title,
+                text = position.toString(),
                 style = MaterialTheme.typography.bodyMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Text(
-                text = video.channelName,
-                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                modifier = Modifier
+                    .width(24.dp)
+                    .align(Alignment.CenterVertically)
             )
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
+            // Thumbnail
+            Box(
+                modifier = Modifier
+                    .width(120.dp)
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
-                video.viewCount?.let { views ->
-                    Text(
-                        text = formatViewCount(views),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                if (video.viewCount != null && video.uploadDate != null) {
-                    Text(
-                        text = "•",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                video.uploadDate?.let { date ->
-                    Text(
-                        text = date,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-
-        // More Options
-        Box {
-            IconButton(
-                onClick = { showMenu = true },
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Options",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                AsyncImage(
+                    model = video.thumbnailUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
-            }
 
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Remove from playlist") },
-                    onClick = {
-                        onRemove()
-                        showMenu = false
-                    },
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error
+                // Duration overlay (if available)
+                video.duration?.let { duration ->
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp)
+                            .background(
+                                color = Color.Black.copy(alpha = 0.7f),
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = formatDuration(duration),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White
                         )
                     }
+                }
+            }
+
+            // Video Info
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = video.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+
+                Text(
+                    text = video.channelName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    video.viewCount?.let { views ->
+                        Text(
+                            text = formatViewCount(views),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    if (video.viewCount != null && video.uploadDate != null) {
+                        Text(
+                            text = "•",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    video.uploadDate?.let { date ->
+                        Text(
+                            text = date,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+
+            // More Options
+            Box {
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Options",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Remove from playlist") },
+                        onClick = {
+                            onRemove()
+                            showMenu = false
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    )
+                }
             }
         }
     }
@@ -573,7 +587,8 @@ private fun EditPlaylistDialog(
                     onValueChange = { editedName = it },
                     label = { Text("Name") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
 
                 OutlinedTextField(
@@ -581,7 +596,8 @@ private fun EditPlaylistDialog(
                     onValueChange = { editedDescription = it },
                     label = { Text("Description (optional)") },
                     maxLines = 3,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
                 )
             }
         },

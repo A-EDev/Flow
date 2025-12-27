@@ -12,7 +12,7 @@ import androidx.compose.ui.graphics.Color
 
 enum class ThemeMode {
     LIGHT, DARK, OLED, OCEAN_BLUE, FOREST_GREEN, SUNSET_ORANGE, PURPLE_NEBULA, MIDNIGHT_BLACK,
-    ROSE_GOLD, ARCTIC_ICE, CRIMSON_RED
+    ROSE_GOLD, ARCTIC_ICE, CRIMSON_RED, LAVENDER_MIST, MINTY_FRESH, COSMIC_VOID, SOLAR_FLARE, CYBERPUNK
 }
 
 data class ExtendedColors(
@@ -172,6 +172,71 @@ private val CrimsonRedColorScheme = darkColorScheme(
     onError = Color.White
 )
 
+private val LavenderMistColorScheme = darkColorScheme(
+    primary = Color(0xFFB39DDB),
+    onPrimary = Color.Black,
+    secondary = Color(0xFF9575CD),
+    onSecondary = Color.Black,
+    background = Color(0xFF120F1A),
+    onBackground = Color(0xFFEDE7F6),
+    surface = Color(0xFF1F1A2E),
+    onSurface = Color(0xFFEDE7F6),
+    error = Color(0xFFEF5350),
+    onError = Color.White
+)
+
+private val MintyFreshColorScheme = darkColorScheme(
+    primary = Color(0xFF80CBC4),
+    onPrimary = Color.Black,
+    secondary = Color(0xFF4DB6AC),
+    onSecondary = Color.Black,
+    background = Color(0xFF0F1A18),
+    onBackground = Color(0xFFE0F2F1),
+    surface = Color(0xFF1A2E2B),
+    onSurface = Color(0xFFE0F2F1),
+    error = Color(0xFFEF5350),
+    onError = Color.White
+)
+
+private val CosmicVoidColorScheme = darkColorScheme(
+    primary = Color(0xFF7C4DFF),
+    onPrimary = Color.White,
+    secondary = Color(0xFF651FFF),
+    onSecondary = Color.White,
+    background = Color(0xFF050505),
+    onBackground = Color(0xFFE0E0E0),
+    surface = Color(0xFF121212),
+    onSurface = Color(0xFFE0E0E0),
+    error = Color(0xFFFF5252),
+    onError = Color.White
+)
+
+private val SolarFlareColorScheme = darkColorScheme(
+    primary = Color(0xFFFFD740),
+    onPrimary = Color.Black,
+    secondary = Color(0xFFFFAB00),
+    onSecondary = Color.Black,
+    background = Color(0xFF1A1500),
+    onBackground = Color(0xFFFFFDE7),
+    surface = Color(0xFF2E2600),
+    onSurface = Color(0xFFFFFDE7),
+    error = Color(0xFFFF5252),
+    onError = Color.White
+)
+
+private val CyberpunkColorScheme = darkColorScheme(
+    primary = Color(0xFFFF00FF),
+    onPrimary = Color.White,
+    secondary = Color(0xFF00FFFF),
+    onSecondary = Color.Black,
+    background = Color(0xFF0D001A),
+    onBackground = Color(0xFFE0E0E0),
+    surface = Color(0xFF1F0033),
+    onSurface = Color(0xFFE0E0E0),
+    error = Color(0xFFFF1744),
+    onError = Color.White
+)
+
 @Composable
 fun FlowTheme(
     themeMode: ThemeMode = ThemeMode.LIGHT,
@@ -189,6 +254,11 @@ fun FlowTheme(
         ThemeMode.ROSE_GOLD -> RoseGoldColorScheme
         ThemeMode.ARCTIC_ICE -> ArcticIceColorScheme
         ThemeMode.CRIMSON_RED -> CrimsonRedColorScheme
+        ThemeMode.LAVENDER_MIST -> LavenderMistColorScheme
+        ThemeMode.MINTY_FRESH -> MintyFreshColorScheme
+        ThemeMode.COSMIC_VOID -> CosmicVoidColorScheme
+        ThemeMode.SOLAR_FLARE -> SolarFlareColorScheme
+        ThemeMode.CYBERPUNK -> CyberpunkColorScheme
     }
 
     val extendedColors = when (themeMode) {
@@ -246,6 +316,11 @@ fun FlowTheme(
             textSecondary = CrimsonRedThemeColors.TextSecondary,
             border = CrimsonRedThemeColors.Border,
             success = CrimsonRedThemeColors.Success
+        )
+        else -> ExtendedColors(
+            textSecondary = DarkThemeColors.TextSecondary,
+            border = DarkThemeColors.Border,
+            success = DarkThemeColors.Success
         )
     }
 

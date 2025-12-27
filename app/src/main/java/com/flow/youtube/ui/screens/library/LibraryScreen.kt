@@ -4,8 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -21,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.flow.youtube.ui.theme.extendedColors
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LibraryScreen(
     onNavigateToHistory: () -> Unit,
@@ -39,172 +42,138 @@ fun LibraryScreen(
     LaunchedEffect(Unit) {
         viewModel.initialize(context)
     }
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        // Header
-        Text(
-            text = "Library",
-            style = MaterialTheme.typography.headlineLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-        )
-
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { 
+                    Text(
+                        text = "Library",
+                        style = MaterialTheme.typography.headlineMedium
+                    ) 
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background
+                )
+            )
+        }
+    ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 80.dp)
+            modifier = modifier
+                .fillMaxSize()
+                .padding(padding)
+                .background(MaterialTheme.colorScheme.background),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item { Spacer(modifier = Modifier.height(8.dp)) }
-
-            // History
+            // Main Navigation Items
             item {
-                LibraryItem(
+                LibrarySectionHeader("Your Content")
+            }
+
+            item {
+                LibraryCard(
                     icon = Icons.Outlined.History,
                     title = "History",
-                    subtitle = if (uiState.watchHistoryCount > 0) {
-                        "${uiState.watchHistoryCount} video${if (uiState.watchHistoryCount > 1) "s" else ""} watched"
-                    } else {
-                        "Watch your viewing history"
-                    },
-                    count = uiState.watchHistoryCount,
+                    subtitle = "${uiState.watchHistoryCount} videos",
                     onClick = onNavigateToHistory
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(12.dp)) }
-
-            // Playlists
             item {
-                LibraryItem(
+                LibraryCard(
                     icon = Icons.Outlined.PlaylistPlay,
                     title = "Playlists",
-                    subtitle = if (uiState.playlistsCount > 0) {
-                        "${uiState.playlistsCount} playlist${if (uiState.playlistsCount > 1) "s" else ""}"
-                    } else {
-                        "View and manage your playlists"
-                    },
-                    count = uiState.playlistsCount,
+                    subtitle = "${uiState.playlistsCount} playlists",
                     onClick = onNavigateToPlaylists
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(12.dp)) }
-
-            // Liked Videos
             item {
-                LibraryItem(
+                LibraryCard(
                     icon = Icons.Outlined.ThumbUp,
                     title = "Liked Videos",
-                    subtitle = if (uiState.likedVideosCount > 0) {
-                        "${uiState.likedVideosCount} video${if (uiState.likedVideosCount > 1) "s" else ""} liked"
-                    } else {
-                        "Videos you've liked"
-                    },
-                    count = uiState.likedVideosCount,
+                    subtitle = "${uiState.likedVideosCount} videos",
                     onClick = onNavigateToLikedVideos
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(12.dp)) }
-
-            // Watch Later
             item {
-                LibraryItem(
+                LibraryCard(
                     icon = Icons.Outlined.WatchLater,
                     title = "Watch Later",
-                    subtitle = if (uiState.watchLaterCount > 0) {
-                        "${uiState.watchLaterCount} video${if (uiState.watchLaterCount > 1) "s" else ""} saved"
-                    } else {
-                        "Save videos to watch later"
-                    },
-                    count = uiState.watchLaterCount,
+                    subtitle = "${uiState.watchLaterCount} videos",
                     onClick = onNavigateToWatchLater
                 )
             }
 
-            item { Spacer(modifier = Modifier.height(12.dp)) }
-
-            // Downloads
             item {
-                LibraryItem(
+                LibraryCard(
                     icon = Icons.Outlined.Download,
                     title = "Downloads",
-                    subtitle = if (uiState.downloadsCount > 0) {
-                        "${uiState.downloadsCount} video${if (uiState.downloadsCount > 1) "s" else ""} downloaded"
-                    } else {
-                        "Saved for offline viewing"
-                    },
-                    count = uiState.downloadsCount,
+                    subtitle = "0 videos", // Placeholder
                     onClick = onNavigateToDownloads
                 )
             }
-
-            item { Spacer(modifier = Modifier.height(32.dp)) }
-
-            // Data Management Section
+            
             item {
-                Divider(
-                    color = MaterialTheme.extendedColors.border,
-                    modifier = Modifier.padding(vertical = 16.dp)
-                )
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
             }
-
+            
             item {
-                TextButton(
-                    onClick = onManageData,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Storage,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                        Text(
-                            text = "Manage Data",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
+                LibrarySectionHeader("Settings & Data")
+            }
+            
+            item {
+                LibraryCard(
+                    icon = Icons.Outlined.Storage,
+                    title = "Manage Data",
+                    subtitle = "Clear cache and history",
+                    onClick = onManageData
+                )
             }
         }
     }
 }
 
 @Composable
-private fun LibraryItem(
+private fun LibrarySectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(bottom = 8.dp)
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LibraryCard(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    onClick: () -> Unit,
-    count: Int = 0,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 ) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(onClick = onClick),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ),
+        shape = RoundedCornerShape(24.dp)
     ) {
         Row(
             modifier = Modifier
                 .padding(16.dp)
                 .fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Icon Container
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -215,43 +184,25 @@ private fun LibraryItem(
                     modifier = Modifier.size(24.dp)
                 )
             }
-
+            
             Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    if (count > 0) {
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-                        ) {
-                            Text(
-                                text = count.toString(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
+                )
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.extendedColors.textSecondary
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-
+            
             Icon(
-                imageVector = Icons.Outlined.ChevronRight,
+                imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = MaterialTheme.extendedColors.textSecondary
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
         }
     }

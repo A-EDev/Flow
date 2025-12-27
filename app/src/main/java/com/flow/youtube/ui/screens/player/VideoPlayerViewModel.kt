@@ -22,6 +22,7 @@ class VideoPlayerViewModel @Inject constructor(
     private val viewHistory: ViewHistory,
     private val subscriptionRepository: SubscriptionRepository,
     private val likedVideosRepository: LikedVideosRepository,
+    private val playlistRepository: com.flow.youtube.data.local.PlaylistRepository,
     private val interestProfile: InterestProfile,
     private val playerPreferences: PlayerPreferences
 ) : ViewModel() {
@@ -66,6 +67,7 @@ class VideoPlayerViewModel @Inject constructor(
                     
                     val selectedStreams = selectStreams(streamInfo, initialQuality)
                     val subtitles = extractSubtitles(streamInfo)
+                    val chapters = streamInfo.streamSegments ?: emptyList()
                     
                     // Load saved playback position
                     val savedPosition = viewHistory?.getPlaybackPosition(videoId)
@@ -78,6 +80,7 @@ class VideoPlayerViewModel @Inject constructor(
                         availableQualities = availableQualities,
                         selectedQuality = selectedStreams.third,
                         subtitles = subtitles,
+                        chapters = chapters,
                         isLoading = false,
                         // channelSubscriberCount will be filled below if available
                         savedPosition = savedPosition,
@@ -392,6 +395,22 @@ class VideoPlayerViewModel @Inject constructor(
             )
         }
     }
+
+    fun toggleWatchLater(video: Video) {
+        viewModelScope.launch {
+            if (playlistRepository.isInWatchLater(video.id)) {
+                playlistRepository.removeFromWatchLater(video.id)
+            } else {
+                playlistRepository.addToWatchLater(video)
+            }
+        }
+    }
+    
+    fun addToWatchLater(video: Video) {
+        viewModelScope.launch {
+            playlistRepository.addToWatchLater(video)
+        }
+    }
 }
 
 data class VideoPlayerUiState(
@@ -413,7 +432,8 @@ data class VideoPlayerUiState(
     val isSubscribed: Boolean = false,
     val likeState: String? = null, // LIKED, DISLIKED, or null
     val channelSubscriberCount: Long? = null,
-    val channelAvatarUrl: String? = null
+    val channelAvatarUrl: String? = null,
+    val chapters: List<StreamSegment> = emptyList()
 )
 
 
