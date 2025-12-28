@@ -27,6 +27,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.flow.youtube.R
 import coil.compose.AsyncImage
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.ui.theme.extendedColors
@@ -323,7 +326,7 @@ fun ShortsShelf(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Filled.PlayCircle,
+                imageVector = ImageVector.vectorResource(id = R.drawable.ic_shorts),
                 contentDescription = "Shorts",
                 tint = Color.Red,
                 modifier = Modifier.size(24.dp)

@@ -11,8 +11,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 enum class ThemeMode {
-    LIGHT, DARK, OLED, OCEAN_BLUE, FOREST_GREEN, SUNSET_ORANGE, PURPLE_NEBULA, MIDNIGHT_BLACK,
-    ROSE_GOLD, ARCTIC_ICE, CRIMSON_RED, LAVENDER_MIST, MINTY_FRESH, COSMIC_VOID, SOLAR_FLARE, CYBERPUNK
+    LIGHT, DARK, OLED, LAVENDER_MIST, OCEAN_BLUE, FOREST_GREEN, SUNSET_ORANGE, PURPLE_NEBULA, MIDNIGHT_BLACK,
+    ROSE_GOLD, ARCTIC_ICE, CRIMSON_RED, MINTY_FRESH, COSMIC_VOID, SOLAR_FLARE, CYBERPUNK,
+    ROYAL_GOLD, NORDIC_HORIZON, ESPRESSO, GUNMETAL
 }
 
 data class ExtendedColors(
@@ -28,6 +29,8 @@ val LocalExtendedColors = staticCompositionLocalOf {
         success = Color.Unspecified
     )
 }
+
+// --- Color Schemes ---
 
 private val LightColorScheme = lightColorScheme(
     primary = LightThemeColors.Primary,
@@ -65,6 +68,19 @@ private val OLEDColorScheme = darkColorScheme(
     surface = OLEDThemeColors.Surface,
     onSurface = OLEDThemeColors.Text,
     error = OLEDThemeColors.Error,
+    onError = Color.White
+)
+
+private val LavenderMistColorScheme = darkColorScheme(
+    primary = Color(0xFFB39DDB),
+    onPrimary = Color.Black,
+    secondary = Color(0xFF9575CD),
+    onSecondary = Color.Black,
+    background = Color(0xFF120F1A),
+    onBackground = Color(0xFFEDE7F6),
+    surface = Color(0xFF1F1A2E),
+    onSurface = Color(0xFFEDE7F6),
+    error = Color(0xFFEF5350),
     onError = Color.White
 )
 
@@ -172,19 +188,6 @@ private val CrimsonRedColorScheme = darkColorScheme(
     onError = Color.White
 )
 
-private val LavenderMistColorScheme = darkColorScheme(
-    primary = Color(0xFFB39DDB),
-    onPrimary = Color.Black,
-    secondary = Color(0xFF9575CD),
-    onSecondary = Color.Black,
-    background = Color(0xFF120F1A),
-    onBackground = Color(0xFFEDE7F6),
-    surface = Color(0xFF1F1A2E),
-    onSurface = Color(0xFFEDE7F6),
-    error = Color(0xFFEF5350),
-    onError = Color.White
-)
-
 private val MintyFreshColorScheme = darkColorScheme(
     primary = Color(0xFF80CBC4),
     onPrimary = Color.Black,
@@ -237,6 +240,58 @@ private val CyberpunkColorScheme = darkColorScheme(
     onError = Color.White
 )
 
+private val RoyalGoldColorScheme = darkColorScheme(
+    primary = RoyalGoldThemeColors.Primary,
+    onPrimary = RoyalGoldThemeColors.OnPrimary,
+    secondary = RoyalGoldThemeColors.Secondary,
+    onSecondary = RoyalGoldThemeColors.OnSecondary,
+    background = RoyalGoldThemeColors.Background,
+    onBackground = RoyalGoldThemeColors.Text,
+    surface = RoyalGoldThemeColors.Surface,
+    onSurface = RoyalGoldThemeColors.Text,
+    error = RoyalGoldThemeColors.Error,
+    onError = Color.Black
+)
+
+private val NordicHorizonColorScheme = darkColorScheme(
+    primary = NordicHorizonThemeColors.Primary,
+    onPrimary = NordicHorizonThemeColors.OnPrimary,
+    secondary = NordicHorizonThemeColors.Secondary,
+    onSecondary = NordicHorizonThemeColors.OnSecondary,
+    background = NordicHorizonThemeColors.Background,
+    onBackground = NordicHorizonThemeColors.Text,
+    surface = NordicHorizonThemeColors.Surface,
+    onSurface = NordicHorizonThemeColors.Text,
+    error = NordicHorizonThemeColors.Error,
+    onError = Color.Black
+)
+
+private val EspressoColorScheme = darkColorScheme(
+    primary = EspressoThemeColors.Primary,
+    onPrimary = EspressoThemeColors.OnPrimary,
+    secondary = EspressoThemeColors.Secondary,
+    onSecondary = EspressoThemeColors.OnSecondary,
+    background = EspressoThemeColors.Background,
+    onBackground = EspressoThemeColors.Text,
+    surface = EspressoThemeColors.Surface,
+    onSurface = EspressoThemeColors.Text,
+    error = EspressoThemeColors.Error,
+    onError = Color.White
+)
+
+private val GunmetalColorScheme = darkColorScheme(
+    primary = GunmetalThemeColors.Primary,
+    onPrimary = GunmetalThemeColors.OnPrimary,
+    secondary = GunmetalThemeColors.Secondary,
+    onSecondary = GunmetalThemeColors.OnSecondary,
+    background = GunmetalThemeColors.Background,
+    onBackground = GunmetalThemeColors.Text,
+    surface = GunmetalThemeColors.Surface,
+    onSurface = GunmetalThemeColors.Text,
+    error = GunmetalThemeColors.Error,
+    onError = Color.White
+)
+
 @Composable
 fun FlowTheme(
     themeMode: ThemeMode = ThemeMode.LIGHT,
@@ -246,6 +301,7 @@ fun FlowTheme(
         ThemeMode.LIGHT -> LightColorScheme
         ThemeMode.DARK -> DarkColorScheme
         ThemeMode.OLED -> OLEDColorScheme
+        ThemeMode.LAVENDER_MIST -> LavenderMistColorScheme
         ThemeMode.OCEAN_BLUE -> OceanBlueColorScheme
         ThemeMode.FOREST_GREEN -> ForestGreenColorScheme
         ThemeMode.SUNSET_ORANGE -> SunsetOrangeColorScheme
@@ -254,11 +310,14 @@ fun FlowTheme(
         ThemeMode.ROSE_GOLD -> RoseGoldColorScheme
         ThemeMode.ARCTIC_ICE -> ArcticIceColorScheme
         ThemeMode.CRIMSON_RED -> CrimsonRedColorScheme
-        ThemeMode.LAVENDER_MIST -> LavenderMistColorScheme
         ThemeMode.MINTY_FRESH -> MintyFreshColorScheme
         ThemeMode.COSMIC_VOID -> CosmicVoidColorScheme
         ThemeMode.SOLAR_FLARE -> SolarFlareColorScheme
         ThemeMode.CYBERPUNK -> CyberpunkColorScheme
+        ThemeMode.ROYAL_GOLD -> RoyalGoldColorScheme
+        ThemeMode.NORDIC_HORIZON -> NordicHorizonColorScheme
+        ThemeMode.ESPRESSO -> EspressoColorScheme
+        ThemeMode.GUNMETAL -> GunmetalColorScheme
     }
 
     val extendedColors = when (themeMode) {
@@ -317,6 +376,26 @@ fun FlowTheme(
             border = CrimsonRedThemeColors.Border,
             success = CrimsonRedThemeColors.Success
         )
+        ThemeMode.ROYAL_GOLD -> ExtendedColors(
+            textSecondary = RoyalGoldThemeColors.TextSecondary,
+            border = RoyalGoldThemeColors.Border,
+            success = RoyalGoldThemeColors.Success
+        )
+        ThemeMode.NORDIC_HORIZON -> ExtendedColors(
+            textSecondary = NordicHorizonThemeColors.TextSecondary,
+            border = NordicHorizonThemeColors.Border,
+            success = NordicHorizonThemeColors.Success
+        )
+        ThemeMode.ESPRESSO -> ExtendedColors(
+            textSecondary = EspressoThemeColors.TextSecondary,
+            border = EspressoThemeColors.Border,
+            success = EspressoThemeColors.Success
+        )
+        ThemeMode.GUNMETAL -> ExtendedColors(
+            textSecondary = GunmetalThemeColors.TextSecondary,
+            border = GunmetalThemeColors.Border,
+            success = GunmetalThemeColors.Success
+        )
         else -> ExtendedColors(
             textSecondary = DarkThemeColors.TextSecondary,
             border = DarkThemeColors.Border,
@@ -327,14 +406,13 @@ fun FlowTheme(
     CompositionLocalProvider(LocalExtendedColors provides extendedColors) {
         MaterialTheme(
             colorScheme = colorScheme,
-            typography = Typography,
+            // typography = Typography, // Uncomment this if you have Typography defined in another file
             content = content
         )
     }
 }
 
-// Extension property to access extended colors
+// THIS IS THE PART THAT WAS MISSING CAUSING THE ERRORS
 val MaterialTheme.extendedColors: ExtendedColors
     @Composable
     get() = LocalExtendedColors.current
-

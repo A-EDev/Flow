@@ -201,3 +201,63 @@ object CrimsonRedThemeColors {
     val Success: Color = Color(0xFFEF5350)
     val Error: Color = Color(0xFFFF1744)
 }
+
+// Royal Gold Theme (Premium/Luxury)
+object RoyalGoldThemeColors {
+    val Primary: Color = Color(0xFFFFD700) // Gold
+    val OnPrimary: Color = Black
+    val Secondary: Color = Color(0xFFC5A000) // Darker Gold
+    val OnSecondary: Color = Black
+    val Background: Color = Color(0xFF050505) // Rich Black
+    val Surface: Color = Color(0xFF141414) // Soft Black
+    val Text: Color = Color(0xFFFFF8E1) // Off-white gold tint
+    val TextSecondary: Color = Color(0xFFBDB76B) // Khaki gold
+    val Border: Color = Color(0xFF333333)
+    val Success: Color = Color(0xFFCDDC39)
+    val Error: Color = Color(0xFFD32F2F)
+}
+
+// Nordic Horizon Theme (Cool/Muted)
+object NordicHorizonThemeColors {
+    val Primary: Color = Color(0xFF88C0D0) // Frost Blue
+    val OnPrimary: Color = Black
+    val Secondary: Color = Color(0xFF81A1C1) // Ocean Blue
+    val OnSecondary: Color = Black
+    val Background: Color = Color(0xFF242933) // Dark Snow
+    val Surface: Color = Color(0xFF2E3440) // Polar Night
+    val Text: Color = Color(0xFFECEFF4) // Snow Storm
+    val TextSecondary: Color = Color(0xFFD8DEE9) // Gray White
+    val Border: Color = Color(0xFF434C5E)
+    val Success: Color = Color(0xFFA3BE8C)
+    val Error: Color = Color(0xFFBF616A)
+}
+
+// Espresso Theme (Warm/Cozy)
+object EspressoThemeColors {
+    val Primary: Color = Color(0xFFD7CCC8) // Latte
+    val OnPrimary: Color = Black
+    val Secondary: Color = Color(0xFFA1887F) // Light Brown
+    val OnSecondary: Color = White
+    val Background: Color = Color(0xFF181210) // Dark Coffee
+    val Surface: Color = Color(0xFF241A17) // Espresso
+    val Text: Color = Color(0xFFEFEBE9) // Foam White
+    val TextSecondary: Color = Color(0xFFBCAAA4) // Pale Brown
+    val Border: Color = Color(0xFF3E2723)
+    val Success: Color = Color(0xFF8D6E63)
+    val Error: Color = Color(0xFFD84315)
+}
+
+// Gunmetal Theme (Industrial/Sleek)
+object GunmetalThemeColors {
+    val Primary: Color = Color(0xFF78909C) // Blue Grey
+    val OnPrimary: Color = Black
+    val Secondary: Color = Color(0xFF546E7A) // Slate
+    val OnSecondary: Color = White
+    val Background: Color = Color(0xFF0F1216) // Deep Metal
+    val Surface: Color = Color(0xFF1A1F26) // Gunmetal Surface
+    val Text: Color = Color(0xFFECEFF1) // Steel White
+    val TextSecondary: Color = Color(0xFFCFD8DC) // Silver
+    val Border: Color = Color(0xFF263238)
+    val Success: Color = Color(0xFF26A69A)
+    val Error: Color = Color(0xFFEF5350)
+}

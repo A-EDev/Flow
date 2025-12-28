@@ -16,10 +16,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-
-import androidx.compose.material.icons.rounded.SlowMotionVideo
-
 import androidx.compose.ui.unit.sp
+
+import androidx.compose.ui.res.vectorResource
+import com.flow.youtube.R
 
 @Composable
 fun FloatingBottomNavBar(
@@ -50,7 +50,7 @@ fun FloatingBottomNavBar(
                 onClick = { onItemSelected(0) }
             )
             BottomNavItem(
-                icon = if (selectedIndex == 1) Icons.Rounded.SlowMotionVideo else Icons.Outlined.SlowMotionVideo,
+                icon = ImageVector.vectorResource(id = R.drawable.ic_shorts),
                 label = "Shorts",
                 selected = selectedIndex == 1,
                 onClick = { onItemSelected(1) }

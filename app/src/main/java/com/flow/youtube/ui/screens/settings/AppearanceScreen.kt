@@ -115,7 +115,7 @@ fun AppearanceScreen(
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            // Other settings from screenshot
+            // Other settings
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -272,13 +272,12 @@ private fun formatThemeName(theme: ThemeMode): String {
 
 @Composable
 private fun getThemeColors(theme: ThemeMode): ColorScheme {
-    // This is a simplified version for preview. 
-    // Ideally we should access the actual schemes from Theme.kt but they are private.
-    // We'll approximate or expose them. For now, let's approximate based on name.
+    // We approximate the colors here for the preview cards
     return when (theme) {
         ThemeMode.LIGHT -> lightColorScheme()
         ThemeMode.DARK -> darkColorScheme()
         ThemeMode.OLED -> darkColorScheme(background = Color.Black, surface = Color(0xFF121212))
+        ThemeMode.LAVENDER_MIST -> darkColorScheme(primary = Color(0xFFB39DDB), background = Color(0xFF120F1A))
         ThemeMode.OCEAN_BLUE -> darkColorScheme(primary = Color(0xFF006994), background = Color(0xFF0A1929))
         ThemeMode.FOREST_GREEN -> darkColorScheme(primary = Color(0xFF2E7D32), background = Color(0xFF0D1F12))
         ThemeMode.SUNSET_ORANGE -> darkColorScheme(primary = Color(0xFFFF6F00), background = Color(0xFF1F0F08))
@@ -287,10 +286,14 @@ private fun getThemeColors(theme: ThemeMode): ColorScheme {
         ThemeMode.ROSE_GOLD -> darkColorScheme(primary = Color(0xFFE91E63), background = Color(0xFF1A0D12))
         ThemeMode.ARCTIC_ICE -> darkColorScheme(primary = Color(0xFF00BCD4), background = Color(0xFF0E1821))
         ThemeMode.CRIMSON_RED -> darkColorScheme(primary = Color(0xFFDC143C), background = Color(0xFF1A0A0A))
-        ThemeMode.LAVENDER_MIST -> darkColorScheme(primary = Color(0xFFB39DDB), background = Color(0xFF120F1A))
         ThemeMode.MINTY_FRESH -> darkColorScheme(primary = Color(0xFF80CBC4), background = Color(0xFF0F1A18))
         ThemeMode.COSMIC_VOID -> darkColorScheme(primary = Color(0xFF7C4DFF), background = Color(0xFF050505))
         ThemeMode.SOLAR_FLARE -> darkColorScheme(primary = Color(0xFFFFD740), background = Color(0xFF1A1500))
         ThemeMode.CYBERPUNK -> darkColorScheme(primary = Color(0xFFFF00FF), background = Color(0xFF0D001A))
+        // NEW ADDITIONS
+        ThemeMode.ROYAL_GOLD -> darkColorScheme(primary = Color(0xFFFFD700), background = Color(0xFF050505))
+        ThemeMode.NORDIC_HORIZON -> darkColorScheme(primary = Color(0xFF88C0D0), background = Color(0xFF242933))
+        ThemeMode.ESPRESSO -> darkColorScheme(primary = Color(0xFFD7CCC8), background = Color(0xFF181210))
+        ThemeMode.GUNMETAL -> darkColorScheme(primary = Color(0xFF78909C), background = Color(0xFF0F1216))
     }
 }
