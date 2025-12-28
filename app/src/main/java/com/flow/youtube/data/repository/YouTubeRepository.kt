@@ -329,7 +329,7 @@ class YouTubeRepository {
                     id = item.commentId ?: "",
                     author = item.uploaderName ?: "Unknown",
                     authorThumbnail = item.uploaderAvatars.firstOrNull()?.url ?: "",
-                    text = item.commentText?.toString() ?: "",
+                    text = item.commentText?.content ?: "",
                     likeCount = item.likeCount.toInt(),
                     publishedTime = item.textualUploadDate ?: ""
                 )

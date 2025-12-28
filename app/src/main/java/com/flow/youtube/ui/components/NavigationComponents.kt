@@ -17,6 +17,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
+import androidx.compose.material.icons.rounded.SlowMotionVideo
+
 @Composable
 fun FloatingBottomNavBar(
     selectedIndex: Int,
@@ -46,7 +48,7 @@ fun FloatingBottomNavBar(
                 onClick = { onItemSelected(0) }
             )
             BottomNavItem(
-                icon = if (selectedIndex == 1) Icons.Filled.PlayCircle else Icons.Outlined.PlayCircleOutline,
+                icon = if (selectedIndex == 1) Icons.Rounded.SlowMotionVideo else Icons.Outlined.SlowMotionVideo,
                 label = "Shorts",
                 selected = selectedIndex == 1,
                 onClick = { onItemSelected(1) }
