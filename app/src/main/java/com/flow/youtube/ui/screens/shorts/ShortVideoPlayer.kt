@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -50,6 +51,8 @@ fun ShortVideoPlayer(
     onChannelClick: (String) -> Unit,
     onLikeClick: () -> Unit,
     onSubscribeClick: () -> Unit,
+    onCommentsClick: () -> Unit,
+    onShareClick: () -> Unit,
     viewModel: ShortsViewModel,
     modifier: Modifier = Modifier
 ) {
@@ -61,19 +64,25 @@ fun ShortVideoPlayer(
     var showControls by remember { mutableStateOf(true) }
     var isLiked by remember { mutableStateOf(false) }
     var isSubscribed by remember { mutableStateOf(false) }
+    var isSaved by remember { mutableStateOf(false) }
     var showLikeAnimation by remember { mutableStateOf(false) }
     var currentPosition by remember { mutableStateOf(0L) }
     var duration by remember { mutableStateOf(0L) }
     var isBuffering by remember { mutableStateOf(false) }
     var showDescription by remember { mutableStateOf(false) }
     
-    // Load like and subscribe states
+    // Dynamic Colors from Theme
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
+    
+    // Load like, subscribe and saved states
     LaunchedEffect(video.id) {
         isLiked = viewModel.isVideoLiked(video.id)
         isSubscribed = viewModel.isChannelSubscribed(video.channelId)
+        isSaved = viewModel.isShortSaved(video.id)
     }
     
-    // Video player instance moved up for scope access
+    // Video player instance
     val playerView = remember(video.id) {
         PlayerView(context).apply {
             useController = false
@@ -89,11 +98,8 @@ fun ShortVideoPlayer(
     LaunchedEffect(isVisible) {
         if (isVisible) {
             playerManager.initialize(context)
-            
-            // Pause music player to prevent multiple audios
             EnhancedMusicPlayerManager.pause()
             
-            // Attach surface and player
             playerView.player = playerManager.getPlayer()
             (playerView.videoSurfaceView as? android.view.SurfaceView)?.holder?.let { holder ->
                 if (holder.surface?.isValid == true) {
@@ -128,62 +134,41 @@ fun ShortVideoPlayer(
             } catch (e: Exception) {
                 Log.e("ShortVideoPlayer", "Error loading short streams", e)
             }
+            
+            // Progress tracker
+            while(true) {
+                currentPosition = playerManager.getCurrentPosition()
+                duration = playerManager.getDuration()
+                isBuffering = playerManager.getPlayer()?.playbackState == androidx.media3.common.Player.STATE_BUFFERING
+                
+                // Sync isPlaying state with actual player state
+                if (isVisible) {
+                    val playerIsPlaying = playerManager.isPlaying()
+                    if (isPlaying != playerIsPlaying) {
+                        isPlaying = playerIsPlaying
+                    }
+                }
+                
+                // Ensure looping is enabled
+                if (playerManager.getPlayer()?.repeatMode != androidx.media3.common.Player.REPEAT_MODE_ONE) {
+                    playerManager.getPlayer()?.repeatMode = androidx.media3.common.Player.REPEAT_MODE_ONE
+                }
+                
+                delay(100)
+            }
         } else {
-            // Only pause if this is the video currently being managed by the singleton player
             if (playerManager.playerState.value.currentVideoId == video.id) {
                 playerManager.pause()
             }
-            // Clear player from view when not visible to avoid surface conflicts
             playerView.player = null
-        }
-    }
-    
-    // Observe player state
-    val playerState by playerManager.playerState.collectAsState()
-    
-    LaunchedEffect(playerState) {
-        isPlaying = playerState.isPlaying
-        isBuffering = playerState.isBuffering
-        // Handle position and duration from player state
-        playerManager.getPlayer()?.let { player ->
-            duration = player.duration.coerceAtLeast(0)
-            currentPosition = player.currentPosition
-        }
-    }
-    
-    // Progress update loop
-    LaunchedEffect(isPlaying) {
-        while (isPlaying) {
-            playerManager.getPlayer()?.let { player ->
-                currentPosition = player.currentPosition
-                duration = player.duration.coerceAtLeast(0)
-            }
-            delay(500)
         }
     }
     
     // Auto-hide controls
     LaunchedEffect(showControls, isPlaying) {
         if (showControls && isPlaying) {
-            delay(3000)
+            delay(2000) // Faster fade out (2s)
             showControls = false
-        }
-    }
-    
-    // Handle like animation
-    LaunchedEffect(showLikeAnimation) {
-        if (showLikeAnimation) {
-            delay(800)
-            showLikeAnimation = false
-        }
-    }
-    
-    DisposableEffect(video.id) {
-        onDispose {
-            // Detach surface when this specific short's view is disposed
-            if (playerManager.playerState.value.currentVideoId == video.id) {
-                playerManager.detachVideoSurface()
-            }
         }
     }
     
@@ -197,7 +182,6 @@ fun ShortVideoPlayer(
                         showControls = !showControls
                     },
                     onDoubleTap = {
-                        // Double tap to like
                         if (!isLiked) {
                             onLikeClick()
                             isLiked = true
@@ -207,32 +191,21 @@ fun ShortVideoPlayer(
                 )
             }
     ) {
-        // AndroidView moved to use the pre-initialized playerView
-        
         DisposableEffect(playerView, isVisible) {
             val surfaceView = playerView.videoSurfaceView as? android.view.SurfaceView
             val callback = object : SurfaceHolder.Callback {
                 override fun surfaceCreated(holder: SurfaceHolder) {
                     if (isVisible) {
-                        Log.d("ShortVideoPlayer", "Surface created and visible for ${video.id}")
                         playerManager.attachVideoSurface(holder)
                     }
                 }
-                
                 override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
-                
-                override fun surfaceDestroyed(holder: SurfaceHolder) {
-                    Log.d("ShortVideoPlayer", "Surface destroyed for ${video.id}")
-                }
+                override fun surfaceDestroyed(holder: SurfaceHolder) {}
             }
-            
             surfaceView?.holder?.addCallback(callback)
-            
             onDispose {
                 surfaceView?.holder?.removeCallback(callback)
-                if (isVisible) {
-                    playerView.player = null
-                }
+                if (isVisible) playerView.player = null
             }
         }
         
@@ -241,24 +214,17 @@ fun ShortVideoPlayer(
             modifier = Modifier.fillMaxSize()
         )
         
-        // Buffering indicator
         if (isBuffering) {
             CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.Center),
-                color = Color.White
+                color = primaryColor
             )
         }
         
-        // Double-tap like animation
-        androidx.compose.animation.AnimatedVisibility(
+        // Like Animation
+        AnimatedVisibility(
             visible = showLikeAnimation,
-            enter = scaleIn(
-                initialScale = 0.5f,
-                animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
-                )
-            ) + fadeIn(),
+            enter = scaleIn(initialScale = 0.5f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn(),
             exit = scaleOut() + fadeOut(),
             modifier = Modifier.align(Alignment.Center)
         ) {
@@ -268,48 +234,35 @@ fun ShortVideoPlayer(
                 tint = Color.Red,
                 modifier = Modifier.size(120.dp)
             )
+            LaunchedEffect(Unit) {
+                delay(800)
+                showLikeAnimation = false
+            }
         }
         
-        // Top gradient overlay
+        // Overlays
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp)
+                .height(160.dp)
                 .align(Alignment.TopCenter)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.6f),
-                            Color.Transparent
-                        )
-                    )
-                )
+                .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent)))
         )
         
-        // Bottom gradient overlay
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(280.dp)
+                .height(320.dp)
                 .align(Alignment.BottomCenter)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.8f)
-                        )
-                    )
-                )
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f))))
         )
         
-        // Top controls
+        // Top Controls
         AnimatedVisibility(
             visible = showControls,
-            enter = fadeIn() + slideInVertically { -it },
-            exit = fadeOut() + slideOutVertically { -it },
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter)
         ) {
             Row(
                 modifier = Modifier
@@ -319,196 +272,143 @@ fun ShortVideoPlayer(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(Color.Black.copy(alpha = 0.3f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Back",
-                        tint = Color.White
-                    )
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, "Back", tint = Color.White)
                 }
-                
-                Text(
-                    text = "Shorts",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                
-                IconButton(
-                    onClick = { /* Search */ },
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(Color.Black.copy(alpha = 0.3f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = Color.White
-                    )
+                IconButton(onClick = { /* Search */ }) {
+                    Icon(Icons.Default.Search, "Search", tint = Color.White)
                 }
             }
         }
         
-        // Bottom info and controls
-        Column(
+        // Bottom Info & Actions
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(16.dp)
-                .navigationBarsPadding()
+                .align(Alignment.BottomStart)
+                .padding(bottom = 16.dp, start = 16.dp, end = 8.dp)
+                .navigationBarsPadding(),
+            verticalAlignment = Alignment.Bottom
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                // Video info
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(end = 16.dp)
-                ) {
-                    // Channel info
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .clickable { onChannelClick(video.channelId) }
-                            .padding(vertical = 8.dp)
-                    ) {
-                        // Channel avatar
-                        AsyncImage(
-                            model = video.channelThumbnailUrl,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color.Gray),
-                            contentScale = ContentScale.Crop
-                        )
-                        
-                        Spacer(modifier = Modifier.width(12.dp))
-                        
-                        Text(
-                            text = video.channelName,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        
-                        Spacer(modifier = Modifier.width(12.dp))
-                        
-                        // Subscribe button
-                        if (!isSubscribed) {
-                            Button(
-                                onClick = {
-                                    onSubscribeClick()
-                                    isSubscribed = true
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.Red
-                                ),
-                                shape = RoundedCornerShape(20.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                                modifier = Modifier.height(32.dp)
-                            ) {
-                                Text(
-                                    text = "Subscribe",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+            // Left Side: Info
+            Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
+                // Channel Info
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { onChannelClick(video.channelId) }) {
+                    AsyncImage(
+                        model = video.channelThumbnailUrl,
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.Gray),
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = video.channelName,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    if (!isSubscribed) {
+                        Button(
+                            onClick = { onSubscribeClick(); isSubscribed = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = onPrimaryColor),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text("Subscribe", style = MaterialTheme.typography.labelSmall)
                         }
                     }
-                    
-                    // Video title
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Description
+                Text(
+                    text = video.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White,
+                    maxLines = if (showDescription) Int.MAX_VALUE else 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.clickable { showDescription = !showDescription }
+                )
+                
+                if (showDescription) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = video.title,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White,
-                        maxLines = if (showDescription) Int.MAX_VALUE else 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .clickable { showDescription = !showDescription }
-                            .padding(bottom = 8.dp)
-                    )
-                    
-                    // View count
-                    Text(
-                        text = "${formatViewCount(video.viewCount)} views",
+                        text = "${formatViewCount(video.viewCount)} views • ${video.uploadDate}",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.7f)
                     )
                 }
                 
-                // Action buttons
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
-                ) {
-                    // Like button
-                    ActionButton(
-                        icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        text = "Like",
-                        tint = if (isLiked) Color.Red else Color.White,
-                        onClick = {
-                            onLikeClick()
-                            isLiked = !isLiked
-                        }
-                    )
-                    
-                    // Dislike button
-                    ActionButton(
-                        icon = Icons.Default.ThumbDown,
-                        text = "Dislike",
-                        onClick = { /* Handle dislike */ }
-                    )
-                    
-                    // Comment button
-                    ActionButton(
-                        icon = Icons.Default.Comment,
-                        text = "Comment",
-                        onClick = { /* Handle comment */ }
-                    )
-                    
-                    // Share button
-                    ActionButton(
-                        icon = Icons.Default.Share,
-                        text = "Share",
-                        onClick = { /* Handle share */ }
-                    )
-                    
-                    // More button
-                    ActionButton(
-                        icon = Icons.Default.MoreVert,
-                        text = "More",
-                        onClick = { /* Handle more */ }
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Music/Sound Info
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.MusicNote, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "Original Sound - ${video.channelName}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White,
+                        maxLines = 1
                     )
                 }
             }
             
-            // Progress indicator
-            if (duration > 0) {
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                val progress = (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-                
-                LinearProgressIndicator(
-                    progress = progress,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(2.dp),
-                    color = Color.White,
-                    trackColor = Color.White.copy(alpha = 0.3f)
+            // Right Side: Actions
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                ActionButton(
+                    icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    text = "Like",
+                    tint = if (isLiked) Color.Red else Color.White,
+                    onClick = { onLikeClick(); isLiked = !isLiked }
                 )
+                ActionButton(icon = Icons.Default.ThumbDown, text = "Dislike", onClick = {})
+                ActionButton(icon = Icons.Default.Comment, text = "Comments", onClick = onCommentsClick)
+                
+                // Save Button
+                ActionButton(
+                    icon = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                    text = "Save",
+                    tint = if (isSaved) primaryColor else Color.White,
+                    onClick = { 
+                        isSaved = !isSaved
+                        viewModel.toggleSaveShort(video)
+                    }
+                )
+                
+                ActionButton(icon = Icons.Default.Share, text = "Share", onClick = onShareClick)
+                ActionButton(icon = Icons.Default.MoreVert, text = "More", onClick = {})
+                
+                // Album Art / Sound Spinner
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(Color.DarkGray, CircleShape)
+                        .padding(6.dp)
+                ) {
+                    AsyncImage(
+                        model = video.channelThumbnailUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().clip(CircleShape)
+                    )
+                }
             }
         }
         
-        // Center play/pause button (visible when controls shown and video is paused)
+        // Progress Bar
+        if (duration > 0) {
+            LinearProgressIndicator(
+                progress = (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f),
+                modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).height(2.dp),
+                color = primaryColor,
+                trackColor = Color.White.copy(alpha = 0.3f),
+            )
+        }
+        
+        // Center play/pause button
         AnimatedVisibility(
             visible = showControls && !isPlaying && !isBuffering,
             enter = scaleIn() + fadeIn(),
@@ -519,8 +419,10 @@ fun ShortVideoPlayer(
                 onClick = {
                     if (isPlaying) {
                         playerManager.pause()
+                        isPlaying = false
                     } else {
                         playerManager.play()
+                        isPlaying = true
                     }
                 },
                 modifier = Modifier
@@ -546,48 +448,19 @@ fun ActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var isPressed by remember { mutableStateOf(false) }
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.85f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessHigh
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier.clickable(onClick = onClick)) {
+        Icon(
+            imageVector = icon,
+            contentDescription = text,
+            tint = tint,
+            modifier = Modifier.size(32.dp)
         )
-    )
-    
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier
-            .scale(scale)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) {
-                isPressed = true
-                onClick()
-                // Note: Animation will complete naturally via animateFloatAsState
-                isPressed = false
-            }
-    ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .background(Color.Black.copy(alpha = 0.3f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = text,
-                tint = tint,
-                modifier = Modifier.size(28.dp)
-            )
-        }
-        
         Spacer(modifier = Modifier.height(4.dp))
-        
         Text(
             text = text,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelSmall.copy(
+                shadow = androidx.compose.ui.graphics.Shadow(color = Color.Black, blurRadius = 4f)
+            ),
             color = Color.White,
             fontWeight = FontWeight.Medium
         )

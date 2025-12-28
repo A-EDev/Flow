@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.random.Random
 
+import com.flow.youtube.data.local.PlaylistRepository
+
 class ShortsViewModel(
     private val repository: YouTubeRepository = YouTubeRepository.getInstance()
 ) : ViewModel() {
@@ -26,12 +28,20 @@ class ShortsViewModel(
     private var likedVideosRepository: LikedVideosRepository? = null
     private var subscriptionRepository: SubscriptionRepository? = null
     private var shortsRepository: ShortsRepository? = null
+    private var playlistRepository: PlaylistRepository? = null
     private var isLoadingMore = false
+    
+    private val _commentsState = MutableStateFlow<List<com.flow.youtube.data.model.Comment>>(emptyList())
+    val commentsState: StateFlow<List<com.flow.youtube.data.model.Comment>> = _commentsState.asStateFlow()
+    
+    private val _isLoadingComments = MutableStateFlow(false)
+    val isLoadingComments: StateFlow<Boolean> = _isLoadingComments.asStateFlow()
     
     fun initialize(context: Context) {
         likedVideosRepository = LikedVideosRepository.getInstance(context)
         subscriptionRepository = SubscriptionRepository.getInstance(context)
         shortsRepository = ShortsRepository.getInstance(context)
+        playlistRepository = PlaylistRepository(context)
     }
     
     fun loadShorts(startVideoId: String? = null) {
@@ -171,7 +181,57 @@ class ShortsViewModel(
         }
     }
 
+    fun loadSavedShorts(startVideoId: String? = null) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            playlistRepository?.getSavedShortsFlow()?.collect { savedShorts ->
+                val startIndex = if (startVideoId != null) {
+                    savedShorts.indexOfFirst { it.id == startVideoId }.coerceAtLeast(0)
+                } else {
+                    0
+                }
+                
+                _uiState.value = _uiState.value.copy(
+                    shorts = savedShorts,
+                    currentIndex = startIndex,
+                    isLoading = false,
+                    hasMorePages = false // Saved shorts are all loaded at once usually
+                )
+            }
+        }
+    }
+
     suspend fun getVideoStreamInfo(videoId: String) = repository.getVideoStreamInfo(videoId)
+    
+    fun toggleSaveShort(video: Video) {
+        viewModelScope.launch {
+            val repo = playlistRepository ?: return@launch
+            if (repo.isInSavedShorts(video.id)) {
+                repo.removeFromSavedShorts(video.id)
+            } else {
+                repo.addToSavedShorts(video)
+            }
+        }
+    }
+
+    suspend fun isShortSaved(videoId: String): Boolean {
+        return playlistRepository?.isInSavedShorts(videoId) ?: false
+    }
+
+    fun loadComments(videoId: String) {
+        viewModelScope.launch {
+            _isLoadingComments.value = true
+            _commentsState.value = emptyList()
+            try {
+                val comments = repository.getComments(videoId)
+                _commentsState.value = comments
+            } catch (e: Exception) {
+                Log.e("ShortsViewModel", "Error loading comments", e)
+            } finally {
+                _isLoadingComments.value = false
+            }
+        }
+    }
 }
 
 data class ShortsUiState(

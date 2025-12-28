@@ -107,10 +107,14 @@ dependencies {
     implementation("androidx.compose.ui:ui-graphics")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.material:material") // Add Material 2 for Swipeable
     implementation("androidx.compose.material:material-icons-extended")
 
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.5")
+
+    // ConstraintLayout Compose (MotionLayout)
+    implementation("androidx.constraintlayout:constraintlayout-compose:1.0.1")
 
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")

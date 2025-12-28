@@ -319,6 +319,28 @@ class YouTubeRepository {
     }
     
     /**
+     * Fetch comments for a video
+     */
+    suspend fun getComments(videoId: String): List<com.flow.youtube.data.model.Comment> = withContext(Dispatchers.IO) {
+        try {
+            val commentsExtractor = org.schabi.newpipe.extractor.comments.CommentsInfo.getInfo(service, "https://www.youtube.com/watch?v=$videoId")
+            commentsExtractor.relatedItems.map { item ->
+                com.flow.youtube.data.model.Comment(
+                    id = item.commentId ?: "",
+                    author = item.uploaderName ?: "Unknown",
+                    authorThumbnail = item.uploaderAvatars.firstOrNull()?.url ?: "",
+                    text = item.commentText?.toString() ?: "",
+                    likeCount = item.likeCount.toInt(),
+                    publishedTime = item.textualUploadDate ?: ""
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    /**
      * Extension function to convert StreamInfoItem to our Video model
      */
     private fun StreamInfoItem.toVideo(): Video {

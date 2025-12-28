@@ -69,6 +69,7 @@ import com.flow.youtube.ui.components.ShimmerVideoCardHorizontal
 import com.flow.youtube.ui.components.shimmerEffect
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.player.EnhancedPlayerManager
+import com.flow.youtube.player.GlobalPlayerState
 import com.flow.youtube.player.PictureInPictureHelper
 import com.flow.youtube.ui.components.SubtitleCue
 import com.flow.youtube.ui.components.SubtitleOverlay
@@ -565,60 +566,81 @@ fun EnhancedVideoPlayerScreen(
                             }
                         )
                     }
-                    .pointerInput(Unit) {
+                    .pointerInput(isFullscreen) {
+                        var totalDragY = 0f
+                        val dragThreshold = 150f
+
                         detectVerticalDragGestures(
                             onDragStart = { offset ->
-                                val screenWidth = size.width
-                                if (offset.x < screenWidth / 2) {
-                                    showBrightnessOverlay = true
+                                if (isFullscreen) {
+                                    val screenWidth = size.width
+                                    if (offset.x < screenWidth / 2) {
+                                        showBrightnessOverlay = true
+                                    } else {
+                                        showVolumeOverlay = true
+                                    }
                                 } else {
-                                    showVolumeOverlay = true
+                                    totalDragY = 0f
                                 }
                             },
                             onDragEnd = {
-                                scope.launch {
-                                    delay(1000)
-                                    showBrightnessOverlay = false
-                                    showVolumeOverlay = false
+                                if (isFullscreen) {
+                                    scope.launch {
+                                        delay(1000)
+                                        showBrightnessOverlay = false
+                                        showVolumeOverlay = false
+                                    }
+                                } else {
+                                    if (totalDragY > dragThreshold) {
+                                        GlobalPlayerState.showMiniPlayer()
+                                        onBack()
+                                    }
+                                    totalDragY = 0f
                                 }
                             },
                             onVerticalDrag = { change, dragAmount ->
                                 change.consume()
-                                val screenHeight = size.height
-                                val dragPosition = change.position.x
-                                val screenWidth = size.width
                                 
-                                if (dragPosition < screenWidth / 2) {
-                                    // Left side - brightness
-                                    brightnessLevel = (brightnessLevel - dragAmount / screenHeight)
-                                        .coerceIn(0f, 1f)
+                                if (isFullscreen) {
+                                    val screenHeight = size.height
+                                    val dragPosition = change.position.x
+                                    val screenWidth = size.width
                                     
-                                    // Apply system brightness
-                                    try {
-                                        activity?.window?.let { window ->
-                                            val layoutParams = window.attributes
-                                            layoutParams.screenBrightness = brightnessLevel
-                                            window.attributes = layoutParams
+                                    if (dragPosition < screenWidth / 2) {
+                                        // Left side - brightness
+                                        brightnessLevel = (brightnessLevel - dragAmount / screenHeight)
+                                            .coerceIn(0f, 1f)
+                                        
+                                        // Apply system brightness
+                                        try {
+                                            activity?.window?.let { window ->
+                                                val layoutParams = window.attributes
+                                                layoutParams.screenBrightness = brightnessLevel
+                                                window.attributes = layoutParams
+                                            }
+                                        } catch (e: Exception) {
+                                            // Ignore
                                         }
-                                    } catch (e: Exception) {
-                                        // Ignore
+                                        
+                                        showBrightnessOverlay = true
+                                    } else {
+                                        // Right side - volume
+                                        volumeLevel = (volumeLevel - dragAmount / screenHeight)
+                                            .coerceIn(0f, 1f)
+                                        
+                                        // Apply system volume
+                                        val newVolume = (volumeLevel * maxVolume).toInt()
+                                        audioManager.setStreamVolume(
+                                            AudioManager.STREAM_MUSIC,
+                                            newVolume,
+                                            0
+                                        )
+                                        
+                                        showVolumeOverlay = true
                                     }
-                                    
-                                    showBrightnessOverlay = true
                                 } else {
-                                    // Right side - volume
-                                    volumeLevel = (volumeLevel - dragAmount / screenHeight)
-                                        .coerceIn(0f, 1f)
-                                    
-                                    // Apply system volume
-                                    val newVolume = (volumeLevel * maxVolume).toInt()
-                                    audioManager.setStreamVolume(
-                                        AudioManager.STREAM_MUSIC,
-                                        newVolume,
-                                        0
-                                    )
-                                    
-                                    showVolumeOverlay = true
+                                    // Accumulate drag for minimize gesture
+                                    totalDragY += dragAmount
                                 }
                             }
                         )

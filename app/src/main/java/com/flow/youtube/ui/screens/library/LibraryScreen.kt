@@ -30,6 +30,7 @@ fun LibraryScreen(
     onNavigateToPlaylists: () -> Unit,
     onNavigateToLikedVideos: () -> Unit,
     onNavigateToWatchLater: () -> Unit,
+    onNavigateToSavedShorts: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     onManageData: () -> Unit,
     modifier: Modifier = Modifier,
@@ -95,6 +96,15 @@ fun LibraryScreen(
                     title = "Liked Videos",
                     subtitle = "${uiState.likedVideosCount} videos",
                     onClick = onNavigateToLikedVideos
+                )
+            }
+
+            item {
+                LibraryCard(
+                    icon = Icons.Outlined.Bookmark,
+                    title = "Saved Shorts",
+                    subtitle = "${uiState.savedShortsCount} shorts",
+                    onClick = onNavigateToSavedShorts
                 )
             }
 

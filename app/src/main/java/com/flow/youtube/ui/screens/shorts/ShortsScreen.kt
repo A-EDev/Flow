@@ -1,6 +1,8 @@
 package com.flow.youtube.ui.screens.shorts
 
 import android.app.Activity
+import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
@@ -28,6 +30,7 @@ fun ShortsScreen(
     onBack: () -> Unit,
     onChannelClick: (String) -> Unit,
     startVideoId: String? = null,  // Optional: scroll to this video when coming from home
+    isSavedMode: Boolean = false,
     modifier: Modifier = Modifier,
     viewModel: ShortsViewModel = viewModel()
 ) {
@@ -37,10 +40,18 @@ fun ShortsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     
+    var showCommentsSheet by remember { mutableStateOf(false) }
+    val comments by viewModel.commentsState.collectAsState()
+    val isLoadingComments by viewModel.isLoadingComments.collectAsState()
+    
     // Initialize repositories and load shorts
     LaunchedEffect(Unit) {
         viewModel.initialize(context)
-        viewModel.loadShorts(startVideoId = startVideoId)
+        if (isSavedMode) {
+            viewModel.loadSavedShorts(startVideoId)
+        } else {
+            viewModel.loadShorts(startVideoId = startVideoId)
+        }
     }
     
     // Hide system bars for immersive experience
@@ -119,10 +130,31 @@ fun ShortsScreen(
                             )
                         }
                     },
+                    onCommentsClick = { video ->
+                        viewModel.loadComments(video.id)
+                        showCommentsSheet = true
+                    },
+                    onShareClick = { video ->
+                        val sendIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, "Check out this short: https://youtu.be/${video.id}")
+                            type = "text/plain"
+                        }
+                        val shareIntent = Intent.createChooser(sendIntent, null)
+                        context.startActivity(shareIntent)
+                    },
                     scope = scope,
                     viewModel = viewModel
                 )
             }
+        }
+        
+        if (showCommentsSheet) {
+            CommentsBottomSheet(
+                comments = comments,
+                isLoading = isLoadingComments,
+                onDismiss = { showCommentsSheet = false }
+            )
         }
     }
 }
@@ -137,6 +169,8 @@ fun VerticalShortsPager(
     onChannelClick: (String) -> Unit,
     onLikeClick: (Video) -> Unit,
     onSubscribeClick: (Video) -> Unit,
+    onCommentsClick: (Video) -> Unit,
+    onShareClick: (Video) -> Unit,
     scope: kotlinx.coroutines.CoroutineScope,
     viewModel: ShortsViewModel
 ) {
@@ -164,6 +198,8 @@ fun VerticalShortsPager(
             onChannelClick = onChannelClick,
             onLikeClick = { onLikeClick(short) },
             onSubscribeClick = { onSubscribeClick(short) },
+            onCommentsClick = { onCommentsClick(short) },
+            onShareClick = { onShareClick(short) },
             viewModel = viewModel,
             modifier = Modifier.fillMaxSize()
         )

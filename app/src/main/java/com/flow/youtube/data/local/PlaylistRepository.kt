@@ -25,6 +25,52 @@ class PlaylistRepository @Inject constructor(
     // Watch Later Logic (using a special hardcoded playlist ID "watch_later")
     companion object {
         const val WATCH_LATER_ID = "watch_later"
+        const val SAVED_SHORTS_ID = "saved_shorts"
+    }
+
+    // Saved Shorts Logic
+    suspend fun addToSavedShorts(video: Video) {
+        // Ensure saved shorts playlist exists
+        val savedShorts = playlistDao.getPlaylist(SAVED_SHORTS_ID)
+        if (savedShorts == null) {
+            playlistDao.insertPlaylist(
+                PlaylistEntity(
+                    id = SAVED_SHORTS_ID,
+                    name = "Saved Shorts",
+                    description = "Your saved shorts",
+                    thumbnailUrl = "",
+                    isPrivate = true,
+                    createdAt = System.currentTimeMillis()
+                )
+            )
+        }
+        
+        // Save video
+        videoDao.insertVideo(VideoEntity.fromDomain(video))
+        
+        // Add relationship
+        val position = System.currentTimeMillis()
+        playlistDao.insertPlaylistVideoCrossRef(
+            PlaylistVideoCrossRef(
+                playlistId = SAVED_SHORTS_ID,
+                videoId = video.id,
+                position = -position
+            )
+        )
+    }
+
+    suspend fun removeFromSavedShorts(videoId: String) {
+        playlistDao.removeVideoFromPlaylist(SAVED_SHORTS_ID, videoId)
+    }
+
+    fun getSavedShortsFlow(): Flow<List<Video>> = 
+        playlistDao.getVideosForPlaylist(SAVED_SHORTS_ID).map { entities ->
+            entities.map { it.toDomain() }
+        }
+
+    suspend fun isInSavedShorts(videoId: String): Boolean {
+        val videos = playlistDao.getVideosForPlaylist(SAVED_SHORTS_ID).firstOrNull() ?: emptyList()
+        return videos.any { it.id == videoId }
     }
 
     suspend fun addToWatchLater(video: Video) {

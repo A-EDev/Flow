@@ -51,10 +51,13 @@ object YouTubeMusicService {
         "Bad Bunny", "SZA", "Kendrick Lamar", "Bruno Mars"
     )
 
-    // Blacklist for compilation videos
+    // Blacklist for non-music content and compilations
     private val blacklistKeywords = listOf(
         "top 50", "top 40", "top 100", "best of", "compilation", "full album", 
-        "collection", "mix 2024", "mix 2025", "mashup", "mega mix", "nonstop", "best songs"
+        "collection", "mix 2024", "mix 2025", "mashup", "mega mix", "nonstop", "best songs",
+        "review", "tutorial", "update", "news", "gameplay", "walkthrough", "react", "reaction",
+        "trailer", "teaser", "interview", "podcast", "live stream", "unboxing", "tech", "coding",
+        "agent", "software", "chatgpt", "ai", "gemini", "claude", "copilot", "how to", "explained"
     )
 
     private val trendingMusicQueries = listOf(
@@ -120,7 +123,7 @@ object YouTubeMusicService {
             val service = ServiceList.YouTube
             
             // Refine query for better results if it's not already specific
-            val refinedQuery = if (query.contains("official") || query.contains("music")) query else "$query official music"
+            val refinedQuery = if (query.contains("official") || query.contains("music") || query.contains("song")) query else "$query song"
             
             val searchExtractor = service.getSearchExtractor(refinedQuery, emptyList(), "")
             searchExtractor.fetchPage()
@@ -282,7 +285,7 @@ object YouTubeMusicService {
             val streamInfo = getStreamInfo(videoId)
             streamInfo?.relatedItems
                 ?.filterIsInstance<StreamInfoItem>()
-                ?.filter { it.duration in 60..900 }
+                ?.filter { isMusicContent(it) }
                 ?.take(limit)
                 ?.mapNotNull { convertToMusicTrack(it) } ?: emptyList()
         } catch (e: Exception) {
@@ -314,18 +317,27 @@ object YouTubeMusicService {
         val title = item.name.lowercase()
         val duration = item.duration
         
-        // Strict duration for individual songs (60s to 12 minutes)
-        if (duration < 60 || duration > 720) return false
+        // Strict duration for individual songs (60s to 10 minutes)
+        if (duration < 60 || duration > 600) return false
         
         // Blacklist keywords
         if (blacklistKeywords.any { title.contains(it) }) return false
         
-        return title.contains("official") || 
-               title.contains("music") || 
-               title.contains("video") ||
-               title.contains("audio") ||
-               title.contains("lyrics") ||
-               item.viewCount > 100000
+        // Must contain music indicators
+        val musicIndicators = listOf(
+            "official video", "official music", "official audio", "official lyric",
+            "music video", "lyric video", "audio", "visualizer", "mv", "feat.", "ft.",
+            "prod.", "remix", "cover", "soundtrack", "ost"
+        )
+        
+        // If it has a music indicator, it's likely music
+        if (musicIndicators.any { title.contains(it) }) return true
+        
+        // If the uploader is a Topic channel or VEVO
+        val uploader = item.uploaderName?.lowercase() ?: ""
+        if (uploader.endsWith("topic") || uploader.endsWith("vevo")) return true
+        
+        return false
     }
 
     /**

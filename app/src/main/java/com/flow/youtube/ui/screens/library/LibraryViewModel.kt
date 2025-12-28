@@ -50,6 +50,12 @@ class LibraryViewModel : ViewModel() {
                     _uiState.update { it.copy(watchLaterCount = videos.size) }
                 }
             }
+
+            viewModelScope.launch {
+                repo.getSavedShortsFlow().collect { videos ->
+                    _uiState.update { it.copy(savedShortsCount = videos.size) }
+                }
+            }
         }
     }
 }
@@ -59,5 +65,6 @@ data class LibraryUiState(
     val watchHistoryCount: Int = 0,
     val playlistsCount: Int = 0,
     val watchLaterCount: Int = 0,
+    val savedShortsCount: Int = 0,
     val downloadsCount: Int = 0
 )

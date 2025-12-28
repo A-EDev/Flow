@@ -30,7 +30,7 @@
 - [x] Fullscreen support with landscape mode
 - [x] Picture-in-Picture (PiP) mode
 - [x] Background playback
-- [ ] Video chapters support
+- [x] Video chapters support
 - [ ] Playback speed control (0.25x - 2x)
 - [ ] Auto-play next video
 - [x] **Gesture Controls:** Left swipe for brightness, right swipe for volume
@@ -186,13 +186,13 @@ app/src/main/java/com/flow/youtube/ui/theme/Color.kt
   - [x] Related videos suggestions
   - [x] Watch history-based recommendations
 
-- [ ] **Shorts Support**
-  - [ ] Shorts feed UI
-  - [ ] Vertical swipe navigation
+- [x] **Shorts Support**
+  - [x] Shorts feed UI
+  - [x] Vertical swipe navigation
   - [ ] Shorts player optimization
   - [ ] Shorts creation date/view count
 
-- [ ] **Channel Screen**
+- [] **Channel Screen**
   - [x] Complete channel page layout
   - [x] Channel videos grid
   - [ ] Channel playlists
@@ -210,14 +210,14 @@ app/src/main/java/com/flow/youtube/ui/theme/Color.kt
 - [ ] **Notification System**
   - [ ] Push notifications setup
   - [ ] New video notifications
-  - [ ] Download complete notifications
+  - [x] Download complete notifications
   - [ ] Playback controls in notification
 
-- [ ] **Download Manager**
-  - [ ] Video download functionality
-  - [ ] Download queue management
-  - [ ] Quality selection for downloads
-  - [ ] Downloaded videos library
+- [x] **Download Manager**
+  - [x] Video download functionality
+  - [x] Download queue management
+  - [x] Quality selection for downloads
+  - [x] Downloaded videos library
 
 - [ ] **Comments System**
   - [ ] Display video comments
@@ -226,7 +226,7 @@ app/src/main/java/com/flow/youtube/ui/theme/Color.kt
   - [ ] Comment engagement (likes/dislikes display)
 
 - [ ] **Social Features**
-  - [ ] Share videos functionality
+  - [x] Share videos functionality
   - [ ] Create shareable playlists
   - [ ] Export watch statistics
   - [ ] Social media integration

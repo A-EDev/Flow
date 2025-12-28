@@ -204,7 +204,7 @@ fun FlowApp(
                             navController.popBackStack()
                         },
                         onChannelClick = { channelId ->
-                            navController.navigate("channel?url=%2Fchannel%2F$channelId")
+                            navController.navigate("channel?url=$channelId")
                         }
                     )
                 }
@@ -240,6 +240,9 @@ fun FlowApp(
                         },
                         onNavigateToWatchLater = {
                             navController.navigate("watchLater")
+                        },
+                        onNavigateToSavedShorts = {
+                            navController.navigate("savedShorts")
                         },
                         onNavigateToDownloads = { /* Navigate to downloads */ },
                         onManageData = {
@@ -388,6 +391,38 @@ fun FlowApp(
                             } else {
                                 navController.navigate("player/${video.id}")
                             }
+                        }
+                    )
+                }
+
+                // Saved Shorts Grid
+                composable("savedShorts") {
+                    currentRoute.value = "savedShorts"
+                    showBottomNav = false
+                    com.flow.youtube.ui.screens.library.SavedShortsGridScreen(
+                        onBackClick = { navController.popBackStack() },
+                        onVideoClick = { videoId ->
+                            navController.navigate("savedShortsPlayer/$videoId")
+                        }
+                    )
+                }
+
+                // Saved Shorts Player
+                composable(
+                    route = "savedShortsPlayer/{startVideoId}",
+                    arguments = listOf(navArgument("startVideoId") { type = NavType.StringType })
+                ) { backStackEntry ->
+                    currentRoute.value = "savedShortsPlayer"
+                    showBottomNav = false
+                    val startVideoId = backStackEntry.arguments?.getString("startVideoId")
+                    ShortsScreen(
+                        startVideoId = startVideoId,
+                        isSavedMode = true,
+                        onBack = {
+                            navController.popBackStack()
+                        },
+                        onChannelClick = { channelId ->
+                            navController.navigate("channel?url=$channelId")
                         }
                     )
                 }
