@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.dp
 
 import androidx.compose.material.icons.rounded.SlowMotionVideo
 
+import androidx.compose.ui.unit.sp
+
 @Composable
 fun FloatingBottomNavBar(
     selectedIndex: Int,
@@ -133,29 +135,14 @@ fun TopAppBarWithActions(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // App icon/logo
-                Surface(
-                    modifier = Modifier.size(32.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.PlayArrow,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
+                // Removed App icon/logo as per request
                 
                 Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleLarge,
+                    text = title.uppercase(), // Ensure it's uppercase "FLOW"
+                    style = MaterialTheme.typography.headlineMedium, // Sleek, larger text
                     color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 2.sp // Add spacing for "sleek" look
                 )
             }
 

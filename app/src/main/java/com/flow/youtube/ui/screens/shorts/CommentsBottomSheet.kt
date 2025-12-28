@@ -17,6 +17,15 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.flow.youtube.data.model.Comment
 
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.text.HtmlCompat
+import android.text.TextUtils
+import android.text.method.LinkMovementMethod
+import android.widget.TextView
+import androidx.compose.animation.animateContentSize
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommentsBottomSheet(
@@ -93,11 +102,12 @@ fun CommentItem(comment: Comment) {
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
+            
+            ExpandableCommentText(
                 text = comment.text,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface
+                modifier = Modifier.fillMaxWidth()
             )
+            
             Spacer(modifier = Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -112,6 +122,59 @@ fun CommentItem(comment: Comment) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun ExpandableCommentText(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    var isOverflowing by remember { mutableStateOf(false) }
+    val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
+    
+    Column(modifier = modifier.animateContentSize()) {
+        AndroidView(
+            factory = { context ->
+                TextView(context).apply {
+                    textSize = 14f
+                    setTextColor(textColor)
+                    setLinkTextColor(android.graphics.Color.parseColor("#3EA6FF"))
+                    movementMethod = LinkMovementMethod.getInstance()
+                    ellipsize = TextUtils.TruncateAt.END
+                }
+            },
+            update = { textView ->
+                textView.text = HtmlCompat.fromHtml(text, HtmlCompat.FROM_HTML_MODE_COMPACT)
+                textView.maxLines = if (isExpanded) Int.MAX_VALUE else 4
+                
+                // Check for overflow
+                textView.post {
+                    val layout = textView.layout
+                    if (layout != null) {
+                        val lines = layout.lineCount
+                        if (lines > 0) {
+                            if (lines > 4 || (lines == 4 && layout.getEllipsisCount(lines - 1) > 0)) {
+                                if (!isOverflowing) isOverflowing = true
+                            }
+                        }
+                    }
+                }
+            }
+        )
+        
+        if (isOverflowing) {
+            Text(
+                text = if (isExpanded) "Read less" else "Read more",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .clickable { isExpanded = !isExpanded }
+            )
         }
     }
 }
