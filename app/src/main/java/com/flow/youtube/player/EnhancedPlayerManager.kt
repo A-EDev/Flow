@@ -9,6 +9,7 @@ import java.io.File
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
@@ -643,16 +644,13 @@ class EnhancedPlayerManager private constructor() {
                     // Detect adaptive formats (HLS/DASH) by URL/path
                     val url = videoStream.url!!
                     val lower = url.lowercase()
-                    val finalSource = if (lower.contains(".m3u8") || lower.contains(".mpd") || lower.contains("/hls") || lower.contains("/dash")) {
-                        // Adaptive stream: hand MediaItem over to the player and let the factory handle it
-                        val mediaItemBuilder = MediaItem.Builder().setUri(url)
-                        // If subtitle selected, add subtitle configuration
-                        val mediaItem = mediaItemBuilder.build()
-                        // set directly and skip progressive merging
-                        exoPlayer.setMediaItem(mediaItem)
-                        null
+                    
+                    // Base video/audio source
+                    val baseSource = if (lower.contains(".m3u8") || lower.contains(".mpd") || lower.contains("/hls") || lower.contains("/dash")) {
+                        // Adaptive stream
+                        DefaultMediaSourceFactory(dataSourceFactory).createMediaSource(MediaItem.fromUri(url))
                     } else if (hasMuxedAudio) {
-                        // Single progressive stream including both audio+video -> play directly
+                        // Single progressive stream including both audio+video
                         ProgressiveMediaSource.Factory(dataSourceFactory)
                             .createMediaSource(MediaItem.fromUri(url))
                     } else {
@@ -668,37 +666,48 @@ class EnhancedPlayerManager private constructor() {
                         if (audioSrc != null) MergingMediaSource(videoSource, audioSrc) else videoSource
                     }
 
-                    // Attach subtitles if selected
-                    val withSubs = if (selectedSubtitleIndex != null && selectedSubtitleIndex!! in availableSubtitles.indices) {
-                        val sub = availableSubtitles[selectedSubtitleIndex!!]
-                        val subUri = sub.url ?: ""
-                        if (subUri.isNotBlank()) {
-                            val mime = "text/vtt"
-                                    val subtitleLang = sub.languageTag ?: sub.displayLanguageName
-                                    val subtitleMediaItem = MediaItem.SubtitleConfiguration.Builder(android.net.Uri.parse(subUri))
-                                        .setMimeType(mime)
-                                        .setLanguage(subtitleLang)
-                                .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
-                                .build()
-
-                            val subtitleSource = SingleSampleMediaSource.Factory(dataSourceFactory)
-                                .createMediaSource(subtitleMediaItem, C.TIME_UNSET)
-
-                            if (finalSource != null) MergingMediaSource(finalSource, subtitleSource) else {
-                                // finalSource was applied directly to exoPlayer (adaptive). Recreate mediaItem with subtitle config
-                                val mediaItem = MediaItem.Builder()
-                                    .setUri(url)
-                                    .setSubtitleConfigurations(listOf(subtitleMediaItem))
-                                    .build()
-                                exoPlayer.setMediaItem(mediaItem)
-                                null
-                            }
-                        } else finalSource
-                    } else finalSource
+                    // Handle Subtitles (NewPipe Style)
+                    val sources = mutableListOf(baseSource)
                     
-                    if (withSubs != null) {
-                        exoPlayer.setMediaSource(withSubs)
+                    // Add selected subtitle if any
+                    if (selectedSubtitleIndex != null && selectedSubtitleIndex!! in availableSubtitles.indices) {
+                        val subtitle = availableSubtitles[selectedSubtitleIndex!!]
+                        val subtitleUrl = subtitle.url
+                        if (!subtitleUrl.isNullOrBlank()) {
+                            try {
+                                // Map NewPipe format to ExoPlayer MimeType
+                                val mimeType = if (subtitle.format?.mimeType == "application/ttml+xml") {
+                                    MimeTypes.APPLICATION_TTML
+                                } else {
+                                    MimeTypes.TEXT_VTT
+                                }
+                                
+                                val subtitleConfig = MediaItem.SubtitleConfiguration.Builder(android.net.Uri.parse(subtitleUrl))
+                                    .setMimeType(mimeType)
+                                    .setLanguage(subtitle.languageTag)
+                                    .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                                    .setRoleFlags(if (subtitle.isAutoGenerated) C.ROLE_FLAG_DESCRIBES_MUSIC_AND_SOUND else C.ROLE_FLAG_CAPTION)
+                                    .build()
+                                    
+                                val subtitleSource = SingleSampleMediaSource.Factory(dataSourceFactory)
+                                    .createMediaSource(subtitleConfig, C.TIME_UNSET)
+                                    
+                                sources.add(subtitleSource)
+                                Log.d(TAG, "Added subtitle source: ${subtitle.languageTag} ($mimeType)")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed to add subtitle source", e)
+                            }
+                        }
                     }
+
+                    // Final merge
+                    val finalSource = if (sources.size > 1) {
+                        MergingMediaSource(*sources.toTypedArray())
+                    } else {
+                        baseSource
+                    }
+                    
+                    exoPlayer.setMediaSource(finalSource)
                     
                     // Immediately prepare - don't wait for anything
                     exoPlayer.prepare()
@@ -736,11 +745,10 @@ class EnhancedPlayerManager private constructor() {
     }
 
     fun selectSubtitle(index: Int?) {
-        // Set selected subtitle index and reload media to attach/detach subtitle track
-        selectedSubtitleIndex = index
-        // Re-load current streams to apply subtitle selection
-        if (currentVideoStream != null && currentAudioStream != null) {
-            loadMedia(currentVideoStream, currentAudioStream!!)
+        if (selectedSubtitleIndex != index) {
+            selectedSubtitleIndex = index
+            // Reload to apply subtitle changes (NewPipe approach requires rebuilding MediaSource)
+            reloadCurrentStream(reason = "subtitle-changed")
         }
     }
 

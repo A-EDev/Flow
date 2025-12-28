@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun WatchLaterScreen(
     onBackClick: () -> Unit,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (String, Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -88,8 +88,8 @@ fun WatchLaterScreen(
                 WatchLaterHeader(
                     videoCount = watchLaterVideos.size,
                     thumbnailUrl = watchLaterVideos.firstOrNull()?.thumbnailUrl ?: "",
-                    onPlayAll = { watchLaterVideos.firstOrNull()?.let { onVideoClick(it.id) } },
-                    onShuffle = { watchLaterVideos.randomOrNull()?.let { onVideoClick(it.id) } }
+                    onPlayAll = { watchLaterVideos.firstOrNull()?.let { onVideoClick(it.id, it.isMusic) } },
+                    onShuffle = { watchLaterVideos.randomOrNull()?.let { onVideoClick(it.id, it.isMusic) } }
                 )
             }
 
@@ -116,7 +116,7 @@ fun WatchLaterScreen(
                 ) { video ->
                     WatchLaterVideoItem(
                         video = video,
-                        onClick = { onVideoClick(video.id) },
+                        onClick = { onVideoClick(video.id, video.isMusic) },
                         onRemove = {
                             scope.launch {
                                 repo.removeFromWatchLater(video.id)
@@ -398,11 +398,21 @@ private fun WatchLaterVideoItem(
                     }
 
                     if (video.uploadDate.isNotBlank()) {
-                        Text(
-                            text = video.uploadDate,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        // Fix for DateWrapper object being displayed
+                        val dateText = if (video.uploadDate.contains("DateWrapper")) {
+                            // Fallback or parse if possible, for now just hide or show generic
+                            "" 
+                        } else {
+                            video.uploadDate
+                        }
+                        
+                        if (dateText.isNotBlank()) {
+                            Text(
+                                text = dateText,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }

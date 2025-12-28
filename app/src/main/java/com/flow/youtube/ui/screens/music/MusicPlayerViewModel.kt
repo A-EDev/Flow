@@ -1,10 +1,16 @@
 package com.flow.youtube.ui.screens.music
 
 import android.content.Context
+import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.flow.youtube.data.local.LikedVideoInfo
+import com.flow.youtube.data.local.LikedVideosRepository
+import com.flow.youtube.data.local.ViewHistory
 import com.flow.youtube.data.music.DownloadManager
 import com.flow.youtube.data.music.PlaylistRepository
+import com.flow.youtube.data.model.Video
+import java.util.UUID
 import com.flow.youtube.data.music.YouTubeMusicService
 import com.flow.youtube.player.EnhancedMusicPlayerManager
 import com.flow.youtube.player.RepeatMode
@@ -22,7 +28,10 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 class MusicPlayerViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val playlistRepository: PlaylistRepository,
-    private val downloadManager: DownloadManager
+    private val downloadManager: DownloadManager,
+    private val likedVideosRepository: LikedVideosRepository,
+    private val viewHistory: ViewHistory,
+    private val localPlaylistRepository: com.flow.youtube.data.local.PlaylistRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MusicPlayerUiState())
     val uiState: StateFlow<MusicPlayerUiState> = _uiState.asStateFlow()
@@ -47,6 +56,17 @@ class MusicPlayerViewModel @Inject constructor(
     private fun initializeObservers() {
         if (isInitialized) return
         isInitialized = true
+        
+        // Observe player events (Queue navigation)
+        viewModelScope.launch {
+            EnhancedMusicPlayerManager.playerEvents.collect { event ->
+                when (event) {
+                    is EnhancedMusicPlayerManager.PlayerEvent.RequestPlayTrack -> {
+                        loadAndPlayTrack(event.track, _uiState.value.queue)
+                    }
+                }
+            }
+        }
         
         // Observe player state
         viewModelScope.launch {
@@ -96,9 +116,20 @@ class MusicPlayerViewModel @Inject constructor(
             }
         }
             
-        // Observe playlists
+        // Observe playlists (From Local Room DB now)
         viewModelScope.launch {
-            playlistRepository.playlists.collect { playlists ->
+            localPlaylistRepository.getAllPlaylistsFlow().collect { playlistInfos ->
+                // Map PlaylistInfo to Music Playlist (simplified)
+                val playlists = playlistInfos.map { info ->
+                    com.flow.youtube.data.music.Playlist(
+                        id = info.id,
+                        name = info.name,
+                        description = info.description,
+                        tracks = emptyList(), // Tracks not needed for selection list
+                        createdAt = info.createdAt,
+                        thumbnailUrl = info.thumbnailUrl
+                    )
+                }
                 _uiState.value = _uiState.value.copy(playlists = playlists)
             }
         }
@@ -106,13 +137,29 @@ class MusicPlayerViewModel @Inject constructor(
     
     private fun checkIfFavorite(videoId: String) {
         viewModelScope.launch {
-            val isFav = playlistRepository.isFavorite(videoId)
-            _uiState.value = _uiState.value.copy(isLiked = isFav)
+            // Check LikedVideosRepository
+            likedVideosRepository.getLikeState(videoId).collect { state ->
+                _uiState.value = _uiState.value.copy(isLiked = state == "LIKED")
+            }
         }
     }
 
     fun loadAndPlayTrack(track: MusicTrack, queue: List<MusicTrack> = emptyList()) {
         viewModelScope.launch {
+            // Add to history (Music specific)
+            playlistRepository.addToHistory(track)
+            
+            // Add to main ViewHistory
+            viewHistory.savePlaybackPosition(
+                videoId = track.videoId,
+                position = 0,
+                duration = track.duration.toLong() * 1000,
+                title = track.title,
+                thumbnailUrl = track.thumbnailUrl,
+                channelName = track.artist,
+                channelId = "" // Music tracks might not have channel ID readily available
+            )
+
             // Set track data immediately so UI displays it
             _uiState.value = _uiState.value.copy(
                 currentTrack = track,
@@ -178,41 +225,15 @@ class MusicPlayerViewModel @Inject constructor(
     }
 
     fun skipToNext() {
-        viewModelScope.launch {
-            val queue = _uiState.value.queue
-            val currentIndex = _uiState.value.currentQueueIndex
-            
-            if (queue.isNotEmpty() && currentIndex < queue.size - 1) {
-                val nextTrack = queue[currentIndex + 1]
-                loadAndPlayTrack(nextTrack, queue)
-            }
-        }
+        EnhancedMusicPlayerManager.playNext()
     }
 
     fun skipToPrevious() {
-        viewModelScope.launch {
-            val currentPosition = EnhancedMusicPlayerManager.getCurrentPosition()
-            val queue = _uiState.value.queue
-            val currentIndex = _uiState.value.currentQueueIndex
-            
-            // If more than 3 seconds into track, restart it
-            if (currentPosition > 3000) {
-                seekTo(0)
-            } else if (queue.isNotEmpty() && currentIndex > 0) {
-                val prevTrack = queue[currentIndex - 1]
-                loadAndPlayTrack(prevTrack, queue)
-            }
-        }
+        EnhancedMusicPlayerManager.playPrevious()
     }
 
     fun playFromQueue(index: Int) {
-        viewModelScope.launch {
-            val queue = _uiState.value.queue
-            if (index in queue.indices) {
-                val track = queue[index]
-                loadAndPlayTrack(track, queue)
-            }
-        }
+        EnhancedMusicPlayerManager.playFromQueue(index)
     }
 
     fun removeFromQueue(index: Int) {
@@ -231,8 +252,24 @@ class MusicPlayerViewModel @Inject constructor(
         val currentTrack = _uiState.value.currentTrack ?: return
         
         viewModelScope.launch {
+            // Toggle in PlaylistRepository (Music specific)
             val isNowFavorite = playlistRepository.toggleFavorite(currentTrack)
             _uiState.value = _uiState.value.copy(isLiked = isNowFavorite)
+            
+            // Sync with LikedVideosRepository (Main Library)
+            if (isNowFavorite) {
+                likedVideosRepository.likeVideo(
+                    LikedVideoInfo(
+                        videoId = currentTrack.videoId,
+                        title = currentTrack.title,
+                        thumbnail = currentTrack.thumbnailUrl,
+                        channelName = currentTrack.artist,
+                        isMusic = true
+                    )
+                )
+            } else {
+                likedVideosRepository.removeLikeState(currentTrack.videoId)
+            }
         }
     }
     
@@ -240,16 +277,29 @@ class MusicPlayerViewModel @Inject constructor(
         val trackToAdd = track ?: _uiState.value.currentTrack ?: return
         
         viewModelScope.launch {
-            playlistRepository.addTrackToPlaylist(playlistId, trackToAdd)
+            // Convert to Video domain object
+            val video = Video(
+                id = trackToAdd.videoId,
+                title = trackToAdd.title,
+                channelName = trackToAdd.artist,
+                channelId = "", 
+                thumbnailUrl = trackToAdd.thumbnailUrl,
+                duration = trackToAdd.duration,
+                viewCount = 0,
+                uploadDate = "",
+                description = trackToAdd.album,
+                isMusic = true
+            )
+            localPlaylistRepository.addVideoToPlaylist(playlistId, video)
+            Toast.makeText(context, "Added to playlist", Toast.LENGTH_SHORT).show()
         }
     }
     
     fun createPlaylist(name: String, description: String = "", track: MusicTrack? = null) {
         viewModelScope.launch {
-            val playlist = playlistRepository.createPlaylist(name, description)
-            track?.let {
-                playlistRepository.addTrackToPlaylist(playlist.id, it)
-            }
+            val id = UUID.randomUUID().toString()
+            localPlaylistRepository.createPlaylist(id, name, description, false)
+            track?.let { addToPlaylist(id, it) }
         }
     }
     
@@ -265,14 +315,24 @@ class MusicPlayerViewModel @Inject constructor(
         val trackToDownload = track ?: _uiState.value.currentTrack ?: return
         
         viewModelScope.launch {
+            Toast.makeText(context, "Download started...", Toast.LENGTH_SHORT).show()
+            
             // Get audio URL first
             try {
                 val audioUrl = YouTubeMusicService.getAudioUrl(trackToDownload.videoId)
                 if (audioUrl != null) {
-                    downloadManager.downloadTrack(trackToDownload, audioUrl)
+                    val result = downloadManager.downloadTrack(trackToDownload, audioUrl)
+                    if (result.isSuccess) {
+                        Toast.makeText(context, "Saved to Library", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Download failed", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    Toast.makeText(context, "Could not get audio URL", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                Toast.makeText(context, "Download failed: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }

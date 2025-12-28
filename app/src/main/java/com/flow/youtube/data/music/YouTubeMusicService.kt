@@ -9,6 +9,8 @@ import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.playlist.PlaylistInfo
+import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem
+import org.schabi.newpipe.extractor.search.SearchExtractor
 
 /**
  * Professional YouTube Music Service using NewPipe Extractor
@@ -144,6 +146,36 @@ object YouTubeMusicService {
     }
     
     /**
+     * Search for artists on YouTube
+     */
+    suspend fun searchArtists(query: String, limit: Int = 10): List<com.flow.youtube.ui.screens.music.ArtistDetails> = withContext(Dispatchers.IO) {
+        try {
+            val service = ServiceList.YouTube
+            val searchExtractor = service.getSearchExtractor(query, listOf("channel"), "")
+            searchExtractor.fetchPage()
+            
+            searchExtractor.initialPage.items
+                .filterIsInstance<org.schabi.newpipe.extractor.channel.ChannelInfoItem>()
+                .take(limit)
+                .map { item ->
+                    val channelId = item.url.substringAfterLast("/")
+                    com.flow.youtube.ui.screens.music.ArtistDetails(
+                        name = item.name,
+                        channelId = channelId,
+                        thumbnailUrl = item.thumbnails.maxByOrNull { it.height }?.url ?: "",
+                        subscriberCount = item.subscriberCount,
+                        description = item.description ?: "",
+                        bannerUrl = "", // Not available in search results
+                        topTracks = emptyList() // Not available in search results
+                    )
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error searching artists", e)
+            emptyList()
+        }
+    }
+
+    /**
      * Fetch music tracks by genre/mood
      */
     suspend fun fetchMusicByGenre(genre: String, limit: Int = 30): List<MusicTrack> = withContext(Dispatchers.IO) {
@@ -213,6 +245,34 @@ object YouTubeMusicService {
             emptyList()
         }
     }
+
+    /**
+     * Fetch full playlist details (info + tracks)
+     */
+    suspend fun fetchPlaylistFullDetails(playlistId: String): Pair<com.flow.youtube.ui.screens.music.MusicPlaylist, List<MusicTrack>>? = withContext(Dispatchers.IO) {
+        try {
+            val service = ServiceList.YouTube
+            val playlistUrl = "https://www.youtube.com/playlist?list=$playlistId"
+            val playlistInfo = PlaylistInfo.getInfo(service, playlistUrl)
+            
+            val tracks = playlistInfo.relatedItems
+                .filterIsInstance<StreamInfoItem>()
+                .mapNotNull { convertToMusicTrack(it) }
+                
+            val info = com.flow.youtube.ui.screens.music.MusicPlaylist(
+                id = playlistId,
+                title = playlistInfo.name,
+                thumbnailUrl = playlistInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "",
+                trackCount = tracks.size,
+                author = playlistInfo.uploaderName
+            )
+            
+            Pair(info, tracks)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching playlist details: $playlistId", e)
+            null
+        }
+    }
     
     /**
      * Get related/similar music tracks
@@ -267,6 +327,94 @@ object YouTubeMusicService {
                title.contains("lyrics") ||
                item.viewCount > 100000
     }
+
+    /**
+     * Search for playlists (albums)
+     */
+    suspend fun searchPlaylists(query: String, limit: Int = 10): List<com.flow.youtube.ui.screens.music.MusicPlaylist> = withContext(Dispatchers.IO) {
+        try {
+            val service = ServiceList.YouTube
+            val searchExtractor = service.getSearchExtractor(query, emptyList(), "")
+            searchExtractor.fetchPage()
+            
+            searchExtractor.initialPage.items
+                .filterIsInstance<PlaylistInfoItem>()
+                .take(limit)
+                .map { item ->
+                    com.flow.youtube.ui.screens.music.MusicPlaylist(
+                        id = item.url.substringAfter("list="),
+                        title = item.name,
+                        thumbnailUrl = item.thumbnails.maxByOrNull { it.height }?.url ?: "",
+                        trackCount = item.streamCount.toInt(),
+                        author = item.uploaderName
+                    )
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error searching playlists", e)
+            emptyList()
+        }
+    }
+
+    /**
+     * Fetch artist details including top tracks
+     */
+    suspend fun fetchArtistDetails(channelId: String): com.flow.youtube.ui.screens.music.ArtistDetails? = withContext(Dispatchers.IO) {
+        try {
+            val service = ServiceList.YouTube
+            val url = "https://www.youtube.com/channel/$channelId"
+            val extractor = service.getChannelExtractor(url)
+            extractor.fetchPage()
+            
+            val channelInfo = org.schabi.newpipe.extractor.channel.ChannelInfo.getInfo(extractor)
+            
+            val name = channelInfo.name
+            val thumbnail = channelInfo.avatars.maxByOrNull { it.height }?.url ?: ""
+            val banner = channelInfo.banners.maxByOrNull { it.height }?.url ?: ""
+            val subscriberCount = channelInfo.subscriberCount
+            val description = channelInfo.description
+            
+            // Fetch items (videos) from the channel
+            val initialPageItems = try {
+                val method = extractor::class.java.methods.firstOrNull { it.name == "getInitialPage" || it.name == "getInitialItems" }
+                if (method != null) {
+                    val result = method.invoke(extractor)
+                    val itemsField = result!!::class.java.getMethod("getItems")
+                    @Suppress("UNCHECKED_CAST")
+                    (itemsField.invoke(result) as? List<*>)?.filterIsInstance<StreamInfoItem>() ?: emptyList()
+                } else {
+                    emptyList()
+                }
+            } catch (e: Exception) {
+                emptyList<StreamInfoItem>()
+            }
+
+            val relatedItems = initialPageItems
+                .filter { isMusicContent(it) }
+                .mapNotNull { convertToMusicTrack(it) }
+                .take(20)
+            
+            // Fetch albums (playlists)
+            val albums = try {
+                searchPlaylists("$name albums", 10)
+            } catch (e: Exception) {
+                emptyList()
+            }
+                
+            com.flow.youtube.ui.screens.music.ArtistDetails(
+                name = name,
+                channelId = channelId,
+                thumbnailUrl = thumbnail,
+                subscriberCount = subscriberCount,
+                description = description,
+                bannerUrl = banner,
+                topTracks = relatedItems,
+                albums = albums
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching artist details for $channelId", e)
+            null
+        }
+    }
     
     /**
      * Convert StreamInfoItem to MusicTrack with better metadata extraction
@@ -281,6 +429,7 @@ object YouTubeMusicService {
             
             // Improved artist extraction
             val (cleanedTitle, extractedArtist) = parseTitleAndArtist(rawTitle, uploader)
+            val channelId = item.uploaderUrl?.substringAfterLast("/") ?: ""
             
             return MusicTrack(
                 videoId = videoId,
@@ -290,7 +439,8 @@ object YouTubeMusicService {
                 duration = item.duration.toInt(),
                 views = item.viewCount,
                 sourceUrl = item.url,
-                album = "YouTube Music"
+                album = "YouTube Music",
+                channelId = channelId
             )
         } catch (e: Exception) {
             return null

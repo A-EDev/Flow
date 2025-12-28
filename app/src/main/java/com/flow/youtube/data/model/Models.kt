@@ -10,7 +10,8 @@ data class Video(
     val viewCount: Long,
     val uploadDate: String,
     val description: String = "",
-    val channelThumbnailUrl: String = ""
+    val channelThumbnailUrl: String = "",
+    val isMusic: Boolean = false
 )
 
 data class Channel(

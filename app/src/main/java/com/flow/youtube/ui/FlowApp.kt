@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
@@ -33,6 +34,8 @@ import com.flow.youtube.ui.screens.music.PremiumMusicScreen
 import com.flow.youtube.ui.screens.music.EnhancedMusicPlayerScreen
 import com.flow.youtube.ui.screens.music.MusicTrack
 import com.flow.youtube.ui.screens.music.MusicPlayerViewModel
+import com.flow.youtube.ui.screens.music.ArtistPage
+import com.flow.youtube.ui.screens.music.MusicViewModel
 import com.flow.youtube.ui.screens.player.EnhancedVideoPlayerScreen
 import com.flow.youtube.ui.screens.search.SearchScreen
 import com.flow.youtube.ui.screens.settings.SettingsScreen
@@ -329,8 +332,12 @@ fun FlowApp(
                     currentRoute.value = "likedVideos"
                     showBottomNav = false
                     LikedVideosScreen(
-                        onVideoClick = { videoId ->
-                            navController.navigate("player/$videoId")
+                        onVideoClick = { videoId, isMusic ->
+                            if (isMusic) {
+                                navController.navigate("musicPlayer/$videoId")
+                            } else {
+                                navController.navigate("player/$videoId")
+                            }
                         },
                         onBackClick = { navController.popBackStack() }
                     )
@@ -342,8 +349,12 @@ fun FlowApp(
                     showBottomNav = false
                     WatchLaterScreen(
                         onBackClick = { navController.popBackStack() },
-                        onVideoClick = { videoId ->
-                            navController.navigate("player/$videoId")
+                        onVideoClick = { videoId, isMusic ->
+                            if (isMusic) {
+                                navController.navigate("musicPlayer/$videoId")
+                            } else {
+                                navController.navigate("player/$videoId")
+                            }
                         }
                     )
                 }
@@ -372,7 +383,11 @@ fun FlowApp(
                         // playlistRepository is injected by Hilt
                         onNavigateBack = { navController.popBackStack() },
                         onVideoClick = { video ->
-                            navController.navigate("player/${video.id}")
+                            if (video.isMusic) {
+                                navController.navigate("musicPlayer/${video.id}")
+                            } else {
+                                navController.navigate("player/${video.id}")
+                            }
                         }
                     )
                 }
@@ -399,6 +414,9 @@ fun FlowApp(
                             
                             // Navigate to player
                             navController.navigate("musicPlayer/${track.videoId}")
+                        },
+                        onArtistClick = { channelId ->
+                            navController.navigate("artist/$channelId")
                         },
                         onLibraryClick = {
                             navController.navigate("musicLibrary")
@@ -433,6 +451,39 @@ fun FlowApp(
                     )
                 }
 
+                // Artist Page
+                composable("artist/{channelId}") { backStackEntry ->
+                    val channelId = backStackEntry.arguments?.getString("channelId") ?: return@composable
+                    val musicViewModel: MusicViewModel = hiltViewModel()
+                    val uiState by musicViewModel.uiState.collectAsState()
+                    
+                    LaunchedEffect(channelId) {
+                        musicViewModel.fetchArtistDetails(channelId)
+                    }
+                    
+                    if (uiState.isArtistLoading) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        uiState.artistDetails?.let { details ->
+                            ArtistPage(
+                                artistDetails = details,
+                                onBackClick = { navController.popBackStack() },
+                                onTrackClick = { track ->
+                                    navController.navigate("musicPlayer/${track.videoId}")
+                                },
+                                onAlbumClick = { album ->
+                                    navController.navigate("playlist/${album.id}")
+                                },
+                                onFollowClick = {
+                                    musicViewModel.toggleFollowArtist(details)
+                                }
+                            )
+                        }
+                    }
+                }
+
                 // Music Player Screen - Enhanced
                 composable(
                     route = "musicPlayer/{trackId}",
@@ -454,7 +505,10 @@ fun FlowApp(
                     
                     EnhancedMusicPlayerScreen(
                         track = track,
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.popBackStack() },
+                        onArtistClick = { channelId ->
+                            navController.navigate("artist/$channelId")
+                        }
                     )
                 }
 

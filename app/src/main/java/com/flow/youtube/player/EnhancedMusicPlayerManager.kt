@@ -9,9 +9,16 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.flow.youtube.service.MusicPlaybackService
 import com.flow.youtube.ui.screens.music.MusicTrack
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * Singleton manager for enhanced music playback across the app
@@ -21,10 +28,19 @@ object EnhancedMusicPlayerManager {
     private var player: ExoPlayer? = null
     private var isInitialized = false
     private var appContext: Context? = null
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     
     // Player state
     private val _playerState = MutableStateFlow(MusicPlayerState())
     val playerState: StateFlow<MusicPlayerState> = _playerState.asStateFlow()
+
+    // Events
+    sealed class PlayerEvent {
+        data class RequestPlayTrack(val track: MusicTrack) : PlayerEvent()
+    }
+    
+    private val _playerEvents = MutableSharedFlow<PlayerEvent>()
+    val playerEvents: SharedFlow<PlayerEvent> = _playerEvents.asSharedFlow()
     
     // Queue management
     private val _queue = MutableStateFlow<List<MusicTrack>>(emptyList())
@@ -169,9 +185,13 @@ object EnhancedMusicPlayerManager {
         
         if (queue.isNotEmpty() && currentIndex < queue.size - 1) {
             val nextIndex = currentIndex + 1
+            val nextTrack = queue[nextIndex]
             _currentQueueIndex.value = nextIndex
-            _currentTrack.value = queue[nextIndex]
-            // Note: Need to load audio URL and play
+            _currentTrack.value = nextTrack
+            
+            scope.launch {
+                _playerEvents.emit(PlayerEvent.RequestPlayTrack(nextTrack))
+            }
         }
     }
     
@@ -188,9 +208,13 @@ object EnhancedMusicPlayerManager {
             player?.seekTo(0)
         } else if (queue.isNotEmpty() && currentIndex > 0) {
             val prevIndex = currentIndex - 1
+            val prevTrack = queue[prevIndex]
             _currentQueueIndex.value = prevIndex
-            _currentTrack.value = queue[prevIndex]
-            // Note: Need to load audio URL and play
+            _currentTrack.value = prevTrack
+            
+            scope.launch {
+                _playerEvents.emit(PlayerEvent.RequestPlayTrack(prevTrack))
+            }
         }
     }
     
@@ -200,9 +224,13 @@ object EnhancedMusicPlayerManager {
     fun playFromQueue(index: Int) {
         val queue = _queue.value
         if (index in queue.indices) {
+            val track = queue[index]
             _currentQueueIndex.value = index
-            _currentTrack.value = queue[index]
-            // Note: Need to load audio URL and play
+            _currentTrack.value = track
+            
+            scope.launch {
+                _playerEvents.emit(PlayerEvent.RequestPlayTrack(track))
+            }
         }
     }
     

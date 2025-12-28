@@ -25,6 +25,7 @@ class PlaylistRepository(private val context: Context) {
     companion object {
         private val PLAYLISTS_KEY = stringPreferencesKey("playlists")
         private val FAVORITES_KEY = stringPreferencesKey("favorites")
+        private val HISTORY_KEY = stringPreferencesKey("history")
     }
     
     // Get all playlists
@@ -37,6 +38,13 @@ class PlaylistRepository(private val context: Context) {
     // Get favorites
     val favorites: Flow<List<MusicTrack>> = context.playlistDataStore.data.map { prefs ->
         val json = prefs[FAVORITES_KEY] ?: "[]"
+        val type = object : TypeToken<List<MusicTrack>>() {}.type
+        gson.fromJson(json, type)
+    }
+
+    // Get history
+    val history: Flow<List<MusicTrack>> = context.playlistDataStore.data.map { prefs ->
+        val json = prefs[HISTORY_KEY] ?: "[]"
         val type = object : TypeToken<List<MusicTrack>>() {}.type
         gson.fromJson(json, type)
     }
@@ -133,16 +141,43 @@ class PlaylistRepository(private val context: Context) {
             true
         }
     }
+
+    // Add to history
+    suspend fun addToHistory(track: MusicTrack) {
+        android.util.Log.d("PlaylistRepository", "Adding to history: ${track.title}")
+        val currentHistory = history.first().toMutableList()
+        // Remove if exists (to move to top)
+        currentHistory.removeIf { it.videoId == track.videoId }
+        currentHistory.add(0, track)
+        // Limit history size (e.g. 100)
+        if (currentHistory.size > 100) {
+            currentHistory.removeAt(currentHistory.lastIndex)
+        }
+        saveHistory(currentHistory)
+        android.util.Log.d("PlaylistRepository", "History saved. Size: ${currentHistory.size}")
+    }
+
+    suspend fun clearHistory() {
+        saveHistory(emptyList())
+    }
     
     private suspend fun savePlaylists(playlists: List<Playlist>) {
+        android.util.Log.d("PlaylistRepository", "Saving playlists: ${playlists.size}")
         context.playlistDataStore.edit { prefs ->
             prefs[PLAYLISTS_KEY] = gson.toJson(playlists)
         }
     }
     
     private suspend fun saveFavorites(favorites: List<MusicTrack>) {
+        android.util.Log.d("PlaylistRepository", "Saving favorites: ${favorites.size}")
         context.playlistDataStore.edit { prefs ->
             prefs[FAVORITES_KEY] = gson.toJson(favorites)
+        }
+    }
+
+    private suspend fun saveHistory(history: List<MusicTrack>) {
+        context.playlistDataStore.edit { prefs ->
+            prefs[HISTORY_KEY] = gson.toJson(history)
         }
     }
 }

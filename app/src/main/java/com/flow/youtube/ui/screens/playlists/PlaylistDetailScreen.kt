@@ -30,6 +30,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.flow.youtube.data.local.PlaylistRepository
 import com.flow.youtube.data.model.Video
+import com.flow.youtube.data.music.YouTubeMusicService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -129,7 +130,7 @@ fun PlaylistDetailScreen(
                     name = uiState.playlistName,
                     description = uiState.description,
                     videoCount = uiState.videos.size,
-                    thumbnailUrl = uiState.videos.firstOrNull()?.thumbnailUrl ?: "",
+                    thumbnailUrl = uiState.thumbnailUrl.ifEmpty { uiState.videos.firstOrNull()?.thumbnailUrl ?: "" },
                     isPrivate = uiState.isPrivate,
                     onPlayAll = {
                         uiState.videos.firstOrNull()?.let { onVideoClick(it) }
@@ -652,7 +653,8 @@ class PlaylistDetailViewModel @Inject constructor(
         val playlistName: String = "",
         val description: String = "",
         val isPrivate: Boolean = false,
-        val videos: List<Video> = emptyList()
+        val videos: List<Video> = emptyList(),
+        val thumbnailUrl: String = ""
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -664,19 +666,48 @@ class PlaylistDetailViewModel @Inject constructor(
 
     private fun loadPlaylist() {
         viewModelScope.launch {
-            // Load playlist info
-            val info = repository.getPlaylistInfo(playlistId)
-            if (info != null) {
+            // Try Local first
+            val localInfo = repository.getPlaylistInfo(playlistId)
+            if (localInfo != null) {
                 _uiState.update { it.copy(
-                    playlistName = info.name,
-                    description = info.description,
-                    isPrivate = info.isPrivate
+                    playlistName = localInfo.name,
+                    description = localInfo.description,
+                    isPrivate = localInfo.isPrivate,
+                    thumbnailUrl = localInfo.thumbnailUrl
                 )}
-            }
-
-            // Observe videos
-            repository.getPlaylistVideosFlow(playlistId).collect { videos ->
-                _uiState.update { it.copy(videos = videos) }
+                repository.getPlaylistVideosFlow(playlistId).collect { videos ->
+                    _uiState.update { it.copy(videos = videos) }
+                }
+            } else {
+                // Try Remote (YouTube)
+                try {
+                    val result = YouTubeMusicService.fetchPlaylistFullDetails(playlistId)
+                    if (result != null) {
+                        val (info, tracks) = result
+                        val videos = tracks.map { track ->
+                            Video(
+                                id = track.videoId,
+                                title = track.title,
+                                channelName = track.artist,
+                                channelId = track.channelId,
+                                thumbnailUrl = track.thumbnailUrl,
+                                duration = track.duration,
+                                viewCount = track.views,
+                                uploadDate = "",
+                                isMusic = true
+                            )
+                        }
+                        _uiState.update { it.copy(
+                            playlistName = info.title,
+                            description = "YouTube Playlist by ${info.author}",
+                            isPrivate = false,
+                            videos = videos,
+                            thumbnailUrl = info.thumbnailUrl
+                        )}
+                    }
+                } catch (e: Exception) {
+                    // Error handling could be added here
+                }
             }
         }
     }

@@ -115,7 +115,7 @@ class LikedVideosRepository private constructor(private val context: Context) {
     }
     
     private fun serializeVideo(video: LikedVideoInfo): String {
-        return "${video.videoId}|${video.title}|${video.thumbnail}|${video.channelName}|${video.likedAt}"
+        return "${video.videoId}|${video.title}|${video.thumbnail}|${video.channelName}|${video.likedAt}|${video.isMusic}"
     }
     
     private fun deserializeVideo(data: String): LikedVideoInfo? {
@@ -127,7 +127,8 @@ class LikedVideosRepository private constructor(private val context: Context) {
                     title = parts[1],
                     thumbnail = parts[2],
                     channelName = parts[3],
-                    likedAt = parts[4].toLong()
+                    likedAt = parts[4].toLong(),
+                    isMusic = if (parts.size >= 6) parts[5].toBoolean() else false
                 )
             } else {
                 null
@@ -143,5 +144,6 @@ data class LikedVideoInfo(
     val title: String,
     val thumbnail: String,
     val channelName: String,
-    val likedAt: Long = System.currentTimeMillis()
+    val likedAt: Long = System.currentTimeMillis(),
+    val isMusic: Boolean = false
 )

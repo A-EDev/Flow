@@ -28,7 +28,7 @@ import com.flow.youtube.ui.theme.extendedColors
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LikedVideosScreen(
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (String, Boolean) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LikedVideosViewModel = viewModel()
@@ -93,7 +93,7 @@ fun LikedVideosScreen(
                         ) { video ->
                             LikedVideoCard(
                                 video = video,
-                                onClick = { onVideoClick(video.videoId) },
+                                onClick = { onVideoClick(video.videoId, video.isMusic) },
                                 onUnlikeClick = { viewModel.removeLike(video.videoId) }
                             )
                         }

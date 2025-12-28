@@ -5,10 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.music.MusicCache
 import com.flow.youtube.data.music.YouTubeMusicService
+import com.flow.youtube.data.recommendation.MusicRecommendationAlgorithm
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
@@ -17,7 +19,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @HiltViewModel
-class MusicViewModel @Inject constructor() : ViewModel() {
+class MusicViewModel @Inject constructor(
+    private val musicRecommendationAlgorithm: MusicRecommendationAlgorithm,
+    private val subscriptionRepository: com.flow.youtube.data.local.SubscriptionRepository
+) : ViewModel() {
     private val _uiState = MutableStateFlow(MusicUiState())
     val uiState: StateFlow<MusicUiState> = _uiState.asStateFlow()
 
@@ -41,6 +46,10 @@ class MusicViewModel @Inject constructor() : ViewModel() {
             
             try {
                 // Fetch in parallel
+                val forYouJob = async {
+                    musicRecommendationAlgorithm.getRecommendations(30)
+                }
+
                 val trendingJob = async { 
                     val tracks = YouTubeMusicService.fetchTrendingMusic(100)
                     MusicCache.cacheTrendingMusic(100, tracks)
@@ -67,6 +76,7 @@ class MusicViewModel @Inject constructor() : ViewModel() {
                 }
                 
                 val trending = trendingJob.await()
+                val forYou = forYouJob.await()
                 val newReleases = newReleasesJob.await()
                 val popularArtistTracks = popularArtistsJob.await()
                 
@@ -79,6 +89,7 @@ class MusicViewModel @Inject constructor() : ViewModel() {
                 }
                 
                 _uiState.value = _uiState.value.copy(
+                    forYouTracks = forYou,
                     trendingSongs = trending,
                     newReleases = newReleases,
                     allSongs = trending,
@@ -112,10 +123,16 @@ class MusicViewModel @Inject constructor() : ViewModel() {
             
             _uiState.value = _uiState.value.copy(isSearching = true)
             try {
-                val results = YouTubeMusicService.searchMusic(query, 60)
+                val resultsJob = async { YouTubeMusicService.searchMusic(query, 60) }
+                val artistsJob = async { YouTubeMusicService.searchArtists(query, 5) }
+                
+                val results = resultsJob.await()
+                val artists = artistsJob.await()
+                
                 MusicCache.cacheSearchResults(query, results)
                 _uiState.value = _uiState.value.copy(
                     allSongs = results,
+                    searchResultsArtists = artists,
                     isSearching = false
                 )
             } catch (e: Exception) {
@@ -156,9 +173,55 @@ class MusicViewModel @Inject constructor() : ViewModel() {
     fun retry() {
         loadMusicContent()
     }
+    
+    fun fetchArtistDetails(channelId: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isArtistLoading = true, artistDetails = null)
+            val details = YouTubeMusicService.fetchArtistDetails(channelId)
+            
+            // Check subscription status
+            val isSubscribed = if (details != null) {
+                subscriptionRepository.isSubscribed(channelId).firstOrNull() ?: false
+            } else false
+            
+            _uiState.value = _uiState.value.copy(
+                isArtistLoading = false,
+                artistDetails = details?.copy(isSubscribed = isSubscribed)
+            )
+        }
+    }
+    
+    fun toggleFollowArtist(artist: ArtistDetails) {
+        viewModelScope.launch {
+            if (artist.isSubscribed) {
+                subscriptionRepository.unsubscribe(artist.channelId)
+            } else {
+                subscriptionRepository.subscribe(
+                    com.flow.youtube.data.local.ChannelSubscription(
+                        channelId = artist.channelId,
+                        channelName = artist.name,
+                        channelThumbnail = artist.thumbnailUrl
+                    )
+                )
+            }
+            
+            // Update UI state
+            val currentDetails = _uiState.value.artistDetails
+            if (currentDetails?.channelId == artist.channelId) {
+                _uiState.value = _uiState.value.copy(
+                    artistDetails = currentDetails.copy(isSubscribed = !artist.isSubscribed)
+                )
+            }
+        }
+    }
+    
+    fun clearArtistDetails() {
+        _uiState.value = _uiState.value.copy(artistDetails = null)
+    }
 }
 
 data class MusicUiState(
+    val forYouTracks: List<MusicTrack> = emptyList(),
     val trendingSongs: List<MusicTrack> = emptyList(),
     val newReleases: List<MusicTrack> = emptyList(),
     val allSongs: List<MusicTrack> = emptyList(),
@@ -167,5 +230,8 @@ data class MusicUiState(
     val selectedGenre: String? = null,
     val isLoading: Boolean = true,
     val isSearching: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val artistDetails: ArtistDetails? = null,
+    val isArtistLoading: Boolean = false,
+    val searchResultsArtists: List<ArtistDetails> = emptyList()
 )

@@ -10,7 +10,7 @@ import com.flow.youtube.data.local.entity.VideoEntity
 
 @Database(
     entities = [VideoEntity::class, PlaylistEntity::class, PlaylistVideoCrossRef::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

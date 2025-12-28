@@ -44,6 +44,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 fun PremiumMusicScreen(
     onBackClick: () -> Unit,
     onSongClick: (MusicTrack) -> Unit,
+    onArtistClick: (String) -> Unit = {},
     onLibraryClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
@@ -176,10 +177,28 @@ fun PremiumMusicScreen(
 
                     // Search Results or Listen Again
                     if (uiState.allSongs.isNotEmpty() && uiState.allSongs != uiState.trendingSongs) {
+                        // Artist Results
+                        if (uiState.searchResultsArtists.isNotEmpty()) {
+                            item {
+                                SectionHeader(title = "Artists")
+                            }
+                            item {
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    items(uiState.searchResultsArtists) { artist ->
+                                        ArtistResultItem(artist = artist, onClick = { onArtistClick(artist.channelId) })
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(24.dp))
+                            }
+                        }
+
                         // Search Results
                         item {
                             SectionHeader(
-                                title = if (selectedChip != null) selectedChip!! else "Search Results",
+                                title = if (selectedChip != null) selectedChip!! else "Songs",
                                 subtitle = "${uiState.allSongs.size} tracks"
                             )
                         }
@@ -205,6 +224,22 @@ fun PremiumMusicScreen(
                             }
                         }
                     } else {
+                        // For You (New Recommendation Section)
+                        if (uiState.forYouTracks.isNotEmpty()) {
+                            item {
+                                SectionHeader(title = "For You", subtitle = "Recommended based on your listening")
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    items(uiState.forYouTracks) { track ->
+                                        ListenAgainItem(track = track, onClick = { onSongClick(track) }, onArtistClick = onArtistClick)
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(24.dp))
+                            }
+                        }
+
                         // Listen Again
                         if (uiState.trendingSongs.isNotEmpty()) {
                             item {
@@ -214,7 +249,7 @@ fun PremiumMusicScreen(
                                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
                                     items(uiState.trendingSongs.take(15)) { track ->
-                                        ListenAgainItem(track = track, onClick = { onSongClick(track) })
+                                        ListenAgainItem(track = track, onClick = { onSongClick(track) }, onArtistClick = onArtistClick)
                                     }
                                 }
                             }
@@ -227,7 +262,7 @@ fun PremiumMusicScreen(
                                 SectionHeader(title = "Quick picks", subtitle = "START RADIO")
                                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                                     uiState.trendingSongs.drop(5).take(6).forEach { track ->
-                                        QuickPickItem(track = track, onClick = { onSongClick(track) })
+                                        QuickPickItem(track = track, onClick = { onSongClick(track) }, onArtistClick = onArtistClick)
                                     }
                                 }
                             }
@@ -244,7 +279,7 @@ fun PremiumMusicScreen(
                                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                                     ) {
                                         items(tracks.take(10)) { track ->
-                                            MusicVideoItem(track = track, onClick = { onSongClick(track) })
+                                            MusicVideoItem(track = track, onClick = { onSongClick(track) }, onArtistClick = onArtistClick)
                                         }
                                     }
                                 }
@@ -261,7 +296,7 @@ fun PremiumMusicScreen(
                                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
                                     items(uiState.newReleases) { track ->
-                                        NewReleaseItem(track = track, onClick = { onSongClick(track) })
+                                        NewReleaseItem(track = track, onClick = { onSongClick(track) }, onArtistClick = onArtistClick)
                                     }
                                 }
                             }
@@ -541,7 +576,7 @@ private fun SectionHeader(title: String, subtitle: String? = null) {
 }
 
 @Composable
-private fun ListenAgainItem(track: MusicTrack, onClick: () -> Unit) {
+private fun ListenAgainItem(track: MusicTrack, onClick: () -> Unit, onArtistClick: ((String) -> Unit)? = null) {
     Column(
         modifier = Modifier
             .width(130.dp)
@@ -573,13 +608,18 @@ private fun ListenAgainItem(track: MusicTrack, onClick: () -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = if (onArtistClick != null && track.channelId.isNotEmpty()) {
+                Modifier.clickable { onArtistClick(track.channelId) }
+            } else {
+                Modifier
+            }
         )
     }
 }
 
 @Composable
-private fun QuickPickItem(track: MusicTrack, onClick: () -> Unit) {
+private fun QuickPickItem(track: MusicTrack, onClick: () -> Unit, onArtistClick: ((String) -> Unit)? = null) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -620,7 +660,12 @@ private fun QuickPickItem(track: MusicTrack, onClick: () -> Unit) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (onArtistClick != null && track.channelId.isNotEmpty()) {
+                        Modifier.clickable { onArtistClick(track.channelId) }
+                    } else {
+                        Modifier
+                    }
                 )
             }
             IconButton(onClick = { /* More options */ }) {
@@ -635,7 +680,7 @@ private fun QuickPickItem(track: MusicTrack, onClick: () -> Unit) {
 }
 
 @Composable
-private fun MusicVideoItem(track: MusicTrack, onClick: () -> Unit) {
+private fun MusicVideoItem(track: MusicTrack, onClick: () -> Unit, onArtistClick: ((String) -> Unit)? = null) {
     Column(
         modifier = Modifier
             .width(200.dp)
@@ -669,13 +714,18 @@ private fun MusicVideoItem(track: MusicTrack, onClick: () -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = if (onArtistClick != null && track.channelId.isNotEmpty()) {
+                Modifier.clickable { onArtistClick(track.channelId) }
+            } else {
+                Modifier
+            }
         )
     }
 }
 
 @Composable
-private fun NewReleaseItem(track: MusicTrack, onClick: () -> Unit) {
+private fun NewReleaseItem(track: MusicTrack, onClick: () -> Unit, onArtistClick: ((String) -> Unit)? = null) {
     Column(
         modifier = Modifier
             .width(150.dp)
@@ -707,7 +757,12 @@ private fun NewReleaseItem(track: MusicTrack, onClick: () -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = if (onArtistClick != null && track.channelId.isNotEmpty()) {
+                Modifier.clickable { onArtistClick(track.channelId) }
+            } else {
+                Modifier
+            }
         )
     }
 }
@@ -760,5 +815,42 @@ private fun SearchResultItem(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ArtistResultItem(
+    artist: ArtistDetails,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(100.dp)
+            .clickable(onClick = onClick)
+    ) {
+        AsyncImage(
+            model = artist.thumbnailUrl,
+            contentDescription = null,
+            modifier = Modifier
+                .size(100.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentScale = ContentScale.Crop
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = artist.name,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        Text(
+            text = "Artist",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }

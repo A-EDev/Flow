@@ -38,13 +38,28 @@ class LibraryViewModel @Inject constructor(
             combine(
                 playlistRepository.playlists,
                 playlistRepository.favorites,
+                playlistRepository.history,
                 downloadManager.downloadedTracks,
                 downloadManager.downloadProgress,
                 downloadManager.downloadStatus
-            ) { playlists, favorites, downloads, progress, status ->
+            ) { args: Array<*> ->
+                @Suppress("UNCHECKED_CAST")
+                val playlists = args[0] as List<com.flow.youtube.data.music.Playlist>
+                @Suppress("UNCHECKED_CAST")
+                val favorites = args[1] as List<MusicTrack>
+                @Suppress("UNCHECKED_CAST")
+                val history = args[2] as List<MusicTrack>
+                @Suppress("UNCHECKED_CAST")
+                val downloads = args[3] as List<DownloadedTrack>
+                @Suppress("UNCHECKED_CAST")
+                val progress = args[4] as Map<String, Int>
+                @Suppress("UNCHECKED_CAST")
+                val status = args[5] as Map<String, DownloadStatus>
+                
                 LibraryUiState(
                     playlists = playlists,
                     favorites = favorites,
+                    history = history,
                     downloads = downloads,
                     downloadProgress = progress,
                     downloadStatus = status
@@ -69,6 +84,12 @@ class LibraryViewModel @Inject constructor(
             playlistRepository.removeFromFavorites(videoId)
         }
     }
+
+    fun clearHistory() {
+        viewModelScope.launch {
+            playlistRepository.clearHistory()
+        }
+    }
     
     fun deleteDownload(videoId: String) {
         viewModelScope.launch {
@@ -84,6 +105,7 @@ class LibraryViewModel @Inject constructor(
 data class LibraryUiState(
     val playlists: List<com.flow.youtube.data.music.Playlist> = emptyList(),
     val favorites: List<MusicTrack> = emptyList(),
+    val history: List<MusicTrack> = emptyList(),
     val downloads: List<DownloadedTrack> = emptyList(),
     val downloadProgress: Map<String, Int> = emptyMap(),
     val downloadStatus: Map<String, DownloadStatus> = emptyMap(),

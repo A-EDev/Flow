@@ -505,5 +505,26 @@ data class MusicTrack(
     val duration: Int,
     val views: Long = 0,
     val sourceUrl: String = "", // Full URL for NewPipe extraction
-    val album: String = ""
+    val album: String = "",
+    val channelId: String = ""
+)
+
+data class MusicPlaylist(
+    val id: String,
+    val title: String,
+    val thumbnailUrl: String,
+    val trackCount: Int = 0,
+    val author: String = ""
+)
+
+data class ArtistDetails(
+    val name: String,
+    val channelId: String,
+    val thumbnailUrl: String,
+    val subscriberCount: Long,
+    val description: String,
+    val bannerUrl: String,
+    val topTracks: List<MusicTrack>,
+    val albums: List<MusicPlaylist> = emptyList(),
+    val isSubscribed: Boolean = false
 )

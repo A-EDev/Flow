@@ -44,6 +44,7 @@ import kotlin.math.absoluteValue
 fun EnhancedMusicScreen(
     onBackClick: () -> Unit,
     onSongClick: (MusicTrack) -> Unit,
+    onArtistClick: (String) -> Unit,
     viewModel: MusicViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -209,17 +210,20 @@ fun EnhancedMusicScreen(
                                 "search" -> SearchResults(
                                     songs = uiState.allSongs,
                                     isSearching = uiState.isSearching,
-                                    onSongClick = onSongClick
+                                    onSongClick = onSongClick,
+                                    onArtistClick = onArtistClick
                                 )
                                 "Discover" -> DiscoverTab(
                                     trendingSongs = uiState.trendingSongs.take(10),
                                     genreTracks = uiState.genreTracks,
                                     onSongClick = onSongClick,
-                                    onGenreClick = { genre -> viewModel.loadGenreTracks(genre) }
+                                    onGenreClick = { genre -> viewModel.loadGenreTracks(genre) },
+                                    onArtistClick = onArtistClick
                                 )
                                 "Trending" -> TrendingTab(
                                     songs = uiState.trendingSongs,
-                                    onSongClick = onSongClick
+                                    onSongClick = onSongClick,
+                                    onArtistClick = onArtistClick
                                 )
                                 "Genres" -> GenresTab(
                                     genres = uiState.genres,
@@ -295,7 +299,8 @@ private fun DiscoverTab(
     trendingSongs: List<MusicTrack>,
     genreTracks: Map<String, List<MusicTrack>>,
     onSongClick: (MusicTrack) -> Unit,
-    onGenreClick: (String) -> Unit
+    onGenreClick: (String) -> Unit,
+    onArtistClick: (String) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -322,7 +327,8 @@ private fun DiscoverTab(
                     items(trendingSongs.take(5)) { track ->
                         FeaturedTrackCard(
                             track = track,
-                            onClick = { onSongClick(track) }
+                            onClick = { onSongClick(track) },
+                            onArtistClick = onArtistClick
                         )
                     }
                 }
@@ -348,7 +354,8 @@ private fun DiscoverTab(
 @Composable
 private fun TrendingTab(
     songs: List<MusicTrack>,
-    onSongClick: (MusicTrack) -> Unit
+    onSongClick: (MusicTrack) -> Unit,
+    onArtistClick: (String) -> Unit
 ) {
     if (songs.isEmpty()) {
         Box(
@@ -373,7 +380,8 @@ private fun TrendingTab(
             TrendingTrackCard(
                 track = songs[index],
                 rank = index + 1,
-                onClick = { onSongClick(songs[index]) }
+                onClick = { onSongClick(songs[index]) },
+                onArtistClick = onArtistClick
             )
         }
     }
@@ -404,7 +412,8 @@ private fun GenresTab(
 private fun SearchResults(
     songs: List<MusicTrack>,
     isSearching: Boolean,
-    onSongClick: (MusicTrack) -> Unit
+    onSongClick: (MusicTrack) -> Unit,
+    onArtistClick: (String) -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         when {
@@ -438,7 +447,8 @@ private fun SearchResults(
                     items(songs.size) { index ->
                         CompactTrackCard(
                             track = songs[index],
-                            onClick = { onSongClick(songs[index]) }
+                            onClick = { onSongClick(songs[index]) },
+                            onArtistClick = onArtistClick
                         )
                     }
                 }
@@ -450,7 +460,8 @@ private fun SearchResults(
 @Composable
 private fun FeaturedTrackCard(
     track: MusicTrack,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onArtistClick: ((String) -> Unit)? = null
 ) {
     Surface(
         modifier = Modifier
@@ -521,7 +532,12 @@ private fun FeaturedTrackCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.8f),
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = if (onArtistClick != null && track.channelId.isNotEmpty()) {
+                            Modifier.clickable { onArtistClick(track.channelId) }
+                        } else {
+                            Modifier
+                        }
                     )
                 }
             }
@@ -628,7 +644,8 @@ private fun GenreTrackCard(
 private fun TrendingTrackCard(
     track: MusicTrack,
     rank: Int,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onArtistClick: ((String) -> Unit)? = null
 ) {
     Surface(
         modifier = Modifier
@@ -682,7 +699,12 @@ private fun TrendingTrackCard(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (onArtistClick != null && track.channelId.isNotEmpty()) {
+                        Modifier.clickable { onArtistClick(track.channelId) }
+                    } else {
+                        Modifier
+                    }
                 )
             }
             
@@ -700,9 +722,10 @@ private fun TrendingTrackCard(
 }
 
 @Composable
-private fun CompactTrackCard(
+fun CompactTrackCard(
     track: MusicTrack,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onArtistClick: ((String) -> Unit)? = null
 ) {
     Surface(
         modifier = Modifier
@@ -740,7 +763,12 @@ private fun CompactTrackCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (onArtistClick != null && track.channelId.isNotEmpty()) {
+                        Modifier.clickable { onArtistClick(track.channelId) }
+                    } else {
+                        Modifier
+                    }
                 )
             }
             

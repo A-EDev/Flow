@@ -1,6 +1,8 @@
 package com.flow.youtube.data.recommendation
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import com.flow.youtube.data.model.Video
 import kotlin.math.ln
@@ -74,6 +76,12 @@ object FlowAlgorithmV2 {
     private const val OPTIMAL_DURATION_BONUS = 15 // Videos in preferred length range
     private const val FORMAT_PREFERENCE_BONUS = 10
     
+    // Viral Velocity
+    private const val VIRAL_VELOCITY_MAX_SCORE = 15
+    
+    // Creator Momentum
+    private const val CREATOR_MOMENTUM_BONUS = 5
+    
     // Diversity
     private const val CHANNEL_REPEAT_PENALTY = -25
     private const val GENRE_REPEAT_PENALTY = -10
@@ -93,9 +101,9 @@ object FlowAlgorithmV2 {
     private const val SESSION_VARIETY_SEED_INTERVAL_MS = 30 * 60 * 1000L // New seed every 30 min
     
     // Time-of-day variety categories
-    private val MORNING_BOOST_KEYWORDS = listOf("news", "morning", "podcast", "motivation")
-    private val EVENING_BOOST_KEYWORDS = listOf("relaxing", "music", "movie", "entertainment")
-    private val WEEKEND_BOOST_KEYWORDS = listOf("vlog", "travel", "cooking", "diy")
+    private val MORNING_BOOST_KEYWORDS = listOf("news", "morning", "podcast", "motivation", "daily")
+    private val EVENING_BOOST_KEYWORDS = listOf("relaxing", "music", "movie", "entertainment", "gaming", "asmr")
+    private val WEEKEND_BOOST_KEYWORDS = listOf("vlog", "travel", "cooking", "diy", "tour", "review")
     
     /**
      * Enhanced candidate with all scoring metadata
@@ -107,6 +115,8 @@ object FlowAlgorithmV2 {
         val interestScore: Double,
         val freshnessScore: Int,
         val engagementScore: Int,
+        val viralVelocityScore: Int,
+        val creatorMomentumScore: Int,
         val diversityPenalty: Int,
         val recencyBoost: Int,
         val matchedTopics: List<String>,
@@ -116,7 +126,8 @@ object FlowAlgorithmV2 {
     ) {
         val totalScore: Int
             get() = sourceScore + interestScore.toInt() + freshnessScore + 
-                    engagementScore + diversityPenalty + recencyBoost
+                    engagementScore + viralVelocityScore + creatorMomentumScore + 
+                    diversityPenalty + recencyBoost
         
         fun toScoredVideo(): ScoredVideo {
             val reasons = mutableListOf<String>()
@@ -125,6 +136,8 @@ object FlowAlgorithmV2 {
             if (interestScore > 30) reasons.add("high_interest")
             if (freshnessScore > 20) reasons.add("fresh")
             if (engagementScore > 25) reasons.add("engaging")
+            if (viralVelocityScore > 5) reasons.add("viral")
+            if (creatorMomentumScore > 0) reasons.add("creator_momentum")
             if (matchedTopics.isNotEmpty()) reasons.add("topics:${matchedTopics.take(3).joinToString(",")}")
             
             return ScoredVideo(
@@ -160,9 +173,15 @@ object FlowAlgorithmV2 {
         val channelAffinities = interestProfile.getChannelAffinities()
         val topGenres = interestProfile.getTopGenres(10)
         
+        // Check network status for duration preference
+        val isWifi = isWifiConnected(context)
+        
         // Track channel and genre counts for diversity
         val channelCounts = mutableMapOf<String, Int>()
         val genreCounts = mutableMapOf<String, Int>()
+        
+        // Calculate Creator Momentum (pre-pass)
+        val channelFrequency = candidates.groupingBy { it.video.channelId }.eachCount()
         
         // Score each candidate
         val enhanced = candidates.map { candidate ->
@@ -187,15 +206,25 @@ object FlowAlgorithmV2 {
             // 3. FRESHNESS
             val freshnessScore = calculateFreshnessScore(candidate.video.uploadDate)
             
-            // 4. ENGAGEMENT PREDICTION
+            // 4. ENGAGEMENT PREDICTION (Network Aware)
             val engagementScore = calculateEngagementScore(
                 viewCount = candidate.video.viewCount,
                 duration = candidate.video.duration,
                 format = interestResult.contentFormat,
-                topGenres = topGenres
+                topGenres = topGenres,
+                isWifi = isWifi
             )
             
-            // 5. DIVERSITY PENALTY
+            // 5. VIRAL VELOCITY
+            val viralVelocityScore = calculateViralVelocityScore(
+                viewCount = candidate.video.viewCount,
+                uploadDate = candidate.video.uploadDate
+            )
+            
+            // 6. CREATOR MOMENTUM
+            val momentumScore = if ((channelFrequency[candidate.video.channelId] ?: 0) > 2) CREATOR_MOMENTUM_BONUS else 0
+            
+            // 7. DIVERSITY PENALTY
             val channelId = candidate.video.channelId
             val currentChannelCount = channelCounts.getOrDefault(channelId, 0)
             channelCounts[channelId] = currentChannelCount + 1
@@ -210,7 +239,7 @@ object FlowAlgorithmV2 {
                 genreCounts = videoGenres.mapNotNull { genreCounts[it]?.minus(1) }.maxOrNull() ?: 0
             )
             
-            // 6. RECENCY BOOST
+            // 8. RECENCY BOOST
             val recencyBoost = calculateRecencyBoost(
                 candidate = candidate,
                 recentWatchHistory = recentWatchHistory,
@@ -224,6 +253,8 @@ object FlowAlgorithmV2 {
                 interestScore = interestScore,
                 freshnessScore = freshnessScore,
                 engagementScore = engagementScore,
+                viralVelocityScore = viralVelocityScore,
+                creatorMomentumScore = momentumScore,
                 diversityPenalty = diversityPenalty,
                 recencyBoost = recencyBoost,
                 matchedTopics = interestResult.matchedTopics,
@@ -332,13 +363,14 @@ object FlowAlgorithmV2 {
     }
     
     /**
-     * Calculate engagement prediction score
+     * Calculate engagement prediction score with network awareness
      */
     private fun calculateEngagementScore(
         viewCount: Long,
         duration: Int,
         format: String,
-        topGenres: List<String>
+        topGenres: List<String>,
+        isWifi: Boolean
     ): Int {
         var score = 0
         
@@ -348,19 +380,25 @@ object FlowAlgorithmV2 {
             score += (logViews * 2).toInt().coerceAtMost(20)
         }
         
-        // Duration preference (most people prefer 5-20 minute videos)
-        val optimalDuration = duration in 300..1200 // 5-20 minutes
+        // Duration preference (Network Aware)
+        // On WiFi: Prefer longer content (10-30 mins)
+        // On Mobile: Prefer shorter content (3-10 mins)
+        val optimalDuration = if (isWifi) {
+            duration in 600..1800 // 10-30 minutes
+        } else {
+            duration in 180..600 // 3-10 minutes
+        }
+        
         if (optimalDuration) {
             score += OPTIMAL_DURATION_BONUS
-        } else if (duration in 120..1800) { // 2-30 minutes still good
+        } else if (duration in 120..3600) { // 2-60 minutes still acceptable
             score += OPTIMAL_DURATION_BONUS / 2
         }
         
-        // Format preference (boost shorts if user watches them, etc.)
-        // For now, give slight boost to standard and long-form (more substantive)
+        // Format preference
         when (format) {
             "standard" -> score += 5
-            "long_form" -> score += FORMAT_PREFERENCE_BONUS
+            "long_form" -> score += if (isWifi) FORMAT_PREFERENCE_BONUS else 5
             "series" -> score += 8
         }
         
@@ -574,5 +612,47 @@ object FlowAlgorithmV2 {
     
     private fun extractNumber(text: String): Int {
         return text.split(" ").firstOrNull { it.toIntOrNull() != null }?.toInt() ?: 1
+    }
+    
+    /**
+     * Calculate viral velocity (Views per Hour)
+     */
+    private fun calculateViralVelocityScore(viewCount: Long, uploadDate: String): Int {
+        if (viewCount < 1000) return 0
+        
+        val hoursOld = estimateHoursOld(uploadDate)
+        if (hoursOld <= 0) return 0
+        
+        val viewsPerHour = viewCount / hoursOld.toDouble()
+        
+        return when {
+            viewsPerHour > 10000 -> VIRAL_VELOCITY_MAX_SCORE // Super viral
+            viewsPerHour > 5000 -> 12
+            viewsPerHour > 1000 -> 8
+            viewsPerHour > 500 -> 5
+            else -> 0
+        }
+    }
+    
+    private fun estimateHoursOld(uploadDate: String): Int {
+        val lowerDate = uploadDate.lowercase()
+        val number = extractNumber(lowerDate)
+        
+        return when {
+            lowerDate.contains("minute") -> 1
+            lowerDate.contains("hour") -> number
+            lowerDate.contains("day") -> number * 24
+            lowerDate.contains("week") -> number * 24 * 7
+            lowerDate.contains("month") -> number * 24 * 30
+            lowerDate.contains("year") -> number * 24 * 365
+            else -> 24 // Default to 1 day if unknown
+        }
+    }
+    
+    private fun isWifiConnected(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
     }
 }

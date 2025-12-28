@@ -3,6 +3,7 @@ package com.flow.youtube.ui.screens.music
 import android.media.AudioManager
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,6 +41,7 @@ import kotlinx.coroutines.delay
 fun EnhancedMusicPlayerScreen(
     track: MusicTrack,
     onBackClick: () -> Unit,
+    onArtistClick: (String) -> Unit = {},
     viewModel: MusicPlayerViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -257,7 +259,13 @@ fun EnhancedMusicPlayerScreen(
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.clickable {
+                                val channelId = uiState.currentTrack?.channelId ?: track.channelId
+                                if (channelId.isNotEmpty()) {
+                                    onArtistClick(channelId)
+                                }
+                            }
                         )
                     }
                     

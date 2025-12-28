@@ -42,7 +42,7 @@ fun LibraryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Playlists", "Favorites", "Downloads")
+    val tabs = listOf("Playlists", "Favorites", "History", "Downloads")
     
     Scaffold(
         topBar = {
@@ -112,7 +112,12 @@ fun LibraryScreen(
                         onTrackClick = onTrackClick,
                         onRemoveFavorite = { viewModel.removeFromFavorites(it.videoId) }
                     )
-                    2 -> DownloadsTab(
+                    2 -> HistoryTab(
+                        history = uiState.history,
+                        onTrackClick = onTrackClick,
+                        onClearHistory = { viewModel.clearHistory() }
+                    )
+                    3 -> DownloadsTab(
                         downloads = uiState.downloads,
                         onTrackClick = onTrackClick,
                         onDeleteDownload = { viewModel.deleteDownload(it.track.videoId) },
@@ -251,6 +256,63 @@ private fun FavoritesTab(
                     track = track,
                     onClick = { onTrackClick(track) },
                     onMoreClick = { onRemoveFavorite(track) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HistoryTab(
+    history: List<MusicTrack>,
+    onTrackClick: (MusicTrack) -> Unit,
+    onClearHistory: () -> Unit
+) {
+    if (history.isEmpty()) {
+        EmptyState(
+            icon = Icons.Outlined.History,
+            title = "No History Yet",
+            subtitle = "Start listening to music to see your history here"
+        )
+    } else {
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.History,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "Recently Played",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    
+                    TextButton(onClick = onClearHistory) {
+                        Text("Clear All")
+                    }
+                }
+            }
+            
+            items(history) { track ->
+                CompactSleekCard(
+                    track = track,
+                    onClick = { onTrackClick(track) },
+                    onMoreClick = { /* TODO: Show options */ }
                 )
             }
         }
