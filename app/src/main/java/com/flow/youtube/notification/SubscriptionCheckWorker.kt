@@ -53,7 +53,7 @@ class SubscriptionCheckWorker(
             
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 workRequest
             )
             
@@ -123,13 +123,10 @@ class SubscriptionCheckWorker(
                                 val lastCheckKey = KEY_LAST_CHECK_PREFIX + subscription.channelId
                                 val lastCheckedVideoId = prefs.getString(lastCheckKey, null)
                                 
-                                // Extract video ID from URL
-                                val currentVideoId = latestVideo.url
-                                    .substringAfter("watch?v=", "")
-                                    .substringBefore("&")
-                                    .ifEmpty { latestVideo.url.substringAfterLast("/") }
+                                // Robust video ID extraction
+                                val currentVideoId = extractVideoId(latestVideo.url)
                                 
-                                if (currentVideoId.isNotEmpty() && lastCheckedVideoId != currentVideoId) {
+                                if (currentVideoId != null && lastCheckedVideoId != currentVideoId) {
                                     // New video found!
                                     Log.d(TAG, "New video from ${subscription.channelName}: ${latestVideo.name}")
                                     
@@ -148,7 +145,27 @@ class SubscriptionCheckWorker(
                                 }
                             }
                         } catch (tabError: Exception) {
-                            Log.w(TAG, "Could not fetch videos tab for ${subscription.channelName}", tabError)
+                            Log.w(TAG, "Could not fetch videos tab for ${subscription.channelName}, trying RSS fallback", tabError)
+                            // Fallback to RSS if extractor fails
+                            val rssVideo = checkRssFallback(subscription.channelId)
+                            if (rssVideo != null) {
+                                val lastCheckKey = KEY_LAST_CHECK_PREFIX + subscription.channelId
+                                val lastCheckedVideoId = prefs.getString(lastCheckKey, null)
+                                
+                                if (lastCheckedVideoId != rssVideo.id) {
+                                    Log.d(TAG, "New video (via RSS) from ${subscription.channelName}: ${rssVideo.title}")
+                                    NotificationHelper.showNewVideoNotification(
+                                        context = applicationContext,
+                                        channelName = subscription.channelName,
+                                        videoTitle = rssVideo.title,
+                                        videoId = rssVideo.id,
+                                        thumbnailUrl = rssVideo.thumbnailUrl,
+                                        channelId = subscription.channelId
+                                    )
+                                    prefs.edit().putString(lastCheckKey, rssVideo.id).apply()
+                                    newVideoCount++
+                                }
+                            }
                         }
                     }
                 } catch (e: Exception) {
@@ -168,6 +185,50 @@ class SubscriptionCheckWorker(
         } catch (e: Exception) {
             Log.e(TAG, "Error during subscription check", e)
             Result.retry()
+        }
+    }
+
+    private fun extractVideoId(url: String): String? {
+        val patterns = listOf(
+            Regex("v=([^&]+)"),
+            Regex("shorts/([^/?]+)"),
+            Regex("youtu.be/([^/?]+)"),
+            Regex("embed/([^/?]+)"),
+            Regex("v/([^/?]+)")
+        )
+        for (pattern in patterns) {
+            val match = pattern.find(url)
+            if (match != null) return match.groupValues[1]
+        }
+        return url.substringAfterLast("/").substringBefore("?").ifEmpty { null }
+    }
+
+    private data class SimpleVideo(val id: String, val title: String, val thumbnailUrl: String?)
+
+    private fun checkRssFallback(channelId: String): SimpleVideo? {
+        return try {
+            val rssUrl = "https://www.youtube.com/feeds/videos.xml?channel_id=$channelId"
+            val connection = java.net.URL(rssUrl).openConnection() as java.net.HttpURLConnection
+            connection.readTimeout = 10000
+            connection.connectTimeout = 10000
+            
+            val inputStream = connection.inputStream
+            val content = inputStream.bufferedReader().use { it.readText() }
+            
+            // Very simple XML parsing for RSS
+            val entryStart = content.indexOf("<entry>")
+            if (entryStart == -1) return null
+            
+            val videoId = content.substringAfter("<yt:videoId>", "").substringBefore("</yt:videoId>")
+            val title = content.substringAfter("<title>", "").substringBefore("</title>")
+            val thumbnail = content.substringAfter("<media:thumbnail url=\"", "").substringBefore("\"")
+            
+            if (videoId.isNotEmpty()) {
+                SimpleVideo(videoId, title, thumbnail.ifEmpty { null })
+            } else null
+        } catch (e: Exception) {
+            Log.e(TAG, "RSS fallback failed for $channelId", e)
+            null
         }
     }
 }

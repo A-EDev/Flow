@@ -44,7 +44,7 @@ class FlowApplication : Application() {
         
         // Schedule periodic subscription checks for new videos
         // This will check subscribed channels every hour
-        SubscriptionCheckWorker.schedulePeriodicCheck(this)
+        SubscriptionCheckWorker.schedulePeriodicCheck(this, intervalMinutes = 60)
         Log.d(TAG, "Subscription check worker scheduled")
     }
 }

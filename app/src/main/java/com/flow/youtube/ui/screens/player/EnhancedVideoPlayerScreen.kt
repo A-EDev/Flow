@@ -327,9 +327,12 @@ fun EnhancedVideoPlayerScreen(
     LaunchedEffect(selectedSubtitleUrl) {
         selectedSubtitleUrl?.let { url ->
             try {
+                Log.d("EnhancedVideoPlayer", "Selected subtitle URL changed: $url")
                 currentSubtitles = fetchSubtitles(url)
                 subtitlesEnabled = currentSubtitles.isNotEmpty()
+                Log.d("EnhancedVideoPlayer", "Subtitles loaded: ${currentSubtitles.size} cues, enabled: $subtitlesEnabled")
             } catch (e: Exception) {
+                Log.e("EnhancedVideoPlayer", "Failed to load subtitles from URL", e)
                 currentSubtitles = emptyList()
                 subtitlesEnabled = false
             }

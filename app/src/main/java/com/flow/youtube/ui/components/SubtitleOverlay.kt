@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.util.Log
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -33,11 +34,24 @@ fun SubtitleOverlay(
 ) {
     if (!enabled || subtitles.isEmpty()) return
     
-    // Find the current subtitle based on playback position
-    val currentSubtitle = remember(currentPosition) {
-        subtitles.find { cue ->
-            currentPosition in cue.startTime..cue.endTime
+    // Find the current subtitle based on playback position (Binary search for performance)
+    val currentSubtitle = remember(currentPosition, subtitles) {
+        if (subtitles.isEmpty()) return@remember null
+        
+        var low = 0
+        var high = subtitles.size - 1
+        
+        while (low <= high) {
+            val mid = (low + high) / 2
+            val cue = subtitles[mid]
+            
+            when {
+                currentPosition in cue.startTime..cue.endTime -> return@remember cue
+                currentPosition < cue.startTime -> high = mid - 1
+                else -> low = mid + 1
+            }
         }
+        null
     }
     
     AnimatedVisibility(
@@ -215,23 +229,59 @@ private fun parseTime(timeString: String): Long {
 }
 
 /**
- * Fetch and parse subtitles from URL
+ * Fetch and parse subtitles from URL with improved error handling and logging
  */
 suspend fun fetchSubtitles(url: String): List<SubtitleCue> {
     return withContext(Dispatchers.IO) {
         try {
-            // Download subtitle content
-            val response = java.net.URL(url).readText()
+            Log.d("SubtitleOverlay", "Fetching subtitles from: $url")
+            
+            val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
+            connection.apply {
+                requestMethod = "GET"
+                connectTimeout = 5000
+                readTimeout = 5000
+                setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+                setRequestProperty("Accept", "*/*")
+            }
+            
+            val responseCode = connection.responseCode
+            if (responseCode != 200) {
+                Log.e("SubtitleOverlay", "Failed to fetch subtitles: HTTP $responseCode")
+                return@withContext emptyList()
+            }
+            
+            val response = connection.inputStream.bufferedReader().use { it.readText() }
+            Log.d("SubtitleOverlay", "Subtitle response length: ${response.length}")
+            
+            if (response.length < 100) {
+                Log.d("SubtitleOverlay", "Raw response snippet: $response")
+            }
             
             // Detect format and parse
-            when {
-                response.contains("WEBVTT") -> parseVTT(response)
-                response.contains("-->") -> parseSRT(response)
-                response.contains("<tt") || response.contains("<transcript") -> parseTTML(response) // Add TTML support
-                else -> emptyList()
+            val cues = when {
+                response.contains("WEBVTT", ignoreCase = true) -> {
+                    Log.d("SubtitleOverlay", "Detected VTT format")
+                    parseVTT(response)
+                }
+                response.contains("-->") -> {
+                    Log.d("SubtitleOverlay", "Detected SRT format")
+                    parseSRT(response)
+                }
+                response.contains("<tt", ignoreCase = true) || response.contains("<transcript", ignoreCase = true) -> {
+                    Log.d("SubtitleOverlay", "Detected TTML/XML format")
+                    parseTTML(response)
+                }
+                else -> {
+                    Log.w("SubtitleOverlay", "Unknown subtitle format")
+                    emptyList()
+                }
             }
+            
+            Log.d("SubtitleOverlay", "Successfully parsed ${cues.size} subtitle cues")
+            cues
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("SubtitleOverlay", "Error fetching/parsing subtitles", e)
             emptyList()
         }
     }
@@ -239,38 +289,64 @@ suspend fun fetchSubtitles(url: String): List<SubtitleCue> {
 
 /**
  * Basic TTML/XML parser for YouTube subtitles
+ * Handles both <text> (YouTube timed text) and <p> (TTML) tags
  */
 fun parseTTML(content: String): List<SubtitleCue> {
     val cues = mutableListOf<SubtitleCue>()
     try {
-        // Simple regex-based parsing for <p t="start_ms" d="duration_ms">Text</p>
-        // or <text start="3.4" dur="2.1">Hello</text>
+        // 1. Try YouTube Timed Text format (<text start="3.4" dur="2.1">Hello</text>)
+        val textRegex = "<text start=\"([0-9.]+)\" dur=\"([0-9.]+)\"[^>]*>(.*?)</text>".toRegex(RegexOption.DOT_MATCHES_ALL)
+        val textMatches = textRegex.findAll(content).toList()
         
-        // Regex for: <text start="3.4" dur="2.1">Hello</text> (Common in YouTube XML)
-        val regex = "<text start=\"([0-9.]+)\" dur=\"([0-9.]+)\"[^>]*>(.*?)</text>".toRegex()
-        
-        regex.findAll(content).forEach { match ->
-            val (startSec, durSec, text) = match.destructured
-            val startTime = (startSec.toDouble() * 1000).toLong()
-            val duration = (durSec.toDouble() * 1000).toLong()
-            val endTime = startTime + duration
-            
-            // Decode HTML entities
-            val decodedText = text
-                .replace("&quot;", "\"")
-                .replace("&amp;", "&")
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
-                .replace("&#39;", "'")
-                .replace("<br />", "\n")
-                .replace("<br>", "\n")
-            
-            if (decodedText.isNotBlank()) {
-                cues.add(SubtitleCue(startTime, endTime, decodedText))
+        if (textMatches.isNotEmpty()) {
+            textMatches.forEach { match ->
+                val (startSec, durSec, text) = match.destructured
+                val startTime = (startSec.toDouble() * 1000).toLong()
+                val duration = (durSec.toDouble() * 1000).toLong()
+                val endTime = startTime + duration
+                
+                val decodedText = decodeHtml(text)
+                if (decodedText.isNotBlank()) {
+                    cues.add(SubtitleCue(startTime, endTime, decodedText))
+                }
             }
+            return cues
         }
+
+        // 2. Try TTML format (<p begin="00:00:03.400" end="00:00:05.500">Hello</p>)
+        val pRegex = "<p[^>]+begin=\"([^\"]+)\"[^>]+end=\"([^\"]+)\"[^>]*>(.*?)</p>".toRegex(RegexOption.DOT_MATCHES_ALL)
+        val pMatches = pRegex.findAll(content).toList()
+        
+        if (pMatches.isNotEmpty()) {
+            pMatches.forEach { match ->
+                val (begin, end, text) = match.destructured
+                val startTime = parseTime(begin)
+                val endTime = parseTime(end)
+                
+                val decodedText = decodeHtml(text)
+                if (decodedText.isNotBlank()) {
+                    cues.add(SubtitleCue(startTime, endTime, decodedText))
+                }
+            }
+            return cues
+        }
+        
     } catch (e: Exception) {
-        e.printStackTrace()
+        Log.e("SubtitleOverlay", "Error parsing TTML/XML", e)
     }
     return cues
+}
+
+private fun decodeHtml(text: String): String {
+    return text
+        .replace("&quot;", "\"")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&#39;", "'")
+        .replace("&apos;", "'")
+        .replace("<br />", "\n")
+        .replace("<br>", "\n")
+        .replace("<[^>]*>".toRegex(), "") // Remove any remaining XML tags
+        .trim()
 }

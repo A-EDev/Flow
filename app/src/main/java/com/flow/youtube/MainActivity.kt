@@ -1,5 +1,6 @@
 package com.flow.youtube
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -33,6 +34,30 @@ class MainActivity : ComponentActivity() {
             }
 
             FlowTheme(themeMode = themeMode) {
+                // Request notification permission for Android 13+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    val context = androidx.compose.ui.platform.LocalContext.current
+                    val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+                    ) { isGranted ->
+                        if (isGranted) {
+                            android.util.Log.d("MainActivity", "Notification permission granted")
+                        } else {
+                            android.util.Log.w("MainActivity", "Notification permission denied")
+                        }
+                    }
+
+                    LaunchedEffect(Unit) {
+                        if (androidx.core.content.ContextCompat.checkSelfPermission(
+                                context,
+                                android.Manifest.permission.POST_NOTIFICATIONS
+                            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                        ) {
+                            permissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }
+                }
+
                 FlowApp(
                     currentTheme = themeMode,
                     onThemeChange = { newTheme ->
