@@ -14,6 +14,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.Surface
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.blur
 import android.util.Log
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
@@ -25,68 +28,71 @@ data class SubtitleCue(
     val text: String
 )
 
+data class SubtitleStyle(
+    val fontSize: Float = 18f,
+    val textColor: Color = Color.White,
+    val backgroundColor: Color = Color.Black.copy(alpha = 0.6f),
+    val isBold: Boolean = true
+)
+
 @Composable
 fun SubtitleOverlay(
     currentPosition: Long,
     subtitles: List<SubtitleCue>,
     enabled: Boolean,
+    style: SubtitleStyle = SubtitleStyle(),
     modifier: Modifier = Modifier
 ) {
     if (!enabled || subtitles.isEmpty()) return
     
-    // Find the current subtitle based on playback position (Binary search for performance)
-    val currentSubtitle = remember(currentPosition, subtitles) {
-        if (subtitles.isEmpty()) return@remember null
+    // Find ALL active subtitles for the current position (fixes the "partial sentence" issue)
+    val activeCues = remember(currentPosition, subtitles) {
+        if (subtitles.isEmpty()) return@remember emptyList<SubtitleCue>()
         
-        var low = 0
-        var high = subtitles.size - 1
-        
-        while (low <= high) {
-            val mid = (low + high) / 2
-            val cue = subtitles[mid]
-            
-            when {
-                currentPosition in cue.startTime..cue.endTime -> return@remember cue
-                currentPosition < cue.startTime -> high = mid - 1
-                else -> low = mid + 1
-            }
+        // Find all cues that contain the current position
+        // Since cues are usually ordered by startTime, we can optimize slightly, 
+        // but simple filter is safest for overlapping YouTube formats.
+        subtitles.filter { currentPosition in it.startTime..it.endTime }
+    }
+    
+    // Merge texts of active cues, removing duplicates/overlaps
+    val displayState = remember(activeCues) {
+        if (activeCues.isEmpty()) null
+        else {
+            // Deduplicate and join lines
+            activeCues.map { it.text.trim() }
+                .distinct()
+                .joinToString("\n")
         }
-        null
     }
     
     AnimatedVisibility(
-        visible = currentSubtitle != null,
+        visible = displayState != null,
         enter = fadeIn() + slideInVertically { it / 2 },
         exit = fadeOut() + slideOutVertically { it / 2 },
         modifier = modifier
+            .fillMaxWidth()
+            .padding(bottom = 48.dp, start = 16.dp, end = 16.dp)
     ) {
-        currentSubtitle?.let { cue ->
+        if (displayState != null) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 32.dp, vertical = 16.dp),
-                contentAlignment = Alignment.BottomCenter
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = cue.text,
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
+                Surface(
+                    color = style.backgroundColor,
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = displayState,
+                        color = style.textColor,
+                        fontSize = style.fontSize.sp,
+                        fontWeight = if (style.isBold) FontWeight.Bold else FontWeight.Normal,
                         textAlign = TextAlign.Center,
-                        shadow = androidx.compose.ui.graphics.Shadow(
-                            color = Color.Black,
-                            offset = androidx.compose.ui.geometry.Offset(2f, 2f),
-                            blurRadius = 4f
-                        )
-                    ),
-                    modifier = Modifier
-                        .background(
-                            color = Color.Black.copy(alpha = 0.7f),
-                            shape = RoundedCornerShape(8.dp)
-                        )
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                )
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
             }
         }
     }

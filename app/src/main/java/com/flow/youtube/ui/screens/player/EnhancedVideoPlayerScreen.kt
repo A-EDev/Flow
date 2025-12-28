@@ -27,6 +27,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import com.flow.youtube.data.local.VideoQuality
@@ -48,6 +50,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import android.text.TextUtils
+import com.flow.youtube.ui.components.SubtitleCue
+import com.flow.youtube.ui.components.SubtitleStyle
+import com.flow.youtube.ui.components.SubtitleOverlay
+import com.flow.youtube.ui.components.SubtitleCustomizer
 import android.text.method.LinkMovementMethod
 import org.schabi.newpipe.extractor.stream.StreamSegment
 import android.widget.TextView
@@ -71,8 +77,6 @@ import com.flow.youtube.data.model.Video
 import com.flow.youtube.player.EnhancedPlayerManager
 import com.flow.youtube.player.GlobalPlayerState
 import com.flow.youtube.player.PictureInPictureHelper
-import com.flow.youtube.ui.components.SubtitleCue
-import com.flow.youtube.ui.components.SubtitleOverlay
 import com.flow.youtube.ui.components.VideoCardFullWidth
 import com.flow.youtube.ui.components.fetchSubtitles
 import com.flow.youtube.ui.theme.extendedColors
@@ -129,6 +133,8 @@ fun EnhancedVideoPlayerScreen(
     var showSubtitleSelector by remember { mutableStateOf(false) }
     var showSettingsMenu by remember { mutableStateOf(false) }
     var showDownloadDialog by remember { mutableStateOf(false) }
+    var showPlaybackSpeedSelector by remember { mutableStateOf(false) }
+    var showSubtitleStyleCustomizer by remember { mutableStateOf(false) }
     
     // Gesture states
     var brightnessLevel by remember { mutableFloatStateOf(0.5f) }
@@ -145,6 +151,7 @@ fun EnhancedVideoPlayerScreen(
     var subtitlesEnabled by remember { mutableStateOf(false) }
     var currentSubtitles by remember { mutableStateOf<List<SubtitleCue>>(emptyList()) }
     var selectedSubtitleUrl by remember { mutableStateOf<String?>(null) }
+    var subtitleStyle by remember { mutableStateOf(SubtitleStyle()) }
     
     // Video resize mode
     var resizeMode by remember { mutableIntStateOf(0) } // 0=Fit, 1=Fill, 2=Zoom
@@ -258,7 +265,7 @@ fun EnhancedVideoPlayerScreen(
                 currentPosition = player.currentPosition
                 duration = player.duration.coerceAtLeast(0)
             }
-            delay(100)
+            delay(50)
         }
     }
     
@@ -290,6 +297,16 @@ fun EnhancedVideoPlayerScreen(
         if (showControls && playerState.isPlaying) {
             delay(3000)
             showControls = false
+        }
+    }
+
+    // Auto-play Next Video Logic
+    LaunchedEffect(playerState.hasEnded, uiState.autoplayEnabled) {
+        if (playerState.hasEnded && uiState.autoplayEnabled) {
+            val nextVideo = uiState.relatedVideos.firstOrNull()
+            if (nextVideo != null) {
+                onVideoClick(nextVideo)
+            }
         }
     }
     
@@ -746,13 +763,14 @@ fun EnhancedVideoPlayerScreen(
                     modifier = Modifier.fillMaxSize()
                 )
                 
-                // Subtitle overlay
+                // Subtitle Overlay
                 SubtitleOverlay(
                     currentPosition = currentPosition,
                     subtitles = currentSubtitles,
                     enabled = subtitlesEnabled,
+                    style = subtitleStyle,
                     modifier = Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
                         .align(Alignment.BottomCenter)
                 )
                 
@@ -1461,7 +1479,7 @@ fun EnhancedVideoPlayerScreen(
             onDismissRequest = { showSettingsMenu = false },
             title = { Text("Player Settings") },
             text = {
-                Column {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     Surface(
                         onClick = {
                             showSettingsMenu = false
@@ -1499,6 +1517,45 @@ fun EnhancedVideoPlayerScreen(
                     Surface(
                         onClick = {
                             showSettingsMenu = false
+                            showPlaybackSpeedSelector = true
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ListItem(
+                            headlineContent = { Text("Playback Speed") },
+                            supportingContent = { 
+                                Text("${playerState.playbackSpeed}x") 
+                            },
+                            leadingContent = {
+                                Icon(Icons.Filled.Speed, contentDescription = null)
+                            }
+                        )
+                    }
+
+                    // Auto-play Toggle
+                    Surface(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ListItem(
+                            headlineContent = { Text("Auto-play Next Video") },
+                            supportingContent = { 
+                                Text(if (uiState.autoplayEnabled) "On" else "Off") 
+                            },
+                            leadingContent = {
+                                Icon(Icons.Filled.SkipNext, contentDescription = null)
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = uiState.autoplayEnabled,
+                                    onCheckedChange = { viewModel.toggleAutoplay(it) }
+                                )
+                            }
+                        )
+                    }
+
+                    Surface(
+                        onClick = {
+                            showSettingsMenu = false
                             showSubtitleSelector = true
                         },
                         modifier = Modifier.fillMaxWidth()
@@ -1510,6 +1567,16 @@ fun EnhancedVideoPlayerScreen(
                             },
                             leadingContent = {
                                 Icon(Icons.Filled.Subtitles, contentDescription = null)
+                            },
+                            trailingContent = {
+                                if (subtitlesEnabled) {
+                                    IconButton(onClick = { 
+                                        showSettingsMenu = false
+                                        showSubtitleStyleCustomizer = true 
+                                    }) {
+                                        Icon(Icons.Filled.Settings, contentDescription = "Subtitle Style")
+                                    }
+                                }
                             }
                         )
                     }
@@ -1518,6 +1585,72 @@ fun EnhancedVideoPlayerScreen(
             confirmButton = {
                 TextButton(onClick = { showSettingsMenu = false }) {
                     Text("Close")
+                }
+            }
+        )
+    }
+
+    // Playback speed selector
+    if (showPlaybackSpeedSelector) {
+        val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+        AlertDialog(
+            onDismissRequest = { showPlaybackSpeedSelector = false },
+            title = { Text("Playback Speed") },
+            text = {
+                LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+                    items(speeds) { speed ->
+                        Surface(
+                            onClick = {
+                                EnhancedPlayerManager.getInstance().setPlaybackSpeed(speed)
+                                showPlaybackSpeedSelector = false
+                            },
+                            color = if (speed == playerState.playbackSpeed) 
+                                MaterialTheme.colorScheme.primaryContainer 
+                            else 
+                                Color.Transparent,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (speed == 1.0f) "Normal" else "${speed}x",
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                
+                                if (speed == playerState.playbackSpeed) {
+                                    Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPlaybackSpeedSelector = false }) {
+                    Text("Close")
+                }
+            }
+        )
+    }
+
+    // Subtitle Style Customizer
+    if (showSubtitleStyleCustomizer) {
+        AlertDialog(
+            onDismissRequest = { showSubtitleStyleCustomizer = false },
+            text = {
+                SubtitleCustomizer(
+                    currentStyle = subtitleStyle,
+                    onStyleChange = { subtitleStyle = it }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { showSubtitleStyleCustomizer = false }) {
+                    Text("Done")
                 }
             }
         )

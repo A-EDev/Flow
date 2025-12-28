@@ -713,6 +713,18 @@ class EnhancedPlayerManager private constructor() {
         }
     }
 
+    /**
+     * Set playback speed (0.25x to 2.0x)
+     */
+    fun setPlaybackSpeed(speed: Float) {
+        player?.let { exoPlayer ->
+            val params = androidx.media3.common.PlaybackParameters(speed)
+            exoPlayer.setPlaybackParameters(params)
+            _playerState.value = _playerState.value.copy(playbackSpeed = speed)
+            Log.d(TAG, "Playback speed set to: ${speed}x")
+        }
+    }
+
 
 
     fun switchQualityByHeight(height: Int) {
@@ -1490,7 +1502,8 @@ data class EnhancedPlayerState(
     val availableAudioTracks: List<AudioTrackOption> = emptyList(),
     val availableSubtitles: List<SubtitleOption> = emptyList(),
     val error: String? = null,
-    val recoveryAttempted: Boolean = false
+    val recoveryAttempted: Boolean = false,
+    val playbackSpeed: Float = 1.0f
 )
 
 data class QualityOption(

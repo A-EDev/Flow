@@ -69,23 +69,27 @@ class VideoPlayerViewModel @Inject constructor(
                     val subtitles = extractSubtitles(streamInfo)
                     val chapters = streamInfo.streamSegments ?: emptyList()
                     
-                    // Load saved playback position
-                    val savedPosition = viewHistory?.getPlaybackPosition(videoId)
-                    
-                    _uiState.value = _uiState.value.copy(
-                        streamInfo = streamInfo,
-                        relatedVideos = relatedVideos,
-                        videoStream = selectedStreams.first,
-                        audioStream = selectedStreams.second,
-                        availableQualities = availableQualities,
-                        selectedQuality = selectedStreams.third,
-                        subtitles = subtitles,
-                        chapters = chapters,
-                        isLoading = false,
-                        // channelSubscriberCount will be filled below if available
-                        savedPosition = savedPosition,
-                        isAdaptiveMode = preferredQuality == VideoQuality.AUTO
-                    )
+                // Load saved playback position
+                val savedPosition = viewHistory?.getPlaybackPosition(videoId)
+                
+                // Load autoplay preference
+                val autoplay = playerPreferences.autoplayEnabled.first()
+                
+                _uiState.value = _uiState.value.copy(
+                    streamInfo = streamInfo,
+                    relatedVideos = relatedVideos,
+                    videoStream = selectedStreams.first,
+                    audioStream = selectedStreams.second,
+                    availableQualities = availableQualities,
+                    selectedQuality = selectedStreams.third,
+                    subtitles = subtitles,
+                    chapters = chapters,
+                    isLoading = false,
+                    // channelSubscriberCount will be filled below if available
+                    savedPosition = savedPosition,
+                    isAdaptiveMode = preferredQuality == VideoQuality.AUTO,
+                    autoplayEnabled = autoplay
+                )
 
                     // Fetch channel info (subscriber count + avatar) asynchronously
                     try {
@@ -314,6 +318,13 @@ class VideoPlayerViewModel @Inject constructor(
     fun setFullscreen(enabled: Boolean) {
         _uiState.value = _uiState.value.copy(isFullscreen = enabled)
     }
+
+    fun toggleAutoplay(enabled: Boolean) {
+        viewModelScope.launch {
+            playerPreferences.setAutoplayEnabled(enabled)
+            _uiState.value = _uiState.value.copy(autoplayEnabled = enabled)
+        }
+    }
     
     private fun selectStreams(
         streamInfo: StreamInfo,
@@ -433,7 +444,8 @@ data class VideoPlayerUiState(
     val likeState: String? = null, // LIKED, DISLIKED, or null
     val channelSubscriberCount: Long? = null,
     val channelAvatarUrl: String? = null,
-    val chapters: List<StreamSegment> = emptyList()
+    val chapters: List<StreamSegment> = emptyList(),
+    val autoplayEnabled: Boolean = true
 )
 
 
