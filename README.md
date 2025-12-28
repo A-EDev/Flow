@@ -31,10 +31,10 @@
 - [x] Picture-in-Picture (PiP) mode
 - [x] Background playback
 - [x] Video chapters support
-- [ ] Playback speed control (0.25x - 2x)
-- [ ] Auto-play next video
+- [x] Playback speed control (0.25x - 2x)
+- [x] Auto-play next video
 - [x] **Gesture Controls:** Left swipe for brightness, right swipe for volume
-- [ ] **Subtitle Support:** SRT/VTT formats with animated display
+- [x] **Subtitle Support:** SRT/VTT formats with animated display
 - [x] **Enhanced Controls:** Quality and subtitle badges at top
 - [x] **Professional UI:** Loading states, smooth animations, and visual feedback
 
@@ -59,7 +59,7 @@
 
 ### 🎨 Themes & Customization
 
-- [x] **11 Beautiful Color Themes:**
+- [x] **11+ Beautiful Color Themes:**
   - Light (Default light mode)
   - Dark (Standard dark mode)
   - OLED Black (Pure black for AMOLED)
@@ -71,6 +71,7 @@
   - Rose Gold (Elegant pink)
   - Arctic Ice (Cool cyan)
   - Crimson Red (Bold red)
+  - And more...
 - [x] Smooth theme transitions
 - [x] Persistent theme selection
 
@@ -90,6 +91,7 @@
 - [x] Playlists creation and management
 - [x] Continue watching section
 - [x] Watch later queue
+- [x] Shorts Bookmarks
 
 ### 🔐 Privacy & Data
 

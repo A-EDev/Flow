@@ -49,6 +49,7 @@ fun SettingsScreen(
     val currentRegion by playerPreferences.trendingRegion.collectAsState(initial = "US")
     val wifiQuality by playerPreferences.defaultQualityWifi.collectAsState(initial = VideoQuality.Q_1080p)
     val cellularQuality by playerPreferences.defaultQualityCellular.collectAsState(initial = VideoQuality.Q_480p)
+    val autoplayEnabled by playerPreferences.autoplayEnabled.collectAsState(initial = true)
     
     // Search settings states
     val searchHistoryEnabled by searchHistoryRepo.isSearchHistoryEnabledFlow().collectAsState(initial = true)
@@ -142,6 +143,20 @@ fun SettingsScreen(
                     onCheckedChange = { enabled ->
                         coroutineScope.launch {
                             playerPreferences.setBackgroundPlayEnabled(enabled)
+                        }
+                    }
+                )
+            }
+
+            item {
+                SettingsSwitchItem(
+                    icon = Icons.Outlined.SkipNext,
+                    title = "Autoplay",
+                    subtitle = "Automatically play the next video",
+                    checked = autoplayEnabled,
+                    onCheckedChange = { enabled ->
+                        coroutineScope.launch {
+                            playerPreferences.setAutoplayEnabled(enabled)
                         }
                     }
                 )

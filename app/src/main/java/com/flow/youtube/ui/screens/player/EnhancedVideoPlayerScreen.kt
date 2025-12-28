@@ -58,6 +58,9 @@ import android.text.method.LinkMovementMethod
 import org.schabi.newpipe.extractor.stream.StreamSegment
 import android.widget.TextView
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.border
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -928,35 +931,34 @@ fun EnhancedVideoPlayerScreen(
                 // Speed boost overlay (2x speed indicator)
                 androidx.compose.animation.AnimatedVisibility(
                     visible = isSpeedBoostActive,
-                    enter = fadeIn() + scaleIn(),
-                    exit = fadeOut() + scaleOut(),
-                    modifier = Modifier.align(Alignment.Center)
+                    enter = fadeIn() + expandVertically(expandFrom = Alignment.Top),
+                    exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Top),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 80.dp)
                 ) {
                     Surface(
-                        modifier = Modifier.size(80.dp),
-                        color = Color(0xFFFF6B35).copy(alpha = 0.9f),
-                        shape = RoundedCornerShape(40.dp)
+                        color = Color.Black.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier.height(40.dp)
                     ) {
-                        Box(
-                            contentAlignment = Alignment.Center
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.FastForward,
-                                    contentDescription = "2x Speed",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                                Text(
-                                    text = "2x",
-                                    color = Color.White,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Filled.FastForward,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "2x Speed",
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
@@ -1006,7 +1008,9 @@ fun EnhancedVideoPlayerScreen(
                     seekbarPreviewHelper = seekbarPreviewHelper,
                     chapters = uiState.chapters,
                     onSubtitleClick = { subtitlesEnabled = !subtitlesEnabled },
-                    isSubtitlesEnabled = subtitlesEnabled
+                    isSubtitlesEnabled = subtitlesEnabled,
+                    autoplayEnabled = uiState.autoplayEnabled,
+                    onAutoplayToggle = { viewModel.toggleAutoplay(it) }
                 )
             }
             
@@ -1795,12 +1799,15 @@ fun SeekbarWithPreview(
                 activeTrackColor = Color.Transparent,
                 inactiveTrackColor = Color.Transparent
             ),
-            interactionSource = interactionSource,
             thumb = {
+                val isPressed by interactionSource.collectIsPressedAsState()
+                val isDragged by interactionSource.collectIsDraggedAsState()
+                val active = isPressed || isDragged
+                
                 Box(
                     modifier = Modifier
-                        .size(12.dp)
-                        .background(MaterialTheme.colorScheme.primary, CircleShape)
+                        .size(if (active) 6.dp else 4.dp, 12.dp)
+                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp))
                 )
             }
         )

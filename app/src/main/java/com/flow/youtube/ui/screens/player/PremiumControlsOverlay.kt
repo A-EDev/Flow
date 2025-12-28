@@ -54,6 +54,8 @@ fun PremiumControlsOverlay(
     chapters: List<StreamSegment> = emptyList(),
     onSubtitleClick: () -> Unit = {},
     isSubtitlesEnabled: Boolean = false,
+    autoplayEnabled: Boolean = true,
+    onAutoplayToggle: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -140,6 +142,19 @@ fun PremiumControlsOverlay(
                             imageVector = if (isSubtitlesEnabled) Icons.Rounded.ClosedCaption else Icons.Outlined.ClosedCaption,
                             contentDescription = "Captions",
                             tint = if (isSubtitlesEnabled) primaryColor else Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    // Autoplay Toggle Icon
+                    IconButton(
+                        onClick = { onAutoplayToggle(!autoplayEnabled) },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (autoplayEnabled) Icons.Rounded.SlowMotionVideo else Icons.Outlined.SlowMotionVideo,
+                            contentDescription = "Autoplay",
+                            tint = if (autoplayEnabled) primaryColor else Color.White,
                             modifier = Modifier.size(24.dp)
                         )
                     }
