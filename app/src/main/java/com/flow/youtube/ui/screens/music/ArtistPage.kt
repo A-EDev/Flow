@@ -29,7 +29,7 @@ import coil.compose.AsyncImage
 fun ArtistPage(
     artistDetails: ArtistDetails,
     onBackClick: () -> Unit,
-    onTrackClick: (MusicTrack) -> Unit,
+    onTrackClick: (MusicTrack, List<MusicTrack>) -> Unit,
     onAlbumClick: (MusicPlaylist) -> Unit,
     onFollowClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -127,7 +127,7 @@ fun ArtistPage(
                     }
                     
                     items(artistDetails.topTracks) { track ->
-                        ArtistTrackItem(track = track, onClick = { onTrackClick(track) })
+                        ArtistTrackItem(track = track, onClick = { onTrackClick(track, artistDetails.topTracks) })
                     }
                 }
 

@@ -203,8 +203,8 @@ object EnhancedMusicPlayerManager {
         val queue = _queue.value
         val currentIndex = _currentQueueIndex.value
         
-        // If more than 3 seconds into track, restart it
-        if (currentPosition > 3000) {
+        // If more than 3 seconds into track or it's the first track, restart it
+        if (currentPosition > 3000 || currentIndex == 0) {
             player?.seekTo(0)
         } else if (queue.isNotEmpty() && currentIndex > 0) {
             val prevIndex = currentIndex - 1

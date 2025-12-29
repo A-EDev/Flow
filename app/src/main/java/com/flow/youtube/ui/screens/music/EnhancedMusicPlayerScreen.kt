@@ -480,6 +480,31 @@ fun EnhancedMusicPlayerScreen(
                                 MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+
+                    // Lyrics button
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        IconButton(onClick = { showLyrics = !showLyrics }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Lyrics,
+                                contentDescription = "Lyrics",
+                                tint = if (showLyrics) 
+                                    MaterialTheme.colorScheme.primary 
+                                else 
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            text = "Lyrics",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (showLyrics) 
+                                MaterialTheme.colorScheme.primary 
+                            else 
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -500,7 +525,9 @@ fun EnhancedMusicPlayerScreen(
         // Lyrics bottom sheet
         if (showLyrics) {
             LyricsBottomSheet(
-                trackTitle = uiState.currentTrack?.title ?: "",
+                trackTitle = uiState.currentTrack?.title ?: track.title,
+                lyrics = uiState.lyrics,
+                isLoading = uiState.isLyricsLoading,
                 onDismiss = { showLyrics = false }
             )
         }
@@ -656,6 +683,8 @@ private fun EnhancedQueueBottomSheet(
 @Composable
 private fun LyricsBottomSheet(
     trackTitle: String,
+    lyrics: String?,
+    isLoading: Boolean,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -666,7 +695,7 @@ private fun LyricsBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
-                .heightIn(min = 300.dp, max = 500.dp)
+                .heightIn(min = 300.dp, max = 600.dp)
         ) {
             Text(
                 text = "Lyrics",
@@ -684,32 +713,53 @@ private fun LyricsBottomSheet(
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+            if (isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Lyrics,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Lyrics not available",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = "Lyrics not available for this track",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
+                    CircularProgressIndicator()
+                }
+            } else if (lyrics != null) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    item {
+                        Text(
+                            text = lyrics,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                lineHeight = 28.sp,
+                                fontSize = 18.sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Lyrics,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "Lyrics not available",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }

@@ -31,6 +31,7 @@ fun SettingsScreen(
     onThemeChange: (ThemeMode) -> Unit,
     onNavigateBack: () -> Unit,
     onNavigateToAppearance: () -> Unit,
+    onNavigateToDonations: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -305,6 +306,15 @@ fun SettingsScreen(
                     title = "Powered by NewPipeExtractor",
                     subtitle = "Open source YouTube extraction library",
                     onClick = { }
+                )
+            }
+
+            item {
+                SettingsItem(
+                    icon = Icons.Outlined.Favorite,
+                    title = "Support & Donations",
+                    subtitle = "Help support the development of Flow",
+                    onClick = onNavigateToDonations
                 )
             }
         }

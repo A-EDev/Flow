@@ -82,9 +82,15 @@ class MusicPlayerViewModel @Inject constructor(
         // Observe current track
         viewModelScope.launch {
             EnhancedMusicPlayerManager.currentTrack.collect { track ->
-                _uiState.value = _uiState.value.copy(currentTrack = track)
+                _uiState.value = _uiState.value.copy(
+                    currentTrack = track,
+                    lyrics = null // Reset lyrics for new track
+                )
                 // Check if current track is favorite
-                track?.let { checkIfFavorite(it.videoId) }
+                track?.let { 
+                    checkIfFavorite(it.videoId)
+                    fetchLyrics(it.artist, it.title)
+                }
             }
         }
             
@@ -345,6 +351,14 @@ class MusicPlayerViewModel @Inject constructor(
         return playlistRepository.isFavorite(videoId)
     }
 
+    fun fetchLyrics(artist: String, title: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLyricsLoading = true, lyrics = null)
+            val lyrics = com.flow.youtube.data.music.LyricsService.getLyrics(artist, title)
+            _uiState.value = _uiState.value.copy(isLyricsLoading = false, lyrics = lyrics)
+        }
+    }
+
     fun updateProgress() {
         val position = EnhancedMusicPlayerManager.getCurrentPosition()
         val duration = EnhancedMusicPlayerManager.getDuration()
@@ -376,5 +390,7 @@ data class MusicPlayerUiState(
     val error: String? = null,
     val playlists: List<com.flow.youtube.data.music.Playlist> = emptyList(),
     val showAddToPlaylistDialog: Boolean = false,
-    val showCreatePlaylistDialog: Boolean = false
+    val showCreatePlaylistDialog: Boolean = false,
+    val lyrics: String? = null,
+    val isLyricsLoading: Boolean = false
 )

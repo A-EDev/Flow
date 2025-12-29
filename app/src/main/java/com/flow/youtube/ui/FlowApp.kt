@@ -292,7 +292,8 @@ fun FlowApp(
                         currentTheme = currentTheme,
                         onThemeChange = onThemeChange,
                         onNavigateBack = { navController.popBackStack() },
-                        onNavigateToAppearance = { navController.navigate("settings/appearance") }
+                        onNavigateToAppearance = { navController.navigate("settings/appearance") },
+                        onNavigateToDonations = { navController.navigate("donations") }
                     )
                 }
 
@@ -302,6 +303,14 @@ fun FlowApp(
                     com.flow.youtube.ui.screens.settings.AppearanceScreen(
                         currentTheme = currentTheme,
                         onThemeChange = onThemeChange,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable("donations") {
+                    currentRoute.value = "donations"
+                    showBottomNav = false
+                    com.flow.youtube.ui.screens.settings.DonationsScreen(
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
@@ -456,9 +465,9 @@ fun FlowApp(
                     
                     PremiumMusicScreen(
                         onBackClick = { navController.popBackStack() },
-                        onSongClick = { track ->
-                            // Load and play the track immediately
-                            musicPlayerViewModel.loadAndPlayTrack(track)
+                        onSongClick = { track, queue ->
+                            // Load and play the track with the provided queue
+                            musicPlayerViewModel.loadAndPlayTrack(track, queue)
                             
                             // Navigate to player
                             navController.navigate("musicPlayer/${track.videoId}")
@@ -492,8 +501,8 @@ fun FlowApp(
                     
                     com.flow.youtube.ui.screens.music.LibraryScreen(
                         onBackClick = { navController.popBackStack() },
-                        onTrackClick = { track ->
-                            musicPlayerViewModel.loadAndPlayTrack(track)
+                        onTrackClick = { track, queue ->
+                            musicPlayerViewModel.loadAndPlayTrack(track, queue)
                             navController.navigate("musicPlayer/${track.videoId}")
                         }
                     )
@@ -503,6 +512,7 @@ fun FlowApp(
                 composable("artist/{channelId}") { backStackEntry ->
                     val channelId = backStackEntry.arguments?.getString("channelId") ?: return@composable
                     val musicViewModel: MusicViewModel = hiltViewModel()
+                    val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
                     val uiState by musicViewModel.uiState.collectAsState()
                     
                     LaunchedEffect(channelId) {
@@ -518,7 +528,8 @@ fun FlowApp(
                             ArtistPage(
                                 artistDetails = details,
                                 onBackClick = { navController.popBackStack() },
-                                onTrackClick = { track ->
+                                onTrackClick = { track, queue ->
+                                    musicPlayerViewModel.loadAndPlayTrack(track, queue)
                                     navController.navigate("musicPlayer/${track.videoId}")
                                 },
                                 onAlbumClick = { album ->

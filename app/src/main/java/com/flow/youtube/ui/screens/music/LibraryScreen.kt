@@ -37,7 +37,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun LibraryScreen(
     onBackClick: () -> Unit,
-    onTrackClick: (MusicTrack) -> Unit,
+    onTrackClick: (MusicTrack, List<MusicTrack>) -> Unit,
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -215,7 +215,7 @@ private fun PlaylistsTab(
 @Composable
 private fun FavoritesTab(
     favorites: List<MusicTrack>,
-    onTrackClick: (MusicTrack) -> Unit,
+    onTrackClick: (MusicTrack, List<MusicTrack>) -> Unit,
     onRemoveFavorite: (MusicTrack) -> Unit
 ) {
     if (favorites.isEmpty()) {
@@ -254,7 +254,7 @@ private fun FavoritesTab(
             items(favorites) { track ->
                 CompactSleekCard(
                     track = track,
-                    onClick = { onTrackClick(track) },
+                    onClick = { onTrackClick(track, favorites) },
                     onMoreClick = { onRemoveFavorite(track) }
                 )
             }
@@ -265,7 +265,7 @@ private fun FavoritesTab(
 @Composable
 private fun HistoryTab(
     history: List<MusicTrack>,
-    onTrackClick: (MusicTrack) -> Unit,
+    onTrackClick: (MusicTrack, List<MusicTrack>) -> Unit,
     onClearHistory: () -> Unit
 ) {
     if (history.isEmpty()) {
@@ -311,7 +311,7 @@ private fun HistoryTab(
             items(history) { track ->
                 CompactSleekCard(
                     track = track,
-                    onClick = { onTrackClick(track) },
+                    onClick = { onTrackClick(track, history) },
                     onMoreClick = { /* TODO: Show options */ }
                 )
             }
@@ -322,7 +322,7 @@ private fun HistoryTab(
 @Composable
 private fun DownloadsTab(
     downloads: List<com.flow.youtube.data.music.DownloadedTrack>,
-    onTrackClick: (MusicTrack) -> Unit,
+    onTrackClick: (MusicTrack, List<MusicTrack>) -> Unit,
     onDeleteDownload: (com.flow.youtube.data.music.DownloadedTrack) -> Unit,
     downloadProgress: Map<String, Int>,
     downloadStatus: Map<String, com.flow.youtube.data.music.DownloadStatus>
@@ -345,7 +345,7 @@ private fun DownloadsTab(
             items(downloads) { download ->
                 DownloadedTrackCard(
                     download = download,
-                    onClick = { onTrackClick(download.track) },
+                    onClick = { onTrackClick(download.track, downloads.map { it.track }) },
                     onDelete = { onDeleteDownload(download) }
                 )
             }
