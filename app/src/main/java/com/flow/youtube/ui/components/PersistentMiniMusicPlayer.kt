@@ -266,19 +266,7 @@ fun PersistentMiniMusicPlayer(
                                 horizontalArrangement = Arrangement.spacedBy(0.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Like button
-                                IconButton(
-                                    onClick = { /* Toggle like */ },
-                                    modifier = Modifier.size(40.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.FavoriteBorder,
-                                        contentDescription = "Like",
-                                        modifier = Modifier.size(22.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-
+                                
                                 // Play/Pause - main action
                                 Box(
                                     modifier = Modifier

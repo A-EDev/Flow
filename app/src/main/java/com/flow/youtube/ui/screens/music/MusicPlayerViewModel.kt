@@ -351,12 +351,65 @@ class MusicPlayerViewModel @Inject constructor(
         return playlistRepository.isFavorite(videoId)
     }
 
+    private var lyricsJob: kotlinx.coroutines.Job? = null
+
     fun fetchLyrics(artist: String, title: String) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLyricsLoading = true, lyrics = null)
-            val lyrics = com.flow.youtube.data.music.LyricsService.getLyrics(artist, title)
-            _uiState.value = _uiState.value.copy(isLyricsLoading = false, lyrics = lyrics)
+        lyricsJob?.cancel()
+        lyricsJob = viewModelScope.launch {
+            val cleanArtist = artist.trim()
+            val cleanTitle = title.trim()
+            
+            _uiState.value = _uiState.value.copy(
+                isLyricsLoading = true, 
+                lyrics = null,
+                syncedLyrics = emptyList()
+            )
+            
+            // Small delay to avoid spamming API while skipping
+            delay(500)
+            
+            val response = com.flow.youtube.data.music.LyricsService.getLyrics(
+                cleanArtist, 
+                cleanTitle, 
+                _uiState.value.duration.toInt() / 1000
+            )
+            
+            if (response != null) {
+                val parsedSynced = response.syncedLyrics?.let { parseLyrics(it) } ?: emptyList()
+                _uiState.value = _uiState.value.copy(
+                    isLyricsLoading = false,
+                    lyrics = response.plainLyrics,
+                    syncedLyrics = parsedSynced
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(isLyricsLoading = false)
+            }
         }
+    }
+
+    private fun parseLyrics(lrc: String): List<LyricLine> {
+        val lines = mutableListOf<LyricLine>()
+        // Support [mm:ss.xx], [mm:ss.xxx], [m:ss.xx], etc.
+        // Also support multiple timestamps like [00:12.34][00:45.67] Lyrics
+        val timeRegex = Regex("\\[(\\d{1,2}):(\\d{2})[.:](\\d{2,3})\\]")
+        
+        lrc.lines().forEach { line ->
+            val timeMatches = timeRegex.findAll(line).toList()
+            if (timeMatches.isNotEmpty()) {
+                val content = line.replace(timeRegex, "").trim()
+                if (content.isNotEmpty()) {
+                    timeMatches.forEach { match ->
+                        val min = match.groupValues[1].toLong()
+                        val sec = match.groupValues[2].toLong()
+                        val msStr = match.groupValues[3]
+                        val ms = if (msStr.length == 2) msStr.toLong() * 10 else msStr.toLong()
+                        val time = (min * 60 * 1000) + (sec * 1000) + ms
+                        lines.add(LyricLine(time, content))
+                    }
+                }
+            }
+        }
+        return lines.sortedBy { it.time }
     }
 
     fun updateProgress() {
@@ -392,5 +445,11 @@ data class MusicPlayerUiState(
     val showAddToPlaylistDialog: Boolean = false,
     val showCreatePlaylistDialog: Boolean = false,
     val lyrics: String? = null,
+    val syncedLyrics: List<LyricLine> = emptyList(),
     val isLyricsLoading: Boolean = false
+)
+
+data class LyricLine(
+    val time: Long,
+    val content: String
 )

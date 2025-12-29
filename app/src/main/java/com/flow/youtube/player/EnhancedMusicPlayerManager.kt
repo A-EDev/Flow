@@ -117,18 +117,32 @@ object EnhancedMusicPlayerManager {
     /**
      * Play a track with optional queue
      */
-    fun playTrack(track: MusicTrack, audioUrl: String, queue: List<MusicTrack> = emptyList(), startIndex: Int = 0) {
+    fun playTrack(track: MusicTrack, audioUrl: String, queue: List<MusicTrack> = emptyList(), startIndex: Int = -1) {
         _currentTrack.value = track
         
         if (queue.isNotEmpty()) {
-            _originalQueue.clear()
-            _originalQueue.addAll(queue)
-            _queue.value = if (_shuffleEnabled.value) {
-                queue.shuffled()
-            } else {
-                queue
+            val isSameQueue = _originalQueue.size == queue.size && 
+                             _originalQueue.zip(queue).all { it.first.videoId == it.second.videoId }
+            
+            if (!isSameQueue) {
+                _originalQueue.clear()
+                _originalQueue.addAll(queue)
+                _queue.value = if (_shuffleEnabled.value) {
+                    queue.shuffled()
+                } else {
+                    queue
+                }
             }
-            _currentQueueIndex.value = startIndex
+            
+            // Update current index
+            if (startIndex >= 0) {
+                _currentQueueIndex.value = startIndex
+            } else {
+                val indexInQueue = _queue.value.indexOfFirst { it.videoId == track.videoId }
+                if (indexInQueue >= 0) {
+                    _currentQueueIndex.value = indexInQueue
+                }
+            }
         }
         
         // Prepare media source
@@ -294,10 +308,14 @@ object EnhancedMusicPlayerManager {
                 
                 if (currentIndex < queue.size - 1) {
                     playNext()
-                } else {
+                } else if (queue.isNotEmpty()) {
                     // Loop back to first track
+                    val firstTrack = queue.first()
                     _currentQueueIndex.value = 0
-                    _currentTrack.value = queue.firstOrNull()
+                    _currentTrack.value = firstTrack
+                    scope.launch {
+                        _playerEvents.emit(PlayerEvent.RequestPlayTrack(firstTrack))
+                    }
                 }
             }
             RepeatMode.OFF -> {

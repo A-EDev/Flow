@@ -8,6 +8,8 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -23,6 +25,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -527,8 +530,11 @@ fun EnhancedMusicPlayerScreen(
             LyricsBottomSheet(
                 trackTitle = uiState.currentTrack?.title ?: track.title,
                 lyrics = uiState.lyrics,
+                syncedLyrics = uiState.syncedLyrics,
+                currentPosition = uiState.currentPosition,
                 isLoading = uiState.isLyricsLoading,
-                onDismiss = { showLyrics = false }
+                onDismiss = { showLyrics = false },
+                onSeekTo = { viewModel.seekTo(it) }
             )
         }
         
@@ -684,9 +690,27 @@ private fun EnhancedQueueBottomSheet(
 private fun LyricsBottomSheet(
     trackTitle: String,
     lyrics: String?,
+    syncedLyrics: List<LyricLine>,
+    currentPosition: Long,
     isLoading: Boolean,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onSeekTo: (Long) -> Unit
 ) {
+    val listState = rememberLazyListState()
+    
+    // Find current line index
+    val currentLineIndex = remember(currentPosition, syncedLyrics) {
+        val index = syncedLyrics.indexOfLast { it.time <= currentPosition }
+        if (index == -1) 0 else index
+    }
+    
+    // Auto-scroll to current line
+    LaunchedEffect(currentLineIndex) {
+        if (syncedLyrics.isNotEmpty()) {
+            listState.animateScrollToItem(currentLineIndex, scrollOffset = -300)
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -695,7 +719,7 @@ private fun LyricsBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
-                .heightIn(min = 300.dp, max = 600.dp)
+                .heightIn(min = 400.dp, max = 700.dp)
         ) {
             Text(
                 text = "Lyrics",
@@ -721,6 +745,47 @@ private fun LyricsBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator()
+                }
+            } else if (syncedLyrics.isNotEmpty()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                    contentPadding = PaddingValues(vertical = 100.dp)
+                ) {
+                    itemsIndexed(syncedLyrics) { index, line ->
+                        val isCurrent = index == currentLineIndex
+                        val alpha by animateFloatAsState(
+                            targetValue = if (isCurrent) 1f else 0.3f,
+                            animationSpec = tween(durationMillis = 500)
+                        )
+                        val scale by animateFloatAsState(
+                            targetValue = if (isCurrent) 1.05f else 1f,
+                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+                        )
+                        
+                        Text(
+                            text = line.content,
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
+                                fontSize = 24.sp,
+                                lineHeight = 32.sp
+                            ),
+                            color = if (isCurrent) 
+                                MaterialTheme.colorScheme.primary 
+                            else 
+                                MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .graphicsLayer {
+                                    this.alpha = alpha
+                                    this.scaleX = scale
+                                    this.scaleY = scale
+                                }
+                                .clickable { onSeekTo(line.time) },
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             } else if (lyrics != null) {
                 LazyColumn(
