@@ -4,6 +4,9 @@
 ![Platform](https://img.shields.io/badge/Platform-Android-green?style=for-the-badge&logo=android)
 ![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-purple?style=for-the-badge&logo=kotlin)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
+![GitHub stars](https://img.shields.io/github/stars/A-EDev/Flow?style=for-the-badge)
+![GitHub forks](https://img.shields.io/github/forks/A-EDev/Flow?style=for-the-badge)
+![GitHub last commit](https://img.shields.io/github/last-commit/A-EDev/Flow/main?style=for-the-badge)
 
 **A modern, feature-rich YouTube client for Android built with Jetpack Compose**
 
@@ -18,6 +21,15 @@
 - 🚧 Contains placeholder data in various sections
 - 🐛 Some features may be incomplete or unstable
 - 📊 Still optimizing performance and user experience
+
+---
+
+## 📊 Stats
+![GitHub stars](https://img.shields.io/github/stars/A-EDev/Flow?style=for-the-badge)
+![GitHub downloads](https://img.shields.io/github/downloads/A-EDev/Flow/total?style=for-the-badge)
+![GitHub issues](https://img.shields.io/github/issues/A-EDev/Flow?style=for-the-badge)
+![GitHub repo size](https://img.shields.io/github/repo-size/A-EDev/Flow?style=for-the-badge)
+![GitHub contributors](https://img.shields.io/github/contributors/A-EDev/Flow?style=for-the-badge)
 
 ---
 
