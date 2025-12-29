@@ -564,6 +564,11 @@ class EnhancedPlayerManager private constructor() {
         currentAudioStream = null
         selectedSubtitleIndex = null
         lastPosition = 0L
+        
+        // Reset quality settings for new video
+        isAdaptiveQualityEnabled = true
+        manualQualityHeight = null
+        
         player?.let { exoPlayer ->
             try {
                 exoPlayer.stop()
@@ -579,7 +584,8 @@ class EnhancedPlayerManager private constructor() {
             error = null,
             hasEnded = false,
             isPrepared = false,
-            recoveryAttempted = false
+            recoveryAttempted = false,
+            currentQuality = 0 // Reset to Auto
         )
     }
 

@@ -45,6 +45,11 @@ class VideoPlayerViewModel @Inject constructor(
     }
     
     fun loadVideoInfo(videoId: String, isWifi: Boolean = true) {
+        // Don't reload if already loading or already loaded the same video
+        if ((_uiState.value.streamInfo?.id == videoId || _uiState.value.isLoading) && _uiState.value.error == null) {
+            return
+        }
+        
         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
         
         viewModelScope.launch {

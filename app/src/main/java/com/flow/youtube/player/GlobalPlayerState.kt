@@ -33,6 +33,9 @@ object GlobalPlayerState {
     private val _miniPlayerExpansionState = MutableStateFlow(MiniPlayerExpansionState.HIDDEN)
     val miniPlayerExpansionState: StateFlow<MiniPlayerExpansionState> = _miniPlayerExpansionState.asStateFlow()
     
+    private val _isInPipMode = MutableStateFlow(false)
+    val isInPipMode: StateFlow<Boolean> = _isInPipMode.asStateFlow()
+    
     // Delegate to EnhancedPlayerManager for player state
     val playerState: StateFlow<EnhancedPlayerState> = EnhancedPlayerManager.getInstance().playerState
     
@@ -64,6 +67,13 @@ object GlobalPlayerState {
      */
     fun initialize(context: Context) {
         EnhancedPlayerManager.getInstance().initialize(context)
+    }
+    
+    /**
+     * Set PiP mode state.
+     */
+    fun setPipMode(inPipMode: Boolean) {
+        _isInPipMode.value = inPipMode
     }
     
     /**

@@ -277,6 +277,20 @@ fun EnhancedVideoPlayerScreen(
             )
         }
     }
+
+    // Reset orientation when leaving the screen
+    DisposableEffect(Unit) {
+        onDispose {
+            if (activity?.isInPictureInPictureMode == false) {
+                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                activity?.let { act ->
+                    WindowCompat.setDecorFitsSystemWindows(act.window, true)
+                    val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
+                    insetsController.show(WindowInsetsCompat.Type.systemBars())
+                }
+            }
+        }
+    }
     
     // Snackbar host
     Box(modifier = Modifier.fillMaxSize()) {
@@ -441,8 +455,16 @@ fun EnhancedVideoPlayerScreen(
         val audioStream = uiState.audioStream
         
         if (videoStream != null && audioStream != null) {
+            // Guard: If the player is already playing this video and has these streams, don't reset
+            // This prevents quality reset to "Auto" and playback interruptions during PiP transitions
+            val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
+            if (currentPlayerState.currentVideoId == video.id && currentPlayerState.isPrepared) {
+                Log.d("EnhancedVideoPlayerScreen", "Player already prepared for ${video.id}, skipping setStreams")
+                return@LaunchedEffect
+            }
+
             // Clear previous video if this is a different video
-            val currentVideoId = EnhancedPlayerManager.getInstance().playerState.value.currentVideoId
+            val currentVideoId = currentPlayerState.currentVideoId
             if (currentVideoId != null && currentVideoId != video.id) {
                 Log.d("EnhancedVideoPlayerScreen", "Switching from $currentVideoId to ${video.id}")
                 EnhancedPlayerManager.getInstance().clearCurrentVideo()
@@ -533,7 +555,7 @@ fun EnhancedVideoPlayerScreen(
     // player state across navigation. The player lifecycle is now managed globally.
     // If you need to release on back navigation, handle it in the BackHandler instead.
     
-    val playerHeight = if (isFullscreen) {
+    val playerHeight = if (isFullscreen || isInPipMode) {
         configuration.screenHeightDp.dp
     } else {
         (configuration.screenWidthDp.dp * 9f / 16f).coerceAtLeast(220.dp)
@@ -542,7 +564,7 @@ fun EnhancedVideoPlayerScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(if (isInPipMode) Color.Black else MaterialTheme.colorScheme.background)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // ============ VIDEO PLAYER SECTION ============
@@ -702,6 +724,8 @@ fun EnhancedVideoPlayerScreen(
                             ViewGroup.LayoutParams.MATCH_PARENT
                         )
                         setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+                        // Set background to black to avoid white flash during transitions
+                        setBackgroundColor(android.graphics.Color.BLACK)
                     }
                 }
                 
@@ -1036,8 +1060,8 @@ fun EnhancedVideoPlayerScreen(
                 )
             }
             
-            // ============ VIDEO DETAILS AND RELATED (Only when not fullscreen) ============
-            if (!isFullscreen) {
+            // ============ VIDEO DETAILS AND RELATED (Only when not fullscreen and not in PiP) ============
+            if (!isFullscreen && !isInPipMode) {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxSize()

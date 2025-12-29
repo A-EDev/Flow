@@ -96,6 +96,27 @@ class MainActivity : ComponentActivity() {
         GlobalPlayerState.release()
     }
 
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        GlobalPlayerState.setPipMode(isInPictureInPictureMode)
+        
+        // If we are exiting PiP mode, ensure we are in portrait if not in fullscreen
+        if (!isInPictureInPictureMode) {
+            // We don't force portrait here because the user might have been in landscape fullscreen
+            // and they want to return to it. 
+            // But if they were in PiP and just closed it, the activity is destroyed anyway.
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // If the app is going to background and NOT in PiP, reset orientation to portrait
+        // This fixes the issue where exiting the app from landscape keeps the system in landscape
+        if (!isInPictureInPictureMode) {
+            requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+    }
+
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         // Only enter PiP mode if video is playing

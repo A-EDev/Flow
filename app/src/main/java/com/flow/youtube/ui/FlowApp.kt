@@ -4,12 +4,14 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -60,6 +62,7 @@ fun FlowApp(
     
     // Observer global player state
     val isMiniPlayerVisible by GlobalPlayerState.isMiniPlayerVisible.collectAsState()
+    val isInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
     val currentVideo by GlobalPlayerState.currentVideo.collectAsState()
     val currentRoute = remember { mutableStateOf("home") }
     
@@ -67,83 +70,93 @@ fun FlowApp(
     val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
     val musicPlayerState by EnhancedMusicPlayerManager.playerState.collectAsState()
 
+    // Navigate to player if entering PiP from another screen
+    LaunchedEffect(isInPipMode) {
+        if (isInPipMode && !currentRoute.value.startsWith("player") && currentVideo != null) {
+            navController.navigate("player/${currentVideo!!.id}")
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
+            containerColor = if (isInPipMode) androidx.compose.ui.graphics.Color.Black else androidx.compose.material3.MaterialTheme.colorScheme.background,
             bottomBar = {
-                // Stack the mini players above the bottom nav
-                Column {
-                    // Show persistent video mini player when video is playing and not on video player screen
-                    if (showBottomNav && isMiniPlayerVisible && currentVideo != null && !currentRoute.value.startsWith("player")) {
-                        PersistentVideoMiniPlayer(
-                            video = currentVideo!!,
-                            onExpandClick = {
-                                GlobalPlayerState.hideMiniPlayer()
-                                navController.navigate("player/${currentVideo!!.id}")
-                            },
-                            onDismiss = {
-                                GlobalPlayerState.stop()
-                            }
-                        )
-                    }
-                    
-                    // Show persistent music mini player when music is playing and not on music player screen
-                    if (showBottomNav && currentMusicTrack != null && !currentRoute.value.startsWith("musicPlayer")) {
-                        PersistentMiniMusicPlayer(
-                            onExpandClick = {
-                                currentMusicTrack?.let { track ->
-                                    navController.navigate("musicPlayer/${track.videoId}")
+                if (!isInPipMode) {
+                    // Stack the mini players above the bottom nav
+                    Column {
+                        // Show persistent video mini player when video is playing and not on video player screen
+                        if (showBottomNav && isMiniPlayerVisible && currentVideo != null && !currentRoute.value.startsWith("player")) {
+                            PersistentVideoMiniPlayer(
+                                video = currentVideo!!,
+                                onExpandClick = {
+                                    GlobalPlayerState.hideMiniPlayer()
+                                    navController.navigate("player/${currentVideo!!.id}")
+                                },
+                                onDismiss = {
+                                    GlobalPlayerState.stop()
                                 }
-                            },
-                            onDismiss = {
-                                // Stop music and clear current track
-                                EnhancedMusicPlayerManager.stop()
-                                EnhancedMusicPlayerManager.clearCurrentTrack()
-                            }
-                        )
-                    }
+                            )
+                        }
                     
-                    if (showBottomNav) {
-                        FloatingBottomNavBar(
-                            selectedIndex = selectedBottomNavIndex,
-                            onItemSelected = { index ->
-                                selectedBottomNavIndex = index
-                                when (index) {
-                                    0 -> {
-                                        currentRoute.value = "home"
-                                        navController.navigate("home") {
-                                            popUpTo("home") { inclusive = true }
+                        // Show persistent music mini player when music is playing and not on music player screen
+                        if (showBottomNav && currentMusicTrack != null && !currentRoute.value.startsWith("musicPlayer")) {
+                            PersistentMiniMusicPlayer(
+                                onExpandClick = {
+                                    currentMusicTrack?.let { track ->
+                                        navController.navigate("musicPlayer/${track.videoId}")
+                                    }
+                                },
+                                onDismiss = {
+                                    // Stop music and clear current track
+                                    EnhancedMusicPlayerManager.stop()
+                                    EnhancedMusicPlayerManager.clearCurrentTrack()
+                                }
+                            )
+                        }
+                    
+                        if (showBottomNav) {
+                            FloatingBottomNavBar(
+                                selectedIndex = selectedBottomNavIndex,
+                                onItemSelected = { index ->
+                                    selectedBottomNavIndex = index
+                                    when (index) {
+                                        0 -> {
+                                            currentRoute.value = "home"
+                                            navController.navigate("home") {
+                                                popUpTo("home") { inclusive = true }
+                                            }
+                                        }
+                                        1 -> {
+                                            currentRoute.value = "shorts"
+                                            navController.navigate("shorts")
+                                        }
+                                        2 -> {
+                                            currentRoute.value = "music"
+                                            navController.navigate("music")
+                                        }
+                                        3 -> {
+                                            currentRoute.value = "subscriptions"
+                                            navController.navigate("subscriptions")
+                                        }
+                                        4 -> {
+                                            currentRoute.value = "library"
+                                            navController.navigate("library")
                                         }
                                     }
-                                    1 -> {
-                                        currentRoute.value = "shorts"
-                                        navController.navigate("shorts")
-                                    }
-                                    2 -> {
-                                        currentRoute.value = "music"
-                                        navController.navigate("music")
-                                    }
-                                    3 -> {
-                                        currentRoute.value = "subscriptions"
-                                        navController.navigate("subscriptions")
-                                    }
-                                    4 -> {
-                                        currentRoute.value = "library"
-                                        navController.navigate("library")
-                                    }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }
         ) { paddingValues ->
-            NavHost(
-                navController = navController,
-                startDestination = "home",
-                modifier = Modifier.padding(paddingValues)
-            ) {
-                composable("home") {
+            Box(modifier = Modifier.padding(if (isInPipMode) PaddingValues(0.dp) else paddingValues)) {
+                NavHost(
+                    navController = navController,
+                    startDestination = "home"
+                ) {
+                    composable("home") {
                     currentRoute.value = "home"
                     showBottomNav = true
                     selectedBottomNavIndex = 0
@@ -584,6 +597,14 @@ fun FlowApp(
                         navDeepLink {
                             uriPattern = "https://m.youtube.com/watch?v={videoId}"
                             action = android.content.Intent.ACTION_VIEW
+                        },
+                        navDeepLink {
+                            uriPattern = "https://www.youtube.com/shorts/{videoId}"
+                            action = android.content.Intent.ACTION_VIEW
+                        },
+                        navDeepLink {
+                            uriPattern = "https://youtube.com/shorts/{videoId}"
+                            action = android.content.Intent.ACTION_VIEW
                         }
                     )
                 ) { backStackEntry ->
@@ -635,4 +656,5 @@ fun FlowApp(
             }
         }
     }
+}
 }
