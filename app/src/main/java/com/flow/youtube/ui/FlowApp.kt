@@ -70,6 +70,17 @@ fun FlowApp(
     val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
     val musicPlayerState by EnhancedMusicPlayerManager.playerState.collectAsState()
 
+    // Handle deep links and notifications
+    val activity = context as? com.flow.youtube.MainActivity
+    val deeplinkVideoId by activity?.deeplinkVideoId ?: remember { mutableStateOf(null) }
+    
+    LaunchedEffect(deeplinkVideoId) {
+        if (deeplinkVideoId != null) {
+            navController.navigate("player/$deeplinkVideoId")
+            activity?.consumeDeeplink()
+        }
+    }
+
     // Navigate to player if entering PiP from another screen
     LaunchedEffect(isInPipMode) {
         if (isInPipMode && !currentRoute.value.startsWith("player") && currentVideo != null) {

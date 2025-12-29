@@ -18,7 +18,6 @@
 
 **Flow is currently under active development.** Please note:
 
-- 🚧 Contains placeholder data in various sections
 - 🐛 Some features may be incomplete or unstable
 - 📊 Still optimizing performance and user experience
 
@@ -47,6 +46,7 @@
 - [x] Auto-play next video
 - [x] **Gesture Controls:** Left swipe for brightness, right swipe for volume
 - [x] **Subtitle Support:** SRT/VTT formats with animated display
+- [x] **Subtitle Customization:** Font size, color, background
 - [x] **Enhanced Controls:** Quality and subtitle badges at top
 - [x] **Professional UI:** Loading states, smooth animations, and visual feedback
 
@@ -57,7 +57,7 @@
 - [x] Queue management (add, remove, reorder)
 - [x] Shuffle and repeat modes
 - [x] Persistent mini player across screens
-- [ ] Lyrics display support
+- [x] Lyrics display support
 - [x] Background audio playback
 - [x] Smart track loading from popular artists
 
@@ -170,26 +170,6 @@ The app is organized into clear, focused modules for maintainability and scalabi
 
 ---
 
-## 🎨 Customization
-
-### Changing Theme
-
-Navigate to Settings → Appearance → Theme and choose from:
-
-- **Light**: Soft off-white background with vibrant accents
-- **Dark**: Deep charcoal background for comfortable viewing
-- **OLED Black**: Pure black background for maximum battery savings
-
-### Accent Colors
-
-The app uses a beautiful indigo/purple gradient as the primary accent. You can modify colors in:
-
-```kotlin
-app/src/main/java/com/flow/youtube/ui/theme/Color.kt
-```
-
----
-
 ## 🗺️ Roadmap
 
 ### 🔥 High Priority
@@ -203,7 +183,7 @@ app/src/main/java/com/flow/youtube/ui/theme/Color.kt
 - [x] **Shorts Support**
   - [x] Shorts feed UI
   - [x] Vertical swipe navigation
-  - [ ] Shorts player optimization
+  - [x] Shorts player optimization
   - [ ] Shorts creation date/view count
 
 - [] **Channel Screen**
@@ -222,8 +202,8 @@ app/src/main/java/com/flow/youtube/ui/theme/Color.kt
 ### 📱 Core Features
 
 - [ ] **Notification System**
-  - [ ] Push notifications setup
-  - [ ] New video notifications
+  - [x] Push notifications setup
+  - [x] New video notifications
   - [x] Download complete notifications
   - [ ] Playback controls in notification
 
@@ -234,16 +214,16 @@ app/src/main/java/com/flow/youtube/ui/theme/Color.kt
   - [x] Downloaded videos library
 
 - [ ] **Comments System**
-  - [ ] Display video comments
+  - [x] Display video comments
   - [ ] Comment threads/replies
-  - [ ] Sort comments (top/newest)
-  - [ ] Comment engagement (likes/dislikes display)
+  - [x] Sort comments (top/newest)
+  - [x] Comment engagement (likes display)
 
 - [ ] **Social Features**
   - [x] Share videos functionality
   - [ ] Create shareable playlists
   - [ ] Export watch statistics
-  - [ ] Social media integration
+  - [x] Follow favorite channels and artists
 
 ### 🎯 User Experience
 
@@ -251,19 +231,16 @@ app/src/main/java/com/flow/youtube/ui/theme/Color.kt
   - [x] Search filters (date, duration, quality)
   - [x] Advanced search operators
   - [ ] Voice search support
-  - [ ] Image/QR code search
 
 - [ ] **Playback Features**
   - [x] Resume playback from last position
   - [ ] Watch together (sync viewing)
   - [ ] Live stream support
   - [ ] DVR controls for live streams
-  - [ ] Subtitle/closed caption support
 
 - [ ] **Accessibility**
   - [ ] Screen reader optimization
   - [ ] High contrast mode
-  - [ ] Font size options
   - [ ] Voice commands
 
 ### ⚙️ Technical Improvements

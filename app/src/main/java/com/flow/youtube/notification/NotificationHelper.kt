@@ -305,6 +305,7 @@ object NotificationHelper {
         // Intent to open the video
         val watchIntent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("notification_video_id", videoId)
             putExtra("video_id", videoId)
             putExtra("video_title", videoTitle)
         }

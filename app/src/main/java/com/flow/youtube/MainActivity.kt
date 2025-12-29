@@ -1,5 +1,6 @@
 package com.flow.youtube
 
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -19,6 +20,9 @@ import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private val _deeplinkVideoId = mutableStateOf<String?>(null)
+    val deeplinkVideoId: State<String?> = _deeplinkVideoId
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -26,6 +30,8 @@ class MainActivity : ComponentActivity() {
         GlobalPlayerState.initialize(applicationContext)
 
         val dataManager = LocalDataManager(applicationContext)
+
+        handleIntent(intent)
 
         setContent {
             val scope = rememberCoroutineScope()
@@ -94,6 +100,47 @@ class MainActivity : ComponentActivity() {
         super.onDestroy()
         // Release player when app is destroyed
         GlobalPlayerState.release()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
+        val data = intent.data
+        val notificationVideoId = intent.getStringExtra("notification_video_id") ?: intent.getStringExtra("video_id")
+        
+        val videoId = if (data != null && intent.action == Intent.ACTION_VIEW) {
+            extractVideoId(data.toString())
+        } else {
+            notificationVideoId
+        }
+        
+        if (videoId != null) {
+            _deeplinkVideoId.value = videoId
+            intent.putExtra("deeplink_video_id", videoId)
+        }
+    }
+
+    fun consumeDeeplink() {
+        _deeplinkVideoId.value = null
+    }
+
+    private fun extractVideoId(url: String): String? {
+        val patterns = listOf(
+            Regex("v=([^&]+)"),
+            Regex("shorts/([^/?]+)"),
+            Regex("youtu.be/([^/?]+)"),
+            Regex("embed/([^/?]+)"),
+            Regex("v/([^/?]+)")
+        )
+        for (pattern in patterns) {
+            val match = pattern.find(url)
+            if (match != null) return match.groupValues[1]
+        }
+        return url.substringAfterLast("/").substringBefore("?").ifEmpty { null }
     }
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
