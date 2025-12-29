@@ -5,6 +5,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import com.flow.youtube.data.local.LocalDataManager
 import com.flow.youtube.player.GlobalPlayerState
 import com.flow.youtube.ui.FlowApp
@@ -27,6 +30,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             val scope = rememberCoroutineScope()
             var themeMode by remember { mutableStateOf(ThemeMode.LIGHT) }
+            // State to control splash visibility
+            var showSplash by remember { mutableStateOf(true) }
 
             // Load theme preference
             LaunchedEffect(Unit) {
@@ -58,15 +63,29 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                FlowApp(
-                    currentTheme = themeMode,
-                    onThemeChange = { newTheme ->
-                        themeMode = newTheme
-                        scope.launch {
-                            dataManager.setThemeMode(newTheme)
+                Box(modifier = Modifier.fillMaxSize()) {
+                    // 1. YOUR MAIN APP (Home/NavHost)
+                    // This loads *behind* the splash screen immediately.
+                    // By the time splash fades, this is ready.
+                    FlowApp(
+                        currentTheme = themeMode,
+                        onThemeChange = { newTheme ->
+                            themeMode = newTheme
+                            scope.launch {
+                                dataManager.setThemeMode(newTheme)
+                            }
                         }
+                    )
+
+                    // 2. THE SPLASH SCREEN (Z-Index Top)
+                    if (showSplash) {
+                        com.flow.youtube.ui.components.FlowSplashScreen(
+                            onAnimationFinished = {
+                                showSplash = false
+                            }
+                        )
                     }
-                )
+                }
             }
         }
     }
