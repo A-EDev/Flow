@@ -23,6 +23,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.flow.youtube.data.model.Video
 import kotlinx.coroutines.launch
+import com.flow.youtube.ui.components.FlowCommentsBottomSheet
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -41,7 +42,16 @@ fun ShortsScreen(
     val scope = rememberCoroutineScope()
     
     var showCommentsSheet by remember { mutableStateOf(false) }
+    var isTopComments by remember { mutableStateOf(true) }
     val comments by viewModel.commentsState.collectAsState()
+    
+    val sortedComments = remember(comments, isTopComments) {
+        if (isTopComments) {
+            comments.sortedByDescending { it.likeCount }
+        } else {
+            comments
+        }
+    }
     val isLoadingComments by viewModel.isLoadingComments.collectAsState()
     
     // Initialize repositories and load shorts
@@ -150,9 +160,14 @@ fun ShortsScreen(
         }
         
         if (showCommentsSheet) {
-            CommentsBottomSheet(
-                comments = comments,
+            FlowCommentsBottomSheet(
+                comments = sortedComments,
+                commentCount = if (comments.isNotEmpty()) "${comments.size}+" else "0",
                 isLoading = isLoadingComments,
+                isTopSelected = isTopComments,
+                onFilterChanged = { isTop ->
+                    isTopComments = isTop
+                },
                 onDismiss = { showCommentsSheet = false }
             )
         }

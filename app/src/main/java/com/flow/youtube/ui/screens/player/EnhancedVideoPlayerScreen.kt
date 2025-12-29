@@ -96,6 +96,9 @@ import com.flow.youtube.player.seekbarpreview.SeekbarPreviewThumbnailQuality
 
 import com.flow.youtube.ui.components.VideoQuickActionsBottomSheet
 import com.flow.youtube.ui.components.VideoInfoSection
+import com.flow.youtube.ui.components.CommentsPreview
+import com.flow.youtube.ui.components.FlowCommentsBottomSheet
+import com.flow.youtube.ui.components.FlowDescriptionBottomSheet
 import androidx.core.text.HtmlCompat
 
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -122,7 +125,23 @@ fun EnhancedVideoPlayerScreen(
     // State
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
+    val comments by viewModel.commentsState.collectAsStateWithLifecycle()
+    val isLoadingComments by viewModel.isLoadingComments.collectAsStateWithLifecycle()
+
     var showQuickActions by remember { mutableStateOf(false) }
+    var showCommentsSheet by remember { mutableStateOf(false) }
+    var isTopComments by remember { mutableStateOf(true) }
+    
+    val sortedComments = remember(comments, isTopComments) {
+        if (isTopComments) {
+            comments.sortedByDescending { it.likeCount }
+        } else {
+            // Newest first - in a real app we'd have timestamps to parse, 
+            // but for now we'll just reverse or keep as is if API returns newest first
+            comments
+        }
+    }
+    var showDescriptionSheet by remember { mutableStateOf(false) }
     
     var showControls by remember { mutableStateOf(true) }
     var isFullscreen by remember { mutableStateOf(false) }
@@ -164,7 +183,10 @@ fun EnhancedVideoPlayerScreen(
     var isSpeedBoostActive by remember { mutableStateOf(false) }
     var normalSpeed by remember { mutableStateOf(1.0f) }
     
-    // System managers
+    // System managers    // Initializations
+    LaunchedEffect(video.id) {
+        viewModel.loadComments(video.id)
+    }
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
     val windowManager = remember { context.getSystemService(Context.WINDOW_SERVICE) as WindowManager }
@@ -1100,7 +1122,20 @@ fun EnhancedVideoPlayerScreen(
                             },
                             onDownloadClick = {
                                 showDownloadDialog = true
+                            },
+                            onDescriptionClick = {
+                                showDescriptionSheet = true
                             }
+                        )
+                    }
+
+                    // Comments Preview
+                    item {
+                        CommentsPreview(
+                            commentCount = uiState.commentCountText,
+                            latestComment = comments.firstOrNull()?.text,
+                            authorAvatar = comments.firstOrNull()?.authorThumbnail,
+                            onClick = { showCommentsSheet = true }
                         )
                     }
                     
@@ -1657,6 +1692,59 @@ fun EnhancedVideoPlayerScreen(
                     Text("Done")
                 }
             }
+        )
+    }
+
+    // Comments Bottom Sheet
+    if (showCommentsSheet) {
+        FlowCommentsBottomSheet(
+            comments = sortedComments,
+            commentCount = uiState.commentCountText,
+            isLoading = isLoadingComments,
+            isTopSelected = isTopComments,
+            onFilterChanged = { isTop ->
+                isTopComments = isTop
+            },
+            onDismiss = { showCommentsSheet = false }
+        )
+    }
+
+    // Description Bottom Sheet
+    if (showDescriptionSheet) {
+        // Build a complete video object for the description sheet
+        val currentVideo = remember(uiState.streamInfo, video) {
+            val streamInfo = uiState.streamInfo
+            if (streamInfo != null) {
+                Video(
+                    id = streamInfo.id ?: video.id,
+                    title = streamInfo.name ?: video.title,
+                    channelName = streamInfo.uploaderName ?: video.channelName,
+                    channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
+                    thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: video.thumbnailUrl,
+                    duration = streamInfo.duration.toInt(),
+                    viewCount = streamInfo.viewCount,
+                    likeCount = streamInfo.likeCount,
+                    uploadDate = streamInfo.textualUploadDate ?: streamInfo.uploadDate?.run { 
+                        // Fallback formatting if textual date is missing
+                        try {
+                            val cal = date()
+                            val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
+                            sdf.format(cal.time)
+                        } catch (e: Exception) {
+                            video.uploadDate
+                        }
+                    } ?: video.uploadDate,
+                    description = streamInfo.description?.content ?: video.description,
+                    channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl
+                )
+            } else {
+                video
+            }
+        }
+
+        FlowDescriptionBottomSheet(
+            video = currentVideo,
+            onDismiss = { showDescriptionSheet = false }
         )
     }
 }

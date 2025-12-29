@@ -30,6 +30,12 @@ class VideoPlayerViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(VideoPlayerUiState())
     val uiState: StateFlow<VideoPlayerUiState> = _uiState.asStateFlow()
     
+    private val _commentsState = MutableStateFlow<List<com.flow.youtube.data.model.Comment>>(emptyList())
+    val commentsState: StateFlow<List<com.flow.youtube.data.model.Comment>> = _commentsState.asStateFlow()
+    
+    private val _isLoadingComments = MutableStateFlow(false)
+    val isLoadingComments: StateFlow<Boolean> = _isLoadingComments.asStateFlow()
+    
     fun initialize(context: Context) {
         // Handled by Hilt
     }
@@ -325,6 +331,28 @@ class VideoPlayerViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(autoplayEnabled = enabled)
         }
     }
+
+    fun loadComments(videoId: String) {
+        viewModelScope.launch {
+            _isLoadingComments.value = true
+            _commentsState.value = emptyList()
+            try {
+                val comments = repository.getComments(videoId)
+                _commentsState.value = comments
+                
+                // Update UI state with comment count if available
+                if (comments.isNotEmpty()) {
+                    _uiState.value = _uiState.value.copy(
+                        commentCountText = "${comments.size}+" // Extractor might not give total count easily
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e("VideoPlayerViewModel", "Error loading comments", e)
+            } finally {
+                _isLoadingComments.value = false
+            }
+        }
+    }
     
     private fun selectStreams(
         streamInfo: StreamInfo,
@@ -445,7 +473,8 @@ data class VideoPlayerUiState(
     val channelSubscriberCount: Long? = null,
     val channelAvatarUrl: String? = null,
     val chapters: List<StreamSegment> = emptyList(),
-    val autoplayEnabled: Boolean = true
+    val autoplayEnabled: Boolean = true,
+    val commentCountText: String = "0"
 )
 
 

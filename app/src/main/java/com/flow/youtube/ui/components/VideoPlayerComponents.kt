@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -38,6 +39,7 @@ import com.flow.youtube.data.model.Video
 import com.flow.youtube.ui.theme.extendedColors
 import com.flow.youtube.utils.formatSubscriberCount
 import com.flow.youtube.utils.formatViewCount
+import com.flow.youtube.utils.formatRichText
 
 @Composable
 fun VideoInfoSection(
@@ -58,6 +60,7 @@ fun VideoInfoSection(
     onShareClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onSaveClick: () -> Unit,
+    onDescriptionClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -104,6 +107,15 @@ fun VideoInfoSection(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            
+            Spacer(modifier = Modifier.width(4.dp))
+            
+            Text(
+                text = "...more",
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.clickable(onClick = onDescriptionClick)
+            )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -175,13 +187,70 @@ fun VideoInfoSection(
             onDownloadClick = onDownloadClick,
             onSaveClick = onSaveClick
         )
+    }
+}
 
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // ============ DESCRIPTION BOX ============
-        EnhancedDescriptionBox(
-            description = description ?: video.description
-        )
+@Composable
+fun CommentsPreview(
+    commentCount: String,
+    latestComment: String?,
+    authorAvatar: String?,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "Comments",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = commentCount,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            
+            if (!latestComment.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    AsyncImage(
+                        model = authorAvatar,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .background(Color.Gray),
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = latestComment,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Add a comment...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
@@ -503,7 +572,7 @@ fun EnhancedDescriptionBox(
             
             if (!description.isNullOrBlank()) {
                 // Format and render the description
-                val formattedText = formatDescription(description, primaryColor, textColor)
+                val formattedText = formatRichText(description, primaryColor, textColor)
                 
                 Text(
                     text = formattedText,
@@ -549,104 +618,3 @@ fun EnhancedDescriptionBox(
     }
 }
 
-/**
- * Formats the description text with proper styling for links, timestamps, and hashtags
- * Also handles basic HTML tags like <br> and <a href>
- */
-@Composable
-private fun formatDescription(
-    description: String,
-    primaryColor: Color,
-    textColor: Color
-): AnnotatedString {
-    // First, convert HTML to plain text but preserve line breaks
-    // We use HtmlCompat to handle the HTML parsing
-    val spanned = HtmlCompat.fromHtml(
-        description.replace("<br>", "\n").replace("<br/>", "\n"), 
-        HtmlCompat.FROM_HTML_MODE_COMPACT
-    )
-    val text = spanned.toString()
-
-    return buildAnnotatedString {
-        var currentIndex = 0
-        
-        // Regex patterns
-        val urlPattern = Regex("""(https?://[^\s]+)""")
-        val timestampPattern = Regex("""(\d{1,2}:)?\d{1,2}:\d{2}""")
-        val hashtagPattern = Regex("""#\w+""")
-        
-        // Find all matches and sort by position
-        data class Match(val start: Int, val end: Int, val type: String, val text: String)
-        val matches = mutableListOf<Match>()
-        
-        urlPattern.findAll(text).forEach { 
-            matches.add(Match(it.range.first, it.range.last + 1, "url", it.value))
-        }
-        timestampPattern.findAll(text).forEach { 
-            matches.add(Match(it.range.first, it.range.last + 1, "timestamp", it.value))
-        }
-        hashtagPattern.findAll(text).forEach { 
-            matches.add(Match(it.range.first, it.range.last + 1, "hashtag", it.value))
-        }
-        
-        matches.sortBy { it.start }
-        
-        // Build the annotated string
-        for (match in matches) {
-            // Add text before match
-            if (match.start > currentIndex) {
-                append(text.substring(currentIndex, match.start))
-            }
-            
-            // Skip if we've already passed this point (overlapping matches)
-            if (match.start < currentIndex) continue
-            
-            // Add styled match
-            when (match.type) {
-                "url" -> {
-                    pushStringAnnotation(tag = "URL", annotation = match.text)
-                    withStyle(SpanStyle(
-                        color = primaryColor,
-                        textDecoration = TextDecoration.Underline
-                    )) {
-                        // Truncate long URLs for display
-                        val displayUrl = if (match.text.length > 50) {
-                            match.text.take(47) + "..."
-                        } else {
-                            match.text
-                        }
-                        append(displayUrl)
-                    }
-                    pop()
-                }
-                "timestamp" -> {
-                    pushStringAnnotation(tag = "TIMESTAMP", annotation = match.text)
-                    withStyle(SpanStyle(
-                        color = primaryColor,
-                        fontWeight = FontWeight.Medium
-                    )) {
-                        append(match.text)
-                    }
-                    pop()
-                }
-                "hashtag" -> {
-                    pushStringAnnotation(tag = "HASHTAG", annotation = match.text)
-                    withStyle(SpanStyle(
-                        color = primaryColor,
-                        fontWeight = FontWeight.Medium
-                    )) {
-                        append(match.text)
-                    }
-                    pop()
-                }
-            }
-            
-            currentIndex = match.end
-        }
-        
-        // Add remaining text
-        if (currentIndex < text.length) {
-            append(text.substring(currentIndex))
-        }
-    }
-}

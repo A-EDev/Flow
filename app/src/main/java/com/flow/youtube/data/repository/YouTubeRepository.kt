@@ -324,7 +324,10 @@ class YouTubeRepository {
     suspend fun getComments(videoId: String): List<com.flow.youtube.data.model.Comment> = withContext(Dispatchers.IO) {
         try {
             val commentsExtractor = org.schabi.newpipe.extractor.comments.CommentsInfo.getInfo(service, "https://www.youtube.com/watch?v=$videoId")
-            commentsExtractor.relatedItems.map { item ->
+            val allComments = mutableListOf<com.flow.youtube.data.model.Comment>()
+            
+            // Map first page
+            allComments.addAll(commentsExtractor.relatedItems.map { item ->
                 com.flow.youtube.data.model.Comment(
                     id = item.commentId ?: "",
                     author = item.uploaderName ?: "Unknown",
@@ -333,7 +336,28 @@ class YouTubeRepository {
                     likeCount = item.likeCount.toInt(),
                     publishedTime = item.textualUploadDate ?: ""
                 )
+            })
+            
+            // Try to fetch 3 more pages to get "all" (or at least 80-100)
+            var nextPage = commentsExtractor.nextPage
+            repeat(4) {
+                if (nextPage != null) {
+                    val moreItems = org.schabi.newpipe.extractor.comments.CommentsInfo.getMoreItems(service, "https://www.youtube.com/watch?v=$videoId", nextPage)
+                    allComments.addAll(moreItems.items.map { item ->
+                        com.flow.youtube.data.model.Comment(
+                            id = item.commentId ?: "",
+                            author = item.uploaderName ?: "Unknown",
+                            authorThumbnail = item.uploaderAvatars.firstOrNull()?.url ?: "",
+                            text = item.commentText?.content ?: "",
+                            likeCount = item.likeCount.toInt(),
+                            publishedTime = item.textualUploadDate ?: ""
+                        )
+                    })
+                    nextPage = moreItems.nextPage
+                }
             }
+            
+            allComments
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()

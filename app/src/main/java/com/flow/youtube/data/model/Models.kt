@@ -8,6 +8,7 @@ data class Video(
     val thumbnailUrl: String,
     val duration: Int, // in seconds
     val viewCount: Long,
+    val likeCount: Long = 0,
     val uploadDate: String,
     val description: String = "",
     val channelThumbnailUrl: String = "",
