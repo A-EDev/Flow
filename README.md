@@ -1,19 +1,55 @@
-# 🎬 Flow - Modern YouTube Client
+# Flow - Modern YouTube Client
+
+<div align="center">
+<img src="svgLogo/logo.png" alt="Flow Logo" width="120" height="120">
+</div>
 
 ![Status](https://img.shields.io/badge/Status-Under%20Development-orange?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/Platform-Android-green?style=for-the-badge&logo=android)
 ![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-purple?style=for-the-badge&logo=kotlin)
 ![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 ![GitHub stars](https://img.shields.io/github/stars/A-EDev/Flow?style=for-the-badge)
+![GitHub downloads](https://img.shields.io/github/downloads/A-EDev/Flow/total?style=for-the-badge)
 ![GitHub forks](https://img.shields.io/github/forks/A-EDev/Flow?style=for-the-badge)
+![GitHub issues](https://img.shields.io/github/issues/A-EDev/Flow?style=for-the-badge)
 ![GitHub last commit](https://img.shields.io/github/last-commit/A-EDev/Flow/main?style=for-the-badge)
+![GitHub contributors](https://img.shields.io/github/contributors/A-EDev/Flow?style=for-the-badge)
 
 **A modern, feature-rich YouTube client for Android built with Jetpack Compose**
 
-📖 [Features](#features) • 💾 [Installation](#installation) • 🤝 [Contributing](#contributing) • 🗺️ [Roadmap](#roadmap)
+## Table of Contents
+
+- [Development Status](#development-status)
+- [Features](#features)
+  - [Video Streaming](#video-streaming)
+  - [Music Player](#music-player)
+  - [Search & Discovery](#search--discovery)
+  - [Themes & Customization](#themes--customization)
+  - [User Interface](#user-interface)
+  - [Library Management](#library-management)
+  - [Privacy & Data](#privacy--data)
+- [Architecture](#architecture)
+  - [Tech Stack](#tech-stack)
+  - [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+- [Support & Donations](#support--donations)
+- [Roadmap](#roadmap)
+  - [High Priority](#high-priority)
+  - [Core Features](#core-features)
+  - [User Experience](#user-experience)
+  - [Technical Improvements](#technical-improvements)
+  - [Future Ideas](#future-ideas)
+- [Contributing](#contributing)
+- [Acknowledgments](#acknowledgments)
+- [Contact & Support](#contact--support)
+- [Troubleshooting](#troubleshooting)
+- [Star History](#star-history)
 
 ---
 
+<a id="development-status"></a>
 ## ⚠️ Development Status
 
 **Flow is currently under active development.** Please note:
@@ -23,17 +59,10 @@
 
 ---
 
-## 📊 Stats
-![GitHub stars](https://img.shields.io/github/stars/A-EDev/Flow?style=for-the-badge)
-![GitHub downloads](https://img.shields.io/github/downloads/A-EDev/Flow/total?style=for-the-badge)
-![GitHub issues](https://img.shields.io/github/issues/A-EDev/Flow?style=for-the-badge)
-![GitHub repo size](https://img.shields.io/github/repo-size/A-EDev/Flow?style=for-the-badge)
-![GitHub contributors](https://img.shields.io/github/contributors/A-EDev/Flow?style=for-the-badge)
-
----
-
+<a id="features"></a>
 ## ✨ Features
 
+<a id="video-streaming"></a>
 ### 🎥 Video Streaming
 
 - [x] High-quality video playback with ExoPlayer
@@ -50,6 +79,7 @@
 - [x] **Enhanced Controls:** Quality and subtitle badges at top
 - [x] **Professional UI:** Loading states, smooth animations, and visual feedback
 
+<a id="music-player"></a>
 ### 🎵 Music Player
 
 - [x] Dedicated music player with YouTube Music integration
@@ -61,6 +91,7 @@
 - [x] Background audio playback
 - [x] Smart track loading from popular artists
 
+<a id="search--discovery"></a>
 ### 🔍 Search & Discovery
 
 - [x] Fast and responsive search
@@ -69,6 +100,7 @@
 - [x] Category-based browsing
 - [x] Search history management
 
+<a id="themes--customization"></a>
 ### 🎨 Themes & Customization
 
 - [x] **11+ Beautiful Color Themes:**
@@ -87,6 +119,7 @@
 - [x] Smooth theme transitions
 - [x] Persistent theme selection
 
+<a id="user-interface"></a>
 ### 📱 User Interface
 
 - [x] Modern Material Design 3
@@ -96,6 +129,7 @@
 - [x] Swipe gestures support
 - [x] Pull-to-refresh
 
+<a id="library-management"></a>
 ### 📚 Library Management
 
 - [x] Watch history tracking
@@ -105,6 +139,7 @@
 - [x] Watch later queue
 - [x] Shorts Bookmarks
 
+<a id="privacy--data"></a>
 ### 🔐 Privacy & Data
 
 - [x] Clear watch history
@@ -116,10 +151,12 @@
 
 ---
 
+<a id="architecture"></a>
 ## 🏗️ Architecture
 
 **Flow** follows clean architecture principles with a modular, component-based structure built entirely with **Jetpack Compose** and **Kotlin**.
 
+<a id="tech-stack"></a>
 ### Tech Stack
 
 - **Language:** Kotlin 100%
@@ -132,20 +169,24 @@
 - **Image Loading:** Coil
 - **Navigation:** Jetpack Navigation Compose
 
+<a id="project-structure"></a>
 ### Project Structure
 
 The app is organized into clear, focused modules for maintainability and scalability
 
 ---
 
+<a id="getting-started"></a>
 ## 🚀 Getting Started
 
+<a id="prerequisites"></a>
 ### Prerequisites
 
 - Android Studio Hedgehog or later
 - JDK 17
 - Android SDK 24+
 
+<a id="installation"></a>
 ### Installation
 
 1. **Clone the repository**
@@ -170,8 +211,24 @@ The app is organized into clear, focused modules for maintainability and scalabi
 
 ---
 
+<a id="support--donations"></a>
+## 💖 Support & Donations
+
+If you find Flow useful and would like to support its development, you can donate via the following addresses:
+
+- **Bitcoin (BTC):** `bc1qgmkkxxvzvsymtpfazqfl93jw6k4jgy0xmrtnv8`
+- **USDT :**  `0xfbac6f464fec7fe458e318971a42ba45b305b70e` (Ethereum Network)
+- **Ethereum (ETH):** `0xfbac6f464fec7fe458e318971a42ba45b305b70e`
+- **Solana (SOL):** `7b3SLgiVPb8qQUvERSPGRWoFoiGEDvkFuY98M1GEngug`
+
+Your support helps keep the project alive and motivates me to add more features!
+
+---
+
+<a id="roadmap"></a>
 ## 🗺️ Roadmap
 
+<a id="high-priority"></a>
 ### 🔥 High Priority
 
 - [x] **YouTube Algorithm Integration**
@@ -186,7 +243,7 @@ The app is organized into clear, focused modules for maintainability and scalabi
   - [x] Shorts player optimization
   - [ ] Shorts creation date/view count
 
-- [] **Channel Screen**
+- [ ] **Channel Screen**
   - [x] Complete channel page layout
   - [x] Channel videos grid
   - [ ] Channel playlists
@@ -199,6 +256,7 @@ The app is organized into clear, focused modules for maintainability and scalabi
   - [x] Fix static playlist data
   - [x] Real-time data fetching everywhere
 
+<a id="core-features"></a>
 ### 📱 Core Features
 
 - [ ] **Notification System**
@@ -225,6 +283,7 @@ The app is organized into clear, focused modules for maintainability and scalabi
   - [ ] Export watch statistics
   - [x] Follow favorite channels and artists
 
+<a id="user-experience"></a>
 ### 🎯 User Experience
 
 - [ ] **Search Enhancements**
@@ -243,6 +302,7 @@ The app is organized into clear, focused modules for maintainability and scalabi
   - [ ] High contrast mode
   - [ ] Voice commands
 
+<a id="technical-improvements"></a>
 ### ⚙️ Technical Improvements
 
 - [x] **Performance Optimization**
@@ -263,6 +323,7 @@ The app is organized into clear, focused modules for maintainability and scalabi
   - [ ] Add offline mode support
   - [ ] Implement proper error handling
 
+<a id="future-ideas"></a>
 ### 🌟 Future Ideas
 
 - [ ] Chromecast support
@@ -276,22 +337,10 @@ The app is organized into clear, focused modules for maintainability and scalabi
 
 ---
 
-## 💖 Support & Donations
-
-If you find Flow useful and would like to support its development, you can donate via the following addresses:
-
-- **Bitcoin (BTC):** `bc1qgmkkxxvzvsymtpfazqfl93jw6k4jgy0xmrtnv8`
-- **USDT :** `0xfbac6f464fec7fe458e318971a42ba45b305b70e` (Ethereum Network)
-- **Ethereum (ETH):** `0xfbac6f464fec7fe458e318971a42ba45b305b70e`
-- **Solana (SOL):** `7b3SLgiVPb8qQUvERSPGRWoFoiGEDvkFuY98M1GEngug`
-
-Your support helps keep the project alive and motivates me to add more features!
-
----
-
+<a id="contributing"></a>
 ## 🤝 Contributing
 
-Contributions are welcome! Here's how you can help:
+We welcome contributions from everyone! Please read our [Contributing Guidelines](CONTRIBUTING.md) for detailed information on how to contribute to Flow.
 
 ### Ways to Contribute
 
@@ -300,7 +349,7 @@ Contributions are welcome! Here's how you can help:
 - 📝 Improve documentation
 - 🔧 Submit pull requests
 
-### Development Guidelines
+### Quick Start
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
@@ -308,16 +357,11 @@ Contributions are welcome! Here's how you can help:
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-### Code Style
-
-- Follow Kotlin coding conventions
-- Use meaningful variable and function names
-- Add comments for complex logic
-- Write unit tests for new features
-- Ensure all tests pass before submitting PR
+For more details, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
+<a id="acknowledgments"></a>
 ## 🙏 Acknowledgments
 
 - **[NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor)** - Powerful library for YouTube data extraction
@@ -327,6 +371,7 @@ Contributions are welcome! Here's how you can help:
 
 ---
 
+<a id="contact--support"></a>
 ## 📞 Contact & Support
 
 - **Developer:** A-EDev
@@ -335,6 +380,7 @@ Contributions are welcome! Here's how you can help:
 
 ---
 
+<a id="troubleshooting"></a>
 ## 🔧 Troubleshooting
 
 ### Installation Issues
@@ -351,9 +397,18 @@ If you see an error like "Installing the new update has conflict of package may 
 
 ---
 
+<a id="star-history"></a>
 ## ⭐ Star History
 
 If you find this project useful, please consider giving it a star! ⭐
+
+---
+
+## 📄 Additional Resources
+
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security Policy](SECURITY.md)
+- [License](License)
 
 ---
 <div align="center">
