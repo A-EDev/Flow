@@ -183,7 +183,7 @@ object NotificationHelper {
         }
         
         val notification = NotificationCompat.Builder(context, CHANNEL_DOWNLOADS)
-            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setSmallIcon(R.drawable.ic_flow_logo)
             .setContentTitle("Downloading: $videoTitle")
             .setContentText(contentText)
             .setProgress(100, progress, false)
@@ -226,7 +226,7 @@ object NotificationHelper {
         )
         
         val notification = NotificationCompat.Builder(context, CHANNEL_DOWNLOADS)
-            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setSmallIcon(R.drawable.ic_flow_logo)
             .setContentTitle("Download complete")
             .setContentText(videoTitle)
             .setContentIntent(openPendingIntent)
@@ -264,7 +264,7 @@ object NotificationHelper {
         )
         
         val notification = NotificationCompat.Builder(context, CHANNEL_DOWNLOADS)
-            .setSmallIcon(android.R.drawable.stat_notify_error)
+            .setSmallIcon(R.drawable.ic_flow_logo)
             .setContentTitle("Download failed")
             .setContentText(videoTitle)
             .setStyle(NotificationCompat.BigTextStyle()
@@ -317,7 +317,7 @@ object NotificationHelper {
         )
         
         val builder = NotificationCompat.Builder(context, CHANNEL_SUBSCRIPTIONS)
-            .setSmallIcon(android.R.drawable.ic_menu_gallery)
+            .setSmallIcon(R.drawable.ic_flow_logo)
             .setContentTitle(channelName)
             .setContentText(videoTitle)
             .setContentIntent(watchPendingIntent)
@@ -354,7 +354,7 @@ object NotificationHelper {
         if (!hasNotificationPermission(context)) return
         
         val summaryNotification = NotificationCompat.Builder(context, CHANNEL_SUBSCRIPTIONS)
-            .setSmallIcon(android.R.drawable.ic_menu_gallery)
+            .setSmallIcon(R.drawable.ic_flow_logo)
             .setContentTitle("New videos")
             .setContentText("$videoCount new videos from your subscriptions")
             .setGroup("new_videos")
@@ -390,7 +390,7 @@ object NotificationHelper {
         )
         
         val notification = NotificationCompat.Builder(context, CHANNEL_GENERAL)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_flow_logo)
             .setContentTitle(title)
             .setContentText(message)
             .setContentIntent(pendingIntent)
@@ -426,7 +426,7 @@ object NotificationHelper {
         )
         
         val notification = NotificationCompat.Builder(context, CHANNEL_GENERAL)
-            .setSmallIcon(android.R.drawable.ic_menu_recent_history)
+            .setSmallIcon(R.drawable.ic_flow_logo)
             .setContentTitle("Watch Later Reminder")
             .setContentText(videoTitle)
             .setContentIntent(watchPendingIntent)
