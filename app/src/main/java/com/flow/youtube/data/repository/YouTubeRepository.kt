@@ -187,6 +187,38 @@ class YouTubeRepository {
             null
         }
     }
+
+    /**
+     * Get a single video object by ID
+     */
+    suspend fun getVideo(videoId: String): Video? = withContext(Dispatchers.IO) {
+        try {
+            val info = getVideoStreamInfo(videoId) ?: return@withContext null
+            
+            val bestThumbnail = info.thumbnails
+                .sortedByDescending { it.height }
+                .firstOrNull()?.url ?: ""
+            
+            val bestAvatar = info.uploaderAvatars
+                .sortedByDescending { it.height }
+                .firstOrNull()?.url ?: ""
+            
+            Video(
+                id = videoId,
+                title = info.name ?: "Unknown Title",
+                channelName = info.uploaderName ?: "Unknown Channel",
+                channelId = info.uploaderUrl?.substringAfterLast("/") ?: "",
+                thumbnailUrl = bestThumbnail,
+                duration = info.duration.toInt(),
+                viewCount = info.viewCount,
+                uploadDate = info.textualUploadDate ?: "Unknown",
+                channelThumbnailUrl = bestAvatar
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
     
     /**
      * Get related videos

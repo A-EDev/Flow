@@ -22,7 +22,9 @@
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
             android:launchMode="singleTop"
             android:supportsPictureInPicture="true"
-            android:theme="@style/Theme.Flow">
+            android:theme="@style/Theme.Flow"
+            android:windowSoftInputMode="adjustResize"
+            android:windowLayoutInDisplayCutoutMode="shortEdges">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

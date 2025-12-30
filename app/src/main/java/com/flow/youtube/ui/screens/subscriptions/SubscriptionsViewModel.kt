@@ -48,9 +48,10 @@ class SubscriptionsViewModel : ViewModel() {
                     _uiState.update { it.copy(isLoading = true) }
                     val ids = channels.map { it.id }
                     val videos = ytRepository.getVideosForChannels(ids, perChannelLimit = 4, totalLimit = 80)
-                    _uiState.update { it.copy(recentVideos = videos, isLoading = false) }
+                    updateVideos(videos)
+                    _uiState.update { it.copy(isLoading = false) }
                 } else {
-                    _uiState.update { it.copy(recentVideos = emptyList()) }
+                    _uiState.update { it.copy(recentVideos = emptyList(), shorts = emptyList()) }
                 }
             }
         }
@@ -71,9 +72,14 @@ class SubscriptionsViewModel : ViewModel() {
                         channelThumbnailUrl = ""
                     )
                 }
-                _uiState.update { it.copy(recentVideos = videos) }
+                updateVideos(videos)
             }
         }
+    }
+
+    private fun updateVideos(videos: List<Video>) {
+        val (shorts, regular) = videos.partition { it.duration > 0 && it.duration <= 80 }
+        _uiState.update { it.copy(recentVideos = regular, shorts = shorts) }
     }
     
     fun selectChannel(channelId: String?) {
@@ -90,7 +96,8 @@ class SubscriptionsViewModel : ViewModel() {
             _uiState.update { it.copy(isLoading = true) }
             val ids = channels.map { it.id }
             val videos = ytRepository.getVideosForChannels(ids, perChannelLimit = 6, totalLimit = 100)
-            _uiState.update { it.copy(recentVideos = videos, isLoading = false) }
+            updateVideos(videos)
+            _uiState.update { it.copy(isLoading = false) }
         }
     }
 
@@ -102,6 +109,10 @@ class SubscriptionsViewModel : ViewModel() {
                 refreshFeed()
             }
         }
+    }
+
+    fun toggleViewMode() {
+        _uiState.update { it.copy(isFullWidthView = !it.isFullWidthView) }
     }
 
     /**
@@ -143,6 +154,8 @@ class SubscriptionsViewModel : ViewModel() {
 data class SubscriptionsUiState(
     val subscribedChannels: List<Channel> = emptyList(),
     val recentVideos: List<Video> = emptyList(),
+    val shorts: List<Video> = emptyList(),
     val selectedChannelId: String? = null,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val isFullWidthView: Boolean = false
 )

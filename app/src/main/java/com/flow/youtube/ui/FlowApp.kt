@@ -5,8 +5,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
@@ -219,7 +222,7 @@ fun FlowApp(
                     )
                 ) { backStackEntry ->
                     currentRoute.value = "shorts"
-                    showBottomNav = true
+                    showBottomNav = false
                     selectedBottomNavIndex = 1
                     val startVideoId = backStackEntry.arguments?.getString("startVideoId")
                     ShortsScreen(
@@ -240,6 +243,9 @@ fun FlowApp(
                     SubscriptionsScreen(
                         onVideoClick = { video ->
                             navController.navigate("player/${video.id}")
+                        },
+                        onShortClick = { videoId ->
+                            navController.navigate("shorts?startVideoId=$videoId")
                         },
                         onChannelClick = { channelUrl ->
                             val encodedUrl = channelUrl.replace("/", "%2F").replace(":", "%3A")

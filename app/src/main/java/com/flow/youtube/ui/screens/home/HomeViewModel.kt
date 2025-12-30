@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -80,6 +81,17 @@ class HomeViewModel @Inject constructor(
         }
     }
     
+    private fun updateVideosAndShorts(newVideos: List<Video>, append: Boolean = false) {
+        val (newShorts, regularVideos) = newVideos.partition { it.duration in 1..80 }
+        
+        _uiState.update { state ->
+            state.copy(
+                videos = if (append) (state.videos + regularVideos).distinctBy { it.id } else regularVideos,
+                shorts = (state.shorts + newShorts).distinctBy { it.id }
+            )
+        }
+    }
+
     /**
      * Load the personalized Flow feed
      * Uses cached data if valid, otherwise fetches fresh
@@ -128,14 +140,14 @@ class HomeViewModel @Inject constructor(
                     val videos = scoredVideos.map { it.video }
                     val lastRefresh = repo.getLastRefreshTime().first()
                     
-                    _uiState.value = _uiState.value.copy(
-                        videos = videos,
+                    updateVideosAndShorts(videos, append = false)
+                    _uiState.update { it.copy(
                         scoredVideos = scoredVideos,
                         isLoading = false,
                         hasMorePages = false,
                         isFlowFeed = true,
                         lastRefreshTime = lastRefresh
-                    )
+                    )}
                     return@launch
                 }
                 
@@ -145,27 +157,27 @@ class HomeViewModel @Inject constructor(
                 if (trendingVideos.isNotEmpty()) {
                     currentPage = nextPage
                     
-                    _uiState.value = _uiState.value.copy(
-                        videos = trendingVideos,
+                    updateVideosAndShorts(trendingVideos, append = false)
+                    _uiState.update { it.copy(
                         scoredVideos = emptyList(),
                         isLoading = false,
                         hasMorePages = nextPage != null,
                         isFlowFeed = true, // Keep as For You feed
                         lastRefreshTime = System.currentTimeMillis()
-                    )
+                    )}
                     return@launch
                 }
                 
                 // Trending is also empty, try search fallback (rare case, can stay sequential)
                 val (searchVideos, _) = repository.searchVideos("popular videos today")
-                _uiState.value = _uiState.value.copy(
-                    videos = searchVideos,
+                updateVideosAndShorts(searchVideos, append = false)
+                _uiState.update { it.copy(
                     scoredVideos = emptyList(),
                     isLoading = false,
                     hasMorePages = false,
                     isFlowFeed = true,
                     lastRefreshTime = System.currentTimeMillis()
-                )
+                )}
                 
             } catch (e: Exception) {
                 // ... same fallback logic ...
@@ -286,13 +298,13 @@ class HomeViewModel @Inject constructor(
                 val (videos, nextPage) = repository.getTrendingVideos(region, null)
                 currentPage = nextPage
                 
-                _uiState.value = _uiState.value.copy(
-                    videos = videos,
+                updateVideosAndShorts(videos, append = false)
+                _uiState.update { it.copy(
                     scoredVideos = emptyList(),
                     isLoading = false,
                     hasMorePages = nextPage != null,
                     isFlowFeed = false
-                )
+                )}
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -314,13 +326,11 @@ class HomeViewModel @Inject constructor(
                 val (videos, nextPage) = repository.getTrendingVideos(region, currentPage)
                 currentPage = nextPage
                 
-                val updatedVideos = _uiState.value.videos + videos
-                
-                _uiState.value = _uiState.value.copy(
-                    videos = updatedVideos,
+                updateVideosAndShorts(videos, append = true)
+                _uiState.update { it.copy(
                     isLoadingMore = false,
                     hasMorePages = nextPage != null
-                )
+                )}
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoadingMore = false,

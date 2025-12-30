@@ -10,6 +10,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -28,6 +30,7 @@ import com.flow.youtube.ui.theme.extendedColors
 @Composable
 fun SubscriptionsScreen(
     onVideoClick: (Video) -> Unit,
+    onShortClick: (String) -> Unit = {},
     onChannelClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SubscriptionsViewModel = viewModel()
@@ -64,8 +67,16 @@ fun SubscriptionsScreen(
                 color = MaterialTheme.colorScheme.onBackground
             )
 
-            IconButton(onClick = { viewModel.refreshFeed() }) {
-                Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh")
+            Row {
+                IconButton(onClick = { viewModel.toggleViewMode() }) {
+                    Icon(
+                        imageVector = if (uiState.isFullWidthView) Icons.Default.ViewList else Icons.Default.GridView,
+                        contentDescription = "Toggle View Mode"
+                    )
+                }
+                IconButton(onClick = { viewModel.refreshFeed() }) {
+                    Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh")
+                }
             }
         }
 
@@ -116,11 +127,29 @@ fun SubscriptionsScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(bottom = 80.dp, top = 8.dp)
             ) {
+                if (uiState.shorts.isNotEmpty()) {
+                    item {
+                        ShortsShelf(
+                            shorts = uiState.shorts,
+                            onShortClick = { short -> onShortClick(short.id) }
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+                }
+
                 items(videos) { video ->
-                    VideoCardHorizontal(
-                        video = video,
-                        onClick = { onVideoClick(video) }
-                    )
+                    if (uiState.isFullWidthView) {
+                        VideoCardFullWidth(
+                            video = video,
+                            onClick = { onVideoClick(video) }
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    } else {
+                        VideoCardHorizontal(
+                            video = video,
+                            onClick = { onVideoClick(video) }
+                        )
+                    }
                 }
             }
         }

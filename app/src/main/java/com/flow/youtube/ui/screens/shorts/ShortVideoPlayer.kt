@@ -164,10 +164,10 @@ fun ShortVideoPlayer(
         }
     }
     
-    // Auto-hide controls
-    LaunchedEffect(showControls, isPlaying) {
-        if (showControls && isPlaying) {
-            delay(2000) // Faster fade out (2s)
+    // Auto-hide controls after showing them
+    LaunchedEffect(showControls) {
+        if (showControls) {
+            delay(2500) // Show controls for 2.5 seconds
             showControls = false
         }
     }
@@ -179,7 +179,14 @@ fun ShortVideoPlayer(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = {
-                        showControls = !showControls
+                        // Toggle play/pause on tap
+                        if (isPlaying) {
+                            playerManager.pause()
+                        } else {
+                            playerManager.play()
+                        }
+                        // Show controls briefly to indicate the action
+                        showControls = true
                     },
                     onDoubleTap = {
                         if (!isLiked) {
@@ -410,20 +417,15 @@ fun ShortVideoPlayer(
         
         // Center play/pause button
         AnimatedVisibility(
-            visible = showControls && !isPlaying && !isBuffering,
+            visible = showControls && !isBuffering,
             enter = scaleIn() + fadeIn(),
             exit = scaleOut() + fadeOut(),
             modifier = Modifier.align(Alignment.Center)
         ) {
             IconButton(
                 onClick = {
-                    if (isPlaying) {
-                        playerManager.pause()
-                        isPlaying = false
-                    } else {
-                        playerManager.play()
-                        isPlaying = true
-                    }
+                    // Keep controls visible when button is tapped
+                    showControls = true
                 },
                 modifier = Modifier
                     .size(80.dp)

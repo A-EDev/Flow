@@ -66,18 +66,30 @@ class ShortsViewModel(
                     basicShorts
                 }
                 
+                var finalShorts = shorts
                 // Find start index if startVideoId is provided
-                val startIndex = if (startVideoId != null) {
-                    shorts.indexOfFirst { it.id == startVideoId }.coerceAtLeast(0)
+                var startIndex = if (startVideoId != null) {
+                    shorts.indexOfFirst { it.id == startVideoId }
                 } else {
                     0
                 }
+
+                // If startVideoId is provided but not in the list, fetch it and add it
+                if (startVideoId != null && startIndex == -1) {
+                    val startVideo = repository.getVideo(startVideoId)
+                    if (startVideo != null) {
+                        finalShorts = listOf(startVideo) + shorts
+                        startIndex = 0
+                    } else {
+                        startIndex = 0
+                    }
+                }
                 
                 _uiState.value = _uiState.value.copy(
-                    shorts = shorts,
-                    currentIndex = startIndex,
+                    shorts = finalShorts,
+                    currentIndex = startIndex.coerceAtLeast(0),
                     isLoading = false,
-                    hasMorePages = shorts.size >= 8
+                    hasMorePages = finalShorts.size >= 8
                 )
             } catch (e: Exception) {
                 Log.e("ShortsViewModel", "Error loading shorts", e)
@@ -185,15 +197,26 @@ class ShortsViewModel(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true)
             playlistRepository?.getSavedShortsFlow()?.collect { savedShorts ->
-                val startIndex = if (startVideoId != null) {
-                    savedShorts.indexOfFirst { it.id == startVideoId }.coerceAtLeast(0)
+                var finalShorts = savedShorts
+                var startIndex = if (startVideoId != null) {
+                    savedShorts.indexOfFirst { it.id == startVideoId }
                 } else {
                     0
                 }
+
+                if (startVideoId != null && startIndex == -1) {
+                    val startVideo = repository.getVideo(startVideoId)
+                    if (startVideo != null) {
+                        finalShorts = listOf(startVideo) + savedShorts
+                        startIndex = 0
+                    } else {
+                        startIndex = 0
+                    }
+                }
                 
                 _uiState.value = _uiState.value.copy(
-                    shorts = savedShorts,
-                    currentIndex = startIndex,
+                    shorts = finalShorts,
+                    currentIndex = startIndex.coerceAtLeast(0),
                     isLoading = false,
                     hasMorePages = false // Saved shorts are all loaded at once usually
                 )
