@@ -32,7 +32,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.flow.youtube.data.model.Video
@@ -42,7 +41,6 @@ import com.flow.youtube.player.RepeatMode
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-@OptIn(UnstableApi::class)
 @Composable
 fun ShortVideoPlayer(
     video: Video,
@@ -53,11 +51,11 @@ fun ShortVideoPlayer(
     onSubscribeClick: () -> Unit,
     onCommentsClick: () -> Unit,
     onShareClick: () -> Unit,
+    onDescriptionClick: () -> Unit,
     viewModel: ShortsViewModel,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val playerManager = remember { EnhancedPlayerManager.getInstance() }
     
     var isPlaying by remember { mutableStateOf(false) }
@@ -70,6 +68,7 @@ fun ShortVideoPlayer(
     var duration by remember { mutableStateOf(0L) }
     var isBuffering by remember { mutableStateOf(false) }
     var showDescription by remember { mutableStateOf(false) }
+    var isFastForwarding by remember { mutableStateOf(false) }
     
     // Dynamic Colors from Theme
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -194,6 +193,20 @@ fun ShortVideoPlayer(
                             isLiked = true
                             showLikeAnimation = true
                         }
+                    },
+                    onPress = {
+                        try {
+                            awaitRelease()
+                        } finally {
+                            if (isFastForwarding) {
+                                isFastForwarding = false
+                                playerManager.setPlaybackSpeed(1.0f)
+                            }
+                        }
+                    },
+                    onLongPress = {
+                        isFastForwarding = true
+                        playerManager.setPlaybackSpeed(2.0f)
                     }
                 )
             }
@@ -220,6 +233,33 @@ fun ShortVideoPlayer(
             factory = { playerView },
             modifier = Modifier.fillMaxSize()
         )
+
+        // 2x Speed Indicator
+        if (isFastForwarding) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 80.dp)
+                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.FastForward,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = Color.White
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "2x Speed",
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
         
         if (isBuffering) {
             CircularProgressIndicator(
@@ -387,7 +427,7 @@ fun ShortVideoPlayer(
                 )
                 
                 ActionButton(icon = Icons.Default.Share, text = "Share", onClick = onShareClick)
-                ActionButton(icon = Icons.Default.MoreVert, text = "More", onClick = {})
+                ActionButton(icon = Icons.Default.Description, text = "Description", onClick = onDescriptionClick)
                 
                 // Album Art / Sound Spinner
                 Box(

@@ -24,6 +24,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.flow.youtube.data.model.Video
 import kotlinx.coroutines.launch
 import com.flow.youtube.ui.components.FlowCommentsBottomSheet
+import com.flow.youtube.ui.components.FlowDescriptionBottomSheet
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -42,6 +43,7 @@ fun ShortsScreen(
     val scope = rememberCoroutineScope()
     
     var showCommentsSheet by remember { mutableStateOf(false) }
+    var showDescriptionSheet by remember { mutableStateOf(false) }
     var isTopComments by remember { mutableStateOf(true) }
     val comments by viewModel.commentsState.collectAsState()
     
@@ -144,6 +146,9 @@ fun ShortsScreen(
                         viewModel.loadComments(video.id)
                         showCommentsSheet = true
                     },
+                    onDescriptionClick = { _ ->
+                        showDescriptionSheet = true
+                    },
                     onShareClick = { video ->
                         val sendIntent = Intent().apply {
                             action = Intent.ACTION_SEND
@@ -153,7 +158,6 @@ fun ShortsScreen(
                         val shareIntent = Intent.createChooser(sendIntent, null)
                         context.startActivity(shareIntent)
                     },
-                    scope = scope,
                     viewModel = viewModel
                 )
             }
@@ -171,6 +175,13 @@ fun ShortsScreen(
                 onDismiss = { showCommentsSheet = false }
             )
         }
+
+        if (showDescriptionSheet && uiState.shorts.isNotEmpty()) {
+            FlowDescriptionBottomSheet(
+                video = uiState.shorts[uiState.currentIndex],
+                onDismiss = { showDescriptionSheet = false }
+            )
+        }
     }
 }
 
@@ -185,8 +196,8 @@ fun VerticalShortsPager(
     onLikeClick: (Video) -> Unit,
     onSubscribeClick: (Video) -> Unit,
     onCommentsClick: (Video) -> Unit,
+    onDescriptionClick: (Video) -> Unit,
     onShareClick: (Video) -> Unit,
-    scope: kotlinx.coroutines.CoroutineScope,
     viewModel: ShortsViewModel
 ) {
     val pagerState = androidx.compose.foundation.pager.rememberPagerState(
@@ -214,6 +225,7 @@ fun VerticalShortsPager(
             onLikeClick = { onLikeClick(short) },
             onSubscribeClick = { onSubscribeClick(short) },
             onCommentsClick = { onCommentsClick(short) },
+            onDescriptionClick = { onDescriptionClick(short) },
             onShareClick = { onShareClick(short) },
             viewModel = viewModel,
             modifier = Modifier.fillMaxSize()

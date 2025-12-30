@@ -241,7 +241,9 @@ Your support helps keep the project alive and motivates me to add more features!
   - [x] Shorts feed UI
   - [x] Vertical swipe navigation
   - [x] Shorts player optimization
-  - [ ] Shorts creation date/view count
+  - [x] Shorts creation date/view count
+  - [x] Shorts bookmarking
+  - [x] Shorts Guesture Controls: Double-tap to like, Press and hold to 2x speed
 
 - [ ] **Channel Screen**
   - [x] Complete channel page layout
