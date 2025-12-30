@@ -218,6 +218,21 @@ class MusicViewModel @Inject constructor(
     fun clearArtistDetails() {
         _uiState.value = _uiState.value.copy(artistDetails = null)
     }
+
+    fun fetchPlaylistDetails(playlistId: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isPlaylistLoading = true, playlistDetails = null)
+            val details = YouTubeMusicService.fetchPlaylistDetails(playlistId)
+            _uiState.value = _uiState.value.copy(
+                isPlaylistLoading = false,
+                playlistDetails = details
+            )
+        }
+    }
+
+    fun clearPlaylistDetails() {
+        _uiState.value = _uiState.value.copy(playlistDetails = null)
+    }
 }
 
 data class MusicUiState(
@@ -233,5 +248,7 @@ data class MusicUiState(
     val error: String? = null,
     val artistDetails: ArtistDetails? = null,
     val isArtistLoading: Boolean = false,
+    val playlistDetails: PlaylistDetails? = null,
+    val isPlaylistLoading: Boolean = false,
     val searchResultsArtists: List<ArtistDetails> = emptyList()
 )

@@ -681,10 +681,9 @@ class PlaylistDetailViewModel @Inject constructor(
             } else {
                 // Try Remote (YouTube)
                 try {
-                    val result = YouTubeMusicService.fetchPlaylistFullDetails(playlistId)
-                    if (result != null) {
-                        val (info, tracks) = result
-                        val videos = tracks.map { track ->
+                    val details = YouTubeMusicService.fetchPlaylistDetails(playlistId)
+                    if (details != null) {
+                        val videos = details.tracks.map { track ->
                             Video(
                                 id = track.videoId,
                                 title = track.title,
@@ -692,17 +691,17 @@ class PlaylistDetailViewModel @Inject constructor(
                                 channelId = track.channelId,
                                 thumbnailUrl = track.thumbnailUrl,
                                 duration = track.duration,
-                                viewCount = track.views,
+                                viewCount = track.views ?: 0,
                                 uploadDate = "",
                                 isMusic = true
                             )
                         }
                         _uiState.update { it.copy(
-                            playlistName = info.title,
-                            description = "YouTube Playlist by ${info.author}",
+                            playlistName = details.title,
+                            description = details.description ?: "YouTube Playlist by ${details.author}",
                             isPrivate = false,
                             videos = videos,
-                            thumbnailUrl = info.thumbnailUrl
+                            thumbnailUrl = details.thumbnailUrl
                         )}
                     }
                 } catch (e: Exception) {

@@ -368,6 +368,7 @@ For more details, see [CONTRIBUTING.md](CONTRIBUTING.md).
 ## 🙏 Acknowledgments
 
 - **[NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor)** - Powerful library for YouTube data extraction
+- **[MetroList](https://github.com/mostafaalagamy/Metrolist)** - Insparation for Hybrid InnerTube/NewPipeExtractor approach for Music fetching
 - **[ExoPlayer](https://github.com/google/ExoPlayer)** - Professional-grade media player
 - **[Jetpack Compose](https://developer.android.com/jetpack/compose)** - Modern Android UI toolkit
 - **Material Design 3** - Beautiful design system by Google

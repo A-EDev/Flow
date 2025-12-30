@@ -10,7 +10,7 @@ local.properties
 
 /notes
 algo.md
-newpipe*
+newpipe-dev
 # Signing keystore - NEVER COMMIT THIS FILE!
 release.keystore
 generate_key.ps1
@@ -21,3 +21,4 @@ svglogo
 metro*
 release.ps1
 release.bat
+build_result.md

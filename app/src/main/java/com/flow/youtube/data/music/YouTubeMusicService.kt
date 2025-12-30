@@ -2,6 +2,8 @@ package com.flow.youtube.data.music
 
 import android.util.Log
 import com.flow.youtube.ui.screens.music.MusicTrack
+import com.flow.youtube.innertube.YouTube
+import com.flow.youtube.innertube.models.SongItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.NewPipe
@@ -69,27 +71,33 @@ object YouTubeMusicService {
     
     /**
      * Fetch trending music tracks from YouTube
-     * Prioritizes curated charts and trending playlists
+     * Uses Innertube (Hybrid approach) for better metadata
      */
     suspend fun fetchTrendingMusic(limit: Int = 50): List<MusicTrack> = withContext(Dispatchers.IO) {
         val tracks = mutableListOf<MusicTrack>()
         
         try {
-            // Strategy 1: Fetch from Global Top 100 Chart
-            tracks.addAll(fetchPlaylistTracks(CHART_GLOBAL_TOP_100))
-            
-            // Strategy 2: Add some variety via specific searches (what the user liked)
-            if (tracks.size < limit) {
-                val varietyQuery = trendingMusicQueries.random()
-                tracks.addAll(searchMusic(varietyQuery, 20))
-            }
-            
-            // Strategy 3: Trending Music Playlist
-            if (tracks.size < limit) {
-                tracks.addAll(fetchPlaylistTracks(TRENDING_MUSIC))
+            // Priority: Innertube Home Data (Official YT Music Home)
+            val innertubeTracks = com.flow.youtube.data.newmusic.InnertubeMusicService.fetchTrendingMusic()
+            if (innertubeTracks.isNotEmpty()) {
+                Log.d(TAG, "Fetched ${innertubeTracks.size} tracks from Innertube")
+                tracks.addAll(innertubeTracks)
+            } else {
+                // Fallback to NewPipe Strategy
+                // Strategy 1: Fetch from Global Top 100 Chart
+                tracks.addAll(fetchPlaylistTracks(CHART_GLOBAL_TOP_100))
+                
+                // Strategy 2: Trending Music Playlist
+                if (tracks.size < limit) {
+                    tracks.addAll(fetchPlaylistTracks(TRENDING_MUSIC))
+                }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error in fetchTrendingMusic", e)
+             // Fallback to NewPipe Strategy on error
+            try {
+                tracks.addAll(fetchPlaylistTracks(CHART_GLOBAL_TOP_100))
+            } catch (ignore: Exception) {}
         }
         
         val result = tracks.distinctBy { it.videoId }.take(limit)
@@ -116,10 +124,16 @@ object YouTubeMusicService {
     
     /**
      * Search for music tracks on YouTube
-     * Uses filters to get official audio/videos
+     * Uses Innertube for better results
      */
     suspend fun searchMusic(query: String, limit: Int = 50): List<MusicTrack> = withContext(Dispatchers.IO) {
         try {
+            // Try Innertube first
+            val innertubeResults = com.flow.youtube.data.newmusic.InnertubeMusicService.searchMusic(query)
+            if (innertubeResults.isNotEmpty()) {
+                return@withContext innertubeResults.take(limit)
+            }
+        
             val service = ServiceList.YouTube
             
             // Refine query for better results if it's not already specific
@@ -252,8 +266,35 @@ object YouTubeMusicService {
     /**
      * Fetch full playlist details (info + tracks)
      */
-    suspend fun fetchPlaylistFullDetails(playlistId: String): Pair<com.flow.youtube.ui.screens.music.MusicPlaylist, List<MusicTrack>>? = withContext(Dispatchers.IO) {
+    suspend fun fetchPlaylistDetails(playlistId: String): com.flow.youtube.ui.screens.music.PlaylistDetails? = withContext(Dispatchers.IO) {
         try {
+            // Check if it's an album/single (browseId) or a playlist
+            if (playlistId.startsWith("MPREb_") || playlistId.startsWith("FMDM") || playlistId.startsWith("OLAK")) {
+                val albumResult = YouTube.album(playlistId)
+                val albumPage = albumResult.getOrNull()
+                if (albumPage != null) {
+                    val tracks = albumPage.songs.mapNotNull { convertSongItemToMusicTrack(it) }
+                    val totalSeconds = tracks.sumOf { it.duration }
+                    val durationText = formatTotalDuration(totalSeconds)
+                    
+                    return@withContext com.flow.youtube.ui.screens.music.PlaylistDetails(
+                        id = playlistId,
+                        title = albumPage.album.title,
+                        thumbnailUrl = albumPage.album.thumbnail,
+                        author = albumPage.album.artists?.firstOrNull()?.name ?: "Unknown Artist",
+                        authorId = albumPage.album.artists?.firstOrNull()?.id,
+                        authorAvatarUrl = null,
+                        trackCount = tracks.size,
+                        description = null,
+                        views = null,
+                        durationText = durationText,
+                        dateText = albumPage.album.year?.toString(),
+                        tracks = tracks
+                    )
+                }
+            }
+
+            // Fallback to Playlist strategy
             val service = ServiceList.YouTube
             val playlistUrl = "https://www.youtube.com/playlist?list=$playlistId"
             val playlistInfo = PlaylistInfo.getInfo(service, playlistUrl)
@@ -261,22 +302,52 @@ object YouTubeMusicService {
             val tracks = playlistInfo.relatedItems
                 .filterIsInstance<StreamInfoItem>()
                 .mapNotNull { convertToMusicTrack(it) }
-                
-            val info = com.flow.youtube.ui.screens.music.MusicPlaylist(
+            
+            val totalSeconds = tracks.sumOf { it.duration }
+            val durationText = formatTotalDuration(totalSeconds)
+
+            com.flow.youtube.ui.screens.music.PlaylistDetails(
                 id = playlistId,
                 title = playlistInfo.name,
                 thumbnailUrl = playlistInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "",
+                author = playlistInfo.uploaderName ?: "Unknown",
+                authorId = playlistInfo.uploaderUrl?.substringAfterLast("/"),
+                authorAvatarUrl = null,
                 trackCount = tracks.size,
-                author = playlistInfo.uploaderName
+                description = playlistInfo.description?.content,
+                views = null,
+                durationText = durationText,
+                dateText = null,
+                tracks = tracks
             )
-            
-            Pair(info, tracks)
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching playlist details: $playlistId", e)
             null
         }
     }
-    
+
+    private fun formatTotalDuration(totalSeconds: Int): String {
+        if (totalSeconds <= 0) return ""
+        val hours = totalSeconds / 3600
+        val minutes = (totalSeconds % 3600) / 60
+        val seconds = totalSeconds % 60
+        return if (hours > 0) "$hours hr $minutes min" else "$minutes min $seconds sec"
+    }
+
+    private fun convertSongItemToMusicTrack(item: com.flow.youtube.innertube.models.SongItem): MusicTrack? {
+        return MusicTrack(
+            videoId = item.id,
+            title = item.title,
+            artist = item.artists.firstOrNull()?.name ?: "Unknown Artist",
+            thumbnailUrl = item.thumbnail,
+            duration = item.duration ?: 0,
+            views = 0,
+            album = item.album?.name ?: "",
+            channelId = item.artists.firstOrNull()?.id ?: "",
+            isExplicit = item.explicit
+        )
+    }
+
     /**
      * Get related/similar music tracks
      */
@@ -370,8 +441,18 @@ object YouTubeMusicService {
     /**
      * Fetch artist details including top tracks
      */
+    /**
+     * Fetch artist details including top tracks
+     */
     suspend fun fetchArtistDetails(channelId: String): com.flow.youtube.ui.screens.music.ArtistDetails? = withContext(Dispatchers.IO) {
         try {
+            // Priority: Innertube Data (Rich Metadata)
+            val innertubeDetails = com.flow.youtube.data.newmusic.InnertubeMusicService.fetchArtistDetails(channelId)
+            if (innertubeDetails != null) {
+                return@withContext innertubeDetails
+            }
+            
+            // Fallback: NewPipe Strategy
             val service = ServiceList.YouTube
             val url = "https://www.youtube.com/channel/$channelId"
             val extractor = service.getChannelExtractor(url)

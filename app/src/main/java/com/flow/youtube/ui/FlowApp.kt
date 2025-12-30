@@ -556,10 +556,45 @@ fun FlowApp(
                                     navController.navigate("musicPlayer/${track.videoId}")
                                 },
                                 onAlbumClick = { album ->
-                                    navController.navigate("playlist/${album.id}")
+                                    navController.navigate("musicPlaylist/${album.id}")
+                                },
+                                onArtistClick = { id ->
+                                    navController.navigate("artist/$id")
                                 },
                                 onFollowClick = {
                                     musicViewModel.toggleFollowArtist(details)
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Music Playlist Page
+                composable("musicPlaylist/{playlistId}") { backStackEntry ->
+                    val playlistId = backStackEntry.arguments?.getString("playlistId") ?: return@composable
+                    val musicViewModel: MusicViewModel = hiltViewModel()
+                    val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+                    val uiState by musicViewModel.uiState.collectAsState()
+                    
+                    LaunchedEffect(playlistId) {
+                        musicViewModel.fetchPlaylistDetails(playlistId)
+                    }
+                    
+                    if (uiState.isPlaylistLoading) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else {
+                        uiState.playlistDetails?.let { details ->
+                            com.flow.youtube.ui.screens.music.PlaylistPage(
+                                playlistDetails = details,
+                                onBackClick = { navController.popBackStack() },
+                                onTrackClick = { track, queue ->
+                                    musicPlayerViewModel.loadAndPlayTrack(track, queue)
+                                    navController.navigate("musicPlayer/${track.videoId}")
+                                },
+                                onArtistClick = { channelId ->
+                                    navController.navigate("artist/$channelId")
                                 }
                             )
                         }

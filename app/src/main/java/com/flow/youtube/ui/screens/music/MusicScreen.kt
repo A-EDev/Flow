@@ -491,12 +491,6 @@ private fun MusicTrackCard(
     }
 }
 
-private fun formatDuration(seconds: Int): String {
-    val minutes = seconds / 60
-    val secs = seconds % 60
-    return "%d:%02d".format(minutes, secs)
-}
-
 data class MusicTrack(
     val videoId: String,
     val title: String,
@@ -506,7 +500,8 @@ data class MusicTrack(
     val views: Long = 0,
     val sourceUrl: String = "", // Full URL for NewPipe extraction
     val album: String = "",
-    val channelId: String = ""
+    val channelId: String = "",
+    val isExplicit: Boolean? = false
 )
 
 data class MusicPlaylist(
@@ -515,6 +510,21 @@ data class MusicPlaylist(
     val thumbnailUrl: String,
     val trackCount: Int = 0,
     val author: String = ""
+)
+
+data class PlaylistDetails(
+    val id: String,
+    val title: String,
+    val thumbnailUrl: String,
+    val author: String,
+    val authorId: String? = null,
+    val authorAvatarUrl: String? = null,
+    val trackCount: Int,
+    val description: String? = null,
+    val views: Long? = null,
+    val durationText: String? = null,
+    val dateText: String? = null,
+    val tracks: List<MusicTrack> = emptyList()
 )
 
 data class ArtistDetails(
@@ -526,5 +536,9 @@ data class ArtistDetails(
     val bannerUrl: String,
     val topTracks: List<MusicTrack>,
     val albums: List<MusicPlaylist> = emptyList(),
+    val singles: List<MusicPlaylist> = emptyList(),
+    val videos: List<MusicTrack> = emptyList(),
+    val relatedArtists: List<ArtistDetails> = emptyList(),
+    val featuredOn: List<MusicPlaylist> = emptyList(),
     val isSubscribed: Boolean = false
 )
