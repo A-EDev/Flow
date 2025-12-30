@@ -27,7 +27,7 @@ interface PlaylistDao {
     suspend fun removeVideoFromPlaylist(playlistId: String, videoId: String)
 
     @Transaction
-    @Query("SELECT * FROM videos INNER JOIN playlist_video_cross_ref ON videos.id = playlist_video_cross_ref.videoId WHERE playlist_video_cross_ref.playlistId = :playlistId ORDER BY playlist_video_cross_ref.position ASC")
+    @Query("SELECT videos.* FROM videos INNER JOIN playlist_video_cross_ref ON videos.id = playlist_video_cross_ref.videoId WHERE playlist_video_cross_ref.playlistId = :playlistId ORDER BY playlist_video_cross_ref.position ASC")
     fun getVideosForPlaylist(playlistId: String): Flow<List<VideoEntity>>
     
     @Query("SELECT COUNT(*) FROM playlist_video_cross_ref WHERE playlistId = :playlistId")

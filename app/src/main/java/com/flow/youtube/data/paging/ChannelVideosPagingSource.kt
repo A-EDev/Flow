@@ -39,7 +39,7 @@ class ChannelVideosPagingSource(
                 Log.d(TAG, "Loading page: ${page?.url ?: "initial"}")
                 
                 val videos = mutableListOf<Video>()
-                var nextPage: Page? = null
+                val nextPage: Page?
                 
                 if (videosTab == null) {
                     Log.w(TAG, "No videos tab found")
@@ -88,10 +88,12 @@ class ChannelVideosPagingSource(
     
     private fun StreamInfoItem.toVideo(channelInfo: ChannelInfo): Video {
         val videoId = extractVideoId(this.url)
+        val thumbnail = this.thumbnails.firstOrNull()?.url ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+        
         return Video(
             id = videoId,
             title = this.name,
-            thumbnailUrl = this.thumbnails.firstOrNull()?.url ?: "",
+            thumbnailUrl = thumbnail,
             channelName = this.uploaderName ?: channelInfo.name,
             channelId = channelInfo.id,
             channelThumbnailUrl = channelInfo.avatars.firstOrNull()?.url ?: "",

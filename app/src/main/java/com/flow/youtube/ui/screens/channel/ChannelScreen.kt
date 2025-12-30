@@ -9,12 +9,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -29,12 +31,16 @@ import com.flow.youtube.data.model.Video
 import com.flow.youtube.ui.theme.extendedColors
 import com.flow.youtube.ui.components.VideoCardFullWidth
 import androidx.paging.compose.itemKey
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChannelScreen(
     channelUrl: String,
     onVideoClick: (String) -> Unit,
+    onShortClick: (String) -> Unit,
+    onPlaylistClick: (String) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ChannelViewModel = viewModel()
@@ -42,9 +48,13 @@ fun ChannelScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val videosPagingFlow by viewModel.videosPagingFlow.collectAsState()
+    val shortsPagingFlow by viewModel.shortsPagingFlow.collectAsState()
+    val playlistsPagingFlow by viewModel.playlistsPagingFlow.collectAsState()
     
     // Collect paging items when flow is available
     val videosLazyPagingItems = videosPagingFlow?.collectAsLazyPagingItems()
+    val shortsLazyPagingItems = shortsPagingFlow?.collectAsLazyPagingItems()
+    val playlistsLazyPagingItems = playlistsPagingFlow?.collectAsLazyPagingItems()
     
     // Initialize view model
     LaunchedEffect(Unit) {
@@ -116,7 +126,11 @@ fun ChannelScreen(
                     ChannelContent(
                         uiState = uiState,
                         videosLazyPagingItems = videosLazyPagingItems,
+                        shortsLazyPagingItems = shortsLazyPagingItems,
+                        playlistsLazyPagingItems = playlistsLazyPagingItems,
                         onVideoClick = onVideoClick,
+                        onShortClick = onShortClick,
+                        onPlaylistClick = onPlaylistClick,
                         onSubscribeClick = { viewModel.toggleSubscription() },
                         onTabSelected = { viewModel.selectTab(it) }
                     )
@@ -126,11 +140,16 @@ fun ChannelScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChannelContent(
     uiState: ChannelUiState,
     videosLazyPagingItems: LazyPagingItems<Video>?,
+    shortsLazyPagingItems: LazyPagingItems<Video>?,
+    playlistsLazyPagingItems: LazyPagingItems<com.flow.youtube.data.model.Playlist>?,
     onVideoClick: (String) -> Unit,
+    onShortClick: (String) -> Unit,
+    onPlaylistClick: (String) -> Unit,
     onSubscribeClick: () -> Unit,
     onTabSelected: (Int) -> Unit
 ) {
@@ -142,7 +161,7 @@ private fun ChannelContent(
     ) {
         // Banner
         item {
-            val bannerUrl = try { channelInfo.banners?.firstOrNull()?.url } catch (e: Exception) { null }
+            val bannerUrl = try { channelInfo.banners.firstOrNull()?.url } catch (e: Exception) { null }
             if (!bannerUrl.isNullOrEmpty()) {
                 AsyncImage(
                     model = bannerUrl,
@@ -160,7 +179,7 @@ private fun ChannelContent(
         item {
             Column(Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val avatarUrl = try { channelInfo.avatars?.firstOrNull()?.url } catch (e: Exception) { null }
+                    val avatarUrl = try { channelInfo.avatars.firstOrNull()?.url } catch (e: Exception) { null }
                     AsyncImage(
                         model = avatarUrl,
                         contentDescription = "Avatar",
@@ -206,7 +225,12 @@ private fun ChannelContent(
         
         // Tabs
         item {
-            TabRow(selectedTabIndex = uiState.selectedTab) {
+            ScrollableTabRow(
+                selectedTabIndex = uiState.selectedTab,
+                edgePadding = 16.dp,
+                containerColor = MaterialTheme.colorScheme.background,
+                divider = {}
+            ) {
                 Tab(
                     selected = uiState.selectedTab == 0,
                     onClick = { onTabSelected(0) },
@@ -215,40 +239,258 @@ private fun ChannelContent(
                 Tab(
                     selected = uiState.selectedTab == 1,
                     onClick = { onTabSelected(1) },
-                    text = { Text("Playlists") }
+                    text = { Text("Shorts") }
                 )
                 Tab(
                     selected = uiState.selectedTab == 2,
                     onClick = { onTabSelected(2) },
+                    text = { Text("Playlists") }
+                )
+                Tab(
+                    selected = uiState.selectedTab == 3,
+                    onClick = { onTabSelected(3) },
                     text = { Text("About") }
                 )
             }
         }
         
         // Content
-        if (uiState.selectedTab == 0 && videosLazyPagingItems != null) {
-             items(
-                count = videosLazyPagingItems.itemCount,
-                key = videosLazyPagingItems.itemKey { it.id }
-            ) { index ->
-                val video = videosLazyPagingItems[index]
-                if (video != null) {
-                    VideoCardFullWidth(
-                        video = video,
-                        onClick = { onVideoClick(video.id) }
+        when (uiState.selectedTab) {
+            0 -> { // Videos
+                if (videosLazyPagingItems != null) {
+                    if (videosLazyPagingItems.loadState.refresh is LoadState.NotLoading && videosLazyPagingItems.itemCount == 0) {
+                        item {
+                            EmptyStateMessage("No videos found")
+                        }
+                    } else {
+                        items(
+                            count = videosLazyPagingItems.itemCount,
+                            key = videosLazyPagingItems.itemKey { it.id }
+                        ) { index ->
+                            val video = videosLazyPagingItems[index]
+                            if (video != null) {
+                                VideoCardFullWidth(
+                                    video = video,
+                                    onClick = { onVideoClick(video.id) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            1 -> { // Shorts
+                if (shortsLazyPagingItems != null) {
+                    if (shortsLazyPagingItems.loadState.refresh is LoadState.NotLoading && shortsLazyPagingItems.itemCount == 0) {
+                        item {
+                            EmptyStateMessage("No shorts found")
+                        }
+                    } else {
+                        // Use items with a Row to create a 2-column grid
+                        val itemCount = shortsLazyPagingItems.itemCount
+                        val rowCount = (itemCount + 1) / 2
+                        
+                        items(rowCount) { rowIndex ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                val firstIndex = rowIndex * 2
+                                val secondIndex = firstIndex + 1
+                                
+                                // First item in row
+                                val firstShort = shortsLazyPagingItems[firstIndex]
+                                if (firstShort != null) {
+                                    ShortsCard(
+                                        video = firstShort,
+                                        onClick = { onShortClick(firstShort.id) },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                } else {
+                                    Spacer(Modifier.weight(1f))
+                                }
+                                
+                                // Second item in row
+                                if (secondIndex < itemCount) {
+                                    val secondShort = shortsLazyPagingItems[secondIndex]
+                                    if (secondShort != null) {
+                                        ShortsCard(
+                                            video = secondShort,
+                                            onClick = { onShortClick(secondShort.id) },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    } else {
+                                        Spacer(Modifier.weight(1f))
+                                    }
+                                } else {
+                                    Spacer(Modifier.weight(1f))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            2 -> { // Playlists
+                if (playlistsLazyPagingItems != null) {
+                    if (playlistsLazyPagingItems.loadState.refresh is LoadState.NotLoading && playlistsLazyPagingItems.itemCount == 0) {
+                        item {
+                            EmptyStateMessage("No playlists found")
+                        }
+                    } else {
+                        items(
+                            count = playlistsLazyPagingItems.itemCount,
+                            key = playlistsLazyPagingItems.itemKey { it.id }
+                        ) { index ->
+                            val playlist = playlistsLazyPagingItems[index]
+                            if (playlist != null) {
+                                PlaylistCard(
+                                    playlist = playlist,
+                                    onClick = { onPlaylistClick(playlist.id) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            3 -> { // About
+                item {
+                    AboutSection(channelInfo = channelInfo)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyStateMessage(message: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 64.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ShortsCard(
+    video: Video,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(9f / 16f)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            AsyncImage(
+                model = video.thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            
+            // View count overlay at bottom
+            Text(
+                text = "${formatViewCount(video.viewCount)} views",
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(8.dp)
+                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                color = Color.White,
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+        
+        Text(
+            text = video.title,
+            modifier = Modifier.padding(8.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+private fun PlaylistCard(
+    playlist: com.flow.youtube.data.model.Playlist,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(160.dp)
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            AsyncImage(
+                model = playlist.thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            
+            // Playlist overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(40.dp)
+                    .align(Alignment.CenterEnd)
+                    .background(Color.Black.copy(alpha = 0.6f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = playlist.videoCount.toString(),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                    Icon(
+                        imageVector = Icons.Default.PlaylistPlay,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
-        } else if (uiState.selectedTab == 2) {
-            item {
-                AboutSection(channelInfo = channelInfo)
-            }
-        } else if (uiState.selectedTab == 1) {
-             item {
-                Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                    Text("Playlists coming soon")
-                }
-            }
+        }
+        
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = playlist.name,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = "${playlist.videoCount} videos",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.extendedColors.textSecondary
+            )
         }
     }
 }

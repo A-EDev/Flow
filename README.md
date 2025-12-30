@@ -34,6 +34,7 @@
 - [Getting Started](#getting-started)
   - [Prerequisites](#prerequisites)
   - [Installation](#installation)
+- [Releasing](#releasing)
 - [Support & Donations](#support--donations)
 - [Roadmap](#roadmap)
   - [High Priority](#high-priority)

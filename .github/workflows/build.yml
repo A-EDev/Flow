@@ -98,12 +98,13 @@ jobs:
             This is a signed release APK. Install directly on your Android device.
 
             ### 🆕 What's New
-            - See commits for detailed changes
+            <!-- Auto-generated changelog will appear here -->
 
             ### 📋 System Requirements
             - Android 5.0 (API 21) or higher
             - Minimum 2GB RAM recommended
 
+          generate_release_notes: true
           files: |
             app/build/outputs/apk/release/app-release.apk
           draft: false

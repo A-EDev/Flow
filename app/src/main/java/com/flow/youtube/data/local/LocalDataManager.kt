@@ -33,6 +33,18 @@ class LocalDataManager(private val context: Context) {
         private val VIDEO_QUALITY_CELLULAR = stringPreferencesKey("quality_cellular")
         private val BACKGROUND_PLAY = stringPreferencesKey("background_play")
         private val TRENDING_REGION = stringPreferencesKey("trending_region")
+        private val LAST_UPDATE_CHECK = stringPreferencesKey("last_update_check")
+    }
+
+    // Update Settings
+    val lastUpdateCheck: Flow<Long> = context.dataStore.data.map { prefs ->
+        prefs[LAST_UPDATE_CHECK]?.toLongOrNull() ?: 0L
+    }
+
+    suspend fun setLastUpdateCheck(timestamp: Long) {
+        context.dataStore.edit { prefs ->
+            prefs[LAST_UPDATE_CHECK] = timestamp.toString()
+        }
     }
 
     // Theme Settings

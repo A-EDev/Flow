@@ -14,7 +14,7 @@ android {
         minSdk = 21
         targetSdk = 34
         versionCode = 2
-        versionName = "1.2.3"
+        versionName = "1.2.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -28,6 +28,11 @@ android {
         
         // Enable multidex for older devices
         multiDexEnabled = true
+    }
+
+    buildFeatures {
+        buildConfig = true
+        compose = true
     }
 
     signingConfigs {
@@ -97,6 +102,9 @@ dependencies {
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
     implementation("androidx.activity:activity-compose:1.8.0")
+    
+    // APK Updater for GitHub releases
+    implementation("com.github.supersu-man:apkupdater-library:v2.1.0")
     
     // Multidex support for older devices
     implementation("androidx.multidex:multidex:2.0.1")

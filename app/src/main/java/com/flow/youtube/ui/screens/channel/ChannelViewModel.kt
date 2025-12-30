@@ -11,6 +11,7 @@ import com.flow.youtube.data.local.SubscriptionRepository
 import com.flow.youtube.data.local.ChannelSubscription
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.paging.ChannelVideosPagingSource
+import com.flow.youtube.data.paging.ChannelPlaylistsPagingSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -31,8 +32,16 @@ class ChannelViewModel : ViewModel() {
     private val _videosPagingFlow = MutableStateFlow<Flow<PagingData<Video>>?>(null)
     val videosPagingFlow: StateFlow<Flow<PagingData<Video>>?> = _videosPagingFlow.asStateFlow()
     
+    private val _shortsPagingFlow = MutableStateFlow<Flow<PagingData<Video>>?>(null)
+    val shortsPagingFlow: StateFlow<Flow<PagingData<Video>>?> = _shortsPagingFlow.asStateFlow()
+    
+    private val _playlistsPagingFlow = MutableStateFlow<Flow<PagingData<com.flow.youtube.data.model.Playlist>>?>(null)
+    val playlistsPagingFlow: StateFlow<Flow<PagingData<com.flow.youtube.data.model.Playlist>>?> = _playlistsPagingFlow.asStateFlow()
+    
     private var subscriptionRepository: SubscriptionRepository? = null
     private var currentVideosTab: ListLinkHandler? = null
+    private var currentShortsTab: ListLinkHandler? = null
+    private var currentPlaylistsTab: ListLinkHandler? = null
     
     companion object {
         private const val TAG = "ChannelViewModel"
@@ -81,8 +90,8 @@ class ChannelViewModel : ViewModel() {
                 // Load subscription state
                 loadSubscriptionState(channelId)
                 
-                // Load channel videos
-                loadChannelVideos(channelInfo)
+                // Load channel tabs (Videos, Shorts, Playlists)
+                loadChannelTabs(channelInfo)
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load channel", e)
@@ -116,24 +125,43 @@ class ChannelViewModel : ViewModel() {
         return "https://www.youtube.com/channel/$url"
     }
     
-    private fun loadChannelVideos(channelInfo: ChannelInfo) {
+    private fun loadChannelTabs(channelInfo: ChannelInfo) {
         viewModelScope.launch {
             try {
                 _uiState.update { it.copy(isLoadingVideos = true) }
                 
                 withContext(Dispatchers.IO) {
-                    // Find the videos tab
+                    // Find the tabs
                     for (tab in channelInfo.tabs) {
                         try {
                             val tabName = tab.contentFilters.joinToString()
-                            Log.d(TAG, "Checking tab: $tabName")
+                            val tabUrl = tab.url ?: ""
+                            Log.d(TAG, "Checking tab: Name=$tabName, URL=$tabUrl")
                             
-                            if (tabName.contains("video", ignoreCase = true) || 
-                                tabName.contains("Videos", ignoreCase = true)) {
-                                
+                            val isVideos = tabName.contains("video", ignoreCase = true) || 
+                                         tabName.contains("Videos", ignoreCase = true) ||
+                                         tabUrl.contains("/videos", ignoreCase = true)
+                                         
+                            val isShorts = tabName.contains("shorts", ignoreCase = true) || 
+                                         tabUrl.contains("/shorts", ignoreCase = true)
+                                         
+                            val isPlaylists = tabName.contains("playlist", ignoreCase = true) || 
+                                            tabName.contains("Playlists", ignoreCase = true) ||
+                                            tabUrl.contains("/playlists", ignoreCase = true)
+                            
+                            if (isVideos && !isShorts) {
                                 currentVideosTab = tab
-                                Log.d(TAG, "Found videos tab: $tabName")
-                                break
+                                Log.d(TAG, "Found videos tab")
+                            }
+                            
+                            if (isShorts) {
+                                currentShortsTab = tab
+                                Log.d(TAG, "Found shorts tab")
+                            }
+                            
+                            if (isPlaylists) {
+                                currentPlaylistsTab = tab
+                                Log.d(TAG, "Found playlists tab")
                             }
                         } catch (e: Exception) {
                             Log.e(TAG, "Error checking tab", e)
@@ -141,30 +169,34 @@ class ChannelViewModel : ViewModel() {
                     }
                 }
                 
-                // Create the paging flow
+                // Create the paging flow for Videos
                 if (currentVideosTab != null) {
-                    val pagingFlow = Pager(
-                        config = PagingConfig(
-                            pageSize = 20,
-                            enablePlaceholders = false,
-                            prefetchDistance = 5,
-                            initialLoadSize = 20
-                        ),
-                        pagingSourceFactory = {
-                            ChannelVideosPagingSource(channelInfo, currentVideosTab)
-                        }
+                    _videosPagingFlow.value = Pager(
+                        config = PagingConfig(pageSize = 20, enablePlaceholders = false),
+                        pagingSourceFactory = { ChannelVideosPagingSource(channelInfo, currentVideosTab) }
                     ).flow.cachedIn(viewModelScope)
-                    
-                    _videosPagingFlow.value = pagingFlow
-                    Log.d(TAG, "Paging flow created for channel videos")
-                } else {
-                    Log.w(TAG, "No videos tab found, falling back to empty list")
+                }
+                
+                // Create the paging flow for Shorts
+                if (currentShortsTab != null) {
+                    _shortsPagingFlow.value = Pager(
+                        config = PagingConfig(pageSize = 20, enablePlaceholders = false),
+                        pagingSourceFactory = { ChannelVideosPagingSource(channelInfo, currentShortsTab) }
+                    ).flow.cachedIn(viewModelScope)
+                }
+                
+                // Create the paging flow for Playlists
+                if (currentPlaylistsTab != null) {
+                    _playlistsPagingFlow.value = Pager(
+                        config = PagingConfig(pageSize = 20, enablePlaceholders = false),
+                        pagingSourceFactory = { ChannelPlaylistsPagingSource(channelInfo, currentPlaylistsTab) }
+                    ).flow.cachedIn(viewModelScope)
                 }
                 
                 _uiState.update { it.copy(isLoadingVideos = false) }
                 
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to load channel videos", e)
+                Log.e(TAG, "Failed to load channel tabs", e)
                 _uiState.update { 
                     it.copy(
                         isLoadingVideos = false,
@@ -253,5 +285,5 @@ data class ChannelUiState(
     val error: String? = null,
     val videosError: String? = null,
     val isSubscribed: Boolean = false,
-    val selectedTab: Int = 0 // 0: Videos, 1: Playlists, 2: About
+    val selectedTab: Int = 0 // 0: Videos, 1: Shorts, 2: Playlists, 3: About
 )

@@ -353,6 +353,12 @@ fun FlowApp(
                             }
                             navController.navigate("player/$videoId")
                         },
+                        onShortClick = { videoId ->
+                            navController.navigate("shorts?startVideoId=$videoId")
+                        },
+                        onPlaylistClick = { playlistId ->
+                            navController.navigate("playlist/$playlistId")
+                        },
                         onBackClick = { navController.popBackStack() }
                     )
                 }

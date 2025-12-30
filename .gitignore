@@ -19,3 +19,5 @@ generate_key.bat
 flow-website
 svglogo
 metro*
+release.ps1
+release.bat
