@@ -479,18 +479,13 @@ fun FlowApp(
                     selectedBottomNavIndex = 2
                     
                     // Get the MusicPlayerViewModel from this composable context
-                    val context = androidx.compose.ui.platform.LocalContext.current
                     val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
-                    
-                    LaunchedEffect(Unit) {
-                        musicPlayerViewModel.initialize(context)
-                    }
                     
                     PremiumMusicScreen(
                         onBackClick = { navController.popBackStack() },
-                        onSongClick = { track, queue ->
+                        onSongClick = { track, queue, source ->
                             // Load and play the track with the provided queue
-                            musicPlayerViewModel.loadAndPlayTrack(track, queue)
+                            musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
                             
                             // Navigate to player
                             navController.navigate("musicPlayer/${track.videoId}")
@@ -502,10 +497,35 @@ fun FlowApp(
                             navController.navigate("musicLibrary")
                         },
                         onSearchClick = {
-                            navController.navigate("search")
+                            navController.navigate("musicSearch")
                         },
                         onSettingsClick = {
                             navController.navigate("settings")
+                        }
+                    )
+                }
+
+                // Music Search Screen
+                composable("musicSearch") {
+                    currentRoute.value = "musicSearch"
+                    showBottomNav = false
+                    
+                    val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+                    
+                    com.flow.youtube.ui.screens.music.MusicSearchScreen(
+                        onBackClick = { navController.popBackStack() },
+                        onTrackClick = { track, queue, source ->
+                            musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
+                            navController.navigate("musicPlayer/${track.videoId}")
+                        },
+                        onAlbumClick = { albumId ->
+                            navController.navigate("musicPlaylist/$albumId")
+                        },
+                        onArtistClick = { channelId ->
+                            navController.navigate("artist/$channelId")
+                        },
+                        onPlaylistClick = { playlistId ->
+                            navController.navigate("musicPlaylist/$playlistId")
                         }
                     )
                 }
@@ -515,12 +535,7 @@ fun FlowApp(
                     currentRoute.value = "musicLibrary"
                     showBottomNav = false
                     
-                    val context = androidx.compose.ui.platform.LocalContext.current
                     val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
-                    
-                    LaunchedEffect(Unit) {
-                        musicPlayerViewModel.initialize(context)
-                    }
                     
                     com.flow.youtube.ui.screens.music.LibraryScreen(
                         onBackClick = { navController.popBackStack() },

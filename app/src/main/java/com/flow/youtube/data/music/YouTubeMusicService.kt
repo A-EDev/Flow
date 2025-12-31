@@ -388,8 +388,8 @@ object YouTubeMusicService {
         val title = item.name.lowercase()
         val duration = item.duration
         
-        // Strict duration for individual songs (60s to 10 minutes)
-        if (duration < 60 || duration > 600) return false
+        // Relaxed duration for music content (30s to 20 minutes)
+        if (duration < 30 || duration > 1200) return false
         
         // Blacklist keywords
         if (blacklistKeywords.any { title.contains(it) }) return false
@@ -398,7 +398,7 @@ object YouTubeMusicService {
         val musicIndicators = listOf(
             "official video", "official music", "official audio", "official lyric",
             "music video", "lyric video", "audio", "visualizer", "mv", "feat.", "ft.",
-            "prod.", "remix", "cover", "soundtrack", "ost"
+            "prod.", "remix", "cover", "soundtrack", "ost", "song", "track", "single"
         )
         
         // If it has a music indicator, it's likely music
@@ -406,9 +406,10 @@ object YouTubeMusicService {
         
         // If the uploader is a Topic channel or VEVO
         val uploader = item.uploaderName?.lowercase() ?: ""
-        if (uploader.endsWith("topic") || uploader.endsWith("vevo")) return true
+        if (uploader.endsWith("topic") || uploader.endsWith("vevo") || uploader.contains("records")) return true
         
-        return false
+        // Most music videos are between 2 and 5 minutes
+        return duration in 120..420
     }
 
     /**

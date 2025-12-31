@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -47,7 +48,6 @@ fun EnhancedMusicPlayerScreen(
     onArtistClick: (String) -> Unit = {},
     viewModel: MusicPlayerViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     
     var showQueue by remember { mutableStateOf(false) }
@@ -82,8 +82,6 @@ fun EnhancedMusicPlayerScreen(
     var showSkipAnimation by remember { mutableStateOf<SkipDirection?>(null) }
     
     LaunchedEffect(track.videoId) {
-        viewModel.initialize(context)
-        
         // Check if track is already loaded and playing
         val currentTrack = viewModel.uiState.value.currentTrack
         val isPlaying = viewModel.uiState.value.isPlaying
@@ -459,7 +457,7 @@ fun EnhancedMusicPlayerScreen(
                         )
                     }
                     
-                    // Queue button
+                    // UP NEXT button
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.weight(1f)
@@ -467,7 +465,7 @@ fun EnhancedMusicPlayerScreen(
                         IconButton(onClick = { showQueue = !showQueue }) {
                             Icon(
                                 imageVector = Icons.Outlined.QueueMusic,
-                                contentDescription = "Queue",
+                                contentDescription = "UP NEXT",
                                 tint = if (showQueue) 
                                     MaterialTheme.colorScheme.primary 
                                 else 
@@ -475,7 +473,7 @@ fun EnhancedMusicPlayerScreen(
                             )
                         }
                         Text(
-                            text = "Queue",
+                            text = "UP NEXT",
                             style = MaterialTheme.typography.labelSmall,
                             color = if (showQueue) 
                                 MaterialTheme.colorScheme.primary 
@@ -516,12 +514,26 @@ fun EnhancedMusicPlayerScreen(
         
         // Queue bottom sheet
         if (showQueue) {
-            EnhancedQueueBottomSheet(
+            UpNextBottomSheet(
                 queue = uiState.queue,
                 currentIndex = uiState.currentQueueIndex,
+                playingFrom = uiState.playingFrom,
+                autoplayEnabled = uiState.autoplayEnabled,
+                selectedFilter = uiState.selectedFilter,
                 onDismiss = { showQueue = false },
-                onTrackClick = { index -> viewModel.playFromQueue(index) },
-                onRemoveTrack = { index -> viewModel.removeFromQueue(index) }
+                onTrackClick = { index ->
+                    viewModel.playFromQueue(index)
+                    showQueue = false
+                },
+                onToggleAutoplay = {
+                    viewModel.toggleAutoplay()
+                },
+                onFilterSelect = { filter ->
+                    viewModel.setFilter(filter)
+                },
+                onMoveTrack = { from, to ->
+                    viewModel.moveTrack(from, to)
+                }
             )
         }
         
@@ -529,6 +541,8 @@ fun EnhancedMusicPlayerScreen(
         if (showLyrics) {
             LyricsBottomSheet(
                 trackTitle = uiState.currentTrack?.title ?: track.title,
+                trackArtist = uiState.currentTrack?.artist ?: track.artist,
+                thumbnailUrl = uiState.currentTrack?.thumbnailUrl ?: track.thumbnailUrl,
                 lyrics = uiState.lyrics,
                 syncedLyrics = uiState.syncedLyrics,
                 currentPosition = uiState.currentPosition,
@@ -633,53 +647,222 @@ private fun AnimatedSkipIndicators(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EnhancedQueueBottomSheet(
+private fun UpNextBottomSheet(
     queue: List<MusicTrack>,
     currentIndex: Int,
+    playingFrom: String,
+    autoplayEnabled: Boolean,
+    selectedFilter: String,
     onDismiss: () -> Unit,
     onTrackClick: (Int) -> Unit,
-    onRemoveTrack: (Int) -> Unit
+    onToggleAutoplay: () -> Unit,
+    onFilterSelect: (String) -> Unit,
+    onMoveTrack: (Int, Int) -> Unit
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)) }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
         ) {
+            // Header
+            Text(
+                text = "UP NEXT",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Playing From Section
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Playing from",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    )
+                    Text(
+                        text = playingFrom,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                
+                Button(
+                    onClick = { /* Save to playlist */ },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    shape = RoundedCornerShape(20.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.PlaylistAdd,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Save", style = MaterialTheme.typography.labelLarge)
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            // Autoplay Toggle
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Queue",
-                    style = MaterialTheme.typography.titleLarge,
+                    text = "Autoplay",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    text = "${queue.size} tracks",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                Switch(
+                    checked = autoplayEnabled,
+                    onCheckedChange = { onToggleAutoplay() },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                        checkedTrackColor = MaterialTheme.colorScheme.primary,
+                        uncheckedThumbColor = MaterialTheme.colorScheme.outline,
+                        uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
                 )
             }
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.heightIn(max = 400.dp)
+            // Filter Chips
+            val filters = listOf("All", "Discover", "Popular", "Deep cuts", "Workout")
+            
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                items(queue.size) { index ->
-                    QueueTrackItem(
-                        track = queue[index],
-                        isCurrentlyPlaying = index == currentIndex,
-                        onClick = { onTrackClick(index) },
-                        onRemove = { onRemoveTrack(index) }
+                items(filters) { filter ->
+                    FilterChip(
+                        selected = selectedFilter == filter,
+                        onClick = { onFilterSelect(filter) },
+                        label = { Text(filter) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                            labelColor = MaterialTheme.colorScheme.onSurface,
+                            selectedContainerColor = MaterialTheme.colorScheme.onSurface,
+                            selectedLabelColor = MaterialTheme.colorScheme.surface
+                        ),
+                        border = null,
+                        shape = RoundedCornerShape(8.dp)
                     )
                 }
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Queue List
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.fillMaxHeight(0.8f)
+            ) {
+                itemsIndexed(queue) { index, track ->
+                    UpNextTrackItem(
+                        track = track,
+                        isCurrentlyPlaying = index == currentIndex,
+                        onClick = { onTrackClick(index) },
+                        onMoveUp = { if (index > 0) onMoveTrack(index, index - 1) },
+                        onMoveDown = { if (index < queue.size - 1) onMoveTrack(index, index + 1) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpNextTrackItem(
+    track: MusicTrack,
+    isCurrentlyPlaying: Boolean,
+    onClick: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Thumbnail
+        AsyncImage(
+            model = track.thumbnailUrl,
+            contentDescription = null,
+            modifier = Modifier
+                .size(48.dp)
+                .clip(RoundedCornerShape(4.dp)),
+            contentScale = ContentScale.Crop
+        )
+        
+        Spacer(modifier = Modifier.width(12.dp))
+        
+        // Info
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = track.title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = if (isCurrentlyPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                fontWeight = if (isCurrentlyPlaying) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = "${track.artist} • ${track.duration}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        
+        // Reorder Controls
+        Column {
+            IconButton(
+                onClick = onMoveUp,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowUp,
+                    contentDescription = "Move Up",
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                )
+            }
+            IconButton(
+                onClick = onMoveDown,
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Move Down",
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                )
             }
         }
     }
@@ -689,6 +872,8 @@ private fun EnhancedQueueBottomSheet(
 @Composable
 private fun LyricsBottomSheet(
     trackTitle: String,
+    trackArtist: String,
+    thumbnailUrl: String?,
     lyrics: String?,
     syncedLyrics: List<LyricLine>,
     currentPosition: Long,
@@ -707,123 +892,137 @@ private fun LyricsBottomSheet(
     // Auto-scroll to current line
     LaunchedEffect(currentLineIndex) {
         if (syncedLyrics.isNotEmpty()) {
-            listState.animateScrollToItem(currentLineIndex, scrollOffset = -300)
+            listState.animateScrollToItem(currentLineIndex, scrollOffset = -400)
         }
     }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Color.Black,
+        dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.3f)) },
+        windowInsets = WindowInsets(0)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-                .heightIn(min = 400.dp, max = 700.dp)
-        ) {
-            Text(
-                text = "Lyrics",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Blurred background
+            AsyncImage(
+                model = thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(100.dp),
+                alpha = 0.35f,
+                contentScale = ContentScale.Crop
             )
             
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Text(
-                text = trackTitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            // Dark overlay gradient
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.4f),
+                                Color.Black.copy(alpha = 0.7f),
+                                Color.Black
+                            )
+                        )
+                    )
             )
-            
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            if (isLoading) {
-                Box(
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+            ) {
+                // Header info
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(200.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    horizontalAlignment = Alignment.Start
                 ) {
-                    CircularProgressIndicator()
+                    Text(
+                        text = trackTitle,
+                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = trackArtist,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White.copy(alpha = 0.7f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
-            } else if (syncedLyrics.isNotEmpty()) {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
-                    contentPadding = PaddingValues(vertical = 100.dp)
-                ) {
-                    itemsIndexed(syncedLyrics) { index, line ->
-                        val isCurrent = index == currentLineIndex
-                        val alpha by animateFloatAsState(
-                            targetValue = if (isCurrent) 1f else 0.3f,
-                            animationSpec = tween(durationMillis = 500)
-                        )
-                        val scale by animateFloatAsState(
-                            targetValue = if (isCurrent) 1.05f else 1f,
-                            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
-                        )
-                        
-                        Text(
-                            text = line.content,
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 24.sp,
-                                lineHeight = 32.sp
-                            ),
-                            color = if (isCurrent) 
-                                MaterialTheme.colorScheme.primary 
-                            else 
-                                MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .graphicsLayer {
-                                    this.alpha = alpha
-                                    this.scaleX = scale
-                                    this.scaleY = scale
-                                }
-                                .clickable { onSeekTo(line.time) },
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                }
-            } else if (lyrics != null) {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    item {
-                        Text(
-                            text = lyrics,
-                            style = MaterialTheme.typography.bodyLarge.copy(
-                                lineHeight = 28.sp,
-                                fontSize = 18.sp
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            } else {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Lyrics,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "Lyrics not available",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
+                
+                Box(modifier = Modifier.weight(1f)) {
+                    if (isLoading) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = Color.White)
+                        }
+                    } else if (syncedLyrics.isNotEmpty()) {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(32.dp),
+                            contentPadding = PaddingValues(top = 100.dp, bottom = 200.dp, start = 24.dp, end = 24.dp)
+                        ) {
+                            itemsIndexed(syncedLyrics) { index, line ->
+                                val isCurrent = index == currentLineIndex
+                                val alpha by animateFloatAsState(
+                                    targetValue = if (isCurrent) 1f else 0.4f,
+                                    animationSpec = tween(durationMillis = 600)
+                                )
+                                val scale by animateFloatAsState(
+                                    targetValue = if (isCurrent) 1.08f else 1f,
+                                    animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy)
+                                )
+                                
+                                Text(
+                                    text = line.content,
+                                    style = MaterialTheme.typography.headlineMedium.copy(
+                                        fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Bold,
+                                        fontSize = 28.sp,
+                                        lineHeight = 38.sp,
+                                        letterSpacing = (-0.5).sp
+                                    ),
+                                    color = Color.White,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .graphicsLayer {
+                                            this.alpha = alpha
+                                            this.scaleX = scale
+                                            this.scaleY = scale
+                                        }
+                                        .clickable { onSeekTo(line.time) },
+                                    textAlign = TextAlign.Start
+                                )
+                            }
+                        }
+                    } else if (lyrics != null) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(24.dp)
+                        ) {
+                            item {
+                                Text(
+                                    text = lyrics,
+                                    style = MaterialTheme.typography.headlineSmall.copy(
+                                        lineHeight = 36.sp,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("Lyrics not available", color = Color.White.copy(alpha = 0.6f))
+                        }
                     }
                 }
             }

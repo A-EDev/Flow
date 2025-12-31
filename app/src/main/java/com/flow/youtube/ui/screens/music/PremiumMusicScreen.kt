@@ -43,7 +43,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun PremiumMusicScreen(
     onBackClick: () -> Unit,
-    onSongClick: (MusicTrack, List<MusicTrack>) -> Unit,
+    onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
     onArtistClick: (String) -> Unit = {},
     onLibraryClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
@@ -88,9 +88,7 @@ fun PremiumMusicScreen(
                     searchQuery = it
                     showSuggestions = it.length >= 2
                 },
-                onSearchClick = { 
-                    isSearching = true 
-                },
+                onSearchClick = onSearchClick,
                 onSearchSubmit = {
                     if (searchQuery.isNotBlank()) {
                         showSuggestions = false
@@ -213,7 +211,7 @@ fun PremiumMusicScreen(
                                 rowTracks.forEach { track ->
                                     SearchResultItem(
                                         track = track,
-                                        onClick = { onSongClick(track, uiState.allSongs) },
+                                        onClick = { onSongClick(track, uiState.allSongs, if (selectedChip != null) selectedChip else "Search Results") },
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
@@ -233,7 +231,7 @@ fun PremiumMusicScreen(
                                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
                                     items(uiState.forYouTracks) { track ->
-                                        ListenAgainItem(track = track, onClick = { onSongClick(track, uiState.forYouTracks) }, onArtistClick = onArtistClick)
+                                        ListenAgainItem(track = track, onClick = { onSongClick(track, uiState.forYouTracks, "For You") }, onArtistClick = onArtistClick)
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(24.dp))
@@ -249,7 +247,7 @@ fun PremiumMusicScreen(
                                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
                                     items(uiState.trendingSongs.take(15)) { track ->
-                                        ListenAgainItem(track = track, onClick = { onSongClick(track, uiState.trendingSongs) }, onArtistClick = onArtistClick)
+                                        ListenAgainItem(track = track, onClick = { onSongClick(track, uiState.trendingSongs, "Listen Again") }, onArtistClick = onArtistClick)
                                     }
                                 }
                             }
@@ -262,7 +260,7 @@ fun PremiumMusicScreen(
                                 SectionHeader(title = "Quick picks", subtitle = "START RADIO")
                                 Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                                     uiState.trendingSongs.drop(5).take(6).forEach { track ->
-                                        QuickPickItem(track = track, onClick = { onSongClick(track, uiState.trendingSongs) }, onArtistClick = onArtistClick)
+                                        QuickPickItem(track = track, onClick = { onSongClick(track, uiState.trendingSongs, "Quick Picks") }, onArtistClick = onArtistClick)
                                     }
                                 }
                             }
@@ -279,7 +277,7 @@ fun PremiumMusicScreen(
                                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                                     ) {
                                         items(tracks.take(10)) { track ->
-                                            NewReleaseItem(track = track, onClick = { onSongClick(track, uiState.newReleases) }, onArtistClick = onArtistClick)
+                                            NewReleaseItem(track = track, onClick = { onSongClick(track, tracks, genre) }, onArtistClick = onArtistClick)
                                         }
                                     }
                                 }
@@ -296,7 +294,7 @@ fun PremiumMusicScreen(
                                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
                                     items(uiState.newReleases) { track ->
-                                        NewReleaseItem(track = track, onClick = { onSongClick(track, uiState.newReleases) }, onArtistClick = onArtistClick)
+                                        NewReleaseItem(track = track, onClick = { onSongClick(track, uiState.newReleases, "New Releases") }, onArtistClick = onArtistClick)
                                     }
                                 }
                             }

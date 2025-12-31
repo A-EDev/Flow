@@ -18,6 +18,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -47,11 +48,6 @@ class MusicPlayerViewModel @Inject constructor(
         EnhancedMusicPlayerManager.initialize(context)
         initializeObservers()
     }
-
-    fun initialize(context: Context) {
-        // No-op or call init logic if not done
-        // initializeObservers() // Moved to init
-    }
     
     private fun initializeObservers() {
         if (isInitialized) return
@@ -71,21 +67,21 @@ class MusicPlayerViewModel @Inject constructor(
         // Observe player state
         viewModelScope.launch {
             EnhancedMusicPlayerManager.playerState.collect { playerState ->
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     isPlaying = playerState.isPlaying,
                     isBuffering = playerState.isBuffering,
                     duration = playerState.duration
-                )
+                ) }
             }
         }
             
         // Observe current track
         viewModelScope.launch {
             EnhancedMusicPlayerManager.currentTrack.collect { track ->
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     currentTrack = track,
                     lyrics = null // Reset lyrics for new track
-                )
+                ) }
                 // Check if current track is favorite
                 track?.let { 
                     checkIfFavorite(it.videoId)
@@ -93,32 +89,39 @@ class MusicPlayerViewModel @Inject constructor(
                 }
             }
         }
+
+        // Observe playing from
+        viewModelScope.launch {
+            EnhancedMusicPlayerManager.playingFrom.collect { source ->
+                _uiState.update { it.copy(playingFrom = source) }
+            }
+        }
             
         // Observe queue
         viewModelScope.launch {
             EnhancedMusicPlayerManager.queue.collect { queue ->
-                _uiState.value = _uiState.value.copy(queue = queue)
+                _uiState.update { it.copy(queue = queue) }
             }
         }
             
         // Observe queue index
         viewModelScope.launch {
             EnhancedMusicPlayerManager.currentQueueIndex.collect { index ->
-                _uiState.value = _uiState.value.copy(currentQueueIndex = index)
+                _uiState.update { it.copy(currentQueueIndex = index) }
             }
         }
             
         // Observe shuffle
         viewModelScope.launch {
             EnhancedMusicPlayerManager.shuffleEnabled.collect { enabled ->
-                _uiState.value = _uiState.value.copy(shuffleEnabled = enabled)
+                _uiState.update { it.copy(shuffleEnabled = enabled) }
             }
         }
             
         // Observe repeat mode
         viewModelScope.launch {
             EnhancedMusicPlayerManager.repeatMode.collect { mode ->
-                _uiState.value = _uiState.value.copy(repeatMode = mode)
+                _uiState.update { it.copy(repeatMode = mode) }
             }
         }
             
@@ -136,7 +139,7 @@ class MusicPlayerViewModel @Inject constructor(
                         thumbnailUrl = info.thumbnailUrl
                     )
                 }
-                _uiState.value = _uiState.value.copy(playlists = playlists)
+                _uiState.update { it.copy(playlists = playlists) }
             }
         }
     }
@@ -145,12 +148,12 @@ class MusicPlayerViewModel @Inject constructor(
         viewModelScope.launch {
             // Check LikedVideosRepository
             likedVideosRepository.getLikeState(videoId).collect { state ->
-                _uiState.value = _uiState.value.copy(isLiked = state == "LIKED")
+                _uiState.update { it.copy(isLiked = state == "LIKED") }
             }
         }
     }
 
-    fun loadAndPlayTrack(track: MusicTrack, queue: List<MusicTrack> = emptyList()) {
+    fun loadAndPlayTrack(track: MusicTrack, queue: List<MusicTrack> = emptyList(), sourceName: String? = null) {
         viewModelScope.launch {
             // Add to history (Music specific)
             playlistRepository.addToHistory(track)
@@ -166,12 +169,19 @@ class MusicPlayerViewModel @Inject constructor(
                 channelId = "" // Music tracks might not have channel ID readily available
             )
 
-            // Set track data immediately so UI displays it
-            _uiState.value = _uiState.value.copy(
+            val finalSourceName = sourceName ?: "Radio • ${track.artist}"
+
+            // Set track data immediately in Manager so all observers (including FlowApp) see it
+            EnhancedMusicPlayerManager.setCurrentTrack(track, finalSourceName)
+
+            // Set track data immediately in local UI state
+            _uiState.update { it.copy(
                 currentTrack = track,
                 isLoading = true, 
-                error = null
-            )
+                error = null,
+                playingFrom = finalSourceName,
+                selectedFilter = "All" // Reset filter for new track
+            ) }
             
             try {
                 // Get audio URL from YouTube
@@ -185,30 +195,32 @@ class MusicPlayerViewModel @Inject constructor(
                         queue = if (queue.isNotEmpty()) queue else listOf(track)
                     )
                     
-                    // Get related music tracks for queue if no queue provided
-                    if (queue.isEmpty()) {
+                    // Only fetch related tracks if we don't have a substantial queue already
+                    // This prevents resetting the queue when navigating within a playlist/search results
+                    if (queue.size <= 1) {
                         val relatedTracks = YouTubeMusicService.getRelatedMusic(track.videoId, 20)
                         if (relatedTracks.isNotEmpty()) {
-                            EnhancedMusicPlayerManager.addToQueue(relatedTracks)
+                            EnhancedMusicPlayerManager.updateQueue(listOf(track) + relatedTracks)
+                            _uiState.update { it.copy(autoplaySuggestions = relatedTracks) }
                         }
                     }
                     
-                    _uiState.value = _uiState.value.copy(
+                    _uiState.update { it.copy(
                         currentTrack = track,
                         isLoading = false
-                    )
+                    ) }
                 } else {
-                    _uiState.value = _uiState.value.copy(
+                    _uiState.update { it.copy(
                         isLoading = false,
                         error = "Could not load audio stream"
-                    )
+                    ) }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     isLoading = false,
                     error = "Failed to load track: ${e.message}"
-                )
+                ) }
             }
         }
     }
@@ -225,9 +237,54 @@ class MusicPlayerViewModel @Inject constructor(
         EnhancedMusicPlayerManager.pause()
     }
 
+    fun toggleAutoplay() {
+        _uiState.update { it.copy(autoplayEnabled = !it.autoplayEnabled) }
+    }
+
+    fun setFilter(filter: String) {
+        val currentTrack = _uiState.value.currentTrack ?: return
+        _uiState.update { it.copy(selectedFilter = filter, isLoading = true) }
+        
+        viewModelScope.launch {
+            try {
+                // In a real app, we'd pass the filter to the service
+                // For now, we'll fetch fresh related tracks and shuffle them differently based on filter
+                val freshRelated = YouTubeMusicService.getRelatedMusic(currentTrack.videoId, 25)
+                
+                val filteredList = when (filter) {
+                    "Discover" -> freshRelated.shuffled().take(20)
+                    "Popular" -> freshRelated.sortedByDescending { it.title.length }.take(20) // Mock popular
+                    "Deep cuts" -> freshRelated.reversed().take(20)
+                    "Workout" -> freshRelated.filter { it.title.contains("remix", ignoreCase = true) || true }.shuffled()
+                    else -> freshRelated
+                }
+                
+                _uiState.update { it.copy(
+                    autoplaySuggestions = filteredList,
+                    isLoading = false
+                ) }
+                
+                // Update the queue: Current track + filtered suggestions
+                EnhancedMusicPlayerManager.updateQueue(listOf(currentTrack) + filteredList)
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    fun moveTrack(fromIndex: Int, toIndex: Int) {
+        val currentQueue = _uiState.value.queue.toMutableList()
+        if (fromIndex in currentQueue.indices && toIndex in currentQueue.indices) {
+            val track = currentQueue.removeAt(fromIndex)
+            currentQueue.add(toIndex, track)
+            _uiState.update { it.copy(queue = currentQueue) }
+            EnhancedMusicPlayerManager.updateQueue(currentQueue)
+        }
+    }
+
     fun seekTo(position: Long) {
         EnhancedMusicPlayerManager.seekTo(position)
-        _uiState.value = _uiState.value.copy(currentPosition = position)
+        _uiState.update { it.copy(currentPosition = position) }
     }
 
     fun skipToNext() {
@@ -260,7 +317,7 @@ class MusicPlayerViewModel @Inject constructor(
         viewModelScope.launch {
             // Toggle in PlaylistRepository (Music specific)
             val isNowFavorite = playlistRepository.toggleFavorite(currentTrack)
-            _uiState.value = _uiState.value.copy(isLiked = isNowFavorite)
+            _uiState.update { it.copy(isLiked = isNowFavorite) }
             
             // Sync with LikedVideosRepository (Main Library)
             if (isNowFavorite) {
@@ -310,11 +367,11 @@ class MusicPlayerViewModel @Inject constructor(
     }
     
     fun showAddToPlaylistDialog(show: Boolean) {
-        _uiState.value = _uiState.value.copy(showAddToPlaylistDialog = show)
+        _uiState.update { it.copy(showAddToPlaylistDialog = show) }
     }
     
     fun showCreatePlaylistDialog(show: Boolean) {
-        _uiState.value = _uiState.value.copy(showCreatePlaylistDialog = show)
+        _uiState.update { it.copy(showCreatePlaylistDialog = show) }
     }
     
     fun downloadTrack(track: MusicTrack? = null) {
@@ -359,11 +416,11 @@ class MusicPlayerViewModel @Inject constructor(
             val cleanArtist = artist.trim()
             val cleanTitle = title.trim()
             
-            _uiState.value = _uiState.value.copy(
+            _uiState.update { it.copy(
                 isLyricsLoading = true, 
                 lyrics = null,
                 syncedLyrics = emptyList()
-            )
+            ) }
             
             // Small delay to avoid spamming API while skipping
             delay(500)
@@ -376,13 +433,13 @@ class MusicPlayerViewModel @Inject constructor(
             
             if (response != null) {
                 val parsedSynced = response.syncedLyrics?.let { parseLyrics(it) } ?: emptyList()
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     isLyricsLoading = false,
                     lyrics = response.plainLyrics,
                     syncedLyrics = parsedSynced
-                )
+                ) }
             } else {
-                _uiState.value = _uiState.value.copy(isLyricsLoading = false)
+                _uiState.update { it.copy(isLyricsLoading = false) }
             }
         }
     }
@@ -416,10 +473,10 @@ class MusicPlayerViewModel @Inject constructor(
         val position = EnhancedMusicPlayerManager.getCurrentPosition()
         val duration = EnhancedMusicPlayerManager.getDuration()
         
-        _uiState.value = _uiState.value.copy(
+        _uiState.update { it.copy(
             currentPosition = position,
-            duration = if (duration > 0) duration else _uiState.value.duration
-        )
+            duration = if (duration > 0) duration else it.duration
+        ) }
     }
 
     override fun onCleared() {
@@ -435,6 +492,7 @@ data class MusicPlayerUiState(
     val currentPosition: Long = 0,
     val duration: Long = 0,
     val queue: List<MusicTrack> = emptyList(),
+    val autoplaySuggestions: List<MusicTrack> = emptyList(),
     val currentQueueIndex: Int = 0,
     val shuffleEnabled: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
@@ -446,7 +504,10 @@ data class MusicPlayerUiState(
     val showCreatePlaylistDialog: Boolean = false,
     val lyrics: String? = null,
     val syncedLyrics: List<LyricLine> = emptyList(),
-    val isLyricsLoading: Boolean = false
+    val isLyricsLoading: Boolean = false,
+    val playingFrom: String = "Unknown Source",
+    val autoplayEnabled: Boolean = true,
+    val selectedFilter: String = "All"
 )
 
 data class LyricLine(

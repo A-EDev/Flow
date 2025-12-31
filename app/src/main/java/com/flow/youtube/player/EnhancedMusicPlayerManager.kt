@@ -60,6 +60,10 @@ object EnhancedMusicPlayerManager {
     // Current track
     private val _currentTrack = MutableStateFlow<MusicTrack?>(null)
     val currentTrack: StateFlow<MusicTrack?> = _currentTrack.asStateFlow()
+
+    // Playing from source info
+    private val _playingFrom = MutableStateFlow("Unknown Source")
+    val playingFrom: StateFlow<String> = _playingFrom.asStateFlow()
     
     /**
      * Initialize the player
@@ -114,6 +118,14 @@ object EnhancedMusicPlayerManager {
         })
     }
     
+    /**
+     * Set the current track metadata immediately (before audio URL is ready)
+     */
+    fun setCurrentTrack(track: MusicTrack, sourceName: String? = null) {
+        _currentTrack.value = track
+        sourceName?.let { _playingFrom.value = it }
+    }
+
     /**
      * Play a track with optional queue
      */
@@ -177,17 +189,6 @@ object EnhancedMusicPlayerManager {
         currentQueue.addAll(tracks)
         _queue.value = currentQueue
         _originalQueue.addAll(tracks)
-    }
-    
-    /**
-     * Remove track from queue
-     */
-    fun removeFromQueue(index: Int) {
-        val currentQueue = _queue.value.toMutableList()
-        if (index in currentQueue.indices) {
-            currentQueue.removeAt(index)
-            _queue.value = currentQueue
-        }
     }
     
     /**
@@ -392,6 +393,45 @@ object EnhancedMusicPlayerManager {
     fun clearCurrentTrack() {
         _currentTrack.value = null
         _playerState.value = _playerState.value.copy(isPlaying = false)
+    }
+
+    /**
+     * Update the entire queue
+     */
+    fun updateQueue(newQueue: List<MusicTrack>) {
+        _queue.value = newQueue
+        _originalQueue.clear()
+        _originalQueue.addAll(newQueue)
+        
+        // Update current index if current track is in the new queue
+        _currentTrack.value?.let { track ->
+            val newIndex = newQueue.indexOfFirst { it.videoId == track.videoId }
+            if (newIndex != -1) {
+                _currentQueueIndex.value = newIndex
+            }
+        }
+    }
+
+    /**
+     * Remove track from queue at index
+     */
+    fun removeFromQueue(index: Int) {
+        val currentQueue = _queue.value.toMutableList()
+        if (index in currentQueue.indices) {
+            currentQueue.removeAt(index)
+            _queue.value = currentQueue
+            _originalQueue.clear()
+            _originalQueue.addAll(currentQueue)
+            
+            // Adjust current index if needed
+            if (index < _currentQueueIndex.value) {
+                _currentQueueIndex.value -= 1
+            } else if (index == _currentQueueIndex.value && currentQueue.isNotEmpty()) {
+                // If we removed the current track, play the next one (which is now at the same index)
+                val nextIndex = if (index < currentQueue.size) index else 0
+                playFromQueue(nextIndex)
+            }
+        }
     }
 }
 
