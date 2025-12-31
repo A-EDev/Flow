@@ -6,6 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.music.MusicCache
 import com.flow.youtube.data.music.YouTubeMusicService
 import com.flow.youtube.data.recommendation.MusicRecommendationAlgorithm
+import com.flow.youtube.innertube.YouTube
+import com.flow.youtube.innertube.models.SongItem
+import com.flow.youtube.data.newmusic.InnertubeMusicService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,7 +24,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MusicViewModel @Inject constructor(
     private val musicRecommendationAlgorithm: MusicRecommendationAlgorithm,
-    private val subscriptionRepository: com.flow.youtube.data.local.SubscriptionRepository
+    private val subscriptionRepository: com.flow.youtube.data.local.SubscriptionRepository,
+    private val playlistRepository: com.flow.youtube.data.music.PlaylistRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MusicUiState())
     val uiState: StateFlow<MusicUiState> = _uiState.asStateFlow()
@@ -65,6 +69,10 @@ class MusicViewModel @Inject constructor(
                     MusicCache.cacheGenreTracks("Popular Artists", 50, tracks)
                     tracks
                 }
+
+                val historyJob = async {
+                    playlistRepository.history.firstOrNull() ?: emptyList()
+                }
                 
                 val genres = YouTubeMusicService.getPopularGenres()
                 val genreJobs = genres.map { genre ->
@@ -79,6 +87,22 @@ class MusicViewModel @Inject constructor(
                 val forYou = forYouJob.await()
                 val newReleases = newReleasesJob.await()
                 val popularArtistTracks = popularArtistsJob.await()
+                val history = historyJob.await()
+                
+                // Fetch Home Sections for Music Videos and Long Listens
+                val homeResult = YouTube.home()
+                val homeSections = homeResult.getOrNull()?.sections ?: emptyList()
+                
+                val musicVideos = homeSections.find { 
+                    it.title.contains("Music videos", ignoreCase = true) || 
+                    it.title.contains("Recommended music videos", ignoreCase = true)
+                }?.items?.filterIsInstance<SongItem>()?.mapNotNull { InnertubeMusicService.convertToMusicTrack(it) } ?: emptyList()
+                
+                val longListens = homeSections.find { 
+                    it.title.contains("Long listens", ignoreCase = true) 
+                }?.items?.filterIsInstance<SongItem>()?.mapNotNull { InnertubeMusicService.convertToMusicTrack(it) } ?: emptyList()
+                
+                val featuredPlaylists = YouTubeMusicService.searchPlaylists("official music playlists 2025", 10)
                 
                 val genreTracks = mutableMapOf<String, List<MusicTrack>>()
                 if (popularArtistTracks.isNotEmpty()) genreTracks["Popular Artists"] = popularArtistTracks
@@ -92,6 +116,10 @@ class MusicViewModel @Inject constructor(
                     forYouTracks = forYou,
                     trendingSongs = trending,
                     newReleases = newReleases,
+                    history = history,
+                    musicVideos = musicVideos,
+                    longListens = longListens,
+                    featuredPlaylists = featuredPlaylists,
                     allSongs = trending,
                     genreTracks = genreTracks,
                     genres = listOf("Popular Artists") + genres,
@@ -104,6 +132,15 @@ class MusicViewModel @Inject constructor(
                     isLoading = false
                 )
             }
+        }
+    }
+
+    fun setFilter(filter: String?) {
+        _uiState.value = _uiState.value.copy(selectedFilter = filter)
+        if (filter != null) {
+            searchMusic(filter)
+        } else {
+            _uiState.value = _uiState.value.copy(allSongs = _uiState.value.trendingSongs)
         }
     }
 
@@ -230,6 +267,37 @@ class MusicViewModel @Inject constructor(
         }
     }
 
+    fun loadCommunityPlaylist(genre: String) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isPlaylistLoading = true, playlistDetails = null)
+            try {
+                var tracks = _uiState.value.genreTracks[genre]
+                
+                if (tracks == null || tracks.isEmpty()) {
+                    // Fetch if not in state (e.g. new ViewModel instance)
+                    tracks = YouTubeMusicService.fetchMusicByGenre(genre, 30)
+                }
+                
+                val playlistDetails = PlaylistDetails(
+                    id = "community_$genre",
+                    title = genre,
+                    thumbnailUrl = tracks.firstOrNull()?.thumbnailUrl ?: "",
+                    author = "Community Playlist",
+                    trackCount = tracks.size,
+                    description = "Curated playlist of $genre music from our community",
+                    tracks = tracks
+                )
+                _uiState.value = _uiState.value.copy(
+                    isPlaylistLoading = false,
+                    playlistDetails = playlistDetails
+                )
+            } catch (e: Exception) {
+                Log.e("MusicViewModel", "Error loading community playlist", e)
+                _uiState.value = _uiState.value.copy(isPlaylistLoading = false)
+            }
+        }
+    }
+
     fun clearPlaylistDetails() {
         _uiState.value = _uiState.value.copy(playlistDetails = null)
     }
@@ -239,10 +307,15 @@ data class MusicUiState(
     val forYouTracks: List<MusicTrack> = emptyList(),
     val trendingSongs: List<MusicTrack> = emptyList(),
     val newReleases: List<MusicTrack> = emptyList(),
+    val musicVideos: List<MusicTrack> = emptyList(),
+    val longListens: List<MusicTrack> = emptyList(),
+    val history: List<MusicTrack> = emptyList(),
     val allSongs: List<MusicTrack> = emptyList(),
     val genreTracks: Map<String, List<MusicTrack>> = emptyMap(),
     val genres: List<String> = emptyList(),
+    val featuredPlaylists: List<MusicPlaylist> = emptyList(),
     val selectedGenre: String? = null,
+    val selectedFilter: String? = null,
     val isLoading: Boolean = true,
     val isSearching: Boolean = false,
     val error: String? = null,

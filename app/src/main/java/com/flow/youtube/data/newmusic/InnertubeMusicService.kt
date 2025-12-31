@@ -157,7 +157,7 @@ object InnertubeMusicService {
         )
     }
 
-    private fun convertToMusicTrack(item: YTItem): MusicTrack? {
+    fun convertToMusicTrack(item: YTItem): MusicTrack? {
         return when (item) {
             is SongItem -> {
                 MusicTrack(

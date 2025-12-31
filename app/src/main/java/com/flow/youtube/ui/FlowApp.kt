@@ -35,7 +35,7 @@ import com.flow.youtube.ui.screens.library.WatchLaterScreen
 import com.flow.youtube.ui.screens.likedvideos.LikedVideosScreen
 import com.flow.youtube.ui.screens.playlists.PlaylistsScreen
 import com.flow.youtube.ui.screens.playlists.PlaylistDetailScreen
-import com.flow.youtube.ui.screens.music.PremiumMusicScreen
+import com.flow.youtube.ui.screens.music.EnhancedMusicScreen
 import com.flow.youtube.ui.screens.music.EnhancedMusicPlayerScreen
 import com.flow.youtube.ui.screens.music.MusicTrack
 import com.flow.youtube.ui.screens.music.MusicPlayerViewModel
@@ -481,7 +481,7 @@ fun FlowApp(
                     // Get the MusicPlayerViewModel from this composable context
                     val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
                     
-                    PremiumMusicScreen(
+                    EnhancedMusicScreen(
                         onBackClick = { navController.popBackStack() },
                         onSongClick = { track, queue, source ->
                             // Load and play the track with the provided queue
@@ -489,6 +489,9 @@ fun FlowApp(
                             
                             // Navigate to player
                             navController.navigate("musicPlayer/${track.videoId}")
+                        },
+                        onVideoClick = { videoId ->
+                            navController.navigate("player/$videoId")
                         },
                         onArtistClick = { channelId ->
                             navController.navigate("artist/$channelId")
@@ -501,6 +504,12 @@ fun FlowApp(
                         },
                         onSettingsClick = {
                             navController.navigate("settings")
+                        },
+                        onPlaylistClick = { playlistId ->
+                            navController.navigate("playlist/$playlistId")
+                        },
+                        onAlbumClick = { albumId ->
+                            navController.navigate("musicPlaylist/$albumId")
                         }
                     )
                 }
@@ -592,7 +601,13 @@ fun FlowApp(
                     val uiState by musicViewModel.uiState.collectAsState()
                     
                     LaunchedEffect(playlistId) {
-                        musicViewModel.fetchPlaylistDetails(playlistId)
+                        // Handle community playlists - map genre to tracks
+                        if (playlistId.startsWith("community_")) {
+                            val genre = playlistId.substringAfter("community_")
+                            musicViewModel.loadCommunityPlaylist(genre)
+                        } else {
+                            musicViewModel.fetchPlaylistDetails(playlistId)
+                        }
                     }
                     
                     if (uiState.isPlaylistLoading) {
