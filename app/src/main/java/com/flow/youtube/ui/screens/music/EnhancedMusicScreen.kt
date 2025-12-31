@@ -58,7 +58,7 @@ fun EnhancedMusicScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     
-    val categories = listOf("Energize", "Relax", "Feel good", "Workout", "Party")
+    val categories = listOf("Energize", "Relax", "Feel good", "Workout", "Party", "Focus", "Sleep", "Romance", "Commute")
 
     Scaffold(
         topBar = {
@@ -131,7 +131,6 @@ fun EnhancedMusicScreen(
                                             if (isSelected) {
                                                 viewModel.setFilter(null)
                                             } else {
-                                                viewModel.searchMusic("$category music")
                                                 viewModel.setFilter(category)
                                             }
                                         },
@@ -145,21 +144,38 @@ fun EnhancedMusicScreen(
                             }
                         }
 
-                        // Quick Picks
-                        item {
-                            SectionHeader(
-                                title = "Quick picks", 
-                                onPlayAll = {
-                                    if (uiState.forYouTracks.isNotEmpty()) {
-                                        onSongClick(uiState.forYouTracks.first(), uiState.forYouTracks, "quick_picks")
+                        if (uiState.selectedFilter != null) {
+                            // Filtered List View
+                            if (uiState.isSearching) {
+                                item {
+                                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                                     }
                                 }
-                            )
-                            QuickPicksGrid(
-                                songs = uiState.forYouTracks.take(16),
-                                onSongClick = onSongClick
-                            )
-                        }
+                            } else {
+                                items(uiState.allSongs) { track ->
+                                    MusicTrackRow(
+                                        track = track,
+                                        onClick = { onSongClick(track, uiState.allSongs, uiState.selectedFilter) }
+                                    )
+                                }
+                            }
+                        } else {
+                            // Quick Picks
+                            item {
+                                SectionHeader(
+                                    title = "Quick picks", 
+                                    onPlayAll = {
+                                        if (uiState.forYouTracks.isNotEmpty()) {
+                                            onSongClick(uiState.forYouTracks.first(), uiState.forYouTracks, "quick_picks")
+                                        }
+                                    }
+                                )
+                                QuickPicksGrid(
+                                    songs = uiState.forYouTracks.take(16),
+                                    onSongClick = onSongClick
+                                )
+                            }
 
                         // New Releases
                         if (uiState.newReleases.isNotEmpty()) {
@@ -380,6 +396,7 @@ fun EnhancedMusicScreen(
             }
         }
     }
+}
 }
 
 @Composable
@@ -1440,6 +1457,63 @@ fun VideoCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+@Composable
+fun MusicTrackRow(
+    track: MusicTrack,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AsyncImage(
+                model = track.thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = track.title,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold, fontSize = 16.sp),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                val subtitle = "Song • ${track.artist}${track.views?.let { " • ${formatViews(it)} plays" } ?: ""}"
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            IconButton(onClick = { /* Options */ }) {
+                Icon(
+                    Icons.Default.MoreVert,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 
