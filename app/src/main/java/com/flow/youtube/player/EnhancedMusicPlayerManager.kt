@@ -25,7 +25,9 @@ import kotlinx.coroutines.launch
  * Manages ExoPlayer instance, queue, shuffle, repeat modes
  */
 object EnhancedMusicPlayerManager {
-    private var player: ExoPlayer? = null
+    var player: ExoPlayer? = null
+        private set
+        
     private var isInitialized = false
     private var appContext: Context? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -124,6 +126,29 @@ object EnhancedMusicPlayerManager {
     fun setCurrentTrack(track: MusicTrack, sourceName: String? = null) {
         _currentTrack.value = track
         sourceName?.let { _playingFrom.value = it }
+    }
+
+    /**
+     * Switch between audio and video mode while preserving position
+     */
+    fun switchMode(url: String) {
+        player?.let { exoPlayer ->
+            val currentPosition = exoPlayer.currentPosition
+            val wasPlaying = exoPlayer.isPlaying
+            
+            val dataSourceFactory = DefaultHttpDataSource.Factory()
+                .setUserAgent("Mozilla/5.0")
+                .setAllowCrossProtocolRedirects(true)
+            
+            val mediaItem = MediaItem.fromUri(url)
+            val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+                .createMediaSource(mediaItem)
+            
+            exoPlayer.setMediaSource(mediaSource)
+            exoPlayer.prepare()
+            exoPlayer.seekTo(currentPosition)
+            exoPlayer.playWhenReady = wasPlaying
+        }
     }
 
     /**

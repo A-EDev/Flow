@@ -243,6 +243,25 @@ object YouTubeMusicService {
             null
         }
     }
+
+    /**
+     * Get best video stream URL (synced with audio)
+     */
+    suspend fun getVideoUrl(videoId: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val streamInfo = getStreamInfo(videoId)
+            // Prefer video streams that have both audio and video if possible, 
+            // but usually we want the highest quality video stream
+            val videoStream = streamInfo?.videoStreams
+                ?.filter { !it.url.isNullOrEmpty() }
+                ?.maxByOrNull { it.bitrate }
+            
+            videoStream?.url
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting video URL", e)
+            null
+        }
+    }
     
     /**
      * Fetch tracks from a YouTube playlist

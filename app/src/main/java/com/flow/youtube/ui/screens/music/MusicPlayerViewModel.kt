@@ -86,6 +86,7 @@ class MusicPlayerViewModel @Inject constructor(
                 track?.let { 
                     checkIfFavorite(it.videoId)
                     fetchLyrics(it.artist, it.title)
+                    fetchRelatedContent(it.videoId)
                 }
             }
         }
@@ -195,6 +196,9 @@ class MusicPlayerViewModel @Inject constructor(
                         queue = if (queue.isNotEmpty()) queue else listOf(track)
                     )
                     
+                    // Fetch related content for the RELATED tab
+                    fetchRelatedContent(track.videoId)
+                    
                     // Only fetch related tracks if we don't have a substantial queue already
                     // This prevents resetting the queue when navigating within a playlist/search results
                     if (queue.size <= 1) {
@@ -297,6 +301,40 @@ class MusicPlayerViewModel @Inject constructor(
 
     fun playFromQueue(index: Int) {
         EnhancedMusicPlayerManager.playFromQueue(index)
+    }
+
+    fun switchMode(isVideo: Boolean) {
+        val currentTrack = _uiState.value.currentTrack ?: return
+        viewModelScope.launch {
+            try {
+                val url = if (isVideo) {
+                    YouTubeMusicService.getVideoUrl(currentTrack.videoId)
+                } else {
+                    YouTubeMusicService.getAudioUrl(currentTrack.videoId)
+                }
+                
+                if (url != null) {
+                    EnhancedMusicPlayerManager.switchMode(url)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun fetchRelatedContent(videoId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isRelatedLoading = true) }
+            try {
+                val related = YouTubeMusicService.getRelatedMusic(videoId, 20)
+                _uiState.update { it.copy(
+                    relatedContent = related,
+                    isRelatedLoading = false
+                ) }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isRelatedLoading = false) }
+            }
+        }
     }
 
     fun removeFromQueue(index: Int) {
@@ -507,7 +545,9 @@ data class MusicPlayerUiState(
     val isLyricsLoading: Boolean = false,
     val playingFrom: String = "Unknown Source",
     val autoplayEnabled: Boolean = true,
-    val selectedFilter: String = "All"
+    val selectedFilter: String = "All",
+    val relatedContent: List<MusicTrack> = emptyList(),
+    val isRelatedLoading: Boolean = false
 )
 
 data class LyricLine(
