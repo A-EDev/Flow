@@ -98,6 +98,17 @@
 -dontwarn okhttp3.**
 -dontwarn okio.**
 -dontwarn javax.annotation.**
+
+## Rules for SLF4J
+-dontwarn org.slf4j.**
+
+## Rules for Ktor
+-dontwarn io.ktor.**
+-keep class io.ktor.** { *; }
+
+## Rules for Brotli
+-dontwarn org.brotli.**
+-keep class org.brotli.** { *; }
 -dontwarn org.conscrypt.**
 
 ## Java Beans (not available on Android)
