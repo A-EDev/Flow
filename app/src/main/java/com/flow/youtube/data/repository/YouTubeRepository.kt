@@ -397,6 +397,36 @@ class YouTubeRepository {
     }
 
     /**
+     * Fetch playlist details
+     */
+    suspend fun getPlaylistDetails(playlistId: String): com.flow.youtube.data.model.Playlist? = withContext(Dispatchers.IO) {
+        try {
+            val playlistUrl = "https://www.youtube.com/playlist?list=$playlistId"
+            val playlistInfo = org.schabi.newpipe.extractor.playlist.PlaylistInfo.getInfo(service, playlistUrl)
+            
+            val videos = playlistInfo.relatedItems
+                .filterIsInstance<StreamInfoItem>()
+                .map { it.toVideo() }
+                
+            val bestThumbnail = playlistInfo.thumbnails
+                .sortedByDescending { it.height }
+                .firstOrNull()?.url ?: videos.firstOrNull()?.thumbnailUrl ?: ""
+
+            com.flow.youtube.data.model.Playlist(
+                id = playlistId,
+                name = playlistInfo.name ?: "Unknown Playlist",
+                thumbnailUrl = bestThumbnail,
+                videoCount = videos.size,
+                videos = videos,
+                isLocal = false
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
      * Extension function to convert StreamInfoItem to our Video model
      */
     private fun StreamInfoItem.toVideo(): Video {

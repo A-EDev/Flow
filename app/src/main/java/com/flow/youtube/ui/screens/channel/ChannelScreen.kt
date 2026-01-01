@@ -33,6 +33,11 @@ import com.flow.youtube.ui.components.VideoCardFullWidth
 import androidx.paging.compose.itemKey
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.AnimatedVisibility
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,7 +78,8 @@ fun ChannelScreen(
                     Text(
                         text = uiState.channelInfo?.name ?: "Channel",
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     ) 
                 },
                 navigationIcon = {
@@ -85,7 +91,8 @@ fun ChannelScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface
                 )
             )
         }
@@ -116,7 +123,7 @@ fun ChannelScreen(
                             color = MaterialTheme.colorScheme.error
                         )
                         
-                        TextButton(onClick = { viewModel.loadChannel(channelUrl) }) {
+                        Button(onClick = { viewModel.loadChannel(channelUrl) }) {
                             Text("Retry")
                         }
                     }
@@ -159,67 +166,116 @@ private fun ChannelContent(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 16.dp)
     ) {
-        // Banner
+        // Banner & Header Combined
         item {
-            val bannerUrl = try { channelInfo.banners.firstOrNull()?.url } catch (e: Exception) { null }
-            if (!bannerUrl.isNullOrEmpty()) {
-                AsyncImage(
-                    model = bannerUrl,
-                    contentDescription = "Banner",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(3f)
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentScale = ContentScale.Crop
-                )
-            }
-        }
-
-        // Header
-        item {
-            Column(Modifier.padding(16.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val avatarUrl = try { channelInfo.avatars.firstOrNull()?.url } catch (e: Exception) { null }
+            Box(modifier = Modifier.fillMaxWidth()) {
+                // Banner
+                val bannerUrl = try { channelInfo.banners.firstOrNull()?.url } catch (e: Exception) { null }
+                if (!bannerUrl.isNullOrEmpty()) {
                     AsyncImage(
-                        model = avatarUrl,
-                        contentDescription = "Avatar",
+                        model = bannerUrl,
+                        contentDescription = "Banner",
                         modifier = Modifier
-                            .size(72.dp)
-                            .clip(CircleShape)
+                            .fillMaxWidth()
+                            .aspectRatio(3f)
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentScale = ContentScale.Crop
                     )
-                    Spacer(Modifier.width(16.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = channelInfo.name,
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(3f)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
+                    )
+                }
+                
+                // Gradient Overlay
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(3f)
+                        .background(
+                            androidx.compose.ui.graphics.Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, MaterialTheme.colorScheme.background),
+                                startY = 0f,
+                                endY = Float.POSITIVE_INFINITY
+                            )
                         )
-                        Text(
-                            text = formatSubscriberCount(channelInfo.subscriberCount),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.extendedColors.textSecondary
+                )
+            }
+            
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .offset(y = (-32).dp) // Overlap banner
+            ) {
+                Row(
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    val avatarUrl = try { channelInfo.avatars.firstOrNull()?.url } catch (e: Exception) { null }
+                    
+                    // Avatar with border
+                    Box(
+                        modifier = Modifier
+                            .size(80.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.background)
+                            .padding(4.dp) // Border width
+                    ) {
+                        AsyncImage(
+                            model = avatarUrl,
+                            contentDescription = "Avatar",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentScale = ContentScale.Crop
                         )
                     }
                 }
-                Spacer(Modifier.height(16.dp))
-                Button(
-                    onClick = onSubscribeClick,
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (uiState.isSubscribed) 
-                            MaterialTheme.colorScheme.surfaceVariant 
-                        else 
-                            MaterialTheme.colorScheme.primary,
-                        contentColor = if (uiState.isSubscribed) 
-                            MaterialTheme.colorScheme.onSurfaceVariant 
-                        else 
-                            MaterialTheme.colorScheme.onPrimary
-                    )
+                
+                Spacer(Modifier.height(8.dp))
+                
+                Text(
+                    text = channelInfo.name,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(if (uiState.isSubscribed) "Subscribed" else "Subscribe")
+                    Text(
+                        text = formatSubscriberCount(channelInfo.subscriberCount),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.extendedColors.textSecondary
+                    )
+                    
+                    // Dot separator
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.extendedColors.textSecondary)
+                    )
+                    
+                    Text(
+                        text = "${videosLazyPagingItems?.itemCount ?: 0} videos", // Approximate
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.extendedColors.textSecondary
+                    )
                 }
+                
+                Spacer(Modifier.height(16.dp))
+                
+                AnimatedSubscribeButton(
+                    isSubscribed = uiState.isSubscribed,
+                    onClick = onSubscribeClick,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
         
@@ -229,28 +285,33 @@ private fun ChannelContent(
                 selectedTabIndex = uiState.selectedTab,
                 edgePadding = 16.dp,
                 containerColor = MaterialTheme.colorScheme.background,
-                divider = {}
+                contentColor = MaterialTheme.colorScheme.primary,
+                indicator = { tabPositions ->
+                    TabRowDefaults.Indicator(
+                        Modifier.tabIndicatorOffset(tabPositions[uiState.selectedTab]),
+                        color = MaterialTheme.colorScheme.primary,
+                        height = 3.dp
+                    )
+                },
+                divider = {
+                    Divider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                }
             ) {
-                Tab(
-                    selected = uiState.selectedTab == 0,
-                    onClick = { onTabSelected(0) },
-                    text = { Text("Videos") }
-                )
-                Tab(
-                    selected = uiState.selectedTab == 1,
-                    onClick = { onTabSelected(1) },
-                    text = { Text("Shorts") }
-                )
-                Tab(
-                    selected = uiState.selectedTab == 2,
-                    onClick = { onTabSelected(2) },
-                    text = { Text("Playlists") }
-                )
-                Tab(
-                    selected = uiState.selectedTab == 3,
-                    onClick = { onTabSelected(3) },
-                    text = { Text("About") }
-                )
+                listOf("Videos", "Shorts", "Playlists", "About").forEachIndexed { index, title ->
+                    Tab(
+                        selected = uiState.selectedTab == index,
+                        onClick = { onTabSelected(index) },
+                        text = { 
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = if (uiState.selectedTab == index) FontWeight.Bold else FontWeight.Normal
+                            ) 
+                        },
+                        selectedContentColor = MaterialTheme.colorScheme.primary,
+                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
         
@@ -358,6 +419,51 @@ private fun ChannelContent(
                     AboutSection(channelInfo = channelInfo)
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun AnimatedSubscribeButton(
+    isSubscribed: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val backgroundColor by animateColorAsState(
+        targetValue = if (isSubscribed) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary,
+        label = "bgColor"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (isSubscribed) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimary,
+        label = "contentColor"
+    )
+    
+    Button(
+        onClick = onClick,
+        modifier = modifier,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = backgroundColor,
+            contentColor = contentColor
+        ),
+        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.animateContentSize()
+        ) {
+            AnimatedVisibility(visible = isSubscribed) {
+                Icon(
+                    imageVector = Icons.Rounded.Check,
+                    contentDescription = null,
+                    modifier = Modifier.padding(end = 8.dp).size(18.dp)
+                )
+            }
+            Text(
+                text = if (isSubscribed) "Subscribed" else "Subscribe",
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

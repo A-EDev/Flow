@@ -644,6 +644,7 @@ private fun formatViewCount(count: Long): String {
 @HiltViewModel
 class PlaylistDetailViewModel @Inject constructor(
     private val repository: PlaylistRepository,
+    private val youTubeRepository: com.flow.youtube.data.repository.YouTubeRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -681,28 +682,40 @@ class PlaylistDetailViewModel @Inject constructor(
             } else {
                 // Try Remote (YouTube)
                 try {
-                    val details = YouTubeMusicService.fetchPlaylistDetails(playlistId)
+                    val details = youTubeRepository.getPlaylistDetails(playlistId)
                     if (details != null) {
-                        val videos = details.tracks.map { track ->
-                            Video(
-                                id = track.videoId,
-                                title = track.title,
-                                channelName = track.artist,
-                                channelId = track.channelId,
-                                thumbnailUrl = track.thumbnailUrl,
-                                duration = track.duration,
-                                viewCount = track.views ?: 0,
-                                uploadDate = "",
-                                isMusic = true
-                            )
-                        }
                         _uiState.update { it.copy(
-                            playlistName = details.title,
-                            description = details.description ?: "YouTube Playlist by ${details.author}",
+                            playlistName = details.name,
+                            description = "YouTube Playlist",
                             isPrivate = false,
-                            videos = videos,
+                            videos = details.videos,
                             thumbnailUrl = details.thumbnailUrl
                         )}
+                    } else {
+                        // Fallback to Music Service if regular fails (e.g. music playlist)
+                        val musicDetails = YouTubeMusicService.fetchPlaylistDetails(playlistId)
+                        if (musicDetails != null) {
+                            val videos = musicDetails.tracks.map { track ->
+                                Video(
+                                    id = track.videoId,
+                                    title = track.title,
+                                    channelName = track.artist,
+                                    channelId = track.channelId,
+                                    thumbnailUrl = track.thumbnailUrl,
+                                    duration = track.duration,
+                                    viewCount = track.views ?: 0,
+                                    uploadDate = "",
+                                    isMusic = true
+                                )
+                            }
+                            _uiState.update { it.copy(
+                                playlistName = musicDetails.title,
+                                description = musicDetails.description ?: "YouTube Music Playlist",
+                                isPrivate = false,
+                                videos = videos,
+                                thumbnailUrl = musicDetails.thumbnailUrl
+                            )}
+                        }
                     }
                 } catch (e: Exception) {
                     // Error handling could be added here
