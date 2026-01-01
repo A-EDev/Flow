@@ -42,6 +42,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.BorderStroke
 import kotlin.math.absoluteValue
 import com.flow.youtube.data.recommendation.MusicSection
+import com.flow.youtube.ui.components.MusicQuickActionsSheet
+import com.flow.youtube.ui.components.AddToPlaylistDialog
+import com.flow.youtube.data.model.Video
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -56,6 +60,43 @@ fun EnhancedMusicScreen(
     viewModel: MusicViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    
+    var showBottomSheet by remember { mutableStateOf(false) }
+    var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
+    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+
+    if (showBottomSheet && selectedTrack != null) {
+        MusicQuickActionsSheet(
+            track = selectedTrack!!,
+            onDismiss = { showBottomSheet = false },
+            onAddToPlaylist = { showAddToPlaylistDialog = true },
+            onDownload = { /* TODO: Implement download */ },
+            onViewArtist = { 
+                if (selectedTrack!!.channelId.isNotEmpty()) {
+                    onArtistClick(selectedTrack!!.channelId)
+                }
+            },
+            onViewAlbum = { /* TODO: Implement view album */ },
+            onShare = { /* TODO: Implement share */ }
+        )
+    }
+    
+    if (showAddToPlaylistDialog && selectedTrack != null) {
+        AddToPlaylistDialog(
+            video = Video(
+                id = selectedTrack!!.videoId,
+                title = selectedTrack!!.title,
+                channelName = selectedTrack!!.artist,
+                channelId = selectedTrack!!.channelId,
+                thumbnailUrl = selectedTrack!!.thumbnailUrl,
+                duration = selectedTrack!!.duration,
+                viewCount = selectedTrack!!.views,
+                uploadDate = "",
+                isMusic = true
+            ),
+            onDismiss = { showAddToPlaylistDialog = false }
+        )
+    }
     
     val categories = listOf("Energize", "Relax", "Feel good", "Workout", "Party", "Focus", "Sleep", "Romance", "Commute")
 
@@ -182,7 +223,11 @@ fun EnhancedMusicScreen(
                                 items(uiState.allSongs) { track ->
                                     MusicTrackRow(
                                         track = track,
-                                        onClick = { onSongClick(track, uiState.allSongs, uiState.selectedFilter) }
+                                        onClick = { onSongClick(track, uiState.allSongs, uiState.selectedFilter) },
+                                        onMenuClick = {
+                                            selectedTrack = track
+                                            showBottomSheet = true
+                                        }
                                     )
                                 }
                             }
@@ -200,7 +245,11 @@ fun EnhancedMusicScreen(
                                     )
                                     QuickPicksGrid(
                                         songs = uiState.forYouTracks.take(16),
-                                        onSongClick = onSongClick
+                                        onSongClick = onSongClick,
+                                        onMenuClick = { track ->
+                                            selectedTrack = track
+                                            showBottomSheet = true
+                                        }
                                     )
                                 }
                             }
@@ -260,7 +309,11 @@ fun EnhancedMusicScreen(
                                     SectionHeader(title = "Long listens")
                                     QuickPicksGrid(
                                         songs = uiState.longListens.take(16),
-                                        onSongClick = onSongClick
+                                        onSongClick = onSongClick,
+                                        onMenuClick = { track ->
+                                            selectedTrack = track
+                                            showBottomSheet = true
+                                        }
                                     )
                                 }
                             }
@@ -429,7 +482,11 @@ fun EnhancedMusicScreen(
                                 SectionHeader(title = "Long listens", subtitle = "Deep dives and albums")
                                 QuickPicksGrid(
                                     songs = uiState.longListens.take(12),
-                                    onSongClick = onSongClick
+                                    onSongClick = onSongClick,
+                                    onMenuClick = { track ->
+                                        selectedTrack = track
+                                        showBottomSheet = true
+                                    }
                                 )
                             }
                         }
@@ -597,7 +654,8 @@ fun SectionHeader(
 @Composable
 fun QuickPicksGrid(
     songs: List<MusicTrack>,
-    onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit
+    onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
+    onMenuClick: (MusicTrack) -> Unit
 ) {
     LazyHorizontalGrid(
         rows = GridCells.Fixed(4),
@@ -609,7 +667,11 @@ fun QuickPicksGrid(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(songs) { track ->
-            QuickPickItem(track = track, onClick = { onSongClick(track, songs, "quick_picks") })
+            QuickPickItem(
+                track = track, 
+                onClick = { onSongClick(track, songs, "quick_picks") },
+                onMenuClick = { onMenuClick(track) }
+            )
         }
     }
 }
@@ -617,7 +679,8 @@ fun QuickPicksGrid(
 @Composable
 fun QuickPickItem(
     track: MusicTrack,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onMenuClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -650,7 +713,7 @@ fun QuickPickItem(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        IconButton(onClick = { /* Options */ }) {
+        IconButton(onClick = onMenuClick) {
             Icon(Icons.Default.MoreVert, null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
         }
     }
@@ -998,7 +1061,8 @@ private fun DiscoverTab(
 private fun TrendingTab(
     songs: List<MusicTrack>,
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
-    onArtistClick: (String) -> Unit
+    onArtistClick: (String) -> Unit,
+    onMenuClick: (MusicTrack) -> Unit
 ) {
     if (songs.isEmpty()) {
         Box(
@@ -1024,7 +1088,8 @@ private fun TrendingTab(
                 track = songs[index],
                 rank = index + 1,
                 onClick = { onSongClick(songs[index], songs, "trending") },
-                onArtistClick = onArtistClick
+                onArtistClick = onArtistClick,
+                onMenuClick = { onMenuClick(songs[index]) }
             )
         }
     }
@@ -1288,7 +1353,8 @@ private fun TrendingTrackCard(
     track: MusicTrack,
     rank: Int,
     onClick: () -> Unit,
-    onArtistClick: ((String) -> Unit)? = null
+    onArtistClick: ((String) -> Unit)? = null,
+    onMenuClick: (() -> Unit)? = null
 ) {
     Surface(
         modifier = Modifier
@@ -1359,6 +1425,16 @@ private fun TrendingTrackCard(
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(32.dp)
                 )
+            }
+            
+            if (onMenuClick != null) {
+                IconButton(onClick = onMenuClick) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Options",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
@@ -1550,7 +1626,8 @@ fun VideoCard(
 @Composable
 fun MusicTrackRow(
     track: MusicTrack,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onMenuClick: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
@@ -1593,12 +1670,14 @@ fun MusicTrackRow(
                     overflow = TextOverflow.Ellipsis
                 )
             }
-            IconButton(onClick = { /* Options */ }) {
-                Icon(
-                    Icons.Default.MoreVert,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            if (onMenuClick != null) {
+                IconButton(onClick = onMenuClick) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

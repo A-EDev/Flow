@@ -37,6 +37,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.flow.youtube.innertube.YouTube.SearchFilter
+import com.flow.youtube.ui.components.MusicQuickActionsSheet
+import com.flow.youtube.ui.components.AddToPlaylistDialog
+import com.flow.youtube.data.model.Video
 import com.flow.youtube.innertube.models.*
 import kotlinx.coroutines.FlowPreview
 
@@ -53,7 +56,43 @@ fun MusicSearchScreen(
     val query by viewModel.query.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
-    val context = LocalContext.current
+    
+    var showBottomSheet by remember { mutableStateOf(false) }
+    var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
+    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+
+    if (showBottomSheet && selectedTrack != null) {
+        MusicQuickActionsSheet(
+            track = selectedTrack!!,
+            onDismiss = { showBottomSheet = false },
+            onAddToPlaylist = { showAddToPlaylistDialog = true },
+            onDownload = { /* TODO: Implement download */ },
+            onViewArtist = { 
+                if (selectedTrack!!.channelId.isNotEmpty()) {
+                    onArtistClick(selectedTrack!!.channelId)
+                }
+            },
+            onViewAlbum = { /* TODO: Implement view album */ },
+            onShare = { /* TODO: Implement share */ }
+        )
+    }
+    
+    if (showAddToPlaylistDialog && selectedTrack != null) {
+        AddToPlaylistDialog(
+            video = Video(
+                id = selectedTrack!!.videoId,
+                title = selectedTrack!!.title,
+                channelName = selectedTrack!!.artist,
+                channelId = selectedTrack!!.channelId,
+                thumbnailUrl = selectedTrack!!.thumbnailUrl,
+                duration = selectedTrack!!.duration,
+                viewCount = selectedTrack!!.views,
+                uploadDate = "",
+                isMusic = true
+            ),
+            onDismiss = { showAddToPlaylistDialog = false }
+        )
+    }
 
     val voiceSearchLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -108,6 +147,12 @@ fun MusicSearchScreen(
                                     is ArtistItem -> onArtistClick(item.id)
                                     is AlbumItem -> onAlbumClick(item.id)
                                     is PlaylistItem -> onPlaylistClick(item.id)
+                                }
+                            },
+                            onMenuClick = {
+                                if (item is SongItem) {
+                                    selectedTrack = convertSongToMusicTrack(item)
+                                    showBottomSheet = true
                                 }
                             }
                         )
@@ -200,6 +245,12 @@ fun MusicSearchScreen(
                                                         is AlbumItem -> onAlbumClick(item.id)
                                                         is PlaylistItem -> onPlaylistClick(item.id)
                                                     }
+                                                },
+                                                onMenuClick = {
+                                                    if (item is SongItem) {
+                                                        selectedTrack = convertSongToMusicTrack(item)
+                                                        showBottomSheet = true
+                                                    }
                                                 }
                                             )
                                         }
@@ -213,6 +264,12 @@ fun MusicSearchScreen(
                                                         is ArtistItem -> onArtistClick(item.id)
                                                         is AlbumItem -> onAlbumClick(item.id)
                                                         is PlaylistItem -> onPlaylistClick(item.id)
+                                                    }
+                                                },
+                                                onMenuClick = {
+                                                    if (item is SongItem) {
+                                                        selectedTrack = convertSongToMusicTrack(item)
+                                                        showBottomSheet = true
                                                     }
                                                 }
                                             )
@@ -230,6 +287,12 @@ fun MusicSearchScreen(
                                                 is ArtistItem -> onArtistClick(item.id)
                                                 is AlbumItem -> onAlbumClick(item.id)
                                                 is PlaylistItem -> onPlaylistClick(item.id)
+                                            }
+                                        },
+                                        onMenuClick = {
+                                            if (item is SongItem) {
+                                                selectedTrack = convertSongToMusicTrack(item)
+                                                showBottomSheet = true
                                             }
                                         }
                                     )
@@ -396,7 +459,8 @@ fun SearchSuggestionRow(
 @Composable
 fun RecommendedItemRow(
     item: YTItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onMenuClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -436,12 +500,14 @@ fun RecommendedItemRow(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        IconButton(onClick = { /* Options */ }) {
-            Icon(
-                Icons.Default.MoreVert,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-            )
+        if (onMenuClick != null) {
+            IconButton(onClick = onMenuClick) {
+                Icon(
+                    Icons.Default.MoreVert,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
+            }
         }
     }
 }
@@ -449,7 +515,8 @@ fun RecommendedItemRow(
 @Composable
 fun YTItemRow(
     item: YTItem,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onMenuClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -492,12 +559,14 @@ fun YTItemRow(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        IconButton(onClick = { /* Options */ }) {
-            Icon(
-                Icons.Default.MoreVert,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-            )
+        if (onMenuClick != null) {
+            IconButton(onClick = onMenuClick) {
+                Icon(
+                    Icons.Default.MoreVert,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
+            }
         }
     }
 }

@@ -20,6 +20,7 @@ class PlayerPreferences(private val context: Context) {
         val PREFERRED_SUBTITLE_LANGUAGE = stringPreferencesKey("preferred_subtitle_language")
         val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
         val TRENDING_REGION = stringPreferencesKey("trending_region")
+        val SKIP_SILENCE_ENABLED = booleanPreferencesKey("skip_silence_enabled")
     }
     
     // Region preference
@@ -78,6 +79,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setAutoplayEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.AUTOPLAY_ENABLED] = enabled
+        }
+    }
+
+    // Skip Silence
+    val skipSilenceEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SKIP_SILENCE_ENABLED] ?: false
+        }
+
+    suspend fun setSkipSilenceEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SKIP_SILENCE_ENABLED] = enabled
         }
     }
     

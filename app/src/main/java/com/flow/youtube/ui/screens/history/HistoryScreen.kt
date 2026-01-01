@@ -24,13 +24,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.flow.youtube.data.local.VideoHistoryEntry
+import com.flow.youtube.data.model.Video
+import com.flow.youtube.ui.components.AddToPlaylistDialog
+import com.flow.youtube.ui.components.MusicQuickActionsSheet
+import com.flow.youtube.ui.screens.music.MusicTrack
+import com.flow.youtube.ui.screens.music.MusicTrackRow
 import com.flow.youtube.ui.theme.extendedColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (MusicTrack) -> Unit,
     onBackClick: () -> Unit,
+    onArtistClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     isMusic: Boolean = false,
     viewModel: HistoryViewModel = viewModel()
@@ -39,9 +45,46 @@ fun HistoryScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showClearDialog by remember { mutableStateOf(false) }
     
+    var showBottomSheet by remember { mutableStateOf(false) }
+    var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
+    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+    
     // Initialize
     LaunchedEffect(Unit) {
         viewModel.initialize(context, isMusic)
+    }
+    
+    if (showBottomSheet && selectedTrack != null) {
+        MusicQuickActionsSheet(
+            track = selectedTrack!!,
+            onDismiss = { showBottomSheet = false },
+            onAddToPlaylist = { showAddToPlaylistDialog = true },
+            onDownload = { /* TODO: Implement download */ },
+            onViewArtist = { 
+                if (selectedTrack!!.channelId.isNotEmpty()) {
+                    onArtistClick(selectedTrack!!.channelId)
+                }
+            },
+            onViewAlbum = { /* TODO: Implement view album */ },
+            onShare = { /* TODO: Implement share */ }
+        )
+    }
+    
+    if (showAddToPlaylistDialog && selectedTrack != null) {
+        AddToPlaylistDialog(
+            video = Video(
+                id = selectedTrack!!.videoId,
+                title = selectedTrack!!.title,
+                channelName = selectedTrack!!.artist,
+                channelId = selectedTrack!!.channelId,
+                thumbnailUrl = selectedTrack!!.thumbnailUrl,
+                duration = selectedTrack!!.duration,
+                viewCount = selectedTrack!!.views,
+                uploadDate = "",
+                isMusic = true
+            ),
+            onDismiss = { showAddToPlaylistDialog = false }
+        )
     }
     
     Scaffold(
@@ -101,11 +144,58 @@ fun HistoryScreen(
                             items = uiState.historyEntries,
                             key = { it.videoId }
                         ) { entry ->
-                            HistoryVideoCard(
-                                entry = entry,
-                                onClick = { onVideoClick(entry.videoId) },
-                                onDeleteClick = { viewModel.deleteHistoryEntry(entry.videoId) }
-                            )
+                            if (isMusic) {
+                                MusicTrackRow(
+                                    track = MusicTrack(
+                                        videoId = entry.videoId,
+                                        title = entry.title,
+                                        artist = entry.channelName,
+                                        thumbnailUrl = entry.thumbnailUrl,
+                                        duration = (entry.duration / 1000).toInt(),
+                                        channelId = entry.channelId
+                                    ),
+                                    onClick = { 
+                                        onVideoClick(
+                                            MusicTrack(
+                                                videoId = entry.videoId,
+                                                title = entry.title,
+                                                artist = entry.channelName,
+                                                thumbnailUrl = entry.thumbnailUrl,
+                                                duration = (entry.duration / 1000).toInt(),
+                                                channelId = entry.channelId
+                                            )
+                                        ) 
+                                    },
+                                    onMenuClick = {
+                                        selectedTrack = MusicTrack(
+                                            videoId = entry.videoId,
+                                            title = entry.title,
+                                            artist = entry.channelName,
+                                            thumbnailUrl = entry.thumbnailUrl,
+                                            duration = (entry.duration / 1000).toInt(),
+                                            channelId = entry.channelId
+                                        )
+                                        showBottomSheet = true
+                                    }
+                                )
+                            } else {
+                                HistoryVideoCard(
+                                    entry = entry,
+                                    onClick = { 
+                                        onVideoClick(
+                                            MusicTrack(
+                                                videoId = entry.videoId,
+                                                title = entry.title,
+                                                artist = entry.channelName,
+                                                thumbnailUrl = entry.thumbnailUrl,
+                                                duration = (entry.duration / 1000).toInt(),
+                                                channelId = entry.channelId
+                                            )
+                                        ) 
+                                    },
+                                    onDeleteClick = { viewModel.deleteHistoryEntry(entry.videoId) }
+                                )
+                            }
                         }
                     }
                 }

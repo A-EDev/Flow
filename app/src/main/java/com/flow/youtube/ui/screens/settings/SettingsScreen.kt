@@ -51,6 +51,7 @@ fun SettingsScreen(
     val wifiQuality by playerPreferences.defaultQualityWifi.collectAsState(initial = VideoQuality.Q_1080p)
     val cellularQuality by playerPreferences.defaultQualityCellular.collectAsState(initial = VideoQuality.Q_480p)
     val autoplayEnabled by playerPreferences.autoplayEnabled.collectAsState(initial = true)
+    val skipSilenceEnabled by playerPreferences.skipSilenceEnabled.collectAsState(initial = false)
     
     // Search settings states
     val searchHistoryEnabled by searchHistoryRepo.isSearchHistoryEnabledFlow().collectAsState(initial = true)
@@ -158,6 +159,20 @@ fun SettingsScreen(
                     onCheckedChange = { enabled ->
                         coroutineScope.launch {
                             playerPreferences.setAutoplayEnabled(enabled)
+                        }
+                    }
+                )
+            }
+
+            item {
+                SettingsSwitchItem(
+                    icon = Icons.Outlined.GraphicEq,
+                    title = "Skip Silence",
+                    subtitle = "Skip parts with no audio",
+                    checked = skipSilenceEnabled,
+                    onCheckedChange = { enabled ->
+                        coroutineScope.launch {
+                            playerPreferences.setSkipSilenceEnabled(enabled)
                         }
                     }
                 )

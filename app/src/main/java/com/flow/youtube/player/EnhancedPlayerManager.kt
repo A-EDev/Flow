@@ -30,12 +30,21 @@ import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.database.StandaloneDatabaseProvider
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import com.flow.youtube.service.VideoPlayerService
 import com.flow.youtube.player.datasource.YouTubeHttpDataSource
+import com.flow.youtube.data.local.PlayerPreferences
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
@@ -64,6 +73,9 @@ class EnhancedPlayerManager private constructor() {
     private var sharedDataSourceFactory: DataSource.Factory? = null
     private val _playerState = MutableStateFlow(EnhancedPlayerState())
     val playerState: StateFlow<EnhancedPlayerState> = _playerState.asStateFlow()
+
+    // Audio processor for skipping silence
+    private val silenceSkippingProcessor = SilenceSkippingAudioProcessor()
     
     private var currentVideoId: String? = null
     private var availableVideoStreams: List<VideoStream> = emptyList()
@@ -75,6 +87,7 @@ class EnhancedPlayerManager private constructor() {
     private var selectedSubtitleIndex: Int? = null
     private var surfaceHolder: SurfaceHolder? = null
     private var placeholderSurface: PlaceholderSurface? = null
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     var isSurfaceReady: Boolean = false
         private set
     
@@ -103,7 +116,34 @@ class EnhancedPlayerManager private constructor() {
         }
     }
 
+    private fun setSkipSilenceInternal(isEnabled: Boolean) {
+        silenceSkippingProcessor.setEnabled(isEnabled)
+        _playerState.value = _playerState.value.copy(
+            isSkipSilenceEnabled = isEnabled
+        )
+    }
+
+    fun toggleSkipSilence(isEnabled: Boolean) {
+        setSkipSilenceInternal(isEnabled)
+        
+        // Persist preference
+        appContext?.let { context ->
+            scope.launch {
+                PlayerPreferences(context).setSkipSilenceEnabled(isEnabled)
+            }
+        }
+    }
+
     fun initialize(context: Context) {
+        appContext = context.applicationContext
+        
+        // Observe skip silence state
+        scope.launch {
+            PlayerPreferences(context).skipSilenceEnabled.collect { isEnabled ->
+                setSkipSilenceInternal(isEnabled)
+            }
+        }
+
         appContext = context.applicationContext
         if (player == null) {
             // Initialize bandwidth meter for ABR
@@ -167,7 +207,20 @@ class EnhancedPlayerManager private constructor() {
                 .setTargetBufferBytes(DefaultLoadControl.DEFAULT_TARGET_BUFFER_BYTES * 2)  // 2x buffer size
                 .build()
 
-            player = ExoPlayer.Builder(context)
+            // Create custom RenderersFactory to inject SilenceSkippingAudioProcessor
+            val renderersFactory = object : DefaultRenderersFactory(context) {
+                override fun buildAudioSink(
+                    context: Context,
+                    enableFloatOutput: Boolean,
+                    enableAudioTrackPlaybackParams: Boolean
+                ): AudioSink? {
+                    return DefaultAudioSink.Builder()
+                        .setAudioProcessors(arrayOf(silenceSkippingProcessor))
+                        .build()
+                }
+            }
+
+            player = ExoPlayer.Builder(context, renderersFactory)
                 .setTrackSelector(trackSelector!!)
                 .setAudioAttributes(
                     AudioAttributes.Builder()
@@ -1509,7 +1562,8 @@ data class EnhancedPlayerState(
     val availableSubtitles: List<SubtitleOption> = emptyList(),
     val error: String? = null,
     val recoveryAttempted: Boolean = false,
-    val playbackSpeed: Float = 1.0f
+    val playbackSpeed: Float = 1.0f,
+    val isSkipSilenceEnabled: Boolean = false
 )
 
 data class QualityOption(

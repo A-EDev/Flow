@@ -246,10 +246,11 @@ Your support helps keep the project alive and motivates me to add more features!
   - [x] Shorts bookmarking
   - [x] Shorts Guesture Controls: Double-tap to like, Press and hold to 2x speed
 
-- [ ] **Channel Screen**
+- [x] **Channel Screen**
   - [x] Complete channel page layout
   - [x] Channel videos grid
-  - [ ] Channel playlists
+  - [x] Channel playlists
+  - [x] Channel Shorts
   - [x] Channel about section
   - [x] Subscribe functionality
 
@@ -289,10 +290,10 @@ Your support helps keep the project alive and motivates me to add more features!
 <a id="user-experience"></a>
 ### 🎯 User Experience
 
-- [ ] **Search Enhancements**
+- [x] **Search Enhancements**
   - [x] Search filters (date, duration, quality)
   - [x] Advanced search operators
-  - [ ] Voice search support
+  - [x] Voice search support
 
 - [ ] **Playback Features**
   - [x] Resume playback from last position

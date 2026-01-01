@@ -23,13 +23,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.flow.youtube.data.local.LikedVideoInfo
+import com.flow.youtube.data.model.Video
+import com.flow.youtube.ui.components.AddToPlaylistDialog
+import com.flow.youtube.ui.components.MusicQuickActionsSheet
+import com.flow.youtube.ui.screens.music.MusicTrack
+import com.flow.youtube.ui.screens.music.MusicTrackRow
 import com.flow.youtube.ui.theme.extendedColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LikedVideosScreen(
-    onVideoClick: (String, Boolean) -> Unit,
+    onVideoClick: (MusicTrack) -> Unit,
     onBackClick: () -> Unit,
+    onArtistClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     isMusic: Boolean = false,
     viewModel: LikedVideosViewModel = viewModel()
@@ -37,9 +43,46 @@ fun LikedVideosScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     
+    var showBottomSheet by remember { mutableStateOf(false) }
+    var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
+    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+    
     // Initialize
     LaunchedEffect(Unit) {
         viewModel.initialize(context, isMusic)
+    }
+    
+    if (showBottomSheet && selectedTrack != null) {
+        MusicQuickActionsSheet(
+            track = selectedTrack!!,
+            onDismiss = { showBottomSheet = false },
+            onAddToPlaylist = { showAddToPlaylistDialog = true },
+            onDownload = { /* TODO: Implement download */ },
+            onViewArtist = { 
+                if (selectedTrack!!.channelId.isNotEmpty()) {
+                    onArtistClick(selectedTrack!!.channelId)
+                }
+            },
+            onViewAlbum = { /* TODO: Implement view album */ },
+            onShare = { /* TODO: Implement share */ }
+        )
+    }
+    
+    if (showAddToPlaylistDialog && selectedTrack != null) {
+        AddToPlaylistDialog(
+            video = Video(
+                id = selectedTrack!!.videoId,
+                title = selectedTrack!!.title,
+                channelName = selectedTrack!!.artist,
+                channelId = selectedTrack!!.channelId,
+                thumbnailUrl = selectedTrack!!.thumbnailUrl,
+                duration = selectedTrack!!.duration,
+                viewCount = selectedTrack!!.views,
+                uploadDate = "",
+                isMusic = true
+            ),
+            onDismiss = { showAddToPlaylistDialog = false }
+        )
     }
     
     Scaffold(
@@ -92,11 +135,57 @@ fun LikedVideosScreen(
                             items = uiState.likedVideos,
                             key = { it.videoId }
                         ) { video ->
-                            LikedVideoCard(
-                                video = video,
-                                onClick = { onVideoClick(video.videoId, video.isMusic) },
-                                onUnlikeClick = { viewModel.removeLike(video.videoId) }
-                            )
+                            if (isMusic) {
+                                MusicTrackRow(
+                                    track = MusicTrack(
+                                        videoId = video.videoId,
+                                        title = video.title,
+                                        artist = video.channelName,
+                                        thumbnailUrl = video.thumbnail,
+                                        duration = 0,
+                                        channelId = "" // LikedVideoInfo doesn't have channelId, might need to fetch or store it
+                                    ),
+                                    onClick = { 
+                                        onVideoClick(
+                                            MusicTrack(
+                                                videoId = video.videoId,
+                                                title = video.title,
+                                                artist = video.channelName,
+                                                thumbnailUrl = video.thumbnail,
+                                                duration = 0,
+                                                channelId = ""
+                                            )
+                                        ) 
+                                    },
+                                    onMenuClick = {
+                                        selectedTrack = MusicTrack(
+                                            videoId = video.videoId,
+                                            title = video.title,
+                                            artist = video.channelName,
+                                            thumbnailUrl = video.thumbnail,
+                                            duration = 0
+                                        )
+                                        showBottomSheet = true
+                                    }
+                                )
+                            } else {
+                                LikedVideoCard(
+                                    video = video,
+                                    onClick = { 
+                                        onVideoClick(
+                                            MusicTrack(
+                                                videoId = video.videoId,
+                                                title = video.title,
+                                                artist = video.channelName,
+                                                thumbnailUrl = video.thumbnail,
+                                                duration = 0,
+                                                channelId = ""
+                                            )
+                                        ) 
+                                    },
+                                    onUnlikeClick = { viewModel.removeLike(video.videoId) }
+                                )
+                            }
                         }
                     }
                 }

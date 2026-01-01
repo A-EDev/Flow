@@ -29,6 +29,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.flow.youtube.ui.components.MusicQuickActionsSheet
+import com.flow.youtube.ui.components.AddToPlaylistDialog
+import com.flow.youtube.data.model.Video
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +47,43 @@ fun PlaylistPage(
 ) {
     val scrollState = rememberLazyListState()
     val isScrolled by remember { derivedStateOf { scrollState.firstVisibleItemIndex > 0 || scrollState.firstVisibleItemScrollOffset > 100 } }
+    
+    var showBottomSheet by remember { mutableStateOf(false) }
+    var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
+    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+
+    if (showBottomSheet && selectedTrack != null) {
+        MusicQuickActionsSheet(
+            track = selectedTrack!!,
+            onDismiss = { showBottomSheet = false },
+            onAddToPlaylist = { showAddToPlaylistDialog = true },
+            onDownload = { /* TODO: Implement download */ },
+            onViewArtist = { 
+                if (selectedTrack!!.channelId.isNotEmpty()) {
+                    onArtistClick(selectedTrack!!.channelId)
+                }
+            },
+            onViewAlbum = { /* TODO: Implement view album */ },
+            onShare = { /* TODO: Implement share */ }
+        )
+    }
+    
+    if (showAddToPlaylistDialog && selectedTrack != null) {
+        AddToPlaylistDialog(
+            video = Video(
+                id = selectedTrack!!.videoId,
+                title = selectedTrack!!.title,
+                channelName = selectedTrack!!.artist,
+                channelId = selectedTrack!!.channelId,
+                thumbnailUrl = selectedTrack!!.thumbnailUrl,
+                duration = selectedTrack!!.duration,
+                viewCount = selectedTrack!!.views,
+                uploadDate = "",
+                isMusic = true
+            ),
+            onDismiss = { showAddToPlaylistDialog = false }
+        )
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         // Ambient Background (Blurred)
@@ -120,7 +161,7 @@ fun PlaylistPage(
                     }
                 }
             }
-        ) { padding ->
+        ) { _ ->
             LazyColumn(
                 state = scrollState,
                 modifier = Modifier.fillMaxSize(),
@@ -283,8 +324,13 @@ fun PlaylistPage(
                 // Tracks List
                 itemsIndexed(playlistDetails.tracks) { index, track ->
                     MusicTrackRow(
+                        index = index + 1,
                         track = track,
-                        onClick = { onTrackClick(track, playlistDetails.tracks) }
+                        onClick = { onTrackClick(track, playlistDetails.tracks) },
+                        onMenuClick = {
+                            selectedTrack = track
+                            showBottomSheet = true
+                        }
                     )
                 }
 

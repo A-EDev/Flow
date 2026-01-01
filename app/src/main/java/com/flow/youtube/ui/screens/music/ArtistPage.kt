@@ -31,8 +31,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.flow.youtube.ui.components.MusicQuickActionsSheet
+import com.flow.youtube.ui.components.AddToPlaylistDialog
+import com.flow.youtube.data.model.Video
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,6 +52,43 @@ fun ArtistPage(
 ) {
     val scrollState = rememberLazyListState()
     val isScrolled by remember { derivedStateOf { scrollState.firstVisibleItemIndex > 0 || scrollState.firstVisibleItemScrollOffset > 0 } }
+    
+    var showBottomSheet by remember { mutableStateOf(false) }
+    var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
+    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
+
+    if (showBottomSheet && selectedTrack != null) {
+        MusicQuickActionsSheet(
+            track = selectedTrack!!,
+            onDismiss = { showBottomSheet = false },
+            onAddToPlaylist = { showAddToPlaylistDialog = true },
+            onDownload = { /* TODO: Implement download */ },
+            onViewArtist = { 
+                if (selectedTrack!!.channelId.isNotEmpty()) {
+                    onArtistClick(selectedTrack!!.channelId)
+                }
+            },
+            onViewAlbum = { /* TODO: Implement view album */ },
+            onShare = { /* TODO: Implement share */ }
+        )
+    }
+    
+    if (showAddToPlaylistDialog && selectedTrack != null) {
+        AddToPlaylistDialog(
+            video = Video(
+                id = selectedTrack!!.videoId,
+                title = selectedTrack!!.title,
+                channelName = selectedTrack!!.artist,
+                channelId = selectedTrack!!.channelId,
+                thumbnailUrl = selectedTrack!!.thumbnailUrl,
+                duration = selectedTrack!!.duration,
+                viewCount = selectedTrack!!.views,
+                uploadDate = "",
+                isMusic = true
+            ),
+            onDismiss = { showAddToPlaylistDialog = false }
+        )
+    }
     
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -84,7 +126,7 @@ fun ArtistPage(
                 }
             }
         }
-    ) { padding ->
+    ) { _ ->
         LazyColumn(
             state = scrollState,
             modifier = Modifier.fillMaxSize(),
@@ -226,7 +268,10 @@ fun ArtistPage(
                         index = index + 1,
                         track = track,
                         onClick = { onTrackClick(track, artistDetails.topTracks) },
-                        onMenuClick = { /* TODO: Open Menu */ }
+                        onMenuClick = { 
+                            selectedTrack = track
+                            showBottomSheet = true
+                        }
                     )
                 }
             }
@@ -401,7 +446,7 @@ fun VideoCard(video: MusicTrack, onClick: () -> Unit) {
             overflow = TextOverflow.Ellipsis
         )
         
-        val viewsText = if ((video.views ?: 0) > 0) "• ${formatViews(video.views ?: 0)} views" else ""
+        val viewsText = if (video.views > 0) "• ${formatViews(video.views)} views" else ""
         Text(
             text = "${video.artist} $viewsText",
             style = MaterialTheme.typography.bodySmall,

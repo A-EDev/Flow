@@ -79,14 +79,12 @@ fun MusicTrackRow(
                     Spacer(modifier = Modifier.width(4.dp))
                 }
                 
-                track.views?.let { views ->
-                    if (views > 0) {
-                        Text(
-                            text = "${formatViews(views)} plays",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                if (track.views > 0) {
+                    Text(
+                        text = "${formatViews(track.views)} plays",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

@@ -455,6 +455,10 @@ class VideoPlayerViewModel @Inject constructor(
             playlistRepository.addToWatchLater(video)
         }
     }
+
+    fun toggleSkipSilence(isEnabled: Boolean) {
+        EnhancedPlayerManager.getInstance().toggleSkipSilence(isEnabled)
+    }
 }
 
 data class VideoPlayerUiState(

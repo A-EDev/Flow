@@ -1643,6 +1643,29 @@ fun EnhancedVideoPlayerScreen(
                             }
                         )
                     }
+
+                    Surface(
+                        onClick = {
+                            viewModel.toggleSkipSilence(!playerState.isSkipSilenceEnabled)
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ListItem(
+                            headlineContent = { Text("Skip Silence") },
+                            supportingContent = { 
+                                Text(if (playerState.isSkipSilenceEnabled) "On" else "Off") 
+                            },
+                            leadingContent = {
+                                Icon(Icons.Rounded.GraphicEq, contentDescription = null)
+                            },
+                            trailingContent = {
+                                Switch(
+                                    checked = playerState.isSkipSilenceEnabled,
+                                    onCheckedChange = { viewModel.toggleSkipSilence(it) }
+                                )
+                            }
+                        )
+                    }
                 }
             },
             confirmButton = {

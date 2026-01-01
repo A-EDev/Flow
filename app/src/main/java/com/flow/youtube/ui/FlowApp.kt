@@ -372,10 +372,13 @@ fun FlowApp(
                     currentRoute.value = "history"
                     showBottomNav = false
                     HistoryScreen(
-                        onVideoClick = { videoId ->
-                            navController.navigate("player/$videoId")
+                        onVideoClick = { track ->
+                            navController.navigate("player/${track.videoId}")
                         },
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.popBackStack() },
+                        onArtistClick = { channelId ->
+                            navController.navigate("artist/$channelId")
+                        }
                     )
                 }
 
@@ -384,14 +387,13 @@ fun FlowApp(
                     currentRoute.value = "likedVideos"
                     showBottomNav = false
                     LikedVideosScreen(
-                        onVideoClick = { videoId, isMusic ->
-                            if (isMusic) {
-                                navController.navigate("musicPlayer/$videoId")
-                            } else {
-                                navController.navigate("player/$videoId")
-                            }
+                        onVideoClick = { track ->
+                            navController.navigate("player/${track.videoId}")
                         },
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.popBackStack() },
+                        onArtistClick = { channelId ->
+                            navController.navigate("artist/$channelId")
+                        }
                     )
                 }
 
@@ -444,10 +446,16 @@ fun FlowApp(
                     showBottomNav = false
                     LikedVideosScreen(
                         onBackClick = { navController.popBackStack() },
-                        onVideoClick = { videoId, _ ->
-                            navController.navigate("musicPlayer/$videoId")
+                        onVideoClick = { track ->
+                            val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                            val encodedTitle = android.net.Uri.encode(track.title)
+                            val encodedArtist = android.net.Uri.encode(track.artist)
+                            navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
                         },
-                        isMusic = true
+                        isMusic = true,
+                        onArtistClick = { channelId ->
+                            navController.navigate("artist/$channelId")
+                        }
                     )
                 }
 
@@ -456,10 +464,16 @@ fun FlowApp(
                     showBottomNav = false
                     HistoryScreen(
                         onBackClick = { navController.popBackStack() },
-                        onVideoClick = { videoId ->
-                            navController.navigate("musicPlayer/$videoId")
+                        onVideoClick = { track ->
+                            val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                            val encodedTitle = android.net.Uri.encode(track.title)
+                            val encodedArtist = android.net.Uri.encode(track.artist)
+                            navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
                         },
-                        isMusic = true
+                        isMusic = true,
+                        onArtistClick = { channelId ->
+                            navController.navigate("artist/$channelId")
+                        }
                     )
                 }
 
@@ -529,9 +543,9 @@ fun FlowApp(
                             musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
                             
                             // Navigate to player
-                            val encodedUrl = URLEncoder.encode(track.thumbnailUrl, StandardCharsets.UTF_8.toString())
-                            val encodedTitle = URLEncoder.encode(track.title, StandardCharsets.UTF_8.toString())
-                            val encodedArtist = URLEncoder.encode(track.artist, StandardCharsets.UTF_8.toString())
+                            val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                            val encodedTitle = android.net.Uri.encode(track.title)
+                            val encodedArtist = android.net.Uri.encode(track.artist)
                             navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
                         },
                         onVideoClick = { videoId ->
@@ -563,9 +577,9 @@ fun FlowApp(
                         onBackClick = { navController.popBackStack() },
                         onTrackClick = { track, queue, source ->
                             musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
-                            val encodedUrl = URLEncoder.encode(track.thumbnailUrl, StandardCharsets.UTF_8.toString())
-                            val encodedTitle = URLEncoder.encode(track.title, StandardCharsets.UTF_8.toString())
-                            val encodedArtist = URLEncoder.encode(track.artist, StandardCharsets.UTF_8.toString())
+                            val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                            val encodedTitle = android.net.Uri.encode(track.title)
+                            val encodedArtist = android.net.Uri.encode(track.artist)
                             navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
                         },
                         onAlbumClick = { albumId ->
@@ -591,9 +605,9 @@ fun FlowApp(
                         onBackClick = { navController.popBackStack() },
                         onTrackClick = { track, queue ->
                             musicPlayerViewModel.loadAndPlayTrack(track, queue)
-                            val encodedUrl = URLEncoder.encode(track.thumbnailUrl, StandardCharsets.UTF_8.toString())
-                            val encodedTitle = URLEncoder.encode(track.title, StandardCharsets.UTF_8.toString())
-                            val encodedArtist = URLEncoder.encode(track.artist, StandardCharsets.UTF_8.toString())
+                            val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                            val encodedTitle = android.net.Uri.encode(track.title)
+                            val encodedArtist = android.net.Uri.encode(track.artist)
                             navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
                         }
                     )
@@ -621,9 +635,9 @@ fun FlowApp(
                                 onBackClick = { navController.popBackStack() },
                                 onTrackClick = { track, queue ->
                                     musicPlayerViewModel.loadAndPlayTrack(track, queue)
-                                    val encodedUrl = URLEncoder.encode(track.thumbnailUrl, StandardCharsets.UTF_8.toString())
-                                    val encodedTitle = URLEncoder.encode(track.title, StandardCharsets.UTF_8.toString())
-                                    val encodedArtist = URLEncoder.encode(track.artist, StandardCharsets.UTF_8.toString())
+                                    val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                                    val encodedTitle = android.net.Uri.encode(track.title)
+                                    val encodedArtist = android.net.Uri.encode(track.artist)
                                     navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
                                 },
                                 onAlbumClick = { album ->
@@ -668,7 +682,10 @@ fun FlowApp(
                                 onBackClick = { navController.popBackStack() },
                                 onTrackClick = { track, queue ->
                                     musicPlayerViewModel.loadAndPlayTrack(track, queue)
-                                    navController.navigate("musicPlayer/${track.videoId}")
+                                    val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                                    val encodedTitle = android.net.Uri.encode(track.title)
+                                    val encodedArtist = android.net.Uri.encode(track.artist)
+                                    navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
                                 },
                                 onArtistClick = { channelId ->
                                     navController.navigate("artist/$channelId")
