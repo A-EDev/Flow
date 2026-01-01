@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.WatchLater
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,9 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.flow.youtube.data.local.PlaylistRepository
 import com.flow.youtube.data.model.Video
-import kotlinx.coroutines.launch
 
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -35,7 +34,9 @@ fun VideoQuickActionsBottomSheet(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val repo = remember { PlaylistRepository(context) }
+    val watchLaterIds by viewModel.watchLaterIds.collectAsState()
+    val isInWatchLater = remember(watchLaterIds, video.id) { watchLaterIds.contains(video.id) }
+    
     var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -81,15 +82,13 @@ fun VideoQuickActionsBottomSheet(
             )
             
             QuickActionItem(
-                icon = Icons.Outlined.WatchLater,
-                text = "Save to Watch later",
+                icon = if (isInWatchLater) Icons.Default.WatchLater else Icons.Outlined.WatchLater,
+                text = if (isInWatchLater) "Remove from Watch later" else "Save to Watch later",
                 onClick = {
                     if (onWatchLater != null) {
                         onWatchLater()
                     } else {
-                        scope.launch {
-                            repo.addToWatchLater(video)
-                        }
+                        viewModel.toggleWatchLater(video)
                     }
                     onDismiss()
                 }

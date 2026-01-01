@@ -4,10 +4,14 @@ import android.content.Context
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.flow.youtube.data.local.PlaylistRepository
+import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.repository.YouTubeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -15,8 +19,29 @@ import javax.inject.Inject
 @HiltViewModel
 class QuickActionsViewModel @Inject constructor(
     private val repository: YouTubeRepository,
+    private val playlistRepository: PlaylistRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    val watchLaterIds = playlistRepository.getWatchLaterIdsFlow()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    fun toggleWatchLater(video: Video) {
+        viewModelScope.launch {
+            try {
+                val isInWatchLater = playlistRepository.isInWatchLater(video.id)
+                if (isInWatchLater) {
+                    playlistRepository.removeFromWatchLater(video.id)
+                    Toast.makeText(context, "Removed from Watch Later", Toast.LENGTH_SHORT).show()
+                } else {
+                    playlistRepository.addToWatchLater(video)
+                    Toast.makeText(context, "Added to Watch Later", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     fun downloadVideo(videoId: String, title: String) {
         viewModelScope.launch {

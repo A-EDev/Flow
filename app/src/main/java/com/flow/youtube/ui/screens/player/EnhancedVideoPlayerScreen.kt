@@ -1223,13 +1223,6 @@ fun EnhancedVideoPlayerScreen(
                 showQuickActions = false
                 musicVm.showAddToPlaylistDialog(true)
             },
-            onWatchLater = {
-                showQuickActions = false
-                scope.launch {
-                    viewModel.toggleWatchLater(completeVideo)
-                    Toast.makeText(context, "Updated Watch Later", Toast.LENGTH_SHORT).show()
-                }
-            },
             onShare = {
                 showQuickActions = false
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
