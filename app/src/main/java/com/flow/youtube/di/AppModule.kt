@@ -18,4 +18,10 @@ object AppModule {
     fun provideContext(@ApplicationContext context: Context): Context {
         return context
     }
+
+    @Provides
+    @Singleton
+    fun provideYouTube(): com.flow.youtube.innertube.YouTube {
+        return com.flow.youtube.innertube.YouTube
+    }
 }

@@ -70,7 +70,11 @@ object SearchPage {
                     }?.toggleMenuServiceItemRenderer, "LIBRARY_ADD"),
                     libraryRemoveToken = PageHelper.extractFeedbackToken(renderer.menu?.menuRenderer?.items?.find {
                         it.toggleMenuServiceItemRenderer?.defaultIcon?.iconType?.startsWith("LIBRARY_") == true
-                    }?.toggleMenuServiceItemRenderer, "LIBRARY_SAVED")
+                    }?.toggleMenuServiceItemRenderer, "LIBRARY_SAVED"),
+                    viewCountText = secondaryLine.flatten().find { 
+                        it.text.endsWith("views", ignoreCase = true) || 
+                        it.text.endsWith("view", ignoreCase = true) 
+                    }?.text
                 )
             }
             renderer.isArtist -> {

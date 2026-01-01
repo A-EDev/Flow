@@ -73,6 +73,11 @@ data class HomePage(
                                 id = it.navigationEndpoint?.browseEndpoint?.browseId ?: return null
                             )
                         }
+                        val viewCountText = subtitleRuns.find { 
+                            it.text.endsWith("views", ignoreCase = true) || 
+                            it.text.endsWith("view", ignoreCase = true) 
+                        }?.text
+
                         SongItem(
                             id = renderer.navigationEndpoint.watchEndpoint?.videoId ?: return null,
                             title = renderer.title.runs?.firstOrNull()?.text ?: return null,
@@ -91,7 +96,8 @@ data class HomePage(
                             thumbnail = renderer.thumbnailRenderer.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                             explicit = renderer.subtitleBadges?.any {
                                 it.musicInlineBadgeRenderer?.icon?.iconType == "MUSIC_EXPLICIT_BADGE"
-                            } == true
+                            } == true,
+                            viewCountText = viewCountText
                         )
                     }
                     renderer.isAlbum -> {

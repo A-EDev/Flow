@@ -41,6 +41,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.BorderStroke
 import kotlin.math.absoluteValue
+import com.flow.youtube.data.recommendation.MusicSection
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -49,10 +50,8 @@ fun EnhancedMusicScreen(
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
     onVideoClick: (String) -> Unit = {},
     onArtistClick: (String) -> Unit = {},
-    onLibraryClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
-    onPlaylistClick: (String) -> Unit = {},
     onAlbumClick: (String) -> Unit = {},
     viewModel: MusicViewModel = hiltViewModel()
 ) {
@@ -110,10 +109,37 @@ fun EnhancedMusicScreen(
                 }
                 
                 else -> {
+                    // Popular Artists
+                    val popularArtists = remember(uiState.trendingSongs, uiState.newReleases) {
+                        (uiState.trendingSongs + uiState.newReleases)
+                            .distinctBy { it.artist }
+                            .take(10)
+                    }
+
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
+                        // Listen Again
+                        if (uiState.listenAgain.isNotEmpty()) {
+                            item {
+                                SectionHeader(title = "Listen again")
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    items(uiState.listenAgain) { track ->
+                                        AlbumCard(
+                                            title = track.title,
+                                            subtitle = track.artist,
+                                            thumbnailUrl = track.thumbnailUrl,
+                                            onClick = { onSongClick(track, uiState.listenAgain, "listen_again") }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         // Categories Chips
                         item {
                             LazyRow(
@@ -160,21 +186,159 @@ fun EnhancedMusicScreen(
                                     )
                                 }
                             }
-                        } else {
+                        } else 
                             // Quick Picks
-                            item {
-                                SectionHeader(
-                                    title = "Quick picks", 
-                                    onPlayAll = {
-                                        if (uiState.forYouTracks.isNotEmpty()) {
-                                            onSongClick(uiState.forYouTracks.first(), uiState.forYouTracks, "quick_picks")
+                            if (uiState.forYouTracks.isNotEmpty()) {
+                                item {
+                                    SectionHeader(
+                                        title = "Quick picks", 
+                                        onPlayAll = {
+                                            if (uiState.forYouTracks.isNotEmpty()) {
+                                                onSongClick(uiState.forYouTracks.first(), uiState.forYouTracks, "quick_picks")
+                                            }
+                                        }
+                                    )
+                                    QuickPicksGrid(
+                                        songs = uiState.forYouTracks.take(16),
+                                        onSongClick = onSongClick
+                                    )
+                                }
+                            }
+
+                            // Recommended for you
+                            if (uiState.recommendedTracks.isNotEmpty()) {
+                                item {
+                                    SectionHeader(
+                                        title = "Recommended for you",
+                                        onPlayAll = {
+                                            if (uiState.recommendedTracks.isNotEmpty()) {
+                                                onSongClick(uiState.recommendedTracks.first(), uiState.recommendedTracks, "recommended")
+                                            }
+                                        }
+                                    )
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 16.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        items(uiState.recommendedTracks) { track ->
+                                            AlbumCard(
+                                                title = track.title,
+                                                subtitle = track.artist,
+                                                thumbnailUrl = track.thumbnailUrl,
+                                                onClick = { onSongClick(track, uiState.recommendedTracks, "recommended") }
+                                            )
                                         }
                                     }
-                                )
-                                QuickPicksGrid(
-                                    songs = uiState.forYouTracks.take(16),
-                                    onSongClick = onSongClick
-                                )
+                                }
+                            }
+                        
+                        // Speed Dial (History)
+                        if (uiState.history.isNotEmpty()) {
+                            item {
+                                SectionHeader(title = "Listen again", subtitle = "Based on your history")
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    items(uiState.history.distinctBy { it.videoId }.take(10)) { track ->
+                                        SquircleHistoryItem(
+                                            title = track.title,
+                                            artist = track.artist,
+                                            thumbnailUrl = track.thumbnailUrl,
+                                            onClick = { onSongClick(track, uiState.history, "history") }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+
+
+                            // Long Listens
+                            if (uiState.longListens.isNotEmpty()) {
+                                item {
+                                    SectionHeader(title = "Long listens")
+                                    QuickPicksGrid(
+                                        songs = uiState.longListens.take(16),
+                                        onSongClick = onSongClick
+                                    )
+                                }
+                            }
+
+                            // Music Videos
+                            if (uiState.musicVideos.isNotEmpty()) {
+                                item {
+                                    SectionHeader(title = "Music Videos for you")
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 16.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        items(uiState.musicVideos) { track ->
+                                            VideoCard(
+                                                title = track.title,
+                                                subtitle = track.artist,
+                                                thumbnailUrl = track.thumbnailUrl,
+                                                onClick = { onVideoClick(track.videoId) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Genre Sections
+                            uiState.genreTracks.forEach { (genre, tracks) ->
+                                item {
+                                    SectionHeader(title = "$genre Mix")
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 16.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        items(tracks) { track ->
+                                            AlbumCard(
+                                                title = track.title,
+                                                subtitle = track.artist,
+                                                thumbnailUrl = track.thumbnailUrl,
+                                                onClick = { onSongClick(track, tracks, genre) }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Dynamic Home Sections (Smart Content)
+                            uiState.dynamicSections.forEach { section ->
+                                if (!section.title.contains("Quick picks", true) && 
+                                    !section.title.contains("Music videos", true) &&
+                                    !section.title.contains("Long listens", true) &&
+                                    !section.title.contains("Mixed for you", true) &&
+                                    !section.title.contains("Recommended", true) &&
+                                    !section.title.contains("Listen again", true)) {
+                                    
+                                    item {
+                                        SectionHeader(
+                                            title = section.title, 
+                                            subtitle = section.subtitle,
+                                            onPlayAll = {
+                                                if (section.tracks.isNotEmpty()) {
+                                                    onSongClick(section.tracks.first(), section.tracks, section.title)
+                                                }
+                                            }
+                                        )
+                                        LazyRow(
+                                            contentPadding = PaddingValues(horizontal = 16.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                        ) {
+                                            items(section.tracks) { track ->
+                                                AlbumCard(
+                                                    title = track.title,
+                                                    subtitle = track.artist,
+                                                    thumbnailUrl = track.thumbnailUrl,
+                                                    onClick = { onSongClick(track, section.tracks, section.title) }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
 
                         // New Releases
@@ -197,44 +361,6 @@ fun EnhancedMusicScreen(
                             }
                         }
 
-                        // Speed Dial (History)
-                        if (uiState.history.isNotEmpty()) {
-                            item {
-                                SectionHeader(title = "Listen again", subtitle = "Based on your history")
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    items(uiState.history.distinctBy { it.videoId }.take(10)) { track ->
-                                        SquircleHistoryItem(
-                                            title = track.title,
-                                            artist = track.artist,
-                                            thumbnailUrl = track.thumbnailUrl,
-                                            onClick = { onSongClick(track, uiState.history, "history") }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Recommended for You
-                        item {
-                            SectionHeader(title = "Recommended for you")
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                items(uiState.forYouTracks.take(10)) { track ->
-                                    AlbumCard(
-                                        title = track.title,
-                                        subtitle = track.artist,
-                                        thumbnailUrl = track.thumbnailUrl,
-                                        onClick = { onSongClick(track, uiState.forYouTracks, "recommended") }
-                                    )
-                                }
-                            }
-                        }
-
                         // Music Videos
                         if (uiState.musicVideos.isNotEmpty()) {
                             item {
@@ -249,26 +375,6 @@ fun EnhancedMusicScreen(
                                             subtitle = track.artist,
                                             thumbnailUrl = track.thumbnailUrl,
                                             onClick = { onVideoClick(track.videoId) }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-
-                        // Samples for you (similar to For You)
-                        if (uiState.forYouTracks.isNotEmpty()) {
-                            item {
-                                SectionHeader(title = "Samples for you")
-                                LazyRow(
-                                    contentPadding = PaddingValues(horizontal = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    items(uiState.forYouTracks.drop(5).take(8)) { track ->
-                                        AlbumCard(
-                                            title = track.title,
-                                            subtitle = track.artist,
-                                            thumbnailUrl = track.thumbnailUrl,
-                                            onClick = { onSongClick(track, uiState.forYouTracks, "samples") }
                                         )
                                     }
                                 }
@@ -299,6 +405,24 @@ fun EnhancedMusicScreen(
                             }
                         }
 
+                        if (popularArtists.isNotEmpty()) {
+                            item {
+                                SectionHeader(title = "Popular Artists")
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    items(popularArtists) { track ->
+                                        ArtistCircleItem(
+                                            artist = track.artist,
+                                            thumbnailUrl = track.thumbnailUrl,
+                                            onClick = { onArtistClick(track.channelId) }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         // Long Listens
                         if (uiState.longListens.isNotEmpty()) {
                             item {
@@ -310,84 +434,48 @@ fun EnhancedMusicScreen(
                             }
                         }
 
-                        // Mixed for you (Similar to Featured playlists)
-                        if (uiState.genreTracks.isNotEmpty()) {
+                        // Mixed for you (Official Playlists)
+                        if (uiState.featuredPlaylists.isNotEmpty()) {
                             item {
                                 SectionHeader(title = "Mixed for you")
                                 LazyRow(
                                     contentPadding = PaddingValues(horizontal = 16.dp),
                                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                                 ) {
-                                    items(uiState.genreTracks.keys.take(4).toList()) { genre ->
-                                        val tracks = uiState.genreTracks[genre] ?: emptyList()
-                                        PlaylistPreviewCard(
-                                            title = genre,
-                                            subtitle = "${tracks.size} tracks",
-                                            tracks = tracks.take(4),
-                                            onClick = { onAlbumClick("community_$genre") }
+                                    items(uiState.featuredPlaylists) { playlist ->
+                                        AlbumCard(
+                                            title = playlist.title,
+                                            subtitle = playlist.author,
+                                            thumbnailUrl = playlist.thumbnailUrl,
+                                            onClick = { onAlbumClick(playlist.id) }
                                         )
                                     }
                                 }
                             }
                         }
 
-                        // From the Community
-                        item {
-                            SectionHeader(title = "From the community")
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                items(uiState.genreTracks.keys.take(5).toList()) { genre ->
-                                    val tracks = uiState.genreTracks[genre] ?: emptyList()
-                                    CommunityCard(
-                                        title = genre,
-                                        subtitle = "Community Playlist",
-                                        tracks = tracks.take(3),
-                                        onCardClick = { onAlbumClick("community_$genre") },
-                                        onPlayClick = {
-                                            if (tracks.isNotEmpty()) {
-                                                onSongClick(tracks.first(), tracks, "community_$genre")
+                        // From the Community (Genre Playlists)
+                        if (uiState.genreTracks.isNotEmpty()) {
+                            item {
+                                SectionHeader(title = "From the community")
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    items(uiState.genreTracks.keys.take(5).toList()) { genre ->
+                                        val tracks = uiState.genreTracks[genre] ?: emptyList()
+                                        CommunityCard(
+                                            title = genre,
+                                            subtitle = "Community Playlist",
+                                            tracks = tracks.take(3),
+                                            onCardClick = { onAlbumClick("community_$genre") },
+                                            onPlayClick = {
+                                                if (tracks.isNotEmpty()) {
+                                                    onSongClick(tracks.first(), tracks, "community_$genre")
+                                                }
                                             }
-                                        }
-                                    )
-                                }
-                            }
-                        }
-
-                        // Albums for you
-                        item {
-                            SectionHeader(title = "Albums for you")
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                items(uiState.newReleases.take(10)) { track ->
-                                    AlbumCard(
-                                        title = track.title,
-                                        subtitle = "Album • ${track.artist}",
-                                        thumbnailUrl = track.thumbnailUrl,
-                                        onClick = { onSongClick(track, uiState.newReleases, "albums") }
-                                    )
-                                }
-                            }
-                        }
-                        
-                        // Featured playlists for you
-                        // Featured playlists for you
-                        item {
-                            SectionHeader(title = "Featured playlists for you")
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                items(uiState.featuredPlaylists) { playlist ->
-                                    AlbumCard(
-                                        title = playlist.title,
-                                        subtitle = playlist.author,
-                                        thumbnailUrl = playlist.thumbnailUrl,
-                                        onClick = { onAlbumClick(playlist.id) }
-                                    )
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -396,7 +484,6 @@ fun EnhancedMusicScreen(
             }
         }
     }
-}
 }
 
 @Composable
@@ -435,7 +522,7 @@ fun ChannelCard(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(track.title, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onBackground, maxLines = 1)
-                        Text("${formatViews(track.views ?: 1000000)} views", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+                        Text("${formatViews(track.views)} views", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
                     }
                     IconButton(onClick = { /* Options */ }) {
                         Icon(Icons.Default.MoreVert, null, tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f), modifier = Modifier.size(20.dp))
@@ -556,7 +643,7 @@ fun QuickPickItem(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "${track.artist} • ${track.views?.let { formatViews(it) } ?: "1M"} plays",
+                text = "${track.artist} • ${formatViews(track.views)} plays",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                 maxLines = 1,
@@ -1497,7 +1584,7 @@ fun MusicTrackRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                val subtitle = "Song • ${track.artist}${track.views?.let { " • ${formatViews(it)} plays" } ?: ""}"
+                val subtitle = "Song • ${track.artist}${if (track.views > 0) " • ${formatViews(track.views)} plays" else ""}"
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,

@@ -21,6 +21,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navDeepLink
 import androidx.navigation.navArgument
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.player.EnhancedMusicPlayerManager
 import com.flow.youtube.player.GlobalPlayerState
@@ -71,7 +73,6 @@ fun FlowApp(
     
     // Observe music player state
     val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
-    val musicPlayerState by EnhancedMusicPlayerManager.playerState.collectAsState()
 
     // Handle deep links and notifications
     val activity = context as? com.flow.youtube.MainActivity
@@ -422,8 +423,7 @@ fun FlowApp(
                 }
 
                 // Playlist Detail Screen
-                composable("playlist/{playlistId}") { backStackEntry ->
-                    val playlistId = backStackEntry.arguments?.getString("playlistId") ?: return@composable
+                composable("playlist/{playlistId}") { _ ->
                     currentRoute.value = "playlist"
                     showBottomNav = false
                     PlaylistDetailScreen(
@@ -488,7 +488,10 @@ fun FlowApp(
                             musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
                             
                             // Navigate to player
-                            navController.navigate("musicPlayer/${track.videoId}")
+                            val encodedUrl = URLEncoder.encode(track.thumbnailUrl, StandardCharsets.UTF_8.toString())
+                            val encodedTitle = URLEncoder.encode(track.title, StandardCharsets.UTF_8.toString())
+                            val encodedArtist = URLEncoder.encode(track.artist, StandardCharsets.UTF_8.toString())
+                            navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
                         },
                         onVideoClick = { videoId ->
                             navController.navigate("player/$videoId")
@@ -496,17 +499,11 @@ fun FlowApp(
                         onArtistClick = { channelId ->
                             navController.navigate("artist/$channelId")
                         },
-                        onLibraryClick = {
-                            navController.navigate("musicLibrary")
-                        },
                         onSearchClick = {
                             navController.navigate("musicSearch")
                         },
                         onSettingsClick = {
                             navController.navigate("settings")
-                        },
-                        onPlaylistClick = { playlistId ->
-                            navController.navigate("playlist/$playlistId")
                         },
                         onAlbumClick = { albumId ->
                             navController.navigate("musicPlaylist/$albumId")
@@ -525,7 +522,10 @@ fun FlowApp(
                         onBackClick = { navController.popBackStack() },
                         onTrackClick = { track, queue, source ->
                             musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
-                            navController.navigate("musicPlayer/${track.videoId}")
+                            val encodedUrl = URLEncoder.encode(track.thumbnailUrl, StandardCharsets.UTF_8.toString())
+                            val encodedTitle = URLEncoder.encode(track.title, StandardCharsets.UTF_8.toString())
+                            val encodedArtist = URLEncoder.encode(track.artist, StandardCharsets.UTF_8.toString())
+                            navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
                         },
                         onAlbumClick = { albumId ->
                             navController.navigate("musicPlaylist/$albumId")
@@ -550,7 +550,10 @@ fun FlowApp(
                         onBackClick = { navController.popBackStack() },
                         onTrackClick = { track, queue ->
                             musicPlayerViewModel.loadAndPlayTrack(track, queue)
-                            navController.navigate("musicPlayer/${track.videoId}")
+                            val encodedUrl = URLEncoder.encode(track.thumbnailUrl, StandardCharsets.UTF_8.toString())
+                            val encodedTitle = URLEncoder.encode(track.title, StandardCharsets.UTF_8.toString())
+                            val encodedArtist = URLEncoder.encode(track.artist, StandardCharsets.UTF_8.toString())
+                            navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
                         }
                     )
                 }
@@ -577,7 +580,10 @@ fun FlowApp(
                                 onBackClick = { navController.popBackStack() },
                                 onTrackClick = { track, queue ->
                                     musicPlayerViewModel.loadAndPlayTrack(track, queue)
-                                    navController.navigate("musicPlayer/${track.videoId}")
+                                    val encodedUrl = URLEncoder.encode(track.thumbnailUrl, StandardCharsets.UTF_8.toString())
+                                    val encodedTitle = URLEncoder.encode(track.title, StandardCharsets.UTF_8.toString())
+                                    val encodedArtist = URLEncoder.encode(track.artist, StandardCharsets.UTF_8.toString())
+                                    navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
                                 },
                                 onAlbumClick = { album ->
                                     navController.navigate("musicPlaylist/${album.id}")
@@ -633,22 +639,36 @@ fun FlowApp(
 
                 // Music Player Screen - Enhanced
                 composable(
-                    route = "musicPlayer/{trackId}",
-                    arguments = listOf(navArgument("trackId") { type = NavType.StringType })
+                    route = "musicPlayer/{trackId}?title={title}&artist={artist}&thumbnailUrl={thumbnailUrl}",
+                    arguments = listOf(
+                        navArgument("trackId") { type = NavType.StringType },
+                        navArgument("title") { type = NavType.StringType; defaultValue = "" },
+                        navArgument("artist") { type = NavType.StringType; defaultValue = "" },
+                        navArgument("thumbnailUrl") { type = NavType.StringType; defaultValue = "" }
+                    )
                 ) { backStackEntry ->
                     currentRoute.value = "musicPlayer"
                     showBottomNav = false
                     
-                    // Always use the current track from the manager
-                    // The track is already loaded when clicking from music screen
-                    val track = currentMusicTrack ?: MusicTrack(
-                        videoId = backStackEntry.arguments?.getString("trackId") ?: "",
-                        title = "",
-                        artist = "",
-                        thumbnailUrl = "",
-                        duration = 0,
-                        sourceUrl = ""
-                    )
+                    val trackId = backStackEntry.arguments?.getString("trackId") ?: ""
+                    val title = backStackEntry.arguments?.getString("title") ?: ""
+                    val artist = backStackEntry.arguments?.getString("artist") ?: ""
+                    val thumbnailUrl = backStackEntry.arguments?.getString("thumbnailUrl") ?: ""
+                    
+                    val managerTrack = EnhancedMusicPlayerManager.currentTrack.value
+                    
+                    val track = if (managerTrack?.videoId == trackId) {
+                        managerTrack
+                    } else {
+                        MusicTrack(
+                            videoId = trackId,
+                            title = title,
+                            artist = artist,
+                            thumbnailUrl = thumbnailUrl,
+                            duration = 0,
+                            sourceUrl = ""
+                        )
+                    }
                     
                     EnhancedMusicPlayerScreen(
                         track = track,

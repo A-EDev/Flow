@@ -42,14 +42,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PremiumMusicScreen(
-    onBackClick: () -> Unit,
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
     onArtistClick: (String) -> Unit = {},
-    onLibraryClick: () -> Unit = {},
     onSearchClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
-    viewModel: MusicViewModel = hiltViewModel(),
-    playerViewModel: MusicPlayerViewModel = hiltViewModel()
+    viewModel: MusicViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }

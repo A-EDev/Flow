@@ -91,9 +91,6 @@ fun EnhancedMusicPlayerScreen(
         )
     }
     
-    // Gesture states
-    var dragOffset by remember { mutableStateOf(0f) }
-    var showSkipAnimation by remember { mutableStateOf<SkipDirection?>(null) }
     
     LaunchedEffect(track.videoId) {
         viewModel.fetchRelatedContent(track.videoId)
@@ -276,11 +273,22 @@ fun EnhancedMusicPlayerScreen(
                         )
                     } else {
                         AsyncImage(
-                            model = uiState.currentTrack?.thumbnailUrl?.replace("w120-h120", "w1000-h1000"),
+                            model = (uiState.currentTrack?.thumbnailUrl ?: track.thumbnailUrl).replace("w120-h120", "w1000-h1000"),
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
+                        
+                        if (uiState.isLoading) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.3f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(color = Color.White)
+                            }
+                        }
                     }
                 }
                 

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.music.MusicCache
 import com.flow.youtube.data.music.YouTubeMusicService
 import com.flow.youtube.data.recommendation.MusicRecommendationAlgorithm
+import com.flow.youtube.data.recommendation.MusicSection
 import com.flow.youtube.innertube.YouTube
 import com.flow.youtube.innertube.models.SongItem
 import com.flow.youtube.data.newmusic.InnertubeMusicService
@@ -65,10 +66,57 @@ class MusicViewModel @Inject constructor(
 
             launch {
                 try {
-                    val forYou = musicRecommendationAlgorithm.getRecommendations(30)
-                    _uiState.value = _uiState.value.copy(forYouTracks = forYou)
+                    // Load Home Sections (Dynamic Content)
+                    val homeSections = musicRecommendationAlgorithm.loadMusicHome()
+                    
+                    // Extract specific sections for legacy UI support if needed, or just use dynamicSections
+                    val quickPicks = homeSections.find { 
+                        it.title.contains("Quick picks", true) || it.title.contains("Start radio", true) 
+                    }?.tracks ?: musicRecommendationAlgorithm.getRecommendations(20)
+
+                    val recommended = homeSections.find {
+                        it.title.contains("Mixed for you", true) || it.title.contains("Recommended", true)
+                    }?.tracks ?: musicRecommendationAlgorithm.getRecommendations(30)
+
+                    val musicVideos = homeSections.find { 
+                        it.title.contains("Music videos", true) 
+                    }?.tracks ?: emptyList()
+
+                    val longListens = homeSections.find { 
+                        it.title.contains("Long listens", true) 
+                    }?.tracks ?: emptyList()
+
+                    val listenAgain = homeSections.find { 
+                        it.title.contains("Listen again", true) 
+                    }?.tracks ?: emptyList()
+
+                    _uiState.value = _uiState.value.copy(
+                        forYouTracks = quickPicks,
+                        recommendedTracks = recommended,
+                        listenAgain = listenAgain,
+                        musicVideos = musicVideos,
+                        longListens = longListens,
+                        dynamicSections = homeSections
+                    )
+
+                    // Load Genres
+                    launch {
+                        val genres = listOf("Pop", "Rock", "Hip Hop", "R&B", "Electronic")
+                        val genreMap = mutableMapOf<String, List<MusicTrack>>()
+                        genres.forEach { genre ->
+                            val tracks = musicRecommendationAlgorithm.getGenreContent(genre)
+                            if (tracks.isNotEmpty()) {
+                                genreMap[genre] = tracks
+                            }
+                        }
+                        _uiState.value = _uiState.value.copy(genreTracks = genreMap, genres = genres)
+                    }
+
                 } catch (e: Exception) {
-                    Log.e("MusicViewModel", "Error loading recommendations", e)
+                    Log.e("MusicViewModel", "Error loading home sections", e)
+                    // Fallback
+                    val fallbackRecs = musicRecommendationAlgorithm.getRecommendations(30)
+                    _uiState.value = _uiState.value.copy(forYouTracks = fallbackRecs, recommendedTracks = fallbackRecs)
                 }
             }
 
@@ -88,29 +136,6 @@ class MusicViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(newReleases = newReleases)
                 } catch (e: Exception) {
                     Log.e("MusicViewModel", "Error loading new releases", e)
-                }
-            }
-
-            launch {
-                try {
-                    val homeResult = YouTube.home()
-                    val homeSections = homeResult.getOrNull()?.sections ?: emptyList()
-                    
-                    val musicVideos = homeSections.find { 
-                        it.title.contains("Music videos", ignoreCase = true) || 
-                        it.title.contains("Recommended music videos", ignoreCase = true)
-                    }?.items?.filterIsInstance<SongItem>()?.mapNotNull { InnertubeMusicService.convertToMusicTrack(it) } ?: emptyList()
-                    
-                    val longListens = homeSections.find { 
-                        it.title.contains("Long listens", ignoreCase = true) 
-                    }?.items?.filterIsInstance<SongItem>()?.mapNotNull { InnertubeMusicService.convertToMusicTrack(it) } ?: emptyList()
-                    
-                    _uiState.value = _uiState.value.copy(
-                        musicVideos = musicVideos,
-                        longListens = longListens
-                    )
-                } catch (e: Exception) {
-                    Log.e("MusicViewModel", "Error loading home sections", e)
                 }
             }
 
@@ -311,7 +336,9 @@ class MusicViewModel @Inject constructor(
 }
 
 data class MusicUiState(
-    val forYouTracks: List<MusicTrack> = emptyList(),
+    val forYouTracks: List<MusicTrack> = emptyList(), // Quick Picks
+    val recommendedTracks: List<MusicTrack> = emptyList(), // Recommended for you
+    val listenAgain: List<MusicTrack> = emptyList(), // Listen Again
     val trendingSongs: List<MusicTrack> = emptyList(),
     val newReleases: List<MusicTrack> = emptyList(),
     val musicVideos: List<MusicTrack> = emptyList(),
@@ -321,6 +348,7 @@ data class MusicUiState(
     val genreTracks: Map<String, List<MusicTrack>> = emptyMap(),
     val genres: List<String> = emptyList(),
     val featuredPlaylists: List<MusicPlaylist> = emptyList(),
+    val dynamicSections: List<MusicSection> = emptyList(),
     val selectedGenre: String? = null,
     val selectedFilter: String? = null,
     val isLoading: Boolean = true,

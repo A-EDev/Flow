@@ -303,7 +303,6 @@ private fun SongsTab(
         items(songs.size) { index ->
             MusicTrackCard(
                 song = songs[index],
-                index = index + 1,
                 onClick = { onSongClick(songs[index].videoId) }
             )
         }
@@ -398,7 +397,6 @@ private fun QuickPickCard(
 @Composable
 private fun MusicTrackCard(
     song: MusicTrack,
-    index: Int = 0,
     onClick: () -> Unit
 ) {
     Surface(
