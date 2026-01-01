@@ -1,6 +1,7 @@
 package com.flow.youtube.data.local
 
 import com.flow.youtube.data.local.dao.PlaylistDao
+import com.flow.youtube.data.local.dao.PlaylistWithCount
 import com.flow.youtube.data.local.dao.VideoDao
 import com.flow.youtube.data.local.entity.PlaylistEntity
 import com.flow.youtube.data.local.entity.PlaylistVideoCrossRef
@@ -135,16 +136,21 @@ class PlaylistRepository @Inject constructor(
     }
 
     // Playlist Management
-    suspend fun createPlaylist(playlistId: String, name: String, description: String, isPrivate: Boolean) {
+    suspend fun createPlaylist(playlistId: String, name: String, description: String, isPrivate: Boolean, isMusic: Boolean = false) {
         val entity = PlaylistEntity(
             id = playlistId,
             name = name,
             description = description,
             thumbnailUrl = "",
             isPrivate = isPrivate,
-            createdAt = System.currentTimeMillis()
+            createdAt = System.currentTimeMillis(),
+            isMusic = isMusic
         )
         playlistDao.insertPlaylist(entity)
+    }
+
+    suspend fun updatePlaylistName(playlistId: String, name: String) {
+        playlistDao.updatePlaylistName(playlistId, name)
     }
 
     suspend fun deletePlaylist(playlistId: String) {
@@ -178,19 +184,30 @@ class PlaylistRepository @Inject constructor(
         playlistDao.removeVideoFromPlaylist(playlistId, videoId)
     }
 
-    fun getAllPlaylistsFlow(): Flow<List<PlaylistInfo>> = playlistDao.getAllPlaylists().map { entities ->
-        entities.map { entity ->
-            // Note: videoCount in Entity might be manually maintained or 0.
-            // Ideally use a relation count.
-            // For now, mapping directly.
+    fun getAllPlaylistsFlow(): Flow<List<PlaylistInfo>> = playlistDao.getVideoPlaylistsWithCount().map { items ->
+        items.map { item ->
             PlaylistInfo(
-                id = entity.id,
-                name = entity.name,
-                description = entity.description,
-                videoCount = 0, // TODO: Get actual count
-                thumbnailUrl = entity.thumbnailUrl,
-                isPrivate = entity.isPrivate,
-                createdAt = entity.createdAt
+                id = item.playlist.id,
+                name = item.playlist.name,
+                description = item.playlist.description,
+                videoCount = item.videoCount,
+                thumbnailUrl = item.playlist.thumbnailUrl,
+                isPrivate = item.playlist.isPrivate,
+                createdAt = item.playlist.createdAt
+            )
+        }
+    }
+
+    fun getMusicPlaylistsFlow(): Flow<List<PlaylistInfo>> = playlistDao.getMusicPlaylistsWithCount().map { items ->
+        items.map { item ->
+            PlaylistInfo(
+                id = item.playlist.id,
+                name = item.playlist.name,
+                description = item.playlist.description,
+                videoCount = item.videoCount,
+                thumbnailUrl = item.playlist.thumbnailUrl,
+                isPrivate = item.playlist.isPrivate,
+                createdAt = item.playlist.createdAt
             )
         }
     }

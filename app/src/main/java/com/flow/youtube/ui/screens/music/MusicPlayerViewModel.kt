@@ -128,7 +128,7 @@ class MusicPlayerViewModel @Inject constructor(
             
         // Observe playlists (From Local Room DB now)
         viewModelScope.launch {
-            localPlaylistRepository.getAllPlaylistsFlow().collect { playlistInfos ->
+            localPlaylistRepository.getMusicPlaylistsFlow().collect { playlistInfos ->
                 // Map PlaylistInfo to Music Playlist (simplified)
                 val playlists = playlistInfos.map { info ->
                     com.flow.youtube.data.music.Playlist(
@@ -167,7 +167,8 @@ class MusicPlayerViewModel @Inject constructor(
                 title = track.title,
                 thumbnailUrl = track.thumbnailUrl,
                 channelName = track.artist,
-                channelId = "" // Music tracks might not have channel ID readily available
+                channelId = "", // Music tracks might not have channel ID readily available
+                isMusic = true
             )
 
             val finalSourceName = sourceName ?: "Radio • ${track.artist}"
@@ -399,7 +400,7 @@ class MusicPlayerViewModel @Inject constructor(
     fun createPlaylist(name: String, description: String = "", track: MusicTrack? = null) {
         viewModelScope.launch {
             val id = UUID.randomUUID().toString()
-            localPlaylistRepository.createPlaylist(id, name, description, false)
+            localPlaylistRepository.createPlaylist(id, name, description, false, isMusic = true)
             track?.let { addToPlaylist(id, it) }
         }
     }

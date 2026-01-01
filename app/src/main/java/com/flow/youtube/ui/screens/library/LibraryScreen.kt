@@ -28,6 +28,7 @@ import com.flow.youtube.ui.theme.extendedColors
 fun LibraryScreen(
     onNavigateToHistory: () -> Unit,
     onNavigateToPlaylists: () -> Unit,
+    onNavigateToMusicPlaylists: () -> Unit,
     onNavigateToLikedVideos: () -> Unit,
     onNavigateToWatchLater: () -> Unit,
     onNavigateToSavedShorts: () -> Unit,
@@ -87,6 +88,15 @@ fun LibraryScreen(
                     title = "Playlists",
                     subtitle = "${uiState.playlistsCount} playlists",
                     onClick = onNavigateToPlaylists
+                )
+            }
+
+            item {
+                LibraryCard(
+                    icon = Icons.Outlined.QueueMusic,
+                    title = "Music Playlists",
+                    subtitle = "Your music collections",
+                    onClick = onNavigateToMusicPlaylists
                 )
             }
 

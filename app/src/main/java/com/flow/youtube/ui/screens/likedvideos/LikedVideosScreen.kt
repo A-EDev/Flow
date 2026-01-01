@@ -31,6 +31,7 @@ fun LikedVideosScreen(
     onVideoClick: (String, Boolean) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isMusic: Boolean = false,
     viewModel: LikedVideosViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -38,7 +39,7 @@ fun LikedVideosScreen(
     
     // Initialize
     LaunchedEffect(Unit) {
-        viewModel.initialize(context)
+        viewModel.initialize(context, isMusic)
     }
     
     Scaffold(
@@ -46,7 +47,7 @@ fun LikedVideosScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = "Liked Videos",
+                        text = if (isMusic) "Liked Music" else "Liked Videos",
                         style = MaterialTheme.typography.headlineMedium
                     ) 
                 },

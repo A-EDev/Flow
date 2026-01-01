@@ -26,7 +26,8 @@ import javax.inject.Inject
 class MusicViewModel @Inject constructor(
     private val musicRecommendationAlgorithm: MusicRecommendationAlgorithm,
     private val subscriptionRepository: com.flow.youtube.data.local.SubscriptionRepository,
-    private val playlistRepository: com.flow.youtube.data.music.PlaylistRepository
+    private val playlistRepository: com.flow.youtube.data.music.PlaylistRepository,
+    private val localPlaylistRepository: com.flow.youtube.data.local.PlaylistRepository
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MusicUiState())
     val uiState: StateFlow<MusicUiState> = _uiState.asStateFlow()
@@ -291,11 +292,52 @@ class MusicViewModel @Inject constructor(
     fun fetchPlaylistDetails(playlistId: String) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isPlaylistLoading = true, playlistDetails = null)
-            val details = YouTubeMusicService.fetchPlaylistDetails(playlistId)
-            _uiState.value = _uiState.value.copy(
-                isPlaylistLoading = false,
-                playlistDetails = details
-            )
+            
+            // Try local first
+            val localPlaylist = localPlaylistRepository.getPlaylistInfo(playlistId)
+            if (localPlaylist != null) {
+                val videos = localPlaylistRepository.getPlaylistVideosFlow(playlistId).firstOrNull() ?: emptyList()
+                val tracks = videos.map { video ->
+                    MusicTrack(
+                        videoId = video.id,
+                        title = video.title,
+                        artist = video.channelName,
+                        thumbnailUrl = video.thumbnailUrl,
+                        duration = (video.duration / 1000).toInt(),
+                        sourceUrl = "" // Not needed for local playback usually
+                    )
+                }
+                
+                val details = PlaylistDetails(
+                    id = localPlaylist.id,
+                    title = localPlaylist.name,
+                    thumbnailUrl = localPlaylist.thumbnailUrl,
+                    author = "You",
+                    trackCount = tracks.size,
+                    description = localPlaylist.description,
+                    tracks = tracks
+                )
+                
+                _uiState.value = _uiState.value.copy(
+                    isPlaylistLoading = false,
+                    playlistDetails = details
+                )
+                return@launch
+            }
+
+            // Fallback to remote
+            try {
+                val details = YouTubeMusicService.fetchPlaylistDetails(playlistId)
+                _uiState.value = _uiState.value.copy(
+                    isPlaylistLoading = false,
+                    playlistDetails = details
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isPlaylistLoading = false,
+                    error = "Failed to load playlist"
+                )
+            }
         }
     }
 

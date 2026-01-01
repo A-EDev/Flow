@@ -11,5 +11,6 @@ data class PlaylistEntity(
     val thumbnailUrl: String,
     val isPrivate: Boolean,
     val createdAt: Long,
-    val videoCount: Int = 0 // Denormalized count for performance
+    val videoCount: Int = 0, // Denormalized count for performance
+    val isMusic: Boolean = false
 )

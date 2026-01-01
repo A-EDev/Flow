@@ -15,13 +15,14 @@ class LikedVideosViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(LikedVideosUiState())
     val uiState: StateFlow<LikedVideosUiState> = _uiState.asStateFlow()
     
-    fun initialize(context: Context) {
+    fun initialize(context: Context, isMusic: Boolean = false) {
         likedVideosRepository = LikedVideosRepository.getInstance(context)
         
         // Load liked videos
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            likedVideosRepository.getAllLikedVideos().collect { likedVideos ->
+            val flow = if (isMusic) likedVideosRepository.getLikedMusicFlow() else likedVideosRepository.getLikedVideosFlow()
+            flow.collect { likedVideos ->
                 _uiState.update { 
                     it.copy(
                         likedVideos = likedVideos,

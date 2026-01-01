@@ -32,6 +32,7 @@ class ViewHistory private constructor(private val context: Context) {
         private fun thumbnailKey(videoId: String) = stringPreferencesKey("video_${videoId}_thumbnail")
         private fun channelNameKey(videoId: String) = stringPreferencesKey("video_${videoId}_channel_name")
         private fun channelIdKey(videoId: String) = stringPreferencesKey("video_${videoId}_channel_id")
+        private fun isMusicKey(videoId: String) = androidx.datastore.preferences.core.booleanPreferencesKey("video_${videoId}_is_music")
     }
     
     /**
@@ -44,7 +45,8 @@ class ViewHistory private constructor(private val context: Context) {
         title: String = "",
         thumbnailUrl: String = "",
         channelName: String = "",
-        channelId: String = ""
+        channelId: String = "",
+        isMusic: Boolean = false
     ) {
         context.viewHistoryDataStore.edit { preferences ->
             preferences[positionKey(videoId)] = position
@@ -54,6 +56,7 @@ class ViewHistory private constructor(private val context: Context) {
             if (thumbnailUrl.isNotEmpty()) preferences[thumbnailKey(videoId)] = thumbnailUrl
             if (channelName.isNotEmpty()) preferences[channelNameKey(videoId)] = channelName
             if (channelId.isNotEmpty()) preferences[channelIdKey(videoId)] = channelId
+            preferences[isMusicKey(videoId)] = isMusic
         }
     }
     
@@ -78,6 +81,7 @@ class ViewHistory private constructor(private val context: Context) {
             val thumbnail = preferences[thumbnailKey(videoId)] ?: ""
             val channelName = preferences[channelNameKey(videoId)] ?: ""
             val channelId = preferences[channelIdKey(videoId)] ?: ""
+            val isMusic = preferences[isMusicKey(videoId)] ?: false
             
             VideoHistoryEntry(
                 videoId = videoId,
@@ -87,7 +91,8 @@ class ViewHistory private constructor(private val context: Context) {
                 title = title,
                 thumbnailUrl = thumbnail,
                 channelName = channelName,
-                channelId = channelId
+                channelId = channelId,
+                isMusic = isMusic
             )
         }
     }
@@ -117,6 +122,7 @@ class ViewHistory private constructor(private val context: Context) {
                 val thumbnail = preferences[thumbnailKey(videoId)] ?: ""
                 val channelName = preferences[channelNameKey(videoId)] ?: ""
                 val channelId = preferences[channelIdKey(videoId)] ?: ""
+                val isMusic = preferences[isMusicKey(videoId)] ?: false
                 
                 VideoHistoryEntry(
                     videoId = videoId,
@@ -126,10 +132,19 @@ class ViewHistory private constructor(private val context: Context) {
                     title = title,
                     thumbnailUrl = thumbnail,
                     channelName = channelName,
-                    channelId = channelId
+                    channelId = channelId,
+                    isMusic = isMusic
                 )
-            }.sortedByDescending { it.timestamp } // Most recent first
+            }.sortedByDescending { it.timestamp }
         }
+    }
+
+    fun getMusicHistoryFlow(): Flow<List<VideoHistoryEntry>> {
+        return getAllHistory().map { list -> list.filter { it.isMusic } }
+    }
+
+    fun getVideoHistoryFlow(): Flow<List<VideoHistoryEntry>> {
+        return getAllHistory().map { list -> list.filter { !it.isMusic } }
     }
     
     /**
@@ -165,7 +180,8 @@ data class VideoHistoryEntry(
     val title: String,
     val thumbnailUrl: String,
     val channelName: String = "",
-    val channelId: String = ""
+    val channelId: String = "",
+    val isMusic: Boolean = false
 ) {
     val progressPercentage: Float
         get() = if (duration > 0) (position.toFloat() / duration.toFloat()) * 100f else 0f

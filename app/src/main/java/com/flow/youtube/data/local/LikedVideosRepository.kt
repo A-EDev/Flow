@@ -97,7 +97,7 @@ class LikedVideosRepository private constructor(private val context: Context) {
     }
     
     /**
-     * Get all liked videos
+     * Get all liked videos (mixed)
      */
     fun getAllLikedVideos(): Flow<List<LikedVideoInfo>> {
         return context.likedVideosDataStore.data.map { preferences ->
@@ -112,6 +112,14 @@ class LikedVideosRepository private constructor(private val context: Context) {
                 }
             }
         }
+    }
+
+    fun getLikedVideosFlow(): Flow<List<LikedVideoInfo>> {
+        return getAllLikedVideos().map { list -> list.filter { !it.isMusic } }
+    }
+
+    fun getLikedMusicFlow(): Flow<List<LikedVideoInfo>> {
+        return getAllLikedVideos().map { list -> list.filter { it.isMusic } }
     }
     
     private fun serializeVideo(video: LikedVideoInfo): String {

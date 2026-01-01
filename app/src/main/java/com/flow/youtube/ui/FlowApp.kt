@@ -266,6 +266,9 @@ fun FlowApp(
                         onNavigateToPlaylists = { 
                             navController.navigate("playlists")
                         },
+                        onNavigateToMusicPlaylists = {
+                            navController.navigate("musicPlaylists")
+                        },
                         onNavigateToLikedVideos = { 
                             navController.navigate("likedVideos")
                         },
@@ -419,6 +422,44 @@ fun FlowApp(
                         },
                         onNavigateToWatchLater = { navController.navigate("watchLater") },
                         onNavigateToLikedVideos = { navController.navigate("likedVideos") }
+                    )
+                }
+
+                // Music Playlists Screen
+                composable("musicPlaylists") {
+                    currentRoute.value = "musicPlaylists"
+                    showBottomNav = false
+                    com.flow.youtube.ui.screens.music.MusicPlaylistsScreen(
+                        onBackClick = { navController.popBackStack() },
+                        onPlaylistClick = { playlist ->
+                            navController.navigate("musicPlaylist/${playlist.id}")
+                        },
+                        onNavigateToLikedMusic = { navController.navigate("likedMusic") },
+                        onNavigateToMusicHistory = { navController.navigate("musicHistory") }
+                    )
+                }
+
+                composable("likedMusic") {
+                    currentRoute.value = "likedMusic"
+                    showBottomNav = false
+                    LikedVideosScreen(
+                        onBackClick = { navController.popBackStack() },
+                        onVideoClick = { videoId, _ ->
+                            navController.navigate("musicPlayer/$videoId")
+                        },
+                        isMusic = true
+                    )
+                }
+
+                composable("musicHistory") {
+                    currentRoute.value = "musicHistory"
+                    showBottomNav = false
+                    HistoryScreen(
+                        onBackClick = { navController.popBackStack() },
+                        onVideoClick = { videoId ->
+                            navController.navigate("musicPlayer/$videoId")
+                        },
+                        isMusic = true
                     )
                 }
 

@@ -15,13 +15,14 @@ class HistoryViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(HistoryUiState())
     val uiState: StateFlow<HistoryUiState> = _uiState.asStateFlow()
     
-    fun initialize(context: Context) {
+    fun initialize(context: Context, isMusic: Boolean = false) {
         viewHistory = ViewHistory.getInstance(context)
         
         // Load history
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            viewHistory.getAllHistory().collect { history ->
+            val flow = if (isMusic) viewHistory.getMusicHistoryFlow() else viewHistory.getVideoHistoryFlow()
+            flow.collect { history ->
                 _uiState.update { 
                     it.copy(
                         historyEntries = history,

@@ -32,6 +32,7 @@ fun HistoryScreen(
     onVideoClick: (String) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isMusic: Boolean = false,
     viewModel: HistoryViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -40,7 +41,7 @@ fun HistoryScreen(
     
     // Initialize
     LaunchedEffect(Unit) {
-        viewModel.initialize(context)
+        viewModel.initialize(context, isMusic)
     }
     
     Scaffold(
@@ -48,7 +49,7 @@ fun HistoryScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = "Watch History",
+                        text = if (isMusic) "Music History" else "History",
                         style = MaterialTheme.typography.headlineMedium
                     ) 
                 },
