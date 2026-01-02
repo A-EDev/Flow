@@ -2,6 +2,7 @@ package com.flow.youtube.ui.screens.player
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -20,6 +21,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -56,6 +60,10 @@ fun PremiumControlsOverlay(
     isSubtitlesEnabled: Boolean = false,
     autoplayEnabled: Boolean = true,
     onAutoplayToggle: (Boolean) -> Unit = {},
+    onPrevious: () -> Unit = {},
+    onNext: () -> Unit = {},
+    hasPrevious: Boolean = false,
+    hasNext: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -182,15 +190,16 @@ fun PremiumControlsOverlay(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(48.dp)
                 ) {
-                    // Previous / Rewind
+                    // Previous Video
                     IconButton(
-                        onClick = { onSeek((currentPosition - 10000).coerceAtLeast(0)) },
+                        onClick = onPrevious,
+                        enabled = hasPrevious,
                         modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.SkipPrevious, // Or Replay10
-                            contentDescription = "Previous",
-                            tint = Color.White,
+                            imageVector = Icons.Rounded.SkipPrevious,
+                            contentDescription = "Previous Video",
+                            tint = if (hasPrevious) Color.White else Color.White.copy(alpha = 0.3f),
                             modifier = Modifier.size(36.dp)
                         )
                     }
@@ -208,10 +217,7 @@ fun PremiumControlsOverlay(
                             ) { onPlayPause() }
                     ) {
                         if (isBuffering) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(32.dp)
-                            )
+                            SleekLoadingAnimation(modifier = Modifier.size(48.dp))
                         } else {
                             Icon(
                                 imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
@@ -222,15 +228,16 @@ fun PremiumControlsOverlay(
                         }
                     }
 
-                    // Next / Forward
+                    // Next Video
                     IconButton(
-                        onClick = { onSeek((currentPosition + 10000).coerceAtMost(duration)) },
+                        onClick = onNext,
+                        enabled = hasNext,
                         modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Rounded.SkipNext, // Or Forward10
-                            contentDescription = "Next",
-                            tint = Color.White,
+                            imageVector = Icons.Rounded.SkipNext,
+                            contentDescription = "Next Video",
+                            tint = if (hasNext) Color.White else Color.White.copy(alpha = 0.3f),
                             modifier = Modifier.size(36.dp)
                         )
                     }
@@ -244,49 +251,56 @@ fun PremiumControlsOverlay(
                     .align(Alignment.BottomCenter)
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                // Time and Chapter (Pill Shape)
+                // Time and Chapter (Pill Shape) - Positioned better
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        color = Color.Black.copy(alpha = 0.3f), // More transparent
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 12.dp)
+                    Text(
+                        text = formatTime(currentPosition),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    Text(
+                        text = " / ${formatTime(duration)}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.6f)
+                    )
+                    
+                    if (currentChapter != null) {
+                        Surface(
+                            color = Color.White.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.padding(start = 12.dp)
                         ) {
-                            Text(
-                                text = "${formatTime(currentPosition)} / ${formatTime(duration)}",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = Color.White,
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Default
-                            )
-                            
-                            if (currentChapter != null) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Bookmark,
+                                    contentDescription = null,
+                                    tint = primaryColor,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = " • ${currentChapter.title}",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color.White.copy(alpha = 0.9f),
+                                    text = currentChapter.title,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White,
                                     maxLines = 1,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(start = 8.dp).widthIn(max = 200.dp)
-                                )
-                                Icon(
-                                    imageVector = Icons.Rounded.ChevronRight,
-                                    contentDescription = null,
-                                    tint = Color.White.copy(alpha = 0.7f),
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.widthIn(max = 180.dp)
                                 )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
                 // Seekbar and Fullscreen
                 Row(
@@ -326,6 +340,51 @@ fun PremiumControlsOverlay(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun SleekLoadingAnimation(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "loading")
+    val rotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+
+    val primaryColor = MaterialTheme.colorScheme.primary
+
+    Canvas(modifier = modifier) {
+        val strokeWidth = 4.dp.toPx()
+        val size = size.minDimension - strokeWidth
+        
+        // Draw background track
+        drawArc(
+            color = Color.White.copy(alpha = 0.2f),
+            startAngle = 0f,
+            sweepAngle = 360f,
+            useCenter = false,
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+        )
+        
+        // Draw animated arc
+        rotate(rotation) {
+            drawArc(
+                brush = Brush.sweepGradient(
+                    0.0f to Color.Transparent,
+                    0.5f to primaryColor,
+                    1.0f to primaryColor
+                ),
+                startAngle = 0f,
+                sweepAngle = 280f,
+                useCenter = false,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
         }
     }
 }

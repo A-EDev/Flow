@@ -40,6 +40,12 @@ class VideoPlayerViewModel @Inject constructor(
     private val _isLoadingComments = MutableStateFlow(false)
     val isLoadingComments: StateFlow<Boolean> = _isLoadingComments.asStateFlow()
     
+    private val navigationHistory = mutableListOf<String>()
+    private var currentHistoryIndex = -1
+    
+    private val _canGoPrevious = MutableStateFlow(false)
+    val canGoPrevious: StateFlow<Boolean> = _canGoPrevious.asStateFlow()
+    
     fun initialize(context: Context) {
         // Handled by Hilt
     }
@@ -52,6 +58,18 @@ class VideoPlayerViewModel @Inject constructor(
         // Don't reload if already loading or already loaded the same video
         if ((_uiState.value.streamInfo?.id == videoId || _uiState.value.isLoading) && _uiState.value.error == null) {
             return
+        }
+        
+        // Track history
+        if (navigationHistory.isEmpty() || navigationHistory[currentHistoryIndex] != videoId) {
+            // If we are not at the end of history, clear the forward history
+            if (currentHistoryIndex < navigationHistory.size - 1) {
+                val toRemove = navigationHistory.size - 1 - currentHistoryIndex
+                repeat(toRemove) { navigationHistory.removeAt(navigationHistory.size - 1) }
+            }
+            navigationHistory.add(videoId)
+            currentHistoryIndex = navigationHistory.size - 1
+            _canGoPrevious.value = currentHistoryIndex > 0
         }
         
         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
@@ -198,6 +216,15 @@ class VideoPlayerViewModel @Inject constructor(
             selectedQuality = streams.third,
             isAdaptiveMode = quality == VideoQuality.AUTO
         )
+    }
+
+    fun getPreviousVideoId(): String? {
+        if (currentHistoryIndex > 0) {
+            currentHistoryIndex--
+            _canGoPrevious.value = currentHistoryIndex > 0
+            return navigationHistory[currentHistoryIndex]
+        }
+        return null
     }
     
     fun scaleUpQuality() {
