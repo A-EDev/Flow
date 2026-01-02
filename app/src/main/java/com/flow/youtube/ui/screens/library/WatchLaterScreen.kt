@@ -32,7 +32,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun WatchLaterScreen(
     onBackClick: () -> Unit,
-    onVideoClick: (String, Boolean) -> Unit,
+    onVideoClick: (Video) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -88,8 +88,8 @@ fun WatchLaterScreen(
                 WatchLaterHeader(
                     videoCount = watchLaterVideos.size,
                     thumbnailUrl = watchLaterVideos.firstOrNull()?.thumbnailUrl ?: "",
-                    onPlayAll = { watchLaterVideos.firstOrNull()?.let { onVideoClick(it.id, it.isMusic) } },
-                    onShuffle = { watchLaterVideos.randomOrNull()?.let { onVideoClick(it.id, it.isMusic) } }
+                    onPlayAll = { watchLaterVideos.firstOrNull()?.let { onVideoClick(it) } },
+                    onShuffle = { watchLaterVideos.randomOrNull()?.let { onVideoClick(it) } }
                 )
             }
 
@@ -116,7 +116,7 @@ fun WatchLaterScreen(
                 ) { video ->
                     WatchLaterVideoItem(
                         video = video,
-                        onClick = { onVideoClick(video.id, video.isMusic) },
+                        onClick = { onVideoClick(video) },
                         onRemove = {
                             scope.launch {
                                 repo.removeFromWatchLater(video.id)

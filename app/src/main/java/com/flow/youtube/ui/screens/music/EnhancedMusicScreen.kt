@@ -53,7 +53,7 @@ import android.content.Intent
 fun EnhancedMusicScreen(
     onBackClick: () -> Unit,
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
-    onVideoClick: (String) -> Unit = {},
+    onVideoClick: (MusicTrack) -> Unit = {},
     onArtistClick: (String) -> Unit = {},
     onSearchClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
@@ -324,7 +324,7 @@ fun EnhancedMusicScreen(
                                                 title = track.title,
                                                 subtitle = track.artist,
                                                 thumbnailUrl = track.thumbnailUrl,
-                                                onClick = { onVideoClick(track.videoId) }
+                                                onClick = { onVideoClick(track) }
                                             )
                                         }
                                     }
@@ -420,7 +420,7 @@ fun EnhancedMusicScreen(
                                             title = track.title,
                                             subtitle = track.artist,
                                             thumbnailUrl = track.thumbnailUrl,
-                                            onClick = { onVideoClick(track.videoId) }
+                                            onClick = { onVideoClick(track) }
                                         )
                                     }
                                 }

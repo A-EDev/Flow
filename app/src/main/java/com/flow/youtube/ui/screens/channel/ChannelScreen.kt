@@ -43,7 +43,7 @@ import androidx.compose.animation.AnimatedVisibility
 @Composable
 fun ChannelScreen(
     channelUrl: String,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (Video) -> Unit,
     onShortClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
     onBackClick: () -> Unit,
@@ -154,7 +154,7 @@ private fun ChannelContent(
     videosLazyPagingItems: LazyPagingItems<Video>?,
     shortsLazyPagingItems: LazyPagingItems<Video>?,
     playlistsLazyPagingItems: LazyPagingItems<com.flow.youtube.data.model.Playlist>?,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (Video) -> Unit,
     onShortClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
     onSubscribeClick: () -> Unit,
@@ -332,7 +332,7 @@ private fun ChannelContent(
                             if (video != null) {
                                 VideoCardFullWidth(
                                     video = video,
-                                    onClick = { onVideoClick(video.id) }
+                                    onClick = { onVideoClick(video) }
                                 )
                             }
                         }
