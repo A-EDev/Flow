@@ -412,6 +412,16 @@ class MusicPlayerViewModel @Inject constructor(
     fun showCreatePlaylistDialog(show: Boolean) {
         _uiState.update { it.copy(showCreatePlaylistDialog = show) }
     }
+
+    fun playNext(track: MusicTrack) {
+        EnhancedMusicPlayerManager.playNext(track)
+        Toast.makeText(context, "Will play next", Toast.LENGTH_SHORT).show()
+    }
+
+    fun addToQueue(track: MusicTrack) {
+        EnhancedMusicPlayerManager.addToQueue(track)
+        Toast.makeText(context, "Added to queue", Toast.LENGTH_SHORT).show()
+    }
     
     fun downloadTrack(track: MusicTrack? = null) {
         val trackToDownload = track ?: _uiState.value.currentTrack ?: return

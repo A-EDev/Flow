@@ -6,25 +6,56 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import com.flow.youtube.ui.screens.music.MusicTrack
 import com.flow.youtube.ui.screens.music.MusicTrackRow
+import com.flow.youtube.ui.screens.music.MusicPlayerViewModel
+import com.flow.youtube.ui.screens.music.AddToPlaylistDialog
+import com.flow.youtube.ui.screens.music.CreatePlaylistDialog
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicQuickActionsSheet(
     track: MusicTrack,
     onDismiss: () -> Unit,
-    onAddToPlaylist: () -> Unit,
-    onDownload: () -> Unit,
-    onViewArtist: () -> Unit,
-    onViewAlbum: () -> Unit,
-    onShare: () -> Unit
+    onViewArtist: () -> Unit = {},
+    onViewAlbum: () -> Unit = {},
+    onShare: () -> Unit = {},
+    onInfoClick: () -> Unit = {},
+    viewModel: MusicPlayerViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+    
+    // Dialogs
+    if (uiState.showCreatePlaylistDialog) {
+        CreatePlaylistDialog(
+            onDismiss = { viewModel.showCreatePlaylistDialog(false) },
+            onConfirm = { name, desc ->
+                viewModel.createPlaylist(name, desc, track)
+            }
+        )
+    }
+    
+    if (uiState.showAddToPlaylistDialog) {
+        AddToPlaylistDialog(
+            playlists = uiState.playlists,
+            onDismiss = { viewModel.showAddToPlaylistDialog(false) },
+            onSelectPlaylist = { playlistId ->
+                viewModel.addToPlaylist(playlistId, track)
+            },
+            onCreateNew = {
+                viewModel.showAddToPlaylistDialog(false)
+                viewModel.showCreatePlaylistDialog(true)
+            }
+        )
+    }
+
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
@@ -47,16 +78,33 @@ fun MusicQuickActionsSheet(
                 icon = Icons.Outlined.PlaylistAdd,
                 text = "Add to playlist",
                 onClick = {
-                    onAddToPlaylist()
-                    onDismiss()
+                    viewModel.showAddToPlaylistDialog(true)
                 }
             )
             
             MusicQuickActionItem(
+                icon = Icons.Outlined.QueueMusic,
+                text = "Play next",
+                onClick = {
+                    viewModel.playNext(track)
+                    onDismiss()
+                }
+            )
+
+            MusicQuickActionItem(
+                icon = Icons.Outlined.PlaylistPlay,
+                text = "Add to queue",
+                onClick = {
+                    viewModel.addToQueue(track)
+                    onDismiss()
+                }
+            )
+
+            MusicQuickActionItem(
                 icon = Icons.Outlined.Download,
                 text = "Download",
                 onClick = {
-                    onDownload()
+                    viewModel.downloadTrack(track)
                     onDismiss()
                 }
             )
@@ -83,6 +131,15 @@ fun MusicQuickActionsSheet(
                 )
             }
             
+            MusicQuickActionItem(
+                icon = Icons.Outlined.Info,
+                text = "Info & Details",
+                onClick = {
+                    onInfoClick()
+                    onDismiss()
+                }
+            )
+
             MusicQuickActionItem(
                 icon = Icons.Outlined.Share,
                 text = "Share",

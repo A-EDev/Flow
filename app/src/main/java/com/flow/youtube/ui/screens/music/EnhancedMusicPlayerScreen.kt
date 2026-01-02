@@ -53,6 +53,7 @@ fun EnhancedMusicPlayerScreen(
     track: MusicTrack,
     onBackClick: () -> Unit,
     onArtistClick: (String) -> Unit = {},
+    onAlbumClick: (String) -> Unit = {},
     viewModel: MusicPlayerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -62,6 +63,8 @@ fun EnhancedMusicPlayerScreen(
     var showLyrics by remember { mutableStateOf(false) }
     var showRelated by remember { mutableStateOf(false) }
     var isVideoMode by remember { mutableStateOf(false) }
+    var showMoreOptions by remember { mutableStateOf(false) }
+    var showInfoDialog by remember { mutableStateOf(false) }
     
     LaunchedEffect(isVideoMode) {
         viewModel.switchMode(isVideoMode)
@@ -88,6 +91,39 @@ fun EnhancedMusicPlayerScreen(
                 viewModel.showAddToPlaylistDialog(false)
                 viewModel.showCreatePlaylistDialog(true)
             }
+        )
+    }
+
+    if (showMoreOptions && uiState.currentTrack != null) {
+        com.flow.youtube.ui.components.MusicQuickActionsSheet(
+            track = uiState.currentTrack!!,
+            onDismiss = { showMoreOptions = false },
+            onViewArtist = { 
+                if (uiState.currentTrack!!.channelId.isNotEmpty()) {
+                    onArtistClick(uiState.currentTrack!!.channelId)
+                }
+            },
+            onViewAlbum = { 
+                if (uiState.currentTrack!!.album.isNotEmpty()) {
+                    onAlbumClick(uiState.currentTrack!!.album)
+                }
+            },
+            onShare = { 
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, uiState.currentTrack!!.title)
+                    putExtra(Intent.EXTRA_TEXT, "Check out this song: ${uiState.currentTrack!!.title} by ${uiState.currentTrack!!.artist}\nhttps://music.youtube.com/watch?v=${uiState.currentTrack!!.videoId}")
+                }
+                context.startActivity(Intent.createChooser(shareIntent, "Share song"))
+            },
+            onInfoClick = { showInfoDialog = true }
+        )
+    }
+
+    if (showInfoDialog && uiState.currentTrack != null) {
+        TrackInfoDialog(
+            track = uiState.currentTrack!!,
+            onDismiss = { showInfoDialog = false }
         )
     }
     
@@ -210,7 +246,7 @@ fun EnhancedMusicPlayerScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { /* More options */ }) {
+                    IconButton(onClick = { showMoreOptions = true }) {
                         Icon(
                             Icons.Outlined.MoreVert, 
                             "More",
@@ -1207,6 +1243,8 @@ fun RelatedTrackItem(
     track: MusicTrack,
     onClick: () -> Unit
 ) {
+    var showMoreOptions by remember { mutableStateOf(false) }
+    
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1245,12 +1283,84 @@ fun RelatedTrackItem(
             )
         }
         
-        IconButton(onClick = { /* More options */ }) {
+        IconButton(onClick = { showMoreOptions = true }) {
             Icon(
                 Icons.Outlined.MoreVert,
                 contentDescription = "More",
                 tint = Color.White.copy(alpha = 0.6f)
             )
         }
+    }
+    
+    if (showMoreOptions) {
+        com.flow.youtube.ui.components.MusicQuickActionsSheet(
+            track = track,
+            onDismiss = { showMoreOptions = false }
+        )
+    }
+}
+
+@Composable
+fun TrackInfoDialog(
+    track: MusicTrack,
+    onDismiss: () -> Unit
+) {
+    val player = EnhancedMusicPlayerManager.player
+    val audioFormat = player?.audioFormat
+    
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Track Details") },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                InfoRow("Title", track.title)
+                InfoRow("Artist", track.artist)
+                if (track.album.isNotEmpty()) {
+                    InfoRow("Album", track.album)
+                }
+                InfoRow("Video ID", track.videoId)
+                
+                Divider()
+                
+                if (audioFormat != null) {
+                    InfoRow("Codec", audioFormat.sampleMimeType ?: "Unknown")
+                    InfoRow("Sample Rate", "${audioFormat.sampleRate} Hz")
+                    if (audioFormat.bitrate > 0) {
+                        InfoRow("Bitrate", "${audioFormat.bitrate / 1000} kbps")
+                    }
+                    InfoRow("Channels", audioFormat.channelCount.toString())
+                } else {
+                    Text(
+                        "Audio stream information not available yet.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
+            }
+        }
+    )
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Column {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }

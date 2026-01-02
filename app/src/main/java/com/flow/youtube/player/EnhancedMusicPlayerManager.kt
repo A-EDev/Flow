@@ -215,6 +215,42 @@ object EnhancedMusicPlayerManager {
         _queue.value = currentQueue
         _originalQueue.addAll(tracks)
     }
+
+    /**
+     * Add track to play immediately after current track
+     */
+    fun playNext(track: MusicTrack) {
+        val currentQueue = _queue.value.toMutableList()
+        val currentIndex = _currentQueueIndex.value
+        
+        // Remove if already in queue to avoid duplicates
+        currentQueue.remove(track)
+        
+        if (currentQueue.isEmpty()) {
+            currentQueue.add(track)
+        } else {
+            val insertIndex = (currentIndex + 1).coerceAtMost(currentQueue.size)
+            currentQueue.add(insertIndex, track)
+        }
+        
+        _queue.value = currentQueue
+        // Also update original queue for shuffle/unshuffle
+        if (!_originalQueue.contains(track)) {
+            _originalQueue.add(track)
+        }
+    }
+
+    /**
+     * Add single track to end of queue
+     */
+    fun addToQueue(track: MusicTrack) {
+        if (!_queue.value.contains(track)) {
+            val currentQueue = _queue.value.toMutableList()
+            currentQueue.add(track)
+            _queue.value = currentQueue
+            _originalQueue.add(track)
+        }
+    }
     
     /**
      * Play next track in queue

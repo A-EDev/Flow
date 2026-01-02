@@ -30,6 +30,7 @@ import com.flow.youtube.ui.components.MusicQuickActionsSheet
 import com.flow.youtube.ui.screens.music.MusicTrack
 import com.flow.youtube.ui.screens.music.MusicTrackRow
 import com.flow.youtube.ui.theme.extendedColors
+import android.content.Intent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,7 +48,6 @@ fun HistoryScreen(
     
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
-    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
     
     // Initialize
     LaunchedEffect(Unit) {
@@ -58,32 +58,20 @@ fun HistoryScreen(
         MusicQuickActionsSheet(
             track = selectedTrack!!,
             onDismiss = { showBottomSheet = false },
-            onAddToPlaylist = { showAddToPlaylistDialog = true },
-            onDownload = { /* TODO: Implement download */ },
             onViewArtist = { 
                 if (selectedTrack!!.channelId.isNotEmpty()) {
                     onArtistClick(selectedTrack!!.channelId)
                 }
             },
             onViewAlbum = { /* TODO: Implement view album */ },
-            onShare = { /* TODO: Implement share */ }
-        )
-    }
-    
-    if (showAddToPlaylistDialog && selectedTrack != null) {
-        AddToPlaylistDialog(
-            video = Video(
-                id = selectedTrack!!.videoId,
-                title = selectedTrack!!.title,
-                channelName = selectedTrack!!.artist,
-                channelId = selectedTrack!!.channelId,
-                thumbnailUrl = selectedTrack!!.thumbnailUrl,
-                duration = selectedTrack!!.duration,
-                viewCount = selectedTrack!!.views,
-                uploadDate = "",
-                isMusic = true
-            ),
-            onDismiss = { showAddToPlaylistDialog = false }
+            onShare = { 
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
+                    putExtra(Intent.EXTRA_TEXT, "Check out this song: ${selectedTrack!!.title} by ${selectedTrack!!.artist}\nhttps://music.youtube.com/watch?v=${selectedTrack!!.videoId}")
+                }
+                context.startActivity(Intent.createChooser(shareIntent, "Share song"))
+            }
         )
     }
     

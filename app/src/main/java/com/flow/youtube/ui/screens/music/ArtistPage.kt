@@ -38,6 +38,7 @@ import coil.request.ImageRequest
 import com.flow.youtube.ui.components.MusicQuickActionsSheet
 import com.flow.youtube.ui.components.AddToPlaylistDialog
 import com.flow.youtube.data.model.Video
+import android.content.Intent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,41 +53,29 @@ fun ArtistPage(
 ) {
     val scrollState = rememberLazyListState()
     val isScrolled by remember { derivedStateOf { scrollState.firstVisibleItemIndex > 0 || scrollState.firstVisibleItemScrollOffset > 0 } }
+    val context = LocalContext.current
     
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
-    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
 
     if (showBottomSheet && selectedTrack != null) {
         MusicQuickActionsSheet(
             track = selectedTrack!!,
             onDismiss = { showBottomSheet = false },
-            onAddToPlaylist = { showAddToPlaylistDialog = true },
-            onDownload = { /* TODO: Implement download */ },
             onViewArtist = { 
                 if (selectedTrack!!.channelId.isNotEmpty()) {
                     onArtistClick(selectedTrack!!.channelId)
                 }
             },
             onViewAlbum = { /* TODO: Implement view album */ },
-            onShare = { /* TODO: Implement share */ }
-        )
-    }
-    
-    if (showAddToPlaylistDialog && selectedTrack != null) {
-        AddToPlaylistDialog(
-            video = Video(
-                id = selectedTrack!!.videoId,
-                title = selectedTrack!!.title,
-                channelName = selectedTrack!!.artist,
-                channelId = selectedTrack!!.channelId,
-                thumbnailUrl = selectedTrack!!.thumbnailUrl,
-                duration = selectedTrack!!.duration,
-                viewCount = selectedTrack!!.views,
-                uploadDate = "",
-                isMusic = true
-            ),
-            onDismiss = { showAddToPlaylistDialog = false }
+            onShare = { 
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
+                    putExtra(Intent.EXTRA_TEXT, "Check out this song: ${selectedTrack!!.title} by ${selectedTrack!!.artist}\nhttps://music.youtube.com/watch?v=${selectedTrack!!.videoId}")
+                }
+                context.startActivity(Intent.createChooser(shareIntent, "Share song"))
+            }
         )
     }
     

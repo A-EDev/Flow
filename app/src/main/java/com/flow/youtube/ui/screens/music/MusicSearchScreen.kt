@@ -59,41 +59,29 @@ fun MusicSearchScreen(
     
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
-    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
 
     if (showBottomSheet && selectedTrack != null) {
+        val context = LocalContext.current
         MusicQuickActionsSheet(
             track = selectedTrack!!,
             onDismiss = { showBottomSheet = false },
-            onAddToPlaylist = { showAddToPlaylistDialog = true },
-            onDownload = { /* TODO: Implement download */ },
             onViewArtist = { 
                 if (selectedTrack!!.channelId.isNotEmpty()) {
                     onArtistClick(selectedTrack!!.channelId)
                 }
             },
             onViewAlbum = { /* TODO: Implement view album */ },
-            onShare = { /* TODO: Implement share */ }
+            onShare = { 
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
+                    putExtra(Intent.EXTRA_TEXT, "Check out this song: ${selectedTrack!!.title} by ${selectedTrack!!.artist}\nhttps://music.youtube.com/watch?v=${selectedTrack!!.videoId}")
+                }
+                context.startActivity(Intent.createChooser(shareIntent, "Share song"))
+            }
         )
     }
     
-    if (showAddToPlaylistDialog && selectedTrack != null) {
-        AddToPlaylistDialog(
-            video = Video(
-                id = selectedTrack!!.videoId,
-                title = selectedTrack!!.title,
-                channelName = selectedTrack!!.artist,
-                channelId = selectedTrack!!.channelId,
-                thumbnailUrl = selectedTrack!!.thumbnailUrl,
-                duration = selectedTrack!!.duration,
-                viewCount = selectedTrack!!.views,
-                uploadDate = "",
-                isMusic = true
-            ),
-            onDismiss = { showAddToPlaylistDialog = false }
-        )
-    }
-
     val voiceSearchLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
