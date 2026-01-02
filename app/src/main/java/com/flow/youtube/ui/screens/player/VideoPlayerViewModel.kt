@@ -7,6 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.local.*
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.recommendation.InterestProfile
+import com.flow.youtube.data.recommendation.FlowNeuroEngine
+import com.flow.youtube.data.recommendation.FlowNeuroEngine.InteractionType
 import com.flow.youtube.data.repository.YouTubeRepository
 import com.flow.youtube.player.EnhancedPlayerManager
 import kotlinx.coroutines.flow.*
@@ -14,10 +16,12 @@ import kotlinx.coroutines.launch
 import org.schabi.newpipe.extractor.stream.*
 
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
 @HiltViewModel
 class VideoPlayerViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val repository: YouTubeRepository,
     private val viewHistory: ViewHistory,
     private val subscriptionRepository: SubscriptionRepository,
@@ -66,6 +70,24 @@ class VideoPlayerViewModel @Inject constructor(
                 val streamInfo = repository.getVideoStreamInfo(videoId)
                 
                 if (streamInfo != null) {
+                    // Record interaction for Flow Neuro Engine
+                    try {
+                        val video = Video(
+                            id = videoId,
+                            title = streamInfo.name ?: "",
+                            channelName = streamInfo.uploaderName ?: "",
+                            channelId = streamInfo.uploaderUrl?.split("/")?.last() ?: "",
+                            thumbnailUrl = streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "",
+                            duration = streamInfo.duration.toInt(),
+                            viewCount = streamInfo.viewCount,
+                            uploadDate = "",
+                            description = streamInfo.description?.content ?: ""
+                        )
+                        FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.CLICK)
+                    } catch (e: Exception) {
+                        Log.e("VideoPlayerViewModel", "Failed to record interaction", e)
+                    }
+
                     val relatedVideos = repository.getRelatedVideos(videoId)
                     val availableQualities = extractAvailableQualities(streamInfo)
                     
@@ -279,6 +301,21 @@ class VideoPlayerViewModel @Inject constructor(
             
             // Learn from like - strong positive signal
             interestProfile?.recordLike(title, channelId, channelName)
+            
+            // Flow Neuro Engine Learning
+            try {
+                val video = Video(
+                    id = videoId,
+                    title = title,
+                    channelName = channelName,
+                    channelId = channelId,
+                    thumbnailUrl = thumbnail,
+                    duration = 0,
+                    viewCount = 0,
+                    uploadDate = ""
+                )
+                FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.LIKED)
+            } catch (e: Exception) { Log.e("VideoPlayerViewModel", "Error recording like", e) }
         }
     }
     

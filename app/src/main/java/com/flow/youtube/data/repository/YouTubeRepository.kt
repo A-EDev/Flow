@@ -1,5 +1,6 @@
 package com.flow.youtube.data.repository
 
+import com.flow.youtube.data.model.Video
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.async
@@ -9,15 +10,18 @@ import kotlinx.coroutines.Deferred
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
-import org.schabi.newpipe.extractor.kiosk.KioskList
+import org.schabi.newpipe.extractor.stream.StreamType
+import org.schabi.newpipe.extractor.kiosk.KioskExtractor
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
-import com.flow.youtube.data.model.Video
 import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.schabi.newpipe.extractor.stream.StreamInfo
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class YouTubeRepository {
+@Singleton
+class YouTubeRepository @Inject constructor() {
     
     private val service = ServiceList.YouTube
     
@@ -35,7 +39,9 @@ class YouTubeRepository {
             NewPipe.init(NewPipe.getDownloader(), localization, country)
 
             val kioskList = service.kioskList
-            val trendingExtractor = kioskList.getExtractorById("Trending", null)
+            val trendingExtractor = kioskList.getExtractorById("Trending", null) as KioskExtractor<*>
+            
+            // FIX: ALWAYS call fetchPage to initialize the extractor state
             trendingExtractor.fetchPage()
             
             val infoItems = if (nextPage != null) {
@@ -44,9 +50,9 @@ class YouTubeRepository {
                 trendingExtractor.initialPage
             }
             
-            val videos = infoItems.items.filterIsInstance<StreamInfoItem>().map { item ->
-                item.toVideo()
-            }
+            val videos = infoItems.items
+                .filterIsInstance<StreamInfoItem>()
+                .map { item -> item.toVideo() }
             
             Pair(videos, infoItems.nextPage)
         } catch (e: Exception) {
@@ -67,6 +73,7 @@ class YouTubeRepository {
             val searchExtractor = service.getSearchExtractor("#shorts")
             searchExtractor.fetchPage()
             
+            // FIX: Correct Pagination Logic
             val infoItems = if (nextPage != null) {
                 searchExtractor.getPage(nextPage)
             } else {
@@ -75,8 +82,8 @@ class YouTubeRepository {
             
             val shorts = infoItems.items
                 .filterIsInstance<StreamInfoItem>()
-                .filter { it.duration in 1..60 } // Actual shorts are <= 60s
                 .map { it.toVideo() }
+                .filter { it.duration in 1..60 } // Actual shorts are <= 60s
             
             Pair(shorts, infoItems.nextPage)
         } catch (e: Exception) {
@@ -96,15 +103,16 @@ class YouTubeRepository {
             val searchExtractor = service.getSearchExtractor(query)
             searchExtractor.fetchPage()
             
+            // FIX: Correct Pagination Logic
             val infoItems = if (nextPage != null) {
                 searchExtractor.getPage(nextPage)
             } else {
                 searchExtractor.initialPage
             }
             
-            val videos = infoItems.items.filterIsInstance<StreamInfoItem>().map { item ->
-                item.toVideo()
-            }
+            val videos = infoItems.items
+                .filterIsInstance<StreamInfoItem>()
+                .map { item -> item.toVideo() }
             
             Pair(videos, infoItems.nextPage)
         } catch (e: Exception) {
@@ -125,6 +133,7 @@ class YouTubeRepository {
             val searchExtractor = service.getSearchExtractor(query, contentFilters, "")
             searchExtractor.fetchPage()
             
+            // FIX: Correct Pagination Logic
             val infoItems = if (nextPage != null) {
                 searchExtractor.getPage(nextPage)
             } else {
@@ -270,6 +279,7 @@ class YouTubeRepository {
             val channelUrl = if (channelIdOrUrl.startsWith("http")) channelIdOrUrl else "https://www.youtube.com/channel/$channelIdOrUrl"
             val extractor = service.getChannelExtractor(channelUrl)
             extractor.fetchPage()
+            
             // Many ChannelExtractor implementations expose page items via getPage/getInitialPage; try to access a first page safely
             val pageItems = try {
                 // Use reflection-safe approach: call getPage on extractor with null if available
@@ -297,24 +307,19 @@ class YouTubeRepository {
 
     /**
      * Fetch channel info (best-effort) using NewPipe's channel extractor.
-     * Returns org.schabi.newpipe.extractor.channel.ChannelInfo or null on failure.
      */
     suspend fun getChannelInfo(channelIdOrUrl: String): org.schabi.newpipe.extractor.channel.ChannelInfo? = withContext(Dispatchers.IO) {
         try {
             val channelUrl = if (channelIdOrUrl.startsWith("http")) channelIdOrUrl else "https://www.youtube.com/channel/$channelIdOrUrl"
             val extractor = service.getChannelExtractor(channelUrl)
             extractor.fetchPage()
-            val channelInfo = org.schabi.newpipe.extractor.channel.ChannelInfo.getInfo(extractor)
-            channelInfo
+            org.schabi.newpipe.extractor.channel.ChannelInfo.getInfo(extractor)
         } catch (e: Exception) {
             e.printStackTrace()
             null
         }
     }
 
-    /**
-     * Aggregate uploads from multiple channels, shuffle results and limit total items.
-     */
     /**
      * Aggregate uploads from multiple channels, shuffle results and limit total items.
      * Use parallel fetching for speed.
@@ -349,13 +354,29 @@ class YouTubeRepository {
             emptyList()
         }
     }
+
+    /**
+     * Fetch a "Lite" Subscription Feed
+     * Randomly picks 10 subscribed channels and fetches their latest videos.
+     */
+    suspend fun getSubscriptionFeed(
+        allChannelIds: List<String>
+    ): List<Video> = withContext(Dispatchers.IO) {
+        if (allChannelIds.isEmpty()) return@withContext emptyList()
+        
+        // Pick 10 random subs to get more variety
+        val randomBatch = allChannelIds.shuffled().take(10)
+        
+        getVideosForChannels(randomBatch, perChannelLimit = 5, totalLimit = 40)
+    }
     
     /**
      * Fetch comments for a video
      */
     suspend fun getComments(videoId: String): List<com.flow.youtube.data.model.Comment> = withContext(Dispatchers.IO) {
         try {
-            val commentsExtractor = org.schabi.newpipe.extractor.comments.CommentsInfo.getInfo(service, "https://www.youtube.com/watch?v=$videoId")
+            val url = "https://www.youtube.com/watch?v=$videoId"
+            val commentsExtractor = org.schabi.newpipe.extractor.comments.CommentsInfo.getInfo(service, url)
             val allComments = mutableListOf<com.flow.youtube.data.model.Comment>()
             
             // Map first page
@@ -372,21 +393,21 @@ class YouTubeRepository {
             
             // Try to fetch 3 more pages to get "all" (or at least 80-100)
             var nextPage = commentsExtractor.nextPage
-            repeat(4) {
-                if (nextPage != null) {
-                    val moreItems = org.schabi.newpipe.extractor.comments.CommentsInfo.getMoreItems(service, "https://www.youtube.com/watch?v=$videoId", nextPage)
-                    allComments.addAll(moreItems.items.map { item ->
-                        com.flow.youtube.data.model.Comment(
-                            id = item.commentId ?: "",
-                            author = item.uploaderName ?: "Unknown",
-                            authorThumbnail = item.uploaderAvatars.firstOrNull()?.url ?: "",
-                            text = item.commentText?.content ?: "",
-                            likeCount = item.likeCount.toInt(),
-                            publishedTime = item.textualUploadDate ?: ""
-                        )
-                    })
-                    nextPage = moreItems.nextPage
-                }
+            var pages = 0
+            while (nextPage != null && pages < 3) {
+                val moreItems = org.schabi.newpipe.extractor.comments.CommentsInfo.getMoreItems(service, url, nextPage)
+                allComments.addAll(moreItems.items.map { item ->
+                    com.flow.youtube.data.model.Comment(
+                        id = item.commentId ?: "",
+                        author = item.uploaderName ?: "Unknown",
+                        authorThumbnail = item.uploaderAvatars.firstOrNull()?.url ?: "",
+                        text = item.commentText?.content ?: "",
+                        likeCount = item.likeCount.toInt(),
+                        publishedTime = item.textualUploadDate ?: ""
+                    )
+                })
+                nextPage = moreItems.nextPage
+                pages++
             }
             
             allComments
@@ -428,9 +449,19 @@ class YouTubeRepository {
 
     /**
      * Extension function to convert StreamInfoItem to our Video model
+     * CRITICAL FIXES APPLIED HERE
      */
     private fun StreamInfoItem.toVideo(): Video {
-        // Get highest quality thumbnail (maxresdefault > hqdefault > mqdefault)
+        // 1. Robust ID Extraction
+        val rawUrl = url ?: ""
+        val videoId = when {
+            rawUrl.contains("watch?v=") -> rawUrl.substringAfter("watch?v=").substringBefore("&")
+            rawUrl.contains("youtu.be/") -> rawUrl.substringAfter("youtu.be/").substringBefore("?")
+            rawUrl.contains("/shorts/") -> rawUrl.substringAfter("/shorts/").substringBefore("?")
+            else -> rawUrl.substringAfterLast("/") 
+        }
+
+        // Get highest quality thumbnail
         val bestThumbnail = thumbnails
             .sortedByDescending { it.height }
             .firstOrNull()?.url ?: ""
@@ -440,13 +471,32 @@ class YouTubeRepository {
             .sortedByDescending { it.height }
             .firstOrNull()?.url ?: ""
         
+        // 2. Robust Duration & Shorts Detection
+        var durationSecs = if (duration > 0) duration.toInt() else 0
+        
+        // NewPipe doesn't have StreamType.SHORT_VIDEO in older versions, 
+        // so we rely on URL inspection which is safer.
+        val isShortUrl = rawUrl.contains("/shorts/")
+        
+        // If it looks like a short but NewPipe gave 0 duration (common bug), 
+        // force it to 60s so downstream logic treats it as a short
+        if (isShortUrl && durationSecs == 0) {
+            durationSecs = 60 
+        }
+        
+        // Normalize Live streams
+        val isLiveStream = streamType == StreamType.LIVE_STREAM
+        if (isLiveStream) {
+            durationSecs = 0 
+        }
+        
         return Video(
-            id = url.substringAfter("watch?v=").substringBefore("&"),
+            id = videoId,
             title = name ?: "Unknown Title",
             channelName = uploaderName ?: "Unknown Channel",
-            channelId = uploaderUrl?.substringAfterLast("/") ?: "",
+            channelId = uploaderUrl?.split("/")?.last() ?: "",
             thumbnailUrl = bestThumbnail,
-            duration = duration.toInt(),
+            duration = durationSecs,
             viewCount = viewCount,
             uploadDate = run {
                 val date = uploadDate
@@ -462,7 +512,9 @@ class YouTubeRepository {
                     else -> "Unknown"
                 }
             },
-            channelThumbnailUrl = bestAvatar
+            channelThumbnailUrl = bestAvatar,
+            isLive = isLiveStream,
+            isShort = isShortUrl
         )
     }
     
@@ -489,7 +541,7 @@ class YouTubeRepository {
             thumbnailUrl = bestThumbnail,
             subscriberCount = subscriberCount,
             description = description ?: "",
-            url = url // Store the full URL
+            url = url
         )
     }
     

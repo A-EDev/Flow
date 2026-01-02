@@ -9,12 +9,12 @@ import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
-import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,11 +27,17 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.ui.components.*
 
+// Add this import for snapshotFlow
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
 fun HomeScreen(
     onVideoClick: (Video) -> Unit,
-    onShortClick: (Video) -> Unit,  // Separate callback for shorts navigation
+    onShortClick: (Video) -> Unit,
     onSearchClick: () -> Unit,
     onNotificationClick: () -> Unit,
     onSettingsClick: () -> Unit,
@@ -42,30 +48,34 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     
-    // Initialize ViewModel with context
     LaunchedEffect(Unit) {
         viewModel.initialize(context)
     }
     
-    // Infinite scroll detection (when hasMorePages is true, meaning trending fallback)
-    val isScrolledToEnd by remember {
-        derivedStateOf {
-            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
-            lastVisibleItem != null && 
-            lastVisibleItem.index >= listState.layoutInfo.totalItemsCount - 3
+    // --- FIXED INFINITE SCROLL LOGIC ---
+    // We use snapshotFlow to monitor the last visible item index.
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            
+            // Return true if we are near the bottom (threshold: 5 items)
+            totalItems > 0 && lastVisibleItemIndex >= (totalItems - 5)
         }
-    }
-    
-    // Trigger load more when scrolled near the end
-    LaunchedEffect(isScrolledToEnd) {
-        if (isScrolledToEnd && !uiState.isLoadingMore && uiState.hasMorePages) {
-            viewModel.loadMoreVideos()
+        .distinctUntilChanged() // Only emit when the boolean changes (False -> True)
+        .filter { it } // Only proceed if True (we reached bottom)
+        .collect {
+            // Trigger load more if not already loading and pages exist
+            if (!uiState.isLoadingMore && uiState.hasMorePages) {
+                viewModel.loadMoreVideos()
+            }
         }
     }
 
     val pullRefreshState = rememberPullRefreshState(
         refreshing = uiState.isRefreshing,
-        onRefresh = { viewModel.refreshFeed(context) }
+        onRefresh = { viewModel.refreshFeed() }
     )
 
     Scaffold(
@@ -120,7 +130,6 @@ fun HomeScreen(
                 }
                 
                 uiState.error != null && uiState.videos.isEmpty() -> {
-                    // Error state
                     ErrorState(
                         message = uiState.error ?: "An error occurred",
                         onRetry = { viewModel.retry() }
@@ -128,7 +137,6 @@ fun HomeScreen(
                 }
                 
                 else -> {
-                    // Content state
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         state = listState,
@@ -143,35 +151,36 @@ fun HomeScreen(
                                 onClick = { onVideoClick(video) }
                             )
                             
-                            // Insert Shorts shelf after the first video (only if shorts are available)
                             if (uiState.videos.indexOf(video) == 0 && uiState.shorts.isNotEmpty()) {
                                 ShortsShelf(
                                     shorts = uiState.shorts,
-                                    onShortClick = { onShortClick(it) }  // Route to ShortsScreen
+                                    onShortClick = { onShortClick(it) }
                                 )
                             }
                         }
                         
-                        // Loading more indicator (only for trending)
                         if (uiState.isLoadingMore) {
-                            item {
+                            item(key = "loading_indicator") {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
+                                        .padding(24.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    CircularProgressIndicator()
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(32.dp),
+                                        strokeWidth = 3.dp
+                                    )
                                 }
                             }
                         }
                         
-                        // Flow feed footer
-                        if (uiState.videos.isNotEmpty()) {
-                            item {
+                        // End of feed indicator
+                        if (!uiState.hasMorePages && uiState.videos.size > 100 && !uiState.isLoadingMore) {
+                            item(key = "feed_footer") {
                                 FlowFeedFooter(
                                     videoCount = uiState.videos.size,
-                                    onRefresh = { viewModel.refreshFeed(context) }
+                                    onRefresh = { viewModel.refreshFeed() }
                                 )
                             }
                         }
@@ -189,8 +198,6 @@ fun HomeScreen(
         }
     }
 }
-
-
 
 @Composable
 private fun FlowFeedFooter(
@@ -260,4 +267,3 @@ private fun ErrorState(
         }
     }
 }
-

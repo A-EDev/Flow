@@ -26,6 +26,7 @@ import androidx.lifecycle.lifecycleScope
 import android.util.Log
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import com.google.gson.JsonParser
 
 @AndroidEntryPoint
@@ -41,6 +42,11 @@ class MainActivity : ComponentActivity() {
         
         // Initialize global player state
         GlobalPlayerState.initialize(applicationContext)
+        
+        // Initialize Neuro Engine (Recommendation System)
+        lifecycleScope.launch(Dispatchers.IO) {
+            FlowNeuroEngine.initialize(applicationContext)
+        }
 
         val dataManager = LocalDataManager(applicationContext)
 
@@ -60,6 +66,11 @@ class MainActivity : ComponentActivity() {
             // Load theme preference
             LaunchedEffect(Unit) {
                 themeMode = dataManager.themeMode.first()
+            }
+            
+            // Initialize Flow Neuro Engine
+            LaunchedEffect(Unit) {
+                com.flow.youtube.data.recommendation.FlowNeuroEngine.initialize(applicationContext)
             }
 
             FlowTheme(themeMode = themeMode) {

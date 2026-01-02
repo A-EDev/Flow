@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.subscriptionsDataStore: DataStore<Preferences> by preferencesDataStore(name = "subscriptions")
@@ -95,6 +96,21 @@ class SubscriptionRepository private constructor(private val context: Context) {
         }
     }
     
+    /**
+     * Get all subscription IDs as a Set
+     */
+    suspend fun getAllSubscriptionIds(): Set<String> {
+        val orderString = context.subscriptionsDataStore.data.map { preferences ->
+            preferences[stringPreferencesKey(SUBSCRIPTIONS_ORDER_KEY)] ?: ""
+        }.first()
+        
+        return if (orderString.isEmpty()) {
+            emptySet()
+        } else {
+            orderString.split(",").toSet()
+        }
+    }
+
     /**
      * Get subscription by channel ID
      */

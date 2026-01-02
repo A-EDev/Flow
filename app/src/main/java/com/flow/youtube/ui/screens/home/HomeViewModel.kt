@@ -3,10 +3,13 @@ package com.flow.youtube.ui.screens.home
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.flow.youtube.data.recommendation.FlowNeuroEngine
+import com.flow.youtube.data.local.SubscriptionRepository
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.recommendation.RecommendationRepository
 import com.flow.youtube.data.recommendation.RecommendationWorker
 import com.flow.youtube.data.recommendation.ScoredVideo
+import com.flow.youtube.data.recommendation.VideoSource
 import com.flow.youtube.data.repository.YouTubeRepository
 import com.flow.youtube.data.shorts.ShortsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,7 +19,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import org.schabi.newpipe.extractor.Page
 
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,6 +29,8 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val repository: YouTubeRepository,
     private val recommendationRepository: RecommendationRepository,
+    private val subscriptionRepository: SubscriptionRepository, 
+    private val shortsRepository: ShortsRepository,
     private val playerPreferences: com.flow.youtube.data.local.PlayerPreferences
 ) : ViewModel() {
     
@@ -34,36 +39,26 @@ class HomeViewModel @Inject constructor(
     
     private var currentPage: Page? = null
     private var isLoadingMore = false
-    // private var recommendationRepository: RecommendationRepository? = null // Injected
-    private var shortsRepository: ShortsRepository? = null
     private var isInitialized = false
     
     init {
-        // We can initialize immediately or wait for explicit call. 
-        // Previously initialize(context) was called.
-        // RecommendationRepository is already initialized via Hilt provider.
-        // RecommendationWorker scheduling might still need context, but that should ideally go to Application or WorkerFactory.
-        // For now, let's keep the load logic, but remove the context-dependent repo init.
-        loadFlowFeed()
+        // Load the intelligent feed immediately on startup
+        loadFlowFeed(forceRefresh = true)
+        // Load shorts in parallel
+        loadHomeShorts()
     }
     
     /**
-     * Initialize with context for accessing recommendation repository
-     * Kept for compatibility if needed, but repo is now injected.
-     * RecommendationWorker.schedulePeriodicRefresh(context) needs context.
+     * Initialize with context for accessing recommendation repository workers
      */
     fun initialize(context: Context) {
         if (isInitialized) return
         isInitialized = true
         
-        // Initialize shorts repository
-        shortsRepository = ShortsRepository.getInstance(context)
-        
-        // Schedule periodic background refresh
+        viewModelScope.launch {
+            FlowNeuroEngine.initialize(context)
+        }
         RecommendationWorker.schedulePeriodicRefresh(context)
-        
-        // Load shorts for home feed
-        loadHomeShorts()
     }
     
     /**
@@ -72,274 +67,243 @@ class HomeViewModel @Inject constructor(
     private fun loadHomeShorts() {
         viewModelScope.launch {
             try {
-                val shorts = shortsRepository?.getHomeFeedShorts() ?: emptyList()
-                _uiState.value = _uiState.value.copy(shorts = shorts)
+                // Use the new smart shorts repo
+                val shorts = shortsRepository.getHomeFeedShorts()
+                if (shorts.isNotEmpty()) {
+                    _uiState.update { it.copy(shorts = shorts) }
+                }
             } catch (e: Exception) {
-                // Shorts loading failure shouldn't block the feed
-                android.util.Log.e("HomeViewModel", "Failed to load shorts", e)
+                // Shorts failure is non-critical, ignore
             }
         }
     }
     
+    /**
+     * Helper to safely update the video list
+     * Filters out shorts from the main list to prevent clutter
+     */
     private fun updateVideosAndShorts(newVideos: List<Video>, append: Boolean = false) {
-        val (newShorts, regularVideos) = newVideos.partition { it.duration in 1..80 }
+        // ULTIMATE FILTER: 
+        // 1. Exclude if isShort is true
+        // 2. Exclude if duration is 1-80s
+        // 3. Exclude if duration is 0 UNLESS it is Live
+        val (newShorts, regularVideos) = newVideos.partition { 
+            it.isShort || (it.duration in 1..80) || (it.duration == 0 && !it.isLive)
+        }
         
         _uiState.update { state ->
+            val updatedVideos = if (append) (state.videos + regularVideos) else regularVideos
             state.copy(
-                videos = if (append) (state.videos + regularVideos).distinctBy { it.id } else regularVideos,
+                videos = updatedVideos.distinctBy { it.id },
+                // If we found shorts in the trending mix, add them to the shorts shelf too
                 shorts = (state.shorts + newShorts).distinctBy { it.id }
             )
         }
     }
 
     /**
-     * Load the personalized Flow feed
-     * Uses cached data if valid, otherwise fetches fresh
-     * If no personalized content available, mixes with trending
+     * MAIN FEED LOADER (The Smart Algo)
+     * Uses "Fetch Until Full" logic to guarantee ~60 videos
      */
     fun loadFlowFeed(forceRefresh: Boolean = false) {
-        if (_uiState.value.isLoading) return
+        if (_uiState.value.isLoading && !forceRefresh) return
         
-        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+        _uiState.update { it.copy(isLoading = true, error = null) }
         
         viewModelScope.launch {
             try {
-                val repo = recommendationRepository
-                
-                // PARALLEL FETCHING: Optimize start-up time by acting speculatively
-                // 1. Try to get personalized feed
-                // 2. Concurrently fetch trending as a backup to avoid waterfall delay if personalized is empty/fails
-                
-                val personalizedJob = async {
-                    if (true) { // Repo is always inclusive now
-                        val cacheValid = repo.isCacheValid()
-                        if (!forceRefresh && cacheValid) {
-                            repo.getCachedFeed().first()
-                        } else {
-                            repo.refreshFeed()
-                        }
-                    } else {
-                        emptyList()
-                    }
+                val userSubs = subscriptionRepository.getAllSubscriptionIds()
+                val region = playerPreferences.trendingRegion.first()
+
+                // 1. FETCH SUBSCRIPTIONS (Parallel)
+                val subsDeferred = async { 
+                    try {
+                        if (userSubs.isNotEmpty()) {
+                            val rawSubs = repository.getSubscriptionFeed(userSubs.toList())
+                            // Filter subs: No shorts, no unknown 0-duration
+                            rawSubs.filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
+                        } else emptyList()
+                    } catch (e: Exception) { emptyList<Video>() }
                 }
 
-                // Fetch trending in parallel as backup
-                val trendingJob = async {
+                // 2. FETCH TRENDING LOOP (The "Dig Deep" Fix)
+                val trendingVideos = mutableListOf<Video>()
+                val trendingShorts = mutableListOf<Video>()
+                var tempPage: Page? = null
+                var pagesFetched = 0
+                
+                // We keep fetching pages until we have at least 60 LONG videos or hit 6 pages.
+                while (trendingVideos.size < 60 && pagesFetched < 6) {
                     try {
-                         val region = playerPreferences.trendingRegion.first()
-                         repository.getTrendingVideos(region, null)
-                    } catch (e: Exception) {
-                        Pair(emptyList<Video>(), null)
-                    }
+                        val (batch, next) = repository.getTrendingVideos(region, tempPage)
+                        
+                        // Split immediately: Longs are > 80s or Live
+                        val (shorts, longs) = batch.partition { 
+                            it.isShort || (it.duration in 1..80) || (it.duration == 0 && !it.isLive)
+                        }
+                        trendingVideos.addAll(longs) 
+                        trendingShorts.addAll(shorts)
+                        
+                        tempPage = next
+                        if (next == null) break
+                        pagesFetched++
+                    } catch (e: Exception) { break }
                 }
                 
-                val scoredVideos = personalizedJob.await()
+                currentPage = tempPage 
+                val subs = subsDeferred.await()
+
+                // 3. MERGE & SHUFFLE
+                val pool = (subs + trendingVideos).distinctBy { it.id }
                 
-                // If we have personalized content, use it
-                if (scoredVideos.isNotEmpty()) {
-                    val videos = scoredVideos.map { it.video }
-                    val lastRefresh = repo.getLastRefreshTime().first()
-                    
-                    updateVideosAndShorts(videos, append = false)
-                    _uiState.update { it.copy(
-                        scoredVideos = scoredVideos,
-                        isLoading = false,
-                        hasMorePages = false,
-                        isFlowFeed = true,
-                        lastRefreshTime = lastRefresh
-                    )}
+                if (pool.isEmpty()) {
+                    loadTrendingFallback()
                     return@launch
                 }
+
+                // 4. RANK WITH NEURO ENGINE
+                val rankedVideos = FlowNeuroEngine.rank(pool, userSubs)
                 
-                // No personalized content, use the pre-fetched trending data
-                val (trendingVideos, nextPage) = trendingJob.await()
-                
-                if (trendingVideos.isNotEmpty()) {
-                    currentPage = nextPage
-                    
-                    updateVideosAndShorts(trendingVideos, append = false)
-                    _uiState.update { it.copy(
-                        scoredVideos = emptyList(),
-                        isLoading = false,
-                        hasMorePages = nextPage != null,
-                        isFlowFeed = true, // Keep as For You feed
-                        lastRefreshTime = System.currentTimeMillis()
-                    )}
-                    return@launch
+                // 5. BACKFILL SAFEGUARD
+                val finalVideos = if (rankedVideos.size < 30) {
+                    val fillers = pool.filter { p -> rankedVideos.none { r -> r.id == p.id } }.take(30)
+                    (rankedVideos + fillers).distinctBy { it.id }
+                } else {
+                    rankedVideos
                 }
-                
-                // Trending is also empty, try search fallback (rare case, can stay sequential)
-                val (searchVideos, _) = repository.searchVideos("popular videos today")
-                updateVideosAndShorts(searchVideos, append = false)
+
+                // 6. UPDATE UI
                 _uiState.update { it.copy(
-                    scoredVideos = emptyList(),
+                    videos = finalVideos,
+                    shorts = (it.shorts + trendingShorts).distinctBy { s -> s.id }.shuffled().take(25),
                     isLoading = false,
-                    hasMorePages = false,
+                    isRefreshing = false,
+                    hasMorePages = currentPage != null, 
                     isFlowFeed = true,
                     lastRefreshTime = System.currentTimeMillis()
                 )}
                 
             } catch (e: Exception) {
-                // ... same fallback logic ...
-                // Even on error, try to load trending as fallback
-                 try {
-                    val region = playerPreferences.trendingRegion.first()
-                    val (trendingVideos, nextPage) = repository.getTrendingVideos(region, null)
-                    if (trendingVideos.isNotEmpty()) {
-                        currentPage = nextPage
-                        
-                        _uiState.value = _uiState.value.copy(
-                            videos = trendingVideos,
-                            scoredVideos = emptyList(),
-                            isLoading = false,
-                            hasMorePages = nextPage != null,
-                            isFlowFeed = true,
-                            error = null
-                        )
-                        return@launch
-                    }
-                    
-                    // Trending returned empty, try search fallback
-                    val (searchVideos, _) = repository.searchVideos("music videos 2024")
-                    if (searchVideos.isNotEmpty()) {
-                        _uiState.value = _uiState.value.copy(
-                            videos = searchVideos,
-                            scoredVideos = emptyList(),
-                            isLoading = false,
-                            hasMorePages = false,
-                            isFlowFeed = true,
-                            error = null
-                        )
-                        return@launch
-                    }
-                    
-                    // Nothing worked
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = "No content available. Check your internet connection."
-                    )
-                } catch (e2: Exception) {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = "Failed to load feed: ${e2.message}"
-                    )
-                }
+                _uiState.update { it.copy(isLoading = false, isRefreshing = false, error = "Failed to load feed") }
             }
         }
     }
     
     /**
-     * Pull-to-refresh: Force a fresh fetch of the Flow feed
+     * INFINITE SCROLL LOADER (The "Keep Digging" Fix)
      */
-    fun refreshFeed(context: Context) {
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isRefreshing = true)
-            
-            try {
-                // Request immediate background refresh
-                RecommendationWorker.requestImmediateRefresh(context)
-                
-                // Try to get personalized content
-                val repo = recommendationRepository
-                var gotPersonalizedContent = false
-                
-                if (true) { // Always true now
-                    val scoredVideos = repo.refreshFeed()
-                    if (scoredVideos.isNotEmpty()) {
-                        val videos = scoredVideos.map { it.video }
-                        val lastRefresh = repo.getLastRefreshTime().first()
-                        
-                        updateVideosAndShorts(videos, append = false)
-                        _uiState.update { it.copy(
-                            scoredVideos = scoredVideos,
-                            isRefreshing = false,
-                            isFlowFeed = true,
-                            hasMorePages = false,
-                            lastRefreshTime = lastRefresh
-                        )}
-                        gotPersonalizedContent = true
-                    }
-                }
-                
-                // If no personalized content, refresh trending
-                if (!gotPersonalizedContent) {
-                    val region = playerPreferences.trendingRegion.first()
-                    val (trendingVideos, nextPage) = repository.getTrendingVideos(region, null)
-                    currentPage = nextPage
-                    
-                    updateVideosAndShorts(trendingVideos, append = false)
-                    _uiState.update { it.copy(
-                        scoredVideos = emptyList(),
-                        isRefreshing = false,
-                        isFlowFeed = true,
-                        hasMorePages = nextPage != null,
-                        lastRefreshTime = System.currentTimeMillis()
-                    )}
-                }
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isRefreshing = false,
-                    error = "Refresh failed: ${e.message}"
-                )
-            }
-        }
-    }
-    
-    /**
-     * Fallback: Load trending videos (original behavior)
-     */
-    fun loadTrendingVideos(region: String = "US") {
-        if (_uiState.value.isLoading && _uiState.value.videos.isEmpty()) return
-        
-        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-        
-        viewModelScope.launch {
-            try {
-                val (videos, nextPage) = repository.getTrendingVideos(region, null)
-                currentPage = nextPage
-                
-                updateVideosAndShorts(videos, append = false)
-                _uiState.update { it.copy(
-                    scoredVideos = emptyList(),
-                    isLoading = false,
-                    hasMorePages = nextPage != null,
-                    isFlowFeed = false
-                )}
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to load videos"
-                )
-            }
-        }
-    }
-    
-    fun loadMoreVideos(region: String = "US") {
-        // Only load more if we have pagination available
-        if (isLoadingMore || !_uiState.value.hasMorePages || currentPage == null) return
+    fun loadMoreVideos() {
+        if (isLoadingMore || !_uiState.value.hasMorePages) return
         
         isLoadingMore = true
-        _uiState.value = _uiState.value.copy(isLoadingMore = true)
+        _uiState.update { it.copy(isLoadingMore = true) }
         
         viewModelScope.launch {
             try {
-                val (videos, nextPage) = repository.getTrendingVideos(region, currentPage)
-                currentPage = nextPage
+                val actualRegion = playerPreferences.trendingRegion.first()
+                val newVideos = mutableListOf<Video>()
+                var tempPage = currentPage
+                var attempts = 0
                 
-                updateVideosAndShorts(videos, append = true)
-                _uiState.update { it.copy(
-                    isLoadingMore = false,
-                    hasMorePages = nextPage != null
-                )}
+                // 1. TRY TRENDING FIRST
+                while (newVideos.size < 20 && tempPage != null && attempts < 3) {
+                    val (batch, next) = repository.getTrendingVideos(actualRegion, tempPage)
+                    val longs = batch.filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
+                    
+                    newVideos.addAll(longs)
+                    tempPage = next
+                    attempts++
+                }
+                
+                currentPage = tempPage 
+                
+                // 2. FALLBACK: If Trending is dry, fetch from Subscriptions
+                if (newVideos.size < 10) {
+                    val userSubs = subscriptionRepository.getAllSubscriptionIds()
+                    if (userSubs.isNotEmpty()) {
+                        val subsBatch = repository.getSubscriptionFeed(userSubs.toList())
+                        val filteredSubs = subsBatch.filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
+                        newVideos.addAll(filteredSubs)
+                    }
+                }
+                
+                // 3. RANK & APPEND
+                if (newVideos.isNotEmpty()) {
+                    val userSubs = subscriptionRepository.getAllSubscriptionIds()
+                    val rankedAppend = FlowNeuroEngine.rank(newVideos.distinctBy { it.id }, userSubs)
+                    
+                    val existingIds = _uiState.value.videos.map { it.id }.toSet()
+                    val uniqueNewVideos = rankedAppend.filter { it.id !in existingIds }
+                    
+                    _uiState.update { state ->
+                        state.copy(
+                            videos = state.videos + uniqueNewVideos,
+                            hasMorePages = currentPage != null || userSubs.isNotEmpty(), // Keep it alive if we have subs
+                            isLoadingMore = false
+                        )
+                    }
+                } else {
+                    // Truly empty
+                    _uiState.update { it.copy(isLoadingMore = false, hasMorePages = false) }
+                }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoadingMore = false,
-                    error = e.message ?: "Failed to load more videos"
-                )
+                _uiState.update { it.copy(isLoadingMore = false) }
             } finally {
                 isLoadingMore = false
             }
         }
+    }
+    
+    /**
+     * MANUAL REGION LOAD / FALLBACK
+     * (Restored for compatibility with Settings Screen)
+     */
+    fun loadTrendingVideos(region: String = "US") {
+        if (_uiState.value.isLoading && _uiState.value.videos.isEmpty()) return
+        _uiState.update { it.copy(isLoading = true, error = null) }
+        
+        viewModelScope.launch {
+            try {
+                // Simple fetch logic for manual overrides
+                val (videos, nextPage) = repository.getTrendingVideos(region, null)
+                currentPage = nextPage
+                
+                updateVideosAndShorts(videos, append = false)
+                
+                _uiState.update { it.copy(
+                    scoredVideos = emptyList(),
+                    isLoading = false,
+                    hasMorePages = nextPage != null,
+                    isFlowFeed = false // Plain trending is NOT a Flow Feed
+                )}
+            } catch (e: Exception) {
+                _uiState.update { it.copy(
+                    isLoading = false,
+                    error = e.message ?: "Failed to load videos"
+                ) }
+            }
+        }
+    }
+
+    private suspend fun loadTrendingFallback() {
+        // Reuse the logic, but internally
+        val region = playerPreferences.trendingRegion.first()
+        val (videos, nextPage) = repository.getTrendingVideos(region, null)
+        currentPage = nextPage
+        
+        updateVideosAndShorts(videos, append = false)
+        _uiState.update { it.copy(
+            scoredVideos = emptyList(),
+            isLoading = false,
+            hasMorePages = nextPage != null,
+            isFlowFeed = false,
+            error = null
+        )}
+    }
+    
+    fun refreshFeed() {
+        _uiState.update { it.copy(isRefreshing = true) }
+        loadFlowFeed(forceRefresh = true)
     }
     
     fun retry() {
@@ -349,13 +313,13 @@ class HomeViewModel @Inject constructor(
 
 data class HomeUiState(
     val videos: List<Video> = emptyList(),
-    val shorts: List<Video> = emptyList(),  // Dedicated shorts for home display
+    val shorts: List<Video> = emptyList(),
     val scoredVideos: List<ScoredVideo> = emptyList(),
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val isRefreshing: Boolean = false,
     val hasMorePages: Boolean = true,
     val error: String? = null,
-    val isFlowFeed: Boolean = false, // true = personalized Flow feed, false = trending
+    val isFlowFeed: Boolean = false,
     val lastRefreshTime: Long = 0L
 )

@@ -44,6 +44,7 @@
   - [Future Ideas](#future-ideas)
 - [Contributing](#contributing)
 - [Acknowledgments](#acknowledgments)
+- [License](#license)
 - [Contact & Support](#contact--support)
 - [Troubleshooting](#troubleshooting)
 - [Star History](#star-history)
@@ -375,6 +376,16 @@ For more details, see [CONTRIBUTING.md](CONTRIBUTING.md).
 - **Material Design 3** - Beautiful design system by Google
 
 ---
+<a id="license"></a>
+## ⚖️ License
+
+**Flow** is Free Software: You can use, study share and improve it at your will. 
+It is distributed under the **GNU General Public License v3 (GPLv3)**.
+
+Copyright (c) 2025-2026 A-EDev
+
+> 🛑 **For Developers:**
+> This license requires that any project using Flow's source code (including the `FlowNeuroEngine` algorithm) must also be **Open Source** under the GPLv3 license. You may not use this code in a proprietary or closed-source application.
 
 <a id="contact--support"></a>
 ## 📞 Contact & Support

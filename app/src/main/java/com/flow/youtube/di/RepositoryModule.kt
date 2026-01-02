@@ -66,4 +66,10 @@ object RepositoryModule {
     fun providePlayerPreferences(@ApplicationContext context: Context): com.flow.youtube.data.local.PlayerPreferences {
         return com.flow.youtube.data.local.PlayerPreferences(context)
     }
+
+    @Provides
+    @Singleton
+    fun provideShortsRepository(@ApplicationContext context: Context): com.flow.youtube.data.shorts.ShortsRepository {
+        return com.flow.youtube.data.shorts.ShortsRepository.getInstance(context)
+    }
 }
