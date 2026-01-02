@@ -249,14 +249,14 @@ class HomeViewModel @Inject constructor(
                         val videos = scoredVideos.map { it.video }
                         val lastRefresh = repo.getLastRefreshTime().first()
                         
-                        _uiState.value = _uiState.value.copy(
-                            videos = videos,
+                        updateVideosAndShorts(videos, append = false)
+                        _uiState.update { it.copy(
                             scoredVideos = scoredVideos,
                             isRefreshing = false,
                             isFlowFeed = true,
                             hasMorePages = false,
                             lastRefreshTime = lastRefresh
-                        )
+                        )}
                         gotPersonalizedContent = true
                     }
                 }
@@ -267,14 +267,14 @@ class HomeViewModel @Inject constructor(
                     val (trendingVideos, nextPage) = repository.getTrendingVideos(region, null)
                     currentPage = nextPage
                     
-                    _uiState.value = _uiState.value.copy(
-                        videos = trendingVideos,
+                    updateVideosAndShorts(trendingVideos, append = false)
+                    _uiState.update { it.copy(
                         scoredVideos = emptyList(),
                         isRefreshing = false,
                         isFlowFeed = true,
                         hasMorePages = nextPage != null,
                         lastRefreshTime = System.currentTimeMillis()
-                    )
+                    )}
                 }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(

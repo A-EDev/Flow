@@ -290,7 +290,9 @@ fun FlowApp(
                         onNavigateToSavedShorts = {
                             navController.navigate("savedShorts")
                         },
-                        onNavigateToDownloads = { /* Navigate to downloads */ },
+                        onNavigateToDownloads = {
+                            navController.navigate("downloads")
+                        },
                         onManageData = {
                             navController.navigate("settings")
                         }
@@ -552,7 +554,14 @@ fun FlowApp(
                         }
                     )
                 }
-
+                // Downloads Screen
+                composable("downloads") {
+                    currentRoute.value = "downloads"
+                    showBottomNav = false
+                    com.flow.youtube.ui.screens.library.DownloadsScreen(
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
                 // Music Screen - Enhanced with SoundCloud
                 composable("music") {
                     currentRoute.value = "music"
