@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.flow.youtube.ui.screens.music.MusicTrack
+import com.flow.youtube.notification.NotificationHelper
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +18,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import java.io.File
@@ -39,7 +44,8 @@ data class DownloadedTrack(
     val track: MusicTrack,
     val filePath: String,
     val downloadedAt: Long = System.currentTimeMillis(),
-    val fileSize: Long = 0
+    val fileSize: Long = 0,
+    val downloadId: Long = -1
 )
 
 /**
@@ -47,6 +53,7 @@ data class DownloadedTrack(
  */
 class DownloadManager(private val context: Context) {
     private val gson = Gson()
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     
     companion object {
         private val DOWNLOADED_TRACKS_KEY = stringPreferencesKey("downloaded_tracks")
@@ -82,33 +89,86 @@ class DownloadManager(private val context: Context) {
             val request = android.app.DownloadManager.Request(android.net.Uri.parse(audioUrl))
                 .setTitle(track.title)
                 .setDescription("Downloading music...")
-                .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_HIDDEN)
                 .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_MOVIES, fileName)
                 .setAllowedOverMetered(true)
                 .setAllowedOverRoaming(true)
             
             val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
-            downloadManager.enqueue(request)
+            val downloadId = downloadManager.enqueue(request)
             
-            // We assume success for now as DownloadManager handles it asynchronously
-            // In a real app, we should register a BroadcastReceiver for ACTION_DOWNLOAD_COMPLETE
+            // Start monitoring progress
+            monitorDownloadProgress(downloadId, track)
             
             // Save metadata
             val filePath = "${android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MOVIES)}/$fileName"
             val downloadedTrack = DownloadedTrack(
                 track = track,
                 filePath = filePath,
-                fileSize = 0 // Unknown at this point
+                fileSize = 0, // Will be updated when finished
+                downloadId = downloadId
             )
             
             saveDownloadedTrack(downloadedTrack)
-            updateDownloadStatus(track.videoId, DownloadStatus.DOWNLOADED)
             
             Result.success(filePath)
         } catch (e: Exception) {
             Log.e("DownloadManager", "Download failed", e)
             updateDownloadStatus(track.videoId, DownloadStatus.FAILED)
             Result.failure(e)
+        }
+    }
+
+    private fun monitorDownloadProgress(downloadId: Long, track: MusicTrack) {
+        scope.launch {
+            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+            var downloading = true
+            
+            while (downloading) {
+                val query = android.app.DownloadManager.Query().setFilterById(downloadId)
+                val cursor = downloadManager.query(query)
+                
+                if (cursor != null && cursor.moveToFirst()) {
+                    val bytesDownloadedIdx = cursor.getColumnIndex(android.app.DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+                    val bytesTotalIdx = cursor.getColumnIndex(android.app.DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+                    val statusIdx = cursor.getColumnIndex(android.app.DownloadManager.COLUMN_STATUS)
+                    
+                    if (bytesDownloadedIdx != -1 && bytesTotalIdx != -1 && statusIdx != -1) {
+                        val bytesDownloaded = cursor.getInt(bytesDownloadedIdx)
+                        val bytesTotal = cursor.getInt(bytesTotalIdx)
+                        val status = cursor.getInt(statusIdx)
+                        
+                        if (status == android.app.DownloadManager.STATUS_SUCCESSFUL) {
+                            downloading = false
+                            updateDownloadStatus(track.videoId, DownloadStatus.DOWNLOADED)
+                            NotificationHelper.showDownloadComplete(context, track.title, null, track.thumbnailUrl)
+                        } else if (status == android.app.DownloadManager.STATUS_FAILED) {
+                            downloading = false
+                            updateDownloadStatus(track.videoId, DownloadStatus.FAILED)
+                            NotificationHelper.cancelNotification(context, NotificationHelper.NOTIFICATION_DOWNLOAD_PROGRESS)
+                        } else {
+                            val progress = if (bytesTotal > 0) (bytesDownloaded * 100L / bytesTotal).toInt() else 0
+                            updateDownloadProgress(track.videoId, progress)
+                            
+                            // Show custom notification
+                            NotificationHelper.showDownloadProgress(
+                                context = context,
+                                videoTitle = track.title,
+                                progress = progress,
+                                thumbnailUrl = track.thumbnailUrl,
+                                downloadId = downloadId
+                            )
+                        }
+                    }
+                    cursor.close()
+                } else {
+                    downloading = false
+                }
+                
+                if (downloading) {
+                    delay(1000) // Update every second
+                }
+            }
         }
     }
     

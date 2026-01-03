@@ -57,6 +57,7 @@ import com.flow.youtube.ui.components.SubtitleOverlay
 import com.flow.youtube.ui.components.SubtitleCustomizer
 import android.text.method.LinkMovementMethod
 import org.schabi.newpipe.extractor.stream.StreamSegment
+import org.schabi.newpipe.extractor.stream.VideoStream
 import android.widget.TextView
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -1355,20 +1356,28 @@ fun EnhancedVideoPlayerScreen(
                         modifier = Modifier.heightIn(max = 400.dp)
                     ) {
                         items(uiState.availableQualities.filter { it != VideoQuality.AUTO }.sortedByDescending { it.height }) { quality ->
-                            val stream = uiState.streamInfo?.videoStreams?.find { it.height == quality.height }
-                            val sizeText = stream?.let { 
-                                val formatName = it.format?.name ?: "MP4"
+                            val stream = (uiState.streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList()).find { it.height == quality.height }
+                                ?: (uiState.streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList()).find { it.height == quality.height }
+                            
+                            val sizeInBytes = uiState.streamSizes[quality.height]
+                            val formatName = stream?.format?.name ?: "MP4"
+                            
+                            val sizeText = if (sizeInBytes != null && sizeInBytes > 0) {
+                                val mb = sizeInBytes / (1024 * 1024.0)
+                                "$formatName • ${String.format("%.1f MB", mb)}"
+                            } else {
                                 "$formatName • ${quality.label}"
-                            } ?: "Unknown"
+                            }
 
                             Surface(
                                 onClick = {
                                     showDownloadDialog = false
-                                    if (stream != null && stream.url != null) {
-                                        startDownload(context, downloadVideoTitle, stream.url!!, "mp4")
+                                    val downloadUrl = stream?.url
+                                    if (downloadUrl != null) {
+                                        startDownload(context, downloadVideoTitle, downloadUrl, "mp4")
                                         Toast.makeText(context, "Downloading ${quality.label}...", Toast.LENGTH_SHORT).show()
                                     } else {
-                                        Toast.makeText(context, "Stream not found", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Quality ${quality.label} not available for download", Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 shape = RoundedCornerShape(16.dp),

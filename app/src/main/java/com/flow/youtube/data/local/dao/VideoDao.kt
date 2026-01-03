@@ -16,4 +16,7 @@ interface VideoDao {
 
     @Query("SELECT * FROM videos WHERE id = :id")
     suspend fun getVideo(id: String): VideoEntity?
+
+    @Query("SELECT * FROM videos")
+    suspend fun getAllVideos(): List<VideoEntity>
 }

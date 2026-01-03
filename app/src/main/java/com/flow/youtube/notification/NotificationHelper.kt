@@ -15,6 +15,7 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.flow.youtube.MainActivity
 import com.flow.youtube.R
+import com.squareup.picasso.Picasso
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.URL
@@ -161,6 +162,8 @@ object NotificationHelper {
         videoTitle: String,
         progress: Int,
         downloadSpeed: String? = null,
+        thumbnailUrl: String? = null,
+        downloadId: Long = -1,
         notificationId: Int = NOTIFICATION_DOWNLOAD_PROGRESS
     ) {
         if (!hasNotificationPermission(context)) return
@@ -168,6 +171,7 @@ object NotificationHelper {
         val cancelIntent = Intent(context, NotificationActionReceiver::class.java).apply {
             action = NotificationActionReceiver.ACTION_CANCEL_DOWNLOAD
             putExtra(NotificationActionReceiver.EXTRA_NOTIFICATION_ID, notificationId)
+            putExtra(NotificationActionReceiver.EXTRA_DOWNLOAD_ID, downloadId)
         }
         val cancelPendingIntent = PendingIntent.getBroadcast(
             context,
@@ -182,7 +186,7 @@ object NotificationHelper {
             "$progress%"
         }
         
-        val notification = NotificationCompat.Builder(context, CHANNEL_DOWNLOADS)
+        val builder = NotificationCompat.Builder(context, CHANNEL_DOWNLOADS)
             .setSmallIcon(R.drawable.ic_flow_logo)
             .setContentTitle("Downloading: $videoTitle")
             .setContentText(contentText)
@@ -196,9 +200,24 @@ object NotificationHelper {
             )
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
-            .build()
-        
-        NotificationManagerCompat.from(context).notify(notificationId, notification)
+
+        // Load thumbnail if provided
+        if (!thumbnailUrl.isNullOrEmpty()) {
+            // We use Picasso to load the image. Since this might be called frequently,
+            // Picasso's caching will handle it.
+            Picasso.get().load(thumbnailUrl).into(object : com.squareup.picasso.Target {
+                override fun onBitmapLoaded(bitmap: Bitmap?, from: Picasso.LoadedFrom?) {
+                    builder.setLargeIcon(bitmap)
+                    NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+                }
+                override fun onBitmapFailed(e: Exception?, errorDrawable: android.graphics.drawable.Drawable?) {
+                    NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+                }
+                override fun onPrepareLoad(placeHolderDrawable: android.graphics.drawable.Drawable?) {}
+            })
+        } else {
+            NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+        }
     }
     
     /**
@@ -225,7 +244,7 @@ object NotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
-        val notification = NotificationCompat.Builder(context, CHANNEL_DOWNLOADS)
+        val builder = NotificationCompat.Builder(context, CHANNEL_DOWNLOADS)
             .setSmallIcon(R.drawable.ic_flow_logo)
             .setContentTitle("Download complete")
             .setContentText(videoTitle)
@@ -233,11 +252,25 @@ object NotificationHelper {
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setCategory(NotificationCompat.CATEGORY_STATUS)
-            .build()
         
         // Cancel progress notification
         NotificationManagerCompat.from(context).cancel(NOTIFICATION_DOWNLOAD_PROGRESS)
-        NotificationManagerCompat.from(context).notify(notificationId, notification)
+
+        // Load thumbnail if provided
+        if (!thumbnailUrl.isNullOrEmpty()) {
+            Picasso.get().load(thumbnailUrl).into(object : com.squareup.picasso.Target {
+                override fun onBitmapLoaded(bitmap: Bitmap?, from: Picasso.LoadedFrom?) {
+                    builder.setLargeIcon(bitmap)
+                    NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+                }
+                override fun onBitmapFailed(e: Exception?, errorDrawable: android.graphics.drawable.Drawable?) {
+                    NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+                }
+                override fun onPrepareLoad(placeHolderDrawable: android.graphics.drawable.Drawable?) {}
+            })
+        } else {
+            NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+        }
     }
     
     /**

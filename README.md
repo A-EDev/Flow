@@ -146,8 +146,8 @@
 
 - [x] Clear watch history
 - [x] Clear search history
-- [ ] Export data backup
-- [ ] Import data restore
+- [x] Export data backup
+- [x] Import data restore
 - [x] No Google account required
 - [x] No ads or tracking
 
@@ -238,6 +238,11 @@ Your support helps keep the project alive and motivates me to add more features!
   - [x] Personalized home feed
   - [x] Related videos suggestions
   - [x] Watch history-based recommendations
+  - [x] Trending videos integration
+  - [x] Improve algorithm accuracy
+  - [x] Implemented Neuro Engine that improves recommendations over time based on user behavior, it's privacy-focused and stores data locally.
+  - [ ] User controls for algorithm tuning (reset, feedback)
+  - [ ] Add interest metrics visualization for users to see their moods, interests and how they evolve over time. (Bubble chart, line graph, etc.)
 
 - [x] **Shorts Support**
   - [x] Shorts feed UI
@@ -264,11 +269,11 @@ Your support helps keep the project alive and motivates me to add more features!
 <a id="core-features"></a>
 ### 📱 Core Features
 
-- [ ] **Notification System**
+- [x] **Notification System**
   - [x] Push notifications setup
   - [x] New video notifications
   - [x] Download complete notifications
-  - [ ] Playback controls in notification
+  - [x] Playback controls in notification.(Music)
 
 - [x] **Download Manager**
   - [x] Video download functionality
@@ -323,10 +328,10 @@ Your support helps keep the project alive and motivates me to add more features!
   - [ ] Performance benchmarks
 
 - [ ] **Architecture**
-  - [ ] Migrate to Hilt/Dagger for DI
-  - [ ] Implement Room for local database
+  - [x] Migrate to Hilt/Dagger for DI
+  - [x] Implement Room for local database
   - [ ] Add offline mode support
-  - [ ] Implement proper error handling
+  - [x] Implement proper error handling
 
 <a id="future-ideas"></a>
 ### 🌟 Future Ideas

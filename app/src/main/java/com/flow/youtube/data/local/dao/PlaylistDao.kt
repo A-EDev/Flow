@@ -55,4 +55,7 @@ interface PlaylistDao {
     
     @Query("SELECT COUNT(*) FROM playlist_video_cross_ref WHERE playlistId = :playlistId")
     fun getPlaylistVideoCount(playlistId: String): Flow<Int>
+
+    @Query("SELECT * FROM playlist_video_cross_ref")
+    suspend fun getAllPlaylistVideoCrossRefs(): List<PlaylistVideoCrossRef>
 }

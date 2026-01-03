@@ -44,9 +44,12 @@ class NotificationActionReceiver : BroadcastReceiver() {
             NotificationHelper.cancelNotification(context, notificationId)
         }
         
-        // TODO: Cancel the actual download task
-        // This would integrate with your download manager
-        Log.d("NotificationAction", "Download cancelled: $downloadId")
+        // Cancel the actual download task in system DownloadManager
+        if (downloadId != -1L) {
+            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
+            downloadManager.remove(downloadId)
+            Log.d("NotificationAction", "Download cancelled in system DownloadManager: $downloadId")
+        }
     }
     
     private fun handleRetryDownload(context: Context, intent: Intent) {

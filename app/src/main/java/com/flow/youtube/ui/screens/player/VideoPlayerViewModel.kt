@@ -11,6 +11,8 @@ import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import com.flow.youtube.data.recommendation.FlowNeuroEngine.InteractionType
 import com.flow.youtube.data.repository.YouTubeRepository
 import com.flow.youtube.player.EnhancedPlayerManager
+import com.flow.youtube.innertube.YouTube
+import com.flow.youtube.innertube.models.YouTubeClient
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.schabi.newpipe.extractor.stream.*
@@ -139,7 +141,8 @@ class VideoPlayerViewModel @Inject constructor(
                     // channelSubscriberCount will be filled below if available
                     savedPosition = savedPosition,
                     isAdaptiveMode = preferredQuality == VideoQuality.AUTO,
-                    autoplayEnabled = autoplay
+                    autoplayEnabled = autoplay,
+                    streamSizes = emptyMap()
                 )
 
                     // Fetch channel info (subscriber count + avatar) asynchronously
@@ -190,6 +193,44 @@ class VideoPlayerViewModel @Inject constructor(
                     } catch (e: Exception) {
                         Log.w("VideoPlayerViewModel", "Could not fetch channel info", e)
                         // ignore best-effort
+                    }
+
+                    // Fetch stream sizes from InnerTube asynchronously
+                    viewModelScope.launch {
+                        try {
+                            val playerResult = YouTube.player(videoId, client = YouTubeClient.MOBILE)
+                            playerResult.onSuccess { playerResponse ->
+                                val sizes = mutableMapOf<Int, Long>()
+                                
+                                // Get best audio size to add to video-only streams
+                                val bestAudioSize = playerResponse.streamingData?.adaptiveFormats
+                                    ?.filter { it.isAudio }
+                                    ?.maxByOrNull { it.bitrate }
+                                    ?.contentLength ?: 0L
+
+                                // Process muxed formats
+                                playerResponse.streamingData?.formats?.forEach { format ->
+                                    if (format.height != null && format.contentLength != null) {
+                                        sizes[format.height] = format.contentLength
+                                    }
+                                }
+
+                                // Process adaptive formats (video only)
+                                playerResponse.streamingData?.adaptiveFormats?.forEach { format ->
+                                    if (format.height != null && format.contentLength != null && !format.isAudio) {
+                                        // For video-only, add audio size for a better estimate of total download size
+                                        val totalSize = format.contentLength + bestAudioSize
+                                        val currentSize = sizes[format.height] ?: 0L
+                                        if (totalSize > currentSize) {
+                                            sizes[format.height] = totalSize
+                                        }
+                                    }
+                                }
+                                _uiState.value = _uiState.value.copy(streamSizes = sizes)
+                            }
+                        } catch (e: Exception) {
+                            Log.w("VideoPlayerViewModel", "Could not fetch stream sizes", e)
+                        }
                     }
                 } else {
                     _uiState.value = _uiState.value.copy(
@@ -547,7 +588,8 @@ data class VideoPlayerUiState(
     val channelAvatarUrl: String? = null,
     val chapters: List<StreamSegment> = emptyList(),
     val autoplayEnabled: Boolean = true,
-    val commentCountText: String = "0"
+    val commentCountText: String = "0",
+    val streamSizes: Map<Int, Long> = emptyMap()
 )
 
 

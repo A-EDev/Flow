@@ -195,10 +195,19 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
-        // Only enter PiP mode if video is playing
+        // Only enter PiP mode if video is playing and has progressed
         // We use the EnhancedPlayerManager directly to get the immediate state
         val playerManager = com.flow.youtube.player.EnhancedPlayerManager.getInstance()
-        if (playerManager.playerState.value.isPlaying && playerManager.playerState.value.currentVideoId != null) {
+        val musicManager = com.flow.youtube.player.EnhancedMusicPlayerManager
+        
+        val isVideoPlaying = playerManager.playerState.value.isPlaying && 
+                           playerManager.playerState.value.currentVideoId != null &&
+                           playerManager.getCurrentPosition() > 500 // At least 0.5s in
+        
+        val isMusicPlaying = musicManager.playerState.value.isPlaying
+        
+        // Only enter PiP for video, not for music (which uses background service)
+        if (isVideoPlaying && !isMusicPlaying) {
             enterPictureInPictureMode(
                 android.app.PictureInPictureParams.Builder()
                     .setAspectRatio(android.util.Rational(16, 9))

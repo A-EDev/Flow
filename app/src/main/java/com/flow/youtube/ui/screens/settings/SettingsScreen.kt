@@ -2,6 +2,8 @@ package com.flow.youtube.ui.screens.settings
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -38,10 +40,45 @@ fun SettingsScreen(
     val coroutineScope = rememberCoroutineScope()
     val searchHistoryRepo = remember { com.flow.youtube.data.local.SearchHistoryRepository(context) }
     val playerPreferences = remember { PlayerPreferences(context) }
+    val viewHistory = remember { com.flow.youtube.data.local.ViewHistory.getInstance(context) }
+    val backupRepo = remember { com.flow.youtube.data.local.BackupRepository(context) }
     
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json"),
+        onResult = { uri ->
+            uri?.let {
+                coroutineScope.launch {
+                    val result = backupRepo.exportData(it)
+                    if (result.isSuccess) {
+                        android.widget.Toast.makeText(context, "Data exported successfully", android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        android.widget.Toast.makeText(context, "Export failed: ${result.exceptionOrNull()?.message}", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    )
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            uri?.let {
+                coroutineScope.launch {
+                    val result = backupRepo.importData(it)
+                    if (result.isSuccess) {
+                        android.widget.Toast.makeText(context, "Data imported successfully", android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        android.widget.Toast.makeText(context, "Import failed: ${result.exceptionOrNull()?.message}", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    )
+
     var showVideoQualityDialog by remember { mutableStateOf(false) }
     var showRegionDialog by remember { mutableStateOf(false) }
     var showClearSearchDialog by remember { mutableStateOf(false) }
+    var showClearWatchHistoryDialog by remember { mutableStateOf(false) }
     var showHistorySizeDialog by remember { mutableStateOf(false) }
     var showRetentionDaysDialog by remember { mutableStateOf(false) }
     
@@ -264,7 +301,7 @@ fun SettingsScreen(
                     icon = Icons.Outlined.DeleteSweep,
                     title = "Clear Watch History",
                     subtitle = "Remove all watched videos",
-                    onClick = { /* Show confirmation */ }
+                    onClick = { showClearWatchHistoryDialog = true }
                 )
             }
 
@@ -273,7 +310,7 @@ fun SettingsScreen(
                     icon = Icons.Outlined.FileUpload,
                     title = "Export Data",
                     subtitle = "Backup your data to a file",
-                    onClick = { /* Export */ }
+                    onClick = { exportLauncher.launch("flow_backup_${System.currentTimeMillis()}.json") }
                 )
             }
 
@@ -282,7 +319,7 @@ fun SettingsScreen(
                     icon = Icons.Outlined.FileDownload,
                     title = "Import Data",
                     subtitle = "Restore from backup file",
-                    onClick = { /* Import */ }
+                    onClick = { importLauncher.launch(arrayOf("application/json", "application/octet-stream")) }
                 )
             }
 
@@ -362,6 +399,39 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showClearSearchDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Clear Watch History Dialog
+    if (showClearWatchHistoryDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearWatchHistoryDialog = false },
+            icon = {
+                Icon(Icons.Outlined.DeleteSweep, contentDescription = null)
+            },
+            title = {
+                Text("Clear Watch History?")
+            },
+            text = {
+                Text("This will permanently delete all your watch history and playback positions.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            viewHistory.clearAllHistory()
+                            showClearWatchHistoryDialog = false
+                        }
+                    }
+                ) {
+                    Text("Clear")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearWatchHistoryDialog = false }) {
                     Text("Cancel")
                 }
             }
