@@ -446,6 +446,3 @@ If you find this project useful, please consider giving it a star! 🌟
 Made with ❤️ by A-EDev
 
 </div>
-
-Current Date and Time (UTC - YYYY-MM-DD HH:MM:SS formatted): 2026-01-05 18:11:23
-Current User's Login: A-EDev
