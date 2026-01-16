@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.flow.youtube.ui.screens.player.components.SeekbarWithPreview
 import com.flow.youtube.player.EnhancedPlayerManager
 import com.flow.youtube.player.seekbarpreview.SeekbarPreviewThumbnailHelper
 import kotlinx.coroutines.delay
