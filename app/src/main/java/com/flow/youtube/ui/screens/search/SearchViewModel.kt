@@ -64,7 +64,7 @@ class SearchViewModel(
                     channels = searchResult.channels,
                     playlists = searchResult.playlists,
                     isLoading = false,
-                    hasMorePages = false, // TODO: Implement pagination
+                    hasMorePages = true, // Enable pagination (will switch to video validation on load more)
                     query = query
                 )
             } catch (e: Exception) {
