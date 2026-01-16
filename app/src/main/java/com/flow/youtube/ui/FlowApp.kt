@@ -55,6 +55,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.delay
 
 @Composable
 fun FlowApp(
@@ -63,14 +68,42 @@ fun FlowApp(
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val navController = rememberNavController()
-    var selectedBottomNavIndex by remember { mutableStateOf(0) }
+    
+     // Offline Monitoring
+    val currentRoute = remember { mutableStateOf("home") }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network = connectivityManager.activeNetwork
+            val capabilities = connectivityManager.getNetworkCapabilities(network)
+            val hasInternet = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+            
+            if (!hasInternet) {
+                // If offline and not in downloads or player (which supports offline), redirect to downloads
+                val route = currentRoute.value
+                val isSafeRoute = route == "downloads" || 
+                                  route?.startsWith("player") == true || 
+                                  route?.startsWith("musicPlayer") == true ||
+                                  route == "settings"
+                
+                if (!isSafeRoute) {
+                    navController.navigate("downloads") {
+                        popUpTo(0)
+                        launchSingleTop = true
+                    }
+                }
+            }
+            delay(5000) // Check every 5 seconds
+        }
+    }
+    
+    var selectedBottomNavIndex by remember { mutableIntStateOf(0) }
     var showBottomNav by remember { mutableStateOf(true) }
     
     // Observer global player state
     val isMiniPlayerVisible by GlobalPlayerState.isMiniPlayerVisible.collectAsState()
     val isInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
     val currentVideo by GlobalPlayerState.currentVideo.collectAsState()
-    val currentRoute = remember { mutableStateOf("home") }
     
     // Observe music player state
     val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
@@ -567,17 +600,27 @@ fun FlowApp(
                 composable("downloads") {
                     currentRoute.value = "downloads"
                     showBottomNav = false
+                    
+                    // Inject MusicPlayerViewModel here to handle queue playback
+                    val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+                    
                     com.flow.youtube.ui.screens.library.DownloadsScreen(
                         onBackClick = { navController.popBackStack() },
                         onVideoClick = { videoId ->
                             navController.navigate("player/$videoId")
                         },
-                        onMusicClick = { downloadedTrack ->
-                            val track = downloadedTrack.track
-                            val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
-                            val encodedTitle = android.net.Uri.encode(track.title)
-                            val encodedArtist = android.net.Uri.encode(track.artist)
-                            navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
+                        onMusicClick = { tracks, index ->
+                            // Convert DownloadedTrack to MusicTrack
+                            val musicTracks = tracks.map { it.track }
+                            val selectedTrack = musicTracks[index]
+                            
+                            // Load and play queue
+                            musicPlayerViewModel.loadAndPlayTrack(selectedTrack, musicTracks, "Downloads")
+                            
+                            val encodedUrl = android.net.Uri.encode(selectedTrack.thumbnailUrl)
+                            val encodedTitle = android.net.Uri.encode(selectedTrack.title)
+                            val encodedArtist = android.net.Uri.encode(selectedTrack.artist)
+                            navController.navigate("musicPlayer/${selectedTrack.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
                         }
                     )
                 }

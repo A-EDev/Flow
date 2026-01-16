@@ -39,7 +39,7 @@ class HistoryViewModel : ViewModel() {
         }
     }
     
-    fun deleteHistoryEntry(videoId: String) {
+    fun removeFromHistory(videoId: String) {
         viewModelScope.launch {
             viewHistory.clearVideoHistory(videoId)
         }

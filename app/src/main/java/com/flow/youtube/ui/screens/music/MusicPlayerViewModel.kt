@@ -97,6 +97,14 @@ class MusicPlayerViewModel @Inject constructor(
                 _uiState.update { it.copy(playingFrom = source) }
             }
         }
+        
+        // Observe downloaded tracks status
+        viewModelScope.launch {
+            downloadManager.downloadedTracks.collect { tracks ->
+                val ids = tracks.map { it.track.videoId }.toSet()
+                _uiState.update { it.copy(downloadedTrackIds = ids) }
+            }
+        }
             
         // Observe queue
         viewModelScope.launch {
@@ -433,6 +441,11 @@ class MusicPlayerViewModel @Inject constructor(
     fun downloadTrack(track: MusicTrack? = null) {
         val trackToDownload = track ?: _uiState.value.currentTrack ?: return
         
+        if (_uiState.value.downloadedTrackIds.contains(trackToDownload.videoId)) {
+             Toast.makeText(context, "Already downloaded", Toast.LENGTH_SHORT).show()
+             return
+        }
+
         viewModelScope.launch {
             Toast.makeText(context, "Download started...", Toast.LENGTH_SHORT).show()
             
@@ -565,7 +578,8 @@ data class MusicPlayerUiState(
     val autoplayEnabled: Boolean = true,
     val selectedFilter: String = "All",
     val relatedContent: List<MusicTrack> = emptyList(),
-    val isRelatedLoading: Boolean = false
+    val isRelatedLoading: Boolean = false,
+    val downloadedTrackIds: Set<String> = emptySet()
 )
 
 data class LyricLine(

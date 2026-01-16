@@ -350,7 +350,7 @@ Your support helps keep the project alive and motivates me to add more features!
 - [ ] Community playlists
 - [ ] Import YouTube subscriptions
 - [ ] Sponsorblock integration
-- [ ] Picture-in-Picture enhancements
+- [x] Picture-in-Picture enhancements
 
 ---
 

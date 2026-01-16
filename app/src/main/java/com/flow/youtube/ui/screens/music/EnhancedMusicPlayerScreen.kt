@@ -130,12 +130,13 @@ fun EnhancedMusicPlayerScreen(
     
     LaunchedEffect(track.videoId) {
         viewModel.fetchRelatedContent(track.videoId)
-        // Check if track is already loaded and playing
-        val currentTrack = viewModel.uiState.value.currentTrack
-        val isPlaying = viewModel.uiState.value.isPlaying
         
-        if (currentTrack?.videoId == track.videoId && isPlaying) {
-            // Track is already playing, don't reload
+        // Check global manager state to avoid overwriting an existing queue
+        val managerTrack = EnhancedMusicPlayerManager.currentTrack.value
+        val isManagerPlaying = EnhancedMusicPlayerManager.isPlaying()
+        
+        if (managerTrack?.videoId == track.videoId && (isManagerPlaying || managerTrack != null)) {
+            // Track is already loaded in the global manager, don't reload as it might reset the queue
         } else {
             viewModel.loadAndPlayTrack(track)
         }
@@ -387,10 +388,14 @@ fun EnhancedMusicPlayerScreen(
                             context.startActivity(shareIntent)
                         }
                     )
+                    
+                    val isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId)
                     PillButton(
-                        icon = Icons.Outlined.DownloadForOffline,
-                        text = "Download",
-                        onClick = { viewModel.downloadTrack() }
+                        icon = if (isDownloaded) Icons.Filled.CheckCircle else Icons.Outlined.DownloadForOffline,
+                        text = if (isDownloaded) "Downloaded" else "Download",
+                        onClick = { 
+                            if (!isDownloaded) viewModel.downloadTrack() 
+                        }
                     )
                     PillButton(
                         icon = Icons.Outlined.PlaylistAdd,

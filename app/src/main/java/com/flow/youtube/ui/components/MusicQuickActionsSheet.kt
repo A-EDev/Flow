@@ -100,11 +100,14 @@ fun MusicQuickActionsSheet(
                 }
             )
 
+            val isDownloaded = uiState.downloadedTrackIds.contains(track.videoId)
             MusicQuickActionItem(
-                icon = Icons.Outlined.Download,
-                text = "Download",
+                icon = if (isDownloaded) Icons.Outlined.CheckCircle else Icons.Outlined.Download,
+                text = if (isDownloaded) "Downloaded" else "Download",
                 onClick = {
-                    viewModel.downloadTrack(track)
+                    if (!isDownloaded) {
+                        viewModel.downloadTrack(track)
+                    }
                     onDismiss()
                 }
             )

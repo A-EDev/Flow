@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.*
@@ -146,15 +147,14 @@ fun LikedVideosScreen(
                                             )
                                         ) 
                                     },
-                                    onMenuClick = {
-                                        selectedTrack = MusicTrack(
-                                            videoId = video.videoId,
-                                            title = video.title,
-                                            artist = video.channelName,
-                                            thumbnailUrl = video.thumbnail,
-                                            duration = 0
-                                        )
-                                        showBottomSheet = true
+                                    trailingContent = {
+                                        IconButton(onClick = { viewModel.removeLike(video.videoId) }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Favorite,
+                                                contentDescription = "Unlike",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                     }
                                 )
                             } else {

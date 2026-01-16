@@ -156,16 +156,14 @@ fun HistoryScreen(
                                             )
                                         ) 
                                     },
-                                    onMenuClick = {
-                                        selectedTrack = MusicTrack(
-                                            videoId = entry.videoId,
-                                            title = entry.title,
-                                            artist = entry.channelName,
-                                            thumbnailUrl = entry.thumbnailUrl,
-                                            duration = (entry.duration / 1000).toInt(),
-                                            channelId = entry.channelId
-                                        )
-                                        showBottomSheet = true
+                                    trailingContent = {
+                                        IconButton(onClick = { viewModel.removeFromHistory(entry.videoId) }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "Remove from history",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
                                     }
                                 )
                             } else {
@@ -183,7 +181,7 @@ fun HistoryScreen(
                                             )
                                         ) 
                                     },
-                                    onDeleteClick = { viewModel.deleteHistoryEntry(entry.videoId) }
+                                    onDeleteClick = { viewModel.removeFromHistory(entry.videoId) }
                                 )
                             }
                         }

@@ -22,6 +22,7 @@ fun MusicTrackRow(
     index: Int? = null,
     track: MusicTrack,
     onClick: () -> Unit,
+    trailingContent: (@Composable () -> Unit)? = null,
     onMenuClick: () -> Unit = {}
 ) {
     Row(
@@ -89,12 +90,16 @@ fun MusicTrackRow(
             }
         }
         
-        IconButton(onClick = onMenuClick) {
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = "Options",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        if (trailingContent != null) {
+            trailingContent()
+        } else {
+            IconButton(onClick = onMenuClick) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Options",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
