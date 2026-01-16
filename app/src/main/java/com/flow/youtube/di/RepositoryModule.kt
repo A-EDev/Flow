@@ -61,6 +61,12 @@ object RepositoryModule {
     fun provideDownloadManager(@ApplicationContext context: Context): com.flow.youtube.data.music.DownloadManager {
         return com.flow.youtube.data.music.DownloadManager(context)
     }
+
+    @Provides
+    @Singleton
+    fun provideVideoDownloadManager(@ApplicationContext context: Context): com.flow.youtube.data.video.VideoDownloadManager {
+        return com.flow.youtube.data.video.VideoDownloadManager.getInstance(context)
+    }
     @Provides
     @Singleton
     fun providePlayerPreferences(@ApplicationContext context: Context): com.flow.youtube.data.local.PlayerPreferences {

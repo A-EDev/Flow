@@ -164,12 +164,26 @@ class HomeViewModel @Inject constructor(
                 // 4. RANK WITH NEURO ENGINE
                 val rankedVideos = FlowNeuroEngine.rank(pool, userSubs)
                 
-                // 5. BACKFILL SAFEGUARD
-                val finalVideos = if (rankedVideos.size < 30) {
-                    val fillers = pool.filter { p -> rankedVideos.none { r -> r.id == p.id } }.take(30)
-                    (rankedVideos + fillers).distinctBy { it.id }
+                // 5. CHANNEL DIVERSITY & BACKFILL
+                // Limit each channel to at most 2 videos to prevent feed clutter
+                val channelCounts = mutableMapOf<String, Int>()
+                val diverseVideos = rankedVideos.filter { video ->
+                    val count = channelCounts.getOrDefault(video.channelId, 0)
+                    if (count < 2) {
+                        channelCounts[video.channelId] = count + 1
+                        true
+                    } else {
+                        false
+                    }
+                }
+
+                val finalVideos = if (diverseVideos.size < 30) {
+                    val fillers = pool.filter { p -> 
+                        diverseVideos.none { r -> r.id == p.id } 
+                    }.take(30 - diverseVideos.size)
+                    (diverseVideos + fillers).distinctBy { it.id }
                 } else {
-                    rankedVideos
+                    diverseVideos
                 }
 
                 // 6. UPDATE UI

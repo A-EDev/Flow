@@ -76,6 +76,9 @@ class DownloadManager(private val context: Context) {
     /**
      * Download a track for offline playback
      */
+    /**
+     * Download a track for offline playback
+     */
     suspend fun downloadTrack(track: MusicTrack, audioUrl: String): Result<String> = withContext(Dispatchers.IO) {
         try {
             // Update status
@@ -90,18 +93,22 @@ class DownloadManager(private val context: Context) {
                 .setTitle(track.title)
                 .setDescription("Downloading music...")
                 .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_HIDDEN)
-                .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_MOVIES, fileName)
+                .setDestinationInExternalFilesDir(context, android.os.Environment.DIRECTORY_MUSIC, fileName)
                 .setAllowedOverMetered(true)
                 .setAllowedOverRoaming(true)
             
             val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
             val downloadId = downloadManager.enqueue(request)
             
+            // Pre-load thumbnail for notification
+            // This prevents loading it every second during progress updates
+            val largeIcon = NotificationHelper.getBitmapFromUrl(track.thumbnailUrl)
+            
             // Start monitoring progress
-            monitorDownloadProgress(downloadId, track)
+            monitorDownloadProgress(downloadId, track, largeIcon)
             
             // Save metadata
-            val filePath = "${android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MOVIES)}/$fileName"
+            val filePath = "${context.getExternalFilesDir(android.os.Environment.DIRECTORY_MUSIC)}/$fileName"
             val downloadedTrack = DownloadedTrack(
                 track = track,
                 filePath = filePath,
@@ -119,7 +126,7 @@ class DownloadManager(private val context: Context) {
         }
     }
 
-    private fun monitorDownloadProgress(downloadId: Long, track: MusicTrack) {
+    private fun monitorDownloadProgress(downloadId: Long, track: MusicTrack, largeIcon: android.graphics.Bitmap?) {
         scope.launch {
             val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
             var downloading = true
@@ -150,12 +157,12 @@ class DownloadManager(private val context: Context) {
                             val progress = if (bytesTotal > 0) (bytesDownloaded * 100L / bytesTotal).toInt() else 0
                             updateDownloadProgress(track.videoId, progress)
                             
-                            // Show custom notification
+                            // Show custom notification with pre-loaded bitmap
                             NotificationHelper.showDownloadProgress(
                                 context = context,
                                 videoTitle = track.title,
                                 progress = progress,
-                                thumbnailUrl = track.thumbnailUrl,
+                                largeIcon = largeIcon,
                                 downloadId = downloadId
                             )
                         }

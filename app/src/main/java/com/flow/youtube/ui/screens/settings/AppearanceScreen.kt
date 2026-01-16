@@ -33,8 +33,20 @@ fun AppearanceScreen(
     
     // Filter themes based on tab
     val themes = when (selectedTab) {
-        1 -> listOf(ThemeMode.LIGHT)
-        2 -> ThemeMode.values().filter { it != ThemeMode.LIGHT }.toList()
+        1 -> listOf(
+            ThemeMode.LIGHT,
+            ThemeMode.MINT_LIGHT,
+            ThemeMode.ROSE_LIGHT,
+            ThemeMode.SKY_LIGHT,
+            ThemeMode.CREAM_LIGHT
+        )
+        2 -> ThemeMode.values().filter { 
+            it != ThemeMode.LIGHT && 
+            it != ThemeMode.MINT_LIGHT && 
+            it != ThemeMode.ROSE_LIGHT && 
+            it != ThemeMode.SKY_LIGHT && 
+            it != ThemeMode.CREAM_LIGHT 
+        }.toList()
         else -> ThemeMode.values().toList()
     }
 
@@ -295,5 +307,11 @@ private fun getThemeColors(theme: ThemeMode): ColorScheme {
         ThemeMode.NORDIC_HORIZON -> darkColorScheme(primary = Color(0xFF88C0D0), background = Color(0xFF242933))
         ThemeMode.ESPRESSO -> darkColorScheme(primary = Color(0xFFD7CCC8), background = Color(0xFF181210))
         ThemeMode.GUNMETAL -> darkColorScheme(primary = Color(0xFF78909C), background = Color(0xFF0F1216))
+        
+        // NEW LIGHT THEMES
+        ThemeMode.MINT_LIGHT -> lightColorScheme(primary = Color(0xFF00BFA5), background = Color.White, surface = Color(0xFFF1F8F7))
+        ThemeMode.ROSE_LIGHT -> lightColorScheme(primary = Color(0xFFEC407A), background = Color(0xFFFFF8F9), surface = Color(0xFFFCE4EC))
+        ThemeMode.SKY_LIGHT -> lightColorScheme(primary = Color(0xFF0288D1), background = Color(0xFFF9FCFF), surface = Color(0xFFE1F5FE))
+        ThemeMode.CREAM_LIGHT -> lightColorScheme(primary = Color(0xFF8D6E63), background = Color(0xFFFFFBF0), surface = Color(0xFFF5F5DC))
     }
 }

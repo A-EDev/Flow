@@ -186,8 +186,15 @@ class MusicPlayerViewModel @Inject constructor(
             ) }
             
             try {
-                // Get audio URL from YouTube
-                val audioUrl = YouTubeMusicService.getAudioUrl(track.videoId)
+                // Check if track is downloaded
+                val localPath = downloadManager.getDownloadedTrackPath(track.videoId)
+                
+                val audioUrl = if (localPath != null && java.io.File(localPath).exists()) {
+                    localPath
+                } else {
+                    // Get audio URL from YouTube if not offline
+                    YouTubeMusicService.getAudioUrl(track.videoId)
+                }
                 
                 if (audioUrl != null) {
                     // Play track with EnhancedMusicPlayerManager

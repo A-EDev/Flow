@@ -21,6 +21,8 @@ class PlayerPreferences(private val context: Context) {
         val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
         val TRENDING_REGION = stringPreferencesKey("trending_region")
         val SKIP_SILENCE_ENABLED = booleanPreferencesKey("skip_silence_enabled")
+        val AUTO_PIP_ENABLED = booleanPreferencesKey("auto_pip_enabled")
+        val MANUAL_PIP_BUTTON_ENABLED = booleanPreferencesKey("manual_pip_button_enabled")
     }
     
     // Region preference
@@ -126,6 +128,29 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setPlaybackSpeed(speed: Float) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.PLAYBACK_SPEED] = speed
+        }
+    }
+
+    // PiP Preferences
+    val autoPipEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.AUTO_PIP_ENABLED] ?: false // Default OFF
+        }
+
+    suspend fun setAutoPipEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.AUTO_PIP_ENABLED] = enabled
+        }
+    }
+
+    val manualPipButtonEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.MANUAL_PIP_BUTTON_ENABLED] ?: true // Default ON
+        }
+
+    suspend fun setManualPipButtonEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MANUAL_PIP_BUTTON_ENABLED] = enabled
         }
     }
 }

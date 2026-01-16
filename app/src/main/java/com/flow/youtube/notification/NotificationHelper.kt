@@ -162,7 +162,7 @@ object NotificationHelper {
         videoTitle: String,
         progress: Int,
         downloadSpeed: String? = null,
-        thumbnailUrl: String? = null,
+        largeIcon: Bitmap? = null,
         downloadId: Long = -1,
         notificationId: Int = NOTIFICATION_DOWNLOAD_PROGRESS
     ) {
@@ -187,7 +187,7 @@ object NotificationHelper {
         }
         
         val builder = NotificationCompat.Builder(context, CHANNEL_DOWNLOADS)
-            .setSmallIcon(R.drawable.ic_flow_logo)
+            .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle("Downloading: $videoTitle")
             .setContentText(contentText)
             .setProgress(100, progress, false)
@@ -201,29 +201,17 @@ object NotificationHelper {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
 
-        // Load thumbnail if provided
-        if (!thumbnailUrl.isNullOrEmpty()) {
-            // We use Picasso to load the image. Since this might be called frequently,
-            // Picasso's caching will handle it.
-            Picasso.get().load(thumbnailUrl).into(object : com.squareup.picasso.Target {
-                override fun onBitmapLoaded(bitmap: Bitmap?, from: Picasso.LoadedFrom?) {
-                    builder.setLargeIcon(bitmap)
-                    NotificationManagerCompat.from(context).notify(notificationId, builder.build())
-                }
-                override fun onBitmapFailed(e: Exception?, errorDrawable: android.graphics.drawable.Drawable?) {
-                    NotificationManagerCompat.from(context).notify(notificationId, builder.build())
-                }
-                override fun onPrepareLoad(placeHolderDrawable: android.graphics.drawable.Drawable?) {}
-            })
-        } else {
-            NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+        if (largeIcon != null) {
+            builder.setLargeIcon(largeIcon)
         }
+        
+        NotificationManagerCompat.from(context).notify(notificationId, builder.build())
     }
     
     /**
      * Show download complete notification
      */
-    fun showDownloadComplete(
+    suspend fun showDownloadComplete(
         context: Context,
         videoTitle: String,
         filePath: String? = null,
@@ -245,7 +233,7 @@ object NotificationHelper {
         )
         
         val builder = NotificationCompat.Builder(context, CHANNEL_DOWNLOADS)
-            .setSmallIcon(R.drawable.ic_flow_logo)
+            .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle("Download complete")
             .setContentText(videoTitle)
             .setContentIntent(openPendingIntent)
@@ -258,19 +246,13 @@ object NotificationHelper {
 
         // Load thumbnail if provided
         if (!thumbnailUrl.isNullOrEmpty()) {
-            Picasso.get().load(thumbnailUrl).into(object : com.squareup.picasso.Target {
-                override fun onBitmapLoaded(bitmap: Bitmap?, from: Picasso.LoadedFrom?) {
-                    builder.setLargeIcon(bitmap)
-                    NotificationManagerCompat.from(context).notify(notificationId, builder.build())
-                }
-                override fun onBitmapFailed(e: Exception?, errorDrawable: android.graphics.drawable.Drawable?) {
-                    NotificationManagerCompat.from(context).notify(notificationId, builder.build())
-                }
-                override fun onPrepareLoad(placeHolderDrawable: android.graphics.drawable.Drawable?) {}
-            })
-        } else {
-            NotificationManagerCompat.from(context).notify(notificationId, builder.build())
+            val bitmap = getBitmapFromUrl(thumbnailUrl)
+            if (bitmap != null) {
+                builder.setLargeIcon(bitmap)
+            }
         }
+        
+        NotificationManagerCompat.from(context).notify(notificationId, builder.build())
     }
     
     /**
@@ -297,7 +279,7 @@ object NotificationHelper {
         )
         
         val notification = NotificationCompat.Builder(context, CHANNEL_DOWNLOADS)
-            .setSmallIcon(R.drawable.ic_flow_logo)
+            .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle("Download failed")
             .setContentText(videoTitle)
             .setStyle(NotificationCompat.BigTextStyle()
@@ -350,7 +332,7 @@ object NotificationHelper {
         )
         
         val builder = NotificationCompat.Builder(context, CHANNEL_SUBSCRIPTIONS)
-            .setSmallIcon(R.drawable.ic_flow_logo)
+            .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle(channelName)
             .setContentText(videoTitle)
             .setContentIntent(watchPendingIntent)
@@ -361,16 +343,12 @@ object NotificationHelper {
         
         // Try to load thumbnail
         thumbnailUrl?.let { url ->
-            try {
-                val bitmap = loadBitmapFromUrl(url)
-                bitmap?.let {
-                    builder.setLargeIcon(it)
-                    builder.setStyle(NotificationCompat.BigPictureStyle()
-                        .bigPicture(it)
-                        .bigLargeIcon(null as Bitmap?))
-                }
-            } catch (e: Exception) {
-                // Ignore thumbnail loading errors
+            val bitmap = getBitmapFromUrl(url)
+            bitmap?.let {
+                builder.setLargeIcon(it)
+                builder.setStyle(NotificationCompat.BigPictureStyle()
+                    .bigPicture(it)
+                    .bigLargeIcon(null as Bitmap?))
             }
         }
         
@@ -387,7 +365,7 @@ object NotificationHelper {
         if (!hasNotificationPermission(context)) return
         
         val summaryNotification = NotificationCompat.Builder(context, CHANNEL_SUBSCRIPTIONS)
-            .setSmallIcon(R.drawable.ic_flow_logo)
+            .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle("New videos")
             .setContentText("$videoCount new videos from your subscriptions")
             .setGroup("new_videos")
@@ -423,7 +401,7 @@ object NotificationHelper {
         )
         
         val notification = NotificationCompat.Builder(context, CHANNEL_GENERAL)
-            .setSmallIcon(R.drawable.ic_flow_logo)
+            .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle(title)
             .setContentText(message)
             .setContentIntent(pendingIntent)
@@ -459,7 +437,7 @@ object NotificationHelper {
         )
         
         val notification = NotificationCompat.Builder(context, CHANNEL_GENERAL)
-            .setSmallIcon(R.drawable.ic_flow_logo)
+            .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle("Watch Later Reminder")
             .setContentText(videoTitle)
             .setContentIntent(watchPendingIntent)
@@ -488,14 +466,15 @@ object NotificationHelper {
     
     /**
      * Load bitmap from URL for notification large icon/picture
+     * Uses Picasso on IO thread
      */
-    private suspend fun loadBitmapFromUrl(url: String): Bitmap? = withContext(Dispatchers.IO) {
+    suspend fun getBitmapFromUrl(url: String): Bitmap? = withContext(Dispatchers.IO) {
         try {
-            val connection = URL(url).openConnection()
-            connection.connect()
-            val inputStream = connection.getInputStream()
-            BitmapFactory.decodeStream(inputStream)
+            if (url.isEmpty()) return@withContext null
+            // Load synchronously on the IO thread
+            Picasso.get().load(url).get()
         } catch (e: Exception) {
+            e.printStackTrace()
             null
         }
     }

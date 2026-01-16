@@ -101,12 +101,15 @@ import com.flow.youtube.data.local.PlaylistRepository
 import com.flow.youtube.player.seekbarpreview.SeekbarPreviewThumbnailHelper
 import com.flow.youtube.player.seekbarpreview.SeekbarPreviewThumbnailQuality
 
+import com.flow.youtube.data.video.VideoDownloadManager
+import com.flow.youtube.data.video.DownloadedVideo
 import com.flow.youtube.ui.components.VideoQuickActionsBottomSheet
 import com.flow.youtube.ui.components.VideoInfoSection
 import com.flow.youtube.ui.components.CommentsPreview
 import com.flow.youtube.ui.components.FlowCommentsBottomSheet
 import com.flow.youtube.ui.components.FlowDescriptionBottomSheet
 import androidx.core.text.HtmlCompat
+import java.io.File
 
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -132,9 +135,39 @@ fun EnhancedVideoPlayerScreen(
     // State
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
+
+    // Create a complete Video object from streamInfo if available
+    val completeVideo = remember(uiState.streamInfo, video) {
+        val streamInfo = uiState.streamInfo
+        if (streamInfo != null) {
+            Video(
+                id = streamInfo.id ?: video.id,
+                title = streamInfo.name ?: video.title,
+                channelName = streamInfo.uploaderName ?: video.channelName,
+                channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
+                thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: video.thumbnailUrl,
+                duration = streamInfo.duration.toInt(),
+                viewCount = streamInfo.viewCount,
+                uploadDate = streamInfo.uploadDate?.toString() ?: video.uploadDate,
+                description = streamInfo.description?.content ?: video.description,
+                channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl
+            )
+        } else {
+            video
+        }
+    }
+
     val comments by viewModel.commentsState.collectAsStateWithLifecycle()
     val isLoadingComments by viewModel.isLoadingComments.collectAsStateWithLifecycle()
     val canGoPrevious by viewModel.canGoPrevious.collectAsStateWithLifecycle()
+
+    // PiP Preferences
+    val autoPipEnabled by remember(context) { 
+        com.flow.youtube.data.local.PlayerPreferences(context).autoPipEnabled 
+    }.collectAsState(initial = false)
+    val manualPipButtonEnabled by remember(context) { 
+        com.flow.youtube.data.local.PlayerPreferences(context).manualPipButtonEnabled 
+    }.collectAsState(initial = true)
 
     var showQuickActions by remember { mutableStateOf(false) }
     var showCommentsSheet by remember { mutableStateOf(false) }
@@ -274,14 +307,14 @@ fun EnhancedVideoPlayerScreen(
     }
     
     // Update PiP params when playback state changes
-    LaunchedEffect(playerState.isPlaying) {
+    LaunchedEffect(playerState.isPlaying, autoPipEnabled) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
             PictureInPictureHelper.updatePipParams(
                 activity = activity,
                 aspectRatioWidth = 16,
                 aspectRatioHeight = 9,
                 isPlaying = playerState.isPlaying,
-                autoEnterEnabled = true
+                autoEnterEnabled = autoPipEnabled
             )
         }
     }
@@ -493,7 +526,8 @@ fun EnhancedVideoPlayerScreen(
                 audioStream = audioStream,
                 videoStreams = videoStreams.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>(),
                 audioStreams = audioStreams,
-                subtitles = subtitles
+                subtitles = subtitles,
+                localFilePath = uiState.localFilePath
             )
             
             // Initialize seekbar preview helper
@@ -1092,7 +1126,9 @@ fun EnhancedVideoPlayerScreen(
                     onSettingsClick = { showSettingsMenu = true },
                     onFullscreenClick = { isFullscreen = !isFullscreen },
                     isFullscreen = isFullscreen,
-                    isPipSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && PictureInPictureHelper.isPipSupported(context),
+                    isPipSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && 
+                                     PictureInPictureHelper.isPipSupported(context) &&
+                                     manualPipButtonEnabled,
                     onPipClick = {
                         activity?.let { act ->
                             PictureInPictureHelper.enterPipMode(
@@ -1259,27 +1295,6 @@ fun EnhancedVideoPlayerScreen(
     }
     // Quick actions sheet
     if (showQuickActions) {
-        // Create a complete Video object from streamInfo if available
-        val completeVideo = remember(uiState.streamInfo, video) {
-            val streamInfo = uiState.streamInfo
-            if (streamInfo != null) {
-                Video(
-                    id = streamInfo.id ?: video.id,
-                    title = streamInfo.name ?: video.title,
-                    channelName = streamInfo.uploaderName ?: video.channelName,
-                    channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
-                    thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: video.thumbnailUrl,
-                    duration = streamInfo.duration.toInt(),
-                    viewCount = streamInfo.viewCount,
-                    uploadDate = streamInfo.uploadDate?.toString() ?: video.uploadDate,
-                    description = streamInfo.description?.content ?: video.description,
-                    channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl
-                )
-            } else {
-                video
-            }
-        }
-
         VideoQuickActionsBottomSheet(
             video = completeVideo,
             onDismiss = { showQuickActions = false },
@@ -1374,7 +1389,8 @@ fun EnhancedVideoPlayerScreen(
                                     showDownloadDialog = false
                                     val downloadUrl = stream?.url
                                     if (downloadUrl != null) {
-                                        startDownload(context, downloadVideoTitle, downloadUrl, "mp4")
+                                        // Use the complete video object for metadata
+                                        startDownload(context, completeVideo, downloadUrl, quality.label)
                                         Toast.makeText(context, "Downloading ${quality.label}...", Toast.LENGTH_SHORT).show()
                                     } else {
                                         Toast.makeText(context, "Quality ${quality.label} not available for download", Toast.LENGTH_SHORT).show()
@@ -2191,18 +2207,38 @@ private fun formatTime(timeMs: Long): String {
     }
 }
 
-private fun startDownload(context: Context, title: String, url: String, extension: String) {
+private fun startDownload(context: Context, video: Video, url: String, qualityLabel: String) {
     try {
+        val extension = "mp4"
+        val fileName = "${video.title}_$qualityLabel.$extension".replace(Regex("[^a-zA-Z0-9\\s.-]"), "_")
+        
         val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
-            .setTitle(title)
+            .setTitle(video.title)
             .setDescription("Downloading video...")
             .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_MOVIES, "$title.$extension")
+            .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_MOVIES, fileName)
             .setAllowedOverMetered(true)
             .setAllowedOverRoaming(true)
         
         val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
-        downloadManager.enqueue(request)
+        val downloadId = downloadManager.enqueue(request)
+        
+        // Save metadata for the Downloads screen
+        val filePath = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MOVIES), fileName).absolutePath
+        
+        // Use a coroutine scope to save metadata
+        // In a real app, this should probably be in a ViewModel or a service
+        val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
+        scope.launch {
+            VideoDownloadManager.getInstance(context).saveDownloadedVideo(
+                DownloadedVideo(
+                    video = video,
+                    filePath = filePath,
+                    downloadId = downloadId,
+                    quality = qualityLabel
+                )
+            )
+        }
     } catch (e: Exception) {
         Toast.makeText(context, "Download failed: ${e.message}", Toast.LENGTH_SHORT).show()
     }

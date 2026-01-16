@@ -4,29 +4,43 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import com.flow.youtube.ui.theme.ThemeMode
 import com.flow.youtube.ui.theme.extendedColors
 import com.flow.youtube.data.local.PlayerPreferences
 import com.flow.youtube.data.local.VideoQuality
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     currentTheme: ThemeMode,
@@ -34,6 +48,7 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToAppearance: () -> Unit,
     onNavigateToDonations: () -> Unit,
+    onNavigateToPersonality: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -42,6 +57,14 @@ fun SettingsScreen(
     val playerPreferences = remember { PlayerPreferences(context) }
     val viewHistory = remember { com.flow.youtube.data.local.ViewHistory.getInstance(context) }
     val backupRepo = remember { com.flow.youtube.data.local.BackupRepository(context) }
+    
+    // Brain State
+    var userBrain by remember { mutableStateOf<FlowNeuroEngine.UserBrain?>(null) }
+    var refreshBrainTrigger by remember { mutableStateOf(0) }
+
+    LaunchedEffect(refreshBrainTrigger) {
+        userBrain = FlowNeuroEngine.getBrainSnapshot()
+    }
     
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json"),
@@ -81,6 +104,7 @@ fun SettingsScreen(
     var showClearWatchHistoryDialog by remember { mutableStateOf(false) }
     var showHistorySizeDialog by remember { mutableStateOf(false) }
     var showRetentionDaysDialog by remember { mutableStateOf(false) }
+    var showResetBrainDialog by remember { mutableStateOf(false) }
     
     // Player preferences states
     val backgroundPlayEnabled by playerPreferences.backgroundPlayEnabled.collectAsState(initial = false)
@@ -89,6 +113,8 @@ fun SettingsScreen(
     val cellularQuality by playerPreferences.defaultQualityCellular.collectAsState(initial = VideoQuality.Q_480p)
     val autoplayEnabled by playerPreferences.autoplayEnabled.collectAsState(initial = true)
     val skipSilenceEnabled by playerPreferences.skipSilenceEnabled.collectAsState(initial = false)
+    val autoPipEnabled by playerPreferences.autoPipEnabled.collectAsState(initial = false)
+    val manualPipButtonEnabled by playerPreferences.manualPipButtonEnabled.collectAsState(initial = true)
     
     // Search settings states
     val searchHistoryEnabled by searchHistoryRepo.isSearchHistoryEnabledFlow().collectAsState(initial = true)
@@ -99,30 +125,19 @@ fun SettingsScreen(
     
     // Region name mapping
     val regionNames = mapOf(
-        "US" to "United States",
-        "GB" to "United Kingdom",
-        "CA" to "Canada",
-        "AU" to "Australia",
-        "DE" to "Germany",
-        "FR" to "France",
-        "JP" to "Japan",
-        "KR" to "South Korea",
-        "IN" to "India",
-        "BR" to "Brazil",
-        "MX" to "Mexico",
-        "ES" to "Spain",
-        "IT" to "Italy",
-        "NL" to "Netherlands",
-        "RU" to "Russia"
+        "US" to "United States", "GB" to "United Kingdom", "CA" to "Canada", "AU" to "Australia",
+        "DE" to "Germany", "FR" to "France", "JP" to "Japan", "KR" to "South Korea",
+        "IN" to "India", "BR" to "Brazil", "MX" to "Mexico", "ES" to "Spain",
+        "IT" to "Italy", "NL" to "Netherlands", "RU" to "Russia"
     )
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            LargeTopAppBar(
                 title = { 
                     Text(
                         text = "Settings",
-                        style = MaterialTheme.typography.headlineMedium
+                        fontWeight = FontWeight.Bold
                     ) 
                 },
                 navigationIcon = {
@@ -130,8 +145,9 @@ fun SettingsScreen(
                         Icon(Icons.Default.ArrowBack, "Back")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                colors = TopAppBarDefaults.largeTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface
                 )
             )
         },
@@ -145,11 +161,112 @@ fun SettingsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Appearance Section
+            // =================================================
+            // 🧠 MY FLOW PERSONALITY (FLOW EXCLUSIVE FEATURE)
+            // =================================================
             item {
-                SectionHeader(text = "Appearance")
+                Text(
+                    text = "My Flow Personality",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
+                )
             }
 
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.primaryContainer,
+                                    MaterialTheme.colorScheme.surface
+                                )
+                            )
+                        )
+                        .clickable(onClick = onNavigateToPersonality)
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize().alpha(0.1f)) {
+                        drawCircle(color = Color.White, radius = size.width * 0.4f, center = Offset(size.width, 0f))
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp)
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = "FLOW PERSONALITY",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    letterSpacing = 2.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                if (userBrain != null) {
+                                    val persona = FlowNeuroEngine.getPersona(userBrain!!)
+                                    Text(
+                                        text = persona.title,
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.ExtraBold
+                                    )
+                                } else {
+                                    Text("Analyzing...", style = MaterialTheme.typography.headlineSmall)
+                                }
+                            }
+                            
+                            IconButton(
+                                onClick = { showResetBrainDialog = true },
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                            ) {
+                                Icon(Icons.Default.Refresh, "Reset Brain", tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                        
+                        Spacer(Modifier.height(16.dp))
+
+                        if (userBrain != null) {
+                            val persona = FlowNeuroEngine.getPersona(userBrain!!)
+                            Text(
+                                text = persona.description,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            Button(
+                                onClick = onNavigateToPersonality,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    contentColor = MaterialTheme.colorScheme.primary
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.align(Alignment.End)
+                            ) {
+                                Text("View Full Profile")
+                                Spacer(Modifier.width(8.dp))
+                                Icon(Icons.Default.ArrowBack, null, modifier = Modifier.rotate(180f).size(16.dp))
+                            }
+                        } else {
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                        }
+                    }
+                }
+            }
+
+            // =================================================
+            // APPEARANCE
+            // =================================================
+            item { SectionHeader(text = "Appearance") }
             item {
                 SettingsItem(
                     icon = Icons.Outlined.Palette,
@@ -159,282 +276,281 @@ fun SettingsScreen(
                 )
             }
 
-            // Content & Playback Section
+            // =================================================
+            // CONTENT & PLAYBACK
+            // =================================================
+            item { SectionHeader(text = "Content & Playback") }
+            
             item {
-                SectionHeader(text = "Content & Playback")
-            }
-
-            item {
-                SettingsItem(
-                    icon = Icons.Outlined.TrendingUp,
-                    title = "Trending Region",
-                    subtitle = regionNames[currentRegion] ?: currentRegion,
-                    onClick = { showRegionDialog = true }
-                )
-            }
-
-            item {
-                SettingsSwitchItem(
-                    icon = Icons.Outlined.PlayCircle,
-                    title = "Background Play",
-                    subtitle = "Continue playing when app is in background",
-                    checked = backgroundPlayEnabled,
-                    onCheckedChange = { enabled ->
-                        coroutineScope.launch {
-                            playerPreferences.setBackgroundPlayEnabled(enabled)
-                        }
-                    }
-                )
-            }
-
-            item {
-                SettingsSwitchItem(
-                    icon = Icons.Outlined.SkipNext,
-                    title = "Autoplay",
-                    subtitle = "Automatically play the next video",
-                    checked = autoplayEnabled,
-                    onCheckedChange = { enabled ->
-                        coroutineScope.launch {
-                            playerPreferences.setAutoplayEnabled(enabled)
-                        }
-                    }
-                )
-            }
-
-            item {
-                SettingsSwitchItem(
-                    icon = Icons.Outlined.GraphicEq,
-                    title = "Skip Silence",
-                    subtitle = "Skip parts with no audio",
-                    checked = skipSilenceEnabled,
-                    onCheckedChange = { enabled ->
-                        coroutineScope.launch {
-                            playerPreferences.setSkipSilenceEnabled(enabled)
-                        }
-                    }
-                )
-            }
-
-            // Search Settings Section
-            item {
-                SectionHeader(text = "Search Settings")
-            }
-
-            item {
-                SettingsSwitchItem(
-                    icon = Icons.Outlined.History,
-                    title = "Save Search History",
-                    subtitle = "Save your searches for quick access",
-                    checked = searchHistoryEnabled,
-                    onCheckedChange = { enabled ->
-                        coroutineScope.launch {
-                            searchHistoryRepo.setSearchHistoryEnabled(enabled)
-                        }
-                    }
-                )
-            }
-
-            item {
-                SettingsSwitchItem(
-                    icon = Icons.Outlined.TrendingUp,
-                    title = "Search Suggestions",
-                    subtitle = "Show suggestions while typing",
-                    checked = searchSuggestionsEnabled,
-                    onCheckedChange = { enabled ->
-                        coroutineScope.launch {
-                            searchHistoryRepo.setSearchSuggestionsEnabled(enabled)
-                        }
-                    }
-                )
-            }
-
-            item {
-                SettingsItem(
-                    icon = Icons.Outlined.Storage,
-                    title = "Max History Size",
-                    subtitle = "Currently: $maxHistorySize searches",
-                    onClick = { showHistorySizeDialog = true }
-                )
-            }
-
-            item {
-                SettingsSwitchItem(
-                    icon = Icons.Outlined.AutoDelete,
-                    title = "Auto-Delete History",
-                    subtitle = if (autoDeleteHistory) "Delete after $historyRetentionDays days" else "Never delete automatically",
-                    checked = autoDeleteHistory,
-                    onCheckedChange = { enabled ->
-                        coroutineScope.launch {
-                            searchHistoryRepo.setAutoDeleteHistory(enabled)
-                        }
-                    }
-                )
-            }
-
-            if (autoDeleteHistory) {
-                item {
+                SettingsGroup {
                     SettingsItem(
-                        icon = Icons.Outlined.Schedule,
-                        title = "Retention Period",
-                        subtitle = "Delete searches older than $historyRetentionDays days",
-                        onClick = { showRetentionDaysDialog = true }
+                        icon = Icons.Outlined.TrendingUp,
+                        title = "Trending Region",
+                        subtitle = regionNames[currentRegion] ?: currentRegion,
+                        onClick = { showRegionDialog = true }
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                         icon = Icons.Outlined.HighQuality,
+                         title = "Video Quality",
+                         subtitle = "Default resolution for Wi-Fi and Mobile",
+                         onClick = { showVideoQualityDialog = true }
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.PlayCircle,
+                        title = "Background Play",
+                        subtitle = "Continue playing when app is in background",
+                        checked = backgroundPlayEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setBackgroundPlayEnabled(it) } }
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.SkipNext,
+                        title = "Autoplay",
+                        subtitle = "Automatically play the next video",
+                        checked = autoplayEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setAutoplayEnabled(it) } }
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.GraphicEq,
+                        title = "Skip Silence",
+                        subtitle = "Skip parts with no audio",
+                        checked = skipSilenceEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setSkipSilenceEnabled(it) } }
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.PictureInPictureAlt,
+                        title = "Auto Picture-in-Picture",
+                        subtitle = "Automatically enter PiP when leaving the app",
+                        checked = autoPipEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setAutoPipEnabled(it) } }
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.PictureInPicture,
+                        title = "Show PiP Button",
+                        subtitle = "Show manual PiP button in player controls",
+                        checked = manualPipButtonEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setManualPipButtonEnabled(it) } }
                     )
                 }
             }
 
+            // =================================================
+            // SEARCH & HISTORY
+            // =================================================
+            item { SectionHeader(text = "Search & History") }
+            
             item {
-                SettingsItem(
-                    icon = Icons.Outlined.ManageSearch,
-                    title = "Clear Search History",
-                    subtitle = "Remove all search queries",
-                    onClick = { showClearSearchDialog = true }
-                )
+                SettingsGroup {
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.History,
+                        title = "Save Search History",
+                        subtitle = "Save your searches for quick access",
+                        checked = searchHistoryEnabled,
+                        onCheckedChange = { coroutineScope.launch { searchHistoryRepo.setSearchHistoryEnabled(it) } }
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.TrendingUp,
+                        title = "Search Suggestions",
+                        subtitle = "Show suggestions while typing",
+                        checked = searchSuggestionsEnabled,
+                        onCheckedChange = { coroutineScope.launch { searchHistoryRepo.setSearchSuggestionsEnabled(it) } }
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.Storage,
+                        title = "Max History Size",
+                        subtitle = "Currently: $maxHistorySize searches",
+                        onClick = { showHistorySizeDialog = true }
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.AutoDelete,
+                        title = "Auto-Delete History",
+                        subtitle = if (autoDeleteHistory) "Delete after $historyRetentionDays days" else "Never delete automatically",
+                        checked = autoDeleteHistory,
+                        onCheckedChange = { coroutineScope.launch { searchHistoryRepo.setAutoDeleteHistory(it) } }
+                    )
+                    
+                    if (autoDeleteHistory) {
+                        Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        SettingsItem(
+                            icon = Icons.Outlined.Schedule,
+                            title = "Retention Period",
+                            subtitle = "Delete searches older than $historyRetentionDays days",
+                            onClick = { showRetentionDaysDialog = true }
+                        )
+                    }
+                    
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.ManageSearch,
+                        title = "Clear Search History",
+                        subtitle = "Remove all search queries",
+                        onClick = { showClearSearchDialog = true }
+                    )
+                }
             }
 
-            // Privacy & Data Section
+            // =================================================
+            // DATA MANAGEMENT
+            // =================================================
+            item { SectionHeader(text = "Privacy & Data Management") }
+            
             item {
-                SectionHeader(text = "Privacy & Data Management")
+                SettingsGroup {
+                    SettingsItem(
+                        icon = Icons.Outlined.DeleteSweep,
+                        title = "Clear Watch History",
+                        subtitle = "Remove all watched videos",
+                        onClick = { showClearWatchHistoryDialog = true }
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.FileUpload,
+                        title = "Export Data",
+                        subtitle = "Backup your data",
+                        onClick = { exportLauncher.launch("flow_backup_${System.currentTimeMillis()}.json") }
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.FileDownload,
+                        title = "Import Data",
+                        subtitle = "Restore from backup",
+                        onClick = { importLauncher.launch(arrayOf("application/json", "application/octet-stream")) }
+                    )
+                }
             }
-
-            item {
-                SettingsItem(
-                    icon = Icons.Outlined.DeleteSweep,
-                    title = "Clear Watch History",
-                    subtitle = "Remove all watched videos",
-                    onClick = { showClearWatchHistoryDialog = true }
-                )
-            }
-
-            item {
-                SettingsItem(
-                    icon = Icons.Outlined.FileUpload,
-                    title = "Export Data",
-                    subtitle = "Backup your data to a file",
-                    onClick = { exportLauncher.launch("flow_backup_${System.currentTimeMillis()}.json") }
-                )
-            }
-
-            item {
-                SettingsItem(
-                    icon = Icons.Outlined.FileDownload,
-                    title = "Import Data",
-                    subtitle = "Restore from backup file",
-                    onClick = { importLauncher.launch(arrayOf("application/json", "application/octet-stream")) }
-                )
-            }
-
-            // About Section
-            item {
-                SectionHeader(text = "About")
-            }
-
+            
+            // =================================================
+            // ABOUT
+            // =================================================
+            item { SectionHeader(text = "About") }
             item {
                 val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
                 val versionName = packageInfo.versionName ?: "Unknown"
-                
-                SettingsItem(
-                    icon = Icons.Outlined.Info,
-                    title = "App Version",
-                    subtitle = versionName,
-                    onClick = { }
-                )
-            }
-
-            item {
-                SettingsItem(
-                    icon = Icons.Outlined.Person,
-                    title = "Made By A-EDev",
-                    subtitle = "Tap to visit GitHub profile",
-                    onClick = {
-                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/A-EDev"))
-                        context.startActivity(intent)
-                    }
-                )
-            }
-
-            item {
-                SettingsItem(
-                    icon = Icons.Outlined.Code,
-                    title = "Powered by NewPipeExtractor",
-                    subtitle = "Open source YouTube extraction library",
-                    onClick = { }
-                )
-            }
-
-            item {
-                SettingsItem(
-                    icon = Icons.Outlined.Favorite,
-                    title = "Support & Donations",
-                    subtitle = "Help support the development of Flow",
-                    onClick = onNavigateToDonations
-                )
+                SettingsGroup {
+                    SettingsItem(
+                        icon = Icons.Outlined.Info,
+                        title = "App Version",
+                        subtitle = versionName,
+                        onClick = { }
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.Code,
+                        title = "By A-EDev",
+                        subtitle = "Visit GitHub",
+                        onClick = {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/A-EDev"))
+                            context.startActivity(intent)
+                        }
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.Code,
+                        title = "Powered by NewPipeExtractor",
+                        subtitle = "Open source YouTube extraction library",
+                        onClick = { }
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.Favorite,
+                        title = "Support & Donations",
+                        subtitle = "Help support the development of Flow",
+                        onClick = onNavigateToDonations
+                    )
+                }
             }
         }
     }
 
-    // Clear Search History Dialog
-    if (showClearSearchDialog) {
+    // Reset Brain Dialog
+    if (showResetBrainDialog) {
         AlertDialog(
-            onDismissRequest = { showClearSearchDialog = false },
-            icon = {
-                Icon(Icons.Outlined.ManageSearch, contentDescription = null)
-            },
-            title = {
-                Text("Clear Search History?")
-            },
-            text = {
-                Text("This will permanently delete all your search history.")
+            onDismissRequest = { showResetBrainDialog = false },
+            icon = { Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text("Reset Flow Personality?") },
+            text = { 
+                Text(
+                    "This will completely wipe your 'Flow Brain' interest profile.\n\n" +
+                    "• All learned topics will be forgotten.\n" +
+                    "• Personality traits will reset to neutral.\n" +
+                    "• Recommendations will return to default.\n\n" +
+                    "This action cannot be undone.",
+                    style = MaterialTheme.typography.bodyMedium
+                ) 
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         coroutineScope.launch {
-                            searchHistoryRepo.clearSearchHistory()
-                            showClearSearchDialog = false
+                            FlowNeuroEngine.resetBrain(context)
+                            refreshBrainTrigger++
+                            showResetBrainDialog = false
                         }
-                    }
-                ) {
-                    Text("Clear")
-                }
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("Reset Everything") }
             },
             dismissButton = {
-                TextButton(onClick = { showClearSearchDialog = false }) {
-                    Text("Cancel")
-                }
+                TextButton(onClick = { showResetBrainDialog = false }) { Text("Cancel") }
             }
+        )
+    }
+
+    // Clear Search History Dialog
+    if (showClearSearchDialog) {
+        SimpleConfirmDialog(
+            title = "Clear Search History?",
+            text = "Permanently delete all search history.",
+            onConfirm = { coroutineScope.launch { searchHistoryRepo.clearSearchHistory(); showClearSearchDialog = false } },
+            onDismiss = { showClearSearchDialog = false }
         )
     }
 
     // Clear Watch History Dialog
     if (showClearWatchHistoryDialog) {
+        SimpleConfirmDialog(
+            title = "Clear Watch History?",
+            text = "Permanently delete watch history.",
+            onConfirm = { coroutineScope.launch { viewHistory.clearAllHistory(); showClearWatchHistoryDialog = false } },
+            onDismiss = { showClearWatchHistoryDialog = false }
+        )
+    }
+    
+    // Region Selection Dialog
+    if (showRegionDialog) {
         AlertDialog(
-            onDismissRequest = { showClearWatchHistoryDialog = false },
-            icon = {
-                Icon(Icons.Outlined.DeleteSweep, contentDescription = null)
-            },
-            title = {
-                Text("Clear Watch History?")
-            },
+            onDismissRequest = { showRegionDialog = false },
+            title = { Text("Select Region") },
             text = {
-                Text("This will permanently delete all your watch history and playback positions.")
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            viewHistory.clearAllHistory()
-                            showClearWatchHistoryDialog = false
+                LazyColumn(Modifier.heightIn(max = 300.dp)) {
+                    items(regionNames.toList().size) { index ->
+                        val (code, name) = regionNames.toList()[index]
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { 
+                                    coroutineScope.launch { playerPreferences.setTrendingRegion(code); showRegionDialog = false }
+                                }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = currentRegion == code, onClick = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(name)
                         }
                     }
-                ) {
-                    Text("Clear")
                 }
             },
-            dismissButton = {
-                TextButton(onClick = { showClearWatchHistoryDialog = false }) {
-                    Text("Cancel")
-                }
-            }
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { showRegionDialog = false }) { Text("Cancel") } }
         )
     }
     
@@ -444,16 +560,11 @@ fun SettingsScreen(
         
         AlertDialog(
             onDismissRequest = { showHistorySizeDialog = false },
-            icon = {
-                Icon(Icons.Outlined.Storage, contentDescription = null)
-            },
-            title = {
-                Text("Max History Size")
-            },
+            icon = { Icon(Icons.Outlined.Storage, contentDescription = null) },
+            title = { Text("Max History Size") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Choose how many searches to keep:")
-                    
                     listOf(25, 50, 100, 200, 500).forEach { size ->
                         Row(
                             modifier = Modifier
@@ -463,10 +574,7 @@ fun SettingsScreen(
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            RadioButton(
-                                selected = selectedSize == size,
-                                onClick = { selectedSize = size }
-                            )
+                            RadioButton(selected = selectedSize == size, onClick = { selectedSize = size })
                             Spacer(Modifier.width(8.dp))
                             Text("$size searches")
                         }
@@ -474,22 +582,11 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            searchHistoryRepo.setMaxHistorySize(selectedSize)
-                            showHistorySizeDialog = false
-                        }
-                    }
-                ) {
-                    Text("Save")
-                }
+                TextButton(onClick = {
+                    coroutineScope.launch { searchHistoryRepo.setMaxHistorySize(selectedSize); showHistorySizeDialog = false }
+                }) { Text("Save") }
             },
-            dismissButton = {
-                TextButton(onClick = { showHistorySizeDialog = false }) {
-                    Text("Cancel")
-                }
-            }
+            dismissButton = { TextButton(onClick = { showHistorySizeDialog = false }) { Text("Cancel") } }
         )
     }
     
@@ -499,16 +596,11 @@ fun SettingsScreen(
         
         AlertDialog(
             onDismissRequest = { showRetentionDaysDialog = false },
-            icon = {
-                Icon(Icons.Outlined.Schedule, contentDescription = null)
-            },
-            title = {
-                Text("Retention Period")
-            },
+            icon = { Icon(Icons.Outlined.Schedule, contentDescription = null) },
+            title = { Text("Retention Period") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Delete searches older than:")
-                    
                     listOf(7, 30, 90, 180, 365).forEach { days ->
                         Row(
                             modifier = Modifier
@@ -518,184 +610,70 @@ fun SettingsScreen(
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            RadioButton(
-                                selected = selectedDays == days,
-                                onClick = { selectedDays = days }
-                            )
+                            RadioButton(selected = selectedDays == days, onClick = { selectedDays = days })
                             Spacer(Modifier.width(8.dp))
-                            Text(
-                                when (days) {
-                                    7 -> "1 week"
-                                    30 -> "1 month"
-                                    90 -> "3 months"
-                                    180 -> "6 months"
-                                    365 -> "1 year"
-                                    else -> "$days days"
-                                }
-                            )
+                            Text(when (days) {
+                                7 -> "1 week"
+                                30 -> "1 month"
+                                90 -> "3 months"
+                                180 -> "6 months"
+                                365 -> "1 year"
+                                else -> "$days days"
+                            })
                         }
                     }
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            searchHistoryRepo.setHistoryRetentionDays(selectedDays)
-                            showRetentionDaysDialog = false
-                        }
-                    }
-                ) {
-                    Text("Save")
-                }
+                TextButton(onClick = {
+                    coroutineScope.launch { searchHistoryRepo.setHistoryRetentionDays(selectedDays); showRetentionDaysDialog = false }
+                }) { Text("Save") }
             },
-            dismissButton = {
-                TextButton(onClick = { showRetentionDaysDialog = false }) {
-                    Text("Cancel")
-                }
-            }
+            dismissButton = { TextButton(onClick = { showRetentionDaysDialog = false }) { Text("Cancel") } }
         )
     }
-    
-    // Region Selection Dialog
-    if (showRegionDialog) {
-        var selectedRegion by remember { mutableStateOf(currentRegion) }
-        
-        AlertDialog(
-            onDismissRequest = { showRegionDialog = false },
-            icon = {
-                Icon(Icons.Outlined.TrendingUp, contentDescription = null)
-            },
-            title = {
-                Text("Select Region")
-            },
-            text = {
-                LazyColumn(
-                    modifier = Modifier.heightIn(max = 400.dp)
-                ) {
-                    items(regionNames.entries.toList().size) { index ->
-                        val (code, name) = regionNames.entries.toList()[index]
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { selectedRegion = code }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = selectedRegion == code,
-                                onClick = { selectedRegion = code }
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(name)
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            playerPreferences.setTrendingRegion(selectedRegion)
-                            showRegionDialog = false
-                        }
-                    }
-                ) {
-                    Text("Save")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRegionDialog = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-    
+
     // Video Quality Dialog
     if (showVideoQualityDialog) {
         var selectedWifiQuality by remember { mutableStateOf(wifiQuality) }
         var selectedCellularQuality by remember { mutableStateOf(cellularQuality) }
         
         val qualities = listOf(
-            VideoQuality.Q_144p,
-            VideoQuality.Q_240p,
-            VideoQuality.Q_360p,
-            VideoQuality.Q_480p,
-            VideoQuality.Q_720p,
-            VideoQuality.Q_1080p,
-            VideoQuality.Q_1440p,
-            VideoQuality.Q_2160p,
-            VideoQuality.AUTO
+            VideoQuality.Q_144p, VideoQuality.Q_240p, VideoQuality.Q_360p,
+            VideoQuality.Q_480p, VideoQuality.Q_720p, VideoQuality.Q_1080p,
+            VideoQuality.Q_1440p, VideoQuality.Q_2160p, VideoQuality.AUTO
         )
         
         AlertDialog(
             onDismissRequest = { showVideoQualityDialog = false },
-            icon = {
-                Icon(Icons.Outlined.HighQuality, contentDescription = null)
-            },
-            title = {
-                Text("Video Quality")
-            },
+            icon = { Icon(Icons.Outlined.HighQuality, contentDescription = null) },
+            title = { Text("Video Quality") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // Wi-Fi Quality
-                    Text(
-                        text = "Wi-Fi Quality",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    
-                    LazyColumn(
-                        modifier = Modifier.heightIn(max = 150.dp)
-                    ) {
+                    Text("Wi-Fi Quality", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    LazyColumn(modifier = Modifier.heightIn(max = 120.dp)) {
                         items(qualities.size) { index ->
                             val quality = qualities[index]
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { selectedWifiQuality = quality }
-                                    .padding(8.dp),
+                                modifier = Modifier.fillMaxWidth().clickable { selectedWifiQuality = quality }.padding(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                RadioButton(
-                                    selected = selectedWifiQuality == quality,
-                                    onClick = { selectedWifiQuality = quality }
-                                )
+                                RadioButton(selected = selectedWifiQuality == quality, onClick = { selectedWifiQuality = quality })
                                 Spacer(Modifier.width(8.dp))
                                 Text(quality.label)
                             }
                         }
                     }
                     
-                    Spacer(Modifier.height(8.dp))
-                    
-                    // Cellular Quality
-                    Text(
-                        text = "Cellular Quality",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    
-                    LazyColumn(
-                        modifier = Modifier.heightIn(max = 150.dp)
-                    ) {
+                    Text("Cellular Quality", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    LazyColumn(modifier = Modifier.heightIn(max = 120.dp)) {
                         items(qualities.size) { index ->
                             val quality = qualities[index]
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { selectedCellularQuality = quality }
-                                    .padding(8.dp),
+                                modifier = Modifier.fillMaxWidth().clickable { selectedCellularQuality = quality }.padding(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                RadioButton(
-                                    selected = selectedCellularQuality == quality,
-                                    onClick = { selectedCellularQuality = quality }
-                                )
+                                RadioButton(selected = selectedCellularQuality == quality, onClick = { selectedCellularQuality = quality })
                                 Spacer(Modifier.width(8.dp))
                                 Text(quality.label)
                             }
@@ -704,24 +682,48 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            playerPreferences.setDefaultQualityWifi(selectedWifiQuality)
-                            playerPreferences.setDefaultQualityCellular(selectedCellularQuality)
-                            showVideoQualityDialog = false
-                        }
+                TextButton(onClick = {
+                    coroutineScope.launch {
+                        playerPreferences.setDefaultQualityWifi(selectedWifiQuality)
+                        playerPreferences.setDefaultQualityCellular(selectedCellularQuality)
+                        showVideoQualityDialog = false
                     }
-                ) {
-                    Text("Save")
-                }
+                }) { Text("Save") }
             },
-            dismissButton = {
-                TextButton(onClick = { showVideoQualityDialog = false }) {
-                    Text("Cancel")
-                }
-            }
+            dismissButton = { TextButton(onClick = { showVideoQualityDialog = false }) { Text("Cancel") } }
         )
+    }
+}
+
+@Composable
+fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(content = content)
+    }
+}
+
+@Composable
+fun BrainTraitRow(label: String, value: Double, leftLabel: String, rightLabel: String) {
+    Column {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+            Text("${(value * 100).toInt()}%", style = MaterialTheme.typography.labelMedium)
+        }
+        Spacer(Modifier.height(4.dp))
+        LinearProgressIndicator(
+            progress = value.toFloat(), // Fixed: No lambda
+            modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+            color = MaterialTheme.colorScheme.secondary,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(leftLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(rightLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -731,7 +733,7 @@ private fun SectionHeader(text: String) {
         text = text,
         style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(vertical = 8.dp)
+        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 8.dp)
     )
 }
 
@@ -746,43 +748,25 @@ private fun SettingsItem(
     icon: ImageVector,
     title: String,
     subtitle: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onClick: () -> Unit
 ) {
-    Card(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        ),
-        shape = RoundedCornerShape(16.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(24.dp)
-            )
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.extendedColors.textSecondary
-                )
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            if (subtitle.isNotEmpty()) {
+                Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -792,52 +776,40 @@ private fun SettingsItem(
 private fun SettingsSwitchItem(
     icon: ImageVector,
     title: String,
-    subtitle: String,
+    subtitle: String?,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
+    onCheckedChange: (Boolean) -> Unit
 ) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-        ),
-        shape = RoundedCornerShape(16.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.size(24.dp)
-            )
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.extendedColors.textSecondary
-                )
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            if (subtitle != null) {
+                Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-
-            Switch(
-                checked = checked,
-                onCheckedChange = onCheckedChange
-            )
         }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
-
+@Composable
+fun SimpleConfirmDialog(title: String, text: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = { Text(text) },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("Confirm") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}

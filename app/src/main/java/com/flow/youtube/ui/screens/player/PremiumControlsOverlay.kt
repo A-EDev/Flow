@@ -167,6 +167,21 @@ fun PremiumControlsOverlay(
                         )
                     }
 
+                    // PiP Button
+                    if (isPipSupported) {
+                        IconButton(
+                            onClick = onPipClick,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.PictureInPicture,
+                                contentDescription = "Picture-in-Picture",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
                     // Settings Icon
                     IconButton(
                         onClick = onSettingsClick,

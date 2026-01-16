@@ -1,28 +1,21 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="98.94"
-    android:viewportHeight="122.88">
+    android:viewportWidth="144"
+    android:viewportHeight="144">
 
-    <!-- Path 1: The S-Shape (Outline/Stroked) -->
-    <!-- 
-         strokeColor: Black
-         strokeWidth: 10 (Calculated to look like 2dp thickness)
-         strokeLineJoin: round (Crucial for smooth corners)
-         fillColor: Transparent (#00000000)
-    -->
-    <path
-        android:pathData="M63.49,2.71c11.59-6.04,25.94-1.64,32.04,9.83c6.1,11.47,1.65,25.66-9.94,31.7l-9.53,5.01 c8.21,0.3,16.04,4.81,20.14,12.52c6.1,11.47,1.66,25.66-9.94,31.7l-50.82,26.7c-11.59,6.04-25.94,1.64-32.04-9.83 c-6.1-11.47-1.65-25.66,9.94-31.7l9.53-5.01c-8.21-0.3-16.04-4.81-20.14-12.52c-6.1-11.47-1.65-25.66,9.94-31.7L63.49,2.71 L63.49,2.71z"
-        android:strokeColor="#FF000000"
-        android:strokeWidth="10"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:fillColor="#00000000" />
-
-    <!-- Path 2: The Play Button (Filled) -->
-    <!-- Uses standard Fill Color -->
-    <path
-        android:pathData="M36.06,42.53l30.76,18.99l-30.76,18.9V42.53L36.06,42.53z"
-        android:fillColor="#FF000000" />
+    <!-- Group creates padding so the stroke doesn't get cut off -->
+    <group
+        android:translateX="8"
+        android:translateY="8">
         
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#FF0000"
+            android:strokeWidth="8"
+            android:strokeLineJoin="round"
+            android:strokeLineCap="round"
+            android:fillType="evenOdd"
+            android:pathData="M63.49 2.71c11.59-6.04 25.94-1.64 32.04 9.83 6.1 11.47 1.65 25.66-9.94 31.7l-9.53 5.01c8.21.3 16.04 4.81 20.14 12.52 6.1 11.47 1.66 25.66-9.94 31.7l-50.82 26.7c-11.59 6.04-25.94 1.64-32.04-9.83-6.1-11.47-1.65-25.66 9.94-31.7l9.53-5.01c-8.21-.3-16.04-4.81-20.14-12.52-6.1-11.47-1.65-25.66 9.94-31.7l50.82-26.7zM36.06 42.53l30.76 18.99-30.76 18.9V42.53z" />
+    </group>
 </vector>

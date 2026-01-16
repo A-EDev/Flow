@@ -533,9 +533,10 @@ class EnhancedPlayerManager private constructor() {
         audioStream: AudioStream,
         videoStreams: List<VideoStream>,
         audioStreams: List<AudioStream>,
-        subtitles: List<SubtitlesStream>
+        subtitles: List<SubtitlesStream>,
+        localFilePath: String? = null
     ) {
-        Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.height}, audioBitrate=${audioStream.averageBitrate}, videoList=${videoStreams.size}, audioList=${audioStreams.size})")
+        Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.height}, local=$localFilePath)")
         resetPlaybackStateForNewVideo(videoId)
 
         currentVideoId = videoId
@@ -601,7 +602,9 @@ class EnhancedPlayerManager private constructor() {
             Log.w(TAG, "Surface not ready after waiting - media may render to placeholder")
         }
 
-        if (currentVideoStream != null && currentAudioStream != null) {
+        if (localFilePath != null) {
+            loadMedia(null, audioStream, localFilePath = localFilePath)
+        } else if (currentVideoStream != null && currentAudioStream != null) {
             loadMedia(currentVideoStream, currentAudioStream!!)
         } else if (currentVideoStream != null) {
             loadMedia(currentVideoStream, currentAudioStream ?: availableAudioStreams.firstOrNull() ?: audioStream)
@@ -643,7 +646,7 @@ class EnhancedPlayerManager private constructor() {
     }
 
     @UnstableApi
-    private fun loadMedia(videoStream: VideoStream?, audioStream: AudioStream, preservePosition: Long? = null) {
+    private fun loadMedia(videoStream: VideoStream?, audioStream: AudioStream, preservePosition: Long? = null, localFilePath: String? = null) {
         player?.let { exoPlayer ->
             try {
                 // CRITICAL: Reattach surface before loading (NewPipe approach)
@@ -700,12 +703,21 @@ class EnhancedPlayerManager private constructor() {
                     } catch (e: Exception) {
                         false
                     }
-                    // Detect adaptive formats (HLS/DASH) by URL/path
-                    val url = videoStream.url!!
-                    val lower = url.lowercase()
-                    
-                    // Base video/audio source
-                    val baseSource = if (lower.contains(".m3u8") || lower.contains(".mpd") || lower.contains("/hls") || lower.contains("/dash")) {
+                // Detect local files
+                val url = localFilePath ?: videoStream?.url ?: ""
+                if (url.isEmpty()) {
+                    // Logic for audio-only fallback or error
+                }
+                
+                val lower = url.lowercase()
+                val isLocalFile = localFilePath != null || url.startsWith("/") || url.startsWith("file://")
+                
+                // Base video/audio source
+                val baseSource = if (isLocalFile) {
+                    // Local files are usually muxed (audio+video)
+                    ProgressiveMediaSource.Factory(dataSourceFactory)
+                        .createMediaSource(MediaItem.fromUri(android.net.Uri.fromFile(java.io.File(url))))
+                } else if (lower.contains(".m3u8") || lower.contains(".mpd") || lower.contains("/hls") || lower.contains("/dash")) {
                         // Adaptive stream
                         DefaultMediaSourceFactory(dataSourceFactory).createMediaSource(MediaItem.fromUri(url))
                     } else if (hasMuxedAudio) {

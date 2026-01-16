@@ -19,13 +19,15 @@ import android.content.Context
 import android.util.Log
 import com.flow.youtube.data.model.Video
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 import kotlin.math.*
 
 /**
- * 🧠 Flow Neuro Engine (V3 Final - Aggressive)
+ * 🧠 Flow Neuro Engine (V3 Final - Aggressive - Thread Safe)
  * 
  * A Client-Side Hybrid Recommendation System.
  * Combines Vector Space Models (Learning) with Heuristic Rules (Reliability).
@@ -35,24 +37,28 @@ object FlowNeuroEngine {
     private const val TAG = "FlowNeuroEngine"
     private const val BRAIN_FILENAME = "user_neuro_brain.json"
     
+    // Mutex to protect brain state access
+    private val brainMutex = Mutex()
+    
     // =================================================
-    // 1. DATA MODELS
+    // 1. DATA MODELS (IMMUTABLE)
     // =================================================
 
     data class ContentVector(
-        val topics: MutableMap<String, Double> = mutableMapOf(),
-        var duration: Double = 0.5,
-        var pacing: Double = 0.5,
-        var complexity: Double = 0.5,
-        var isLive: Double = 0.0
+        val topics: Map<String, Double> = emptyMap(),
+        val duration: Double = 0.5,
+        val pacing: Double = 0.5,
+        val complexity: Double = 0.5,
+        val isLive: Double = 0.0
     )
 
     data class UserBrain(
-        var shortTermVector: ContentVector = ContentVector(),
-        var longTermVector: ContentVector = ContentVector(),
-        var totalInteractions: Int = 0
+        val shortTermVector: ContentVector = ContentVector(),
+        val longTermVector: ContentVector = ContentVector(),
+        val totalInteractions: Int = 0
     )
 
+    // Protected by Mutex
     private var currentUserBrain: UserBrain = UserBrain()
     private var isInitialized = false
 
@@ -61,9 +67,22 @@ object FlowNeuroEngine {
     // =================================================
 
     suspend fun initialize(context: Context) {
-        if (isInitialized) return
-        loadBrain(context)
-        isInitialized = true
+        brainMutex.withLock {
+            if (isInitialized) return
+            loadBrain(context)
+            isInitialized = true
+        }
+    }
+
+    suspend fun getBrainSnapshot(): UserBrain {
+        return brainMutex.withLock { currentUserBrain }
+    }
+
+    suspend fun resetBrain(context: Context) {
+        brainMutex.withLock {
+            currentUserBrain = UserBrain()
+            saveBrain(context)
+        }
     }
 
     /**
@@ -75,9 +94,10 @@ object FlowNeuroEngine {
     ): List<Video> = withContext(Dispatchers.Default) {
         if (candidates.isEmpty()) return@withContext emptyList()
 
+        // Capture a clean snapshot of the brain to avoid locking during the heavy loop
+        val brainSnapshot = brainMutex.withLock { currentUserBrain }
+
         // 1. Session Entropy (The "Freshness" Factor)
-        // We use a random generator to add slight chaos to the scores.
-        // This ensures that even if scores are identical, the order changes every time.
         val random = java.util.Random()
 
         val scoredCandidates = candidates.map { video ->
@@ -85,16 +105,14 @@ object FlowNeuroEngine {
             
             // A. AI Score (Cosine Similarity)
             // 60% Short Term (Current Mood), 40% Long Term (Personality)
-            val shortTermScore = calculateCosineSimilarity(currentUserBrain.shortTermVector, videoVector)
-            val longTermScore = calculateCosineSimilarity(currentUserBrain.longTermVector, videoVector)
+            val shortTermScore = calculateCosineSimilarity(brainSnapshot.shortTermVector, videoVector)
+            val longTermScore = calculateCosineSimilarity(brainSnapshot.longTermVector, videoVector)
             val aiScore = (shortTermScore * 0.6) + (longTermScore * 0.4)
             
             // B. Heuristic Boosts
             var boost = 0.0
             
             // Boost 1: Subscribed Channels (TRUST)
-            // WAS: 0.25 (Too strong, overrides AI)
-            // NOW: 0.10 (Gentle nudge, but AI wins if topic is irrelevant)
             if (userSubs.contains(video.channelId)) {
                 boost += 0.10 
             }
@@ -110,9 +128,7 @@ object FlowNeuroEngine {
             }
 
             // C. The "Cold Start" Jitter
-            // If brain is new (< 10 interactions), add random noise (0.0 - 0.1)
-            // If brain is mature, add micro noise (0.0 - 0.01) to keep it feeling fresh
-            val jitterRange = if (currentUserBrain.totalInteractions < 10) 0.1 else 0.01
+            val jitterRange = if (brainSnapshot.totalInteractions < 10) 0.1 else 0.01
             val jitter = random.nextDouble() * jitterRange
 
             ScoredVideo(video, aiScore + boost + jitter, videoVector)
@@ -125,25 +141,31 @@ object FlowNeuroEngine {
     /**
      * LEARNING FUNCTION: Aggressive Learning Mode
      */
-    fun onVideoInteraction(context: Context, video: Video, interactionType: InteractionType, percentWatched: Float = 0f) {
+    suspend fun onVideoInteraction(context: Context, video: Video, interactionType: InteractionType, percentWatched: Float = 0f) {
         val videoVector = extractFeatures(video)
         
         // UPDATED: Aggressive Learning Rates
-        // We increased these values so the algorithm adapts INSTANTLY
         val learningRate = when (interactionType) {
-            InteractionType.CLICK -> 0.10      // Was 0.05
-            InteractionType.LIKED -> 0.30      // Was 0.15 (Big jump!)
-            InteractionType.WATCHED -> 0.15 * percentWatched // Was 0.05
-            InteractionType.SKIPPED -> -0.15   // Was -0.05 (Learn what they HATE fast)
-            InteractionType.DISLIKED -> -0.40  // Was -0.20
+            InteractionType.CLICK -> 0.10
+            InteractionType.LIKED -> 0.30
+            InteractionType.WATCHED -> 0.15 * percentWatched
+            InteractionType.SKIPPED -> -0.15
+            InteractionType.DISLIKED -> -0.40
         }
 
-        // Apply changes
-        currentUserBrain.shortTermVector = adjustVector(currentUserBrain.shortTermVector, videoVector, learningRate * 2.0)
-        currentUserBrain.longTermVector = adjustVector(currentUserBrain.longTermVector, videoVector, learningRate * 1.0)
-        
-        currentUserBrain.totalInteractions++
-        saveBrain(context)
+        brainMutex.withLock {
+            // Create NEW derived vectors (Functional Style)
+            val newShortTerm = adjustVector(currentUserBrain.shortTermVector, videoVector, learningRate * 2.0)
+            val newLongTerm = adjustVector(currentUserBrain.longTermVector, videoVector, learningRate * 1.0)
+            
+            currentUserBrain = currentUserBrain.copy(
+                shortTermVector = newShortTerm,
+                longTermVector = newLongTerm,
+                totalInteractions = currentUserBrain.totalInteractions + 1
+            )
+            
+            saveBrain(context)
+        }
     }
 
     enum class InteractionType { CLICK, LIKED, WATCHED, SKIPPED, DISLIKED }
@@ -155,7 +177,7 @@ object FlowNeuroEngine {
     private data class ScoredVideo(val video: Video, var score: Double, val vector: ContentVector)
 
     private fun extractFeatures(video: Video): ContentVector {
-        val vector = ContentVector()
+        val topicsMap = mutableMapOf<String, Double>()
         
         // Improved Tokenizer for Arabic/French/Unicode
         val rawText = "${video.title} ${video.channelName}".lowercase()
@@ -164,18 +186,23 @@ object FlowNeuroEngine {
             .filter { word -> word.length > 2 && !STOP_WORDS.contains(word) }
         
         tokens.forEach { token ->
-            // Higher initial weight (0.2) so keywords stick immediately
-            vector.topics[token] = (vector.topics[token] ?: 0.0) + 0.2
+            topicsMap[token] = (topicsMap[token] ?: 0.0) + 0.2
         }
         
-        vector.topics.replaceAll { _, v -> v.coerceAtMost(1.0) }
+        // Clamp keys
+        topicsMap.replaceAll { _, v -> v.coerceAtMost(1.0) }
 
         val durationSecs = if (video.duration > 0) video.duration else if (video.isLive) 3600 else 300
-        vector.duration = (ln(durationSecs.toDouble() + 1) / ln(3600.0)).coerceIn(0.0, 1.0)
-        vector.pacing = if (durationSecs < 180) 0.8 else 0.3
-        vector.isLive = if (video.isLive) 1.0 else 0.0
+        val durScore = (ln(durationSecs.toDouble() + 1) / ln(3600.0)).coerceIn(0.0, 1.0)
+        val paceScore = if (durationSecs < 180) 0.8 else 0.3
+        val liveScore = if (video.isLive) 1.0 else 0.0
         
-        return vector
+        return ContentVector(
+            topics = topicsMap,
+            duration = durScore,
+            pacing = paceScore,
+            isLive = liveScore
+        )
     }
 
     private fun calculateCosineSimilarity(user: ContentVector, content: ContentVector): Double {
@@ -183,6 +210,7 @@ object FlowNeuroEngine {
         var magA = 0.0
         var magB = 0.0
         
+        // Intersection of keys
         val commonKeys = user.topics.keys.intersect(content.topics.keys)
         
         if (commonKeys.isEmpty()) {
@@ -204,12 +232,14 @@ object FlowNeuroEngine {
 
     private fun adjustVector(current: ContentVector, target: ContentVector, rate: Double): ContentVector {
         val newTopics = current.topics.toMutableMap()
+        
+        // 1. Move towards target
         target.topics.forEach { (key, targetVal) ->
             val currentVal = newTopics[key] ?: 0.0
             newTopics[key] = (currentVal + (targetVal - currentVal) * rate).coerceIn(0.0, 1.0)
         }
         
-        // Decay to forget old topics
+        // 2. Decay logic
         val decay = if (rate > 0) 0.98 else 1.0
         if (decay < 1.0) {
             val iterator = newTopics.iterator()
@@ -220,8 +250,8 @@ object FlowNeuroEngine {
             }
         }
 
-        return ContentVector(
-            topics = newTopics,
+        return current.copy(
+            topics = newTopics, // It's a copy, safe to be immutable now
             duration = current.duration + (target.duration - current.duration) * rate,
             pacing = current.pacing + (target.pacing - current.pacing) * rate,
             complexity = current.complexity + (target.complexity - current.complexity) * rate
@@ -233,10 +263,12 @@ object FlowNeuroEngine {
         val maxItems = candidates.size
         
         while (candidates.isNotEmpty() && finalPlaylist.size < maxItems) {
+            // Sort by current dynamic score
             candidates.sortByDescending { it.score }
             val best = candidates.removeAt(0)
             finalPlaylist.add(best.video)
             
+            // Penalize similar videos remaining in the pool
             candidates.forEach { candidate ->
                 val similarity = calculateCosineSimilarity(best.vector, candidate.vector)
                 if (similarity > 0.7) candidate.score *= 0.5
@@ -255,7 +287,7 @@ object FlowNeuroEngine {
             json.put("shortTerm", vectorToJson(currentUserBrain.shortTermVector))
             json.put("longTerm", vectorToJson(currentUserBrain.longTermVector))
             json.put("interactions", currentUserBrain.totalInteractions)
-            // Use Internal Storage for Production
+            
             val file = File(context.filesDir, BRAIN_FILENAME)
             file.writeText(json.toString())
         } catch (e: Exception) {
@@ -290,14 +322,55 @@ object FlowNeuroEngine {
     }
 
     private fun jsonToVector(json: JSONObject): ContentVector {
-        val vector = ContentVector()
-        vector.duration = json.optDouble("duration", 0.5)
-        vector.pacing = json.optDouble("pacing", 0.5)
+        val duration = json.optDouble("duration", 0.5)
+        val pacing = json.optDouble("pacing", 0.5)
+        
+        val topicsMap = mutableMapOf<String, Double>()
         val topicsObj = json.optJSONObject("topics")
         topicsObj?.keys()?.forEach { key ->
-            vector.topics[key] = topicsObj.getDouble(key)
+            topicsMap[key] = topicsObj.getDouble(key)
         }
-        return vector
+        
+        return ContentVector(
+            topics = topicsMap,
+            duration = duration,
+            pacing = pacing
+        )
+    }
+
+
+    // =================================================
+    // 5. PERSONA ENGINE
+    // =================================================
+
+    enum class FlowPersona(
+        val title: String,
+        val description: String,
+        val icon: String // Placeholder for icon name or emoji
+    ) {
+        DEEP_DIVER("The Deep Diver", "You prefer long-form, complex content. You're here to learn.", "🤿"),
+        SKIMMER("The Skimmer", "Fast-paced and efficient. You want the highlights, now.", "⚡"),
+        SPECIALIST("The Specialist", "Laser-focused on specific topics. You know what you like.", "🎯"),
+        EXPLORER("The Explorer", "A balanced appetite for everything. You love discovering new things.", "🧭"),
+        INITIATE("The Initiate", "Just getting started. Your profile is still forming.", "🌱")
+    }
+
+    fun getPersona(brain: UserBrain): FlowPersona {
+        if (brain.totalInteractions < 10) return FlowPersona.INITIATE
+
+        val v = brain.longTermVector
+        val sortedTopics = v.topics.values.sortedDescending()
+        val topScore = sortedTopics.firstOrNull() ?: 0.0
+        val diversity = if (sortedTopics.size >= 3) {
+            sortedTopics.take(3).average() / topScore
+        } else 1.0
+
+        return when {
+            v.duration > 0.65 && v.complexity > 0.6 -> FlowPersona.DEEP_DIVER
+            v.duration < 0.4 && v.pacing > 0.6 -> FlowPersona.SKIMMER
+            topScore > 0.8 && diversity < 0.5 -> FlowPersona.SPECIALIST
+            else -> FlowPersona.EXPLORER
+        }
     }
 
     private val STOP_WORDS = setOf(

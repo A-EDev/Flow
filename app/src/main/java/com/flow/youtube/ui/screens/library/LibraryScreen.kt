@@ -23,6 +23,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.flow.youtube.ui.theme.extendedColors
+import androidx.compose.ui.res.vectorResource
+import com.flow.youtube.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -112,7 +114,7 @@ fun LibraryScreen(
 
             item {
                 LibraryCard(
-                    icon = Icons.Outlined.Bookmark,
+                    icon = ImageVector.vectorResource(id = R.drawable.ic_shorts),
                     title = "Saved Shorts",
                     subtitle = "${uiState.savedShortsCount} shorts",
                     onClick = onNavigateToSavedShorts

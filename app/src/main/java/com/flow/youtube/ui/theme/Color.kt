@@ -259,5 +259,59 @@ object GunmetalThemeColors {
     val TextSecondary: Color = Color(0xFFCFD8DC) // Silver
     val Border: Color = Color(0xFF263238)
     val Success: Color = Color(0xFF26A69A)
-    val Error: Color = Color(0xFFEF5350)
+    val Error: Color = ErrorColor
+}
+
+// --- NEW LIGHT THEMES ---
+
+object MintLightThemeColors {
+    val Primary: Color = Color(0xFF00BFA5) // Teal/Mint
+    val OnPrimary: Color = White
+    val Secondary: Color = Color(0xFF64FFDA)
+    val OnSecondary: Color = Black
+    val Background: Color = White
+    val Surface: Color = Color(0xFFF1F8F7)
+    val Text: Color = Color(0xFF00332E)
+    val TextSecondary: Color = Color(0xFF455A64)
+    val Border: Color = Color(0xFFE0F2F1)
+    val Success: Color = Color(0xFF4CAF50)
+}
+
+object RoseLightThemeColors {
+    val Primary: Color = Color(0xFFEC407A) // Rose Pink
+    val OnPrimary: Color = White
+    val Secondary: Color = Color(0xFFF48FB1)
+    val OnSecondary: Color = Black
+    val Background: Color = Color(0xFFFFF8F9)
+    val Surface: Color = Color(0xFFFCE4EC)
+    val Text: Color = Color(0xFF4A0E1C)
+    val TextSecondary: Color = Color(0xFF880E4F)
+    val Border: Color = Color(0xFFF8BBD0)
+    val Success: Color = Color(0xFFE91E63)
+}
+
+object SkyLightThemeColors {
+    val Primary: Color = Color(0xFF0288D1) // Sky Blue
+    val OnPrimary: Color = White
+    val Secondary: Color = Color(0xFF29B6F6)
+    val OnSecondary: Color = Black
+    val Background: Color = Color(0xFFF9FCFF)
+    val Surface: Color = Color(0xFFE1F5FE)
+    val Text: Color = Color(0xFF013354)
+    val TextSecondary: Color = Color(0xFF0277BD)
+    val Border: Color = Color(0xFFB3E5FC)
+    val Success: Color = Color(0xFF03A9F4)
+}
+
+object CreamLightThemeColors {
+    val Primary: Color = Color(0xFF8D6E63) // Coffee/Cream
+    val OnPrimary: Color = White
+    val Secondary: Color = Color(0xFFBCAAA4)
+    val OnSecondary: Color = Black
+    val Background: Color = Color(0xFFFFFBF0)
+    val Surface: Color = Color(0xFFF5F5DC)
+    val Text: Color = Color(0xFF3E2723)
+    val TextSecondary: Color = Color(0xFF5D4037)
+    val Border: Color = Color(0xFFD7CCC8)
+    val Success: Color = Color(0xFF795548)
 }

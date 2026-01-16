@@ -13,7 +13,8 @@ import androidx.compose.ui.graphics.Color
 enum class ThemeMode {
     LIGHT, DARK, OLED, LAVENDER_MIST, OCEAN_BLUE, FOREST_GREEN, SUNSET_ORANGE, PURPLE_NEBULA, MIDNIGHT_BLACK,
     ROSE_GOLD, ARCTIC_ICE, CRIMSON_RED, MINTY_FRESH, COSMIC_VOID, SOLAR_FLARE, CYBERPUNK,
-    ROYAL_GOLD, NORDIC_HORIZON, ESPRESSO, GUNMETAL
+    ROYAL_GOLD, NORDIC_HORIZON, ESPRESSO, GUNMETAL,
+    MINT_LIGHT, ROSE_LIGHT, SKY_LIGHT, CREAM_LIGHT
 }
 
 data class ExtendedColors(
@@ -292,6 +293,54 @@ private val GunmetalColorScheme = darkColorScheme(
     onError = Color.White
 )
 
+private val MintLightColorScheme = lightColorScheme(
+    primary = MintLightThemeColors.Primary,
+    onPrimary = MintLightThemeColors.OnPrimary,
+    secondary = MintLightThemeColors.Secondary,
+    onSecondary = MintLightThemeColors.OnSecondary,
+    background = MintLightThemeColors.Background,
+    onBackground = MintLightThemeColors.Text,
+    surface = MintLightThemeColors.Surface,
+    onSurface = MintLightThemeColors.Text,
+    error = ErrorColor
+)
+
+private val RoseLightColorScheme = lightColorScheme(
+    primary = RoseLightThemeColors.Primary,
+    onPrimary = RoseLightThemeColors.OnPrimary,
+    secondary = RoseLightThemeColors.Secondary,
+    onSecondary = RoseLightThemeColors.OnSecondary,
+    background = RoseLightThemeColors.Background,
+    onBackground = RoseLightThemeColors.Text,
+    surface = RoseLightThemeColors.Surface,
+    onSurface = RoseLightThemeColors.Text,
+    error = ErrorColor
+)
+
+private val SkyLightColorScheme = lightColorScheme(
+    primary = SkyLightThemeColors.Primary,
+    onPrimary = SkyLightThemeColors.OnPrimary,
+    secondary = SkyLightThemeColors.Secondary,
+    onSecondary = SkyLightThemeColors.OnSecondary,
+    background = SkyLightThemeColors.Background,
+    onBackground = SkyLightThemeColors.Text,
+    surface = SkyLightThemeColors.Surface,
+    onSurface = SkyLightThemeColors.Text,
+    error = ErrorColor
+)
+
+private val CreamLightColorScheme = lightColorScheme(
+    primary = CreamLightThemeColors.Primary,
+    onPrimary = CreamLightThemeColors.OnPrimary,
+    secondary = CreamLightThemeColors.Secondary,
+    onSecondary = CreamLightThemeColors.OnSecondary,
+    background = CreamLightThemeColors.Background,
+    onBackground = CreamLightThemeColors.Text,
+    surface = CreamLightThemeColors.Surface,
+    onSurface = CreamLightThemeColors.Text,
+    error = ErrorColor
+)
+
 @Composable
 fun FlowTheme(
     themeMode: ThemeMode = ThemeMode.LIGHT,
@@ -318,6 +367,10 @@ fun FlowTheme(
         ThemeMode.NORDIC_HORIZON -> NordicHorizonColorScheme
         ThemeMode.ESPRESSO -> EspressoColorScheme
         ThemeMode.GUNMETAL -> GunmetalColorScheme
+        ThemeMode.MINT_LIGHT -> MintLightColorScheme
+        ThemeMode.ROSE_LIGHT -> RoseLightColorScheme
+        ThemeMode.SKY_LIGHT -> SkyLightColorScheme
+        ThemeMode.CREAM_LIGHT -> CreamLightColorScheme
     }
 
     val extendedColors = when (themeMode) {
@@ -395,6 +448,26 @@ fun FlowTheme(
             textSecondary = GunmetalThemeColors.TextSecondary,
             border = GunmetalThemeColors.Border,
             success = GunmetalThemeColors.Success
+        )
+        ThemeMode.MINT_LIGHT -> ExtendedColors(
+            textSecondary = MintLightThemeColors.TextSecondary,
+            border = MintLightThemeColors.Border,
+            success = MintLightThemeColors.Success
+        )
+        ThemeMode.ROSE_LIGHT -> ExtendedColors(
+            textSecondary = RoseLightThemeColors.TextSecondary,
+            border = RoseLightThemeColors.Border,
+            success = RoseLightThemeColors.Success
+        )
+        ThemeMode.SKY_LIGHT -> ExtendedColors(
+            textSecondary = SkyLightThemeColors.TextSecondary,
+            border = SkyLightThemeColors.Border,
+            success = SkyLightThemeColors.Success
+        )
+        ThemeMode.CREAM_LIGHT -> ExtendedColors(
+            textSecondary = CreamLightThemeColors.TextSecondary,
+            border = CreamLightThemeColors.Border,
+            success = CreamLightThemeColors.Success
         )
         else -> ExtendedColors(
             textSecondary = DarkThemeColors.TextSecondary,

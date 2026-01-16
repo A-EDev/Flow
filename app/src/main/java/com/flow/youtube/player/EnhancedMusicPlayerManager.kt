@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
-import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.flow.youtube.service.MusicPlaybackService
@@ -136,9 +136,7 @@ object EnhancedMusicPlayerManager {
             val currentPosition = exoPlayer.currentPosition
             val wasPlaying = exoPlayer.isPlaying
             
-            val dataSourceFactory = DefaultHttpDataSource.Factory()
-                .setUserAgent("Mozilla/5.0")
-                .setAllowCrossProtocolRedirects(true)
+            val dataSourceFactory = DefaultDataSource.Factory(appContext!!)
             
             val mediaItem = MediaItem.fromUri(url)
             val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
@@ -184,9 +182,7 @@ object EnhancedMusicPlayerManager {
         
         // Prepare media source
         player?.let { exoPlayer ->
-            val dataSourceFactory = DefaultHttpDataSource.Factory()
-                .setUserAgent("Mozilla/5.0")
-                .setAllowCrossProtocolRedirects(true)
+            val dataSourceFactory = DefaultDataSource.Factory(appContext!!)
             
             val mediaItem = MediaItem.fromUri(audioUrl)
             val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)

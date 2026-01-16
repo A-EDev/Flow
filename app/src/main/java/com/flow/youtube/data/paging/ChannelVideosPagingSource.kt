@@ -88,7 +88,9 @@ class ChannelVideosPagingSource(
     
     private fun StreamInfoItem.toVideo(channelInfo: ChannelInfo): Video {
         val videoId = extractVideoId(this.url)
-        val thumbnail = this.thumbnails.firstOrNull()?.url ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+        // Use highest resolution thumbnail for better quality
+        val thumbnail = this.thumbnails.maxByOrNull { it.width }?.url 
+            ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
         
         return Video(
             id = videoId,
@@ -99,7 +101,8 @@ class ChannelVideosPagingSource(
             channelThumbnailUrl = channelInfo.avatars.firstOrNull()?.url ?: "",
             viewCount = this.viewCount,
             duration = this.duration.toInt(),
-            uploadDate = this.uploadDate?.offsetDateTime()?.toString() ?: "",
+            // Format date to human-readable format (e.g., "2 days ago")
+            uploadDate = com.flow.youtube.utils.formatTimeAgo(this.uploadDate?.offsetDateTime()?.toString()),
             description = ""
         )
     }

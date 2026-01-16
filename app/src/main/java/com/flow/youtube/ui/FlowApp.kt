@@ -46,6 +46,7 @@ import com.flow.youtube.ui.screens.music.MusicViewModel
 import com.flow.youtube.ui.screens.player.EnhancedVideoPlayerScreen
 import com.flow.youtube.ui.screens.search.SearchScreen
 import com.flow.youtube.ui.screens.settings.SettingsScreen
+import com.flow.youtube.ui.screens.personality.FlowPersonalityScreen
 import com.flow.youtube.ui.screens.shorts.ShortsScreen
 import com.flow.youtube.ui.screens.subscriptions.SubscriptionsScreen
 import com.flow.youtube.ui.screens.channel.ChannelScreen
@@ -177,7 +178,7 @@ fun FlowApp(
                     selectedBottomNavIndex = 0
                     HomeScreen(
                         onVideoClick = { video ->
-                            if (video.duration <= 80) {
+                            if (video.duration in 1..80) {
                                 navController.navigate("shorts?startVideoId=${video.id}")
                             } else {
                                 navController.navigate("player/${video.id}")
@@ -205,7 +206,7 @@ fun FlowApp(
                     selectedBottomNavIndex = -1
                     ExploreScreen(
                         onVideoClick = { video ->
-                            if (video.duration <= 80) {
+                            if (video.duration in 1..80) {
                                 navController.navigate("shorts?startVideoId=${video.id}")
                             } else {
                                 navController.navigate("player/${video.id}")
@@ -251,7 +252,7 @@ fun FlowApp(
                     selectedBottomNavIndex = 3
                     SubscriptionsScreen(
                         onVideoClick = { video ->
-                            if (video.duration <= 80) {
+                            if (video.duration in 1..80) {
                                 navController.navigate("shorts?startVideoId=${video.id}")
                             } else {
                                 navController.navigate("player/${video.id}")
@@ -305,7 +306,7 @@ fun FlowApp(
                     selectedBottomNavIndex = -1
                     SearchScreen(
                         onVideoClick = { video ->
-                            if (video.duration <= 80) {
+                            if (video.duration in 1..80) {
                                 navController.navigate("shorts?startVideoId=${video.id}")
                             } else {
                                 navController.navigate("player/${video.id}")
@@ -332,7 +333,8 @@ fun FlowApp(
                         onThemeChange = onThemeChange,
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToAppearance = { navController.navigate("settings/appearance") },
-                        onNavigateToDonations = { navController.navigate("donations") }
+                        onNavigateToDonations = { navController.navigate("donations") },
+                        onNavigateToPersonality = { navController.navigate("personality") }
                     )
                 }
 
@@ -353,6 +355,14 @@ fun FlowApp(
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }
+
+                composable("personality") {
+                    currentRoute.value = "personality"
+                    showBottomNav = false
+                    FlowPersonalityScreen(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
                 
                 composable(
                     route = "channel?url={channelUrl}",
@@ -367,7 +377,7 @@ fun FlowApp(
                     ChannelScreen(
                         channelUrl = channelUrl,
                         onVideoClick = { video ->
-                            if (video.duration <= 80) {
+                            if (video.duration in 1..80) {
                                 navController.navigate("shorts?startVideoId=${video.id}")
                             } else {
                                 navController.navigate("player/${video.id}")
@@ -389,7 +399,7 @@ fun FlowApp(
                     showBottomNav = false
                     HistoryScreen(
                         onVideoClick = { track ->
-                            if (track.duration <= 80) {
+                            if (track.duration in 1..80) {
                                 navController.navigate("shorts?startVideoId=${track.videoId}")
                             } else {
                                 navController.navigate("player/${track.videoId}")
@@ -408,7 +418,7 @@ fun FlowApp(
                     showBottomNav = false
                     LikedVideosScreen(
                         onVideoClick = { track ->
-                            if (track.duration <= 80) {
+                            if (track.duration in 1..80) {
                                 navController.navigate("shorts?startVideoId=${track.videoId}")
                             } else {
                                 navController.navigate("player/${track.videoId}")
@@ -430,7 +440,7 @@ fun FlowApp(
                         onVideoClick = { video ->
                             if (video.isMusic) {
                                 navController.navigate("musicPlayer/${video.id}")
-                            } else if (video.duration <= 80) {
+                            } else if (video.duration in 1..80) {
                                 navController.navigate("shorts?startVideoId=${video.id}")
                             } else {
                                 navController.navigate("player/${video.id}")
@@ -514,7 +524,7 @@ fun FlowApp(
                         onVideoClick = { video ->
                             if (video.isMusic) {
                                 navController.navigate("musicPlayer/${video.id}")
-                            } else if (video.duration <= 80) {
+                            } else if (video.duration in 1..80) {
                                 navController.navigate("shorts?startVideoId=${video.id}")
                             } else {
                                 navController.navigate("player/${video.id}")
@@ -554,12 +564,21 @@ fun FlowApp(
                         }
                     )
                 }
-                // Downloads Screen
                 composable("downloads") {
                     currentRoute.value = "downloads"
                     showBottomNav = false
                     com.flow.youtube.ui.screens.library.DownloadsScreen(
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.popBackStack() },
+                        onVideoClick = { videoId ->
+                            navController.navigate("player/$videoId")
+                        },
+                        onMusicClick = { downloadedTrack ->
+                            val track = downloadedTrack.track
+                            val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                            val encodedTitle = android.net.Uri.encode(track.title)
+                            val encodedArtist = android.net.Uri.encode(track.artist)
+                            navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
+                        }
                     )
                 }
                 // Music Screen - Enhanced with SoundCloud
@@ -584,7 +603,7 @@ fun FlowApp(
                             navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
                         },
                         onVideoClick = { track ->
-                            if (track.duration <= 80) {
+                            if (track.duration in 1..80) {
                                 navController.navigate("shorts?startVideoId=${track.videoId}")
                             } else {
                                 navController.navigate("player/${track.videoId}")
