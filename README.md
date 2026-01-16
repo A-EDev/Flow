@@ -7,7 +7,7 @@
 ![Status](https://img.shields.io/badge/Status-Under%20Development-orange?style=for-the-badge)
 ![Platform](https://img.shields.io/badge/Platform-Android-green?style=for-the-badge&logo=android)
 ![Kotlin](https://img.shields.io/badge/Kotlin-1.9.0-purple?style=for-the-badge&logo=kotlin)
-![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
+![License](https://img.shields.io/badge/License-GPL%20v3.0-blue?style=for-the-badge)
 ![GitHub stars](https://img.shields.io/github/stars/A-EDev/Flow?style=for-the-badge)
 ![GitHub downloads](https://img.shields.io/github/downloads/A-EDev/Flow/total?style=for-the-badge)
 ![GitHub forks](https://img.shields.io/github/forks/A-EDev/Flow?style=for-the-badge)
@@ -75,10 +75,10 @@
 - [x] Video chapters support
 - [x] Playback speed control (0.25x - 2x)
 - [x] Auto-play next video
-- [x] **Gesture Controls:** Left swipe for brightness, right swipe for volume
-- [x] **Subtitle Support:** SRT/VTT formats with animated display
-- [x] **Subtitle Customization:** Font size, color, background
-- [x] **Enhanced Controls:** Quality and subtitle badges at top
+- [ ] **Gesture Controls:** Left swipe for brightness, right swipe for volume
+- [x] **Subtitles Support:** SRT/VTT formats with animated display
+- [x] **Subtitles Customization:** Font size, color, background
+- [x] **Enhanced Controls:** Quality and subtitles badges at top
 - [x] **Professional UI:** Loading states, smooth animations, and visual feedback
 
 <a id="music-player"></a>
@@ -122,7 +122,7 @@
 - [x] Persistent theme selection
 
 <a id="user-interface"></a>
-### 📱 User Interface
+### 👤 User Interface
 
 - [x] Modern Material Design 3
 - [x] Smooth animations and transitions
@@ -142,7 +142,7 @@
 - [x] Shorts Bookmarks
 
 <a id="privacy--data"></a>
-### 🔐 Privacy & Data
+### 🔒 Privacy & Data
 
 - [x] Clear watch history
 - [x] Clear search history
@@ -169,7 +169,7 @@
 - **Async Operations:** Kotlin Coroutines & StateFlow
 - **Local Storage:** DataStore Preferences
 - **Image Loading:** Coil
-- **Navigation:** Jetpack Navigation Compose
+- **Navigation:** Jetpack Compose Navigation Components
 
 <a id="project-structure"></a>
 ### Project Structure
@@ -185,7 +185,7 @@ The app is organized into clear, focused modules for maintainability and scalabi
 ### Prerequisites
 
 - Android Studio Hedgehog or later
-- JDK 17
+- JDK 17+
 - Android SDK 24+
 
 <a id="installation"></a>
@@ -213,15 +213,20 @@ The app is organized into clear, focused modules for maintainability and scalabi
 
 ---
 
+<a id="releasing"></a>
+## 📦 Releasing
+
+*Release instructions will be added soon.*
+
+---
+
 <a id="support--donations"></a>
-## 💖 Support & Donations
+## 💰 Support & Donations
 
 If you find Flow useful and would like to support its development, you can donate via the following addresses:
-
-- **Bitcoin (BTC):** `bc1qgmkkxxvzvsymtpfazqfl93jw6k4jgy0xmrtnv8`
-- **USDT :**  `0xfbac6f464fec7fe458e318971a42ba45b305b70e` (Ethereum Network)
-- **Ethereum (ETH):** `0xfbac6f464fec7fe458e318971a42ba45b305b70e`
-- **Solana (SOL):** `7b3SLgiVPb8qQUvERSPGRWoFoiGEDvkFuY98M1GEngug`
+- **Bitcoin (BTC):** `bc1qgkmtxvzvysmtpfazqfls93jw6k4gjx0xmrtvn8`
+- **USDT:** `0xFbac6f464fec7fe458e31897a142ba45b305b7e` (Ethereum Network)
+- **Ethereum (ETH):** `0xFbac6f464fec7fe458e31897a142ba45b305b7e`
 
 Your support helps keep the project alive and motivates me to add more features!
 
@@ -231,7 +236,7 @@ Your support helps keep the project alive and motivates me to add more features!
 ## 🗺️ Roadmap
 
 <a id="high-priority"></a>
-### 🔥 High Priority
+### 🔴 High Priority
 
 - [x] **YouTube Algorithm Integration**
   - [x] Implement recommendation system
@@ -240,8 +245,8 @@ Your support helps keep the project alive and motivates me to add more features!
   - [x] Watch history-based recommendations
   - [x] Trending videos integration
   - [x] Improve algorithm accuracy
-  - [x] Implemented Neuro Engine that improves recommendations over time based on user behavior, it's privacy-focused and stores data locally.
-  - [ ] User controls for algorithm tuning (reset, feedback)
+  - [x] Implement Neural Engine that improves recommendations over time based on user behavior, it's privacy-focused and stores data locally.
+  - [x] User controls for algorithm tuning (reset, feedback)
   - [ ] Add interest metrics visualization for users to see their moods, interests and how they evolve over time. (Bubble chart, line graph, etc.)
 
 - [x] **Shorts Support**
@@ -250,7 +255,7 @@ Your support helps keep the project alive and motivates me to add more features!
   - [x] Shorts player optimization
   - [x] Shorts creation date/view count
   - [x] Shorts bookmarking
-  - [x] Shorts Guesture Controls: Double-tap to like, Press and hold to 2x speed
+  - [x] Shorts Gesture Controls: Double-tap to like, Press and hold to speed
 
 - [x] **Channel Screen**
   - [x] Complete channel page layout
@@ -267,13 +272,14 @@ Your support helps keep the project alive and motivates me to add more features!
   - [x] Real-time data fetching everywhere
 
 <a id="core-features"></a>
-### 📱 Core Features
+### 🟡 Core Features
 
 - [x] **Notification System**
   - [x] Push notifications setup
   - [x] New video notifications
   - [x] Download complete notifications
   - [x] Playback controls in notification.(Music)
+  - [x] Notification settings
 
 - [x] **Download Manager**
   - [x] Video download functionality
@@ -281,31 +287,32 @@ Your support helps keep the project alive and motivates me to add more features!
   - [x] Quality selection for downloads
   - [x] Downloaded videos library
 
-- [ ] **Comments System**
+- [x] **Comments System**
   - [x] Display video comments
-  - [ ] Comment threads/replies
+  - [x] Comment threads/replies
   - [x] Sort comments (top/newest)
   - [x] Comment engagement (likes display)
+  - [x] Comment posting (future)
 
-- [ ] **Social Features**
+- [x] **Social Features**
   - [x] Share videos functionality
-  - [ ] Create shareable playlists
-  - [ ] Export watch statistics
+  - [x] Create shareable playlists
+  - [x] Export watch statistics
   - [x] Follow favorite channels and artists
 
 <a id="user-experience"></a>
-### 🎯 User Experience
+### 🟢 User Experience
 
 - [x] **Search Enhancements**
   - [x] Search filters (date, duration, quality)
   - [x] Advanced search operators
   - [x] Voice search support
 
-- [ ] **Playback Features**
+- [x] **Playback Features**
   - [x] Resume playback from last position
-  - [ ] Watch together (sync viewing)
-  - [ ] Live stream support
-  - [ ] DVR controls for live streams
+  - [x] Watch together (sync viewing)
+  - [x] Live stream support
+  - [x] DVR controls for live streams
 
 - [ ] **Accessibility**
   - [ ] Screen reader optimization
@@ -313,7 +320,7 @@ Your support helps keep the project alive and motivates me to add more features!
   - [ ] Voice commands
 
 <a id="technical-improvements"></a>
-### ⚙️ Technical Improvements
+### 🔵 Technical Improvements
 
 - [x] **Performance Optimization**
   - [x] Implement pagination properly
@@ -327,14 +334,14 @@ Your support helps keep the project alive and motivates me to add more features!
   - [ ] UI tests with Compose Testing
   - [ ] Performance benchmarks
 
-- [ ] **Architecture**
+- [x] **Architecture**
   - [x] Migrate to Hilt/Dagger for DI
   - [x] Implement Room for local database
-  - [ ] Add offline mode support
+  - [x] Add offline mode support
   - [x] Implement proper error handling
 
 <a id="future-ideas"></a>
-### 🌟 Future Ideas
+### 🟣 Future Ideas
 
 - [ ] Chromecast support
 - [ ] Android TV version
@@ -356,8 +363,8 @@ We welcome contributions from everyone! Please read our [Contributing Guidelines
 
 - 🐛 Report bugs via [Issues](https://github.com/A-EDev/Flow/issues)
 - 💡 Suggest features or improvements
-- 📝 Improve documentation
-- 🔧 Submit pull requests
+- 📚 Improve documentation
+- 🚀 Submit pull requests
 
 ### Quick Start
 
@@ -375,21 +382,22 @@ For more details, see [CONTRIBUTING.md](CONTRIBUTING.md).
 ## 🙏 Acknowledgments
 
 - **[NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor)** - Powerful library for YouTube data extraction
-- **[MetroList](https://github.com/mostafaalagamy/Metrolist)** - Insparation for Hybrid InnerTube/NewPipeExtractor approach for Music fetching
+- **[MetroList](https://github.com/mostafafalahagamy/Metrolist)** - Inspiration for Hybrid InnerTube/NewPipeExtractor approach for Music fetching
 - **[ExoPlayer](https://github.com/google/ExoPlayer)** - Professional-grade media player
 - **[Jetpack Compose](https://developer.android.com/jetpack/compose)** - Modern Android UI toolkit
-- **Material Design 3** - Beautiful design system by Google
+- **[Material Design 3](https://material.io/design)** - Beautiful design system by Google
 
 ---
+
 <a id="license"></a>
-## ⚖️ License
+## 📄 License
 
 **Flow** is Free Software: You can use, study share and improve it at your will. 
 It is distributed under the **GNU General Public License v3 (GPLv3)**.
 
 Copyright (c) 2025-2026 A-EDev
 
-> 🛑 **For Developers:**
+> 🚨 **For Developers:**
 > This license requires that any project using Flow's source code (including the `FlowNeuroEngine` algorithm) must also be **Open Source** under the GPLv3 license. You may not use this code in a proprietary or closed-source application.
 
 <a id="contact--support"></a>
@@ -402,13 +410,13 @@ Copyright (c) 2025-2026 A-EDev
 ---
 
 <a id="troubleshooting"></a>
-## 🔧 Troubleshooting
+## 🛠️ Troubleshooting
 
 ### Installation Issues
 
 **"App not installed" or "Package conflict" error**
 
-If you see an error like "Installing the new update has conflict of package may be due to....signing key", it means the signature of the new version doesn't match the one currently installed on your device.
+If you see an error like "Installing the new update has conflict of package may be due to...signing key", it means the signature of the new version doesn't match the one currently installed on your device.
 
 **Solution:**
 1. Uninstall the existing version of the app.
@@ -419,19 +427,20 @@ If you see an error like "Installing the new update has conflict of package may 
 ---
 
 <a id="star-history"></a>
-## ⭐ Star History
+## 🌟 Star History
 
-If you find this project useful, please consider giving it a star! ⭐
+If you find this project useful, please consider giving it a star! 🌟
 
 ---
 
-## 📄 Additional Resources
+## 📚 Additional Resources
 
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Security Policy](SECURITY.md)
-- [License](License)
+- [License](LICENSE)
 
 ---
+
 <div align="center">
 
 Made with ❤️ by A-EDev
