@@ -2,20 +2,23 @@ package com.flow.youtube.data.local
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import com.flow.youtube.data.local.dao.NotificationDao
 import com.flow.youtube.data.local.dao.PlaylistDao
 import com.flow.youtube.data.local.dao.VideoDao
+import com.flow.youtube.data.local.entity.NotificationEntity
 import com.flow.youtube.data.local.entity.PlaylistEntity
 import com.flow.youtube.data.local.entity.PlaylistVideoCrossRef
 import com.flow.youtube.data.local.entity.VideoEntity
 
 @Database(
-    entities = [VideoEntity::class, PlaylistEntity::class, PlaylistVideoCrossRef::class],
-    version = 3,
+    entities = [VideoEntity::class, PlaylistEntity::class, PlaylistVideoCrossRef::class, NotificationEntity::class],
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun videoDao(): VideoDao
     abstract fun playlistDao(): PlaylistDao
+    abstract fun notificationDao(): NotificationDao
 
     companion object {
         @Volatile

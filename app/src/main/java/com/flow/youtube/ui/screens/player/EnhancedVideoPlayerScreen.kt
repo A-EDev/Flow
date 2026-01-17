@@ -122,6 +122,7 @@ fun EnhancedVideoPlayerScreen(
         }
     }
     var showDescriptionSheet by remember { mutableStateOf(false) }
+    var showChaptersSheet by remember { mutableStateOf(false) }
     
     var showControls by remember { mutableStateOf(true) }
     var isFullscreen by remember { mutableStateOf(false) }
@@ -668,6 +669,7 @@ fun EnhancedVideoPlayerScreen(
                     },
                     seekbarPreviewHelper = seekbarPreviewHelper,
                     chapters = uiState.chapters,
+                    onChapterClick = { showChaptersSheet = true },
                     onSubtitleClick = { subtitlesEnabled = !subtitlesEnabled },
                     isSubtitlesEnabled = subtitlesEnabled,
                     autoplayEnabled = uiState.autoplayEnabled,
@@ -1000,6 +1002,18 @@ fun EnhancedVideoPlayerScreen(
         FlowDescriptionBottomSheet(
             video = currentVideo,
             onDismiss = { showDescriptionSheet = false }
+        )
+    }
+
+    // Chapters Bottom Sheet
+    if (showChaptersSheet) {
+        FlowChaptersBottomSheet(
+            chapters = uiState.chapters,
+            currentPosition = currentPosition,
+            onChapterClick = { newPosition ->
+                EnhancedPlayerManager.getInstance().seekTo(newPosition)
+            },
+            onDismiss = { showChaptersSheet = false }
         )
     }
 }

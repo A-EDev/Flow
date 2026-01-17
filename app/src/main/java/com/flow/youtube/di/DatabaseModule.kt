@@ -3,6 +3,7 @@ package com.flow.youtube.di
 import android.content.Context
 import androidx.room.Room
 import com.flow.youtube.data.local.AppDatabase
+import com.flow.youtube.data.local.dao.NotificationDao
 import com.flow.youtube.data.local.dao.PlaylistDao
 import com.flow.youtube.data.local.dao.VideoDao
 import dagger.Module
@@ -35,5 +36,10 @@ object DatabaseModule {
     @Provides
     fun providePlaylistDao(database: AppDatabase): PlaylistDao {
         return database.playlistDao()
+    }
+
+    @Provides
+    fun provideNotificationDao(database: AppDatabase): NotificationDao {
+        return database.notificationDao()
     }
 }

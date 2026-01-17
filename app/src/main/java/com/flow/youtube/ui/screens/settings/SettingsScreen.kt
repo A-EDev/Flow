@@ -39,6 +39,9 @@ import com.flow.youtube.ui.theme.extendedColors
 import com.flow.youtube.data.local.PlayerPreferences
 import com.flow.youtube.data.local.VideoQuality
 import kotlinx.coroutines.launch
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.ChevronRight
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -162,106 +165,169 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // =================================================
-            // 🧠 MY FLOW PERSONALITY (FLOW EXCLUSIVE FEATURE)
-            // =================================================
-            item {
-                Text(
-                    text = "My Flow Personality",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 8.dp, bottom = 4.dp)
+// 🧠 MY FLOW PERSONALITY (FLOW EXCLUSIVE FEATURE)
+// =================================================
+item {
+    Text(
+        text = "Neural Engine",
+        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 16.dp)
+    )
+}
+
+item {
+    val persona = if (userBrain != null) FlowNeuroEngine.getPersona(userBrain!!) else null
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .height(180.dp) // Fixed height for a hero card look
+            .clickable(onClick = onNavigateToPersonality),
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    brush = Brush.linearGradient(
+                        colors = listOf(
+                            MaterialTheme.colorScheme.primary,
+                            MaterialTheme.colorScheme.primaryContainer
+                        ),
+                        start = Offset(0f, 0f),
+                        end = Offset(1000f, 1000f)
+                    )
+                )
+        ) {
+            // 1. Background Decor (Abstract Shapes)
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                // Top Right Circle
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.1f),
+                    radius = size.width * 0.5f,
+                    center = Offset(size.width, 0f)
+                )
+                // Bottom Left Blob
+                drawCircle(
+                    color = Color.Black.copy(alpha = 0.05f),
+                    radius = size.width * 0.3f,
+                    center = Offset(0f, size.height)
                 )
             }
 
-            item {
-                Box(
+            // 2. Huge Emoji Icon (Watermark style)
+            if (persona != null) {
+                Text(
+                    text = persona.icon, // e.g., 🤿 or 🧭
+                    fontSize = 120.sp,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(28.dp))
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primaryContainer,
-                                    MaterialTheme.colorScheme.surface
-                                )
-                            )
-                        )
-                        .clickable(onClick = onNavigateToPersonality)
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 20.dp, y = 20.dp)
+                        .alpha(0.15f)
+                )
+            }
+
+            // 3. Main Content
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Header Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
                 ) {
-                    Canvas(modifier = Modifier.fillMaxSize().alpha(0.1f)) {
-                        drawCircle(color = Color.White, radius = size.width * 0.4f, center = Offset(size.width, 0f))
+                    // Badge
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "ACTIVE LEARNING",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
                     }
 
-                    Column(
+                    // Reset Button (Subtle)
+                    IconButton(
+                        onClick = { showResetBrainDialog = true },
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp)
+                            .size(32.dp)
+                            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.2f), CircleShape)
                     ) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = "FLOW PERSONALITY",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    letterSpacing = 2.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Spacer(Modifier.height(4.dp))
-                                if (userBrain != null) {
-                                    val persona = FlowNeuroEngine.getPersona(userBrain!!)
-                                    Text(
-                                        text = persona.title,
-                                        style = MaterialTheme.typography.headlineSmall,
-                                        fontWeight = FontWeight.ExtraBold
-                                    )
-                                } else {
-                                    Text("Analyzing...", style = MaterialTheme.typography.headlineSmall)
-                                }
-                            }
-                            
-                            IconButton(
-                                onClick = { showResetBrainDialog = true },
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
-                            ) {
-                                Icon(Icons.Default.Refresh, "Reset Brain", tint = MaterialTheme.colorScheme.primary)
-                            }
-                        }
-                        
-                        Spacer(Modifier.height(16.dp))
-
-                        if (userBrain != null) {
-                            val persona = FlowNeuroEngine.getPersona(userBrain!!)
-                            Text(
-                                text = persona.description,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(Modifier.height(16.dp))
-                            Button(
-                                onClick = onNavigateToPersonality,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.surface,
-                                    contentColor = MaterialTheme.colorScheme.primary
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.align(Alignment.End)
-                            ) {
-                                Text("View Full Profile")
-                                Spacer(Modifier.width(8.dp))
-                                Icon(Icons.Default.ArrowBack, null, modifier = Modifier.rotate(180f).size(16.dp))
-                            }
-                        } else {
-                            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                        }
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = "Reset",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
+
+                // Persona Info
+                if (persona != null) {
+                    Column {
+                        Text(
+                            text = persona.title, // e.g. "The Deep Diver"
+                            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black),
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = persona.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                } else {
+                    // Loading State
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = "Analyzing your interactions...",
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
+                }
+                
+                // Bottom CTA
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "View Analytics",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        Icons.Default.ArrowForward, // Use ArrowForward instead of rotated ArrowBack
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
+        }
+    }
+}
 
             // =================================================
             // APPEARANCE

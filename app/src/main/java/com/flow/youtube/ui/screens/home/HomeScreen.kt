@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.ui.components.*
+import com.flow.youtube.ui.screens.notifications.NotificationViewModel
 
 // Add this import for snapshotFlow
 import androidx.compose.runtime.snapshotFlow
@@ -42,10 +43,12 @@ fun HomeScreen(
     onNotificationClick: () -> Unit,
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    notificationViewModel: NotificationViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+    val unreadNotifications by notificationViewModel.unreadCount.collectAsState()
     val listState = rememberLazyListState()
     
     LaunchedEffect(Unit) {
@@ -96,7 +99,17 @@ fun HomeScreen(
                         Icon(Icons.Outlined.Search, contentDescription = "Search")
                     }
                     IconButton(onClick = onNotificationClick) {
-                        Icon(Icons.Outlined.Notifications, contentDescription = "Notifications")
+                        BadgedBox(
+                            badge = {
+                                if (unreadNotifications > 0) {
+                                    Badge {
+                                        Text(text = if (unreadNotifications > 9) "9+" else unreadNotifications.toString())
+                                    }
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Outlined.Notifications, contentDescription = "Notifications")
+                        }
                     }
                     IconButton(onClick = onSettingsClick) {
                         Icon(Icons.Outlined.Settings, contentDescription = "Settings")

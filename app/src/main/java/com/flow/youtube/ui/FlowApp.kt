@@ -37,6 +37,7 @@ import com.flow.youtube.ui.screens.library.WatchLaterScreen
 import com.flow.youtube.ui.screens.likedvideos.LikedVideosScreen
 import com.flow.youtube.ui.screens.playlists.PlaylistsScreen
 import com.flow.youtube.ui.screens.playlists.PlaylistDetailScreen
+import com.flow.youtube.ui.screens.notifications.NotificationScreen
 import com.flow.youtube.ui.screens.music.EnhancedMusicScreen
 import com.flow.youtube.ui.screens.music.EnhancedMusicPlayerScreen
 import com.flow.youtube.ui.screens.music.MusicTrack
@@ -64,13 +65,29 @@ import kotlinx.coroutines.delay
 @Composable
 fun FlowApp(
     currentTheme: ThemeMode,
-    onThemeChange: (ThemeMode) -> Unit
+    onThemeChange: (ThemeMode) -> Unit,
+    deeplinkVideoId: String? = null,
+    isShort: Boolean = false,
+    onDeeplinkConsumed: () -> Unit = {}
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val navController = rememberNavController()
+    val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     
      // Offline Monitoring
     val currentRoute = remember { mutableStateOf("home") }
+
+    // Handle Deeplink
+    LaunchedEffect(deeplinkVideoId, isShort) {
+        if (deeplinkVideoId != null) {
+            if (isShort) {
+                navController.navigate("shorts?startVideoId=$deeplinkVideoId")
+            } else {
+                navController.navigate("player/$deeplinkVideoId")
+            }
+            onDeeplinkConsumed()
+        }
+    }
     LaunchedEffect(Unit) {
         while (true) {
             val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -79,21 +96,27 @@ fun FlowApp(
             val hasInternet = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
             
             if (!hasInternet) {
-                // If offline and not in downloads or player (which supports offline), redirect to downloads
+                // If offline, just check if we should notify
                 val route = currentRoute.value
                 val isSafeRoute = route == "downloads" || 
-                                  route?.startsWith("player") == true || 
-                                  route?.startsWith("musicPlayer") == true ||
+                                  route.startsWith("player") || 
+                                  route.startsWith("musicPlayer") ||
                                   route == "settings"
                 
                 if (!isSafeRoute) {
-                    navController.navigate("downloads") {
-                        popUpTo(0)
-                        launchSingleTop = true
+                    val result = snackbarHostState.showSnackbar(
+                        message = "No internet connection found",
+                        actionLabel = "Downloads",
+                        duration = androidx.compose.material3.SnackbarDuration.Short
+                    )
+                    if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                         navController.navigate("downloads") {
+                            launchSingleTop = true
+                        }
                     }
                 }
             }
-            delay(5000) // Check every 5 seconds
+            delay(10000) // Check every 10 seconds
         }
     }
     
@@ -108,17 +131,6 @@ fun FlowApp(
     // Observe music player state
     val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
 
-    // Handle deep links and notifications
-    val activity = context as? com.flow.youtube.MainActivity
-    val deeplinkVideoId by activity?.deeplinkVideoId ?: remember { mutableStateOf(null) }
-    
-    LaunchedEffect(deeplinkVideoId) {
-        if (deeplinkVideoId != null) {
-            navController.navigate("player/$deeplinkVideoId")
-            activity?.consumeDeeplink()
-        }
-    }
-
     // Navigate to player if entering PiP from another screen
     LaunchedEffect(isInPipMode) {
         if (isInPipMode && !currentRoute.value.startsWith("player") && currentVideo != null) {
@@ -129,6 +141,7 @@ fun FlowApp(
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
+            snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
             containerColor = if (isInPipMode) androidx.compose.ui.graphics.Color.Black else androidx.compose.material3.MaterialTheme.colorScheme.background,
             bottomBar = {
                 if (!isInPipMode) {
@@ -225,10 +238,22 @@ fun FlowApp(
                             navController.navigate("search")
                         },
                         onNotificationClick = {
-                            // TODO: Navigate to notifications
+                            navController.navigate("notifications")
                         },
                         onSettingsClick = {
                             navController.navigate("settings")
+                        }
+                    )
+                }
+
+                // Notifications Screen
+                composable("notifications") {
+                    currentRoute.value = "notifications"
+                    showBottomNav = false
+                    NotificationScreen(
+                        onBackClick = { navController.popBackStack() },
+                        onNotificationClick = { videoId ->
+                            navController.navigate("player/$videoId")
                         }
                     )
                 }

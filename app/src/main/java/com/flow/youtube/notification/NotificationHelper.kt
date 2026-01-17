@@ -13,6 +13,8 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.flow.youtube.data.local.AppDatabase
+import com.flow.youtube.data.local.entity.NotificationEntity
 import com.flow.youtube.MainActivity
 import com.flow.youtube.R
 import com.squareup.picasso.Picasso
@@ -44,6 +46,20 @@ object NotificationHelper {
     const val NOTIFICATION_GENERAL = 4000
     
     private var channelsCreated = false
+    
+    /**
+     * Store notification in database
+     */
+    private suspend fun storeNotification(context: Context, entity: NotificationEntity) {
+        withContext(Dispatchers.IO) {
+            try {
+                val db = AppDatabase.getDatabase(context)
+                db.notificationDao().insertNotification(entity)
+            } catch (e: Exception) {
+                android.util.Log.e("NotificationHelper", "Failed to store notification", e)
+            }
+        }
+    }
     
     /**
      * Initialize all notification channels
@@ -314,6 +330,18 @@ object NotificationHelper {
     ) {
         if (!hasNotificationPermission(context)) return
         
+        // Save to database
+        storeNotification(
+            context,
+            NotificationEntity(
+                videoId = videoId,
+                title = videoTitle,
+                channelName = channelName,
+                thumbnailUrl = thumbnailUrl,
+                type = "NEW_VIDEO"
+            )
+        )
+
         // Generate unique notification ID based on video ID
         val notificationId = NOTIFICATION_NEW_VIDEO + videoId.hashCode().and(0xFFFF)
         

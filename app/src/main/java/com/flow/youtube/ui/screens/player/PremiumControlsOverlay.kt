@@ -57,6 +57,7 @@ fun PremiumControlsOverlay(
     onPipClick: () -> Unit = {},
     seekbarPreviewHelper: SeekbarPreviewThumbnailHelper?,
     chapters: List<StreamSegment> = emptyList(),
+    onChapterClick: () -> Unit = {},
     onSubtitleClick: () -> Unit = {},
     isSubtitlesEnabled: Boolean = false,
     autoplayEnabled: Boolean = true,
@@ -295,7 +296,10 @@ fun PremiumControlsOverlay(
                         Surface(
                             color = Color.White.copy(alpha = 0.1f),
                             shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.padding(start = 12.dp)
+                            modifier = Modifier
+                                .padding(start = 12.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onChapterClick() }
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,

@@ -10,11 +10,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Delete
@@ -38,7 +38,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.flow.youtube.data.music.DownloadedTrack
 import com.flow.youtube.data.video.DownloadedVideo
-import androidx.compose.foundation.lazy.itemsIndexed
 
 @Composable
 fun DownloadsScreen(
@@ -53,7 +52,7 @@ fun DownloadsScreen(
     
     val currentItemCount = if (selectedTabIndex == 0) uiState.downloadedVideos.size else uiState.downloadedMusic.size
 
-    // Background Gradient with subtle depth
+    // Background Gradient: Gives depth to the screen
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -61,7 +60,7 @@ fun DownloadsScreen(
                 brush = Brush.verticalGradient(
                     colors = listOf(
                         MaterialTheme.colorScheme.background,
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.5f), // Subtle transition
                         MaterialTheme.colorScheme.surface
                     )
                 )
@@ -70,13 +69,13 @@ fun DownloadsScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Custom High-Fidelity Header
+            // 1. Header Section
             DownloadsHeader(
                 onBackClick = onBackClick,
                 itemCount = currentItemCount
             )
 
-            // Animated Pill Tabs
+            // 2. Animated Custom Tabs
             DownloadsTabSelector(
                 selectedTabIndex = selectedTabIndex,
                 onTabSelected = { selectedTabIndex = it }
@@ -84,7 +83,7 @@ fun DownloadsScreen(
             
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Content Area
+            // 3. Main Content List
             Box(modifier = Modifier.weight(1f)) {
                 when (selectedTabIndex) {
                     0 -> VideosDownloadsList(
@@ -112,18 +111,18 @@ fun DownloadsHeader(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Back Button with soft background
         IconButton(
             onClick = onBackClick,
             modifier = Modifier
-                .padding(end = 16.dp)
                 .background(
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
                     shape = CircleShape
                 )
-                .size(40.dp)
+                .size(44.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.ArrowBack,
@@ -132,17 +131,20 @@ fun DownloadsHeader(
             )
         }
 
+        Spacer(modifier = Modifier.width(16.dp))
+
         Column {
             Text(
-                "Downloads",
-                style = MaterialTheme.typography.headlineMedium.copy(
+                text = "Downloads",
+                style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.5).sp
-                )
+                ),
+                color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                "$itemCount Downloaded items",
-                style = MaterialTheme.typography.labelMedium.copy(
+                text = "$itemCount items saved",
+                style = MaterialTheme.typography.bodySmall.copy(
                     fontWeight = FontWeight.Medium
                 ),
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -151,6 +153,10 @@ fun DownloadsHeader(
     }
 }
 
+/**
+ * A Custom Segmented Control (Pill Shape) Tab Bar
+ * Much cleaner than the default Android TabRow
+ */
 @Composable
 fun DownloadsTabSelector(
     selectedTabIndex: Int,
@@ -161,47 +167,50 @@ fun DownloadsTabSelector(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .height(56.dp),
-        shape = RoundedCornerShape(28.dp),
+            .padding(horizontal = 20.dp)
+            .height(52.dp),
+        shape = RoundedCornerShape(26.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         BoxWithConstraints(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().padding(4.dp)
         ) {
             val tabWidth = maxWidth / tabs.size
             
-            // Animated Indicator Pill
+            // The Sliding Indicator
             val indicatorOffset by animateDpAsState(
                 targetValue = tabWidth * selectedTabIndex,
                 animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
-                label = "indicator"
+                label = "tab_indicator"
             )
 
+            // The White/Active Background Pill
             Box(
                 modifier = Modifier
                     .offset(x = indicatorOffset)
                     .width(tabWidth)
                     .fillMaxHeight()
-                    .padding(4.dp)
+                    .shadow(4.dp, RoundedCornerShape(22.dp))
                     .background(
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        shape = RoundedCornerShape(24.dp)
+                        color = MaterialTheme.colorScheme.background, // Or Primary depending on taste
+                        shape = RoundedCornerShape(22.dp)
                     )
             )
 
-            // Tab Text Items
+            // The Text Labels
             Row(modifier = Modifier.fillMaxSize()) {
                 tabs.forEachIndexed { index, title ->
                     val isSelected = selectedTabIndex == index
+                    
+                    // Animate Text Color
                     val textColor by animateColorAsState(
                         targetValue = if (isSelected) 
-                            MaterialTheme.colorScheme.onPrimaryContainer 
+                            MaterialTheme.colorScheme.primary 
                         else 
-                            MaterialTheme.colorScheme.onSurfaceVariant,
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         label = "text_color"
                     )
 
@@ -209,24 +218,24 @@ fun DownloadsTabSelector(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .clickable { onTabSelected(index) },
+                            .clickable(
+                                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                                indication = null // Remove ripple for cleaner look
+                            ) { onTabSelected(index) },
                         contentAlignment = Alignment.Center
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = if (index == 0) Icons.Outlined.VideoLibrary else Icons.Outlined.MusicNote,
                                 contentDescription = null,
                                 tint = textColor,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = title,
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
                                 ),
                                 color = textColor
                             )
@@ -245,12 +254,12 @@ fun VideosDownloadsList(
     onDeleteClick: (String) -> Unit
 ) {
     if (videos.isEmpty()) {
-        EmptyDownloadsState(type = "videos")
+        EmptyDownloadsState(type = "Videos")
     } else {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
             items(videos) { downloadedVideo ->
                 PremiumVideoDownloadCard(
@@ -269,6 +278,7 @@ fun PremiumVideoDownloadCard(
     onClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
+    // Card with minimal elevation but distinct shape
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -278,10 +288,9 @@ fun PremiumVideoDownloadCard(
             containerColor = MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = null
     ) {
         Column {
-            // High-fidelity image area
+            // 1. Thumbnail Area with Overlay
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -294,7 +303,7 @@ fun PremiumVideoDownloadCard(
                     contentScale = ContentScale.Crop
                 )
                 
-                // Overlay Gradient
+                // Dark Gradient for Text Readability
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -302,55 +311,53 @@ fun PremiumVideoDownloadCard(
                             Brush.verticalGradient(
                                 colors = listOf(
                                     Color.Transparent,
-                                    Color.Black.copy(alpha = 0.6f)
-                                ),
-                                startY = 100f
+                                    Color.Black.copy(alpha = 0.3f),
+                                    Color.Black.copy(alpha = 0.7f)
+                                )
                             )
                         )
                 )
 
-                // Duration badge (Placeholder text "Downloaded" as duration isn't explicitly in DownloadedVideo usually, check regular Video model)
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp),
-                    color = Color.Black.copy(alpha = 0.7f),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        text = "Downloaded", 
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                    )
-                }
-
                 // Play Button Overlay
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize(),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Surface(
-                        color = Color.Black.copy(alpha = 0.5f),
+                        color = MaterialTheme.colorScheme.background.copy(alpha = 0.7f),
                         shape = CircleShape,
                         modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.PlayArrow,
                             contentDescription = "Play",
-                            tint = Color.White,
-                            modifier = Modifier.padding(12.dp)
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(10.dp)
                         )
                     }
                 }
+                
+                // Duration / Quality Badge
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(10.dp)
+                        .background(Color.Black.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                     Text(
+                        text = "Downloaded", // Replace with duration if available
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White
+                    )
+                }
             }
 
-            // Text Info
+            // 2. Info Area
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
+                    .padding(14.dp),
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
@@ -358,24 +365,29 @@ fun PremiumVideoDownloadCard(
                         text = video.video.title,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            lineHeight = 22.sp
+                            lineHeight = 20.sp
                         ),
                         maxLines = 2,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = video.video.channelName,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )
                 }
                 
-                IconButton(onClick = onDeleteClick) {
+                IconButton(
+                    onClick = onDeleteClick,
+                    modifier = Modifier.size(32.dp)
+                ) {
                     Icon(
                         imageVector = Icons.Outlined.Delete,
                         contentDescription = "Delete",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -390,11 +402,11 @@ fun MusicDownloadsList(
     onDeleteClick: (String) -> Unit
 ) {
     if (tracks.isEmpty()) {
-        EmptyDownloadsState(type = "music")
+        EmptyDownloadsState(type = "Music")
     } else {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
+            contentPadding = PaddingValues(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             itemsIndexed(tracks) { index, downloadedTrack ->
@@ -414,32 +426,27 @@ fun PremiumMusicDownloadCard(
     onClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
-    // Glassmorphism inspired card
+    // Elegant Row Layout
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .shadow(
-                elevation = 6.dp,
-                shape = RoundedCornerShape(16.dp),
-                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
-            ),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+            .shadow(4.dp, RoundedCornerShape(12.dp)),
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Enhanced Thumbnail with shadow/elevation
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                shadowElevation = 4.dp,
-                modifier = Modifier.size(64.dp)
+            // Album Art
+            Card(
+                shape = RoundedCornerShape(8.dp),
+                elevation = CardDefaults.cardElevation(4.dp),
+                modifier = Modifier.size(56.dp)
             ) {
                 AsyncImage(
                     model = downloadedTrack.track.thumbnailUrl,
@@ -449,12 +456,14 @@ fun PremiumMusicDownloadCard(
                 )
             }
 
-            // Info
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Text Info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = downloadedTrack.track.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -463,31 +472,34 @@ fun PremiumMusicDownloadCard(
                     Icon(
                         imageVector = Icons.Outlined.MusicNote,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        modifier = Modifier.size(12.dp),
+                        tint = MaterialTheme.colorScheme.secondary
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = downloadedTrack.track.artist,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
                     )
                 }
             }
 
-            // Delete Action
+            // Subtle Delete Button
             IconButton(
                 onClick = onDeleteClick,
-                colors = IconButtonDefaults.iconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
-                    contentColor = MaterialTheme.colorScheme.error
-                )
+                modifier = Modifier
+                    .size(36.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f),
+                        shape = CircleShape
+                    )
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Delete,
                     contentDescription = "Delete",
-                    modifier = Modifier.size(20.dp)
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
@@ -503,23 +515,20 @@ fun EmptyDownloadsState(type: String) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Abstract Background shapes or icon
+        // Icon Circle
         Box(
-            modifier = Modifier.size(120.dp),
+            modifier = Modifier
+                .size(100.dp)
+                .background(
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
+                    shape = CircleShape
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .background(
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f),
-                        CircleShape
-                    )
-            )
             Icon(
                 imageVector = Icons.Outlined.CloudDownload,
                 contentDescription = null,
-                modifier = Modifier.size(64.dp),
+                modifier = Modifier.size(48.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
         }
@@ -527,19 +536,19 @@ fun EmptyDownloadsState(type: String) {
         Spacer(modifier = Modifier.height(24.dp))
         
         Text(
-            text = "No $type yet",
+            text = "No $type Found",
             style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onSurface
+            color = MaterialTheme.colorScheme.onBackground
         )
         
         Spacer(modifier = Modifier.height(8.dp))
         
         Text(
-            text = "Your downloaded $type will appear here. \nSave content for offline enjoyment.",
-            style = MaterialTheme.typography.bodyLarge,
+            text = "Your downloaded $type will appear here.\nStart downloading to play offline!",
+            style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
-            lineHeight = 24.sp
+            lineHeight = 22.sp
         )
     }
 }

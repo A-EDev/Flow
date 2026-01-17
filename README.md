@@ -75,7 +75,7 @@
 - [x] Video chapters support
 - [x] Playback speed control (0.25x - 2x)
 - [x] Auto-play next video
-- [ ] **Gesture Controls:** Left swipe for brightness, right swipe for volume
+- [x] **Gesture Controls:** Vertical Left swipe for brightness, vertical right swipe for volume
 - [x] **Subtitles Support:** SRT/VTT formats with animated display
 - [x] **Subtitles Customization:** Font size, color, background
 - [x] **Enhanced Controls:** Quality and subtitles badges at top
@@ -247,7 +247,7 @@ Your support helps keep the project alive and motivates me to add more features!
   - [x] Improve algorithm accuracy
   - [x] Implement Neural Engine that improves recommendations over time based on user behavior, it's privacy-focused and stores data locally.
   - [x] User controls for algorithm tuning (reset, feedback)
-  - [ ] Add interest metrics visualization for users to see their moods, interests and how they evolve over time. (Bubble chart, line graph, etc.)
+  - [x] Add interest metrics visualization for users to see their moods, interests and how they evolve over time. (Bubble chart, line graph, etc.)
 
 - [x] **Shorts Support**
   - [x] Shorts feed UI

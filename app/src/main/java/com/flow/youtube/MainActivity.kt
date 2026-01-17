@@ -38,6 +38,9 @@ import com.flow.youtube.BuildConfig
 class MainActivity : ComponentActivity() {
     private val _deeplinkVideoId = mutableStateOf<String?>(null)
     val deeplinkVideoId: State<String?> = _deeplinkVideoId
+    
+    private val _isDeeplinkShort = mutableStateOf(false)
+    val isDeeplinkShort: State<Boolean> = _isDeeplinkShort
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -105,7 +108,6 @@ class MainActivity : ComponentActivity() {
 
                 // Request notification permission for Android 13+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    val context = androidx.compose.ui.platform.LocalContext.current
                     val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
                         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
                     ) { isGranted ->
@@ -131,6 +133,9 @@ class MainActivity : ComponentActivity() {
                     // 1. YOUR MAIN APP (Home/NavHost)
                     // This loads *behind* the splash screen immediately.
                     // By the time splash fades, this is ready.
+                    val deeplinkVideoId by this@MainActivity.deeplinkVideoId
+                    val isDeeplinkShort by this@MainActivity.isDeeplinkShort
+
                     FlowApp(
                         currentTheme = themeMode,
                         onThemeChange = { newTheme ->
@@ -138,6 +143,11 @@ class MainActivity : ComponentActivity() {
                             scope.launch {
                                 dataManager.setThemeMode(newTheme)
                             }
+                        },
+                        deeplinkVideoId = deeplinkVideoId,
+                        isShort = isDeeplinkShort,
+                        onDeeplinkConsumed = {
+                            consumeDeeplink()
                         }
                     )
 
@@ -170,10 +180,22 @@ class MainActivity : ComponentActivity() {
         val data = intent.data
         val notificationVideoId = intent.getStringExtra("notification_video_id") ?: intent.getStringExtra("video_id")
         
+        // Reset shorts flag
+        _isDeeplinkShort.value = false
+
         val videoId = if (data != null && intent.action == Intent.ACTION_VIEW) {
-            extractVideoId(data.toString())
+            val urlString = data.toString()
+            if (urlString.contains("shorts/")) {
+                _isDeeplinkShort.value = true
+            }
+            extractVideoId(urlString)
         } else {
             notificationVideoId
+        }
+        
+        // Check extra
+        if (intent.getBooleanExtra("is_short", false) || intent.getBooleanExtra("is_shorts", false)) {
+            _isDeeplinkShort.value = true
         }
         
         if (videoId != null) {
@@ -184,6 +206,7 @@ class MainActivity : ComponentActivity() {
 
     fun consumeDeeplink() {
         _deeplinkVideoId.value = null
+        _isDeeplinkShort.value = false
     }
 
     private fun extractVideoId(url: String): String? {

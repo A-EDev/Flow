@@ -616,26 +616,27 @@ fun SectionHeader(
             if (onPlayAll != null) {
                 Surface(
                     onClick = onPlayAll,
-                    shape = RoundedCornerShape(24.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.height(40.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.Transparent,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f)),
+                    modifier = Modifier.height(36.dp)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Filled.PlayArrow,
+                            imageVector = Icons.Default.PlayArrow,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(20.dp)
+                            tint = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.size(18.dp)
                         )
                         Text(
                             "Play all", 
-                            color = MaterialTheme.colorScheme.onPrimary, 
+                            color = MaterialTheme.colorScheme.onBackground, 
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
@@ -854,19 +855,19 @@ fun CommunityCard(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(16.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primary,
-                shadowElevation = 4.dp
+                shape = RoundedCornerShape(16.dp),
+                color = Color.Transparent,
+                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary)
             ) {
                 Box(
-                    modifier = Modifier.size(56.dp),
+                    modifier = Modifier.size(48.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Filled.PlayArrow,
                         contentDescription = "Play",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(32.dp)
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }
@@ -1203,16 +1204,17 @@ private fun FeaturedTrackCard(
             ) {
                 // Play button
                 Surface(
-                    modifier = Modifier.size(40.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary
+                    modifier = Modifier.size(36.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color.Black.copy(alpha = 0.3f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f))
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Filled.PlayArrow,
                             contentDescription = "Play",
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(24.dp)
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
