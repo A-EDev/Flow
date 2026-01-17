@@ -1,27 +1,75 @@
 package com.flow.youtube.ui.components
 
+import android.text.style.URLSpan
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.text.HtmlCompat
 import com.flow.youtube.data.model.Video
-import com.flow.youtube.utils.formatRichText
-import com.flow.youtube.utils.formatViewCount
-import com.flow.youtube.utils.formatTimeAgo
 import com.flow.youtube.utils.formatLikeCount
+import com.flow.youtube.utils.formatTimeAgo
+import com.flow.youtube.utils.formatViewCount
+
+fun parseHtmlDescription(rawHtml: String): AnnotatedString {
+    // 1. Parse HTML into an Android Spanned object (Handles <br>, <a>, &amp;)
+    val spanned = HtmlCompat.fromHtml(rawHtml, HtmlCompat.FROM_HTML_MODE_COMPACT)
+    val text = spanned.toString()
+
+    return buildAnnotatedString {
+        // 2. Append the clean text (no tags)
+        append(text)
+
+        // 3. Find all URLSpans created by the HTML parser and apply Compose styles
+        val urlSpans = spanned.getSpans(0, spanned.length, URLSpan::class.java)
+        
+        for (span in urlSpans) {
+            val start = spanned.getSpanStart(span)
+            val end = spanned.getSpanEnd(span)
+            val url = span.url
+            
+            // Apply Blue Color & Underline
+            addStyle(
+                style = SpanStyle(
+                    color = Color(0xFF3EA6FF), 
+                    textDecoration = TextDecoration.Underline,
+                    fontWeight = FontWeight.SemiBold
+                ),
+                start = start,
+                end = end
+            )
+            
+            // Add Annotation so we can click it
+            addStringAnnotation(
+                tag = "URL",
+                annotation = url,
+                start = start,
+                end = end
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,13 +78,26 @@ fun FlowDescriptionBottomSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val uriHandler = LocalUriHandler.current
+    
+    // FIX: Use the HTML parser instead of manual Regex
+    val descriptionText = remember(video.description) {
+        parseHtmlDescription(video.description)
+    }
+
+    // Auto-extract hashtags (This regex is still fine for finding hashtags in the clean text)
+    val hashtags = remember(descriptionText.text) {
+        Regex("#\\w+").findAll(descriptionText.text)
+            .map { it.value }
+            .take(5)
+            .toList()
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
         scrimColor = Color.Black.copy(alpha = 0.6f),
-        dragHandle = {
-            BottomSheetDefaults.DragHandle(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
-        },
+        dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = modifier
     ) {
         Column(
@@ -59,136 +120,112 @@ fun FlowDescriptionBottomSheet(
                 )
                 Spacer(modifier = Modifier.weight(1f))
                 IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close",
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
+                    Icon(Icons.Default.Close, contentDescription = "Close")
                 }
             }
 
-            // Title and Metadata
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
             ) {
-                // Video Title
+                // 1. Video Title
                 Text(
                     text = video.title,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                 )
-                
-                // Metadata Cards Row
+
+                // 2. Stats Row (Clean Layout)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        .padding(vertical = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    MetadataCard(
+                    StatItem(
                         value = formatLikeCount(video.likeCount.toInt()),
-                        label = "Likes",
-                        modifier = Modifier.weight(1f)
+                        label = "Likes"
                     )
-                    MetadataCard(
+                    VerticalDivider()
+                    StatItem(
                         value = formatViewCount(video.viewCount).replace(" views", ""),
-                        label = "Views",
-                        modifier = Modifier.weight(1f)
+                        label = "Views"
                     )
-                    MetadataCard(
-                        value = formatTimeAgo(video.uploadDate),
-                        label = "Ago",
-                        modifier = Modifier.weight(1f)
+                    VerticalDivider()
+                    StatItem(
+                        value = formatTimeAgo(video.uploadDate).replace(" ago", ""), // "5d" instead of "5d ago"
+                        label = formatTimeAgo(video.uploadDate).let { if(it.contains("mo") || it.contains("yr")) "Ago" else "Since" }
                     )
                 }
-                
-                // Description Container
+
+                Divider(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), 
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
+                )
+
+                // 3. Description Container
                 Surface(
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface, // Clean background
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        // Hashtags inside or above the main text? 
-                        // In official design, they are above the text in the same container.
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Hashtag("#FoodChallenge")
-                            Hashtag("#EatingShow")
-                            Hashtag("#Breakfast")
+                    Column(modifier = Modifier.padding(top = 8.dp)) {
+                        
+                        // Hashtags Row
+                        if (hashtags.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                hashtags.forEach { tag ->
+                                    Text(
+                                        text = tag,
+                                        color = Color(0xFF3EA6FF),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        modifier = Modifier.clickable { /* Handle hashtag click */ }
+                                    )
+                                }
+                            }
                         }
 
-                        SelectionContainer {
-                            Text(
-                                text = formatRichText(
-                                    text = video.description, 
-                                    primaryColor = Color(0xFF3EA6FF), // Official YouTube blue
-                                    textColor = MaterialTheme.colorScheme.onSurface
-                                ),
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    lineHeight = 22.sp,
-                                    fontSize = 14.sp
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
+                        // Rich Text Description
+                        ClickableText(
+                            text = descriptionText,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onSurface,
+                                lineHeight = 24.sp, // Adds breathing room between lines
+                                fontSize = 15.sp
+                            ),
+                            onClick = { offset ->
+                                descriptionText.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                                    .firstOrNull()?.let { annotation ->
+                                        uriHandler.openUri(annotation.item)
+                                    }
+                            }
+                        )
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(48.dp))
             }
         }
     }
 }
 
 @Composable
-fun MetadataCard(value: String, label: String, modifier: Modifier = Modifier) {
-    Surface(
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
-        shape = RoundedCornerShape(12.dp),
-        modifier = modifier
-    ) {
-        Column(
-            modifier = Modifier.padding(vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-fun SelectionContainer(content: @Composable () -> Unit) {
-    // Helper to wrap text in selection container if needed, 
-    // but for now just provide the content.
-    content()
-}
-
-@Composable
-fun StatItem(label: String, value: String) {
+fun StatItem(value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleLarge, // Bigger
+            fontWeight = FontWeight.Bold, // Bolder
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
@@ -200,12 +237,11 @@ fun StatItem(label: String, value: String) {
 }
 
 @Composable
-fun Hashtag(text: String) {
-    Text(
-        text = text,
-        color = Color(0xFF3EA6FF),
-        style = MaterialTheme.typography.labelMedium,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.clickable { }
+fun VerticalDivider() {
+    Box(
+        modifier = Modifier
+            .height(24.dp)
+            .width(1.dp)
+            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
     )
 }

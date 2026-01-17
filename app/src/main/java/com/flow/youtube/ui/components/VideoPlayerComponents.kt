@@ -44,7 +44,7 @@ import com.flow.youtube.utils.formatRichText
 @Composable
 fun VideoInfoSection(
     video: Video,
-    title: String,  // Actual title from streamInfo
+    title: String,
     viewCount: Long,
     uploadDate: String?,
     description: String?,
@@ -52,7 +52,7 @@ fun VideoInfoSection(
     channelAvatarUrl: String,
     subscriberCount: Long?,
     isSubscribed: Boolean,
-    likeState: String, // "LIKED", "DISLIKED", "NONE"
+    likeState: String,
     onSubscribeClick: () -> Unit,
     onChannelClick: () -> Unit,
     onLikeClick: () -> Unit,
@@ -68,14 +68,13 @@ fun VideoInfoSection(
             .fillMaxWidth()
             .padding(12.dp)
     ) {
-        // ============ TITLE SECTION (Directly Below Player) ============
-        // Title - Now prominently displayed first
+        // ============ TITLE SECTION ============
         Text(
-            text = title,  // Use title parameter, not video.title
+            text = title,
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Bold,
-                fontSize = 18.sp,
-                lineHeight = 24.sp
+                fontSize = 20.sp,
+                lineHeight = 28.sp
             ),
             color = MaterialTheme.colorScheme.onBackground,
             maxLines = 2,
@@ -122,7 +121,7 @@ fun VideoInfoSection(
 
         // ============ CHANNEL SECTION ============
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -136,7 +135,7 @@ fun VideoInfoSection(
                     model = channelAvatarUrl.ifEmpty { video.channelThumbnailUrl },
                     contentDescription = "Channel Avatar",
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                 )
@@ -148,7 +147,7 @@ fun VideoInfoSection(
                         text = channelName,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp
+                            fontSize = 16.sp
                         ),
                         color = MaterialTheme.colorScheme.onBackground,
                         maxLines = 1,
@@ -167,16 +166,15 @@ fun VideoInfoSection(
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-            // Subscribe Button (Pill Shape)
             SubscribeButton(
                 isSubscribed = isSubscribed,
                 onClick = onSubscribeClick
             )
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // ============ ACTION ROW ============
         VideoActionRow(
@@ -334,9 +332,9 @@ fun VideoActionRow(
         
         item {
             ActionChip(
-                icon = Icons.Outlined.Share,
-                label = "Share",
-                onClick = onShareClick
+                icon = Icons.Outlined.BookmarkBorder,
+                label = "Save",
+                onClick = onSaveClick
             )
         }
         
@@ -350,9 +348,9 @@ fun VideoActionRow(
         
         item {
             ActionChip(
-                icon = Icons.Outlined.BookmarkBorder,
-                label = "Save",
-                onClick = onSaveClick
+                icon = Icons.Outlined.Share,
+                label = "Share",
+                onClick = onShareClick
             )
         }
         
@@ -571,13 +569,13 @@ fun EnhancedDescriptionBox(
             }
             
             if (!description.isNullOrBlank()) {
-                // Format and render the description
-                val formattedText = formatRichText(description, primaryColor, textColor)
+                // Formatting links and newlines
+                // Ensure newlines are respected
                 
                 Text(
-                    text = formattedText,
+                    text = description, // Pass raw text, letting Compose handle basic line breaks
                     style = MaterialTheme.typography.bodyMedium.copy(
-                        lineHeight = 22.sp
+                        lineHeight = 24.sp
                     ),
                     color = textColor,
                     maxLines = if (expanded) Int.MAX_VALUE else 3,
@@ -585,7 +583,7 @@ fun EnhancedDescriptionBox(
                     modifier = Modifier.fillMaxWidth()
                 )
                 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 
                 // Show more/less button
                 Row(

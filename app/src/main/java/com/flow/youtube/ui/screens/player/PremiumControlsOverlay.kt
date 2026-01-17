@@ -161,9 +161,9 @@ fun PremiumControlsOverlay(
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                            imageVector = if (autoplayEnabled) Icons.Rounded.SlowMotionVideo else Icons.Outlined.SlowMotionVideo,
+                            imageVector = if (autoplayEnabled) Icons.Rounded.SlowMotionVideo else Icons.Rounded.SlowMotionVideo,
                             contentDescription = "Autoplay",
-                            tint = if (autoplayEnabled) primaryColor else Color.White,
+                            tint = if (autoplayEnabled) primaryColor else Color.White.copy(alpha = 0.7f),
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -265,6 +265,11 @@ fun PremiumControlsOverlay(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
+                        )
+                    )
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 // Time and Chapter (Pill Shape) - Positioned better

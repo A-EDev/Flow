@@ -194,20 +194,20 @@ class EnhancedPlayerManager private constructor() {
             // Optimized LoadControl for buttery smooth playback with aggressive buffering
             val loadControl = DefaultLoadControl.Builder()
                 .setBufferDurationsMs(
-                    /* minBufferMs = */ 15000,     // Buffer 15s minimum before starting (smooth playback)
-                    /* maxBufferMs = */ 50000,     // Buffer up to 50s ahead (good margin)
-                    /* bufferForPlaybackMs = */ 1000,  // Start playback after 1s buffered (Super Sonic Speed)
-                    /* bufferForPlaybackAfterRebufferMs = */ 5000  // Rebuffer 5s after stall
+                    /* minBufferMs = */ 30000,     // Increased min buffer (30s) for stability
+                    /* maxBufferMs = */ 100000,    // Increased max buffer (100s) for smoothness
+                    /* bufferForPlaybackMs = */ 1000,  // Fast start (1s)
+                    /* bufferForPlaybackAfterRebufferMs = */ 2500  // Quick resume (2.5s)
                 )
                 .setBackBuffer(
-                    /* backBufferDurationMs = */ 10000,  // Keep 10s behind playback position
+                    /* backBufferDurationMs = */ 30000,  // Keep 30s behind
                     /* retainBackBufferFromKeyframe = */ true
                 )
-                .setPrioritizeTimeOverSizeThresholds(true)  // Prioritize time for smoother playback
-                .setTargetBufferBytes(DefaultLoadControl.DEFAULT_TARGET_BUFFER_BYTES * 2)  // 2x buffer size
+                .setPrioritizeTimeOverSizeThresholds(true)
+                .setTargetBufferBytes(DefaultLoadControl.DEFAULT_TARGET_BUFFER_BYTES * 4) // Quadruple target buffer
                 .build()
 
-            // Create custom RenderersFactory to inject SilenceSkippingAudioProcessor
+            // Create custom RenderersFactory to inject SilenceSkippingAudioProcessor and prefer extensions
             val renderersFactory = object : DefaultRenderersFactory(context) {
                 override fun buildAudioSink(
                     context: Context,
@@ -216,9 +216,11 @@ class EnhancedPlayerManager private constructor() {
                 ): AudioSink? {
                     return DefaultAudioSink.Builder()
                         .setAudioProcessors(arrayOf(silenceSkippingProcessor))
+                        .setEnableFloatOutput(enableFloatOutput)
+                        .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                         .build()
                 }
-            }
+            }.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER) // Prefer FFmpeg/VP9 extensions if available
 
             player = ExoPlayer.Builder(context, renderersFactory)
                 .setTrackSelector(trackSelector!!)

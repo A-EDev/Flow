@@ -28,6 +28,7 @@ import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,6 +85,9 @@ fun FlowPersonalityScreen(
                 CircularProgressIndicator()
             }
         } else {
+            // Helper to determine current "Mood" based on time of day
+            val currentContextVector = getCurrentContextVector(userBrain!!)
+            
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -93,7 +97,7 @@ fun FlowPersonalityScreen(
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 // 1. Stats Overview
-                StatsOverviewCard(brain = userBrain!!)
+                StatsOverviewCard(brain = userBrain!!, currentVector = currentContextVector)
 
                 // 2. Interest Radar Visualization
                 Text(
@@ -102,8 +106,8 @@ fun FlowPersonalityScreen(
                     modifier = Modifier.padding(horizontal = 8.dp)
                 )
                 RadarChart(
-                    shortTerm = userBrain!!.shortTermVector,
-                    longTerm = userBrain!!.longTermVector
+                    contextVector = currentContextVector,
+                    personalityVector = userBrain!!.globalVector
                 )
                 
                 // 3. Interest Bubbles
@@ -153,8 +157,19 @@ fun FlowPersonalityScreen(
     }
 }
 
+// Helper function to get the correct vector for "Now"
+fun getCurrentContextVector(brain: FlowNeuroEngine.UserBrain): FlowNeuroEngine.ContentVector {
+    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    return when (hour) {
+        in 6..11 -> brain.morningVector
+        in 12..17 -> brain.afternoonVector
+        in 18..23 -> brain.eveningVector
+        else -> brain.nightVector
+    }
+}
+
 @Composable
-fun StatsOverviewCard(brain: FlowNeuroEngine.UserBrain) {
+fun StatsOverviewCard(brain: FlowNeuroEngine.UserBrain, currentVector: FlowNeuroEngine.ContentVector) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha=0.4f))
@@ -171,13 +186,15 @@ fun StatsOverviewCard(brain: FlowNeuroEngine.UserBrain) {
                 color = MaterialTheme.colorScheme.primary
             )
             StatItem(
-                value = brain.longTermVector.topics.size.toString(),
+                // FIXED: longTermVector -> globalVector
+                value = brain.globalVector.topics.size.toString(),
                 label = "Topics",
                 color = MaterialTheme.colorScheme.secondary
             )
             StatItem(
-                value = String.format("%.2f", brain.shortTermVector.pacing),
-                label = "Avg Pace",
+                // FIXED: shortTermVector -> currentVector (passed in)
+                value = String.format("%.2f", currentVector.pacing),
+                label = "Current Pace",
                 color = MaterialTheme.colorScheme.tertiary
             )
         }
@@ -206,8 +223,8 @@ fun StatItem(value: String, label: String, color: Color) {
 
 @Composable
 fun RadarChart(
-    shortTerm: FlowNeuroEngine.ContentVector,
-    longTerm: FlowNeuroEngine.ContentVector
+    contextVector: FlowNeuroEngine.ContentVector,
+    personalityVector: FlowNeuroEngine.ContentVector
 ) {
     val labels = listOf("Pacing", "Complexity", "Duration", "Live Factor", "Variety")
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -253,25 +270,25 @@ fun RadarChart(
                 )
             }
 
-            // Draw Data - Short Term (Blue)
+            // Draw Data - Current Context (Blue)
             val stValues = listOf(
-                shortTerm.pacing,
-                shortTerm.complexity,
-                shortTerm.duration,
-                shortTerm.isLive,
-                (shortTerm.topics.size / 20.0).coerceAtMost(1.0)
+                contextVector.pacing,
+                contextVector.complexity,
+                contextVector.duration,
+                contextVector.isLive,
+                (contextVector.topics.size / 20.0).coerceAtMost(1.0)
             )
-            drawRadarPolygon(center, radius, stValues, primaryColor, angleStep, "Short Term")
+            drawRadarPolygon(center, radius, stValues, primaryColor, angleStep, "Context")
 
-            // Draw Data - Long Term (Purple)
+            // Draw Data - Personality (Purple)
             val ltValues = listOf(
-                longTerm.pacing,
-                longTerm.complexity,
-                longTerm.duration,
-                longTerm.isLive,
-                (longTerm.topics.size / 50.0).coerceAtMost(1.0)
+                personalityVector.pacing,
+                personalityVector.complexity,
+                personalityVector.duration,
+                personalityVector.isLive,
+                (personalityVector.topics.size / 50.0).coerceAtMost(1.0)
             )
-            drawRadarPolygon(center, radius, ltValues, secondaryColor, angleStep, "Long Term")
+            drawRadarPolygon(center, radius, ltValues, secondaryColor, angleStep, "Personality")
         }
         
         // Legend
@@ -279,8 +296,8 @@ fun RadarChart(
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            LegendItem("Short Term", primaryColor)
-            LegendItem("Long Term", secondaryColor)
+            LegendItem("Current Mood", primaryColor)
+            LegendItem("Personality", secondaryColor)
         }
     }
 }
@@ -291,7 +308,7 @@ fun androidx.compose.ui.graphics.drawscope.DrawScope.drawRadarPolygon(
     values: List<Double>,
     color: Color,
     angleStep: Float,
-    label: String // Not used in drawing but good for debug
+    label: String 
 ) {
     val path = Path()
     values.forEachIndexed { i, value ->
@@ -324,8 +341,8 @@ fun LegendItem(text: String, color: Color) {
 
 @Composable
 fun InterestBubbleChart(brain: FlowNeuroEngine.UserBrain) {
-    // Get top 8 topics
-    val topTopics = brain.longTermVector.topics.entries
+    // FIXED: longTermVector -> globalVector
+    val topTopics = brain.globalVector.topics.entries
         .sortedByDescending { it.value }
         .take(8)
     
@@ -340,7 +357,7 @@ fun InterestBubbleChart(brain: FlowNeuroEngine.UserBrain) {
         return
     }
 
-    // Simple Bubble Layout (FlowRow-ish but simpler)
+    // Simple Bubble Layout
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -351,8 +368,9 @@ fun InterestBubbleChart(brain: FlowNeuroEngine.UserBrain) {
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            topTopics.take(3).forEach { (topic, score) ->
-                InterestBubble(topic, score, MaterialTheme.colorScheme.primary)
+            // FIXED: Explicitly use entry.key and entry.value to avoid Ambiguity Error
+            topTopics.take(3).forEach { entry ->
+                InterestBubble(entry.key, entry.value, MaterialTheme.colorScheme.primary)
             }
         }
         // Second Row
@@ -361,8 +379,8 @@ fun InterestBubbleChart(brain: FlowNeuroEngine.UserBrain) {
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            topTopics.drop(3).take(3).forEach { (topic, score) ->
-                InterestBubble(topic, score, MaterialTheme.colorScheme.secondary)
+            topTopics.drop(3).take(3).forEach { entry ->
+                InterestBubble(entry.key, entry.value, MaterialTheme.colorScheme.secondary)
             }
         }
          // Third Row
@@ -371,8 +389,8 @@ fun InterestBubbleChart(brain: FlowNeuroEngine.UserBrain) {
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            topTopics.drop(6).forEach { (topic, score) ->
-                InterestBubble(topic, score, MaterialTheme.colorScheme.tertiary)
+            topTopics.drop(6).forEach { entry ->
+                InterestBubble(entry.key, entry.value, MaterialTheme.colorScheme.tertiary)
             }
         }
     }

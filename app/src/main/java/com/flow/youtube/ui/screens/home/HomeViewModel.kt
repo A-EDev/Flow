@@ -41,6 +41,10 @@ class HomeViewModel @Inject constructor(
     private var isLoadingMore = false
     private var isInitialized = false
     
+    // NEW: Infinite Feed State
+    private var currentQueryIndex = 0
+    private val discoveryQueries = mutableListOf<String>()
+    
     init {
         // Load the intelligent feed immediately on startup
         loadFlowFeed(forceRefresh = true)
@@ -103,7 +107,7 @@ class HomeViewModel @Inject constructor(
 
     /**
      * MAIN FEED LOADER (The Smart Algo)
-     * Uses "Fetch Until Full" logic to guarantee ~60 videos
+     * Uses "Parallel Fetch" to create a massive initial pool (~60-100 videos)
      */
     fun loadFlowFeed(forceRefresh: Boolean = false) {
         if (_uiState.value.isLoading && !forceRefresh) return
@@ -112,156 +116,133 @@ class HomeViewModel @Inject constructor(
         
         viewModelScope.launch {
             try {
+                // 1. Generate Brain Queries
+                discoveryQueries.clear()
+                discoveryQueries.addAll(FlowNeuroEngine.generateDiscoveryQueries())
+                currentQueryIndex = 0
+                
                 val userSubs = subscriptionRepository.getAllSubscriptionIds()
-                val region = playerPreferences.trendingRegion.first()
+                val region = "US" // Default to US for broader trending, or use user pref
 
-                // 1. FETCH SUBSCRIPTIONS (Parallel)
-                val subsDeferred = async { 
+                // 2. PARALLEL FETCH (The "Wall of Content")
+                // We launch 4 async tasks to get content from everywhere at once.
+                
+                val deferredSubs = async { 
                     try {
                         if (userSubs.isNotEmpty()) {
-                            val rawSubs = repository.getSubscriptionFeed(userSubs.toList())
-                            // Filter subs: No shorts, no unknown 0-duration
-                            rawSubs.filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
+                            val raw = repository.getSubscriptionFeed(userSubs.toList())
+                            raw.filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
                         } else emptyList()
-                    } catch (e: Exception) { emptyList<Video>() }
+                    } catch (e: Exception) { emptyList() }
                 }
 
-                // 2. FETCH TRENDING LOOP (The "Dig Deep" Fix)
-                val trendingVideos = mutableListOf<Video>()
-                val trendingShorts = mutableListOf<Video>()
-                var tempPage: Page? = null
-                var pagesFetched = 0
-                
-                // We keep fetching pages until we have at least 60 LONG videos or hit 6 pages.
-                while (trendingVideos.size < 60 && pagesFetched < 6) {
+                val deferredQ1 = async {
                     try {
-                        val (batch, next) = repository.getTrendingVideos(region, tempPage)
-                        
-                        // Split immediately: Longs are > 80s or Live
-                        val (shorts, longs) = batch.partition { 
-                            it.isShort || (it.duration in 1..80) || (it.duration == 0 && !it.isLive)
-                        }
-                        trendingVideos.addAll(longs) 
-                        trendingShorts.addAll(shorts)
-                        
-                        tempPage = next
-                        if (next == null) break
-                        pagesFetched++
-                    } catch (e: Exception) { break }
+                        val q = discoveryQueries.getOrNull(0) ?: "Science"
+                        repository.searchVideos(q).first
+                            .filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
+                    } catch (e: Exception) { emptyList() }
+                }
+
+                val deferredQ2 = async {
+                    try {
+                        val q = discoveryQueries.getOrNull(1) ?: "Gaming"
+                        repository.searchVideos(q).first
+                             .filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
+                    } catch (e: Exception) { emptyList() }
                 }
                 
-                currentPage = tempPage 
-                val subs = subsDeferred.await()
+                val deferredTrending = async {
+                    try {
+                         // Still fetch trending as a solid base
+                         repository.getTrendingVideos(region).first
+                             .filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
+                    } catch (e: Exception) { emptyList() }
+                }
 
-                // 3. MERGE & SHUFFLE
-                val pool = (subs + trendingVideos).distinctBy { it.id }
+                // 3. Await All
+                val subsVideos = deferredSubs.await()
+                val q1Videos = deferredQ1.await()
+                val q2Videos = deferredQ2.await()
+                val trendingVideos = deferredTrending.await()
                 
-                if (pool.isEmpty()) {
+                // Keep shorts separate if we picked any up (trending usually returns mixed)
+                // Note: Our filters above tried to strip shorts, but let's be safe.
+                
+                // Bump index since we used 0 and 1
+                currentQueryIndex = 2
+                
+                val rawPool = (subsVideos + q1Videos + q2Videos + trendingVideos).distinctBy { it.id }
+                
+                if (rawPool.isEmpty()) {
                     loadTrendingFallback()
                     return@launch
                 }
-
-                // 4. RANK WITH NEURO ENGINE
-                val rankedVideos = FlowNeuroEngine.rank(pool, userSubs)
                 
-                // 5. CHANNEL DIVERSITY & BACKFILL
-                // Limit each channel to at most 2 videos to prevent feed clutter
-                val channelCounts = mutableMapOf<String, Int>()
-                val diverseVideos = rankedVideos.filter { video ->
-                    val count = channelCounts.getOrDefault(video.channelId, 0)
-                    if (count < 2) {
-                        channelCounts[video.channelId] = count + 1
-                        true
-                    } else {
-                        false
-                    }
-                }
-
-                val finalVideos = if (diverseVideos.size < 30) {
-                    val fillers = pool.filter { p -> 
-                        diverseVideos.none { r -> r.id == p.id } 
-                    }.take(30 - diverseVideos.size)
-                    (diverseVideos + fillers).distinctBy { it.id }
-                } else {
-                    diverseVideos
-                }
-
-                // 6. UPDATE UI
+                // 4. RANKING
+                // The Neuro Engine will handle diversity internally now.
+                val rankedVideos = FlowNeuroEngine.rank(rawPool, userSubs)
+                
+                // 5. UPDATE UI
                 _uiState.update { it.copy(
-                    videos = finalVideos,
-                    shorts = (it.shorts + trendingShorts).distinctBy { s -> s.id }.shuffled().take(25),
+                    videos = rankedVideos, 
                     isLoading = false,
                     isRefreshing = false,
-                    hasMorePages = currentPage != null, 
+                    hasMorePages = true,
                     isFlowFeed = true,
                     lastRefreshTime = System.currentTimeMillis()
                 )}
                 
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, isRefreshing = false, error = "Failed to load feed") }
+                 _uiState.update { it.copy(isLoading = false, isRefreshing = false, error = "Failed to load feed") }
+                 loadTrendingFallback() 
             }
         }
     }
     
     /**
      * INFINITE SCROLL LOADER (The "Keep Digging" Fix)
+     * Fetches NEW topics instead of just paging old ones.
      */
     fun loadMoreVideos() {
-        if (isLoadingMore || !_uiState.value.hasMorePages) return
+        if (isLoadingMore) return
         
         isLoadingMore = true
         _uiState.update { it.copy(isLoadingMore = true) }
         
         viewModelScope.launch {
             try {
-                val actualRegion = playerPreferences.trendingRegion.first()
-                val newVideos = mutableListOf<Video>()
-                var tempPage = currentPage
-                var attempts = 0
-                
-                // 1. TRY TRENDING FIRST
-                while (newVideos.size < 20 && tempPage != null && attempts < 3) {
-                    val (batch, next) = repository.getTrendingVideos(actualRegion, tempPage)
-                    val longs = batch.filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
-                    
-                    newVideos.addAll(longs)
-                    tempPage = next
-                    attempts++
+                // 1. Get next query
+                val nextQuery = discoveryQueries.getOrNull(currentQueryIndex++) ?: run {
+                    // Refill if empty
+                    discoveryQueries.addAll(FlowNeuroEngine.generateDiscoveryQueries())
+                     discoveryQueries.getOrNull(0) ?: "Viral"
                 }
+
+                // 2. Fetch
+                val (newVideos, _) = repository.searchVideos(nextQuery)
+                val filtered = newVideos.filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
                 
-                currentPage = tempPage 
-                
-                // 2. FALLBACK: If Trending is dry, fetch from Subscriptions
-                if (newVideos.size < 10) {
+                if (filtered.isNotEmpty()) {
+                    // 3. Rank New Batch
                     val userSubs = subscriptionRepository.getAllSubscriptionIds()
-                    if (userSubs.isNotEmpty()) {
-                        val subsBatch = repository.getSubscriptionFeed(userSubs.toList())
-                        val filteredSubs = subsBatch.filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
-                        newVideos.addAll(filteredSubs)
-                    }
-                }
-                
-                // 3. RANK & APPEND
-                if (newVideos.isNotEmpty()) {
-                    val userSubs = subscriptionRepository.getAllSubscriptionIds()
-                    val rankedAppend = FlowNeuroEngine.rank(newVideos.distinctBy { it.id }, userSubs)
+                    val rankedBatch = FlowNeuroEngine.rank(filtered.distinctBy { it.id }, userSubs)
                     
-                    val existingIds = _uiState.value.videos.map { it.id }.toSet()
-                    val uniqueNewVideos = rankedAppend.filter { it.id !in existingIds }
-                    
+                    // 4. Append
                     _uiState.update { state ->
+                        val currentIds = state.videos.map { it.id }.toHashSet()
+                        val uniqueNew = rankedBatch.filter { !currentIds.contains(it.id) }
                         state.copy(
-                            videos = state.videos + uniqueNewVideos,
-                            hasMorePages = currentPage != null || userSubs.isNotEmpty(), // Keep it alive if we have subs
-                            isLoadingMore = false
+                            videos = state.videos + uniqueNew,
+                            isLoadingMore = false,
+                            hasMorePages = true
                         )
                     }
                 } else {
-                    // Truly empty
-                    _uiState.update { it.copy(isLoadingMore = false, hasMorePages = false) }
+                    _uiState.update { it.copy(isLoadingMore = false) }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoadingMore = false) }
+                 _uiState.update { it.copy(isLoadingMore = false) }
             } finally {
                 isLoadingMore = false
             }
