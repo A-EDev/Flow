@@ -57,6 +57,23 @@ data class YouTubeClient(
             userAgent = USER_AGENT_WEB,
         )
 
+        val ANDROID = YouTubeClient(
+            clientName = "ANDROID",
+            clientVersion = "19.09.37",
+            clientId = "3",
+            userAgent = "com.google.android.youtube/19.09.37 (Linux; U; Android 13; en_US; Pixel 6 Pro Build/TQ2A.230505.002) gzip",
+            osName = "Android",
+            osVersion = "13",
+            deviceMake = "Google",
+            deviceModel = "Pixel 6 Pro",
+            androidSdkVersion = "33",
+            buildId = "TQ2A.230505.002",
+            packageName = "com.google.android.youtube",
+            friendlyName = "Android",
+            loginSupported = true,
+            useSignatureTimestamp = true
+        )
+
         val WEB_REMIX = YouTubeClient(
             clientName = "WEB_REMIX",
             clientVersion = "1.20251227.01.00",

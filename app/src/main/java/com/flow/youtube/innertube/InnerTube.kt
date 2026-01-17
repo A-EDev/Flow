@@ -7,6 +7,7 @@ import com.flow.youtube.innertube.models.YouTubeClient
 import com.flow.youtube.innertube.models.YouTubeLocale
 import com.flow.youtube.innertube.models.body.*
 import com.flow.youtube.innertube.models.response.NextResponse
+import com.flow.youtube.innertube.models.response.ReelWatchSequenceResponse
 import com.flow.youtube.innertube.utils.parseCookieString
 import com.flow.youtube.innertube.utils.sha1
 import io.ktor.client.*
@@ -244,6 +245,26 @@ class InnerTube {
             )
         )
     }
+
+    suspend fun reel(
+        client: YouTubeClient,
+        params: String? = null,
+        sequenceParams: String? = "CA8%3D", // Default for initial fetch
+        setLogin: Boolean = false,
+    ) = httpClient.post("reel/reel_watch_sequence") {
+        ytClient(client, setLogin = setLogin)
+        setBody(
+            ReelBody(
+                context = client.toContext(
+                    locale,
+                    visitorData,
+                    if (setLogin) dataSyncId else null
+                ),
+                params = params,
+                sequenceParams = sequenceParams
+            )
+        )
+    }.body<ReelWatchSequenceResponse>()
 
     suspend fun next(
         client: YouTubeClient,

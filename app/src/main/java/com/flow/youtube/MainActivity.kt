@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import com.flow.youtube.data.local.LocalDataManager
 import com.flow.youtube.player.GlobalPlayerState
 import com.flow.youtube.ui.FlowApp
@@ -28,6 +29,10 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import com.google.gson.JsonParser
+import com.flow.youtube.utils.UpdateManager
+import com.flow.youtube.utils.UpdateInfo
+import com.flow.youtube.ui.components.UpdateDialog
+import com.flow.youtube.BuildConfig
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -62,6 +67,18 @@ class MainActivity : ComponentActivity() {
             var themeMode by remember { mutableStateOf(ThemeMode.LIGHT) }
             // State to control splash visibility
             var showSplash by remember { mutableStateOf(true) }
+            
+            val context = LocalContext.current
+            var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
+            
+            // Check for updates ONCE on launch
+            LaunchedEffect(Unit) {
+                // Use BuildConfig.VERSION_NAME (This comes from your build.gradle)
+                val info = UpdateManager.checkForUpdate(BuildConfig.VERSION_NAME)
+                if (info != null && info.isNewer) {
+                    updateInfo = info
+                }
+            }
 
             // Load theme preference
             LaunchedEffect(Unit) {
@@ -74,6 +91,18 @@ class MainActivity : ComponentActivity() {
             }
 
             FlowTheme(themeMode = themeMode) {
+                // Show Dialog Overlay if update exists
+                if (updateInfo != null) {
+                    UpdateDialog(
+                        updateInfo = updateInfo!!,
+                        onDismiss = { updateInfo = null },
+                        onUpdate = {
+                            UpdateManager.triggerDownload(context, updateInfo!!.downloadUrl)
+                            updateInfo = null
+                        }
+                    )
+                }
+
                 // Request notification permission for Android 13+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     val context = androidx.compose.ui.platform.LocalContext.current

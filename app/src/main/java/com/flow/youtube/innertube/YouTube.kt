@@ -61,6 +61,8 @@ import com.flow.youtube.innertube.pages.SearchResult
 import com.flow.youtube.innertube.pages.SearchSuggestionPage
 import com.flow.youtube.innertube.pages.SearchSummary
 import com.flow.youtube.innertube.pages.SearchSummaryPage
+import com.flow.youtube.innertube.pages.ShortsPage
+import com.flow.youtube.innertube.pages.toShortsPage
 import io.ktor.client.call.body
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.runBlocking
@@ -1144,5 +1146,12 @@ object YouTube {
 
     const val MAX_GET_QUEUE_SIZE = 1000
 
+    suspend fun shorts(sequenceParams: String? = null): ShortsPage? {
+        return innerTube.reel(
+            client = YouTubeClient.ANDROID,
+            sequenceParams = sequenceParams ?: "CA8%3D"
+        )?.toShortsPage()
+    }
+    
     private val VISITOR_DATA_REGEX = Regex("^Cg[t|s]")
 }
