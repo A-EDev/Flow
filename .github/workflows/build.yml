@@ -3,8 +3,8 @@ name: Android CI/CD
 on:
   push:
     branches: [ main, master, develop ]
-    tags:
-      - 'v*'
+  tags:
+    - 'v*'
   pull_request:
     branches: [ main, master ]
 
@@ -32,6 +32,9 @@ jobs:
 
       - name: Build Debug APK
         run: ./gradlew assembleDebug --stacktrace
+
+      - name: Decode Keystore
+        run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
 
       - name: Build Release APK
         run: ./gradlew assembleRelease --stacktrace
@@ -71,6 +74,9 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
+
+      - name: Decode Keystore
+        run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
 
       - name: Build Release APK
         run: ./gradlew assembleRelease --stacktrace
