@@ -38,6 +38,7 @@ import com.flow.youtube.ui.theme.ThemeMode
 import com.flow.youtube.ui.theme.extendedColors
 import com.flow.youtube.data.local.PlayerPreferences
 import com.flow.youtube.data.local.VideoQuality
+import com.flow.youtube.data.local.BufferProfile
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.filled.ArrowForward
@@ -108,6 +109,7 @@ fun SettingsScreen(
     var showHistorySizeDialog by remember { mutableStateOf(false) }
     var showRetentionDaysDialog by remember { mutableStateOf(false) }
     var showResetBrainDialog by remember { mutableStateOf(false) }
+    var showBufferSettingsDialog by remember { mutableStateOf(false) }
     
     // Player preferences states
     val backgroundPlayEnabled by playerPreferences.backgroundPlayEnabled.collectAsState(initial = false)
@@ -125,6 +127,13 @@ fun SettingsScreen(
     val maxHistorySize by searchHistoryRepo.getMaxHistorySizeFlow().collectAsState(initial = 50)
     val autoDeleteHistory by searchHistoryRepo.isAutoDeleteHistoryEnabledFlow().collectAsState(initial = false)
     val historyRetentionDays by searchHistoryRepo.getHistoryRetentionDaysFlow().collectAsState(initial = 90)
+
+    // Buffer Settings
+    val minBufferMs by playerPreferences.minBufferMs.collectAsState(initial = 30000)
+    val maxBufferMs by playerPreferences.maxBufferMs.collectAsState(initial = 100000)
+    val bufferForPlaybackMs by playerPreferences.bufferForPlaybackMs.collectAsState(initial = 1000)
+    val bufferForPlaybackAfterRebufferMs by playerPreferences.bufferForPlaybackAfterRebufferMs.collectAsState(initial = 2500)
+    val currentBufferProfile by playerPreferences.bufferProfile.collectAsState(initial = BufferProfile.STABLE)
     
     // Region name mapping
     val regionNames = mapOf(
@@ -401,6 +410,22 @@ item {
                         subtitle = "Show manual PiP button in player controls",
                         checked = manualPipButtonEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setManualPipButtonEnabled(it) } }
+                    )
+                }
+            }
+
+            // =================================================
+            // DATA & BUFFERING
+            // =================================================
+            item { SectionHeader(text = "Data & Buffering") }
+            
+            item {
+                SettingsGroup {
+                    SettingsItem(
+                        icon = Icons.Outlined.Speed,
+                        title = "Custom Buffer Settings",
+                        subtitle = "Configure video buffering behavior",
+                        onClick = { showBufferSettingsDialog = true }
                     )
                 }
             }
@@ -757,6 +782,150 @@ item {
                 }) { Text("Save") }
             },
             dismissButton = { TextButton(onClick = { showVideoQualityDialog = false }) { Text("Cancel") } }
+        )
+    }
+
+    // Buffer Settings Dialog
+    if (showBufferSettingsDialog) {
+        var selectedProfile by remember { mutableStateOf(currentBufferProfile) }
+        var tempMinBuffer by remember { mutableStateOf(minBufferMs.toFloat()) }
+        var tempMaxBuffer by remember { mutableStateOf(maxBufferMs.toFloat()) }
+        var tempPlaybackBuffer by remember { mutableStateOf(bufferForPlaybackMs.toFloat()) }
+        var tempRebuffer by remember { mutableStateOf(bufferForPlaybackAfterRebufferMs.toFloat()) }
+        
+        // Update sliders when profile changes
+        LaunchedEffect(selectedProfile) {
+            if (selectedProfile != BufferProfile.CUSTOM) {
+                tempMinBuffer = selectedProfile.minBuffer.toFloat()
+                tempMaxBuffer = selectedProfile.maxBuffer.toFloat()
+                tempPlaybackBuffer = selectedProfile.playbackBuffer.toFloat()
+                tempRebuffer = selectedProfile.rebufferBuffer.toFloat()
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { showBufferSettingsDialog = false },
+            icon = { Icon(Icons.Outlined.Speed, contentDescription = null) },
+            title = { Text("Buffer Settings") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    // Profile Selector
+                    Text("Performance Profile", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        BufferProfile.values().filter { it != BufferProfile.CUSTOM }.forEach { profile ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { selectedProfile = profile }
+                                    .background(if (selectedProfile == profile) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                                    .padding(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = selectedProfile == profile,
+                                    onClick = { selectedProfile = profile }
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Column {
+                                    Text(profile.label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                    val desc = when(profile) {
+                                        BufferProfile.AGGRESSIVE -> "Fastest start, good for stable Wi-Fi"
+                                        BufferProfile.STABLE -> "Balanced, prevents stalling (Recommended)"
+                                        BufferProfile.DATASAVER -> "Minimizes data usage and memory"
+                                        else -> ""
+                                    }
+                                    Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                    
+                    Divider()
+                    
+                    Text("Manual Configuration (${if (selectedProfile == BufferProfile.CUSTOM) "Custom" else "Locked"})", 
+                        style = MaterialTheme.typography.labelLarge, 
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    
+                    if (selectedProfile != BufferProfile.CUSTOM) {
+                        Text(
+                            "Select 'Custom' to edit values manually.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Text("Higher values prevent stalling but delay start.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    
+                    // Sliders (Disabled if not custom, or auto-switch to custom? Let's disable for clarity)
+                    val isEnabled = selectedProfile == BufferProfile.CUSTOM
+                    
+                    // Min Buffer
+                    Column {
+                        Text("Min Buffer: ${tempMinBuffer.toInt()/1000}s", style = MaterialTheme.typography.bodyMedium)
+                        Slider(
+                            value = tempMinBuffer,
+                            onValueChange = { tempMinBuffer = it; selectedProfile = BufferProfile.CUSTOM },
+                            valueRange = 5000f..60000f,
+                            enabled = true // Always enabled to allow switching to custom implicitly? 
+                                           // Actually let's make it so touching them switches to Custom.
+                        )
+                    }
+                    
+                    // Max Buffer
+                    Column {
+                        Text("Max Buffer: ${tempMaxBuffer.toInt()/1000}s", style = MaterialTheme.typography.bodyMedium)
+                        Slider(
+                            value = tempMaxBuffer,
+                            onValueChange = { tempMaxBuffer = it; selectedProfile = BufferProfile.CUSTOM },
+                            valueRange = 10000f..120000f,
+                            enabled = true
+                        )
+                    }
+                    
+                    // Playback Buffer
+                    Column {
+                        Text("Start Playback: ${tempPlaybackBuffer.toInt()/1000}s", style = MaterialTheme.typography.bodyMedium)
+                        Slider(
+                            value = tempPlaybackBuffer,
+                            onValueChange = { tempPlaybackBuffer = it; selectedProfile = BufferProfile.CUSTOM },
+                            valueRange = 500f..5000f,
+                            enabled = true
+                        )
+                    }
+                    
+                    // Rebuffer
+                    Column {
+                        Text("Resume after Rebuffer: ${tempRebuffer.toInt()/1000}s", style = MaterialTheme.typography.bodyMedium)
+                        Slider(
+                            value = tempRebuffer,
+                            onValueChange = { tempRebuffer = it; selectedProfile = BufferProfile.CUSTOM },
+                            valueRange = 1000f..10000f,
+                            enabled = true
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    coroutineScope.launch {
+                        // Save profile first
+                        playerPreferences.setBufferProfile(selectedProfile)
+                        
+                        // If custom, we must manually save the values because setBufferProfile only saves presets
+                        if (selectedProfile == BufferProfile.CUSTOM) {
+                            playerPreferences.setMinBufferMs(tempMinBuffer.toInt())
+                            playerPreferences.setMaxBufferMs(tempMaxBuffer.toInt())
+                            playerPreferences.setBufferForPlaybackMs(tempPlaybackBuffer.toInt())
+                            playerPreferences.setBufferForPlaybackAfterRebufferMs(tempRebuffer.toInt())
+                        }
+                        
+                        showBufferSettingsDialog = false
+                    }
+                }) { Text("Save") }
+            },
+            dismissButton = { TextButton(onClick = { showBufferSettingsDialog = false }) { Text("Cancel") } }
         )
     }
 }

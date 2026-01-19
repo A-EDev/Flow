@@ -133,7 +133,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.5.0")
 
     // NewPipeExtractor - Official JitPack dependency (updated to latest version)
-    implementation("com.github.TeamNewPipe.NewPipeExtractor:NewPipeExtractor:v0.24.8")
+    implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.25.0")
     
     // ViewModel
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")

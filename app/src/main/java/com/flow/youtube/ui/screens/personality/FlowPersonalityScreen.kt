@@ -52,7 +52,7 @@ fun FlowPersonalityScreen(
                 title = { 
                     Column {
                         Text(
-                            "Neural Engine", 
+                            "Flow Engine", 
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(

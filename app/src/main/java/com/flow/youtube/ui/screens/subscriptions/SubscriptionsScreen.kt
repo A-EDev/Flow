@@ -222,18 +222,7 @@ fun SubscriptionsScreen(
                             if (uiState.shorts.isNotEmpty()) {
                                 item {
                                     Column {
-                                        PaddingValues(horizontal = 16.dp, vertical = 12.dp).let { p ->
-                                             Row(modifier = Modifier.padding(p).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(
-                                                    imageVector = ImageVector.vectorResource(id = R.drawable.ic_shorts),
-                                                    contentDescription = null, 
-                                                    modifier = Modifier.size(24.dp),
-                                                    tint = MaterialTheme.colorScheme.primary
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text("Shorts", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                                             }
-                                        }
+                                        
                                         ShortsShelf(
                                             shorts = uiState.shorts,
                                             onShortClick = { short -> onShortClick(short.id) }

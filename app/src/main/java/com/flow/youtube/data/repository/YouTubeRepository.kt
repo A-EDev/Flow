@@ -503,9 +503,9 @@ class YouTubeRepository @Inject constructor() {
                 when {
                     textualUploadDate != null -> textualUploadDate!!
                     date != null -> try {
-                        val cal = date.date()
+                        val d = java.util.Date.from(date.offsetDateTime().toInstant())
                         val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
-                        sdf.format(cal.time)
+                        sdf.format(d)
                     } catch (e: Exception) {
                         "Unknown"
                     }

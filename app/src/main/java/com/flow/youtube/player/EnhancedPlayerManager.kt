@@ -22,6 +22,8 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.DefaultLoadControl
+import androidx.media3.exoplayer.upstream.DefaultAllocator
+import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.video.PlaceholderSurface
 import androidx.media3.datasource.cache.SimpleCache
@@ -151,7 +153,18 @@ class EnhancedPlayerManager private constructor() {
                 .setInitialBitrateEstimate(2_000_000) // 2 Mbps initial estimate for faster start
                 .build()
             
-            trackSelector = DefaultTrackSelector(context).apply {
+            // 1. Optimized Allocator to reduce request overhead (64KB segments)
+            val allocator = DefaultAllocator(true, 64 * 1024)
+
+            // 2. Conservative Adaptive Track Selection for buffering resilience
+            val trackSelectionFactory = AdaptiveTrackSelection.Factory(
+                /* minDurationForQualityIncreaseMs = */ 10_000,
+                /* maxDurationForQualityDecreaseMs = */ 25_000,
+                /* minDurationToRetainAfterDiscardMs = */ 25_000,
+                /* bandwidthFraction = */ 0.7f // Be conservative
+            )
+
+            trackSelector = DefaultTrackSelector(context, trackSelectionFactory).apply {
                 // Enable adaptive selections and tune ABR parameters similar to NewPipe
                 setParameters(
                     buildUponParameters()
@@ -191,20 +204,28 @@ class EnhancedPlayerManager private constructor() {
                 sharedDataSourceFactory = upstream
             }
 
+            // Fetch buffer settings
+            val prefs = PlayerPreferences(context)
+            val minBufferMs = kotlinx.coroutines.runBlocking { prefs.minBufferMs.first() }
+            val maxBufferMs = kotlinx.coroutines.runBlocking { prefs.maxBufferMs.first() }
+            val bufferForPlaybackMs = kotlinx.coroutines.runBlocking { prefs.bufferForPlaybackMs.first() }
+            val bufferForPlaybackAfterRebufferMs = kotlinx.coroutines.runBlocking { prefs.bufferForPlaybackAfterRebufferMs.first() }
+
+            // Optimized LoadControl for buttery smooth playback with aggressive buffering
             // Optimized LoadControl for buttery smooth playback with aggressive buffering
             val loadControl = DefaultLoadControl.Builder()
+                .setAllocator(allocator)
                 .setBufferDurationsMs(
-                    /* minBufferMs = */ 30000,     // Increased min buffer (30s) for stability
-                    /* maxBufferMs = */ 100000,    // Increased max buffer (100s) for smoothness
-                    /* bufferForPlaybackMs = */ 1000,  // Fast start (1s)
-                    /* bufferForPlaybackAfterRebufferMs = */ 2500  // Quick resume (2.5s)
+                    minBufferMs,
+                    maxBufferMs,
+                    bufferForPlaybackMs,
+                    bufferForPlaybackAfterRebufferMs
                 )
                 .setBackBuffer(
-                    /* backBufferDurationMs = */ 30000,  // Keep 30s behind
+                    /* backBufferDurationMs = */ 10000,  // Keep 10s behind for instant seek back
                     /* retainBackBufferFromKeyframe = */ true
                 )
                 .setPrioritizeTimeOverSizeThresholds(true)
-                .setTargetBufferBytes(DefaultLoadControl.DEFAULT_TARGET_BUFFER_BYTES * 4) // Quadruple target buffer
                 .build()
 
             // Create custom RenderersFactory to inject SilenceSkippingAudioProcessor and prefer extensions

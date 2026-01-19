@@ -23,6 +23,15 @@ class PlayerPreferences(private val context: Context) {
         val SKIP_SILENCE_ENABLED = booleanPreferencesKey("skip_silence_enabled")
         val AUTO_PIP_ENABLED = booleanPreferencesKey("auto_pip_enabled")
         val MANUAL_PIP_BUTTON_ENABLED = booleanPreferencesKey("manual_pip_button_enabled")
+        
+        // Buffer settings
+        val MIN_BUFFER_MS = intPreferencesKey("min_buffer_ms")
+        val MAX_BUFFER_MS = intPreferencesKey("max_buffer_ms")
+        val BUFFER_FOR_PLAYBACK_MS = intPreferencesKey("buffer_for_playback_ms")
+        val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = intPreferencesKey("buffer_for_playback_after_rebuffer_ms")
+        
+        // Profiles
+        val BUFFER_PROFILE = stringPreferencesKey("buffer_profile")
     }
     
     // Region preference
@@ -152,6 +161,87 @@ class PlayerPreferences(private val context: Context) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MANUAL_PIP_BUTTON_ENABLED] = enabled
         }
+    }
+
+    // Buffer Preferences
+    val minBufferMs: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.MIN_BUFFER_MS] ?: 30000 // Default 30s
+        }
+
+    suspend fun setMinBufferMs(ms: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MIN_BUFFER_MS] = ms
+        }
+    }
+
+    val maxBufferMs: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.MAX_BUFFER_MS] ?: 100000 // Default 100s
+        }
+
+    suspend fun setMaxBufferMs(ms: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MAX_BUFFER_MS] = ms
+        }
+    }
+
+    val bufferForPlaybackMs: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.BUFFER_FOR_PLAYBACK_MS] ?: 1000 // Default 1s
+        }
+
+    suspend fun setBufferForPlaybackMs(ms: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.BUFFER_FOR_PLAYBACK_MS] = ms
+        }
+    }
+    
+    val bufferForPlaybackAfterRebufferMs: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS] ?: 2500 // Default 2.5s
+        }
+
+    suspend fun setBufferForPlaybackAfterRebufferMs(ms: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS] = ms
+        }
+    }
+
+    val bufferProfile: Flow<BufferProfile> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            BufferProfile.fromString(preferences[Keys.BUFFER_PROFILE] ?: "STABLE")
+        }
+
+    suspend fun setBufferProfile(profile: BufferProfile) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.BUFFER_PROFILE] = profile.name
+            
+            // If not custom, apply the profile values immediately
+            if (profile != BufferProfile.CUSTOM) {
+                preferences[Keys.MIN_BUFFER_MS] = profile.minBuffer
+                preferences[Keys.MAX_BUFFER_MS] = profile.maxBuffer
+                preferences[Keys.BUFFER_FOR_PLAYBACK_MS] = profile.playbackBuffer
+                preferences[Keys.BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS] = profile.rebufferBuffer
+            }
+        }
+    }
+}
+
+enum class BufferProfile(
+    val label: String,
+    val minBuffer: Int,
+    val maxBuffer: Int,
+    val playbackBuffer: Int,
+    val rebufferBuffer: Int
+) {
+    AGGRESSIVE("Aggressive (Fast Start)", 15000, 40000, 1000, 2000),      // Fast start, lower redundancy
+    STABLE("Stable (Anti-Throttling)", 30000, 60000, 2500, 5000),        // Goldilocks / Recommended
+    DATASAVER("Data Saver", 15000, 30000, 2500, 5000),                   // Low RAM/Cache usage
+    CUSTOM("Custom", -1, -1, -1, -1);                                    // User defined
+
+    companion object {
+        fun fromString(name: String): BufferProfile = values().find { it.name == name } ?: STABLE
     }
 }
 

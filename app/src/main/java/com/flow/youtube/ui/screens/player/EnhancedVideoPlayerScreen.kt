@@ -704,9 +704,9 @@ fun EnhancedVideoPlayerScreen(
                             viewCount = uiState.streamInfo?.viewCount ?: video.viewCount,
                             uploadDate = uiState.streamInfo?.uploadDate?.let { 
                                 try { 
-                                    val cal = it.date()
+                                    val date = java.util.Date.from(it.offsetDateTime().toInstant())
                                     val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
-                                    sdf.format(cal.time)
+                                    sdf.format(date)
                                 } catch(e: Exception) { null } 
                             } ?: video.uploadDate,
                             description = uiState.streamInfo?.description?.content ?: video.description,
@@ -984,9 +984,9 @@ fun EnhancedVideoPlayerScreen(
                     uploadDate = streamInfo.textualUploadDate ?: streamInfo.uploadDate?.run { 
                         // Fallback formatting if textual date is missing
                         try {
-                            val cal = date()
+                            val date = java.util.Date.from(offsetDateTime().toInstant())
                             val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
-                            sdf.format(cal.time)
+                            sdf.format(date)
                         } catch (e: Exception) {
                             video.uploadDate
                         }
