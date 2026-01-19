@@ -24,5 +24,4 @@ release.bat
 build_result.md
 
 # Secrets and Local configuration
-gradle.properties
 local.properties
