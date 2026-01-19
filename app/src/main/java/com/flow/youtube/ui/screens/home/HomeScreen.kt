@@ -19,6 +19,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -99,16 +101,33 @@ fun HomeScreen(
                         Icon(Icons.Outlined.Search, contentDescription = "Search")
                     }
                     IconButton(onClick = onNotificationClick) {
-                        BadgedBox(
-                            badge = {
-                                if (unreadNotifications > 0) {
-                                    Badge {
-                                        Text(text = if (unreadNotifications > 9) "9+" else unreadNotifications.toString())
-                                    }
+                        Box(contentAlignment = Alignment.TopEnd) {
+                            Icon(
+                                imageVector = Icons.Outlined.Notifications,
+                                contentDescription = "Notifications",
+                                modifier = Modifier.size(26.dp)
+                            )
+                            if (unreadNotifications > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .offset(x = 2.dp, y = (-2).dp)
+                                        .background(Color.Red, shape = CircleShape)
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                                        .heightIn(min = 16.dp)
+                                        .widthIn(min = 16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (unreadNotifications > 9) "9+" else unreadNotifications.toString(),
+                                        color = Color.White,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 10.sp, 
+                                            fontWeight = FontWeight.Bold,
+                                            lineHeight = 10.sp
+                                        )
+                                    )
                                 }
                             }
-                        ) {
-                            Icon(Icons.Outlined.Notifications, contentDescription = "Notifications")
                         }
                     }
                     IconButton(onClick = onSettingsClick) {

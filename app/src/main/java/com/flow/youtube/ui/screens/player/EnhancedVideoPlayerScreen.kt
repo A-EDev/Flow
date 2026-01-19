@@ -44,6 +44,8 @@ import com.flow.youtube.player.EnhancedPlayerManager
 import com.flow.youtube.player.GlobalPlayerState
 import com.flow.youtube.player.PictureInPictureHelper
 import com.flow.youtube.player.seekbarpreview.SeekbarPreviewThumbnailHelper
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.SmartDisplay
 import com.flow.youtube.ui.components.*
 import com.flow.youtube.ui.screens.player.components.*
 import com.flow.youtube.ui.screens.player.util.VideoPlayerUtils
@@ -60,6 +62,8 @@ fun EnhancedVideoPlayerScreen(
     onBack: () -> Unit,
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit,
+    onPlayAsShort: (String) -> Unit = {},
+    onPlayAsMusic: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: VideoPlayerViewModel = hiltViewModel()
 ) {
@@ -166,6 +170,19 @@ fun EnhancedVideoPlayerScreen(
     LaunchedEffect(video.id) {
         viewModel.loadComments(video.id)
     }
+
+    // Shorts/Music Prompt
+    var showShortsPrompt by remember { mutableStateOf(false) }
+    var hasShownShortsPrompt by remember { mutableStateOf(false) }
+
+    LaunchedEffect(completeVideo.duration, hasShownShortsPrompt) {
+        if (!hasShownShortsPrompt && completeVideo.duration > 0 && completeVideo.duration <= 120) {
+            delay(1000) // Delay slightly
+            showShortsPrompt = true
+            hasShownShortsPrompt = true
+        }
+    }
+
     val audioManager = remember { context.getSystemService(Context.AUDIO_SERVICE) as AudioManager }
     val maxVolume = remember { audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) }
     
@@ -1016,4 +1033,55 @@ fun EnhancedVideoPlayerScreen(
             onDismiss = { showChaptersSheet = false }
         )
     }
+
+    if (showShortsPrompt) {
+        ShortsSuggestionDialog(
+            isMusic = completeVideo.isMusic || completeVideo.title.contains("Official Audio", true) || completeVideo.title.contains("Lyrics", true),
+            onPlayAsShort = {
+                showShortsPrompt = false
+                onPlayAsShort(completeVideo.id)
+            },
+            onPlayAsMusic = {
+                showShortsPrompt = false
+                onPlayAsMusic(completeVideo.id)
+            },
+            onDismiss = { showShortsPrompt = false }
+        )
+    }
+}
+
+@Composable
+fun ShortsSuggestionDialog(
+    isMusic: Boolean,
+    onPlayAsShort: () -> Unit,
+    onPlayAsMusic: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = { Icon(Icons.Outlined.SmartDisplay, null) },
+        title = {
+            Text(text = "Play Mode Suggestion", style = MaterialTheme.typography.titleLarge)
+        },
+        text = {
+            Text("This video is less than 2 minutes long. Would you like to switch to a specialized player?")
+        },
+        confirmButton = {
+            TextButton(onClick = onPlayAsShort) {
+                Text("Shorts Player")
+            }
+        },
+        dismissButton = {
+            Row {
+                if (isMusic) {
+                    TextButton(onClick = onPlayAsMusic) {
+                        Text("Music Player")
+                    }
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("Close")
+                }
+            }
+        }
+    )
 }

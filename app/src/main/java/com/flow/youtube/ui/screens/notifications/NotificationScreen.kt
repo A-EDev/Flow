@@ -13,9 +13,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +32,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.Dimension
 import coil.compose.AsyncImage
 import com.flow.youtube.data.local.entity.NotificationEntity
 import java.text.SimpleDateFormat
@@ -184,7 +188,8 @@ fun SwipeToDismissNotification(
         dismissContent = {
             NotificationItem(
                 notification = notification,
-                onClick = onClick
+                onClick = onClick,
+                onDismiss = onDismiss
             )
         },
         modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
@@ -194,7 +199,8 @@ fun SwipeToDismissNotification(
 @Composable
 fun NotificationItem(
     notification: NotificationEntity,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onDismiss: () -> Unit
 ) {
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     val isUnread = !notification.isRead
@@ -202,32 +208,33 @@ fun NotificationItem(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
             containerColor = if (isUnread) 
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f) 
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.08f) 
             else 
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                MaterialTheme.colorScheme.surface
         ),
-        shape = RoundedCornerShape(16.dp),
-        border = if (isUnread) 
-            androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)) 
-        else null
+        shape = RectangleShape
     ) {
-        Row(
+        ConstraintLayout(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            // Thumbnail with Play Button Overlay
+            val (thumbnail, content, dismissBtn) = createRefs()
+
+            // Thumbnail section
             Box(
                 modifier = Modifier
-                    .size(110.dp, 62.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp)),
-                contentAlignment = Alignment.Center
+                    .width(110.dp)
+                    .aspectRatio(16f/9f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .constrainAs(thumbnail) {
+                        top.linkTo(parent.top)
+                        start.linkTo(parent.start)
+                    }
             ) {
                 AsyncImage(
                     model = notification.thumbnailUrl,
@@ -235,78 +242,69 @@ fun NotificationItem(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
-                
-                // Play icon overlay
-                Surface(
-                    color = Color.Black.copy(alpha = 0.5f),
-                    shape = CircleShape,
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.padding(6.dp)
-                    )
-                }
             }
             
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            Column(modifier = Modifier.weight(1f)) {
+            // Dismiss button (link to top-end, clear of text)
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .size(28.dp)
+                    .constrainAs(dismissBtn) {
+                        top.linkTo(parent.top, margin = (-4).dp)
+                        end.linkTo(parent.end)
+                    }
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = "Dismiss",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+
+            // Content section
+            Column(
+                modifier = Modifier.constrainAs(content) {
+                    top.linkTo(thumbnail.top)
+                    start.linkTo(thumbnail.end, margin = 12.dp)
+                    end.linkTo(dismissBtn.start, margin = 8.dp)
+                    width = Dimension.fillToConstraints
+                }
+            ) {
                 Text(
                     text = notification.title,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         lineHeight = 18.sp,
-                        letterSpacing = 0.2.sp
+                        fontWeight = if (isUnread) FontWeight.Bold else FontWeight.Medium
                     ),
-                    fontWeight = if (isUnread) FontWeight.Bold else FontWeight.Medium,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = notification.channelName,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
-                    )
+                    if (isUnread) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                    }
                     
                     Text(
-                        text = " • ",
+                        text = "${notification.channelName} • ${timeFormat.format(Date(notification.timestamp))}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    
-                    Text(
-                        text = timeFormat.format(Date(notification.timestamp)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
-            }
-            
-            if (isUnread) {
-                Box(
-                    modifier = Modifier
-                        .padding(start = 8.dp)
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary,
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                                )
-                            )
-                        )
-                )
             }
         }
     }

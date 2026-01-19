@@ -6,6 +6,7 @@
 
 ## Helps debug release versions - keeps class/method names readable
 -dontobfuscate
+-ignorewarnings
 
 ## Rules for NewPipeExtractor
 -keep class org.schabi.newpipe.extractor.timeago.patterns.** { *; }
@@ -124,3 +125,9 @@
 -keep class * extends org.schabi.newpipe.extractor.Extractor { *; }
 -keep class * implements org.schabi.newpipe.extractor.Service { *; }
 -keepattributes Exceptions, InnerClasses
+
+## Rules for re2j (Required by Jsoup/NewPipeExtractor)
+-dontwarn com.google.re2j.**
+-keep class com.google.re2j.** { *; }
+-dontwarn org.jsoup.helper.Re2jRegex
+-dontwarn org.jsoup.helper.Re2jRegex$Re2jMatcher

@@ -957,6 +957,18 @@ fun FlowApp(
                             val channelUrl = "https://www.youtube.com/channel/$channelId"
                             val encodedUrl = java.net.URLEncoder.encode(channelUrl, "UTF-8")
                             navController.navigate("channel?url=$encodedUrl")
+                        },
+                        onPlayAsShort = { vidId ->
+                            GlobalPlayerState.stop()
+                            navController.navigate("shorts?startVideoId=$vidId") {
+                                popUpTo("player/{videoId}") { inclusive = true }
+                            }
+                        },
+                        onPlayAsMusic = { vidId ->
+                            GlobalPlayerState.stop()
+                            navController.navigate("musicPlayer/$vidId") {
+                                popUpTo("player/{videoId}") { inclusive = true }
+                            }
                         }
                     )
                 }

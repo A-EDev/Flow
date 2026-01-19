@@ -45,6 +45,7 @@ import com.flow.youtube.data.recommendation.MusicSection
 import com.flow.youtube.ui.components.MusicQuickActionsSheet
 import com.flow.youtube.ui.components.AddToPlaylistDialog
 import com.flow.youtube.data.model.Video
+import com.flow.youtube.player.EnhancedMusicPlayerManager
 import androidx.compose.ui.platform.LocalContext
 import android.content.Intent
 
@@ -62,6 +63,7 @@ fun EnhancedMusicScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
     
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
@@ -216,6 +218,7 @@ fun EnhancedMusicScreen(
                                 items(uiState.allSongs) { track ->
                                     MusicTrackRow(
                                         track = track,
+                                        isPlaying = currentTrack?.videoId == track.videoId,
                                         onClick = { onSongClick(track, uiState.allSongs, uiState.selectedFilter) },
                                         onMenuClick = {
                                             selectedTrack = track
@@ -238,6 +241,7 @@ fun EnhancedMusicScreen(
                                     )
                                     QuickPicksGrid(
                                         songs = uiState.forYouTracks.take(16),
+                                        currentVideoId = currentTrack?.videoId,
                                         onSongClick = onSongClick,
                                         onMenuClick = { track ->
                                             selectedTrack = track
@@ -302,6 +306,7 @@ fun EnhancedMusicScreen(
                                     SectionHeader(title = "Long listens")
                                     QuickPicksGrid(
                                         songs = uiState.longListens.take(16),
+                                        currentVideoId = currentTrack?.videoId,
                                         onSongClick = onSongClick,
                                         onMenuClick = { track ->
                                             selectedTrack = track
@@ -475,6 +480,7 @@ fun EnhancedMusicScreen(
                                 SectionHeader(title = "Long listens", subtitle = "Deep dives and albums")
                                 QuickPicksGrid(
                                     songs = uiState.longListens.take(12),
+                                    currentVideoId = currentTrack?.videoId,
                                     onSongClick = onSongClick,
                                     onMenuClick = { track ->
                                         selectedTrack = track
@@ -648,6 +654,7 @@ fun SectionHeader(
 @Composable
 fun QuickPicksGrid(
     songs: List<MusicTrack>,
+    currentVideoId: String? = null,
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
     onMenuClick: (MusicTrack) -> Unit
 ) {
@@ -663,6 +670,7 @@ fun QuickPicksGrid(
         items(songs) { track ->
             QuickPickItem(
                 track = track, 
+                isPlaying = track.videoId == currentVideoId,
                 onClick = { onSongClick(track, songs, "quick_picks") },
                 onMenuClick = { onMenuClick(track) }
             )
@@ -673,6 +681,7 @@ fun QuickPicksGrid(
 @Composable
 fun QuickPickItem(
     track: MusicTrack,
+    isPlaying: Boolean = false,
     onClick: () -> Unit,
     onMenuClick: () -> Unit
 ) {
@@ -682,14 +691,21 @@ fun QuickPickItem(
             .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AsyncImage(
-            model = track.thumbnailUrl,
-            contentDescription = null,
+        Box(
             modifier = Modifier
                 .size(56.dp)
-                .clip(RoundedCornerShape(4.dp)),
-            contentScale = ContentScale.Crop
-        )
+                .clip(RoundedCornerShape(4.dp))
+        ) {
+            AsyncImage(
+                model = track.thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Crop
+            )
+            if (isPlaying) {
+                MusicWaveAnimation()
+            }
+        }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -1621,6 +1637,7 @@ fun VideoCard(
 @Composable
 fun MusicTrackRow(
     track: MusicTrack,
+    isPlaying: Boolean = false,
     onClick: () -> Unit,
     onMenuClick: (() -> Unit)? = null
 ) {
@@ -1639,14 +1656,21 @@ fun MusicTrackRow(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AsyncImage(
-                model = track.thumbnailUrl,
-                contentDescription = null,
+            Box(
                 modifier = Modifier
                     .size(56.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
+                    .clip(RoundedCornerShape(8.dp))
+            ) {
+                AsyncImage(
+                    model = track.thumbnailUrl,
+                    contentDescription = null,
+                    modifier = Modifier.matchParentSize(),
+                    contentScale = ContentScale.Crop
+                )
+                if (isPlaying) {
+                    MusicWaveAnimation()
+                }
+            }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -1731,5 +1755,36 @@ fun ErrorContent(
                 Text("Retry")
             }
         }
+    }
+}
+
+@Composable
+fun MusicWaveAnimation(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition()
+    val bar1 by infiniteTransition.animateFloat(
+        initialValue = 0.2f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(600), RepeatMode.Reverse)
+    )
+    val bar2 by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(500), RepeatMode.Reverse)
+    )
+    val bar3 by infiniteTransition.animateFloat(
+        initialValue = 0.4f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse)
+    )
+
+    Row(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.5f)),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.width(4.dp).height(16.dp * bar1).background(MaterialTheme.colorScheme.primary, CircleShape))
+        Spacer(Modifier.width(2.dp))
+        Box(Modifier.width(4.dp).height(24.dp * bar2).background(MaterialTheme.colorScheme.primary, CircleShape))
+        Spacer(Modifier.width(2.dp))
+        Box(Modifier.width(4.dp).height(12.dp * bar3).background(MaterialTheme.colorScheme.primary, CircleShape))
     }
 }

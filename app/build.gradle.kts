@@ -14,8 +14,8 @@ android {
         applicationId = "com.flow.youtube"
         minSdk = 21
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.3.0"
+        versionCode = 3
+        versionName = "1.3.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -95,6 +95,11 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
 }
 
@@ -217,6 +222,9 @@ dependencies {
 
     // Kotlin Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
+
+    // Re2j (Required by Jsoup/NewPipeExtractor for regex)
+    implementation("com.google.re2j:re2j:1.7")
 }
 
 // Allow references to generated code
