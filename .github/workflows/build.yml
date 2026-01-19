@@ -3,8 +3,8 @@ name: Android CI/CD
 on:
   push:
     branches: [ main, master, develop ]
-  tags:
-    - 'v*'
+    tags:
+      - 'v*'
   pull_request:
     branches: [ main, master ]
 
