@@ -191,6 +191,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer-hls:1.4.1")
     implementation("androidx.media3:media3-exoplayer-dash:1.4.1")
     implementation("androidx.media3:media3-datasource:1.4.1")
+    implementation("androidx.media3:media3-datasource-okhttp:1.4.1")
     
     // Media Session support for notifications
     implementation("androidx.media:media:1.7.0")

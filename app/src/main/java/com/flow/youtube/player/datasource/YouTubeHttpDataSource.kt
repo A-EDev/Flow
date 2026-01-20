@@ -3,9 +3,11 @@ package com.flow.youtube.player.datasource
 import android.net.Uri
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSpec
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.TransferListener
+import androidx.media3.datasource.okhttp.OkHttpDataSource
+import okhttp3.Call
+import okhttp3.OkHttpClient
 import java.io.IOException
 
 /**
@@ -18,6 +20,7 @@ import java.io.IOException
 class YouTubeHttpDataSource private constructor(
     private val userAgent: String,
     private val clientType: YouTubeClientType,
+    private val callFactory: Call.Factory,
     private val allowCrossProtocolRedirects: Boolean,
     private val connectTimeoutMillis: Int,
     private val readTimeoutMillis: Int,
@@ -25,7 +28,7 @@ class YouTubeHttpDataSource private constructor(
     private var requestNumber: Long = 0
 ) : HttpDataSource {
 
-    private var dataSource: DefaultHttpDataSource? = null
+    private var dataSource: HttpDataSource? = null
     private var currentUri: Uri? = null
 
     enum class YouTubeClientType(val clientName: String, val clientVersion: String) {
@@ -36,6 +39,7 @@ class YouTubeHttpDataSource private constructor(
     }
 
     class Factory(
+        private var callFactory: Call.Factory? = null,
         private var clientType: YouTubeClientType = YouTubeClientType.ANDROID,
         private var connectTimeoutMillis: Int = DEFAULT_CONNECT_TIMEOUT_MILLIS,
         private var readTimeoutMillis: Int = DEFAULT_READ_TIMEOUT_MILLIS,
@@ -60,9 +64,11 @@ class YouTubeHttpDataSource private constructor(
         }
 
         override fun createDataSource(): HttpDataSource {
+            val finalCallFactory = callFactory ?: okhttp3.OkHttpClient()
             return YouTubeHttpDataSource(
                 getUserAgent(clientType),
                 clientType,
+                finalCallFactory,
                 allowCrossProtocolRedirects,
                 connectTimeoutMillis,
                 readTimeoutMillis,
@@ -91,11 +97,8 @@ class YouTubeHttpDataSource private constructor(
         currentUri = dataSpec.uri
     val enhancedDataSpec = enhanceDataSpec(dataSpec)
 
-        val factory = DefaultHttpDataSource.Factory()
+        val factory = OkHttpDataSource.Factory(callFactory)
             .setUserAgent(userAgent)
-            .setConnectTimeoutMs(connectTimeoutMillis)
-            .setReadTimeoutMs(readTimeoutMillis)
-            .setAllowCrossProtocolRedirects(allowCrossProtocolRedirects)
 
         // YouTube-specific headers
         if (isYouTubeUri(dataSpec.uri)) {
@@ -143,7 +146,7 @@ class YouTubeHttpDataSource private constructor(
             .build()
     }
 
-    private fun addYouTubeHeaders(factory: DefaultHttpDataSource.Factory) {
+    private fun addYouTubeHeaders(factory: OkHttpDataSource.Factory) {
         // Add YouTube-specific headers that are required for proper streaming
         factory.setDefaultRequestProperties(mapOf(
             "Origin" to "https://www.youtube.com",

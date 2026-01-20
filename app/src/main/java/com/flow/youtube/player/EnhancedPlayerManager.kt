@@ -30,7 +30,6 @@ import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.database.StandaloneDatabaseProvider
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.audio.AudioSink
@@ -52,6 +51,10 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
+import okhttp3.OkHttpClient
+import okhttp3.Dispatcher
+import okhttp3.ConnectionPool
+import java.util.concurrent.TimeUnit
 
 @UnstableApi
 class EnhancedPlayerManager private constructor() {
@@ -91,6 +94,7 @@ class EnhancedPlayerManager private constructor() {
     private var surfaceHolder: SurfaceHolder? = null
     private var placeholderSurface: PlaceholderSurface? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var positionTrackerJob: kotlinx.coroutines.Job? = null
     var isSurfaceReady: Boolean = false
         private set
     
@@ -111,9 +115,36 @@ class EnhancedPlayerManager private constructor() {
     private var manualQualityHeight: Int? = null  // Track manually selected quality
 
     // Buffering watchdog - DISABLED in favor of faster native ABR
-    private val bufferingHandler = android.os.Handler(android.os.Looper.getMainLooper())
-    private val bufferingRunnable = Runnable {
-        // Redundant with tuned ABR settings
+    private fun startPositionTracker() {
+        positionTrackerJob?.cancel()
+        positionTrackerJob = scope.launch {
+            while (true) {
+                player?.let { p ->
+                    if (p.isPlaying || p.playbackState == Player.STATE_BUFFERING) {
+                        val bufferedPos = p.bufferedPosition
+                        val duration = p.duration.coerceAtLeast(1)
+                        val bufferedPct = (bufferedPos.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                        
+                        _playerState.value = _playerState.value.copy(
+                            bufferedPercentage = bufferedPct
+                        )
+                        
+                        // DASH Diagnostic Logging: Check for synchronization gaps
+                        // Note: p.bufferedPosition is the minimum of all required tracks (Audio + Video)
+                        // If it's close to currentPosition, it means at least one track is starving.
+                        if (p.playbackState == Player.STATE_BUFFERING) {
+                            Log.d("FlowDebug", "STALL: Pos=${p.currentPosition}ms | TotalBuff=${bufferedPos}ms (${(bufferedPct*100).toInt()}%) | Playable=${p.playWhenReady}")
+                        }
+                    }
+                }
+                delay(500)
+            }
+        }
+    }
+
+    private fun stopPositionTracker() {
+        positionTrackerJob?.cancel()
+        positionTrackerJob = null
     }
 
     private fun setSkipSilenceInternal(isEnabled: Boolean) {
@@ -182,8 +213,22 @@ class EnhancedPlayerManager private constructor() {
                 )
             }
 
+            // Create a tuned OkHttpClient for better DASH concurrency
+            val dispatcher = Dispatcher().apply {
+                maxRequestsPerHost = 15 // YouTube needs at least 2, but background tasks can hog them
+                maxRequests = 25
+            }
+            
+            val sharedOkHttpClient = OkHttpClient.Builder()
+                .dispatcher(dispatcher)
+                .connectionPool(ConnectionPool(10, 5, TimeUnit.MINUTES))
+                .retryOnConnectionFailure(true)
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .readTimeout(10, TimeUnit.SECONDS)
+                .build()
+
             // Build a shared DataSource.Factory with optional cache
-            val httpFactory = YouTubeHttpDataSource.Factory()
+            val httpFactory = YouTubeHttpDataSource.Factory(sharedOkHttpClient)
                 .setConnectTimeoutMs(5000)      // Faster failover
                 .setReadTimeoutMs(5000)         // Faster failover
                 .setAllowCrossProtocolRedirects(true)
@@ -240,6 +285,7 @@ class EnhancedPlayerManager private constructor() {
                         .build()
                 }
             }.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER) // Prefer FFmpeg/VP9 extensions if available
+             .setEnableDecoderFallback(true) // Crucial: Allow software decoding if hardware fails
 
             player = ExoPlayer.Builder(context, renderersFactory)
                 .setTrackSelector(trackSelector!!)
@@ -257,18 +303,7 @@ class EnhancedPlayerManager private constructor() {
                 )
                 .build()
 
-            // Periodic task to update buffer percentage
-            scope.launch {
-                while (player != null) {
-                    player?.let { p ->
-                        val buffered = p.bufferedPercentage.toFloat() / 100f
-                        if (_playerState.value.bufferedPercentage != buffered) {
-                            _playerState.value = _playerState.value.copy(bufferedPercentage = buffered)
-                        }
-                    }
-                    delay(500) // Update every 500ms
-                }
-            }
+            startPositionTracker()
 
             // Reattach any preserved surface holder so the new player renders immediately
             surfaceHolder?.let { holder ->
@@ -309,12 +344,8 @@ class EnhancedPlayerManager private constructor() {
                     hasEnded = playbackState == Player.STATE_ENDED
                 )
                 
-                // Log bandwidth when buffering to help diagnose issues
                 if (playbackState == Player.STATE_BUFFERING) {
                     logBandwidthInfo()
-                    startBufferingWatchdog()
-                } else {
-                    stopBufferingWatchdog()
                 }
             }
             
@@ -703,11 +734,8 @@ class EnhancedPlayerManager private constructor() {
                 val dataSourceFactory = sharedDataSourceFactory
                     ?: DefaultDataSource.Factory(
                         ctx,
-                        DefaultHttpDataSource.Factory()
+                        androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(okhttp3.OkHttpClient())
                             .setUserAgent("Mozilla/5.0 (X11; Android) FlowPlayer")
-                            .setConnectTimeoutMs(7000)
-                            .setReadTimeoutMs(7000)
-                            .setAllowCrossProtocolRedirects(true)
                     )
                 
                 // Normalize lists and dedupe by resolution / bitrate / url / content
@@ -1023,6 +1051,7 @@ class EnhancedPlayerManager private constructor() {
     fun isPlaying(): Boolean = player?.isPlaying ?: false
 
     fun stop() {
+        stopPositionTracker()
         player?.stop()
         player?.clearMediaItems()
         failedStreamUrls.clear()
@@ -1480,14 +1509,6 @@ class EnhancedPlayerManager private constructor() {
         stuckCounter = 0
     }
 
-    private fun startBufferingWatchdog() {
-        bufferingHandler.removeCallbacks(bufferingRunnable)
-        bufferingHandler.postDelayed(bufferingRunnable, 5000) // 5 seconds timeout
-    }
-
-    private fun stopBufferingWatchdog() {
-        bufferingHandler.removeCallbacks(bufferingRunnable)
-    }
 
     private fun downgradeQualityDueToBandwidth() {
         if (!isAdaptiveQualityEnabled) return
@@ -1516,9 +1537,6 @@ class EnhancedPlayerManager private constructor() {
             _playerState.value = _playerState.value.copy(
                 effectiveQuality = lowerQualityStream.height
             )
-            
-            // Restart watchdog in case this one is also too slow
-            startBufferingWatchdog()
         } else {
             Log.w(TAG, "Bandwidth adaptation: No lower quality available")
         }
