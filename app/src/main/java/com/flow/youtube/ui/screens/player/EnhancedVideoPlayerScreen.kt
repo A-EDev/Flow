@@ -222,7 +222,7 @@ fun EnhancedVideoPlayerScreen(
     
     // PiP mode support - detect PiP state changes
     DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
+        val observer = LifecycleEventObserver { _, _ ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
                 isInPipMode = activity.isInPictureInPictureMode
             }
@@ -281,7 +281,7 @@ fun EnhancedVideoPlayerScreen(
                 activity?.let { act ->
                     WindowCompat.setDecorFitsSystemWindows(act.window, true)
                     val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
-                    insetsController.show(WindowInsetsCompat.Type.systemBars())
+                    insetsController?.show(WindowInsetsCompat.Type.systemBars())
                 }
             }
         }
@@ -647,7 +647,6 @@ fun EnhancedVideoPlayerScreen(
                     isBuffering = playerState.isBuffering,
                     currentPosition = currentPosition,
                     duration = duration,
-                    title = uiState.streamInfo?.name ?: video.title,
                     qualityLabel = if (playerState.currentQuality == 0) "Auto (${playerState.effectiveQuality}p)" else playerState.currentQuality.toString(),
                     resizeMode = resizeMode,
                     onResizeClick = {
@@ -702,7 +701,8 @@ fun EnhancedVideoPlayerScreen(
                         }
                     },
                     hasPrevious = canGoPrevious,
-                    hasNext = uiState.relatedVideos.isNotEmpty()
+                    hasNext = uiState.relatedVideos.isNotEmpty(),
+                    bufferedPercentage = playerState.bufferedPercentage
                 )
             }
             

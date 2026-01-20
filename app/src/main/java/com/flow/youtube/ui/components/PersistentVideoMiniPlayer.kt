@@ -56,10 +56,10 @@ fun PersistentVideoMiniPlayer(
     modifier: Modifier = Modifier
 ) {
     val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsState()
-    val configuration = LocalConfiguration.current
+    val _configuration = LocalConfiguration.current
     val density = LocalDensity.current
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
+    val _scope = rememberCoroutineScope()
+    val _context = LocalContext.current
     
     // Animation for dismiss
     var offsetY by remember { mutableFloatStateOf(0f) }
@@ -284,7 +284,7 @@ fun FloatingVideoMiniPlayer(
     val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsState()
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
-    val scope = rememberCoroutineScope()
+    val _scope = rememberCoroutineScope()
     
     // Screen dimensions
     val screenWidth = with(density) { configuration.screenWidthDp.dp.toPx() }

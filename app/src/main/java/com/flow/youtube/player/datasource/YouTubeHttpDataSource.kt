@@ -21,7 +21,8 @@ class YouTubeHttpDataSource private constructor(
     private val allowCrossProtocolRedirects: Boolean,
     private val connectTimeoutMillis: Int,
     private val readTimeoutMillis: Int,
-    private val requestProperties: MutableMap<String, String>
+    private val requestProperties: MutableMap<String, String>,
+    private var requestNumber: Long = 0
 ) : HttpDataSource {
 
     private var dataSource: DefaultHttpDataSource? = null
@@ -65,7 +66,8 @@ class YouTubeHttpDataSource private constructor(
                 allowCrossProtocolRedirects,
                 connectTimeoutMillis,
                 readTimeoutMillis,
-                requestProperties.toMutableMap()
+                requestProperties.toMutableMap(),
+                0L
             )
         }
 
@@ -95,7 +97,7 @@ class YouTubeHttpDataSource private constructor(
             .setReadTimeoutMs(readTimeoutMillis)
             .setAllowCrossProtocolRedirects(allowCrossProtocolRedirects)
 
-        // Add YouTube-specific headers
+        // YouTube-specific headers
         if (isYouTubeUri(dataSpec.uri)) {
             addYouTubeHeaders(factory)
         }
@@ -105,7 +107,19 @@ class YouTubeHttpDataSource private constructor(
 
         dataSource = factory.createDataSource()
 
-        return dataSource!!.open(enhancedDataSpec)
+        // NewPipe approach: videoplayback URLs work better with POST and a specific payload
+        val isVideoPlayback = isYouTubeUri(dataSpec.uri) && dataSpec.uri.path?.contains("/videoplayback") == true
+        
+        return if (isVideoPlayback) {
+            // Force POST for videoplayback URLs
+            val postDataSpec = enhancedDataSpec.buildUpon()
+                .setHttpMethod(DataSpec.HTTP_METHOD_POST)
+                .setHttpBody(byteArrayOf(0x78, 0x00)) // Standard YouTube POST payload
+                .build()
+            dataSource!!.open(postDataSpec)
+        } else {
+            dataSource!!.open(enhancedDataSpec)
+        }
     }
 
     private fun enhanceDataSpec(dataSpec: DataSpec): DataSpec {
@@ -114,9 +128,18 @@ class YouTubeHttpDataSource private constructor(
             return dataSpec
         }
 
-        val sanitizedUri = removeConflictingQueryParameters(uri)
+        var enhancedUri = removeConflictingQueryParameters(uri)
+        
+        // Add 'rn' (request number) to bypass sequence-based throttling
+        if (uri.path?.contains("/videoplayback") == true && !enhancedUri.toString().contains("&rn=")) {
+            enhancedUri = enhancedUri.buildUpon()
+                .appendQueryParameter("rn", requestNumber.toString())
+                .build()
+            requestNumber++
+        }
+
         return dataSpec.buildUpon()
-            .setUri(sanitizedUri)
+            .setUri(enhancedUri)
             .build()
     }
 

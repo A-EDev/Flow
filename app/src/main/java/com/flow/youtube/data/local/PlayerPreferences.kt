@@ -166,7 +166,7 @@ class PlayerPreferences(private val context: Context) {
     // Buffer Preferences
     val minBufferMs: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            preferences[Keys.MIN_BUFFER_MS] ?: 30000 // Default 30s
+            preferences[Keys.MIN_BUFFER_MS] ?: 25000 // Optimized from 30s
         }
 
     suspend fun setMinBufferMs(ms: Int) {
@@ -177,7 +177,7 @@ class PlayerPreferences(private val context: Context) {
 
     val maxBufferMs: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            preferences[Keys.MAX_BUFFER_MS] ?: 100000 // Default 100s
+            preferences[Keys.MAX_BUFFER_MS] ?: 80000 // Optimized from 100s
         }
 
     suspend fun setMaxBufferMs(ms: Int) {
@@ -188,7 +188,7 @@ class PlayerPreferences(private val context: Context) {
 
     val bufferForPlaybackMs: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            preferences[Keys.BUFFER_FOR_PLAYBACK_MS] ?: 1000 // Default 1s
+            preferences[Keys.BUFFER_FOR_PLAYBACK_MS] ?: 1500 // Optimized from 1s
         }
 
     suspend fun setBufferForPlaybackMs(ms: Int) {
@@ -199,7 +199,7 @@ class PlayerPreferences(private val context: Context) {
     
     val bufferForPlaybackAfterRebufferMs: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            preferences[Keys.BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS] ?: 2500 // Default 2.5s
+            preferences[Keys.BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS] ?: 4000 // Optimized from 2.5s
         }
 
     suspend fun setBufferForPlaybackAfterRebufferMs(ms: Int) {
@@ -235,10 +235,10 @@ enum class BufferProfile(
     val playbackBuffer: Int,
     val rebufferBuffer: Int
 ) {
-    AGGRESSIVE("Aggressive (Fast Start)", 15000, 40000, 1000, 2000),      // Fast start, lower redundancy
-    STABLE("Stable (Anti-Throttling)", 30000, 60000, 2500, 5000),        // Goldilocks / Recommended
-    DATASAVER("Data Saver", 15000, 30000, 2500, 5000),                   // Low RAM/Cache usage
-    CUSTOM("Custom", -1, -1, -1, -1);                                    // User defined
+    AGGRESSIVE("Aggressive (Fast Start)", 15000, 30000, 1000, 2000),      
+    STABLE("Stable (Anti-Throttling)", 25000, 80000, 1500, 4000),        
+    DATASAVER("Data Saver", 15000, 25000, 2000, 5000),                   
+    CUSTOM("Custom", -1, -1, -1, -1);                                    
 
     companion object {
         fun fromString(name: String): BufferProfile = values().find { it.name == name } ?: STABLE

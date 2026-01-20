@@ -87,7 +87,7 @@ object GlobalPlayerState {
      * Update playback position and duration (legacy compatibility).
      */
     @Deprecated("Position tracking now handled automatically by EnhancedPlayerManager")
-    fun updatePlaybackInfo(position: Long, duration: Long) {
+    fun updatePlaybackInfo(_position: Long, _duration: Long) {
         // No-op - EnhancedPlayerManager handles this internally
     }
     

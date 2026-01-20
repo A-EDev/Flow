@@ -43,7 +43,6 @@ fun PremiumControlsOverlay(
     isBuffering: Boolean,
     currentPosition: Long,
     duration: Long,
-    title: String,
     qualityLabel: String?,
     resizeMode: Int,
     onResizeClick: () -> Unit,
@@ -66,6 +65,7 @@ fun PremiumControlsOverlay(
     onNext: () -> Unit = {},
     hasPrevious: Boolean = false,
     hasNext: Boolean = false,
+    bufferedPercentage: Float = 0f,
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -342,12 +342,8 @@ fun PremiumControlsOverlay(
                             seekbarPreviewHelper = seekbarPreviewHelper,
                             chapters = chapters,
                             duration = duration,
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = SliderDefaults.colors(
-                                thumbColor = primaryColor, // Dynamic Red/Theme Color
-                                activeTrackColor = primaryColor,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                            )
+                            bufferedValue = bufferedPercentage,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
 

@@ -46,6 +46,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.stream.AudioStream
@@ -109,13 +110,10 @@ class EnhancedPlayerManager private constructor() {
     private var isAdaptiveQualityEnabled = true  // Auto quality by default
     private var manualQualityHeight: Int? = null  // Track manually selected quality
 
-    // Buffering watchdog
+    // Buffering watchdog - DISABLED in favor of faster native ABR
     private val bufferingHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private val bufferingRunnable = Runnable {
-        if (_playerState.value.isBuffering && isAdaptiveQualityEnabled) {
-            Log.w(TAG, "Buffering too long (>5s) - attempting quality downgrade")
-            downgradeQualityDueToBandwidth()
-        }
+        // Redundant with tuned ABR settings
     }
 
     private fun setSkipSilenceInternal(isEnabled: Boolean) {
@@ -156,12 +154,12 @@ class EnhancedPlayerManager private constructor() {
             // 1. Optimized Allocator to reduce request overhead (64KB segments)
             val allocator = DefaultAllocator(true, 64 * 1024)
 
-            // 2. Conservative Adaptive Track Selection for buffering resilience
+            // 2. Aggressive Adaptive Track Selection for buffering resilience (Align with NewPipe)
             val trackSelectionFactory = AdaptiveTrackSelection.Factory(
-                /* minDurationForQualityIncreaseMs = */ 10_000,
-                /* maxDurationForQualityDecreaseMs = */ 25_000,
-                /* minDurationToRetainAfterDiscardMs = */ 25_000,
-                /* bandwidthFraction = */ 0.7f // Be conservative
+                /* minDurationForQualityIncreaseMs = */ 5_000,   // React more stably to bandwidth increase (from 1s)
+                /* maxDurationForQualityDecreaseMs = */ 8_000,   // Standard decrease (remains 8s)
+                /* minDurationToRetainAfterDiscardMs = */ 12_000, // Retain less to allowing faster switching (remains 12s)
+                /* bandwidthFraction = */ 0.75f // Slightly more aggressive
             )
 
             trackSelector = DefaultTrackSelector(context, trackSelectionFactory).apply {
@@ -186,8 +184,8 @@ class EnhancedPlayerManager private constructor() {
 
             // Build a shared DataSource.Factory with optional cache
             val httpFactory = YouTubeHttpDataSource.Factory()
-                .setConnectTimeoutMs(8000)      // Increased timeout for better reliability
-                .setReadTimeoutMs(10000)        // Increased read timeout
+                .setConnectTimeoutMs(5000)      // Faster failover
+                .setReadTimeoutMs(5000)         // Faster failover
                 .setAllowCrossProtocolRedirects(true)
             val upstream = DefaultDataSource.Factory(context, httpFactory)
 
@@ -235,7 +233,7 @@ class EnhancedPlayerManager private constructor() {
                     enableFloatOutput: Boolean,
                     enableAudioTrackPlaybackParams: Boolean
                 ): AudioSink? {
-                    return DefaultAudioSink.Builder()
+                    return DefaultAudioSink.Builder(context)
                         .setAudioProcessors(arrayOf(silenceSkippingProcessor))
                         .setEnableFloatOutput(enableFloatOutput)
                         .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
@@ -258,6 +256,19 @@ class EnhancedPlayerManager private constructor() {
                     DefaultMediaSourceFactory(sharedDataSourceFactory ?: upstream)
                 )
                 .build()
+
+            // Periodic task to update buffer percentage
+            scope.launch {
+                while (player != null) {
+                    player?.let { p ->
+                        val buffered = p.bufferedPercentage.toFloat() / 100f
+                        if (_playerState.value.bufferedPercentage != buffered) {
+                            _playerState.value = _playerState.value.copy(bufferedPercentage = buffered)
+                        }
+                    }
+                    delay(500) // Update every 500ms
+                }
+            }
 
             // Reattach any preserved surface holder so the new player renders immediately
             surfaceHolder?.let { holder ->
@@ -367,8 +378,9 @@ class EnhancedPlayerManager private constructor() {
                             Log.w(TAG, "Unrecognized format error - trying alternative stream format")
                             
                             // Mark this stream as incompatible (not corrupted, just unsupported format)
-                            if (currentVideoStream?.url != null) {
-                                failedStreamUrls.add(currentVideoStream!!.url!!)
+                            val videoContent = currentVideoStream?.getContent()
+                            if (videoContent != null) {
+                                failedStreamUrls.add(videoContent)
                                 Log.d(TAG, "Marking incompatible format stream: ${currentVideoStream!!.format?.mimeType}")
                                 
                                 // Try alternative quality immediately (don't count errors)
@@ -378,13 +390,14 @@ class EnhancedPlayerManager private constructor() {
                         }
                         
                         // Check for NAL corruption errors (actual stream corruption)
+                        val videoContent = currentVideoStream?.getContent()
                         if ((fullErrorInfo.contains("NAL", ignoreCase = true) || 
                              error.cause is androidx.media3.common.ParserException) && 
-                            currentVideoStream?.url != null) {
+                            videoContent != null) {
                             
-                            failedStreamUrls.add(currentVideoStream!!.url!!)
+                            failedStreamUrls.add(videoContent)
                             streamErrorCount++
-                            Log.w(TAG, "Corrupted stream detected (NAL/Parser error): ${currentVideoStream?.url} - Error count: $streamErrorCount of $MAX_STREAM_ERRORS")
+                            Log.w(TAG, "Corrupted stream detected (NAL/Parser error): $videoContent - Error count: $streamErrorCount of $MAX_STREAM_ERRORS")
                             
                             // If too many errors, try downgrading to lower quality
                             if (streamErrorCount >= MAX_STREAM_ERRORS) {
@@ -422,10 +435,11 @@ class EnhancedPlayerManager private constructor() {
                             Log.e(TAG, "Parser error detected in IO error: $fullErrorInfo")
                             
                             // Track this stream URL as corrupted
-                            if (currentVideoStream?.url != null) {
-                                failedStreamUrls.add(currentVideoStream!!.url!!)
+                            val videoContent = currentVideoStream?.getContent()
+                            if (videoContent != null) {
+                                failedStreamUrls.add(videoContent)
                                 streamErrorCount++
-                                Log.w(TAG, "Corrupted stream detected (NAL/Parser error): ${currentVideoStream?.url} - Error count: $streamErrorCount")
+                                Log.w(TAG, "Corrupted stream detected (NAL/Parser error): $videoContent - Error count: $streamErrorCount")
                                 
                                 // If too many errors, try downgrading to lower quality immediately
                                 if (streamErrorCount >= MAX_STREAM_ERRORS) {
@@ -452,15 +466,16 @@ class EnhancedPlayerManager private constructor() {
                         Log.w(TAG, "Network error encountered: ${error.errorCode} - ${error.message}")
                         
                         // Track network errors but allow multiple retries (network issues are often transient)
-                        if (currentVideoStream?.url != null) {
+                        val videoContent = currentVideoStream?.getContent()
+                        if (videoContent != null) {
                             streamErrorCount++
-                            Log.w(TAG, "Network error on stream: ${currentVideoStream?.url} - Error count: $streamErrorCount of $MAX_STREAM_ERRORS")
+                            Log.w(TAG, "Network error on stream: $videoContent - Error count: $streamErrorCount of $MAX_STREAM_ERRORS")
                             
                             // After multiple network errors, try alternative quality
                             if (streamErrorCount >= MAX_STREAM_ERRORS) {
                                 Log.w(TAG, "Max network errors reached for stream")
                                 if (isAdaptiveQualityEnabled) {
-                                    failedStreamUrls.add(currentVideoStream!!.url!!)
+                                    failedStreamUrls.add(videoContent)
                                     Log.w(TAG, "Adaptive mode - marking stream failed and trying alternative quality")
                                     attemptQualityDowngrade()
                                 } else {
@@ -489,14 +504,14 @@ class EnhancedPlayerManager private constructor() {
                                          error.errorCode == PlaybackException.ERROR_CODE_AUDIO_TRACK_WRITE_FAILED ||
                                          error.message?.contains("AudioRenderer", ignoreCase = true) == true
                         
-                        if (isAudioError && currentAudioStream?.url != null) {
+                        if (isAudioError && currentAudioStream?.getContent() != null) {
                             // Mark current audio stream as failed and try alternative
-                            failedStreamUrls.add(currentAudioStream!!.url!!)
+                            failedStreamUrls.add(currentAudioStream!!.getContent())
                             Log.w(TAG, "Audio decoder error - trying alternative audio stream")
                             
                             // Find alternative audio stream
                             val alternativeAudio = availableAudioStreams
-                                .filter { it.url != null && !failedStreamUrls.contains(it.url) }
+                                .filter { !failedStreamUrls.contains(it.getContent()) }
                                 .sortedByDescending { it.averageBitrate }
                                 .firstOrNull()
                             
@@ -564,16 +579,13 @@ class EnhancedPlayerManager private constructor() {
 
         currentVideoId = videoId
         // dedupe lists by url and sort
-        availableVideoStreams = videoStreams.distinctBy { it.url ?: "" }.sortedByDescending { it.height }
-        availableAudioStreams = audioStreams.distinctBy { it.url ?: "" }
+        availableVideoStreams = videoStreams.distinctBy { it.getContent() }.sortedByDescending { it.height }
+        availableAudioStreams = audioStreams.distinctBy { it.getContent() }
         availableSubtitles = subtitles
         // Set defaults: prefer provided videoStream/audioStream when present
         currentVideoStream = videoStream ?: availableVideoStreams.firstOrNull()
         // Prefer the provided audio stream, otherwise pick highest bitrate or preferring English if present
-        currentAudioStream = audioStream ?: run {
-            availableAudioStreams.firstOrNull { it.audioLocale?.language?.startsWith("en", true) == true }
-                ?: availableAudioStreams.maxByOrNull { it.averageBitrate }
-        }
+        currentAudioStream = audioStream
         _playerState.value = _playerState.value.copy(
             currentVideoId = videoId,
             effectiveQuality = currentVideoStream?.height ?: 0,
@@ -599,7 +611,7 @@ class EnhancedPlayerManager private constructor() {
             },
             availableSubtitles = subtitles.map {
                 SubtitleOption(
-                    url = it.url ?: "",
+                    url = it.getContent(),
                     language = it.languageTag ?: "Unknown",
                     label = it.displayLanguageName ?: it.languageTag ?: "Unknown",
                     isAutoGenerated = it.isAutoGenerated
@@ -686,7 +698,7 @@ class EnhancedPlayerManager private constructor() {
                     Log.w(TAG, "No surface holder - will render to placeholder")
                 }
 
-                Log.d(TAG, "Preparing media: video=${videoStream?.height ?: -1}p url=${videoStream?.url?.take(40)} audioUrl=${audioStream.url?.take(40)} surfaceReady=$isSurfaceReady")
+                Log.d(TAG, "Preparing media: video=${videoStream?.height ?: -1}p content=${videoStream?.getContent()?.take(40)} audioContent=${audioStream.getContent().take(40)} surfaceReady=$isSurfaceReady")
                 val ctx = appContext ?: throw IllegalStateException("EnhancedPlayerManager not initialized with context")
                 val dataSourceFactory = sharedDataSourceFactory
                     ?: DefaultDataSource.Factory(
@@ -698,15 +710,15 @@ class EnhancedPlayerManager private constructor() {
                             .setAllowCrossProtocolRedirects(true)
                     )
                 
-                // Normalize lists and dedupe by resolution / bitrate / url
+                // Normalize lists and dedupe by resolution / bitrate / url / content
                 availableVideoStreams = availableVideoStreams
-                    .distinctBy { it.url ?: "" }
+                    .distinctBy { it.getContent() }
                     .sortedByDescending { it.height }
 
                 availableAudioStreams = availableAudioStreams
-                    .distinctBy { it.url ?: "" }
+                    .distinctBy { it.getContent() }
 
-                if (videoStream != null && !videoStream.url.isNullOrBlank()) {
+                if (videoStream != null && !videoStream.getContent().isNullOrBlank()) {
                     // If the surface is not ready yet we still build the media source so that
                     // playback can begin buffering. The surface attach callback will hook into
                     // the player as soon as it becomes available.
@@ -727,7 +739,7 @@ class EnhancedPlayerManager private constructor() {
                         false
                     }
                 // Detect local files
-                val url = localFilePath ?: videoStream?.url ?: ""
+                val url = localFilePath ?: videoStream.getContent()
                 if (url.isEmpty()) {
                     // Logic for audio-only fallback or error
                 }
@@ -752,9 +764,9 @@ class EnhancedPlayerManager private constructor() {
                         val videoSource = ProgressiveMediaSource.Factory(dataSourceFactory)
                             .createMediaSource(MediaItem.fromUri(url))
 
-                        val audioSrc = if (!audioStream.url.isNullOrBlank()) {
+                        val audioSrc = if (!audioStream.getContent().isNullOrBlank()) {
                             ProgressiveMediaSource.Factory(dataSourceFactory)
-                                .createMediaSource(MediaItem.fromUri(audioStream.url!!))
+                                .createMediaSource(MediaItem.fromUri(audioStream.getContent()))
                         } else null
 
                         if (audioSrc != null) MergingMediaSource(videoSource, audioSrc) else videoSource
@@ -779,7 +791,7 @@ class EnhancedPlayerManager private constructor() {
                 } else {
                     // Audio-only mode (for music)
                     val audioSource = ProgressiveMediaSource.Factory(dataSourceFactory)
-                        .createMediaSource(MediaItem.fromUri(audioStream.url ?: ""))
+                        .createMediaSource(MediaItem.fromUri(audioStream.getContent()))
 
                     exoPlayer.setMediaSource(audioSource)
                     exoPlayer.prepare()
@@ -848,8 +860,8 @@ class EnhancedPlayerManager private constructor() {
                     .setAllowVideoMixedMimeTypeAdaptiveness(false)
                     .setAllowMultipleAdaptiveSelections(false)
                     // Lock to exact height
-                    .setMaxVideoSize(stream.width ?: 9999, height)
-                    .setMinVideoSize(stream.width ?: 0, height)
+                    .setMaxVideoSize(stream.width, height)
+                    .setMinVideoSize(stream.width, height)
                     // Force this quality only
                     .setForceHighestSupportedBitrate(false)
                     .build()
@@ -1067,7 +1079,7 @@ class EnhancedPlayerManager private constructor() {
                 if (context != null) {
                     if (placeholderSurface == null || placeholderSurface?.isValid == false) {
                         runCatching { placeholderSurface?.release() }
-                        placeholderSurface = PlaceholderSurface.newInstanceV17(context, false)
+                        placeholderSurface = PlaceholderSurface.newInstance(context, false)
                     }
                     playerInstance.setVideoSurface(placeholderSurface)
                     Log.d(TAG, "Attached placeholder surface (surface detached temporarily)")
@@ -1358,11 +1370,11 @@ class EnhancedPlayerManager private constructor() {
 
                 // Check if current stream has failed - if so, try a different one
                 currentVideoStream?.let { videoStream ->
-                    if (failedStreamUrls.contains(videoStream.url)) {
+                    if (failedStreamUrls.contains(videoStream.getContent())) {
                         Log.w(TAG, "Current stream has failed, attempting to use alternative quality")
                         // Try to find a working stream that hasn't failed yet
                         val workingStream = availableVideoStreams
-                            .filter { it.url != null && !failedStreamUrls.contains(it.url) }
+                            .filter { !failedStreamUrls.contains(it.getContent()) }
                             .sortedByDescending { it.height }  // Try highest quality first among working streams
                             .firstOrNull()
                         
@@ -1524,7 +1536,7 @@ class EnhancedPlayerManager private constructor() {
 
         // Try to find a working stream by filtering out failed URLs
         val workingStreams = availableVideoStreams.filter { 
-            it.url != null && !failedStreamUrls.contains(it.url) 
+            !failedStreamUrls.contains(it.getContent()) 
         }
         
         if (workingStreams.isEmpty()) {
@@ -1598,7 +1610,8 @@ data class EnhancedPlayerState(
     val error: String? = null,
     val recoveryAttempted: Boolean = false,
     val playbackSpeed: Float = 1.0f,
-    val isSkipSilenceEnabled: Boolean = false
+    val isSkipSilenceEnabled: Boolean = false,
+    val bufferedPercentage: Float = 0f
 )
 
 data class QualityOption(

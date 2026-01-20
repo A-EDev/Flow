@@ -74,11 +74,11 @@ fun SeekbarWithPreview(
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     steps: Int = 0,
     onValueChangeFinished: (() -> Unit)? = null,
-    colors: SliderColors = SliderDefaults.colors(),
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     seekbarPreviewHelper: SeekbarPreviewThumbnailHelper? = null,
     chapters: List<StreamSegment> = emptyList(),
-    duration: Long = 0L
+    duration: Long = 0L,
+    bufferedValue: Float = 0f
 ) {
     var showPreview by remember { mutableStateOf(false) }
     var previewPosition by remember { mutableFloatStateOf(0f) }
@@ -168,6 +168,16 @@ fun SeekbarWithPreview(
                 size = Size(width, height),
                 cornerRadius = CornerRadius(height / 2)
             )
+            
+            // Draw buffer track (the NewPipe feature)
+            if (bufferedValue > 0f) {
+                val bufferWidth = width * bufferedValue.coerceIn(0f, 1f)
+                drawRoundRect(
+                    color = Color.White.copy(alpha = 0.25f), // Lighter than background, darker than active
+                    size = Size(bufferWidth, height),
+                    cornerRadius = CornerRadius(height / 2)
+                )
+            }
             
             // Draw active track (progress)
             val activeWidth = width * internalValue

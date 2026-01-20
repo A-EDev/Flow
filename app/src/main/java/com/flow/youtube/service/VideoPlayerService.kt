@@ -56,11 +56,6 @@ class VideoPlayerService : Service() {
         
         // Initialize MediaSession for lock-screen controls
         mediaSession = MediaSessionCompat(this, "VideoPlayerService").apply {
-            setFlags(
-                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
-                MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
-            )
-            
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() {
                     EnhancedPlayerManager.getInstance().play()
