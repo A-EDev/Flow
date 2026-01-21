@@ -199,7 +199,8 @@ fun VideoPlayerScreen(
                 val audioSource = ProgressiveMediaSource.Factory(dataSourceFactory)
                     .createMediaSource(audioMediaItem)
                 
-                val mergedSource = MergingMediaSource(videoSource, audioSource)
+                // CRITICAL: adjustTimestampSource=true for proper audio/video sync
+                val mergedSource = MergingMediaSource(true, videoSource, audioSource)
                 
                 val finalSource = if (uiState.subtitlesEnabled && uiState.selectedSubtitle != null) {
                     val subtitle = uiState.selectedSubtitle!!
@@ -214,7 +215,7 @@ fun VideoPlayerScreen(
                     val subtitleSource = SingleSampleMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(subtitleMediaItem, C.TIME_UNSET)
                     
-                    MergingMediaSource(mergedSource, subtitleSource)
+                    MergingMediaSource(true, mergedSource, subtitleSource)
                 } else {
                     mergedSource
                 }

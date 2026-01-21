@@ -6,6 +6,7 @@ import androidx.media3.exoplayer.dash.DashMediaSource
 import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.datasource.DataSource
 import com.flow.youtube.player.datasource.YouTubeHttpDataSource
 
 /**
@@ -14,7 +15,9 @@ import com.flow.youtube.player.datasource.YouTubeHttpDataSource
  * Based on NewPipe's AudioPlaybackResolver implementation.
  */
 class AudioPlaybackResolver(
-    private val youTubeHttpDataSourceFactory: YouTubeHttpDataSource.Factory
+    private val dashDataSourceFactory: DataSource.Factory,
+    private val progressiveDataSourceFactory: DataSource.Factory,
+    private val hlsDataSourceFactory: DataSource.Factory
 ) : PlaybackResolver {
 
     override fun resolve(mediaItem: MediaItem, streamInfo: Any): MediaSource? {
@@ -39,18 +42,18 @@ class AudioPlaybackResolver(
     override fun getPriority(): Int = 50 // Lower priority than video resolver
 
     private fun createHlsAudioSource(mediaItem: MediaItem): MediaSource {
-        return HlsMediaSource.Factory(youTubeHttpDataSourceFactory)
+        return HlsMediaSource.Factory(hlsDataSourceFactory)
             .setAllowChunklessPreparation(true)
             .createMediaSource(mediaItem)
     }
 
     private fun createDashAudioSource(mediaItem: MediaItem): MediaSource {
-        return DashMediaSource.Factory(youTubeHttpDataSourceFactory)
+        return DashMediaSource.Factory(dashDataSourceFactory)
             .createMediaSource(mediaItem)
     }
 
     private fun createProgressiveAudioSource(mediaItem: MediaItem): MediaSource {
-        return ProgressiveMediaSource.Factory(youTubeHttpDataSourceFactory)
+        return ProgressiveMediaSource.Factory(progressiveDataSourceFactory)
             .createMediaSource(mediaItem)
     }
 

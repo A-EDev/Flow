@@ -123,7 +123,8 @@ fun ShortVideoPlayer(
                             audioStream = audioStream,
                             videoStreams = (streamInfo.videoStreams ?: emptyList()) + (streamInfo.videoOnlyStreams ?: emptyList()),
                             audioStreams = streamInfo.audioStreams ?: emptyList(),
-                            subtitles = streamInfo.subtitles ?: emptyList()
+                            subtitles = streamInfo.subtitles ?: emptyList(),
+                            durationSeconds = streamInfo.duration
                         )
                         if (isVisible) {
                             playerManager.play()
