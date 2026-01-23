@@ -51,6 +51,7 @@ import com.flow.youtube.player.PictureInPictureHelper
 import com.flow.youtube.ui.components.VideoCardFullWidth
 import com.flow.youtube.ui.theme.extendedColors
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.take
 import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -175,7 +176,7 @@ fun VideoPlayerScreen(
     
     // Load saved playback position
     LaunchedEffect(uiState.savedPosition) {
-        uiState.savedPosition?.collect { savedPos ->
+        uiState.savedPosition?.take(1)?.collect { savedPos ->
             if (savedPos > 0 && exoPlayer.currentPosition < 1000) {
                 exoPlayer.seekTo(savedPos)
             }
@@ -199,7 +200,8 @@ fun VideoPlayerScreen(
                 val audioSource = ProgressiveMediaSource.Factory(dataSourceFactory)
                     .createMediaSource(audioMediaItem)
                 
-                val mergedSource = MergingMediaSource(videoSource, audioSource)
+                // CRITICAL: adjustTimestampSource=true for proper audio/video sync
+                val mergedSource = MergingMediaSource(true, videoSource, audioSource)
                 
                 val finalSource = if (uiState.subtitlesEnabled && uiState.selectedSubtitle != null) {
                     val subtitle = uiState.selectedSubtitle!!
@@ -214,7 +216,7 @@ fun VideoPlayerScreen(
                     val subtitleSource = SingleSampleMediaSource.Factory(dataSourceFactory)
                         .createMediaSource(subtitleMediaItem, C.TIME_UNSET)
                     
-                    MergingMediaSource(mergedSource, subtitleSource)
+                    MergingMediaSource(true, mergedSource, subtitleSource)
                 } else {
                     mergedSource
                 }

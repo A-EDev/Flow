@@ -49,6 +49,7 @@ import androidx.compose.material.icons.outlined.SmartDisplay
 import com.flow.youtube.ui.components.*
 import com.flow.youtube.ui.screens.player.components.*
 import com.flow.youtube.ui.screens.player.util.VideoPlayerUtils
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -495,7 +496,7 @@ fun EnhancedVideoPlayerScreen(
             }
             
             // Resume from saved position
-            uiState.savedPosition?.collect { position ->
+            uiState.savedPosition?.take(1)?.collect { position ->
                 if (position > 0) {
                     EnhancedPlayerManager.getInstance().seekTo(position)
                 }
