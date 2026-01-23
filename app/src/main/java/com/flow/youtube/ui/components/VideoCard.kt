@@ -180,8 +180,8 @@ fun VideoCardHorizontal(
             modifier = Modifier
                 .width(140.dp)
                 .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surface)
+                .clip(RoundedCornerShape(14.dp)) // Sleek corners
+                .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             AsyncImage(
                 model = video.thumbnailUrl,
@@ -190,20 +190,18 @@ fun VideoCardHorizontal(
                 contentScale = ContentScale.Crop
             )
 
-            Box(
+            Surface(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(6.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                        shape = RoundedCornerShape(4.dp)
-                    )
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
+                    .padding(6.dp),
+                color = Color.Black.copy(alpha = 0.7f),
+                shape = RoundedCornerShape(6.dp)
             ) {
                 Text(
                     text = formatDuration(video.duration),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                 )
             }
         }
@@ -258,13 +256,15 @@ fun VideoCardFullWidth(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp) // Gap from screen edges
     ) {
         // Thumbnail with duration
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f)
-                .background(MaterialTheme.colorScheme.surface)
+                .clip(RoundedCornerShape(16.dp)) // Modern rounded corners
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         ) {
             SafeAsyncImage(
                 model = video.thumbnailUrl,
@@ -273,21 +273,21 @@ fun VideoCardFullWidth(
                 contentScale = ContentScale.Crop
             )
 
-            // Duration badge
-            Box(
+            // Glassmorphic Duration badge
+            Surface(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                        shape = RoundedCornerShape(4.dp)
-                    )
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .padding(8.dp),
+                color = Color.Black.copy(alpha = 0.7f),
+                shape = RoundedCornerShape(6.dp),
+                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
             ) {
                 Text(
                     text = formatDuration(video.duration),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
@@ -296,7 +296,7 @@ fun VideoCardFullWidth(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .padding(vertical = 12.dp, horizontal = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Channel avatar
@@ -405,7 +405,7 @@ fun ShortsCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(9f / 16f)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(16.dp)) // Match other cards
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             SafeAsyncImage(

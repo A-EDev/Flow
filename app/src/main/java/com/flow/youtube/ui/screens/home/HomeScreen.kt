@@ -172,7 +172,8 @@ fun HomeScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         state = listState,
-                        contentPadding = PaddingValues(bottom = 80.dp)
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(
                             items = uiState.videos,
