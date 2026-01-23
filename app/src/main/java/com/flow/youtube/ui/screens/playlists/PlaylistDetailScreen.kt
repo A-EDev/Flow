@@ -61,12 +61,7 @@ fun PlaylistDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
-                    Text(
-                        text = "Playlist",
-                        style = MaterialTheme.typography.headlineMedium
-                    ) 
-                },
+                title = { }, // Moved to header
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, "Back")
@@ -112,7 +107,8 @@ fun PlaylistDetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
                 )
             )
         },
@@ -158,8 +154,7 @@ fun PlaylistDetailScreen(
                         video = video,
                         position = index + 1,
                         onVideoClick = { onVideoClick(video) },
-                        onRemove = { viewModel.removeVideo(video.id) },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                        onRemove = { viewModel.removeVideo(video.id) }
                     )
                 }
             }
@@ -223,135 +218,120 @@ private fun PlaylistHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        // Thumbnail - Hero style
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .aspectRatio(16f/9f)
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            // Thumbnail
-            Box(
-                modifier = Modifier
-                    .width(160.dp)
-                    .aspectRatio(16f/9f)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                if (thumbnailUrl.isNotEmpty()) {
-                    AsyncImage(
-                        model = thumbnailUrl,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.PlaylistPlay,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .align(Alignment.Center),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                    )
-                }
-            }
-
-            // Info
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .align(Alignment.CenterVertically),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Text(
-                    text = name,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+            if (thumbnailUrl.isNotEmpty()) {
+                AsyncImage(
+                    model = thumbnailUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = if (isPrivate) Icons.Default.Lock else Icons.Default.Public,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = if (isPrivate) "Private" else "Public",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                
-                Text(
-                    text = "$videoCount ${if (videoCount == 1) "video" else "videos"}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                Icon(
+                    imageVector = Icons.Default.PlaylistPlay,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(64.dp)
+                        .align(Alignment.Center),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                 )
-
-                if (description.isNotEmpty()) {
-                    Text(
-                        text = description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                }
             }
         }
 
-        // Action Buttons
-        if (videoCount > 0) {
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Info Section
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.Start,
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = name,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = (-0.5).sp
+                ),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            // Dynamic User Name Placeholder removed
+            // Metadata Row
+            Text(
+                text = "Playlist • ${if (isPrivate) "Private" else "Public"} • $videoCount videos",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (description.isNotEmpty()) {
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Action Buttons
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Button(
                     onClick = onPlayAll,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.height(48.dp).weight(1f),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        containerColor = Color.White,
+                        contentColor = Color.Black
                     ),
                     shape = RoundedCornerShape(24.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Play all")
+                    Text("Play all", fontWeight = FontWeight.Bold)
                 }
 
-                OutlinedButton(
+                // Random (Dice) Shuffle Action
+                Surface(
                     onClick = onShuffle,
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(24.dp)
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    modifier = Modifier.size(48.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Shuffle,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text("Shuffle")
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.Shuffle, "Shuffle", modifier = Modifier.size(24.dp))
+                    }
+                }
+
+                Surface(
+                    onClick = { /* Download */ },
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(Icons.Default.ArrowDownward, null, modifier = Modifier.size(24.dp))
+                    }
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PlaylistVideoItem(
     video: Video,
@@ -366,26 +346,18 @@ private fun PlaylistVideoItem(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onVideoClick)
-            .padding(vertical = 8.dp, horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(vertical = 12.dp, horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        // Position Number
-        Text(
-            text = position.toString(),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .width(24.dp)
-                .align(Alignment.CenterVertically),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-
+        // Drag Handle removed as per request
+        
         // Thumbnail
         Box(
             modifier = Modifier
-                .width(160.dp)
+                .width(140.dp)
                 .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             AsyncImage(
@@ -395,7 +367,7 @@ private fun PlaylistVideoItem(
                 contentScale = ContentScale.Crop
             )
 
-            // Duration overlay (if available)
+            // Duration overlay
             video.duration?.let { duration ->
                 Box(
                     modifier = Modifier
@@ -411,7 +383,8 @@ private fun PlaylistVideoItem(
                         text = formatDuration(duration),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 10.sp
                     )
                 }
             }
@@ -420,63 +393,70 @@ private fun PlaylistVideoItem(
         // Video Info
         Column(
             modifier = Modifier
-                .weight(1f)
-                .padding(vertical = 4.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            Text(
+                text = video.title,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.Medium
+                ),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            
             Column {
                 Text(
-                    text = video.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 16.sp
-                )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
                     text = video.channelName,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+
+                Text(
+                    text = "${formatViewCount(video.viewCount)} • ${video.uploadDate}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    maxLines = 1
+                )
+            }
+        }
+
+        // More Options
+        Box {
+            IconButton(
+                onClick = { showMenu = true },
+                modifier = Modifier.size(24.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Options",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
             }
 
-            // More Options
-            Box(modifier = Modifier.align(Alignment.End)) {
-                IconButton(
-                    onClick = { showMenu = true },
-                    modifier = Modifier.size(24.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Remove from playlist") },
-                        onClick = {
-                            onRemove()
-                            showMenu = false
-                        },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Delete,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
-                    )
-                }
+            DropdownMenu(
+                expanded = showMenu,
+                onDismissRequest = { showMenu = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Remove from playlist") },
+                    onClick = {
+                        onRemove()
+                        showMenu = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
+                )
             }
         }
     }
@@ -630,7 +610,7 @@ class PlaylistDetailViewModel @Inject constructor(
                     if (details != null) {
                         _uiState.update { it.copy(
                             playlistName = details.name,
-                            description = "YouTube Playlist",
+                            description = details.description ?: "",
                             isPrivate = false,
                             videos = details.videos,
                             thumbnailUrl = details.thumbnailUrl
@@ -654,7 +634,7 @@ class PlaylistDetailViewModel @Inject constructor(
                             }
                             _uiState.update { it.copy(
                                 playlistName = musicDetails.title,
-                                description = musicDetails.description ?: "YouTube Music Playlist",
+                                description = musicDetails.description ?: "",
                                 isPrivate = false,
                                 videos = videos,
                                 thumbnailUrl = musicDetails.thumbnailUrl

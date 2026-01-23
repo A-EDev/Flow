@@ -32,6 +32,7 @@ data class Playlist(
     val name: String,
     val thumbnailUrl: String,
     val videoCount: Int,
+    val description: String = "",
     val videos: List<Video> = emptyList(),
     val isLocal: Boolean = true
 )

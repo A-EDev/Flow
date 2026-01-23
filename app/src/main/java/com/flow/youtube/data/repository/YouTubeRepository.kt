@@ -438,6 +438,7 @@ class YouTubeRepository @Inject constructor() {
                 name = playlistInfo.name ?: "Unknown Playlist",
                 thumbnailUrl = bestThumbnail,
                 videoCount = videos.size,
+                description = playlistInfo.description?.content ?: "",
                 videos = videos,
                 isLocal = false
             )
