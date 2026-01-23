@@ -1,73 +1,95 @@
 package com.flow.youtube.player.datasource
 
 import android.net.Uri
+import androidx.media3.common.C
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.BaseDataSource
+import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.TransferListener
+import okhttp3.Call
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.RequestBody
+import okhttp3.Response
 import java.io.IOException
+import java.io.InputStream
+import java.util.Collections
 
 /**
- * YouTube-specific HTTP data source that adds YouTube-specific headers and parameters
- * for better compatibility and streaming performance.
- *
- * Based on NewPipe's YoutubeHttpDataSource implementation.
+ * YouTube-specific HttpDataSource that implements NewPipe's exact logic for:
+ * 1. Range parameters (to avoid throttling)
+ * 2. Header spoofing (Origin, Referer, Sec-Fetch-*)
+ * 3. POST method enforcement for videoplayback
+ * 4. Correctly handling 200 OK responses for range requests (The "Phantom Buffer" fix)
  */
 @UnstableApi
 class YouTubeHttpDataSource private constructor(
-    private val userAgent: String,
+    private val callFactory: Call.Factory,
     private val clientType: YouTubeClientType,
-    private val allowCrossProtocolRedirects: Boolean,
-    private val connectTimeoutMillis: Int,
-    private val readTimeoutMillis: Int,
-    private val requestProperties: MutableMap<String, String>,
-    private var requestNumber: Long = 0
-) : HttpDataSource {
+    private val userAgent: String,
+    private val defaultRequestProperties: Map<String, String>,
+    private val rangeParameterEnabled: Boolean,
+    private val rnParameterEnabled: Boolean
+) : BaseDataSource(true), HttpDataSource {
 
-    private var dataSource: DefaultHttpDataSource? = null
-    private var currentUri: Uri? = null
+    private var currentDataSpec: DataSpec? = null
+    private var response: Response? = null
+    private var inputStream: InputStream? = null
+    private var bytesToRead: Long = 0
+    private var bytesRead: Long = 0
+    private var opened = false
+    
+    // Request number to bypass throttling (mimics NewPipe structure)
+    private var requestNumber: Long = 0
 
     enum class YouTubeClientType(val clientName: String, val clientVersion: String) {
-        ANDROID("ANDROID", "17.31.35"),
-        IOS("IOS", "17.33.2"),
-        WEB("WEB", "2.20210721.00.00"),
-        TVHTML5_SIMPLY_EMBEDDED_PLAYER("TVHTML5_SIMPLY_EMBEDDED_PLAYER", "2.0")
+        ANDROID("ANDROID", "19.29.35"),
+        IOS("IOS", "19.29.1"),
+        WEB("WEB", "2.20230728.00.00"),
+        TVHTML5("TVHTML5", "7.0")
     }
 
     class Factory(
-        private var clientType: YouTubeClientType = YouTubeClientType.ANDROID,
-        private var connectTimeoutMillis: Int = DEFAULT_CONNECT_TIMEOUT_MILLIS,
-        private var readTimeoutMillis: Int = DEFAULT_READ_TIMEOUT_MILLIS,
-        private var allowCrossProtocolRedirects: Boolean = true
+        private val callFactory: Call.Factory? = null,
+        private val clientType: YouTubeClientType = YouTubeClientType.ANDROID
     ) : HttpDataSource.Factory {
+        
+        private val requestProperties = HashMap<String, String>()
+        private var rangeParameterEnabled = false
+        private var rnParameterEnabled = false
 
-        private val requestProperties = mutableMapOf<String, String>()
-
-        fun setConnectTimeoutMs(timeoutMs: Int): Factory {
-            this.connectTimeoutMillis = timeoutMs
+        fun setRangeParameterEnabled(enabled: Boolean): Factory {
+            this.rangeParameterEnabled = enabled
             return this
         }
 
-        fun setReadTimeoutMs(timeoutMs: Int): Factory {
-            this.readTimeoutMillis = timeoutMs
-            return this
-        }
-
-        fun setAllowCrossProtocolRedirects(allow: Boolean): Factory {
-            this.allowCrossProtocolRedirects = allow
+        fun setRnParameterEnabled(enabled: Boolean): Factory {
+            this.rnParameterEnabled = enabled
             return this
         }
 
         override fun createDataSource(): HttpDataSource {
+            val finalCallFactory = callFactory ?: OkHttpClient.Builder().build()
+            
+            // Generate User Agent based on client type (NewPipe logic)
+            val userAgent = when (clientType) {
+                YouTubeClientType.ANDROID -> "com.google.android.youtube/${clientType.clientVersion} (Linux; Android 14; en_US) gzip"
+                YouTubeClientType.IOS -> "com.google.ios.youtube/${clientType.clientVersion} (iPhone; CPU iPhone OS 16_5 like Mac OS X; en_US)"
+                YouTubeClientType.WEB -> "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+                YouTubeClientType.TVHTML5 -> "Mozilla/5.0 (Chromium/5.0; Linux; Android 10; BRAVIA 4K 2020 Build/QTG3.200305.006.S35) AppleWebKit/537.36 (KHTML, like Gecke) app_name/youtube_tv_script_20230728_00_RC00"
+            }
+
             return YouTubeHttpDataSource(
-                getUserAgent(clientType),
+                finalCallFactory,
                 clientType,
-                allowCrossProtocolRedirects,
-                connectTimeoutMillis,
-                readTimeoutMillis,
-                requestProperties.toMutableMap(),
-                0L
+                userAgent,
+                requestProperties,
+                rangeParameterEnabled,
+                rnParameterEnabled
             )
         }
 
@@ -76,157 +98,218 @@ class YouTubeHttpDataSource private constructor(
             requestProperties.putAll(defaultRequestProperties)
             return this
         }
-
-        private fun getUserAgent(clientType: YouTubeClientType): String {
-            return when (clientType) {
-                YouTubeClientType.ANDROID -> "com.google.android.youtube/${clientType.clientVersion} (Linux; U; Android 11; $clientType Build/HTS3C) gzip"
-                YouTubeClientType.IOS -> "com.google.ios.youtube/${clientType.clientVersion} (${clientType}; U; CPU iOS 15_6 like Mac OS X; en_US)"
-                YouTubeClientType.WEB -> "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-                YouTubeClientType.TVHTML5_SIMPLY_EMBEDDED_PLAYER -> "Mozilla/5.0 (PlayStation; PlayStation 4/11.00) AppleWebKit/605.1.15 (KHTML, like Gecko)"
-            }
-        }
     }
 
     override fun open(dataSpec: DataSpec): Long {
-        currentUri = dataSpec.uri
-    val enhancedDataSpec = enhanceDataSpec(dataSpec)
+        currentDataSpec = dataSpec
+        transferInitializing(dataSpec)
+        
+        var url = dataSpec.uri.toString()
+        val isVideoPlayback = url.contains("/videoplayback")
 
-        val factory = DefaultHttpDataSource.Factory()
-            .setUserAgent(userAgent)
-            .setConnectTimeoutMs(connectTimeoutMillis)
-            .setReadTimeoutMs(readTimeoutMillis)
-            .setAllowCrossProtocolRedirects(allowCrossProtocolRedirects)
-
-        // YouTube-specific headers
-        if (isYouTubeUri(dataSpec.uri)) {
-            addYouTubeHeaders(factory)
+        // 1. Appending 'rn' (Request Number) Logic
+        if (isVideoPlayback && rnParameterEnabled && !url.contains("rn=")) {
+             url += "&rn=$requestNumber"
+             requestNumber++
         }
 
-        // Set default request properties
-        factory.setDefaultRequestProperties(requestProperties)
-
-        dataSource = factory.createDataSource()
-
-        // NewPipe approach: videoplayback URLs work better with POST and a specific payload
-        val isVideoPlayback = isYouTubeUri(dataSpec.uri) && dataSpec.uri.path?.contains("/videoplayback") == true
+        // 2. Appending Range Parameter logic (The Fix)
+        val position = dataSpec.position
+        val length = dataSpec.length
         
-        return if (isVideoPlayback) {
-            // Force POST for videoplayback URLs
-            val postDataSpec = enhancedDataSpec.buildUpon()
-                .setHttpMethod(DataSpec.HTTP_METHOD_POST)
-                .setHttpBody(byteArrayOf(0x78, 0x00)) // Standard YouTube POST payload
-                .build()
-            dataSource!!.open(postDataSpec)
+        // Critical: Compare Long to Long
+        val lengthUnset = C.LENGTH_UNSET.toLong()
+        
+        // Only append range if we are requesting a specific slice AND parameter is enabled
+        if (rangeParameterEnabled && (position > 0 || length != lengthUnset)) {
+            val end = if (length != lengthUnset) position + length - 1 else null
+            // Check if URL already has range? usually not for ExoPlayer requests
+            if (!url.contains("range=")) {
+                url += "&range=$position-${end ?: ""}"
+            }
+        }
+
+        // 3. Build Request
+        val builder = Request.Builder().url(url)
+
+        // Headers
+        val headers = HashMap<String, String>()
+        headers.putAll(defaultRequestProperties)
+        
+        // Add Standard Range Header if parameter mode is DISABLED
+        if (!rangeParameterEnabled && (position > 0 || length != lengthUnset)) {
+            val end = if (length != lengthUnset) position + length - 1 else ""
+            headers["Range"] = "bytes=$position-$end"
+        }
+        
+        // Add YouTube Specific headers (NewPipe logic)
+        if (url.contains("youtube.com") || url.contains("googlevideo.com")) {
+            headers["Origin"] = "https://www.youtube.com"
+            headers["Referer"] = "https://www.youtube.com/"
+            headers["User-Agent"] = userAgent
+            
+            // NewPipe extra headers
+            headers["Sec-Fetch-Dest"] = "empty"
+            headers["Sec-Fetch-Mode"] = "cors"
+            headers["Sec-Fetch-Site"] = "cross-site"
+            headers["TE"] = "trailers"
+        }
+        
+        // Apply headers to request
+        for ((key, value) in headers) {
+            builder.header(key, value)
+        }
+
+        // CRITICAL: Force POST for videoplayback
+        // NewPipe uses body 0x78, 0x00
+        if (isVideoPlayback) {
+            builder.method("POST", byteArrayOf(0x78, 0x00).toRequestBody(null))
+        }
+
+        // NOTE: We do NOT set the "Range" header here because we used the URL parameter.
+        // This prevents the double-range confusion.
+
+        val request = builder.build()
+
+        try {
+            response = callFactory.newCall(request).execute()
+        } catch (e: IOException) {
+            throw HttpDataSource.HttpDataSourceException.createForIOException(e, dataSpec, HttpDataSource.HttpDataSourceException.TYPE_OPEN)
+        }
+
+        val response = this.response!!
+        val responseCode = response.code
+
+        // 4. Validate Response
+        if (responseCode !in 200..299) {
+            val responseHeaders = response.headers.toMultimap()
+            response.close()
+            throw HttpDataSource.InvalidResponseCodeException(
+                responseCode, 
+                response.message, 
+                null, 
+                responseHeaders, 
+                dataSpec, 
+                byteArrayOf()
+            )
+        }
+
+        // 5. Bytes Calculation & Skipping Logic
+        val responseBody = response.body
+        val contentLength = responseBody?.contentLength() ?: -1L
+        
+        // Standard HTTP behavior: 200 OK means full content, 206 means partial.
+        // If we requested a range but got 200, we must skip to the position manually.
+        val bytesToSkip = if (!rangeParameterEnabled && responseCode == 200 && position != 0L) position else 0L
+
+        // If length was requested, use it. Otherwise use response length.
+        bytesToRead = if (length != lengthUnset) {
+            length
+        } else if (contentLength != -1L) {
+             // If we are skipping, the available bytes are reduced
+            contentLength - bytesToSkip
         } else {
-            dataSource!!.open(enhancedDataSpec)
-        }
-    }
-
-    private fun enhanceDataSpec(dataSpec: DataSpec): DataSpec {
-        val uri = dataSpec.uri
-        if (!isYouTubeUri(uri)) {
-            return dataSpec
+            lengthUnset
         }
 
-        var enhancedUri = removeConflictingQueryParameters(uri)
+        inputStream = responseBody?.byteStream()
         
-        // Add 'rn' (request number) to bypass sequence-based throttling
-        if (uri.path?.contains("/videoplayback") == true && !enhancedUri.toString().contains("&rn=")) {
-            enhancedUri = enhancedUri.buildUpon()
-                .appendQueryParameter("rn", requestNumber.toString())
-                .build()
-            requestNumber++
-        }
-
-        return dataSpec.buildUpon()
-            .setUri(enhancedUri)
-            .build()
-    }
-
-    private fun addYouTubeHeaders(factory: DefaultHttpDataSource.Factory) {
-        // Add YouTube-specific headers that are required for proper streaming
-        factory.setDefaultRequestProperties(mapOf(
-            "Origin" to "https://www.youtube.com",
-            "Referer" to "https://www.youtube.com/",
-            "X-YouTube-Client-Name" to when (clientType) {
-                YouTubeClientType.ANDROID -> "3"
-                YouTubeClientType.IOS -> "5"
-                YouTubeClientType.WEB -> "1"
-                YouTubeClientType.TVHTML5_SIMPLY_EMBEDDED_PLAYER -> "7"
-            },
-            "X-YouTube-Client-Version" to clientType.clientVersion
-        ))
-    }
-
-    private fun removeConflictingQueryParameters(uri: Uri): Uri {
-        // YouTube progressive streams sometimes ship with an initial range query like "range=0-".
-        // ExoPlayer already manages byte ranges through request headers, so we remove the
-        // parameter entirely to avoid Range header/query mismatches that trigger HTTP 416 errors.
-        if (!uri.isHierarchical || uri.query.isNullOrEmpty()) {
-            return uri
-        }
-
-        val builder = uri.buildUpon().clearQuery()
-        val paramNames = uri.queryParameterNames
-        for (name in paramNames) {
-            if (name.equals("range", ignoreCase = true)) {
-                continue
-            }
-            val values = uri.getQueryParameters(name)
-            for (value in values) {
-                builder.appendQueryParameter(name, value)
+        if (bytesToSkip > 0) {
+            try {
+                skipFully(inputStream!!, bytesToSkip)
+            } catch (e: IOException) {
+                 throw HttpDataSource.HttpDataSourceException.createForIOException(e, dataSpec, HttpDataSource.HttpDataSourceException.TYPE_OPEN)
             }
         }
-        return builder.build()
+        
+        opened = true
+        transferStarted(dataSpec)
+        
+        return bytesToRead
     }
 
-    private fun isYouTubeUri(uri: Uri): Boolean {
-        val host = uri.host ?: return false
-        return host.contains("youtube.com") ||
-               host.contains("googlevideo.com") ||
-               host.contains("youtubei.googleapis.com")
+    private fun skipFully(inputStream: InputStream, bytesToSkip: Long) {
+        var remaining = bytesToSkip
+        while (remaining > 0) {
+            val skipped = inputStream.skip(remaining)
+            if (skipped > 0) {
+                remaining -= skipped
+            } else {
+                // Skip returned 0 or -1, try reading a byte to see if we reached EOF
+                if (inputStream.read() == -1) {
+                    throw java.io.EOFException("End of stream reached before skipping requested bytes")
+                }
+                remaining--
+            }
+        }
     }
 
-    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
-        return dataSource?.read(buffer, offset, length) ?: -1
-    }
+    override fun read(buffer: ByteArray, offset: Int, readLength: Int): Int {
+        if (readLength == 0) return 0
+        
+        // Standard check: if we know the length and we are done, return EOF
+        val lengthUnset = C.LENGTH_UNSET.toLong()
+        if (bytesToRead != lengthUnset && bytesToRead - bytesRead == 0L) {
+            return C.RESULT_END_OF_INPUT
+        }
 
-    override fun getUri(): Uri? {
-        return dataSource?.uri ?: currentUri
-    }
+        val bytesToReadThisTime = if (bytesToRead == lengthUnset) 
+            readLength.toLong() 
+        else 
+            (bytesToRead - bytesRead).coerceAtMost(readLength.toLong())
+        
+        val bytesReadNow: Int
+        try {
+             bytesReadNow = inputStream!!.read(buffer, offset, bytesToReadThisTime.toInt())
+        } catch (e: java.net.SocketTimeoutException) {
+             // THE FIX: The 2-second timeout triggered!
+             // If we have read ANY bytes in this session, we consider this chunk "Done".
+             // We return END_OF_INPUT so ExoPlayer stitches it and requests the next chunk immediately.
+             if (bytesRead > 0) {
+                 return C.RESULT_END_OF_INPUT
+             }
+             // If we read nothing and timed out, that's a real error.
+             throw HttpDataSource.HttpDataSourceException.createForIOException(e, currentDataSpec!!, HttpDataSource.HttpDataSourceException.TYPE_READ)
+        } catch (e: IOException) {
+             // CRITICAL FIX: Handle OkHttp's strict enforcement
+             if (e is java.net.ProtocolException && e.message == "unexpected end of stream") {
+                 return C.RESULT_END_OF_INPUT
+             }
+             if (e.message?.contains("unexpected end of stream") == true) {
+                  return C.RESULT_END_OF_INPUT
+             }
+             throw HttpDataSource.HttpDataSourceException.createForIOException(e, currentDataSpec!!, HttpDataSource.HttpDataSourceException.TYPE_READ)
+        }
 
-    override fun getResponseHeaders(): MutableMap<String, MutableList<String>> {
-        return dataSource?.responseHeaders ?: mutableMapOf()
+        if (bytesReadNow == -1) {
+             // CRITICAL FIX: "Phantom Buffering" Workaround
+             return C.RESULT_END_OF_INPUT
+        }
+
+        bytesRead += bytesReadNow
+        bytesTransferred(bytesReadNow)
+        return bytesReadNow
     }
 
     override fun close() {
-        dataSource?.close()
-        dataSource = null
-        currentUri = null
+        if (opened) {
+            opened = false
+            transferEnded()
+        }
+        inputStream?.close()
+        response?.close()
+        inputStream = null
+        response = null
+        currentDataSpec = null
     }
 
-    override fun setRequestProperty(name: String, value: String) {
-        requestProperties[name] = value
-    }
-
-    override fun clearRequestProperty(name: String) {
-        requestProperties.remove(name)
-    }
-
-    override fun clearAllRequestProperties() {
-        requestProperties.clear()
-    }
-
-    override fun getResponseCode(): Int {
-        return dataSource?.responseCode ?: -1
-    }
-
-    override fun addTransferListener(transferListener: TransferListener) {
-        dataSource?.addTransferListener(transferListener)
-    }
-
-    companion object {
-        private const val DEFAULT_CONNECT_TIMEOUT_MILLIS = 5 * 1000  // Reduced from 8s to 5s for faster failure detection
-        private const val DEFAULT_READ_TIMEOUT_MILLIS = 5 * 1000     // Reduced from 8s to 5s
-    }
+    override fun getUri(): Uri? = currentDataSpec?.uri
+    
+    override fun getResponseCode(): Int = response?.code ?: -1
+    
+    override fun getResponseHeaders(): Map<String, List<String>> = response?.headers?.toMultimap() ?: emptyMap()
+    
+    override fun clearAllRequestProperties() {}
+    override fun clearRequestProperty(name: String) {}
+    override fun setRequestProperty(name: String, value: String) {}
 }

@@ -278,12 +278,11 @@ fun EnhancedVideoPlayerScreen(
     DisposableEffect(Unit) {
         onDispose {
             if (activity?.isInPictureInPictureMode == false) {
-                activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                activity?.let { act ->
-                    WindowCompat.setDecorFitsSystemWindows(act.window, true)
-                    val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
-                    insetsController?.show(WindowInsetsCompat.Type.systemBars())
-                }
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                val act = activity
+                WindowCompat.setDecorFitsSystemWindows(act.window, true)
+                val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
+                insetsController.show(WindowInsetsCompat.Type.systemBars())
             }
         }
     }
@@ -482,6 +481,7 @@ fun EnhancedVideoPlayerScreen(
                 videoStreams = videoStreams.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>(),
                 audioStreams = audioStreams,
                 subtitles = subtitles,
+                durationSeconds = streamInfo?.duration ?: 0L,
                 localFilePath = uiState.localFilePath
             )
             

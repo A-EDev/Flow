@@ -132,7 +132,7 @@ fun FlowPersonalityScreen(
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
             icon = { Icon(Icons.Default.SettingsBackupRestore, null) },
-            title = { Text("Reset Neural Profile?") },
+            title = { Text("Reset   Profile?") },
             text = { Text("This will wipe all learned preferences, long-term memory, and topic weights. Your recommendation feed will return to a generic state.") },
             confirmButton = {
                 Button(

@@ -1,154 +1,123 @@
 package com.flow.youtube.player.resolver
 
 import android.net.Uri
-import androidx.media3.common.C
-import androidx.media3.common.MediaItem
-import androidx.media3.exoplayer.dash.DashMediaSource
-import androidx.media3.exoplayer.hls.HlsMediaSource
+import android.util.Log
+import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
-import androidx.media3.exoplayer.source.ProgressiveMediaSource
-import com.flow.youtube.player.datasource.YouTubeHttpDataSource
+import org.schabi.newpipe.extractor.stream.AudioStream
+import org.schabi.newpipe.extractor.stream.DeliveryMethod
+import org.schabi.newpipe.extractor.stream.Stream
+import org.schabi.newpipe.extractor.stream.VideoStream
 
 /**
  * Specialized resolver for video playback that handles different stream types
- * and creates appropriate MediaSources.
- *
- * Based on NewPipe's VideoPlaybackResolver implementation.
+ * including generating local DASH manifests to avoid YouTube throttling.
  */
 class VideoPlaybackResolver(
-    private val youTubeHttpDataSourceFactory: YouTubeHttpDataSource.Factory
-) : PlaybackResolver {
+    private val dashDataSourceFactory: DataSource.Factory,
+    private val progressiveDataSourceFactory: DataSource.Factory
+) {
+    companion object {
+        private const val TAG = "VideoPlaybackResolver"
+    }
 
-    override fun resolve(mediaItem: MediaItem, streamInfo: Any): MediaSource? {
-        return when (determineSourceType(streamInfo)) {
-            SourceType.LIVE_STREAM -> createLiveStreamSource(mediaItem, streamInfo)
-            SourceType.VIDEO_WITH_SEPARATED_AUDIO -> createVideoWithAudioSource(mediaItem, streamInfo)
-            SourceType.VIDEO_WITH_AUDIO_OR_AUDIO_ONLY -> createVideoOrAudioOnlySource(mediaItem, streamInfo)
-            SourceType.AUDIO_ONLY -> null // Handled by AudioPlaybackResolver
-            null -> null // Cannot determine source type
+    fun resolve(
+        videoStream: VideoStream?,
+        audioStream: AudioStream?,
+        durationSeconds: Long
+    ): MediaSource? {
+        val sources = mutableListOf<MediaSource>()
+
+        if (videoStream != null) {
+            val source = createMediaSource(videoStream, durationSeconds)
+            if (source != null) {
+                sources.add(source)
+            }
         }
-    }
 
-    override fun canHandle(streamInfo: Any): Boolean {
-        return determineSourceType(streamInfo) != null
-    }
+        if (audioStream != null) {
+            val source = createMediaSource(audioStream, durationSeconds)
+            if (source != null) {
+                sources.add(source)
+            }
+        }
 
-    override fun getPriority(): Int = 100 // High priority for video
-
-    private fun determineSourceType(streamInfo: Any): SourceType? {
-        // This would be implemented based on the actual stream info structure
-        // For now, we'll use a simplified approach
         return when {
-            isLiveStream(streamInfo) -> SourceType.LIVE_STREAM
-            hasSeparatedAudio(streamInfo) -> SourceType.VIDEO_WITH_SEPARATED_AUDIO
-            hasVideoOrAudio(streamInfo) -> SourceType.VIDEO_WITH_AUDIO_OR_AUDIO_ONLY
-            else -> null
+            sources.isEmpty() -> null
+            sources.size == 1 -> sources[0]
+            else -> MergingMediaSource(true, *sources.toTypedArray())
         }
     }
 
-    private fun createLiveStreamSource(mediaItem: MediaItem, streamInfo: Any): MediaSource? {
-        val hlsUrl = extractHlsUrl(streamInfo) ?: return null
+    private fun createMediaSource(
+        stream: Stream,
+        durationSeconds: Long
+    ): MediaSource? {
+        val url = stream.content
+        if (url.isNullOrEmpty()) return null
 
-        return HlsMediaSource.Factory(youTubeHttpDataSourceFactory)
-            .setAllowChunklessPreparation(true)
-            .createMediaSource(MediaItem.Builder()
-                .setUri(hlsUrl)
-                .setMediaMetadata(mediaItem.mediaMetadata)
-                .build())
+        return try {
+            when (stream.deliveryMethod) {
+                DeliveryMethod.DASH -> createDashSource(stream, durationSeconds)
+                DeliveryMethod.PROGRESSIVE_HTTP -> createProgressiveSource(stream, durationSeconds)
+                DeliveryMethod.HLS -> createHlsSource(stream)
+                else -> createStandardProgressiveSource(stream)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error resolving stream, falling back to progressive", e)
+            createStandardProgressiveSource(stream)
+        }
     }
 
-    private fun createVideoWithAudioSource(mediaItem: MediaItem, streamInfo: Any): MediaSource? {
-        val videoSource = createVideoSource(streamInfo)
-        val audioSource = createAudioSource(streamInfo)
-
-        return if (videoSource != null && audioSource != null) {
-            MergingMediaSource(videoSource, audioSource)
+    private fun createDashSource(stream: Stream, durationSeconds: Long): MediaSource {
+        val itagItem = stream.itagItem 
+            ?: throw IllegalStateException("No ItagItem for DASH stream")
+            
+        val manifestString = ManifestGenerator.generateOtfManifest(stream, itagItem, durationSeconds)
+        
+        return if (manifestString != null) {
+            MediaSourceBuilder.buildDashSource(
+                dashDataSourceFactory, 
+                manifestString, 
+                Uri.parse(stream.content)
+            )
         } else {
-            videoSource ?: audioSource
+             // Fallback
+             createStandardProgressiveSource(stream)
         }
     }
 
-    private fun createVideoOrAudioOnlySource(mediaItem: MediaItem, streamInfo: Any): MediaSource? {
-        return createProgressiveSource(mediaItem, streamInfo)
-    }
-
-    private fun createVideoSource(streamInfo: Any): MediaSource? {
-        val videoUrl = extractVideoUrl(streamInfo) ?: return null
-        val mediaItem = MediaItem.Builder().setUri(videoUrl).build()
-
-        return when {
-            isHlsUrl(videoUrl) -> HlsMediaSource.Factory(youTubeHttpDataSourceFactory).createMediaSource(mediaItem)
-            isDashUrl(videoUrl) -> DashMediaSource.Factory(youTubeHttpDataSourceFactory).createMediaSource(mediaItem)
-            else -> ProgressiveMediaSource.Factory(youTubeHttpDataSourceFactory).createMediaSource(mediaItem)
+    @Suppress("DEPRECATION")
+    private fun createProgressiveSource(stream: Stream, durationSeconds: Long): MediaSource {
+        val itagItem = stream.itagItem
+        
+        // Try generating DASH manifest for progressive stream (better seeking/buffering)
+        if (itagItem != null) {
+            // Only use this for video-only streams or audio streams (separated)
+            val isSeparated = (stream is VideoStream && stream.isVideoOnly) || (stream is AudioStream)
+            
+            if (isSeparated) {
+                val manifestString = ManifestGenerator.generateProgressiveManifest(stream, itagItem, durationSeconds)
+                
+                if (manifestString != null) {
+                    return MediaSourceBuilder.buildDashSource(
+                        dashDataSourceFactory, // Use DASH factory for generated manifests
+                        manifestString,
+                        Uri.parse(stream.content)
+                    )
+                }
+            }
         }
+        
+        return createStandardProgressiveSource(stream)
     }
 
-    private fun createAudioSource(streamInfo: Any): MediaSource? {
-        val audioUrl = extractAudioUrl(streamInfo) ?: return null
-        val mediaItem = MediaItem.Builder().setUri(audioUrl).build()
-
-        return when {
-            isHlsUrl(audioUrl) -> HlsMediaSource.Factory(youTubeHttpDataSourceFactory).createMediaSource(mediaItem)
-            isDashUrl(audioUrl) -> DashMediaSource.Factory(youTubeHttpDataSourceFactory).createMediaSource(mediaItem)
-            else -> ProgressiveMediaSource.Factory(youTubeHttpDataSourceFactory).createMediaSource(mediaItem)
-        }
+    private fun createHlsSource(stream: Stream): MediaSource {
+        return MediaSourceBuilder.buildHlsSource(progressiveDataSourceFactory, Uri.parse(stream.content))
     }
 
-    private fun createProgressiveSource(mediaItem: MediaItem, streamInfo: Any): MediaSource? {
-        val url = extractProgressiveUrl(streamInfo) ?: return null
-        val enhancedMediaItem = MediaItem.Builder()
-            .setUri(url)
-            .setMediaMetadata(mediaItem.mediaMetadata)
-            .build()
-
-        return ProgressiveMediaSource.Factory(youTubeHttpDataSourceFactory)
-            .createMediaSource(enhancedMediaItem)
-    }
-
-    // Helper methods for stream analysis
-    private fun isLiveStream(streamInfo: Any): Boolean {
-        // Implementation would check stream info for live indicators
-        return false // Placeholder
-    }
-
-    private fun hasSeparatedAudio(streamInfo: Any): Boolean {
-        // Implementation would check if video and audio are separate streams
-        return false // Placeholder
-    }
-
-    private fun hasVideoOrAudio(streamInfo: Any): Boolean {
-        // Implementation would check for video/audio availability
-        return true // Placeholder
-    }
-
-    private fun extractHlsUrl(streamInfo: Any): Uri? {
-        // Implementation would extract HLS URL from stream info
-        return null // Placeholder
-    }
-
-    private fun extractVideoUrl(streamInfo: Any): Uri? {
-        // Implementation would extract video URL from stream info
-        return null // Placeholder
-    }
-
-    private fun extractAudioUrl(streamInfo: Any): Uri? {
-        // Implementation would extract audio URL from stream info
-        return null // Placeholder
-    }
-
-    private fun extractProgressiveUrl(streamInfo: Any): Uri? {
-        // Implementation would extract progressive stream URL from stream info
-        return null // Placeholder
-    }
-
-    private fun isHlsUrl(uri: Uri): Boolean {
-        return uri.lastPathSegment?.endsWith(".m3u8") == true ||
-               uri.toString().contains("m3u8")
-    }
-
-    private fun isDashUrl(uri: Uri): Boolean {
-        return uri.lastPathSegment?.endsWith(".mpd") == true ||
-               uri.toString().contains(".mpd")
+    private fun createStandardProgressiveSource(stream: Stream): MediaSource {
+        return MediaSourceBuilder.buildProgressiveSource(progressiveDataSourceFactory, Uri.parse(stream.content))
     }
 }

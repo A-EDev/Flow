@@ -15,6 +15,8 @@ import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.common.PlaybackException
+import androidx.media3.exoplayer.dash.DashMediaSource
+import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.exoplayer.source.SingleSampleMediaSource
@@ -30,7 +32,6 @@ import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.database.StandaloneDatabaseProvider
-import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.audio.AudioSink
@@ -38,6 +39,8 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import com.flow.youtube.service.VideoPlayerService
 import com.flow.youtube.player.datasource.YouTubeHttpDataSource
+import com.flow.youtube.player.renderer.CustomRenderersFactory
+import com.flow.youtube.player.resolver.VideoPlaybackResolver
 import com.flow.youtube.data.local.PlayerPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +55,10 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
+import okhttp3.OkHttpClient
+import okhttp3.Dispatcher
+import okhttp3.ConnectionPool
+import java.util.concurrent.TimeUnit
 
 @UnstableApi
 class EnhancedPlayerManager private constructor() {
@@ -73,7 +80,10 @@ class EnhancedPlayerManager private constructor() {
     private var bandwidthMeter: DefaultBandwidthMeter? = null
     private var databaseProvider: StandaloneDatabaseProvider? = null
     private var cache: SimpleCache? = null
-    private var sharedDataSourceFactory: DataSource.Factory? = null
+    private var sharedDataSourceFactory: DataSource.Factory? = null // Legacy/Fallback
+    private var sharedDashDataSourceFactory: DataSource.Factory? = null
+    private var sharedProgressiveDataSourceFactory: DataSource.Factory? = null
+    private var sharedHlsDataSourceFactory: DataSource.Factory? = null
     private val _playerState = MutableStateFlow(EnhancedPlayerState())
     val playerState: StateFlow<EnhancedPlayerState> = _playerState.asStateFlow()
 
@@ -91,6 +101,7 @@ class EnhancedPlayerManager private constructor() {
     private var surfaceHolder: SurfaceHolder? = null
     private var placeholderSurface: PlaceholderSurface? = null
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private var positionTrackerJob: kotlinx.coroutines.Job? = null
     var isSurfaceReady: Boolean = false
         private set
     
@@ -105,15 +116,58 @@ class EnhancedPlayerManager private constructor() {
     private var failedStreamUrls = mutableSetOf<String>()  // Track URLs that failed to parse
     private var streamErrorCount = 0  // Track consecutive errors
     private val MAX_STREAM_ERRORS = 2  // Max errors before downgrading quality
+    private var currentDurationSeconds: Long = -1 // Stored for manifest generation
     
     // Quality mode tracking
     private var isAdaptiveQualityEnabled = true  // Auto quality by default
     private var manualQualityHeight: Int? = null  // Track manually selected quality
 
-    // Buffering watchdog - DISABLED in favor of faster native ABR
-    private val bufferingHandler = android.os.Handler(android.os.Looper.getMainLooper())
-    private val bufferingRunnable = Runnable {
-        // Redundant with tuned ABR settings
+    // Buffering watchdog with smart stall detection
+    private fun startPositionTracker() {
+        positionTrackerJob?.cancel()
+        positionTrackerJob = scope.launch {
+            var lastCheckedPosition = 0L
+            var stuckCount = 0
+            
+            while (true) {
+                player?.let { p ->
+                    if (p.isPlaying || p.playbackState == Player.STATE_BUFFERING) {
+                        val bufferedPos = p.bufferedPosition
+                        val currentPos = p.currentPosition
+                        val duration = p.duration.coerceAtLeast(1)
+                        val bufferedPct = (bufferedPos.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+                        
+                        _playerState.value = _playerState.value.copy(
+                            bufferedPercentage = bufferedPct
+                        )
+                        
+                        // Smart stall detection: Only log if position hasn't moved for 2+ checks (1+ second)
+                        if (p.playbackState == Player.STATE_BUFFERING) {
+                            if (currentPos == lastCheckedPosition && p.playWhenReady) {
+                                stuckCount++
+                                // Only log if actually stuck for more than 1 second
+                                if (stuckCount >= 2) {
+                                    val bufferAhead = bufferedPos - currentPos
+                                    Log.d("FlowDebug", "STALL: Pos=${currentPos}ms | Buff=${bufferedPos}ms (+${bufferAhead}ms ahead) | StuckFor=${stuckCount * 500}ms")
+                                }
+                            } else {
+                                stuckCount = 0
+                            }
+                        } else {
+                            stuckCount = 0
+                        }
+                        
+                        lastCheckedPosition = currentPos
+                    }
+                }
+                delay(500)
+            }
+        }
+    }
+
+    private fun stopPositionTracker() {
+        positionTrackerJob?.cancel()
+        positionTrackerJob = null
     }
 
     private fun setSkipSilenceInternal(isEnabled: Boolean) {
@@ -182,52 +236,103 @@ class EnhancedPlayerManager private constructor() {
                 )
             }
 
-            // Build a shared DataSource.Factory with optional cache
-            val httpFactory = YouTubeHttpDataSource.Factory()
-                .setConnectTimeoutMs(5000)      // Faster failover
-                .setReadTimeoutMs(5000)         // Faster failover
-                .setAllowCrossProtocolRedirects(true)
-            val upstream = DefaultDataSource.Factory(context, httpFactory)
+            // Create a tuned OkHttpClient for better DASH concurrency
+            val dispatcher = Dispatcher().apply {
+                maxRequestsPerHost = 15 // YouTube needs at least 2, but background tasks can hog them
+                maxRequests = 25
+            }
+            
+            val sharedOkHttpClient = OkHttpClient.Builder()
+                .dispatcher(dispatcher)
+                .connectionPool(ConnectionPool(10, 5, TimeUnit.MINUTES))
+                .protocols(listOf(okhttp3.Protocol.HTTP_1_1))
+                .retryOnConnectionFailure(true)
+                .connectTimeout(15, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS) // Standard timeout for DASH
+                .writeTimeout(15, TimeUnit.SECONDS)
+                .build()
+
+            // Build shared DataSource Factories (NewPipe Architecture)
+            val dashHttpFactory = YouTubeHttpDataSource.Factory(sharedOkHttpClient)
+                .setRangeParameterEnabled(true)
+                .setRnParameterEnabled(true)
+            val progressiveHttpFactory = YouTubeHttpDataSource.Factory(sharedOkHttpClient)
+                .setRangeParameterEnabled(false) // Critical: No range param for progressive
+                .setRnParameterEnabled(true)
+            val hlsHttpFactory = YouTubeHttpDataSource.Factory(sharedOkHttpClient)
+                .setRangeParameterEnabled(false)
+                .setRnParameterEnabled(false)
+
+            val dashUpstream = DefaultDataSource.Factory(context, dashHttpFactory)
+            val progressiveUpstream = DefaultDataSource.Factory(context, progressiveHttpFactory)
+            val hlsUpstream = DefaultDataSource.Factory(context, hlsHttpFactory)
+            
+            // Legacy/Fallback
+            val legacyHttpFactory = YouTubeHttpDataSource.Factory(sharedOkHttpClient)
+            val upstream = DefaultDataSource.Factory(context, legacyHttpFactory)
 
             try {
                 databaseProvider = StandaloneDatabaseProvider(context)
                 val cacheDir = File(context.cacheDir, "exoplayer")
                 val evictor = LeastRecentlyUsedCacheEvictor(500L * 1024L * 1024L)
                 cache = SimpleCache(cacheDir, evictor, databaseProvider!!)
-                sharedDataSourceFactory = CacheDataSource.Factory()
+                
+                val cacheFactory = CacheDataSource.Factory()
                     .setCache(cache!!)
-                    .setUpstreamDataSourceFactory(upstream)
+                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+
+                // Create the 3 specific factories
+                sharedDashDataSourceFactory = CacheDataSource.Factory()
+                    .setCache(cache!!)
+                    .setUpstreamDataSourceFactory(dashUpstream)
+                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+                    
+                sharedProgressiveDataSourceFactory = CacheDataSource.Factory()
+                    .setCache(cache!!)
+                    .setUpstreamDataSourceFactory(progressiveUpstream)
+                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+                    
+                sharedHlsDataSourceFactory = CacheDataSource.Factory()
+                    .setCache(cache!!)
+                    .setUpstreamDataSourceFactory(hlsUpstream)
+                    .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+
+                sharedDataSourceFactory = cacheFactory.setUpstreamDataSourceFactory(upstream)
             } catch (e: Exception) {
                 Log.w("EnhancedPlayerManager", "Cache not available, using upstream only", e)
                 sharedDataSourceFactory = upstream
+                sharedDashDataSourceFactory = dashUpstream
+                sharedProgressiveDataSourceFactory = progressiveUpstream
+                sharedHlsDataSourceFactory = hlsUpstream
             }
 
             // Fetch buffer settings
             val prefs = PlayerPreferences(context)
-            val minBufferMs = kotlinx.coroutines.runBlocking { prefs.minBufferMs.first() }
-            val maxBufferMs = kotlinx.coroutines.runBlocking { prefs.maxBufferMs.first() }
-            val bufferForPlaybackMs = kotlinx.coroutines.runBlocking { prefs.bufferForPlaybackMs.first() }
-            val bufferForPlaybackAfterRebufferMs = kotlinx.coroutines.runBlocking { prefs.bufferForPlaybackAfterRebufferMs.first() }
+            // val minBufferMs = kotlinx.coroutines.runBlocking { prefs.minBufferMs.first() }
+            // val maxBufferMs = kotlinx.coroutines.runBlocking { prefs.maxBufferMs.first() }
 
             // Optimized LoadControl for buttery smooth playback with aggressive buffering
             // Optimized LoadControl for buttery smooth playback with aggressive buffering
+            // FORCE standard values for playback start/resume to prevent "Phantom Buffer" stalls
+            // We ignore user prefs for these specific values because they often cause the stall
             val loadControl = DefaultLoadControl.Builder()
                 .setAllocator(allocator)
                 .setBufferDurationsMs(
-                    minBufferMs,
-                    maxBufferMs,
-                    bufferForPlaybackMs,
-                    bufferForPlaybackAfterRebufferMs
+                    30_000, 
+                    60_000, 
+                    1000,   
+                    2000    
                 )
                 .setBackBuffer(
-                    /* backBufferDurationMs = */ 10000,  // Keep 10s behind for instant seek back
+                    /* backBufferDurationMs = */ 10000,
                     /* retainBackBufferFromKeyframe = */ true
                 )
                 .setPrioritizeTimeOverSizeThresholds(true)
+                .setTargetBufferBytes(128 * 1024 * 1024) // 128MB Heap to prevent allocator starvation
                 .build()
 
             // Create custom RenderersFactory to inject SilenceSkippingAudioProcessor and prefer extensions
-            val renderersFactory = object : DefaultRenderersFactory(context) {
+            val renderersFactory = object : CustomRenderersFactory(context) {
                 override fun buildAudioSink(
                     context: Context,
                     enableFloatOutput: Boolean,
@@ -239,7 +344,8 @@ class EnhancedPlayerManager private constructor() {
                         .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                         .build()
                 }
-            }.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER) // Prefer FFmpeg/VP9 extensions if available
+            }.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON) // Use both platform + extension renderers
+             .setEnableDecoderFallback(true) // Crucial: Allow software decoding if hardware fails
 
             player = ExoPlayer.Builder(context, renderersFactory)
                 .setTrackSelector(trackSelector!!)
@@ -257,18 +363,7 @@ class EnhancedPlayerManager private constructor() {
                 )
                 .build()
 
-            // Periodic task to update buffer percentage
-            scope.launch {
-                while (player != null) {
-                    player?.let { p ->
-                        val buffered = p.bufferedPercentage.toFloat() / 100f
-                        if (_playerState.value.bufferedPercentage != buffered) {
-                            _playerState.value = _playerState.value.copy(bufferedPercentage = buffered)
-                        }
-                    }
-                    delay(500) // Update every 500ms
-                }
-            }
+            startPositionTracker()
 
             // Reattach any preserved surface holder so the new player renders immediately
             surfaceHolder?.let { holder ->
@@ -309,12 +404,8 @@ class EnhancedPlayerManager private constructor() {
                     hasEnded = playbackState == Player.STATE_ENDED
                 )
                 
-                // Log bandwidth when buffering to help diagnose issues
                 if (playbackState == Player.STATE_BUFFERING) {
                     logBandwidthInfo()
-                    startBufferingWatchdog()
-                } else {
-                    stopBufferingWatchdog()
                 }
             }
             
@@ -572,10 +663,13 @@ class EnhancedPlayerManager private constructor() {
         videoStreams: List<VideoStream>,
         audioStreams: List<AudioStream>,
         subtitles: List<SubtitlesStream>,
+        durationSeconds: Long = -1,
         localFilePath: String? = null
     ) {
         Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.height}, local=$localFilePath)")
         resetPlaybackStateForNewVideo(videoId)
+        
+        this.currentDurationSeconds = durationSeconds
 
         currentVideoId = videoId
         // dedupe lists by url and sort
@@ -638,13 +732,13 @@ class EnhancedPlayerManager private constructor() {
         }
 
         if (localFilePath != null) {
-            loadMedia(null, audioStream, localFilePath = localFilePath)
+            loadMedia(null, audioStream, localFilePath = localFilePath, durationSeconds = durationSeconds)
         } else if (currentVideoStream != null && currentAudioStream != null) {
-            loadMedia(currentVideoStream, currentAudioStream!!)
+            loadMedia(currentVideoStream, currentAudioStream!!, durationSeconds = durationSeconds)
         } else if (currentVideoStream != null) {
-            loadMedia(currentVideoStream, currentAudioStream ?: availableAudioStreams.firstOrNull() ?: audioStream)
+            loadMedia(currentVideoStream, currentAudioStream ?: availableAudioStreams.firstOrNull() ?: audioStream, durationSeconds = durationSeconds)
         } else {
-            loadMedia(null, currentAudioStream ?: audioStream)
+            loadMedia(null, currentAudioStream ?: audioStream, durationSeconds = durationSeconds)
         }
     }
 
@@ -681,7 +775,9 @@ class EnhancedPlayerManager private constructor() {
     }
 
     @UnstableApi
-    private fun loadMedia(videoStream: VideoStream?, audioStream: AudioStream, preservePosition: Long? = null, localFilePath: String? = null) {
+    private fun loadMedia(videoStream: VideoStream?, audioStream: AudioStream, preservePosition: Long? = null, localFilePath: String? = null, durationSeconds: Long = -1) {
+        val finalDuration = if (durationSeconds > 0) durationSeconds else if (this.currentDurationSeconds > 0) this.currentDurationSeconds else 0L
+
         player?.let { exoPlayer ->
             try {
                 // CRITICAL: Reattach surface before loading (NewPipe approach)
@@ -703,11 +799,8 @@ class EnhancedPlayerManager private constructor() {
                 val dataSourceFactory = sharedDataSourceFactory
                     ?: DefaultDataSource.Factory(
                         ctx,
-                        DefaultHttpDataSource.Factory()
+                        androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(okhttp3.OkHttpClient())
                             .setUserAgent("Mozilla/5.0 (X11; Android) FlowPlayer")
-                            .setConnectTimeoutMs(7000)
-                            .setReadTimeoutMs(7000)
-                            .setAllowCrossProtocolRedirects(true)
                     )
                 
                 // Normalize lists and dedupe by resolution / bitrate / url / content
@@ -718,63 +811,26 @@ class EnhancedPlayerManager private constructor() {
                 availableAudioStreams = availableAudioStreams
                     .distinctBy { it.getContent() }
 
-                if (videoStream != null && !videoStream.getContent().isNullOrBlank()) {
-                    // If the surface is not ready yet we still build the media source so that
-                    // playback can begin buffering. The surface attach callback will hook into
-                    // the player as soon as it becomes available.
-                    if (!isSurfaceReady) {
-                        Log.w(TAG, "Surface not ready yet, preparing media and waiting for attach")
-                    }
-
-                    // Decide whether the chosen video stream already contains audio (muxed) or is video-only.
-                    val hasMuxedAudio = try {
-                        // Best-effort: try reflections to detect muxed/adaptive properties
-                        val method = videoStream::class.java.methods.firstOrNull { m ->
-                            val n = m.name.lowercase()
-                            n.contains("mux") || n.contains("hasaudio") || n.contains("isadaptive")
-                        }
-                        val r = method?.invoke(videoStream)
-                        (r as? Boolean) == true
-                    } catch (e: Exception) {
-                        false
-                    }
-                // Detect local files
-                val url = localFilePath ?: videoStream.getContent()
-                if (url.isEmpty()) {
-                    // Logic for audio-only fallback or error
+                if (!isSurfaceReady && localFilePath == null) {
+                    Log.w(TAG, "Surface not ready yet, preparing media and waiting for attach")
                 }
                 
-                val lower = url.lowercase()
-                val isLocalFile = localFilePath != null || url.startsWith("/") || url.startsWith("file://")
+                Log.d(TAG, "Resolving media with VideoPlaybackResolver for duration ${finalDuration}s")
+                val resolver = VideoPlaybackResolver(
+                    sharedDashDataSourceFactory ?: dataSourceFactory,
+                    sharedProgressiveDataSourceFactory ?: dataSourceFactory
+                )
+                val mediaSource = if (localFilePath != null) {
+                    ProgressiveMediaSource.Factory(sharedProgressiveDataSourceFactory ?: dataSourceFactory)
+                        .createMediaSource(MediaItem.fromUri(android.net.Uri.fromFile(java.io.File(localFilePath))))
+                } else {
+                    resolver.resolve(videoStream, audioStream, finalDuration)
+                }
                 
-                // Base video/audio source
-                val baseSource = if (isLocalFile) {
-                    // Local files are usually muxed (audio+video)
-                    ProgressiveMediaSource.Factory(dataSourceFactory)
-                        .createMediaSource(MediaItem.fromUri(android.net.Uri.fromFile(java.io.File(url))))
-                } else if (lower.contains(".m3u8") || lower.contains(".mpd") || lower.contains("/hls") || lower.contains("/dash")) {
-                        // Adaptive stream
-                        DefaultMediaSourceFactory(dataSourceFactory).createMediaSource(MediaItem.fromUri(url))
-                    } else if (hasMuxedAudio) {
-                        // Single progressive stream including both audio+video
-                        ProgressiveMediaSource.Factory(dataSourceFactory)
-                            .createMediaSource(MediaItem.fromUri(url))
-                    } else {
-                        // Video-only + separate audio - merge progressive sources
-                        val videoSource = ProgressiveMediaSource.Factory(dataSourceFactory)
-                            .createMediaSource(MediaItem.fromUri(url))
-
-                        val audioSrc = if (!audioStream.getContent().isNullOrBlank()) {
-                            ProgressiveMediaSource.Factory(dataSourceFactory)
-                                .createMediaSource(MediaItem.fromUri(audioStream.getContent()))
-                        } else null
-
-                        if (audioSrc != null) MergingMediaSource(videoSource, audioSrc) else videoSource
-                    }
+                if (mediaSource != null) {
+                    exoPlayer.setMediaSource(mediaSource)
                     
-                    exoPlayer.setMediaSource(baseSource)
-                    
-                    // Immediately prepare - don't wait for anything
+                    // Immediately prepare
                     exoPlayer.prepare()
                     _playerState.value = _playerState.value.copy(isPrepared = true)
                     
@@ -784,21 +840,15 @@ class EnhancedPlayerManager private constructor() {
                         Log.d("EnhancedPlayerManager", "Seeking to preserved position: ${preservePosition}ms")
                     }
                     
-                    // Auto-play immediately for faster perceived loading
+                    // Auto-play immediately
                     exoPlayer.playWhenReady = true
                     
-                    Log.d("EnhancedPlayerManager", "Media loaded successfully - auto-playing")
+                    Log.d("EnhancedPlayerManager", "Media loaded successfully via VideoPlaybackResolver")
                 } else {
-                    // Audio-only mode (for music)
-                    val audioSource = ProgressiveMediaSource.Factory(dataSourceFactory)
-                        .createMediaSource(MediaItem.fromUri(audioStream.getContent()))
-
-                    exoPlayer.setMediaSource(audioSource)
-                    exoPlayer.prepare()
-                    _playerState.value = _playerState.value.copy(isPrepared = true)
-                    exoPlayer.playWhenReady = true
-                    
-                    Log.d("EnhancedPlayerManager", "Audio loaded successfully - auto-playing")
+                    Log.e(TAG, "Failed to resolve media source - both video and audio streams invalid")
+                     _playerState.value = _playerState.value.copy(
+                        error = "Failed to load media: Invalid streams"
+                    )
                 }
             } catch (e: Exception) {
                 Log.e("EnhancedPlayerManager", "Error loading media", e)
@@ -1023,6 +1073,7 @@ class EnhancedPlayerManager private constructor() {
     fun isPlaying(): Boolean = player?.isPlaying ?: false
 
     fun stop() {
+        stopPositionTracker()
         player?.stop()
         player?.clearMediaItems()
         failedStreamUrls.clear()
@@ -1480,14 +1531,6 @@ class EnhancedPlayerManager private constructor() {
         stuckCounter = 0
     }
 
-    private fun startBufferingWatchdog() {
-        bufferingHandler.removeCallbacks(bufferingRunnable)
-        bufferingHandler.postDelayed(bufferingRunnable, 5000) // 5 seconds timeout
-    }
-
-    private fun stopBufferingWatchdog() {
-        bufferingHandler.removeCallbacks(bufferingRunnable)
-    }
 
     private fun downgradeQualityDueToBandwidth() {
         if (!isAdaptiveQualityEnabled) return
@@ -1516,9 +1559,6 @@ class EnhancedPlayerManager private constructor() {
             _playerState.value = _playerState.value.copy(
                 effectiveQuality = lowerQualityStream.height
             )
-            
-            // Restart watchdog in case this one is also too slow
-            startBufferingWatchdog()
         } else {
             Log.w(TAG, "Bandwidth adaptation: No lower quality available")
         }
