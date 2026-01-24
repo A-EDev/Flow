@@ -9,9 +9,12 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-private val Context.likedVideosDataStore: DataStore<Preferences> by preferencesDataStore(name = "liked_videos")
+internal val Context.likedVideosDataStore: DataStore<Preferences> by preferencesDataStore(name = "liked_videos")
 
-class LikedVideosRepository private constructor(private val context: Context) {
+class LikedVideosRepository private constructor(
+    private val context: Context,
+    private val dataStore: DataStore<Preferences>
+) {
     
     companion object {
         @Volatile
@@ -19,7 +22,10 @@ class LikedVideosRepository private constructor(private val context: Context) {
         
         fun getInstance(context: Context): LikedVideosRepository {
             return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: LikedVideosRepository(context.applicationContext).also { INSTANCE = it }
+                INSTANCE ?: LikedVideosRepository(
+                    context.applicationContext,
+                    context.likedVideosDataStore
+                ).also { INSTANCE = it }
             }
         }
         
@@ -33,7 +39,7 @@ class LikedVideosRepository private constructor(private val context: Context) {
      * Like a video
      */
     suspend fun likeVideo(videoInfo: LikedVideoInfo) {
-        context.likedVideosDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             // Save video data
             preferences[videoKey(videoInfo.videoId)] = serializeVideo(videoInfo)
             preferences[likeStateKey(videoInfo.videoId)] = "LIKED"
@@ -57,25 +63,8 @@ class LikedVideosRepository private constructor(private val context: Context) {
      * Dislike a video (removes like if exists)
      */
     suspend fun dislikeVideo(videoId: String) {
-        context.likedVideosDataStore.edit { preferences ->
+        dataStore.edit { preferences ->
             preferences[likeStateKey(videoId)] = "DISLIKED"
-            
-            // Remove from liked videos list
-            val currentOrder = preferences[stringPreferencesKey(LIKED_VIDEOS_ORDER_KEY)] ?: ""
-            if (currentOrder.isNotEmpty()) {
-                val orderList = currentOrder.split(",").toMutableList()
-                orderList.remove(videoId)
-                preferences[stringPreferencesKey(LIKED_VIDEOS_ORDER_KEY)] = orderList.joinToString(",")
-            }
-        }
-    }
-    
-    /**
-     * Remove like/dislike from a video
-     */
-    suspend fun removeLikeState(videoId: String) {
-        context.likedVideosDataStore.edit { preferences ->
-            preferences.remove(likeStateKey(videoId))
             
             // Remove from liked videos list
             val currentOrder = preferences[stringPreferencesKey(LIKED_VIDEOS_ORDER_KEY)] ?: ""
@@ -91,8 +80,25 @@ class LikedVideosRepository private constructor(private val context: Context) {
      * Get like state for a video (LIKED, DISLIKED, or null)
      */
     fun getLikeState(videoId: String): Flow<String?> {
-        return context.likedVideosDataStore.data.map { preferences ->
+        return dataStore.data.map { preferences ->
             preferences[likeStateKey(videoId)]
+        }
+    }
+    
+    /**
+     * Remove like/dislike from a video
+     */
+    suspend fun removeLikeState(videoId: String) {
+        dataStore.edit { preferences ->
+            preferences.remove(likeStateKey(videoId))
+            
+            // Remove from liked videos list
+            val currentOrder = preferences[stringPreferencesKey(LIKED_VIDEOS_ORDER_KEY)] ?: ""
+            if (currentOrder.isNotEmpty()) {
+                val orderList = currentOrder.split(",").toMutableList()
+                orderList.remove(videoId)
+                preferences[stringPreferencesKey(LIKED_VIDEOS_ORDER_KEY)] = orderList.joinToString(",")
+            }
         }
     }
     
@@ -100,7 +106,7 @@ class LikedVideosRepository private constructor(private val context: Context) {
      * Get all liked videos (mixed)
      */
     fun getAllLikedVideos(): Flow<List<LikedVideoInfo>> {
-        return context.likedVideosDataStore.data.map { preferences ->
+        return dataStore.data.map { preferences ->
             val orderString = preferences[stringPreferencesKey(LIKED_VIDEOS_ORDER_KEY)] ?: ""
             if (orderString.isEmpty()) {
                 emptyList()

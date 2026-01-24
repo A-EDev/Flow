@@ -200,7 +200,7 @@ class ShortsRepository private constructor(private val context: Context) {
     /**
      * Fetch shorts using a specific search query
      */
-    private suspend fun fetchShortsWithQuery(query: String): List<Video> = withContext(Dispatchers.IO) {
+    internal suspend fun fetchShortsWithQuery(query: String): List<Video> = withContext(Dispatchers.IO) {
         try {
             val (videos, _) = youtubeRepository.searchVideos(query)
             videos
@@ -215,7 +215,7 @@ class ShortsRepository private constructor(private val context: Context) {
     /**
      * Shuffle shorts deterministically based on session ID
      */
-    private fun shuffleForSession(shorts: List<Video>, sessionId: Long): List<Video> {
+    internal fun shuffleForSession(shorts: List<Video>, sessionId: Long): List<Video> {
         val random = Random(sessionId)
         return shorts.shuffled(random)
     }
