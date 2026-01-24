@@ -72,29 +72,36 @@ fun DownloadQualityDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.heightIn(max = 400.dp)
                 ) {
-                    items(uiState.availableQualities.filter { it != VideoQuality.AUTO }.sortedByDescending { it.height }) { quality ->
-                        val stream = (uiState.streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList()).find { it.height == quality.height }
-                            ?: (uiState.streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList()).find { it.height == quality.height }
-                        
-                        val sizeInBytes = uiState.streamSizes[quality.height]
-                        val formatName = stream?.format?.name ?: "MP4"
+                    val allStreams = (uiState.streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList()) +
+                                   (uiState.streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList())
+                    
+                    val distinctStreams = allStreams.distinctBy { it.height }.sortedByDescending { it.height }
+                    
+                    if (distinctStreams.isEmpty()) {
+                         item {
+                             Text("No download streams available", modifier = Modifier.padding(16.dp))
+                         }
+                    }
+
+                    items(distinctStreams) { stream ->
+                        val qualityLabel = "${stream.height}p"
+                        val sizeInBytes = uiState.streamSizes[stream.height]
+                        val formatName = stream.format?.name ?: "MP4"
                         
                         val sizeText = if (sizeInBytes != null && sizeInBytes > 0) {
                             val mb = sizeInBytes / (1024 * 1024.0)
                             "$formatName • ${String.format("%.1f MB", mb)}"
                         } else {
-                            "$formatName • ${quality.label}"
+                            "$formatName • $qualityLabel"
                         }
 
                         Surface(
                             onClick = {
                                 onDismiss()
-                                val downloadUrl = stream?.url
+                                val downloadUrl = stream.url
                                 if (downloadUrl != null) {
-                                    VideoPlayerUtils.startDownload(context, video, downloadUrl, quality.label)
-                                    Toast.makeText(context, "Downloading ${quality.label}...", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Quality ${quality.label} not available for download", Toast.LENGTH_SHORT).show()
+                                    VideoPlayerUtils.startDownload(context, video, downloadUrl, qualityLabel)
+                                    Toast.makeText(context, "Downloading $qualityLabel...", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             shape = RoundedCornerShape(16.dp),
@@ -128,7 +135,7 @@ fun DownloadQualityDialog(
                                 
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = quality.label,
+                                        text = qualityLabel,
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold
                                     )
@@ -139,7 +146,7 @@ fun DownloadQualityDialog(
                                     )
                                 }
                                 
-                                if (quality.height >= 1080) {
+                                if (stream.height >= 1080) {
                                     Surface(
                                         color = MaterialTheme.colorScheme.primary,
                                         shape = RoundedCornerShape(4.dp)

@@ -78,6 +78,14 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback">
         </service>
+
+        <!-- Flow Parallel Download Service -->
+        <service
+            android:name=".data.video.downloader.FlowDownloadService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="dataSync">
+        </service>
         
         <!-- Media button receiver -->
         <receiver android:name="androidx.media.session.MediaButtonReceiver"

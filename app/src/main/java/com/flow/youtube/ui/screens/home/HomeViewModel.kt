@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import com.flow.youtube.data.local.SubscriptionRepository
+import com.flow.youtube.data.local.ViewHistory
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.recommendation.RecommendationRepository
 import com.flow.youtube.data.recommendation.RecommendationWorker
@@ -45,6 +46,12 @@ class HomeViewModel @Inject constructor(
     private var currentQueryIndex = 0
     private val discoveryQueries = mutableListOf<String>()
     
+    // NEW: ViewHistory for recursive related videos (Strategy 3)
+    private var viewHistory: ViewHistory? = null
+    
+    // NEW: Session fatigue tracking - tracks primary topics of recently displayed videos
+    private val sessionWatchedTopics = mutableListOf<String>()
+    
     init {
         // Load the intelligent feed immediately on startup
         loadFlowFeed(forceRefresh = true)
@@ -58,6 +65,9 @@ class HomeViewModel @Inject constructor(
     fun initialize(context: Context) {
         if (isInitialized) return
         isInitialized = true
+        
+        // Initialize ViewHistory for recursive related videos
+        viewHistory = ViewHistory.getInstance(context)
         
         viewModelScope.launch {
             FlowNeuroEngine.initialize(context)
@@ -108,6 +118,12 @@ class HomeViewModel @Inject constructor(
     /**
      * MAIN FEED LOADER (The Smart Algo)
      * Uses "Parallel Fetch" to create a massive initial pool (~60-100 videos)
+     * 
+     * Now includes:
+     * - Bridge queries (topic combinations)
+     * - Persona-based suffixes
+     * - Anti-gravity exploration
+     * - Recursive related videos from watch history (Strategy 3)
      */
     fun loadFlowFeed(forceRefresh: Boolean = false) {
         if (_uiState.value.isLoading && !forceRefresh) return
@@ -116,7 +132,7 @@ class HomeViewModel @Inject constructor(
         
         viewModelScope.launch {
             try {
-                // 1. Generate Brain Queries
+                // 1. Generate Brain Queries (now includes Bridge, Persona, Anti-Gravity)
                 discoveryQueries.clear()
                 discoveryQueries.addAll(FlowNeuroEngine.generateDiscoveryQueries())
                 currentQueryIndex = 0
@@ -125,7 +141,7 @@ class HomeViewModel @Inject constructor(
                 val region = "US" // Default to US for broader trending, or use user pref
 
                 // 2. PARALLEL FETCH (The "Wall of Content")
-                // We launch 4 async tasks to get content from everywhere at once.
+                // We launch multiple async tasks to get content from everywhere at once.
                 
                 val deferredSubs = async { 
                     try {
@@ -159,29 +175,49 @@ class HomeViewModel @Inject constructor(
                              .filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
                     } catch (e: Exception) { emptyList() }
                 }
+                
+                // ============================================================
+                // STRATEGY 3: RECURSIVE RELATED VIDEOS (The "Infinite Content" Booster)
+                // Fetch related videos from the user's watch history
+                // ============================================================
+                val deferredRelated = async {
+                    try {
+                        val history = viewHistory?.getAllHistory()?.first() ?: emptyList()
+                        if (history.isNotEmpty()) {
+                            // Get related videos from the most recently watched video
+                            val lastWatchedId = history.first().videoId
+                            repository.getRelatedVideos(lastWatchedId)
+                                .filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
+                                .take(15) // Limit to prevent overloading
+                        } else emptyList()
+                    } catch (e: Exception) { emptyList() }
+                }
 
                 // 3. Await All
                 val subsVideos = deferredSubs.await()
                 val q1Videos = deferredQ1.await()
                 val q2Videos = deferredQ2.await()
                 val trendingVideos = deferredTrending.await()
-                
-                // Keep shorts separate if we picked any up (trending usually returns mixed)
-                // Note: Our filters above tried to strip shorts, but let's be safe.
+                val relatedVideos = deferredRelated.await()
                 
                 // Bump index since we used 0 and 1
                 currentQueryIndex = 2
                 
-                val rawPool = (subsVideos + q1Videos + q2Videos + trendingVideos).distinctBy { it.id }
+                // Combine ALL sources including recursive related videos
+                val rawPool = (subsVideos + q1Videos + q2Videos + trendingVideos + relatedVideos).distinctBy { it.id }
                 
                 if (rawPool.isEmpty()) {
                     loadTrendingFallback()
                     return@launch
                 }
                 
-                // 4. RANKING
-                // The Neuro Engine will handle diversity internally now.
-                val rankedVideos = FlowNeuroEngine.rank(rawPool, userSubs)
+                // 4. RANKING with session fatigue
+                // Pass recently watched topics to prevent repetition
+                val rankedVideos = FlowNeuroEngine.rank(
+                    candidates = rawPool, 
+                    userSubs = userSubs,
+                    lastWatchedTopics = sessionWatchedTopics.takeLast(10)
+                )
                 
                 // 5. UPDATE UI
                 _uiState.update { it.copy(

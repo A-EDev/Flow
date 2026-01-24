@@ -392,7 +392,8 @@ fun FlowApp(
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToAppearance = { navController.navigate("settings/appearance") },
                         onNavigateToDonations = { navController.navigate("donations") },
-                        onNavigateToPersonality = { navController.navigate("personality") }
+                        onNavigateToPersonality = { navController.navigate("personality") },
+                        onNavigateToDownloads = { navController.navigate("settings/downloads") }
                     )
                 }
 
@@ -402,6 +403,14 @@ fun FlowApp(
                     com.flow.youtube.ui.screens.settings.AppearanceScreen(
                         currentTheme = currentTheme,
                         onThemeChange = onThemeChange,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable("settings/downloads") {
+                    currentRoute.value = "settings/downloads"
+                    showBottomNav = false
+                    com.flow.youtube.ui.screens.settings.DownloadSettingsScreen(
                         onNavigateBack = { navController.popBackStack() }
                     )
                 }

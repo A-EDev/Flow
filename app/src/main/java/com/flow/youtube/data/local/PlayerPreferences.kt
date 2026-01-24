@@ -30,8 +30,14 @@ class PlayerPreferences(private val context: Context) {
         val BUFFER_FOR_PLAYBACK_MS = intPreferencesKey("buffer_for_playback_ms")
         val BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = intPreferencesKey("buffer_for_playback_after_rebuffer_ms")
         
-        // Profiles
+        // Buffer profiles
         val BUFFER_PROFILE = stringPreferencesKey("buffer_profile")
+        
+        // Download settings
+        val DOWNLOAD_THREADS = intPreferencesKey("download_threads")
+        val PARALLEL_DOWNLOAD_ENABLED = booleanPreferencesKey("parallel_download_enabled")
+        val DOWNLOAD_OVER_WIFI_ONLY = booleanPreferencesKey("download_over_wifi_only")
+        val DEFAULT_DOWNLOAD_QUALITY = stringPreferencesKey("default_download_quality")
     }
     
     // Region preference
@@ -224,6 +230,52 @@ class PlayerPreferences(private val context: Context) {
                 preferences[Keys.BUFFER_FOR_PLAYBACK_MS] = profile.playbackBuffer
                 preferences[Keys.BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS] = profile.rebufferBuffer
             }
+        }
+    }
+
+    
+    // Download Preferences
+    val downloadThreads: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.DOWNLOAD_THREADS] ?: 3
+        }
+
+    suspend fun setDownloadThreads(threads: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DOWNLOAD_THREADS] = threads
+        }
+    }
+
+    val parallelDownloadEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.PARALLEL_DOWNLOAD_ENABLED] ?: true
+        }
+
+    suspend fun setParallelDownloadEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PARALLEL_DOWNLOAD_ENABLED] = enabled
+        }
+    }
+
+    val downloadOverWifiOnly: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.DOWNLOAD_OVER_WIFI_ONLY] ?: false
+        }
+
+    suspend fun setDownloadOverWifiOnly(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DOWNLOAD_OVER_WIFI_ONLY] = enabled
+        }
+    }
+
+    val defaultDownloadQuality: Flow<VideoQuality> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            VideoQuality.fromString(preferences[Keys.DEFAULT_DOWNLOAD_QUALITY] ?: "720p")
+        }
+
+    suspend fun setDefaultDownloadQuality(quality: VideoQuality) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DEFAULT_DOWNLOAD_QUALITY] = quality.label
         }
     }
 }

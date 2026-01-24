@@ -53,6 +53,7 @@ fun SettingsScreen(
     onNavigateToAppearance: () -> Unit,
     onNavigateToDonations: () -> Unit,
     onNavigateToPersonality: () -> Unit,
+    onNavigateToDownloads: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -349,6 +350,21 @@ item {
                     subtitle = formatThemeName(currentTheme),
                     onClick = onNavigateToAppearance
                 )
+            }
+
+            // =================================================
+            // DOWNLOADS
+            // =================================================
+            item { SectionHeader(text = "Downloads") }
+            item {
+                SettingsGroup {
+                    SettingsItem(
+                        icon = Icons.Outlined.Download,
+                        title = "Download Settings",
+                        subtitle = "Performance, Storage, Threads",
+                        onClick = onNavigateToDownloads
+                    )
+                }
             }
 
             // =================================================
@@ -979,7 +995,7 @@ private fun formatThemeName(theme: ThemeMode): String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsItem(
+fun SettingsItem(
     icon: ImageVector,
     title: String,
     subtitle: String,
@@ -1008,7 +1024,7 @@ private fun SettingsItem(
 }
 
 @Composable
-private fun SettingsSwitchItem(
+fun SettingsSwitchItem(
     icon: ImageVector,
     title: String,
     subtitle: String?,

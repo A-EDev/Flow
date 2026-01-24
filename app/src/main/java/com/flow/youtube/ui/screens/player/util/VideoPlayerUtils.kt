@@ -27,34 +27,17 @@ object VideoPlayerUtils {
             val extension = "mp4"
             val fileName = "${video.title}_$qualityLabel.$extension".replace(Regex("[^a-zA-Z0-9\\s.-]"), "_")
             
-            val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
-                .setTitle(video.title)
-                .setDescription("Downloading video...")
-                .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_MOVIES, fileName)
-                .setAllowedOverMetered(true)
-                .setAllowedOverRoaming(true)
+            // Start the optimized parallel download service
+            com.flow.youtube.data.video.downloader.FlowDownloadService.startDownload(
+                context, 
+                video, 
+                url, 
+                qualityLabel
+            )
             
-            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
-            val downloadId = downloadManager.enqueue(request)
-            
-            // Save metadata for the Downloads screen
-            val filePath = File(android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_MOVIES), fileName).absolutePath
-            
-            // Use a coroutine scope to save metadata
-            val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
-            scope.launch {
-                VideoDownloadManager.getInstance(context).saveDownloadedVideo(
-                    DownloadedVideo(
-                        video = video,
-                        filePath = filePath,
-                        downloadId = downloadId,
-                        quality = qualityLabel
-                    )
-                )
-            }
+            Toast.makeText(context, "Started high-speed download: ${video.title}", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Toast.makeText(context, "Download failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Download failedTo start: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 }

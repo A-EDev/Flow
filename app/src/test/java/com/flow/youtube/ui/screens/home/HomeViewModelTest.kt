@@ -42,7 +42,7 @@ class HomeViewModelTest {
         
         // Mock default behaviors
         coEvery { FlowNeuroEngine.generateDiscoveryQueries() } returns listOf("test")
-        coEvery { FlowNeuroEngine.rank(any(), any()) } answers { it.invocation.args[0] as List<Video> }
+        coEvery { FlowNeuroEngine.rank(any(), any(), any()) } answers { it.invocation.args[0] as List<Video> }
         every { RecommendationWorker.schedulePeriodicRefresh(any()) } just Runs
         
         coEvery { shortsRepository.getHomeFeedShorts() } returns emptyList()

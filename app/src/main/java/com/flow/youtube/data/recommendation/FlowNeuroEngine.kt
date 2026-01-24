@@ -27,10 +27,16 @@ import java.io.File
 import kotlin.math.*
 
 /**
- * 🧠 Flow Neuro Engine (V3 Final - Aggressive - Thread Safe)
+ * 🧠 Flow Neuro Engine (V4 - Balanced & Thread Safe)
  * 
  * A Client-Side Hybrid Recommendation System.
  * Combines Vector Space Models (Learning) with Heuristic Rules (Reliability).
+ * 
+ * V4 Changes:
+ * - Fixed "Echo Chamber" issue with diminishing returns (saturation penalty)
+ * - Added session-based fatigue penalty for topic variety
+ * - Normalized feature vectors for proper cosine similarity
+ * - Moved file I/O to IO dispatcher for UI smoothness
  */
 object FlowNeuroEngine {
 
@@ -92,17 +98,40 @@ object FlowNeuroEngine {
     /**
      * 🕵️‍♂️ NEURO-SEARCH: Generates search queries based on user interests.
      * The App should use these to fetch "For You" content from the network.
+     * 
+     * V4: Enhanced with Bridge, Persona Suffix, and Anti-Gravity strategies
+     * for infinite content discovery.
      */
     suspend fun generateDiscoveryQueries(): List<String> = brainMutex.withLock {
         val interests = currentUserBrain.globalVector.topics
+        val queries = mutableListOf<String>()
         
-        // 1. Get Top 5 interests
-        val topInterests = interests.entries
+        // ==============================================================
+        // 1. BRIDGE METHOD: Combine top topics for niche discovery
+        // ==============================================================
+        val sortedInterests = interests.entries
             .sortedByDescending { it.value }
-            .take(5)
+            .take(6)
             .map { it.key }
         
-        // 2. Get 1 "Spike" interest (Time Context obsession)
+        // Strategy A: Direct Interest (Top 2)
+        queries.addAll(sortedInterests.take(2))
+        
+        // Strategy B: "Bridge" Queries - Combine interests for niches
+        if (sortedInterests.size >= 3) {
+            // Combine #0 + #1 (e.g., "Coding" + "Music" -> "Coding Music")
+            queries.add("${sortedInterests[0]} ${sortedInterests[1]}")
+            // Combine #0 + #2 (e.g., "Coding" + "Tutorial")
+            queries.add("${sortedInterests[0]} ${sortedInterests[2]}")
+            // Combine #1 + #2 for more variety
+            queries.add("${sortedInterests[1]} ${sortedInterests[2]}")
+        } else if (sortedInterests.size >= 2) {
+            queries.add("${sortedInterests[0]} ${sortedInterests[1]}")
+        }
+
+        // ==============================================================
+        // 2. TIME CONTEXT: The "Obsession" (what you like RIGHT NOW)
+        // ==============================================================
         val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         val currentBucket = when (hour) {
              in 6..11 -> currentUserBrain.morningVector
@@ -112,21 +141,33 @@ object FlowNeuroEngine {
         }
         val obsession = currentBucket.topics.entries
             .maxByOrNull { it.value }?.key
-
-        val queries = mutableListOf<String>()
-
-        // Strategy A: Direct Interest
-        queries.addAll(topInterests.take(2))
-
-        // Strategy B: "Mixer"
-        if (topInterests.size >= 2) {
-            queries.add("${topInterests[0]} ${topInterests[1]}")
-        }
-
-        // Strategy C: The Obsession
         obsession?.let { queries.add(it) }
 
-        // Strategy D: Wildcard
+        // ==============================================================
+        // 3. PERSONA SUFFIX: Format-based queries tied to user behavior
+        // ==============================================================
+        val persona = getPersona(currentUserBrain)
+        val suffix = when(persona) {
+            FlowPersona.DEEP_DIVER -> "documentary"
+            FlowPersona.SCHOLAR -> "analysis explained"
+            FlowPersona.AUDIOPHILE -> "playlist mix"
+            FlowPersona.LIVEWIRE -> "live stream"
+            FlowPersona.BINGER -> "full movie"
+            FlowPersona.SKIMMER -> "shorts compilation"
+            else -> null
+        }
+        if (suffix != null && sortedInterests.isNotEmpty()) {
+            queries.add("${sortedInterests[0]} $suffix")
+        }
+
+        // ==============================================================
+        // 4. ANTI-GRAVITY: Exploration of untouched categories
+        // ==============================================================
+        getExplorationQuery(currentUserBrain)?.let { queries.add(it) }
+
+        // ==============================================================
+        // 5. FALLBACK for cold start
+        // ==============================================================
         if (queries.isEmpty()) {
             return@withLock listOf("New Trending", "Music", "Gaming", "Technology", "Science") 
         }
@@ -136,10 +177,15 @@ object FlowNeuroEngine {
 
     /**
      * MAIN FUNCTION: Rank videos based on User Brain + Random Jitter
+     * 
+     * @param candidates List of videos to rank
+     * @param userSubs Set of channel IDs the user is subscribed to
+     * @param lastWatchedTopics List of primary topics from recently watched videos (for session fatigue)
      */
     suspend fun rank(
         candidates: List<Video>,
-        userSubs: Set<String>
+        userSubs: Set<String>,
+        lastWatchedTopics: List<String> = emptyList()
     ): List<Video> = withContext(Dispatchers.Default) {
         if (candidates.isEmpty()) return@withContext emptyList()
 
@@ -183,6 +229,18 @@ object FlowNeuroEngine {
             val boredomPenalty = if (brain.channelScores.containsKey(video.channelId) && channelClickRate < 0.2) 0.5 else 1.0
             
             totalScore *= boredomPenalty
+
+            // 🧠 SESSION FATIGUE PENALTY (New in V4)
+            // If the user JUST watched this topic, temporarily lower its score
+            // This allows the "Personality" (long term) to surface other interests
+            val videoPrimaryTopic = videoVector.topics.maxByOrNull { it.value }?.key ?: ""
+            val fatigueMultiplier = when {
+                videoPrimaryTopic.isEmpty() -> 1.0
+                lastWatchedTopics.count { it == videoPrimaryTopic } >= 3 -> 0.4 // Heavy repetition
+                lastWatchedTopics.contains(videoPrimaryTopic) -> 0.7 // Some repetition
+                else -> 1.0
+            }
+            totalScore *= fatigueMultiplier
 
             // Jitter for Cold Start
             val jitter = if (brain.totalInteractions < 50) random.nextDouble() * 0.2 else random.nextDouble() * 0.02
@@ -261,6 +319,12 @@ object FlowNeuroEngine {
      * Extracts features from a video into a ContentVector.
      * Uses Bigram tokenization for better context understanding.
      */
+    /**
+     * Extracts features from a video into a ContentVector.
+     * Uses Bigram tokenization for better context understanding.
+     * 
+     * V4: Now normalizes the topic vector to unit length for proper cosine similarity.
+     */
     private fun extractFeatures(video: Video): ContentVector {
         val topics = mutableMapOf<String, Double>()
         
@@ -275,12 +339,12 @@ object FlowNeuroEngine {
         val titleWords = tokenize(video.title)
         val chWords = tokenize(video.channelName)
         
-        // 1. Channel Weight (High trust)
-        chWords.forEach { word -> topics[word] = 2.0 }
+        // 1. Channel Weight (Reduced from 2.0 to 1.0 for normalization safety)
+        chWords.forEach { word -> topics[word] = 1.0 }
         
         // 2. Title Keywords
         titleWords.forEach { word -> 
-            topics[word] = (topics.getOrDefault(word, 0.0) + 1.0)
+            topics[word] = (topics.getOrDefault(word, 0.0) + 0.5)
         }
 
         // 3. Bigram Extraction (Context)
@@ -288,11 +352,23 @@ object FlowNeuroEngine {
         if (titleWords.size >= 2) {
             for (i in 0 until titleWords.size - 1) {
                 val bigram = "${titleWords[i]} ${titleWords[i+1]}"
-                topics[bigram] = 1.5 
+                topics[bigram] = 0.75
             }
         }
         
-        // 4. Heuristics
+        // 4. NORMALIZE VECTOR (Crucial for proper cosine similarity - V4 fix)
+        // Ensure the vector magnitude is 1.0 so it doesn't overpower the User Brain
+        val normalizedTopics = if (topics.isNotEmpty()) {
+            var magnitude = 0.0
+            topics.values.forEach { magnitude += it * it }
+            magnitude = sqrt(magnitude)
+            
+            if (magnitude > 0) {
+                topics.mapValues { (_, v) -> v / magnitude }
+            } else topics
+        } else topics
+        
+        // 5. Heuristics
         val durationSec = if (video.duration > 0) video.duration else if (video.isLive) 3600 else 300
         val durationScore = (durationSec / 1200.0).coerceIn(0.0, 1.0) // 20 mins = 1.0
         val pacingScore = 1.0 - durationScore
@@ -300,7 +376,7 @@ object FlowNeuroEngine {
         val liveScore = if (video.isLive) 1.0 else 0.0
         
         return ContentVector(
-            topics = topics,
+            topics = normalizedTopics,
             duration = durationScore,
             pacing = pacingScore,
             complexity = complexityScore,
@@ -333,31 +409,58 @@ object FlowNeuroEngine {
         return if (magA > 0 && magB > 0) dotProduct / (sqrt(magA) * sqrt(magB)) else 0.0
     }
 
-    private fun adjustVector(current: ContentVector, target: ContentVector, rate: Double): ContentVector {
+    /**
+     * Adjusts the current vector towards the target vector.
+     * 
+     * V4 FIX: Implements DIMINISHING RETURNS (Sigmoid Saturation)
+     * The higher a score already is, the harder it is to increase further.
+     * This prevents the "Echo Chamber" effect where 3 likes dominate the entire profile.
+     */
+    private fun adjustVector(current: ContentVector, target: ContentVector, baseRate: Double): ContentVector {
         val newTopics = current.topics.toMutableMap()
         
-        // 1. Move towards target
+        // 1. Move towards target with Diminishing Returns
         target.topics.forEach { (key, targetVal) ->
             val currentVal = newTopics[key] ?: 0.0
-            newTopics[key] = (currentVal + (targetVal - currentVal) * rate).coerceIn(0.0, 1.0)
+            
+            // V4 FIX: Calculate dynamic rate based on saturation
+            // If currentVal is already high (0.8), effective rate drops significantly
+            // saturationPenalty approaches 0 as currentVal approaches 1
+            val saturationPenalty = (1.0 - currentVal).pow(2)
+            val effectiveRate = baseRate * saturationPenalty
+            
+            // Apply update with diminishing returns
+            val delta = (targetVal - currentVal) * effectiveRate
+            newTopics[key] = (currentVal + delta).coerceIn(0.0, 1.0)
         }
         
-        // 2. Decay logic
-        val decay = if (rate > 0) 0.98 else 1.0
-        if (decay < 1.0) {
-            val iterator = newTopics.iterator()
-            while (iterator.hasNext()) {
-                val entry = iterator.next()
+        // 2. Aggressive Decay for Non-Relevant Topics (The "Clean-up")
+        // If we are boosting "Cats", we must slightly punish "Cars" to keep the vector normalized
+        val decay = if (baseRate > 0) 0.97 else 1.0 // Increased decay from 0.98 to 0.97
+        
+        val iterator = newTopics.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            
+            // Don't decay the topics we just boosted
+            if (!target.topics.containsKey(entry.key)) {
                 entry.setValue(entry.value * decay)
-                if (entry.value < 0.05) iterator.remove()
             }
+            
+            // Remove very low scores to prevent vector bloat
+            if (entry.value < 0.05) iterator.remove()
         }
 
+        // Apply diminishing returns to scalar values too
+        val durationSaturation = (1.0 - current.duration).pow(2)
+        val pacingSaturation = (1.0 - current.pacing).pow(2)
+        val complexitySaturation = (1.0 - current.complexity).pow(2)
+
         return current.copy(
-            topics = newTopics, // It's a copy, safe to be immutable now
-            duration = current.duration + (target.duration - current.duration) * rate,
-            pacing = current.pacing + (target.pacing - current.pacing) * rate,
-            complexity = current.complexity + (target.complexity - current.complexity) * rate
+            topics = newTopics,
+            duration = current.duration + (target.duration - current.duration) * baseRate * durationSaturation,
+            pacing = current.pacing + (target.pacing - current.pacing) * baseRate * pacingSaturation,
+            complexity = current.complexity + (target.complexity - current.complexity) * baseRate * complexitySaturation
         )
     }
 
@@ -403,7 +506,11 @@ object FlowNeuroEngine {
     // 4. STORAGE
     // =================================================
 
-    private fun saveBrain(context: Context) {
+    /**
+     * V4: File I/O now runs on IO dispatcher to prevent UI jank
+     * as the brain grows larger with more topics.
+     */
+    private suspend fun saveBrain(context: Context) = withContext(Dispatchers.IO) {
         try {
             val json = JSONObject()
             json.put("morning", vectorToJson(currentUserBrain.morningVector))
@@ -425,10 +532,13 @@ object FlowNeuroEngine {
         }
     }
 
-    private fun loadBrain(context: Context) {
+    /**
+     * V4: File I/O now runs on IO dispatcher to prevent UI jank at startup.
+     */
+    private suspend fun loadBrain(context: Context) = withContext(Dispatchers.IO) {
         try {
             val file = File(context.filesDir, BRAIN_FILENAME)
-            if (!file.exists()) return
+            if (!file.exists()) return@withContext
             
             val json = JSONObject(file.readText())
             
@@ -443,7 +553,7 @@ object FlowNeuroEngine {
             val hasOldData = json.has("longTerm") && !json.has("global")
             
             val globalVec = if (hasOldData) {
-                Log.i(TAG, "Migrating Legacy Brain to V3...")
+                Log.i(TAG, "Migrating Legacy Brain to V4...")
                 jsonToVector(json.getJSONObject("longTerm"))
             } else {
                 jsonToVector(json.optJSONObject("global") ?: JSONObject())
@@ -577,9 +687,56 @@ object FlowNeuroEngine {
         }
     }
 
+    // =================================================
+    // 6. ANTI-GRAVITY EXPLORATION ENGINE
+    // =================================================
+
+    /**
+     * Macro categories for exploration.
+     * These are high-level topics to test when the user hasn't engaged with them.
+     */
+    private val MACRO_CATEGORIES = listOf(
+        "Technology", "Travel", "Cooking", "History", "Art", "Fitness",
+        "Comedy", "DIY", "Space", "Psychology", "Cinema", "Nature",
+        "Photography", "Philosophy", "Economics", "Sports", "Fashion",
+        "Architecture", "Music", "Science", "Cars", "Gadgets", "Anime"
+    )
+
+    /**
+     * Finds a macro category the user has low or zero interaction with.
+     * This breaks the echo chamber by deliberately exploring new areas.
+     */
+    private fun getExplorationQuery(brain: UserBrain): String? {
+        // Find a category user has minimal interaction with
+        return MACRO_CATEGORIES.shuffled().firstOrNull { category ->
+            val score = brain.globalVector.topics[category.lowercase()] ?: 0.0
+            score < 0.1 // Low score means "Explore this"
+        }
+    }
+
+    /**
+     * V4: Expanded stop words to filter out YouTube fluff that doesn't indicate interest.
+     */
     private val STOP_WORDS = setOf(
-        "the", "and", "for", "that", "this", "with", "you", "video", "how", "what", 
-        "official", "channel", "when", "mom", "types", "your", "computer", "which", 
-        "can", "make", "seen", "most", "into", "best", "recap", "review"
+        // Common English
+        "the", "and", "for", "that", "this", "with", "you", "how", "what", 
+        "when", "mom", "types", "your", "which", "can", "make", "seen", 
+        "most", "into", "best", "from", "just", "about", "more", "some",
+        "will", "one", "all", "would", "there", "their", "out", "not",
+        "but", "have", "has", "been", "being", "was", "were", "are",
+        
+        // YouTube-specific fluff (new in V4)
+        "video", "official", "channel", "recap", "review", "reaction",
+        "full", "episode", "part", "new", "latest", "update", "updates",
+        "hdr", "uhd", "fps", "live", "stream", "streaming", "watch",
+        "subscribe", "like", "comment", "share", "click", "link",
+        "description", "below", "check", "dont", "miss", "must", "now",
+        
+        // Quality indicators (don't indicate topic interest)
+        "1080p", "720p", "480p", "360p", "240p", "144p",
+        
+        // Common YouTube title patterns
+        "reupload", "reup", "reuploaded", "compilation", "montage",
+        "highlights", "explained", "tutorial", "guide", "tips", "tricks"
     )
 }
