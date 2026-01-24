@@ -1,7 +1,12 @@
 package com.flow.youtube.di
 
 import android.content.Context
-import com.flow.youtube.FlowApplication
+import com.flow.youtube.innertube.YouTube
+import coil.ImageLoader
+import coil.disk.DiskCache
+import coil.memory.MemoryCache
+import coil.util.DebugLogger
+import okhttp3.OkHttpClient
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -21,7 +26,31 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideYouTube(): com.flow.youtube.innertube.YouTube {
-        return com.flow.youtube.innertube.YouTube
+    fun provideYouTube(): YouTube {
+        return YouTube
+    }
+
+    @Provides
+    @Singleton
+    fun provideImageLoader(
+        @ApplicationContext context: Context,
+        okHttpClient: OkHttpClient
+    ): ImageLoader {
+        return ImageLoader.Builder(context)
+            .okHttpClient(okHttpClient)
+            .memoryCache {
+                MemoryCache.Builder(context)
+                    .maxSizePercent(0.25)
+                    .build()
+            }
+            .diskCache {
+                DiskCache.Builder()
+                    .directory(context.cacheDir.resolve("image_cache"))
+                    .maxSizePercent(0.02)
+                    .build()
+            }
+            .crossfade(true)
+            .respectCacheHeaders(false) // Cache images even if headers say otherwise (YouTube thumbnails)
+            .build()
     }
 }

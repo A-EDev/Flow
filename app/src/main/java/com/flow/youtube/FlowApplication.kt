@@ -8,9 +8,17 @@ import com.flow.youtube.notification.NotificationHelper
 import org.schabi.newpipe.extractor.NewPipe
 
 import dagger.hilt.android.HiltAndroidApp
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import javax.inject.Inject
 
 @HiltAndroidApp
-class FlowApplication : Application() {
+class FlowApplication : Application(), ImageLoaderFactory {
+    
+    @Inject
+    lateinit var imageLoader: ImageLoader
+
+    override fun newImageLoader(): ImageLoader = imageLoader
     
     companion object {
         private const val TAG = "FlowApplication"
