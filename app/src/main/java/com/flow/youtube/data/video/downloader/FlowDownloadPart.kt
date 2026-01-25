@@ -12,7 +12,8 @@ data class FlowDownloadPart(
     val startIndex: Long,
     val endIndex: Long,
     var currentOffset: Long, // How many bytes downloaded relative to start
-    var isFinished: Boolean = false
+    var isFinished: Boolean = false,
+    var isAudio: Boolean = false
 ) : Serializable {
     val totalBytes: Long
         get() = endIndex - startIndex + 1

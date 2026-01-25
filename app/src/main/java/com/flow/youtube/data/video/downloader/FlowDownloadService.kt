@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -44,12 +45,13 @@ class FlowDownloadService : Service() {
         const val ACTION_PAUSE_DOWNLOAD = "com.flow.youtube.PAUSE_DOWNLOAD"
         const val ACTION_CANCEL_DOWNLOAD = "com.flow.youtube.CANCEL_DOWNLOAD"
         
-        fun startDownload(context: Context, video: Video, url: String, quality: String) {
+        fun startDownload(context: Context, video: Video, url: String, quality: String, audioUrl: String? = null) {
             val intent = Intent(context, FlowDownloadService::class.java).apply {
                 action = ACTION_START_DOWNLOAD
                 putExtra("video_id", video.id)
                 putExtra("video_title", video.title)
                 putExtra("video_url", url)
+                putExtra("video_audio_url", audioUrl)
                 putExtra("video_quality", quality)
                 putExtra("video_thumbnail", video.thumbnailUrl)
                 putExtra("video_channel", video.channelName)
@@ -69,20 +71,20 @@ class FlowDownloadService : Service() {
                 val videoId = intent.getStringExtra("video_id") ?: return START_NOT_STICKY
                 val title = intent.getStringExtra("video_title") ?: "Unknown Video"
                 val url = intent.getStringExtra("video_url") ?: return START_NOT_STICKY
+                val audioUrl = intent.getStringExtra("video_audio_url")
                 val quality = intent.getStringExtra("video_quality") ?: "720p"
                 val thumbnail = intent.getStringExtra("video_thumbnail") ?: ""
                 val channel = intent.getStringExtra("video_channel") ?: "Unknown"
                 
-                startDownload(videoId, title, url, quality, thumbnail, channel)
+                startDownload(videoId, title, url, audioUrl, quality, thumbnail, channel)
             }
         }
         return START_NOT_STICKY
     }
 
-    private fun startDownload(videoId: String, title: String, url: String, quality: String, thumbnail: String, channel: String) {
+    private fun startDownload(videoId: String, title: String, url: String, audioUrl: String?, quality: String, thumbnail: String, channel: String) {
         val fileName = "${title.replace(Regex("[^a-zA-Z0-9.-]"), "_")}_$quality.mp4"
         
-        // Use internal private storage (filesDir) as requested by user
         val downloadDir = File(filesDir, "downloads")
         if (!downloadDir.exists()) downloadDir.mkdirs()
         
@@ -92,7 +94,7 @@ class FlowDownloadService : Service() {
             id = videoId,
             title = title,
             channelName = channel,
-            channelId = "local", // We could pass this too if needed
+            channelId = "local",
             thumbnailUrl = thumbnail, 
             duration = 0,
             viewCount = 0,
@@ -103,16 +105,26 @@ class FlowDownloadService : Service() {
         val mission = FlowDownloadMission(
             video = video,
             url = url,
+            audioUrl = audioUrl,
             quality = quality,
             savePath = savePath,
             fileName = fileName,
-            threads = 3 // Default safe value, could read from prefs
+            threads = 3
         )
         
         activeMissions[mission.id] = mission
         
-        // Start Foreground immediately
-        startForeground(mission.id.hashCode(), createNotification(mission))
+        val notificationId = mission.id.hashCode().let { if (it == 0) 1 else it }
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                notificationId,
+                createNotification(mission),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            startForeground(notificationId, createNotification(mission))
+        }
         
         serviceScope.launch {
             val wifiOnly = preferences.downloadOverWifiOnly.firstOrNull() ?: false
@@ -123,37 +135,59 @@ class FlowDownloadService : Service() {
                 val isWifi = capabilities?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
                 
                 if (!isWifi) {
-                    // Fail or Pause? For now, we fail/cancel with notification
                     stopForeground(false)
-                    // TODO: Show "Waiting for Wi-Fi" notification instead
-                    updateNotification(mission, false) // Placeholder
-                     // Actually better to return here
+                    updateNotification(mission, false)
                      return@launch
                 }
             }
             
-            val success = parallelDownloader.start(mission) { progress ->
-                // Throttle updates?
+            val downloadSuccess = parallelDownloader.start(mission) { progress ->
                 updateNotification(mission)
             }
             
-            if (success) {
-                stopForeground(false)
-                updateNotification(mission, true)
+            if (downloadSuccess) {
+                var finalSuccess = true
                 
-                // Save to Download Manager (Database/DataStore)
-                downloadManager.saveDownloadedVideo(
-                    com.flow.youtube.data.video.DownloadedVideo(
-                        video = video,
-                        filePath = savePath,
-                        downloadId = System.currentTimeMillis(), // Use timestamp as ID
-                        quality = quality,
-                        fileSize = mission.totalBytes
+                // Mux if DASH
+                if (mission.audioUrl != null) {
+                    val videoTmp = "${mission.savePath}.video.tmp"
+                    val audioTmp = "${mission.savePath}.audio.tmp"
+                    
+                    val muxSuccess = FlowStreamMuxer.mux(videoTmp, audioTmp, mission.savePath)
+                    if (muxSuccess) {
+                        // Cleanup
+                        File(videoTmp).delete()
+                        File(audioTmp).delete()
+                    } else {
+                        finalSuccess = false
+                        mission.status = MissionStatus.FAILED
+                        mission.error = "Muxing failed"
+                    }
+                }
+
+                if (finalSuccess) {
+                    mission.status = MissionStatus.FINISHED
+                    mission.finishTime = System.currentTimeMillis()
+                    
+                    stopForeground(false)
+                    updateNotification(mission, true)
+                    
+                    downloadManager.saveDownloadedVideo(
+                        com.flow.youtube.data.video.DownloadedVideo(
+                            video = video,
+                            filePath = savePath,
+                            downloadId = System.currentTimeMillis(),
+                            quality = quality,
+                            fileSize = mission.totalBytes + mission.audioTotalBytes
+                        )
                     )
-                )
+                } else {
+                    stopForeground(false)
+                    updateNotification(mission)
+                }
             } else {
                 stopForeground(false)
-                // Show failed notification
+                updateNotification(mission)
             }
             
             activeMissions.remove(mission.id)
@@ -188,7 +222,8 @@ class FlowDownloadService : Service() {
 
     private fun updateNotification(mission: FlowDownloadMission, isComplete: Boolean = false) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(mission.id.hashCode(), createNotification(mission, isComplete))
+        val notificationId = mission.id.hashCode().let { if (it == 0) 1 else it }
+        notificationManager.notify(notificationId, createNotification(mission, isComplete))
     }
 
     private fun createNotificationChannel() {

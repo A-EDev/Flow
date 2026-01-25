@@ -72,9 +72,11 @@ fun DownloadQualityDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.heightIn(max = 400.dp)
                 ) {
-                    val allStreams = (uiState.streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList()) +
-                                   (uiState.streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList())
+                    val videoStreams = uiState.streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList()
+                    val videoOnlyStreams = uiState.streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList()
                     
+                    // Prioritize combined streams, then append video-only ones
+                    val allStreams = videoStreams + videoOnlyStreams
                     val distinctStreams = allStreams.distinctBy { it.height }.sortedByDescending { it.height }
                     
                     if (distinctStreams.isEmpty()) {
@@ -84,7 +86,9 @@ fun DownloadQualityDialog(
                     }
 
                     items(distinctStreams) { stream ->
+                        val isVideoOnly = videoOnlyStreams.any { it.url == stream.url }
                         val qualityLabel = "${stream.height}p"
+                        
                         val sizeInBytes = uiState.streamSizes[stream.height]
                         val formatName = stream.format?.name ?: "MP4"
                         
@@ -100,7 +104,13 @@ fun DownloadQualityDialog(
                                 onDismiss()
                                 val downloadUrl = stream.url
                                 if (downloadUrl != null) {
-                                    VideoPlayerUtils.startDownload(context, video, downloadUrl, qualityLabel)
+                                    // Find best audio stream if DASH
+                                    var audioUrl: String? = null
+                                    if (isVideoOnly) {
+                                        audioUrl = uiState.streamInfo?.audioStreams?.maxByOrNull { it.bitrate }?.url
+                                    }
+                                    
+                                    VideoPlayerUtils.startDownload(context, video, downloadUrl, qualityLabel, audioUrl)
                                     Toast.makeText(context, "Downloading $qualityLabel...", Toast.LENGTH_SHORT).show()
                                 }
                             },

@@ -22,7 +22,7 @@ object VideoPlayerUtils {
         }
     }
 
-    fun startDownload(context: Context, video: Video, url: String, qualityLabel: String) {
+    fun startDownload(context: Context, video: Video, url: String, qualityLabel: String, audioUrl: String? = null) {
         try {
             val extension = "mp4"
             val fileName = "${video.title}_$qualityLabel.$extension".replace(Regex("[^a-zA-Z0-9\\s.-]"), "_")
@@ -32,7 +32,8 @@ object VideoPlayerUtils {
                 context, 
                 video, 
                 url, 
-                qualityLabel
+                qualityLabel,
+                audioUrl
             )
             
             Toast.makeText(context, "Started high-speed download: ${video.title}", Toast.LENGTH_SHORT).show()

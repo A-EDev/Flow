@@ -36,31 +36,48 @@ class ParallelDownloader @Inject constructor() {
             try {
                 mission.status = MissionStatus.RUNNING
                 
-                // 1. Get Content Length if new
+                // 1. Get Content Lengths
                 if (mission.totalBytes == 0L) {
                     val length = getContentLength(mission.url)
                     if (length <= 0) {
-                        Log.e("ParallelDownloader", "Failed to get content length or content is empty")
+                        Log.e("ParallelDownloader", "Failed to get video content length")
                         mission.status = MissionStatus.FAILED
-                        mission.error = "Failed to get content length"
+                        mission.error = "Failed to get video content length"
                         return@withContext false
                     }
                     mission.totalBytes = length
-                    
-                    // Initialize parts
-                    createParts(mission, length)
                 }
 
-                // 2. Prepare file
-                val file = File(mission.savePath)
-                if (!file.exists()) {
-                    file.createNewFile()
+                if (mission.audioUrl != null && mission.audioTotalBytes == 0L) {
+                    val audioLength = getContentLength(mission.audioUrl)
+                    if (audioLength <= 0) {
+                        Log.e("ParallelDownloader", "Failed to get audio content length")
+                        mission.status = MissionStatus.FAILED
+                        mission.error = "Failed to get audio content length"
+                        return@withContext false
+                    }
+                    mission.audioTotalBytes = audioLength
                 }
-                
-                // Pre-allocate space
-                RandomAccessFile(file, "rw").use { raf ->
-                    if (raf.length() != mission.totalBytes) {
-                        raf.setLength(mission.totalBytes)
+
+                // Initialize parts if empty
+                if (mission.parts.isEmpty()) {
+                    createParts(mission)
+                }
+
+                // 2. Prepare files
+                val isDash = mission.audioUrl != null
+                val videoFile = if (isDash) File("${mission.savePath}.video.tmp") else File(mission.savePath)
+                val audioFile = if (isDash) File("${mission.savePath}.audio.tmp") else null
+
+                if (!videoFile.exists()) videoFile.createNewFile()
+                RandomAccessFile(videoFile, "rw").use { raf ->
+                    if (raf.length() != mission.totalBytes) raf.setLength(mission.totalBytes)
+                }
+
+                audioFile?.let { af ->
+                    if (!af.exists()) af.createNewFile()
+                    RandomAccessFile(af, "rw").use { raf ->
+                        if (raf.length() != mission.audioTotalBytes) raf.setLength(mission.audioTotalBytes)
                     }
                 }
 
@@ -70,10 +87,11 @@ class ParallelDownloader @Inject constructor() {
                 coroutineScope {
                     val deferreds = mission.parts.filter { !it.isFinished }.map { part ->
                         async(Dispatchers.IO) {
+                            val targetFile = if (part.isAudio) audioFile!! else videoFile
                             downloadPart(
-                                mission = mission, // Pass mission context
+                                mission = mission,
                                 part = part, 
-                                file = file,
+                                file = targetFile,
                                 progressMutex = progressMutex,
                                 onProgress = onProgress
                             )
@@ -84,8 +102,10 @@ class ParallelDownloader @Inject constructor() {
                     val results = deferreds.awaitAll()
                     
                     if (results.all { it }) {
-                        mission.status = MissionStatus.FINISHED
-                        mission.finishTime = System.currentTimeMillis()
+                        if (!isDash) {
+                            mission.status = MissionStatus.FINISHED
+                            mission.finishTime = System.currentTimeMillis()
+                        }
                         true
                     } else {
                         mission.status = MissionStatus.FAILED
@@ -102,24 +122,41 @@ class ParallelDownloader @Inject constructor() {
         }
     }
 
-    private fun createParts(mission: FlowDownloadMission, totalLength: Long) {
-        val partSize = ceil(totalLength.toDouble() / mission.threads).toLong()
-        
+    private fun createParts(mission: FlowDownloadMission) {
+        // Video parts
+        val videoPartSize = ceil(mission.totalBytes.toDouble() / mission.threads).toLong()
         for (i in 0 until mission.threads) {
-            val start = i * partSize
-            var end = start + partSize - 1
-            if (i == mission.threads - 1) {
-                end = totalLength - 1
-            }
+            val start = i * videoPartSize
+            var end = start + videoPartSize - 1
+            if (i == mission.threads - 1) end = mission.totalBytes - 1
             
-            val part = FlowDownloadPart(
-                partName = "${mission.url}_$i",
+            mission.parts.add(FlowDownloadPart(
+                partName = "${mission.id}_v_$i",
                 missionId = mission.id,
                 startIndex = start,
                 endIndex = end,
-                currentOffset = 0
-            )
-            mission.parts.add(part)
+                currentOffset = 0,
+                isAudio = false
+            ))
+        }
+
+        // Audio parts (if DASH)
+        mission.audioUrl?.let {
+            val audioPartSize = ceil(mission.audioTotalBytes.toDouble() / mission.threads).toLong()
+            for (i in 0 until mission.threads) {
+                val start = i * audioPartSize
+                var end = start + audioPartSize - 1
+                if (i == mission.threads - 1) end = mission.audioTotalBytes - 1
+                
+                mission.parts.add(FlowDownloadPart(
+                    partName = "${mission.id}_a_$i",
+                    missionId = mission.id,
+                    startIndex = start,
+                    endIndex = end,
+                    currentOffset = 0,
+                    isAudio = true
+                ))
+            }
         }
     }
 
@@ -139,40 +176,38 @@ class ParallelDownloader @Inject constructor() {
                 return true
             }
 
+            val url = if (part.isAudio) mission.audioUrl!! else mission.url
             val request = Request.Builder()
-                .url(mission.url)
+                .url(url)
                 .header("Range", "bytes=$startByte-$endByte")
                 .build()
 
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) {
-                Log.e("ParallelDownloader", "Part failed: HTTP ${response.code}")
-                return false
-            }
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.e("ParallelDownloader", "Part failed: HTTP ${response.code} for URL: $url")
+                    return false
+                }
 
-            val inputStream = response.body?.byteStream() ?: return false
-            
-            // Critical: Use a dedicated RandomAccessFile per thread/part instance
-            // But we need to be careful about file locking. 
-            // Better approach: Open RAF here for this specific part writing.
-            RandomAccessFile(file, "rw").use { raf ->
-                raf.seek(startByte)
+                val inputStream = response.body?.byteStream() ?: return false
                 
-                val buffer = ByteArray(bufferSize)
-                var bytesRead: Int
-                
-                while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                    if (mission.status != MissionStatus.RUNNING) {
-                         // Download paused or cancelled
-                         return false
-                    }
+                RandomAccessFile(file, "rw").use { raf ->
+                    raf.seek(startByte)
                     
-                    raf.write(buffer, 0, bytesRead)
-                    part.currentOffset += bytesRead
+                    val buffer = ByteArray(bufferSize)
+                    var bytesRead: Int
                     
-                    progressMutex.withLock {
-                        mission.updateProgress(bytesRead.toLong())
-                        onProgress(mission.progress)
+                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                        if (mission.status != MissionStatus.RUNNING) {
+                             return false
+                        }
+                        
+                        raf.write(buffer, 0, bytesRead)
+                        part.currentOffset += bytesRead
+                        
+                        progressMutex.withLock {
+                            mission.updateProgress(bytesRead.toLong(), part.isAudio)
+                            onProgress(mission.progress)
+                        }
                     }
                 }
             }

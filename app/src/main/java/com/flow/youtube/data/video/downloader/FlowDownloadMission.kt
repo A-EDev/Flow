@@ -14,14 +14,17 @@ enum class MissionStatus {
 data class FlowDownloadMission(
     val id: String = UUID.randomUUID().toString(),
     val video: Video,
-    val url: String,
+    val url: String, // Video URL
+    val audioUrl: String? = null, // Optional Audio URL for DASH
     val quality: String,
     val savePath: String,
     val fileName: String,
     
     // Progress tracking
     var totalBytes: Long = 0,
+    var audioTotalBytes: Long = 0,
     var downloadedBytes: Long = 0,
+    var audioDownloadedBytes: Long = 0,
     var status: MissionStatus = MissionStatus.PENDING,
     var threads: Int = 3,
     
@@ -36,10 +39,18 @@ data class FlowDownloadMission(
     var error: String? = null
 ) {
     val progress: Float
-        get() = if (totalBytes > 0) downloadedBytes.toFloat() / totalBytes.toFloat() else 0f
+        get() {
+            val total = totalBytes + audioTotalBytes
+            val current = downloadedBytes + audioDownloadedBytes
+            return if (total > 0) current.toFloat() / total.toFloat() else 0f
+        }
         
-    fun updateProgress(bytesRead: Long) {
-        downloadedBytes += bytesRead
+    fun updateProgress(bytesRead: Long, isAudio: Boolean = false) {
+        if (isAudio) {
+            audioDownloadedBytes += bytesRead
+        } else {
+            downloadedBytes += bytesRead
+        }
     }
     
     fun isRunning(): Boolean = status == MissionStatus.RUNNING
