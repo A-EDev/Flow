@@ -639,7 +639,7 @@ fun EnhancedVideoPlayerScreen(
                     isVisible = isSpeedBoostActive,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 80.dp)
+                        .padding(top = 0.dp)
                 )
                 
                 // ============ CUSTOM CONTROLS OVERLAY ============

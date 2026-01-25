@@ -245,26 +245,27 @@ fun SpeedBoostOverlay(
         modifier = modifier
     ) {
         Surface(
-            color = Color.Black.copy(alpha = 0.5f),
-            shape = RoundedCornerShape(20.dp),
-            modifier = Modifier.height(40.dp)
+            color = Color.Black.copy(alpha = 0.6f),
+            shape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp),
+            modifier = Modifier.wrapContentSize()
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.Center
             ) {
+                Text(
+                    text = "2x",
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.width(4.dp))
                 Icon(
-                    imageVector = Icons.Filled.FastForward,
+                    imageVector = Icons.Rounded.FastForward,
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = "2x Speed",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
                 )
             }
         }
