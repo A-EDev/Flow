@@ -23,10 +23,23 @@ class VideoPlaybackResolver(
     }
 
     fun resolve(
-        videoStream: VideoStream?,
+        videoStream: VideoStream?, // Revert to single stream for progressive fallback
         audioStream: AudioStream?,
+        dashManifestUrl: String?, // New: Prioritize DASH manifest if available
         durationSeconds: Long
     ): MediaSource? {
+        // 1. Priority: Official DASH Manifest (Seamless Switching, No Lag)
+        if (!dashManifestUrl.isNullOrEmpty()) {
+            return try {
+                androidx.media3.exoplayer.dash.DashMediaSource.Factory(dashDataSourceFactory)
+                    .createMediaSource(androidx.media3.common.MediaItem.fromUri(Uri.parse(dashManifestUrl)))
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to create DASH source from URL, falling back", e)
+                null
+            }
+        }
+
+        // 2. Fallback: Progressive / Generated DASH
         val sources = mutableListOf<MediaSource>()
 
         if (videoStream != null) {

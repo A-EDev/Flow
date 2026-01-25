@@ -725,8 +725,8 @@ object FlowNeuroEngine {
         "will", "one", "all", "would", "there", "their", "out", "not",
         "but", "have", "has", "been", "being", "was", "were", "are",
         
-        // YouTube-specific fluff (new in V4)
-        "video", "official", "channel", "recap", "review", "reaction",
+        // YouTube-specific fluff
+        "video", "official", "channel", "review", "reaction",
         "full", "episode", "part", "new", "latest", "update", "updates",
         "hdr", "uhd", "fps", "live", "stream", "streaming", "watch",
         "subscribe", "like", "comment", "share", "click", "link",
@@ -736,7 +736,6 @@ object FlowNeuroEngine {
         "1080p", "720p", "480p", "360p", "240p", "144p",
         
         // Common YouTube title patterns
-        "reupload", "reup", "reuploaded", "compilation", "montage",
-        "highlights", "explained", "tutorial", "guide", "tips", "tricks"
+        "reupload", "reup", "reuploaded", "compilation", "montage", "explained"
     )
 }

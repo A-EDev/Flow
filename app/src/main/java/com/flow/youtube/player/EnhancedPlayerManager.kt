@@ -117,6 +117,7 @@ class EnhancedPlayerManager private constructor() {
     private var streamErrorCount = 0  // Track consecutive errors
     private val MAX_STREAM_ERRORS = 2  // Max errors before downgrading quality
     private var currentDurationSeconds: Long = -1 // Stored for manifest generation
+    private var currentDashManifestUrl: String? = null
     
     // Quality mode tracking
     private var isAdaptiveQualityEnabled = true  // Auto quality by default
@@ -308,27 +309,31 @@ class EnhancedPlayerManager private constructor() {
 
             // Fetch buffer settings
             val prefs = PlayerPreferences(context)
-            // val minBufferMs = kotlinx.coroutines.runBlocking { prefs.minBufferMs.first() }
-            // val maxBufferMs = kotlinx.coroutines.runBlocking { prefs.maxBufferMs.first() }
+            // Use defaults if prefs failing or use sensible consts? 
+            // The user asked to re-link to prefs.
+            // Using blocking get for init - acceptable here as single init step
+            val minBufferMs = kotlinx.coroutines.runBlocking { prefs.minBufferMs.first() }
+            val maxBufferMs = kotlinx.coroutines.runBlocking { prefs.maxBufferMs.first() }
+            val bufferForPlaybackMs = kotlinx.coroutines.runBlocking { prefs.bufferForPlaybackMs.first() }
+            val bufferRebufferMs = kotlinx.coroutines.runBlocking { prefs.bufferForPlaybackAfterRebufferMs.first() }
 
-            // Optimized LoadControl for buttery smooth playback with aggressive buffering
-            // Optimized LoadControl for buttery smooth playback with aggressive buffering
-            // FORCE standard values for playback start/resume to prevent "Phantom Buffer" stalls
-            // We ignore user prefs for these specific values because they often cause the stall
+            // Optimized LoadControl
             val loadControl = DefaultLoadControl.Builder()
                 .setAllocator(allocator)
                 .setBufferDurationsMs(
-                    30_000, 
-                    60_000, 
-                    1000,   
-                    2000    
+                    minBufferMs, 
+                    maxBufferMs, 
+                    bufferForPlaybackMs,   
+                    bufferRebufferMs    
                 )
                 .setBackBuffer(
-                    /* backBufferDurationMs = */ 10000,
+                    /* backBufferDurationMs = */ 30000, // Reduced from 10s to standard or higher? 10s is fine. Exoplayer default is 0. 
+                    // User code had 10000. Review said "buffer for playback 1s is aggressive". 
+                    // Keeping backbuffer reasonable.
                     /* retainBackBufferFromKeyframe = */ true
                 )
                 .setPrioritizeTimeOverSizeThresholds(true)
-                .setTargetBufferBytes(128 * 1024 * 1024) // 128MB Heap to prevent allocator starvation
+                .setTargetBufferBytes(128 * 1024 * 1024) 
                 .build()
 
             // Create custom RenderersFactory to inject SilenceSkippingAudioProcessor and prefer extensions
@@ -664,12 +669,14 @@ class EnhancedPlayerManager private constructor() {
         audioStreams: List<AudioStream>,
         subtitles: List<SubtitlesStream>,
         durationSeconds: Long = -1,
+        dashManifestUrl: String? = null,
         localFilePath: String? = null
     ) {
-        Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.height}, local=$localFilePath)")
+        Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.height}, dash=${dashManifestUrl != null})")
         resetPlaybackStateForNewVideo(videoId)
         
         this.currentDurationSeconds = durationSeconds
+        this.currentDashManifestUrl = dashManifestUrl
 
         currentVideoId = videoId
         // dedupe lists by url and sort
@@ -747,6 +754,7 @@ class EnhancedPlayerManager private constructor() {
         streamErrorCount = 0
         currentVideoStream = null
         currentAudioStream = null
+        currentDashManifestUrl = null
         selectedSubtitleIndex = null
         lastPosition = 0L
         
@@ -824,7 +832,8 @@ class EnhancedPlayerManager private constructor() {
                     ProgressiveMediaSource.Factory(sharedProgressiveDataSourceFactory ?: dataSourceFactory)
                         .createMediaSource(MediaItem.fromUri(android.net.Uri.fromFile(java.io.File(localFilePath))))
                 } else {
-                    resolver.resolve(videoStream, audioStream, finalDuration)
+                    // Pass current streams and DASH URL
+                    resolver.resolve(videoStream, audioStream, this.currentDashManifestUrl, finalDuration)
                 }
                 
                 if (mediaSource != null) {
@@ -893,56 +902,43 @@ class EnhancedPlayerManager private constructor() {
         // Disable adaptive and set fixed quality
         isAdaptiveQualityEnabled = false
         manualQualityHeight = height
-        
-        val stream = availableVideoStreams.find { it.height == height }
-        if (stream != null) {
-            val currentPosition = player?.currentPosition ?: 0L
-            val wasPlaying = player?.isPlaying ?: false
+
+        // Check if we can do seamless switching (DASH) or need reload (Progressive)
+        // If we have a DASH manifest URL, we are likely using DashMediaSource which supports seamless switching.
+        if (!currentDashManifestUrl.isNullOrEmpty()) {
+            Log.d(TAG, "Switching to FIXED quality: ${height}p (Seamless via TrackSelector/DASH)")
             
-            Log.d(TAG, "Switching to FIXED quality: ${height}p at position ${currentPosition}ms")
-            
-            currentVideoStream = stream
-            
-            // CRITICAL: Disable ALL adaptive behavior for fixed quality
             trackSelector?.let { selector ->
                 val params = selector.buildUponParameters()
-                    // Disable adaptation completely
                     .setAllowVideoMixedMimeTypeAdaptiveness(false)
                     .setAllowMultipleAdaptiveSelections(false)
-                    // Lock to exact height
-                    .setMaxVideoSize(stream.width, height)
-                    .setMinVideoSize(stream.width, height)
-                    // Force this quality only
+                    .setMaxVideoSize(9999, height) 
+                    .setMinVideoSize(0, height)    
                     .setForceHighestSupportedBitrate(false)
                     .build()
                 selector.setParameters(params)
             }
             
-            // Load ONLY this specific stream (no alternatives for ExoPlayer to switch between)
-            loadMedia(
-                videoStream = currentVideoStream,
-                audioStream = currentAudioStream ?: availableAudioStreams.firstOrNull() ?: return,
-                preservePosition = currentPosition
-            )
+             _playerState.value = _playerState.value.copy(currentQuality = height, effectiveQuality = height)
+        } else {
+            // Progressive Fallback: Must reload the stream
+            Log.d(TAG, "Switching to FIXED quality: ${height}p (Reloading - Progressive Mode)")
             
-            // Restore position after a brief delay to ensure media is loaded
-            player?.also { p ->
-                if (currentPosition > 0) {
-                    // Use Handler to delay seek slightly
-                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                        p.seekTo(currentPosition)
-                        if (wasPlaying) {
-                            p.play()
-                        }
-                        Log.d(TAG, "Position restored to ${currentPosition}ms after quality switch")
-                    }, 100)
-                } else if (wasPlaying) {
-                    p.play()
-                }
+            val stream = availableVideoStreams.find { it.height == height }
+            if (stream != null) {
+                val currentPosition = player?.currentPosition ?: 0L
+                val wasPlaying = player?.isPlaying ?: false
+                
+                currentVideoStream = stream
+                
+                 loadMedia(
+                    videoStream = currentVideoStream,
+                    audioStream = currentAudioStream ?: availableAudioStreams.firstOrNull() ?: return,
+                    preservePosition = currentPosition
+                )
+                
+                 _playerState.value = _playerState.value.copy(currentQuality = height, effectiveQuality = height, isBuffering = true)
             }
-            
-            _playerState.value = _playerState.value.copy(currentQuality = height, effectiveQuality = height)
-            Log.d(TAG, "Locked to fixed quality: ${height}p (adaptive disabled)")
         }
     }
     
@@ -950,43 +946,34 @@ class EnhancedPlayerManager private constructor() {
         isAdaptiveQualityEnabled = true
         manualQualityHeight = null
         
-        val currentPosition = player?.currentPosition ?: 0L
-        val wasPlaying = player?.isPlaying ?: false
-        
-        Log.d(TAG, "Enabling adaptive quality mode at position ${currentPosition}ms")
-        
-        // Reset track selector to allow adaptive quality
-        applyAdaptiveTrackSelectorDefaults()
-        
-        // Select the best quality stream as starting point for adaptation
-        currentVideoStream = availableVideoStreams.maxByOrNull { it.height }
-        
-        loadMedia(
-            videoStream = currentVideoStream,
-            audioStream = currentAudioStream ?: availableAudioStreams.firstOrNull() ?: return,
-            preservePosition = currentPosition
-        )
-        
-        // Restore position
-        player?.also { p ->
-            if (currentPosition > 0) {
-                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                    p.seekTo(currentPosition)
-                    if (wasPlaying) {
-                        p.play()
-                    }
-                    Log.d(TAG, "Position restored to ${currentPosition}ms in adaptive mode")
-                }, 100)
-            } else if (wasPlaying) {
-                p.play()
+        if (!currentDashManifestUrl.isNullOrEmpty()) {
+            Log.d(TAG, "Enabling adaptive quality mode (Seamless via TrackSelector/DASH)")
+            
+            trackSelector?.let { selector ->
+                selector.setParameters(selector.buildUponParameters()
+                    .setAllowVideoMixedMimeTypeAdaptiveness(true)
+                    .setAllowMultipleAdaptiveSelections(true)
+                    .setMaxVideoSize(1920, 1080)
+                    .setMinVideoSize(0, 0)
+                    .build())
             }
+            
+            _playerState.value = _playerState.value.copy(currentQuality = 0)
+        } else {
+            // Progressive Fallback: Reload with best stream
+             Log.d(TAG, "Enabling adaptive quality mode (Reloading - Progressive Mode)")
+             
+             // Select the best quality stream as start
+             currentVideoStream = availableVideoStreams.maxByOrNull { it.height }
+             val currentPosition = player?.currentPosition ?: 0L
+             
+             loadMedia(
+                videoStream = currentVideoStream,
+                audioStream = currentAudioStream ?: availableAudioStreams.firstOrNull() ?: return,
+                preservePosition = currentPosition
+            )
+             _playerState.value = _playerState.value.copy(currentQuality = 0, effectiveQuality = currentVideoStream?.height ?: 0)
         }
-        
-        _playerState.value = _playerState.value.copy(
-            currentQuality = 0,
-            effectiveQuality = currentVideoStream?.height ?: 0
-        )  // 0 = Auto
-        Log.d(TAG, "Adaptive quality mode enabled")
     }
 
     private fun applyAdaptiveTrackSelectorDefaults() {

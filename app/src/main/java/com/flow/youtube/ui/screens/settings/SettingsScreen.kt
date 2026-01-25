@@ -179,7 +179,7 @@ fun SettingsScreen(
 // =================================================
 item {
     Text(
-        text = "Neural Engine",
+        text = "Flow Engine",
         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 16.dp)

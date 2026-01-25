@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Downloading
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.*
@@ -28,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.flow.youtube.ui.components.MusicQuickActionsSheet
 import com.flow.youtube.ui.components.AddToPlaylistDialog
@@ -44,11 +46,17 @@ fun PlaylistPage(
     onArtistClick: (String) -> Unit,
     onDownloadClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    playlistsViewModel: MusicPlaylistsViewModel = hiltViewModel()
 ) {
     val scrollState = rememberLazyListState()
     val isScrolled by remember { derivedStateOf { scrollState.firstVisibleItemIndex > 0 || scrollState.firstVisibleItemScrollOffset > 100 } }
     val context = LocalContext.current
+    
+    // Download States from ViewModel
+    val downloadProgress by playlistsViewModel.playlistDownloadProgress.collectAsState()
+    val isDownloading by playlistsViewModel.isDownloadingPlaylist.collectAsState()
+    val currentDownloadingTrack by playlistsViewModel.currentDownloadingTrack.collectAsState()
     
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
@@ -277,7 +285,26 @@ fun PlaylistPage(
                             horizontalArrangement = Arrangement.SpaceEvenly,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            PremiumActionButton(icon = Icons.Outlined.Download, onClick = onDownloadClick)
+                            // Functional Download Button within Premium Design
+                            Box(contentAlignment = Alignment.Center) {
+                                PremiumActionButton(
+                                    icon = if (isDownloading) Icons.Outlined.Downloading else Icons.Outlined.Download,
+                                    onClick = { 
+                                        if (!isDownloading) {
+                                            playlistsViewModel.downloadPlaylistTracks(playlistDetails) 
+                                        }
+                                    }
+                                )
+                                if (isDownloading) {
+                                    CircularProgressIndicator(
+                                        progress = downloadProgress,
+                                        modifier = Modifier.size(52.dp),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        strokeWidth = 2.dp,
+                                    )
+                                }
+                            }
+                            
                             PremiumActionButton(icon = Icons.Outlined.FavoriteBorder, onClick = {})
                             
                             // Play Button - Large and Central

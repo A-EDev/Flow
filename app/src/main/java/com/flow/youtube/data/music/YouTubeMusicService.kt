@@ -226,6 +226,14 @@ object YouTubeMusicService {
             null
         }
     }
+
+    suspend fun fetchVideoDuration(videoId: String): Int = withContext(Dispatchers.IO) {
+        try {
+            getStreamInfo(videoId)?.duration?.toInt() ?: 0
+        } catch (e: Exception) {
+            0
+        }
+    }
     
     /**
      * Get best audio stream URL

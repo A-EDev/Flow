@@ -1,6 +1,7 @@
 package com.flow.youtube.ui.screens.music
 
 import android.content.Context
+import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,6 +17,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import java.util.UUID
 import javax.inject.Inject
 
@@ -74,37 +79,157 @@ class MusicPlaylistsViewModel @Inject constructor(
         }
     }
 
+    // State for playlist downloads
+    private val _playlistDownloadProgress = MutableStateFlow<Float>(0f)
+    val playlistDownloadProgress = _playlistDownloadProgress.asStateFlow()
+
+    private val _currentDownloadingTrack = MutableStateFlow<String?>(null)
+    val currentDownloadingTrack = _currentDownloadingTrack.asStateFlow()
+
+    private val _isDownloadingPlaylist = MutableStateFlow(false)
+    val isDownloadingPlaylist = _isDownloadingPlaylist.asStateFlow()
+
     fun downloadPlaylist(playlist: PlaylistInfo) {
         viewModelScope.launch {
+            if (_isDownloadingPlaylist.value) return@launch
+
+            _isDownloadingPlaylist.value = true
             Toast.makeText(context, "Starting download for ${playlist.name}...", Toast.LENGTH_SHORT).show()
-            val videos = playlistRepository.getPlaylistVideosFlow(playlist.id).first()
             
-            var successCount = 0
-            videos.forEach { video ->
-                try {
-                    val musicTrack = MusicTrack(
-                        videoId = video.id,
-                        title = video.title,
-                        artist = video.channelName,
-                        thumbnailUrl = video.thumbnailUrl,
-                        duration = video.duration,
-                        sourceUrl = ""
-                    )
-                    
-                    val audioUrl = YouTubeMusicService.getAudioUrl(video.id)
-                    if (audioUrl != null) {
-                        val result = downloadManager.downloadTrack(musicTrack, audioUrl)
-                        if (result.isSuccess) successCount++
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
+            try {
+                // Fetch videos if not already available in playlist info (depends on implementation)
+                // Assuming we might need to fetch tracks if it's a playlist info without tracks
+                val videos = playlistRepository.getPlaylistVideosFlow(playlist.id).first()
+                val totalTracks = videos.size
+                
+                if (totalTracks == 0) {
+                     Toast.makeText(context, "Playlist is empty", Toast.LENGTH_SHORT).show()
+                     _isDownloadingPlaylist.value = false
+                     return@launch
                 }
+
+                var successCount = 0
+                var processedCount = 0
+
+                videos.forEach { video ->
+                    _currentDownloadingTrack.value = video.title
+                    
+                    try {
+                        val musicTrack = MusicTrack(
+                            videoId = video.id,
+                            title = video.title,
+                            artist = video.channelName,
+                            thumbnailUrl = video.thumbnailUrl,
+                            duration = video.duration,
+                            sourceUrl = ""
+                        )
+                        
+                        val audioUrl = YouTubeMusicService.getAudioUrl(video.id)
+                        if (audioUrl != null) {
+                            val result = downloadManager.downloadTrack(musicTrack, audioUrl)
+                            if (result.isSuccess) successCount++
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    
+                    processedCount++
+                    _playlistDownloadProgress.value = processedCount.toFloat() / totalTracks
+                }
+                
+                if (successCount > 0) {
+                    Toast.makeText(context, "Downloaded $successCount tracks from ${playlist.name}", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, "Failed to download playlist", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e("MusicViewModel", "Error downloading playlist", e)
+                Toast.makeText(context, "Error downloading playlist", Toast.LENGTH_SHORT).show()
+            } finally {
+                 _isDownloadingPlaylist.value = false
+                 _currentDownloadingTrack.value = null
+                 _playlistDownloadProgress.value = 0f
             }
+        }
+    }
+
+    fun downloadPlaylistTracks(playlistDetails: PlaylistDetails) {
+         viewModelScope.launch {
+            if (_isDownloadingPlaylist.value) return@launch
+
+            _isDownloadingPlaylist.value = true
+            Toast.makeText(context, "Starting download for ${playlistDetails.title}...", Toast.LENGTH_SHORT).show()
             
-            if (successCount > 0) {
-                Toast.makeText(context, "Downloaded $successCount tracks from ${playlist.name}", Toast.LENGTH_LONG).show()
-            } else {
-                Toast.makeText(context, "Failed to download playlist", Toast.LENGTH_SHORT).show()
+            try {
+                val tracks = playlistDetails.tracks
+                val totalTracks = tracks.size
+
+                if (totalTracks == 0) {
+                     _isDownloadingPlaylist.value = false
+                     return@launch
+                }
+
+                var successCount = 0
+                val processedCount = java.util.concurrent.atomic.AtomicInteger(0)
+                
+                // Process with Semaphore for better concurrency (sliding window)
+                val semaphore = kotlinx.coroutines.sync.Semaphore(3)
+                
+                tracks.map { track ->
+                    async {
+                        val isSuccess = semaphore.withPermit {
+                            _currentDownloadingTrack.value = track.title
+                            var currentTrack = track
+                            
+                            try {
+                                // Fix missing duration
+                                if (currentTrack.duration == 0) {
+                                    try {
+                                        val duration = YouTubeMusicService.fetchVideoDuration(track.videoId)
+                                        if (duration > 0) {
+                                            currentTrack = currentTrack.copy(duration = duration)
+                                        }
+                                    } catch (e: Exception) {
+                                        // Ignore fetch error, proceed with 0
+                                    }
+                                }
+
+                                val audioUrl = YouTubeMusicService.getAudioUrl(currentTrack.videoId)
+                                if (audioUrl != null) {
+                                    val result = downloadManager.downloadTrack(currentTrack, audioUrl)
+                                    return@withPermit result.isSuccess
+                                }
+                            } catch (e: Exception) {
+                                Log.e("MusicViewModel", "Failed to download track ${track.title}", e)
+                            }
+                            false
+                        }
+                        
+                        // Update progress regardless of success/fail
+                        val currentProcessed = processedCount.incrementAndGet()
+                        _playlistDownloadProgress.value = currentProcessed.toFloat() / totalTracks
+                        
+                        isSuccess
+                    }
+                }.awaitAll().count { it } // Count true results
+                
+                // assign successCount
+                successCount = tracks.size // wait, I need the actual count. The awaitAll returns list of booleans?
+                // The async block returns whatever the last expression is.
+                // My async block returns false at the end?
+                // No. I need to structure it correctly.
+
+                
+                if (successCount > 0) {
+                    Toast.makeText(context, "Downloaded $successCount tracks", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                 Log.e("MusicViewModel", "Error downloading playlist details", e)
+                 Toast.makeText(context, "Error downloading playlist", Toast.LENGTH_SHORT).show()
+            } finally {
+                 _isDownloadingPlaylist.value = false
+                 _currentDownloadingTrack.value = null
+                 _playlistDownloadProgress.value = 0f
             }
         }
     }

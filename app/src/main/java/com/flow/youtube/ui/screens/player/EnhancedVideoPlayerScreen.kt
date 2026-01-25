@@ -482,6 +482,7 @@ fun EnhancedVideoPlayerScreen(
                 audioStreams = audioStreams,
                 subtitles = subtitles,
                 durationSeconds = streamInfo?.duration ?: 0L,
+                dashManifestUrl = streamInfo?.dashMpdUrl,
                 localFilePath = uiState.localFilePath
             )
             

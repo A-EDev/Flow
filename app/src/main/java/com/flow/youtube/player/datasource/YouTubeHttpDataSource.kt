@@ -160,11 +160,11 @@ class YouTubeHttpDataSource private constructor(
             builder.header(key, value)
         }
 
-        // CRITICAL: Force POST for videoplayback
-        // NewPipe uses body 0x78, 0x00
-        if (isVideoPlayback) {
-            builder.method("POST", byteArrayOf(0x78, 0x00).toRequestBody(null))
-        }
+        // NOTE: We allow GET requests now (removed forced POST for videoplayback)
+        // If specific manifest logic requires strict consistency, we rely on the URL or DataSource choice upstream.
+        // For standard Progressive/HLS, GET is safer.
+        
+        // Removed forced POST block
 
         // NOTE: We do NOT set the "Range" header here because we used the URL parameter.
         // This prevents the double-range confusion.
@@ -261,23 +261,7 @@ class YouTubeHttpDataSource private constructor(
         val bytesReadNow: Int
         try {
              bytesReadNow = inputStream!!.read(buffer, offset, bytesToReadThisTime.toInt())
-        } catch (e: java.net.SocketTimeoutException) {
-             // THE FIX: The 2-second timeout triggered!
-             // If we have read ANY bytes in this session, we consider this chunk "Done".
-             // We return END_OF_INPUT so ExoPlayer stitches it and requests the next chunk immediately.
-             if (bytesRead > 0) {
-                 return C.RESULT_END_OF_INPUT
-             }
-             // If we read nothing and timed out, that's a real error.
-             throw HttpDataSource.HttpDataSourceException.createForIOException(e, currentDataSpec!!, HttpDataSource.HttpDataSourceException.TYPE_READ)
         } catch (e: IOException) {
-             // CRITICAL FIX: Handle OkHttp's strict enforcement
-             if (e is java.net.ProtocolException && e.message == "unexpected end of stream") {
-                 return C.RESULT_END_OF_INPUT
-             }
-             if (e.message?.contains("unexpected end of stream") == true) {
-                  return C.RESULT_END_OF_INPUT
-             }
              throw HttpDataSource.HttpDataSourceException.createForIOException(e, currentDataSpec!!, HttpDataSource.HttpDataSourceException.TYPE_READ)
         }
 

@@ -33,7 +33,6 @@ class CustomMediaCodecVideoRenderer(
 ) {
 
     override fun codecNeedsSetOutputSurfaceWorkaround(name: String): Boolean {
-        // Always return true to force generic workaround, matching NewPipe's stability logic
-        return true
+        return super.codecNeedsSetOutputSurfaceWorkaround(name)
     }
 }
