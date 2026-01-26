@@ -127,7 +127,7 @@ Flow is free and open-source. I am an independent developer without banking acce
 | **Ethereum** | ERC-20 | `0xfbac6f464fec7fe458e318971a42ba45b305b70e` |
 | **Solana** | SOL | `7b3SLgiVPb8qQUvERSPGRWoFoiGEDvkFuY98M1GEngug` |
 
-*Your support helps me maintain the FlowNeuro engine and add new features!*
+*Your support helps me maintain the project and add new features!*
 
 ---
 
