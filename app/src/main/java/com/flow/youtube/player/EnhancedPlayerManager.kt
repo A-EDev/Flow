@@ -60,6 +60,9 @@ import okhttp3.Dispatcher
 import okhttp3.ConnectionPool
 import java.util.concurrent.TimeUnit
 
+import com.flow.youtube.data.repository.SponsorBlockRepository
+import com.flow.youtube.data.model.SponsorBlockSegment
+
 @UnstableApi
 class EnhancedPlayerManager private constructor() {
     companion object {
@@ -74,6 +77,14 @@ class EnhancedPlayerManager private constructor() {
             }
         }
     }
+    
+    // SponsorBlock
+    private val sponsorBlockRepository = SponsorBlockRepository()
+    private var sponsorSegments: List<SponsorBlockSegment> = emptyList()
+    private var isSponsorBlockEnabled: Boolean = false
+    
+    // Last matched segment UUID to avoid triggering same skip twice
+    private var lastSkippedSegmentUuid: String? = null
     
     private var player: ExoPlayer? = null
     private var trackSelector: DefaultTrackSelector? = null
@@ -148,8 +159,20 @@ class EnhancedPlayerManager private constructor() {
                         if (currentTime - lastSaveTime >= 30000 && p.isPlaying) {
                             Log.d(TAG, "Auto-save trigger: at ${currentPos}ms")
                             lastSaveTime = currentTime
-                            // Note: Position is saved by VideoPlayerScreen via LaunchedEffect observing position,
-                            // but we could also invoke a callback here if needed.
+                        }
+
+                        // SponsorBlock Skip Logic
+                        if (isSponsorBlockEnabled && sponsorSegments.isNotEmpty()) {
+                            val posSec = currentPos / 1000f
+                            val segment = sponsorSegments.find { 
+                                posSec >= it.startTime && posSec < it.endTime 
+                            }
+                            
+                            if (segment != null && segment.uuid != lastSkippedSegmentUuid) {
+                                Log.d(TAG, "SponsorBlock: Skipping ${segment.category} from ${segment.startTime} to ${segment.endTime}")
+                                p.seekTo((segment.endTime * 1000).toLong())
+                                lastSkippedSegmentUuid = segment.uuid
+                            }
                         }
                         
                         // Smart stall detection: Only log if position hasn't moved for 2+ checks (1+ second)
@@ -199,6 +222,16 @@ class EnhancedPlayerManager private constructor() {
         }
     }
 
+    fun toggleSponsorBlock(isEnabled: Boolean) {
+        isSponsorBlockEnabled = isEnabled
+        // Persist preference
+        appContext?.let { context ->
+            scope.launch {
+                PlayerPreferences(context).setSponsorBlockEnabled(isEnabled)
+            }
+        }
+    }
+
     fun initialize(context: Context) {
         appContext = context.applicationContext
         
@@ -206,6 +239,13 @@ class EnhancedPlayerManager private constructor() {
         scope.launch {
             PlayerPreferences(context).skipSilenceEnabled.collect { isEnabled ->
                 setSkipSilenceInternal(isEnabled)
+            }
+        }
+
+        // Observe sponsor block state
+        scope.launch {
+            PlayerPreferences(context).sponsorBlockEnabled.collect { isEnabled ->
+                isSponsorBlockEnabled = isEnabled
             }
         }
 
@@ -669,6 +709,20 @@ class EnhancedPlayerManager private constructor() {
     ) {
         Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.height}, dash=${dashManifestUrl != null})")
         resetPlaybackStateForNewVideo(videoId)
+        
+        // Reset SponsorBlock
+        sponsorSegments = emptyList()
+        lastSkippedSegmentUuid = null
+        if (isSponsorBlockEnabled) {
+            scope.launch {
+                try {
+                    sponsorSegments = sponsorBlockRepository.getSegments(videoId)
+                    Log.d(TAG, "SponsorBlock: Loaded ${sponsorSegments.size} segments")
+                } catch (e: Exception) {
+                    Log.e(TAG, "SponsorBlock: Failed to load segments", e)
+                }
+            }
+        }
         
         this.currentDurationSeconds = durationSeconds
         this.currentDashManifestUrl = dashManifestUrl

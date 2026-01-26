@@ -119,6 +119,7 @@ fun SettingsScreen(
     val cellularQuality by playerPreferences.defaultQualityCellular.collectAsState(initial = VideoQuality.Q_480p)
     val autoplayEnabled by playerPreferences.autoplayEnabled.collectAsState(initial = true)
     val skipSilenceEnabled by playerPreferences.skipSilenceEnabled.collectAsState(initial = false)
+    val sponsorBlockEnabled by playerPreferences.sponsorBlockEnabled.collectAsState(initial = false)
     val autoPipEnabled by playerPreferences.autoPipEnabled.collectAsState(initial = false)
     val manualPipButtonEnabled by playerPreferences.manualPipButtonEnabled.collectAsState(initial = true)
     
@@ -423,6 +424,14 @@ item {
                         subtitle = "Skip parts with no audio",
                         checked = skipSilenceEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setSkipSilenceEnabled(it) } }
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.ContentCut,
+                        title = "SponsorBlock",
+                        subtitle = "Skip sponsored segments",
+                        checked = sponsorBlockEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setSponsorBlockEnabled(it) } }
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(

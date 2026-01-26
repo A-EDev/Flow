@@ -352,7 +352,7 @@ Your support helps keep the project alive and motivates me to add more features!
 - [ ] Wear OS companion app
 - [ ] Community playlists
 - [ ] Import YouTube subscriptions
-- [ ] Sponsorblock integration
+- [x] Sponsorblock integration
 - [x] Picture-in-Picture enhancements
 
 ---

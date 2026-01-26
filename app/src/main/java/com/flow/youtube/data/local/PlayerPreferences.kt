@@ -20,7 +20,8 @@ class PlayerPreferences(private val context: Context) {
         val PREFERRED_SUBTITLE_LANGUAGE = stringPreferencesKey("preferred_subtitle_language")
         val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
         val TRENDING_REGION = stringPreferencesKey("trending_region")
-        val SKIP_SILENCE_ENABLED = booleanPreferencesKey("skip_silence_enabled")
+        val SKIP_SILENCE_ENABLED = booleanPreferencesKey("skip_silence_enabled")        
+        val SPONSOR_BLOCK_ENABLED = booleanPreferencesKey("sponsor_block_enabled")        
         val AUTO_PIP_ENABLED = booleanPreferencesKey("auto_pip_enabled")
         val MANUAL_PIP_BUTTON_ENABLED = booleanPreferencesKey("manual_pip_button_enabled")
         
@@ -109,6 +110,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setSkipSilenceEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SKIP_SILENCE_ENABLED] = enabled
+        }
+    }
+
+    // SponsorBlock
+    val sponsorBlockEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SPONSOR_BLOCK_ENABLED] ?: false
+        }
+
+    suspend fun setSponsorBlockEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SPONSOR_BLOCK_ENABLED] = enabled
         }
     }
     
