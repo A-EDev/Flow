@@ -388,12 +388,21 @@ fun FlowApp(
                     showBottomNav = false
                     SettingsScreen(
                         currentTheme = currentTheme,
-                        onThemeChange = onThemeChange,
+
                         onNavigateBack = { navController.popBackStack() },
                         onNavigateToAppearance = { navController.navigate("settings/appearance") },
                         onNavigateToDonations = { navController.navigate("donations") },
                         onNavigateToPersonality = { navController.navigate("personality") },
-                        onNavigateToDownloads = { navController.navigate("settings/downloads") }
+                        onNavigateToDownloads = { navController.navigate("settings/downloads") },
+                        onNavigateToTimeManagement = { navController.navigate("settings/time_management") }
+                    )
+                }
+
+                composable("settings/time_management") {
+                    currentRoute.value = "settings/time_management"
+                    showBottomNav = false
+                    com.flow.youtube.ui.screens.settings.TimeManagementScreen(
+                        onNavigateBack = { navController.popBackStack() }
                     )
                 }
 

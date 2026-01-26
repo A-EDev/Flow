@@ -34,6 +34,7 @@ object NotificationHelper {
     const val CHANNEL_PLAYBACK = "playback_channel"
     const val CHANNEL_MUSIC_PLAYBACK = "music_playback_channel"
     const val CHANNEL_GENERAL = "general_channel"
+    const val CHANNEL_REMINDERS = "reminders_channel"
     const val CHANNEL_UPDATES = "updates_channel"
     
     // Notification IDs
@@ -44,6 +45,7 @@ object NotificationHelper {
     const val NOTIFICATION_PLAYBACK = 3001
     const val NOTIFICATION_MUSIC_PLAYBACK = 3002
     const val NOTIFICATION_GENERAL = 4000
+    const val NOTIFICATION_REMINDER = 5000
     
     private var channelsCreated = false
     
@@ -129,6 +131,15 @@ object NotificationHelper {
                 setShowBadge(true)
             }
             
+            val remindersChannel = NotificationChannel(
+                CHANNEL_REMINDERS,
+                "Reminders",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Bedtime and break reminders"
+                setShowBadge(true)
+            }
+            
             // Updates channel
             val updatesChannel = NotificationChannel(
                 CHANNEL_UPDATES,
@@ -146,6 +157,7 @@ object NotificationHelper {
                     playbackChannel,
                     musicPlaybackChannel,
                     generalChannel,
+                    remindersChannel,
                     updatesChannel
                 )
             )
@@ -485,6 +497,39 @@ object NotificationHelper {
         NotificationManagerCompat.from(context).cancel(notificationId)
     }
     
+    /**
+     * Show reminder notification (Bedtime, Take a break)
+     */
+    fun showReminderNotification(context: Context, title: String, message: String) {
+        if (!hasNotificationPermission(context)) return
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            context, 0, intent,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0
+        )
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_REMINDERS)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(message)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+
+        try {
+            with(NotificationManagerCompat.from(context)) {
+                notify(NOTIFICATION_REMINDER, builder.build())
+            }
+        } catch (e: SecurityException) {
+            // Should be covered by hasNotificationPermission check, but safety first
+            e.printStackTrace()
+        }
+    }
+
     /**
      * Cancel all notifications
      */

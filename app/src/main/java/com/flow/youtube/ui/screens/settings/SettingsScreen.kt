@@ -48,12 +48,12 @@ import androidx.compose.material.icons.filled.ChevronRight
 @Composable
 fun SettingsScreen(
     currentTheme: ThemeMode,
-    onThemeChange: (ThemeMode) -> Unit,
     onNavigateBack: () -> Unit,
     onNavigateToAppearance: () -> Unit,
     onNavigateToDonations: () -> Unit,
     onNavigateToPersonality: () -> Unit,
     onNavigateToDownloads: () -> Unit,
+    onNavigateToTimeManagement: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -338,6 +338,19 @@ item {
         }
     }
 }
+
+            // =================================================
+            // GENERAL
+            // =================================================
+            item { SectionHeader(text = "General") }
+            item {
+                SettingsItem(
+                    icon = Icons.Outlined.Schedule,
+                    title = "Time Management",
+                    subtitle = "Usage stats, Bedtime reminders",
+                    onClick = onNavigateToTimeManagement
+                )
+            }
 
             // =================================================
             // APPEARANCE
@@ -873,9 +886,6 @@ item {
                     } else {
                         Text("Higher values prevent stalling but delay start.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    
-                    // Sliders (Disabled if not custom, or auto-switch to custom? Let's disable for clarity)
-                    val isEnabled = selectedProfile == BufferProfile.CUSTOM
                     
                     // Min Buffer
                     Column {

@@ -15,10 +15,12 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "flow_preferences")
 
-class LocalDataManager(private val context: Context) {
+class LocalDataManager @Inject constructor(@ApplicationContext private val context: Context) {
     private val gson = Gson()
 
     companion object {
@@ -34,6 +36,14 @@ class LocalDataManager(private val context: Context) {
         private val BACKGROUND_PLAY = stringPreferencesKey("background_play")
         private val TRENDING_REGION = stringPreferencesKey("trending_region")
         private val LAST_UPDATE_CHECK = stringPreferencesKey("last_update_check")
+        private val BEDTIME_REMINDER = androidx.datastore.preferences.core.booleanPreferencesKey("bedtime_reminder")
+        private val BEDTIME_START_HOUR = androidx.datastore.preferences.core.intPreferencesKey("bedtime_start_hour")
+        private val BEDTIME_START_MINUTE = androidx.datastore.preferences.core.intPreferencesKey("bedtime_start_minute")
+        private val BEDTIME_END_HOUR = androidx.datastore.preferences.core.intPreferencesKey("bedtime_end_hour") // Optional, mostly for UI
+        private val BEDTIME_END_MINUTE = androidx.datastore.preferences.core.intPreferencesKey("bedtime_end_minute")
+        
+        private val BREAK_REMINDER = androidx.datastore.preferences.core.booleanPreferencesKey("break_reminder")
+        private val BREAK_FREQUENCY = androidx.datastore.preferences.core.intPreferencesKey("break_frequency") // Minutes
     }
 
     // Update Settings
@@ -224,6 +234,48 @@ class LocalDataManager(private val context: Context) {
     suspend fun setTrendingRegion(region: String) {
         context.dataStore.edit { prefs ->
             prefs[TRENDING_REGION] = region
+        }
+    }
+
+    val bedtimeReminder: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[BEDTIME_REMINDER] ?: false
+    }
+
+    val breakReminder: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[BREAK_REMINDER] ?: false
+    }
+
+    suspend fun setBedtimeReminder(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[BEDTIME_REMINDER] = enabled
+        }
+    }
+
+    val bedtimeStartHour: Flow<Int> = context.dataStore.data.map { prefs -> prefs[BEDTIME_START_HOUR] ?: 23 } // Default 11 PM
+    val bedtimeStartMinute: Flow<Int> = context.dataStore.data.map { prefs -> prefs[BEDTIME_START_MINUTE] ?: 0 }
+    val bedtimeEndHour: Flow<Int> = context.dataStore.data.map { prefs -> prefs[BEDTIME_END_HOUR] ?: 7 } // Default 7 AM
+    val bedtimeEndMinute: Flow<Int> = context.dataStore.data.map { prefs -> prefs[BEDTIME_END_MINUTE] ?: 0 }
+
+    suspend fun setBedtimeSchedule(startHour: Int, startMinute: Int, endHour: Int, endMinute: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[BEDTIME_START_HOUR] = startHour
+            prefs[BEDTIME_START_MINUTE] = startMinute
+            prefs[BEDTIME_END_HOUR] = endHour
+            prefs[BEDTIME_END_MINUTE] = endMinute
+        }
+    }
+
+    suspend fun setBreakReminder(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[BREAK_REMINDER] = enabled
+        }
+    }
+
+    val breakFrequency: Flow<Int> = context.dataStore.data.map { prefs -> prefs[BREAK_FREQUENCY] ?: 30 } // Default 30 min
+
+    suspend fun setBreakFrequency(minutes: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[BREAK_FREQUENCY] = minutes
         }
     }
 }
