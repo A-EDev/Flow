@@ -371,20 +371,17 @@ class EnhancedPlayerManager private constructor() {
             // Reattach any preserved surface holder so the new player renders immediately
             surfaceHolder?.let { holder ->
                 runCatching {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        player?.setVideoSurfaceHolder(holder)
-                        Log.d(TAG, "Reattached preserved surface holder after player init")
+                    // Always use surface object directly for consistency
+                    val surface = holder.surface
+                    if (surface != null && surface.isValid) {
+                        player?.setVideoSurface(surface)
+                        Log.d(TAG, "Reattached preserved surface ${surface.hashCode()} after player init")
+                        setSurfaceReady(true)
                     } else {
-                        val surface = holder.surface
-                        if (surface != null && surface.isValid) {
-                            player?.setVideoSurface(surface)
-                            Log.d(TAG, "Reattached preserved surface after player init (legacy)")
-                        } else {
-                            Log.d(TAG, "Legacy surface not yet valid during init")
-                        }
+                         Log.w(TAG, "Surface holder present but surface invalid or null during init")
                     }
                 }.onFailure { e ->
-                    Log.d(TAG, "Failed to reattach surface during init: ${e.message}")
+                    Log.e(TAG, "Failed to reattach surface during init: ${e.message}", e)
                 }
             }
             
@@ -1062,6 +1059,7 @@ class EnhancedPlayerManager private constructor() {
         }
 
         surfaceHolder = holder
+        Log.d(TAG, "attachVideoSurface: stored holder. Player instance is ${if(player==null) "null" else "not null"}")
 
         // A real surface is back, drop any placeholder we were using
         placeholderSurface?.let { placeholder ->
@@ -1080,30 +1078,51 @@ class EnhancedPlayerManager private constructor() {
             // This ensures the surface is reattached even when the same holder is reused
             val surface = holder.surface
             if (surface != null && surface.isValid) {
+                Log.d(TAG, "Attempting to attach surface ${surface.hashCode()} to player")
                 playerInstance.setVideoSurface(surface)
                 Log.d(TAG, "Surface attached to player via getSurface() (NewPipe approach)")
                 _surfaceReadyFlow.value = true  // Signal that surface is attached
                 setSurfaceReady(true)
             } else {
-                Log.d(TAG, "Surface holder not yet valid; awaiting callback")
+                Log.w(TAG, "Surface holder not yet valid; awaiting callback")
             }
         }.onFailure { error ->
-            Log.w(TAG, "Failed to bind surface to player", error)
+            Log.e(TAG, "Failed to bind surface to player", error)
         }
     }
 
-    fun detachVideoSurface() {
+    fun detachVideoSurface(holder: SurfaceHolder? = null) {
+        // If specific holder provided, check if it matches current
+        if (holder != null && holder != surfaceHolder) {
+            Log.d(TAG, "detachVideoSurface ignored: holder mismatch (stale surface)")
+            return
+        }
+
+        Log.d(TAG, "detachVideoSurface called")
+        // NOTE: We do NOT clear surfaceHolder here to support reuse scenarios
+        // surfaceHolder = null 
+        
         val playerInstance = player
         try {
             if (playerInstance != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val context = appContext
                 if (context != null) {
+                    // Try to reuse the placeholder surface if valid
                     if (placeholderSurface == null || placeholderSurface?.isValid == false) {
-                        runCatching { placeholderSurface?.release() }
-                        placeholderSurface = PlaceholderSurface.newInstance(context, false)
+                        try {
+                            runCatching { placeholderSurface?.release() }
+                            placeholderSurface = PlaceholderSurface.newInstance(context, false)
+                        } catch(e: Exception) {
+                            Log.w(TAG, "Failed to create placeholder surface", e)
+                        }
                     }
-                    playerInstance.setVideoSurface(placeholderSurface)
-                    Log.d(TAG, "Attached placeholder surface (surface detached temporarily)")
+                    
+                    placeholderSurface?.let {
+                        playerInstance.setVideoSurface(it)
+                        Log.d(TAG, "Attached placeholder surface (surface detached temporarily)")
+                    } ?: run {
+                        playerInstance.clearVideoSurface()
+                    }
                 } else {
                     playerInstance.clearVideoSurface()
                 }
@@ -1114,15 +1133,7 @@ class EnhancedPlayerManager private constructor() {
             Log.w(TAG, "Failed to attach placeholder surface", e)
         }
 
-        // CRITICAL: DON'T set surfaceHolder = null here!
-        // When PlayerView is reused (via remember(context)), the surface callback won't fire again
-        // Keep the holder reference so we can reattach it in loadMedia()
-        // surfaceHolder = null  // <- REMOVED: This was causing "No surface holder" errors
-        
         _surfaceReadyFlow.value = false  // Reset flow - waiting for reattachment
-        // DON'T set isSurfaceReady = false here!
-        // The placeholder surface keeps the renderer alive, so we're still "ready"
-        // This prevents black screens when quickly switching between videos
     }
 
     /**
@@ -1200,7 +1211,11 @@ class EnhancedPlayerManager private constructor() {
         _playerState.value = _playerState.value.copy(
             isPlaying = false,
             currentVideoId = null,
-            currentQuality = 0  // Reset to Auto
+            currentQuality = 0,  // Reset to Auto
+            bufferedPercentage = 0f,
+            isBuffering = false,
+            isPrepared = false,
+            hasEnded = false
         )
     }
 

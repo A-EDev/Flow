@@ -20,6 +20,7 @@ import org.schabi.newpipe.extractor.stream.*
 import com.flow.youtube.data.video.VideoDownloadManager
 import com.flow.youtube.data.video.DownloadedVideo
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.delay
 
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -62,11 +63,21 @@ class VideoPlayerViewModel @Inject constructor(
     }
     
     fun loadVideoInfo(videoId: String, isWifi: Boolean = true) {
-        // Don't reload if already loading or already loaded the same video
-        if ((_uiState.value.streamInfo?.id == videoId || _uiState.value.isLoading) && _uiState.value.error == null) {
+        val currentState = _uiState.value
+        Log.d("VideoPlayerViewModel", "loadVideoInfo: Request=$videoId. Current=${currentState.streamInfo?.id}, IsLoading=${currentState.isLoading}")
+
+        // Don't reload if already loaded the same video successfully
+        if (currentState.streamInfo?.id == videoId && !currentState.isLoading && currentState.error == null) {
+            Log.d("VideoPlayerViewModel", "Video $videoId already loaded successfully. Skipping.")
             return
         }
         
+        // If loading the same video, skip. If loading a different video, proceed (and effectively restart/override)
+        if (currentState.isLoading && currentState.streamInfo?.id == videoId) {
+             Log.d("VideoPlayerViewModel", "Video $videoId is currently loading. Skipping redundant request.")
+             return
+        }
+
         // Track history
         if (navigationHistory.isEmpty() || navigationHistory[currentHistoryIndex] != videoId) {
             // If we are not at the end of history, clear the forward history
@@ -79,9 +90,18 @@ class VideoPlayerViewModel @Inject constructor(
             _canGoPrevious.value = currentHistoryIndex > 0
         }
         
-        _uiState.value = _uiState.value.copy(isLoading = true, error = null, metadataError = null)
+        _uiState.value = _uiState.value.copy(
+            isLoading = true, 
+            error = null, 
+            metadataError = null,
+            streamInfo = null,
+            videoStream = null,
+            audioStream = null,
+            relatedVideos = emptyList()
+        )
         
         viewModelScope.launch {
+            Log.d("VideoPlayerViewModel", "Starting loadVideoInfo for $videoId")
             try {
                 kotlinx.coroutines.withTimeout(30_000) {
                     // Determine preferred quality from preferences
@@ -98,31 +118,44 @@ class VideoPlayerViewModel @Inject constructor(
                         list.find { it.video.id == videoId } 
                     }.first()
 
-                    // Parallelize stream info and related videos requests
                     val streamInfoDeferred = async { 
-                        try {
-                            if (downloadedVideo != null) {
-                                repository.getVideoStreamInfo(videoId)
-                            } else {
-                                repository.getVideoStreamInfo(videoId)
+                        var info: StreamInfo? = null
+                        var attempt = 0
+                        val maxAttempts = 3
+                        while (info == null && attempt < maxAttempts) {
+                            try {
+                                attempt++
+                                info = repository.getVideoStreamInfo(videoId)
+                                
+                                if (info == null) { 
+                                     if (attempt < maxAttempts) {
+                                         Log.w("VideoPlayerViewModel", "Stream info fetch failed (attempt $attempt), retrying in ${attempt * 500}ms...")
+                                         delay(attempt * 500L) // Exponential backoff: 500ms, 1000ms
+                                     }
+                                }
+                            } catch (e: Exception) {
+                                Log.e("VideoPlayerViewModel", "Failed to load stream info (attempt $attempt)", e)
+                                if (attempt < maxAttempts) {
+                                    delay(attempt * 500L)
+                                }
                             }
-                        } catch (e: Exception) {
-                            Log.e("VideoPlayerViewModel", "Failed to load stream info", e)
-                            null
                         }
+                        if (info == null) {
+                            Log.e("VideoPlayerViewModel", "Stream info fetch failed after $maxAttempts attempts")
+                        }
+                        info
                     }
                     
-                    val relatedVideosDeferred = async { 
-                        try {
-                            repository.getRelatedVideos(videoId)
-                        } catch (e: Exception) {
-                            Log.e("VideoPlayerViewModel", "Failed to load related videos", e)
-                            emptyList()
-                        }
-                    }
-
                     val streamInfo = streamInfoDeferred.await()
-                    val relatedVideos = relatedVideosDeferred.await()
+                    
+                    // Extract related videos directly from the stream info (avoids extra network call)
+                    val relatedVideos = if (streamInfo != null) {
+                        repository.getRelatedVideosFromStreamInfo(streamInfo)
+                    } else {
+                        // Fallback: try separate fetch if stream info failed but we might want related? 
+                        // Unlikely to work if main fetch failed, but consistent with safe defaults.
+                        emptyList()
+                    }
                     
                     if (streamInfo != null) {
                         // Record interaction for Flow Neuro Engine
@@ -252,6 +285,7 @@ class VideoPlayerViewModel @Inject constructor(
                     } else {
                         // Offline fallback
                         if (downloadedVideo != null && java.io.File(downloadedVideo.filePath).exists()) {
+                            Log.d("VideoPlayerViewModel", "Using offline video for $videoId")
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
                                 error = null,
@@ -259,6 +293,7 @@ class VideoPlayerViewModel @Inject constructor(
                                 localFilePath = downloadedVideo.filePath
                             )
                         } else {
+                            Log.e("VideoPlayerViewModel", "Stream info is null for $videoId and no offline copy found.")
                             _uiState.value = _uiState.value.copy(
                                 isLoading = false,
                                 relatedVideos = relatedVideos,
@@ -268,12 +303,13 @@ class VideoPlayerViewModel @Inject constructor(
                     }
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                Log.e("VideoPlayerViewModel", "Video info load timed out after 30s")
+                Log.e("VideoPlayerViewModel", "Video info load timed out for $videoId after 30s")
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = "Load timed out. Please check your connection."
                 )
             } catch (e: Exception) {
+                Log.e("VideoPlayerViewModel", "Exception loading video $videoId", e)
                 // Final fallback if everything fails
                 val downloadedVideo = videoDownloadManager.downloadedVideos.map { list -> 
                     list.find { it.video.id == videoId } 

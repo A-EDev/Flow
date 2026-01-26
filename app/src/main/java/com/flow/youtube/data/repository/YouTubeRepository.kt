@@ -1,6 +1,7 @@
 package com.flow.youtube.data.repository
 
 import com.flow.youtube.data.model.Video
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.async
@@ -191,8 +192,35 @@ class YouTubeRepository @Inject constructor() {
         try {
             val url = "https://www.youtube.com/watch?v=$videoId"
             StreamInfo.getInfo(service, url)
-        } catch (e: ExtractionException) {
-            e.printStackTrace()
+        } catch (e: Exception) {
+            // NewPipe "The page needs to be reloaded" error handling
+            // This often happens due to stale internal state or specific YouTube bot identifiers
+            val isReloadError = e.message?.contains("page needs to be reloaded", ignoreCase = true) == true || 
+                               (e is org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException && e.message?.contains("reloaded") == true)
+            
+            if (isReloadError) {
+                Log.w("YouTubeRepository", "Hit 'page needs to be reloaded' error for $videoId. Retrying with fresh state...")
+                
+                // Re-init NewPipe to potentially clear internal state
+                try {
+                     val country = ContentCountry("US")
+                     val localization = Localization.fromLocale(java.util.Locale.ENGLISH)
+                     NewPipe.init(NewPipe.getDownloader(), localization, country)
+                } catch (initEx: Exception) {
+                     Log.e("YouTubeRepository", "Failed to re-init NewPipe", initEx)
+                }
+
+                // Retry with alternate URL format which works as a cache buster sometimes
+                try {
+                    val altUrl = "https://youtu.be/$videoId" 
+                    Log.d("YouTubeRepository", "Retrying with alternate URL: $altUrl")
+                    return@withContext StreamInfo.getInfo(service, altUrl)
+                } catch (retryEx: Exception) {
+                    Log.e("YouTubeRepository", "Retry failed for $videoId: ${retryEx.message}", retryEx)
+                }
+            } else {
+                Log.e("YouTubeRepository", "Error getting stream info for $videoId: ${e.message}", e)
+            }
             null
         }
     }
@@ -445,6 +473,18 @@ class YouTubeRepository @Inject constructor() {
         } catch (e: Exception) {
             e.printStackTrace()
             null
+        }
+    }
+
+    /**
+     * Helper to extract related videos directly from a StreamInfo object
+     * This avoids a redundant network call when we already have the stream info.
+     */
+    fun getRelatedVideosFromStreamInfo(info: StreamInfo): List<Video> {
+        return try {
+            info.relatedItems.filterIsInstance<StreamInfoItem>().map { it.toVideo() }
+        } catch (e: Exception) {
+            emptyList()
         }
     }
 

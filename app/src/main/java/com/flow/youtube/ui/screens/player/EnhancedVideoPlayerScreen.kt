@@ -80,6 +80,16 @@ fun EnhancedVideoPlayerScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
 
+    // Show error snackbar
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let { errorMsg ->
+            snackbarHostState.showSnackbar(
+                message = errorMsg,
+                withDismissAction = true
+            )
+        }
+    }
+
     // Create a complete Video object from streamInfo if available
     val completeVideo = remember(uiState.streamInfo, video) {
         val streamInfo = uiState.streamInfo
@@ -542,11 +552,11 @@ fun EnhancedVideoPlayerScreen(
                 channelId = channelId
             )
 
-            // DON'T release player - just clear current video and surface to allow switching
+            // DON'T release player - just clear current video to allow switching
             // The player instance stays alive and keeps the surface binding intact
             EnhancedPlayerManager.getInstance().clearCurrentVideo()
-            EnhancedPlayerManager.getInstance().clearSurface()
-            Log.d("EnhancedVideoPlayerScreen", "Video ID changed, cleared player state and surface (player kept alive)")
+            // Removed clearSurface() to prevent race condition where new surface is cleared
+            Log.d("EnhancedVideoPlayerScreen", "Video ID changed, cleared player state (player kept alive)")
         }
     }
     

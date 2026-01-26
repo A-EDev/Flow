@@ -60,7 +60,7 @@ fun VideoPlayerSurface(
                 
                 override fun surfaceDestroyed(holder: android.view.SurfaceHolder) {
                     Log.d("EnhancedVideoPlayer", "Surface destroyed for video ${video.id}")
-                    EnhancedPlayerManager.getInstance().detachVideoSurface()
+                    EnhancedPlayerManager.getInstance().detachVideoSurface(holder)
                 }
             }.also { surfaceView.holder.addCallback(it) }
         } else null
