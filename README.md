@@ -53,10 +53,10 @@
 
 ## ✨ Why Flow?
 
-Most open-source clients are just "viewers." Flow is an **Experience**.
+Most open-source clients focus purely on playback. Flow focuses on discovery.**.
 
 ### 🧠 FlowNeuro™ Engine
-Google tracks you to recommend videos. Flow uses **Math**.
+Google relies on server-side tracking. Flow relies on client-side vector analysis.
 *   **On-Device Intelligence:** A vector-based engine runs locally on your phone to learn what you like.
 *   **Transparent Algorithm:** Visualize your "Cognitive Map" in settings. See exactly why a video was recommended.
 *   **Context Aware:** Flow knows you like Lofi in the morning and Gaming at night.
