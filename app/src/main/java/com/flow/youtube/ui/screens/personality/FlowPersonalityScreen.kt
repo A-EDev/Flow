@@ -150,7 +150,7 @@ fun FlowPersonalityScreen(
                         // 3. NEURAL BUBBLE CLOUD (Animated Canvas)
                         SectionHeader(
                             icon = Icons.Outlined.AutoAwesome,
-                            title = "Interest Nebula",
+                            title = "Interests",
                             subtitle = "Your neural interest map"
                         )
                         NeuralBubbleCloud(brain = userBrain!!)
@@ -381,9 +381,7 @@ private fun PersonaHeroCard(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-        )
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Box(
             modifier = Modifier
@@ -391,53 +389,80 @@ private fun PersonaHeroCard(
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.05f)
-                        )
+                            MaterialTheme.colorScheme.primary,
+                            MaterialTheme.colorScheme.primaryContainer
+                        ),
+                        start = Offset(0f, 0f),
+                        end = Offset(1000f, 1000f)
                     )
                 )
         ) {
+            // 1. Background Decor (Abstract Shapes)
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                // Top Right Circle
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.1f),
+                    radius = size.width * 0.5f,
+                    center = Offset(size.width, 0f)
+                )
+                // Bottom Left Blob
+                drawCircle(
+                    color = Color.Black.copy(alpha = 0.05f),
+                    radius = size.width * 0.3f,
+                    center = Offset(0f, size.height)
+                )
+            }
+
+            // 2. Huge Emoji Icon (Watermark style)
+            Text(
+                text = displayPersona.icon,
+                fontSize = 140.sp,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 20.dp, y = 30.dp)
+                    .alpha(0.15f)
+            )
+
+            // 3. Main Content
             Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp)
             ) {
-                // Persona Icon
-                Box(
-                    modifier = Modifier
-                        .size(80.dp)
-                        .background(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                            CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
+                // Badge
+                Surface(
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        displayPersona.icon,
-                        style = MaterialTheme.typography.displayMedium
+                        text = "ACTIVE LEARNING",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
-                
+
                 Spacer(Modifier.height(16.dp))
-                
+
+                // Persona Info
                 Text(
-                    displayPersona.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold
+                    text = displayPersona.title,
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black),
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
                 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
                 
                 Text(
-                    displayPersona.description,
+                    text = displayPersona.description,
                     style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp)
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f),
                 )
                 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(24.dp))
                 
-                // Experience Level Bar
+                // Experience Level Bar (Adapted for new background)
                 val progress = (brain.totalInteractions / 500f).coerceIn(0f, 1f)
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -449,14 +474,15 @@ private fun PersonaHeroCard(
                             .fillMaxWidth()
                             .height(8.dp)
                             .clip(RoundedCornerShape(4.dp)),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        color = MaterialTheme.colorScheme.onPrimary, // White for contrast
+                        trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "${brain.totalInteractions} interactions • Level ${(brain.totalInteractions / 100) + 1}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }

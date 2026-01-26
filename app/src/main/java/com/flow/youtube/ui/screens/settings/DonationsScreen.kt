@@ -101,7 +101,7 @@ fun DonationsScreen(
             item {
                 DonationItem(
                     title = "USDT",
-                    address = "0xfbac6f464fec7fe458e318971a42ba45b305b70e",
+                    address = "TRz7VDrTWwCLCfQmYBEJakqcZgbFNWfUMP",
                     icon = Icons.Outlined.ContentCopy,
                     context = context
                 )
