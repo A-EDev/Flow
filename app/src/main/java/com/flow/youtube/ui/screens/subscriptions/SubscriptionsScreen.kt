@@ -9,6 +9,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Notifications
@@ -175,52 +179,58 @@ fun SubscriptionsScreen(
                     if (subscribedChannels.isEmpty()) {
                         EmptySubscriptionsState(modifier = Modifier.fillMaxSize())
                     } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize()
+                        LazyVerticalGrid(
+                            columns = if (uiState.isFullWidthView) GridCells.Adaptive(320.dp) else GridCells.Fixed(1),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             // Channel Chips Row
-                            item {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    LazyRow(
-                                        modifier = Modifier.weight(1f),
-                                        contentPadding = PaddingValues(start = 16.dp, end = 8.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                Column {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        items(subscribedChannels.take(10)) { channel ->
-                                            ChannelAvatarItem(
-                                                channel = channel,
-                                                isSelected = uiState.selectedChannelId == channel.id,
-                                                onClick = {
-                                                    viewModel.selectChannel(
-                                                        if (uiState.selectedChannelId == channel.id) null else channel.id
-                                                    )
-                                                }
-                                            )
+                                        LazyRow(
+                                            modifier = Modifier.weight(1f),
+                                            contentPadding = PaddingValues(start = 16.dp, end = 8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            items(subscribedChannels.take(10)) { channel ->
+                                                ChannelAvatarItem(
+                                                    channel = channel,
+                                                    isSelected = uiState.selectedChannelId == channel.id,
+                                                    onClick = {
+                                                        viewModel.selectChannel(
+                                                            if (uiState.selectedChannelId == channel.id) null else channel.id
+                                                        )
+                                                    }
+                                                )
+                                            }
+                                        }
+                                        
+                                        // View All Button
+                                        TextButton(
+                                            onClick = { isManagingSubs = true },
+                                            modifier = Modifier.padding(end = 8.dp)
+                                        ) {
+                                            Text("All", fontWeight = FontWeight.Bold)
                                         }
                                     }
                                     
-                                    // View All Button
-                                    TextButton(
-                                        onClick = { isManagingSubs = true },
-                                        modifier = Modifier.padding(end = 8.dp)
-                                    ) {
-                                        Text("All", fontWeight = FontWeight.Bold)
+                                    if (uiState.isLoading) {
+                                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(2.dp))
                                     }
+                                    Divider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                 }
-                                
-                                if (uiState.isLoading) {
-                                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(2.dp))
-                                }
-                                Divider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                             }
 
                             if (uiState.shorts.isNotEmpty()) {
-                                item {
+                                item(span = { GridItemSpan(maxLineSpan) }) {
                                     Column {
                                         
                                         ShortsShelf(
@@ -239,7 +249,6 @@ fun SubscriptionsScreen(
                                         video = video,
                                         onClick = { onVideoClick(video) }
                                     )
-                                    Spacer(modifier = Modifier.height(8.dp))
                                 } else {
                                     VideoCardHorizontal(
                                         video = video,
@@ -248,7 +257,7 @@ fun SubscriptionsScreen(
                                 }
                             }
                             
-                            item {
+                            item(span = { GridItemSpan(maxLineSpan) }) {
                                 Spacer(modifier = Modifier.height(80.dp))
                             }
                         }

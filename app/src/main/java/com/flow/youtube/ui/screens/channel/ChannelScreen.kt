@@ -4,6 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -162,12 +166,15 @@ private fun ChannelContent(
 ) {
     val channelInfo = uiState.channelInfo ?: return
     
-    LazyColumn(
+    LazyVerticalGrid(
+        columns = if (uiState.selectedTab == 1) GridCells.Adaptive(150.dp) else GridCells.Adaptive(320.dp),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 16.dp)
+        contentPadding = PaddingValues(bottom = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // Banner & Header Combined
-        item {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             Box(modifier = Modifier.fillMaxWidth()) {
                 // Banner
                 val bannerUrl = try { channelInfo.banners.firstOrNull()?.url } catch (e: Exception) { null }
@@ -280,7 +287,7 @@ private fun ChannelContent(
         }
         
         // Tabs
-        item {
+        item(span = { GridItemSpan(maxLineSpan) }) {
             ScrollableTabRow(
                 selectedTabIndex = uiState.selectedTab,
                 edgePadding = 16.dp,
@@ -320,7 +327,7 @@ private fun ChannelContent(
             0 -> { // Videos
                 if (videosLazyPagingItems != null) {
                     if (videosLazyPagingItems.loadState.refresh is LoadState.NotLoading && videosLazyPagingItems.itemCount == 0) {
-                        item {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
                             EmptyStateMessage("No videos found")
                         }
                     } else {
@@ -342,51 +349,20 @@ private fun ChannelContent(
             1 -> { // Shorts
                 if (shortsLazyPagingItems != null) {
                     if (shortsLazyPagingItems.loadState.refresh is LoadState.NotLoading && shortsLazyPagingItems.itemCount == 0) {
-                        item {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
                             EmptyStateMessage("No shorts found")
                         }
                     } else {
-                        // Use items with a Row to create a 2-column grid
-                        val itemCount = shortsLazyPagingItems.itemCount
-                        val rowCount = (itemCount + 1) / 2
-                        
-                        items(rowCount) { rowIndex ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                val firstIndex = rowIndex * 2
-                                val secondIndex = firstIndex + 1
-                                
-                                // First item in row
-                                val firstShort = shortsLazyPagingItems[firstIndex]
-                                if (firstShort != null) {
-                                    ShortsCard(
-                                        video = firstShort,
-                                        onClick = { onShortClick(firstShort.id) },
-                                        modifier = Modifier.weight(1f)
-                                    )
-                                } else {
-                                    Spacer(Modifier.weight(1f))
-                                }
-                                
-                                // Second item in row
-                                if (secondIndex < itemCount) {
-                                    val secondShort = shortsLazyPagingItems[secondIndex]
-                                    if (secondShort != null) {
-                                        ShortsCard(
-                                            video = secondShort,
-                                            onClick = { onShortClick(secondShort.id) },
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                    } else {
-                                        Spacer(Modifier.weight(1f))
-                                    }
-                                } else {
-                                    Spacer(Modifier.weight(1f))
-                                }
+                        items(
+                            count = shortsLazyPagingItems.itemCount,
+                            key = shortsLazyPagingItems.itemKey { it.id }
+                        ) { index ->
+                            val video = shortsLazyPagingItems[index]
+                            if (video != null) {
+                                ShortsCard(
+                                    video = video,
+                                    onClick = { onShortClick(video.id) }
+                                )
                             }
                         }
                     }
@@ -395,7 +371,7 @@ private fun ChannelContent(
             2 -> { // Playlists
                 if (playlistsLazyPagingItems != null) {
                     if (playlistsLazyPagingItems.loadState.refresh is LoadState.NotLoading && playlistsLazyPagingItems.itemCount == 0) {
-                        item {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
                             EmptyStateMessage("No playlists found")
                         }
                     } else {
@@ -415,7 +391,7 @@ private fun ChannelContent(
                 }
             }
             3 -> { // About
-                item {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     AboutSection(channelInfo = channelInfo)
                 }
             }

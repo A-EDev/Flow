@@ -12,6 +12,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -260,84 +262,112 @@ fun EnhancedMusicPlayerScreen(
                 )
             )
             
-            Column(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(horizontal = 24.dp)
             ) {
-                Spacer(modifier = Modifier.height(8.dp))
+                // Adjust threshold for landscape and utilize height check
+                val isLandscape = maxWidth > maxHeight && maxWidth > 400.dp
                 
-                // Artwork / Video Area with Gestures
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.Black)
-                        .pointerInput(Unit) {
-                            var totalDrag = 0f
-                            detectHorizontalDragGestures(
-                                onDragStart = { totalDrag = 0f },
-                                onDragEnd = {
-                                    if (totalDrag > 100) {
-                                        viewModel.skipToPrevious()
-                                    } else if (totalDrag < -100) {
-                                        viewModel.skipToNext()
+                val artworkContent: @Composable (Modifier) -> Unit = { modifier ->
+                    // Artwork / Video Area with Gestures
+                    Box(
+                        modifier = modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color.Black)
+                            .pointerInput(Unit) {
+                                var totalDrag = 0f
+                                detectHorizontalDragGestures(
+                                    onDragStart = { totalDrag = 0f },
+                                    onDragEnd = {
+                                        if (totalDrag > 100) {
+                                            viewModel.skipToPrevious()
+                                        } else if (totalDrag < -100) {
+                                            viewModel.skipToNext()
+                                        }
+                                    },
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        totalDrag += dragAmount
+                                        change.consume()
+                                    }
+                                )
+                            }
+                    ) {
+                        if (isVideoMode) {
+                            AndroidView(
+                                factory = { context ->
+                                    PlayerView(context).apply {
+                                        player = EnhancedMusicPlayerManager.player
+                                        useController = false
+                                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                        layoutParams = ViewGroup.LayoutParams(
+                                            ViewGroup.LayoutParams.MATCH_PARENT,
+                                            ViewGroup.LayoutParams.MATCH_PARENT
+                                        )
                                     }
                                 },
-                                onHorizontalDrag = { change, dragAmount ->
-                                    totalDrag += dragAmount
-                                    change.consume()
-                                }
+                                modifier = Modifier.fillMaxSize()
                             )
-                        }
-                ) {
-                    if (isVideoMode) {
-                        AndroidView(
-                            factory = { context ->
-                                PlayerView(context).apply {
-                                    player = EnhancedMusicPlayerManager.player
-                                    useController = false
-                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                    layoutParams = ViewGroup.LayoutParams(
-                                        ViewGroup.LayoutParams.MATCH_PARENT,
-                                        ViewGroup.LayoutParams.MATCH_PARENT
-                                    )
+                        } else {
+                            AsyncImage(
+                                model = (uiState.currentTrack?.thumbnailUrl ?: track.thumbnailUrl).replace("w120-h120", "w1000-h1000"),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit
+                            )
+                            
+                            if (uiState.isLoading) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black.copy(alpha = 0.3f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(color = Color.White)
                                 }
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        AsyncImage(
-                            model = (uiState.currentTrack?.thumbnailUrl ?: track.thumbnailUrl).replace("w120-h120", "w1000-h1000"),
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                        
-                        if (uiState.isLoading) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Color.Black.copy(alpha = 0.3f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(color = Color.White)
                             }
                         }
                     }
                 }
                 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Title and Artist Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
+                if (isLandscape) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(bottom = 16.dp), // Add padding to avoid bottom overlap
+                        horizontalArrangement = Arrangement.spacedBy(24.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // In landscape, constrain artwork by height to ensure it fits
+                        Box(
+                            modifier = Modifier
+                                .weight(0.45f)
+                                .fillMaxHeight(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                             artworkContent(
+                                Modifier
+                                    .aspectRatio(1f) // Square aspect ratio
+                                    .fillMaxHeight() // Fill height available
+                             )
+                        }
+                        
+                        Column(
+                            modifier = Modifier
+                                .weight(0.55f)
+                                .fillMaxHeight()
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 8.dp),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            // Title and Artist Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                         Text(
                             text = uiState.currentTrack?.title ?: track.title,
                             style = MaterialTheme.typography.headlineSmall,
@@ -366,7 +396,225 @@ fun EnhancedMusicPlayerScreen(
                             modifier = Modifier.size(28.dp)
                         )
                     }
+                
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Pill Buttons Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            PillButton(
+                                icon = Icons.Outlined.Share,
+                                text = "Share",
+                                onClick = {
+                                    val sendIntent: Intent = Intent().apply {
+                                        action = Intent.ACTION_SEND
+                                        putExtra(Intent.EXTRA_TEXT, "Check out this song: ${uiState.currentTrack?.title} by ${uiState.currentTrack?.artist}\nhttps://music.youtube.com/watch?v=${uiState.currentTrack?.videoId}")
+                                        type = "text/plain"
+                                    }
+                                    val shareIntent = Intent.createChooser(sendIntent, null)
+                                    context.startActivity(shareIntent)
+                                }
+                            )
+                            
+                            val isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId)
+                            PillButton(
+                                icon = if (isDownloaded) Icons.Filled.CheckCircle else Icons.Outlined.DownloadForOffline,
+                                text = if (isDownloaded) "Downloaded" else "Download",
+                                onClick = { 
+                                    if (!isDownloaded) viewModel.downloadTrack() 
+                                }
+                            )
+                            PillButton(
+                                icon = Icons.Outlined.PlaylistAdd,
+                                text = "Save",
+                                onClick = { viewModel.showAddToPlaylistDialog(true) }
+                            )
+                            
+                        }
+
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        // Seekbar
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Slider(
+                                value = uiState.currentPosition.toFloat(),
+                                onValueChange = { viewModel.seekTo(it.toLong()) },
+                                valueRange = 0f..uiState.duration.toFloat().coerceAtLeast(1f),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color.White,
+                                    activeTrackColor = Color.White,
+                                    inactiveTrackColor = Color.White.copy(alpha = 0.2f)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    formatTime(uiState.currentPosition),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color.White.copy(alpha = 0.6f)
+                                )
+                                Text(
+                                    formatTime(uiState.duration),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color.White.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Playback Controls
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = { viewModel.toggleShuffle() }) {
+                                Icon(
+                                    Icons.Outlined.Shuffle,
+                                    contentDescription = "Shuffle",
+                                    tint = if (uiState.shuffleEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f)
+                                )
+                            }
+                            
+                            IconButton(
+                                onClick = { viewModel.skipToPrevious() },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.SkipPrevious,
+                                    contentDescription = "Previous",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+
+                            Surface(
+                                shape = CircleShape,
+                                color = Color.White,
+                                modifier = Modifier.size(72.dp),
+                                onClick = { viewModel.togglePlayPause() }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    if (uiState.isBuffering) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(32.dp),
+                                            color = Color.Black,
+                                            strokeWidth = 3.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = if (uiState.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                            contentDescription = if (uiState.isPlaying) "Pause" else "Play",
+                                            tint = Color.Black,
+                                            modifier = Modifier.size(40.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            IconButton(
+                                onClick = { viewModel.skipToNext() },
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(
+                                    Icons.Filled.SkipNext,
+                                    contentDescription = "Next",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+
+                            IconButton(onClick = { viewModel.toggleRepeat() }) {
+                                Icon(
+                                    when (uiState.repeatMode) {
+                                        RepeatMode.ONE -> Icons.Outlined.RepeatOne
+                                        else -> Icons.Outlined.Repeat
+                                    },
+                                    contentDescription = "Repeat",
+                                    tint = if (uiState.repeatMode != RepeatMode.OFF) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f)
+                                )
+                            }
+                        }
+                        
+                        // Spacer(modifier = Modifier.weight(1f)) // Removed weight from scrollable column
+
+                        // Bottom Tabs
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            TextButton(onClick = { showQueue = true }) {
+                                Text("UP NEXT", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
+                            }
+                            TextButton(onClick = { showLyrics = true }) {
+                                Text("LYRICS", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
+                            }
+                            TextButton(onClick = { showRelated = true }) {
+                                Text("RELATED", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
                 }
+            } else {
+                // Portrait Mode
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    artworkContent(
+                        Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(1f)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    // Title and Artist Row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = uiState.currentTrack?.title ?: track.title,
+                                style = MaterialTheme.typography.headlineSmall,
+                                color = Color.White,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = uiState.currentTrack?.artist ?: track.artist,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White.copy(alpha = 0.7f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        
+                        IconButton(
+                            onClick = { viewModel.toggleLike() },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (uiState.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                                contentDescription = "Like",
+                                tint = if (uiState.isLiked) MaterialTheme.colorScheme.primary else Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
                 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -534,6 +782,8 @@ fun EnhancedMusicPlayerScreen(
                 }
                 
                 Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
             }
         }
         

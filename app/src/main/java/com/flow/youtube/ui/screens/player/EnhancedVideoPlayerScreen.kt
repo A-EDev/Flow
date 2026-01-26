@@ -30,7 +30,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.movableContentOf
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -564,7 +567,7 @@ fun EnhancedVideoPlayerScreen(
     // player state across navigation. The player lifecycle is now managed globally.
     // If you need to release on back navigation, handle it in the BackHandler instead.
     
-    val playerHeight = if (isFullscreen || isInPipMode) {
+    val portraitHeight = if (isFullscreen || isInPipMode) {
         configuration.screenHeightDp.dp
     } else {
         (configuration.screenWidthDp.dp * 9f / 16f).coerceAtLeast(220.dp)
@@ -575,12 +578,17 @@ fun EnhancedVideoPlayerScreen(
             .fillMaxSize()
             .background(if (isInPipMode) Color.Black else MaterialTheme.colorScheme.background)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val isWideLayout = maxWidth > 600.dp && maxHeight < maxWidth && !isFullscreen && !isInPipMode
+            val widePlayerHeight = (maxWidth * 0.65f * 9f / 16f)
+
+            val playerContent = remember {
+                movableContentOf { currentHeight: Dp ->
             // ============ VIDEO PLAYER SECTION ============
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(playerHeight)
+                    .height(currentHeight)
                     .background(Color.Black)
                     .videoPlayerControls(
                         isSpeedBoostActive = isSpeedBoostActive,
@@ -718,16 +726,10 @@ fun EnhancedVideoPlayerScreen(
                     bufferedPercentage = playerState.bufferedPercentage
                 )
             }
-            
-            // ============ VIDEO DETAILS AND RELATED (Only when not fullscreen and not in PiP) ============
-            if (!isFullscreen && !isInPipMode) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
-                    contentPadding = PaddingValues(bottom = 80.dp)
-                ) {
-                    item {
+        }
+    }
+
+        val videoInfoContent: @Composable () -> Unit = {
                         VideoInfoSection(
                             video = video,
                             title = uiState.streamInfo?.name ?: video.title,
@@ -810,10 +812,8 @@ fun EnhancedVideoPlayerScreen(
                                 showDescriptionSheet = true
                             }
                         )
-                    }
 
-                    // Comments Preview
-                    item {
+                        // Comments Preview
                         CommentsPreview(
                             commentCount = uiState.commentCountText,
                             latestComment = comments.firstOrNull()?.text,
@@ -821,7 +821,8 @@ fun EnhancedVideoPlayerScreen(
                             onClick = { showCommentsSheet = true }
                         )
                     }
-                    
+
+        val relatedContent: androidx.compose.foundation.lazy.LazyListScope.() -> Unit = {
                     // Related videos
                     item {
                         if (uiState.relatedVideos.isNotEmpty()) {
@@ -847,10 +848,35 @@ fun EnhancedVideoPlayerScreen(
                             onClick = { onVideoClick(relatedVideo) }
                         )
                     }
-                }
-            }
         }
-    }
+
+        if (isWideLayout) {
+             Row(Modifier.fillMaxSize()) {
+                  Column(
+                      Modifier
+                          .weight(0.65f)
+                          .fillMaxHeight()
+                          .verticalScroll(rememberScrollState())
+                  ) {
+                       playerContent(widePlayerHeight)
+                       videoInfoContent()
+                  }
+                  
+                  LazyColumn(Modifier.weight(0.35f), contentPadding = PaddingValues(bottom = 80.dp)) {
+                       relatedContent()
+                  }
+             }
+        } else {
+             Column(Modifier.fillMaxSize()) {
+                 playerContent(portraitHeight)
+                 if (!isFullscreen && !isInPipMode) {
+                     LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 80.dp)) {
+                         item { videoInfoContent() }
+                         relatedContent()
+                     }
+                 }
+             }
+        }
     // Quick actions sheet
     if (showQuickActions) {
         VideoQuickActionsBottomSheet(
@@ -1060,6 +1086,8 @@ fun EnhancedVideoPlayerScreen(
             },
             onDismiss = { showShortsPrompt = false }
         )
+    }
+        }
     }
 }
 

@@ -5,6 +5,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
@@ -51,7 +56,7 @@ fun HomeScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val unreadNotifications by notificationViewModel.unreadCount.collectAsState()
-    val listState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
     
     LaunchedEffect(Unit) {
         viewModel.initialize(context)
@@ -59,9 +64,9 @@ fun HomeScreen(
     
     // --- FIXED INFINITE SCROLL LOGIC ---
     // We use snapshotFlow to monitor the last visible item index.
-    LaunchedEffect(listState) {
+    LaunchedEffect(gridState) {
         snapshotFlow {
-            val layoutInfo = listState.layoutInfo
+            val layoutInfo = gridState.layoutInfo
             val totalItems = layoutInfo.totalItemsCount
             val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
             
@@ -169,31 +174,57 @@ fun HomeScreen(
                 }
                 
                 else -> {
-                    LazyColumn(
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(320.dp),
                         modifier = Modifier.fillMaxSize(),
-                        state = listState,
-                        contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp),
+                        state = gridState,
+                        contentPadding = PaddingValues(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        items(
-                            items = uiState.videos,
-                            key = { video -> video.id }
-                        ) { video ->
-                            VideoCardFullWidth(
-                                video = video,
-                                onClick = { onVideoClick(video) }
-                            )
+                        val videos = uiState.videos
+                        if (videos.isNotEmpty()) {
+                            // First video
+                            item(
+                                key = videos[0].id,
+                                span = { GridItemSpan(1) }
+                            ) {
+                                VideoCardFullWidth(
+                                    video = videos[0],
+                                    onClick = { onVideoClick(videos[0]) }
+                                )
+                            }
                             
-                            if (uiState.videos.indexOf(video) == 0 && uiState.shorts.isNotEmpty()) {
-                                ShortsShelf(
-                                    shorts = uiState.shorts,
-                                    onShortClick = { onShortClick(it) }
+                            // Shorts Shelf
+                            if (uiState.shorts.isNotEmpty()) {
+                                item(
+                                    span = { GridItemSpan(maxLineSpan) }, 
+                                    key = "shorts_shelf"
+                                ) {
+                                    ShortsShelf(
+                                        shorts = uiState.shorts,
+                                        onShortClick = { onShortClick(it) }
+                                    )
+                                }
+                            }
+                            
+                            // Remaining videos
+                            items(
+                                items = videos.drop(1),
+                                key = { video -> video.id }
+                            ) { video ->
+                                VideoCardFullWidth(
+                                    video = video,
+                                    onClick = { onVideoClick(video) }
                                 )
                             }
                         }
                         
                         if (uiState.isLoadingMore) {
-                            item(key = "loading_indicator") {
+                            item(
+                                key = "loading_indicator",
+                                span = { GridItemSpan(maxLineSpan) }
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -210,7 +241,10 @@ fun HomeScreen(
                         
                         // End of feed indicator
                         if (!uiState.hasMorePages && uiState.videos.size > 100 && !uiState.isLoadingMore) {
-                            item(key = "feed_footer") {
+                            item(
+                                key = "feed_footer",
+                                span = { GridItemSpan(maxLineSpan) }
+                            ) {
                                 FlowFeedFooter(
                                     videoCount = uiState.videos.size,
                                     onRefresh = { viewModel.refreshFeed() }
