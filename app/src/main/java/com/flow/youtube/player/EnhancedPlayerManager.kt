@@ -129,6 +129,7 @@ class EnhancedPlayerManager private constructor() {
         positionTrackerJob = scope.launch {
             var lastCheckedPosition = 0L
             var stuckCount = 0
+            var lastSaveTime = 0L
             
             while (true) {
                 player?.let { p ->
@@ -141,6 +142,15 @@ class EnhancedPlayerManager private constructor() {
                         _playerState.value = _playerState.value.copy(
                             bufferedPercentage = bufferedPct
                         )
+
+                        // Periodic auto-save signal (every 30 seconds)
+                        val currentTime = System.currentTimeMillis()
+                        if (currentTime - lastSaveTime >= 30000 && p.isPlaying) {
+                            Log.d(TAG, "Auto-save trigger: at ${currentPos}ms")
+                            lastSaveTime = currentTime
+                            // Note: Position is saved by VideoPlayerScreen via LaunchedEffect observing position,
+                            // but we could also invoke a callback here if needed.
+                        }
                         
                         // Smart stall detection: Only log if position hasn't moved for 2+ checks (1+ second)
                         if (p.playbackState == Player.STATE_BUFFERING) {
@@ -254,22 +264,16 @@ class EnhancedPlayerManager private constructor() {
                 .build()
 
             // Build shared DataSource Factories (NewPipe Architecture)
-            val dashHttpFactory = YouTubeHttpDataSource.Factory(sharedOkHttpClient)
-                .setRangeParameterEnabled(true)
-                .setRnParameterEnabled(true)
-            val progressiveHttpFactory = YouTubeHttpDataSource.Factory(sharedOkHttpClient)
-                .setRangeParameterEnabled(false) // Critical: No range param for progressive
-                .setRnParameterEnabled(true)
-            val hlsHttpFactory = YouTubeHttpDataSource.Factory(sharedOkHttpClient)
-                .setRangeParameterEnabled(false)
-                .setRnParameterEnabled(false)
+            val dashHttpFactory = YouTubeHttpDataSource.Factory()
+            val progressiveHttpFactory = YouTubeHttpDataSource.Factory()
+            val hlsHttpFactory = YouTubeHttpDataSource.Factory()
 
             val dashUpstream = DefaultDataSource.Factory(context, dashHttpFactory)
             val progressiveUpstream = DefaultDataSource.Factory(context, progressiveHttpFactory)
             val hlsUpstream = DefaultDataSource.Factory(context, hlsHttpFactory)
             
             // Legacy/Fallback
-            val legacyHttpFactory = YouTubeHttpDataSource.Factory(sharedOkHttpClient)
+            val legacyHttpFactory = YouTubeHttpDataSource.Factory()
             val upstream = DefaultDataSource.Factory(context, legacyHttpFactory)
 
             try {
@@ -326,14 +330,8 @@ class EnhancedPlayerManager private constructor() {
                     bufferForPlaybackMs,   
                     bufferRebufferMs    
                 )
-                .setBackBuffer(
-                    /* backBufferDurationMs = */ 30000, // Reduced from 10s to standard or higher? 10s is fine. Exoplayer default is 0. 
-                    // User code had 10000. Review said "buffer for playback 1s is aggressive". 
-                    // Keeping backbuffer reasonable.
-                    /* retainBackBufferFromKeyframe = */ true
-                )
+                .setBackBuffer(10000, true) // Keep 10s for instant seek back
                 .setPrioritizeTimeOverSizeThresholds(true)
-                .setTargetBufferBytes(128 * 1024 * 1024) 
                 .build()
 
             // Create custom RenderersFactory to inject SilenceSkippingAudioProcessor and prefer extensions
@@ -349,7 +347,7 @@ class EnhancedPlayerManager private constructor() {
                         .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
                         .build()
                 }
-            }.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON) // Use both platform + extension renderers
+            }.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER) // REVERT: Prefer software extensions for stability
              .setEnableDecoderFallback(true) // Crucial: Allow software decoding if hardware fails
 
             player = ExoPlayer.Builder(context, renderersFactory)
@@ -733,9 +731,15 @@ class EnhancedPlayerManager private constructor() {
         }
 
         // CRITICAL: Wait for surface to be ready before loading media
-        val surfaceReady = awaitSurfaceReady(timeoutMillis = 1000)
+        val timeout = appContext?.let { ctx ->
+            kotlinx.coroutines.runBlocking { 
+                PlayerPreferences(ctx).surfaceReadyTimeoutMs.first() 
+            }
+        } ?: 1500L
+        
+        val surfaceReady = awaitSurfaceReady(timeoutMillis = timeout)
         if (!surfaceReady) {
-            Log.w(TAG, "Surface not ready after waiting - media may render to placeholder")
+            Log.w(TAG, "Surface not ready after waiting ${timeout}ms - media may render to placeholder")
         }
 
         if (localFilePath != null) {
@@ -833,7 +837,7 @@ class EnhancedPlayerManager private constructor() {
                         .createMediaSource(MediaItem.fromUri(android.net.Uri.fromFile(java.io.File(localFilePath))))
                 } else {
                     // Pass current streams and DASH URL
-                    resolver.resolve(videoStream, audioStream, this.currentDashManifestUrl, finalDuration)
+                    resolver.resolve(availableVideoStreams, audioStream, this.currentDashManifestUrl, finalDuration)
                 }
                 
                 if (mediaSource != null) {
@@ -903,43 +907,22 @@ class EnhancedPlayerManager private constructor() {
         isAdaptiveQualityEnabled = false
         manualQualityHeight = height
 
-        // Check if we can do seamless switching (DASH) or need reload (Progressive)
-        // If we have a DASH manifest URL, we are likely using DashMediaSource which supports seamless switching.
-        if (!currentDashManifestUrl.isNullOrEmpty()) {
-            Log.d(TAG, "Switching to FIXED quality: ${height}p (Seamless via TrackSelector/DASH)")
-            
-            trackSelector?.let { selector ->
-                val params = selector.buildUponParameters()
-                    .setAllowVideoMixedMimeTypeAdaptiveness(false)
-                    .setAllowMultipleAdaptiveSelections(false)
-                    .setMaxVideoSize(9999, height) 
-                    .setMinVideoSize(0, height)    
-                    .setForceHighestSupportedBitrate(false)
-                    .build()
-                selector.setParameters(params)
-            }
-            
-             _playerState.value = _playerState.value.copy(currentQuality = height, effectiveQuality = height)
-        } else {
-            // Progressive Fallback: Must reload the stream
-            Log.d(TAG, "Switching to FIXED quality: ${height}p (Reloading - Progressive Mode)")
-            
-            val stream = availableVideoStreams.find { it.height == height }
-            if (stream != null) {
-                val currentPosition = player?.currentPosition ?: 0L
-                val wasPlaying = player?.isPlaying ?: false
-                
-                currentVideoStream = stream
-                
-                 loadMedia(
-                    videoStream = currentVideoStream,
-                    audioStream = currentAudioStream ?: availableAudioStreams.firstOrNull() ?: return,
-                    preservePosition = currentPosition
-                )
-                
-                 _playerState.value = _playerState.value.copy(currentQuality = height, effectiveQuality = height, isBuffering = true)
-            }
+        // All qualities are now merged into one MergingMediaSource (Step 4)
+        // This allows for seamless track selection even for progressive streams
+        Log.d(TAG, "Switching to FIXED quality: ${height}p (Seamless via TrackSelector)")
+        
+        trackSelector?.let { selector ->
+            val params = selector.buildUponParameters()
+                .setAllowVideoMixedMimeTypeAdaptiveness(true)
+                .setAllowMultipleAdaptiveSelections(false)
+                .setMaxVideoSize(9999, height) 
+                .setMinVideoSize(0, height)    
+                .setForceHighestSupportedBitrate(false)
+                .build()
+            selector.setParameters(params)
         }
+        
+        _playerState.value = _playerState.value.copy(currentQuality = height, effectiveQuality = height)
     }
     
     private fun enableAdaptiveQuality() {
@@ -1141,6 +1124,22 @@ class EnhancedPlayerManager private constructor() {
         // The placeholder surface keeps the renderer alive, so we're still "ready"
         // This prevents black screens when quickly switching between videos
     }
+
+    /**
+     * Explicitly clear surface holder reference and placeholder.
+     * Called when the screen is actually disposed, not just temporarily detached.
+     */
+    fun clearSurface() {
+        Log.d(TAG, "clearSurface() called")
+        surfaceHolder = null
+        placeholderSurface?.let { surface ->
+            runCatching { surface.release() }
+        }
+        placeholderSurface = null
+        isSurfaceReady = false
+        _surfaceReadyFlow.value = false
+        player?.clearVideoSurface()
+    }
     
     /**
      * Suspend function that waits for a real surface (not placeholder) to be attached.
@@ -1206,6 +1205,10 @@ class EnhancedPlayerManager private constructor() {
     }
 
     fun release() {
+        Log.d(TAG, "release() called")
+        stopPositionTracker()
+        stopPlaybackWatchdog()
+        
         try {
             player?.clearVideoSurface()
         } catch (e: Exception) {
@@ -1221,6 +1224,9 @@ class EnhancedPlayerManager private constructor() {
         player = null
         trackSelector = null
         isSurfaceReady = false
+        _surfaceReadyFlow.value = false
+        surfaceHolder = null
+        appContext = null
         _playerState.value = EnhancedPlayerState()
         
         // Release cache resources
@@ -1452,6 +1458,7 @@ class EnhancedPlayerManager private constructor() {
     private fun onPlaybackShutdown() {
         Log.w(TAG, "Playback shutdown initiated")
         try {
+            saveStreamProgressState() // Final "last stand" save
             player?.stop()
             player?.clearMediaItems()
             _playerState.value = _playerState.value.copy(

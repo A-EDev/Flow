@@ -23,44 +23,45 @@ class VideoPlaybackResolver(
     }
 
     fun resolve(
-        videoStream: VideoStream?, // Revert to single stream for progressive fallback
+        videoStreams: List<VideoStream>, // Note: Pass the whole list!
         audioStream: AudioStream?,
         dashManifestUrl: String?, // New: Prioritize DASH manifest if available
         durationSeconds: Long
     ): MediaSource? {
-        // 1. Priority: Official DASH Manifest (Seamless Switching, No Lag)
-        if (!dashManifestUrl.isNullOrEmpty()) {
-            return try {
-                androidx.media3.exoplayer.dash.DashMediaSource.Factory(dashDataSourceFactory)
-                    .createMediaSource(androidx.media3.common.MediaItem.fromUri(Uri.parse(dashManifestUrl)))
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to create DASH source from URL, falling back", e)
-                null
-            }
-        }
-
-        // 2. Fallback: Progressive / Generated DASH
         val sources = mutableListOf<MediaSource>()
 
-        if (videoStream != null) {
-            val source = createMediaSource(videoStream, durationSeconds)
-            if (source != null) {
-                sources.add(source)
+        // 1. Priority: Official DASH Manifest (Seamless Switching, No Lag)
+        if (!dashManifestUrl.isNullOrEmpty()) {
+            try {
+                val dashItem = androidx.media3.common.MediaItem.Builder()
+                    .setUri(dashManifestUrl)
+                    .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_MPD)
+                    .build()
+                sources.add(androidx.media3.exoplayer.dash.DashMediaSource.Factory(dashDataSourceFactory).createMediaSource(dashItem))
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to create DASH source from URL, falling back", e)
             }
+        } 
+
+        // 2. Add all Progressive streams as alternatives
+        videoStreams.forEach { stream ->
+            val item = androidx.media3.common.MediaItem.Builder()
+                .setUri(stream.content)
+                .setMimeType(stream.format?.mimeType ?: androidx.media3.common.MimeTypes.VIDEO_MP4)
+                .build()
+            sources.add(androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(progressiveDataSourceFactory).createMediaSource(item))
         }
 
+        // 3. Add Audio
         if (audioStream != null) {
-            val source = createMediaSource(audioStream, durationSeconds)
-            if (source != null) {
-                sources.add(source)
-            }
+            val audioItem = androidx.media3.common.MediaItem.Builder()
+                .setUri(audioStream.content)
+                .setMimeType(audioStream.format?.mimeType ?: androidx.media3.common.MimeTypes.AUDIO_AAC)
+                .build()
+            sources.add(androidx.media3.exoplayer.source.ProgressiveMediaSource.Factory(progressiveDataSourceFactory).createMediaSource(audioItem))
         }
 
-        return when {
-            sources.isEmpty() -> null
-            sources.size == 1 -> sources[0]
-            else -> MergingMediaSource(true, *sources.toTypedArray())
-        }
+        return if (sources.isEmpty()) null else MergingMediaSource(true, *sources.toTypedArray())
     }
 
     private fun createMediaSource(

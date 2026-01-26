@@ -38,6 +38,7 @@ class PlayerPreferences(private val context: Context) {
         val PARALLEL_DOWNLOAD_ENABLED = booleanPreferencesKey("parallel_download_enabled")
         val DOWNLOAD_OVER_WIFI_ONLY = booleanPreferencesKey("download_over_wifi_only")
         val DEFAULT_DOWNLOAD_QUALITY = stringPreferencesKey("default_download_quality")
+        val SURFACE_READY_TIMEOUT_MS = longPreferencesKey("surface_ready_timeout_ms")
     }
     
     // Region preference
@@ -276,6 +277,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setDefaultDownloadQuality(quality: VideoQuality) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DEFAULT_DOWNLOAD_QUALITY] = quality.label
+        }
+    }
+
+    // Surface timeout
+    val surfaceReadyTimeoutMs: Flow<Long> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SURFACE_READY_TIMEOUT_MS] ?: 1500L // Default 1.5s
+        }
+
+    suspend fun setSurfaceReadyTimeoutMs(timeoutMs: Long) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SURFACE_READY_TIMEOUT_MS] = timeoutMs
         }
     }
 }

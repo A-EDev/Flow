@@ -2,6 +2,7 @@ package com.flow.youtube.service
 
 import android.app.*
 import android.content.Intent
+import android.util.Log
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
@@ -139,10 +140,13 @@ class VideoPlayerService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
     
     override fun onDestroy() {
-        super.onDestroy()
+        Log.d("VideoPlayerService", "onDestroy() called")
+        stopPlayback()
+        EnhancedPlayerManager.getInstance().release()
         mediaSession.isActive = false
         mediaSession.release()
         serviceScope.cancel()
+        super.onDestroy()
     }
     
     private fun createNotificationChannel() {

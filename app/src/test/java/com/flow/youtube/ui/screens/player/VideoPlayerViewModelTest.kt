@@ -26,7 +26,7 @@ class VideoPlayerViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private val context: Context = mockk(relaxed = true)
-    private val repository: YouTubeRepository = mockk()
+    private val repository: YouTubeRepository = mockk(relaxed = true)
     private val viewHistory: ViewHistory = mockk()
     private val subscriptionRepository: SubscriptionRepository = mockk()
     private val likedVideosRepository: LikedVideosRepository = mockk()
@@ -100,7 +100,7 @@ class VideoPlayerViewModelTest {
         advanceUntilIdle()
         
         assertThat(viewModel.uiState.value.isLoading).isFalse()
-        assertThat(viewModel.uiState.value.error).contains("Network error")
+        assertThat(viewModel.uiState.value.error).isEqualTo("Failed to load video")
     }
 
     @Test
@@ -120,16 +120,15 @@ class VideoPlayerViewModelTest {
     fun `switchQuality updates uiState`() {
         val streamInfo = mockk<StreamInfo>(relaxed = true)
         val videoStream = mockk<org.schabi.newpipe.extractor.stream.VideoStream>(relaxed = true)
+        val mediaFormat = mockk<org.schabi.newpipe.extractor.MediaFormat>(relaxed = true)
+        every { mediaFormat.mimeType } returns "video/mp4"
         every { videoStream.height } returns 1080
-        every { videoStream.format?.mimeType } returns "video/mp4"
+        every { videoStream.format } returns mediaFormat
         every { streamInfo.videoStreams } returns listOf(videoStream)
         every { streamInfo.videoOnlyStreams } returns emptyList()
         
         // Set up uiState with streamInfo first
-        val field = VideoPlayerViewModel::class.java.getDeclaredFields().first { it.name == "_uiState" }
-        field.isAccessible = true
-        val stateFlow = field.get(viewModel) as MutableStateFlow<VideoPlayerUiState>
-        stateFlow.value = stateFlow.value.copy(streamInfo = streamInfo)
+        viewModel._uiState.value = viewModel._uiState.value.copy(streamInfo = streamInfo)
         
         viewModel.switchQuality(VideoQuality.Q_1080p)
         

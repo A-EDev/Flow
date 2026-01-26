@@ -15,6 +15,7 @@ import com.flow.youtube.innertube.YouTube
 import com.flow.youtube.innertube.models.YouTubeClient
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import org.schabi.newpipe.extractor.stream.*
 import com.flow.youtube.data.video.VideoDownloadManager
 import com.flow.youtube.data.video.DownloadedVideo
@@ -78,170 +79,200 @@ class VideoPlayerViewModel @Inject constructor(
             _canGoPrevious.value = currentHistoryIndex > 0
         }
         
-        _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+        _uiState.value = _uiState.value.copy(isLoading = true, error = null, metadataError = null)
         
         viewModelScope.launch {
             try {
-                // Determine preferred quality from preferences
-                val preferredQuality = if (isWifi) {
-                    playerPreferences.defaultQualityWifi.first()
-                } else {
-                    playerPreferences.defaultQualityCellular.first()
-                }
-                
-                Log.d("VideoPlayerViewModel", "Loading video $videoId with preferred quality: ${preferredQuality.label} (isWifi=$isWifi)")
-                
-                // Check if video is downloaded
-                val downloadedVideo = videoDownloadManager.downloadedVideos.map { list -> 
-                    list.find { it.video.id == videoId } 
-                }.first()
-
-                val streamInfo = if (downloadedVideo != null) {
-                    // Try to get metadata from network if possible, but fallback to offline mode
-                    try {
-                        repository.getVideoStreamInfo(videoId)
-                    } catch (e: Exception) {
-                        null
-                    }
-                } else {
-                    repository.getVideoStreamInfo(videoId)
-                }
-                
-                if (streamInfo != null) {
-                    // Record interaction for Flow Neuro Engine
-                    try {
-                        val video = Video(
-                            id = videoId,
-                            title = streamInfo.name ?: "",
-                            channelName = streamInfo.uploaderName ?: "",
-                            channelId = streamInfo.uploaderUrl?.split("/")?.last() ?: "",
-                            thumbnailUrl = streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "",
-                            duration = streamInfo.duration.toInt(),
-                            viewCount = streamInfo.viewCount,
-                            uploadDate = "",
-                            description = streamInfo.description?.content ?: ""
-                        )
-                        FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.CLICK)
-                    } catch (e: Exception) {
-                        Log.e("VideoPlayerViewModel", "Failed to record interaction", e)
-                    }
-
-                    val relatedVideos = repository.getRelatedVideos(videoId)
-                    val availableQualities = extractAvailableQualities(streamInfo)
-                    
-                    // For AUTO mode, start with 360p for fast loading, will scale up dynamically
-                    val initialQuality = if (preferredQuality == VideoQuality.AUTO) {
-                        VideoQuality.Q_360p
+                kotlinx.coroutines.withTimeout(30_000) {
+                    // Determine preferred quality from preferences
+                    val preferredQuality = if (isWifi) {
+                        playerPreferences.defaultQualityWifi.first()
                     } else {
-                        preferredQuality
+                        playerPreferences.defaultQualityCellular.first()
                     }
                     
-                    val selectedStreams = selectStreams(streamInfo, initialQuality)
-                    var localFilePath: String? = null
+                    Log.d("VideoPlayerViewModel", "Loading video $videoId with preferred quality: ${preferredQuality.label} (isWifi=$isWifi)")
                     
-                    // If downloaded, override with local path
-                    if (downloadedVideo != null && (java.io.File(downloadedVideo.filePath).exists())) {
-                        localFilePath = downloadedVideo.filePath
-                    }
+                    // Check if video is downloaded
+                    val downloadedVideo = videoDownloadManager.downloadedVideos.map { list -> 
+                        list.find { it.video.id == videoId } 
+                    }.first()
 
-                    val subtitles = extractSubtitles(streamInfo)
-                    val chapters = streamInfo.streamSegments ?: emptyList()
-                    
-                    // Load saved playback position
-                    val savedPosition = viewHistory.getPlaybackPosition(videoId)
-                    
-                    // Load autoplay preference
-                    val autoplay = playerPreferences.autoplayEnabled.first()
-                    
-                    _uiState.value = _uiState.value.copy(
-                        streamInfo = streamInfo,
-                        relatedVideos = relatedVideos,
-                        videoStream = selectedStreams.first,
-                        audioStream = selectedStreams.second,
-                        availableQualities = availableQualities,
-                        selectedQuality = selectedStreams.third,
-                        subtitles = subtitles,
-                        chapters = chapters,
-                        isLoading = false,
-                        savedPosition = savedPosition,
-                        isAdaptiveMode = preferredQuality == VideoQuality.AUTO,
-                        autoplayEnabled = autoplay,
-                        streamSizes = emptyMap(),
-                        localFilePath = localFilePath
-                    )
-
-                    // Fetch channel info asynchronously
-                    viewModelScope.launch {
+                    // Parallelize stream info and related videos requests
+                    val streamInfoDeferred = async { 
                         try {
-                            val channelUrl = streamInfo.uploaderUrl ?: ""
-                            if (channelUrl.isNotBlank()) {
-                                val channelInfo = repository.getChannelInfo(channelUrl)
-                                channelInfo?.let { ci ->
-                                    val subCount = try {
-                                        val method = ci::class.java.methods.firstOrNull { it.name.equals("getSubscriberCount", true) }
-                                        (method?.invoke(ci) as? Long) ?: 0L
-                                    } catch (ex: Exception) { 0L }
-                                    
-                                    val avatarUrl = try {
-                                        val thumbnailsMethod = ci::class.java.methods.firstOrNull { 
-                                            it.name.equals("getThumbnails", true) || it.name.equals("getAvatars", true)
-                                        }
-                                        val thumbnails = thumbnailsMethod?.invoke(ci) as? List<*>
-                                        thumbnails?.firstOrNull()?.let { img ->
-                                            val urlMethod = img::class.java.methods.firstOrNull { it.name.equals("getUrl", true) }
-                                            urlMethod?.invoke(img) as? String
-                                        } ?: ""
-                                    } catch (ex: Exception) { "" }
-
-                                    _uiState.value = _uiState.value.copy(
-                                        channelSubscriberCount = subCount,
-                                        channelAvatarUrl = avatarUrl
-                                    )
-                                }
+                            if (downloadedVideo != null) {
+                                repository.getVideoStreamInfo(videoId)
+                            } else {
+                                repository.getVideoStreamInfo(videoId)
                             }
-                        } catch (e: Exception) { }
+                        } catch (e: Exception) {
+                            Log.e("VideoPlayerViewModel", "Failed to load stream info", e)
+                            null
+                        }
                     }
-
-                    // Fetch stream sizes
-                    viewModelScope.launch {
+                    
+                    val relatedVideosDeferred = async { 
                         try {
-                            val playerResult = YouTube.player(videoId, client = YouTubeClient.MOBILE)
-                            playerResult.onSuccess { playerResponse ->
-                                val sizes = mutableMapOf<Int, Long>()
-                                val bestAudioSize = playerResponse.streamingData?.adaptiveFormats
-                                    ?.filter { it.isAudio }?.maxByOrNull { it.bitrate }?.contentLength ?: 0L
-                                
-                                playerResponse.streamingData?.formats?.forEach { format ->
-                                    if (format.height != null && format.contentLength != null) {
-                                        sizes[format.height] = format.contentLength
-                                    }
-                                }
-                                playerResponse.streamingData?.adaptiveFormats?.forEach { format ->
-                                    if (format.height != null && format.contentLength != null && !format.isAudio) {
-                                        val totalSize = format.contentLength + bestAudioSize
-                                        val currentSize = sizes[format.height] ?: 0L
-                                        if (totalSize > currentSize) sizes[format.height] = totalSize
-                                    }
-                                }
-                                _uiState.value = _uiState.value.copy(streamSizes = sizes)
-                            }
-                        } catch (e: Exception) { }
+                            repository.getRelatedVideos(videoId)
+                        } catch (e: Exception) {
+                            Log.e("VideoPlayerViewModel", "Failed to load related videos", e)
+                            emptyList()
+                        }
                     }
-                } else {
-                    // Offline fallback
-                    if (downloadedVideo != null && java.io.File(downloadedVideo.filePath).exists()) {
-                        _uiState.value = _uiState.value.copy(
-                            isLoading = false,
-                            error = null,
+
+                    val streamInfo = streamInfoDeferred.await()
+                    val relatedVideos = relatedVideosDeferred.await()
+                    
+                    if (streamInfo != null) {
+                        // Record interaction for Flow Neuro Engine
+                        try {
+                            val video = Video(
+                                id = videoId,
+                                title = streamInfo.name ?: "",
+                                channelName = streamInfo.uploaderName ?: "",
+                                channelId = streamInfo.uploaderUrl?.split("/")?.last() ?: "",
+                                thumbnailUrl = streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "",
+                                duration = streamInfo.duration.toInt(),
+                                viewCount = streamInfo.viewCount,
+                                uploadDate = "",
+                                description = streamInfo.description?.content ?: ""
+                            )
+                            FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.CLICK)
+                        } catch (e: Exception) {
+                            Log.e("VideoPlayerViewModel", "Failed to record interaction", e)
+                        }
+
+                        val availableQualities = extractAvailableQualities(streamInfo)
+                        
+                        // For AUTO mode, start with 360p for fast loading, will scale up dynamically
+                        val initialQuality = if (preferredQuality == VideoQuality.AUTO) {
+                            VideoQuality.Q_360p
+                        } else {
+                            preferredQuality
+                        }
+                        
+                        val selectedStreams = selectStreams(streamInfo, initialQuality)
+                        var localFilePath: String? = null
+                        
+                        // If downloaded, override with local path
+                        if (downloadedVideo != null && (java.io.File(downloadedVideo.filePath).exists())) {
                             localFilePath = downloadedVideo.filePath
-                        )
-                    } else {
+                        }
+
+                        val subtitles = extractSubtitles(streamInfo)
+                        val chapters = streamInfo.streamSegments ?: emptyList()
+                        
+                        // Load saved playback position
+                        val savedPosition = viewHistory.getPlaybackPosition(videoId)
+                        
+                        // Load autoplay preference
+                        val autoplay = playerPreferences.autoplayEnabled.first()
+                        
                         _uiState.value = _uiState.value.copy(
+                            streamInfo = streamInfo,
+                            relatedVideos = relatedVideos,
+                            videoStream = selectedStreams.first,
+                            audioStream = selectedStreams.second,
+                            availableQualities = availableQualities,
+                            selectedQuality = selectedStreams.third,
+                            subtitles = subtitles,
+                            chapters = chapters,
                             isLoading = false,
-                            error = "Failed to load video"
+                            savedPosition = savedPosition,
+                            isAdaptiveMode = preferredQuality == VideoQuality.AUTO,
+                            autoplayEnabled = autoplay,
+                            streamSizes = emptyMap(),
+                            localFilePath = localFilePath
                         )
+
+                        // Fetch channel info asynchronously
+                        viewModelScope.launch {
+                            try {
+                                val channelUrl = streamInfo.uploaderUrl ?: ""
+                                if (channelUrl.isNotBlank()) {
+                                    val channelInfo = repository.getChannelInfo(channelUrl)
+                                    channelInfo?.let { ci ->
+                                        val subCount = try {
+                                            val method = ci::class.java.methods.firstOrNull { it.name.equals("getSubscriberCount", true) }
+                                            (method?.invoke(ci) as? Long) ?: 0L
+                                        } catch (ex: Exception) { 0L }
+                                        
+                                        val avatarUrl = try {
+                                            val thumbnailsMethod = ci::class.java.methods.firstOrNull { 
+                                                it.name.equals("getThumbnails", true) || it.name.equals("getAvatars", true)
+                                            }
+                                            val thumbnails = thumbnailsMethod?.invoke(ci) as? List<*>
+                                            thumbnails?.firstOrNull()?.let { img ->
+                                                val urlMethod = img::class.java.methods.firstOrNull { it.name.equals("getUrl", true) }
+                                                urlMethod?.invoke(img) as? String
+                                            } ?: ""
+                                        } catch (ex: Exception) { "" }
+
+                                        _uiState.value = _uiState.value.copy(
+                                            channelSubscriberCount = subCount,
+                                            channelAvatarUrl = avatarUrl
+                                        )
+                                    }
+                                }
+                            } catch (e: Exception) { 
+                                Log.e("VideoPlayerViewModel", "Failed to fetch channel info", e)
+                                _uiState.value = _uiState.value.copy(metadataError = "Channel info failed")
+                            }
+                        }
+
+                        // Fetch stream sizes
+                        viewModelScope.launch {
+                            try {
+                                val playerResult = YouTube.player(videoId, client = YouTubeClient.MOBILE)
+                                playerResult.onSuccess { playerResponse ->
+                                    val sizes = mutableMapOf<Int, Long>()
+                                    val bestAudioSize = playerResponse.streamingData?.adaptiveFormats
+                                        ?.filter { it.isAudio }?.maxByOrNull { it.bitrate }?.contentLength ?: 0L
+                                    
+                                    playerResponse.streamingData?.formats?.forEach { format ->
+                                        if (format.height != null && format.contentLength != null) {
+                                            sizes[format.height] = format.contentLength
+                                        }
+                                    }
+                                    playerResponse.streamingData?.adaptiveFormats?.forEach { format ->
+                                        if (format.height != null && format.contentLength != null && !format.isAudio) {
+                                            val totalSize = format.contentLength + bestAudioSize
+                                            val currentSize = sizes[format.height] ?: 0L
+                                            if (totalSize > currentSize) sizes[format.height] = totalSize
+                                        }
+                                    }
+                                    _uiState.value = _uiState.value.copy(streamSizes = sizes)
+                                }.onFailure { e ->
+                                    Log.e("VideoPlayerViewModel", "Failed to fetch stream sizes", e)
+                                    _uiState.value = _uiState.value.copy(metadataError = "Resolving stream sizes failed")
+                                }
+                            } catch (e: Exception) { }
+                        }
+                    } else {
+                        // Offline fallback
+                        if (downloadedVideo != null && java.io.File(downloadedVideo.filePath).exists()) {
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                error = null,
+                                relatedVideos = relatedVideos,
+                                localFilePath = downloadedVideo.filePath
+                            )
+                        } else {
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                relatedVideos = relatedVideos,
+                                error = "Failed to load video"
+                            )
+                        }
                     }
                 }
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                Log.e("VideoPlayerViewModel", "Video info load timed out after 30s")
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    error = "Load timed out. Please check your connection."
+                )
             } catch (e: Exception) {
                 // Final fallback if everything fails
                 val downloadedVideo = videoDownloadManager.downloadedVideos.map { list -> 
@@ -278,10 +309,10 @@ class VideoPlayerViewModel @Inject constructor(
     }
 
     fun getPreviousVideoId(): String? {
-        if (currentHistoryIndex > 0) {
+        if (currentHistoryIndex > 0 && currentHistoryIndex < navigationHistory.size) {
             currentHistoryIndex--
             _canGoPrevious.value = currentHistoryIndex > 0
-            return navigationHistory[currentHistoryIndex]
+            return navigationHistory.getOrNull(currentHistoryIndex)
         }
         return null
     }
@@ -565,7 +596,8 @@ data class VideoPlayerUiState(
     val autoplayEnabled: Boolean = true,
     val commentCountText: String = "0",
     val streamSizes: Map<Int, Long> = emptyMap(),
-    val localFilePath: String? = null
+    val localFilePath: String? = null,
+    val metadataError: String? = null
 )
 
 data class SubtitleInfo(

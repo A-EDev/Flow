@@ -542,10 +542,11 @@ fun EnhancedVideoPlayerScreen(
                 channelId = channelId
             )
 
-            // DON'T release player - just clear current video to allow switching
+            // DON'T release player - just clear current video and surface to allow switching
             // The player instance stays alive and keeps the surface binding intact
             EnhancedPlayerManager.getInstance().clearCurrentVideo()
-            Log.d("EnhancedVideoPlayerScreen", "Video ID changed, cleared player state (player kept alive)")
+            EnhancedPlayerManager.getInstance().clearSurface()
+            Log.d("EnhancedVideoPlayerScreen", "Video ID changed, cleared player state and surface (player kept alive)")
         }
     }
     
