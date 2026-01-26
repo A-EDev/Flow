@@ -53,7 +53,7 @@
 
 ## ✨ Why Flow?
 
-Most open-source clients focus purely on playback. Flow focuses on discovery.**.
+Most open-source clients focus purely on playback. Flow focuses on discovery.
 
 ### 🧠 FlowNeuro™ Engine
 Google relies on server-side tracking. Flow relies on client-side vector analysis.
