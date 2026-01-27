@@ -42,6 +42,8 @@ import com.flow.youtube.data.model.Video
 import com.flow.youtube.ui.components.*
 import com.flow.youtube.ui.theme.extendedColors
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -88,7 +90,7 @@ fun SubscriptionsScreen(
                         TextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
-                            placeholder = { Text("Search subscriptions...", style = MaterialTheme.typography.bodyLarge) },
+                            placeholder = { Text(androidx.compose.ui.res.stringResource(R.string.subscriptions_search_placeholder), style = MaterialTheme.typography.bodyLarge) },
                             colors = TextFieldDefaults.colors(
                                 focusedContainerColor = Color.Transparent,
                                 unfocusedContainerColor = Color.Transparent,
@@ -118,7 +120,7 @@ fun SubscriptionsScreen(
                 TopAppBar(
                     title = {
                         Text(
-                            text = "Subscriptions",
+                            text = androidx.compose.ui.res.stringResource(R.string.top_bar_subscriptions_title),
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                         )
                     },
@@ -164,7 +166,11 @@ fun SubscriptionsScreen(
                     ) {
                         item {
                             Text(
-                                text = "${filteredChannels.size} channels",
+                                text = pluralStringResource(
+                                    id = R.plurals.channels_count,
+                                    count = filteredChannels.size,
+                                    filteredChannels.size
+                                ),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.secondary,
                                 modifier = Modifier.padding(bottom = 8.dp)
@@ -235,7 +241,7 @@ fun SubscriptionsScreen(
                                             onClick = { isManagingSubs = true },
                                             modifier = Modifier.padding(end = 8.dp)
                                         ) {
-                                            Text("All", fontWeight = FontWeight.Bold)
+                                            Text(androidx.compose.ui.res.stringResource(R.string.view_all_button_label), fontWeight = FontWeight.Bold)
                                         }
                                     }
                                     
@@ -377,7 +383,7 @@ fun SubscriptionManagerItem(
             ),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
         ) {
-            Text("Subscribed")
+            Text(androidx.compose.ui.res.stringResource(R.string.subscribed))
             Spacer(modifier = Modifier.width(4.dp))
             Icon(Icons.Default.Notifications, null, modifier = Modifier.size(16.dp))
         }
@@ -386,6 +392,7 @@ fun SubscriptionManagerItem(
 
 @Composable
 private fun EmptySubscriptionsState(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -398,7 +405,7 @@ private fun EmptySubscriptionsState(modifier: Modifier = Modifier) {
             tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
         )
         Text(
-            text = "No Subscriptions Yet",
+            text = context.getString(R.string.no_subscriptions_yet),
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
@@ -406,7 +413,7 @@ private fun EmptySubscriptionsState(modifier: Modifier = Modifier) {
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Subscribe to channels to see their\nlatest videos here",
+            text = context.getString(R.string.empty_subscriptions_body),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.extendedColors.textSecondary,
             textAlign = TextAlign.Center

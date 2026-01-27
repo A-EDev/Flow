@@ -53,6 +53,7 @@ fun VideoInfoSection(
     subscriberCount: Long?,
     isSubscribed: Boolean,
     likeState: String,
+    dislikeCount: Long?,
     onSubscribeClick: () -> Unit,
     onChannelClick: () -> Unit,
     onLikeClick: () -> Unit,
@@ -89,7 +90,7 @@ fun VideoInfoSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = formatViewCount(viewCount),
+                text = "${formatViewCount(viewCount)} views",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -179,6 +180,7 @@ fun VideoInfoSection(
         // ============ ACTION ROW ============
         VideoActionRow(
             likeState = likeState,
+            dislikeCount = dislikeCount,
             onLikeClick = onLikeClick,
             onDislikeClick = onDislikeClick,
             onShareClick = onShareClick,
@@ -312,6 +314,7 @@ fun SubscribeButton(
 @Composable
 fun VideoActionRow(
     likeState: String,
+    dislikeCount: Long?,
     onLikeClick: () -> Unit,
     onDislikeClick: () -> Unit,
     onShareClick: () -> Unit,
@@ -325,6 +328,7 @@ fun VideoActionRow(
         item {
             SegmentedLikeDislikeButton(
                 likeState = likeState,
+                dislikeCount = dislikeCount,
                 onLikeClick = onLikeClick,
                 onDislikeClick = onDislikeClick
             )
@@ -367,6 +371,7 @@ fun VideoActionRow(
 @Composable
 fun SegmentedLikeDislikeButton(
     likeState: String,
+    dislikeCount: Long?,
     onLikeClick: () -> Unit,
     onDislikeClick: () -> Unit
 ) {
@@ -406,8 +411,8 @@ fun SegmentedLikeDislikeButton(
             )
             
             // Dislike Button
-            Box(
-                contentAlignment = Alignment.Center,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clickable(onClick = onDislikeClick)
                     .padding(horizontal = 12.dp, vertical = 8.dp)
@@ -418,6 +423,15 @@ fun SegmentedLikeDislikeButton(
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
+                             
+                if (dislikeCount != null && dislikeCount > 0) {
+                     Spacer(modifier = Modifier.width(6.dp))
+                     Text(
+                        text = formatViewCount(dislikeCount),
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
         }
     }

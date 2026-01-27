@@ -6,6 +6,10 @@ import com.flow.youtube.notification.SubscriptionCheckWorker
 import com.flow.youtube.data.repository.NewPipeDownloader
 import com.flow.youtube.notification.NotificationHelper
 import org.schabi.newpipe.extractor.NewPipe
+// Import Localization and ContentCountry
+import org.schabi.newpipe.extractor.localization.ContentCountry
+import org.schabi.newpipe.extractor.localization.Localization
+import java.util.Locale
 
 import dagger.hilt.android.HiltAndroidApp
 import coil.ImageLoader
@@ -28,9 +32,11 @@ class FlowApplication : Application(), ImageLoaderFactory {
         super.onCreate()
         
         try {
-            // Initialize NewPipeExtractor with error handling
-            NewPipe.init(NewPipeDownloader.getInstance(this))
-            Log.d(TAG, "NewPipe initialized successfully")
+            // Initialize NewPipeExtractor with proper Localization and Country
+            val country = ContentCountry("US")
+            val localization = Localization.fromLocale(Locale.getDefault())
+            NewPipe.init(NewPipeDownloader.getInstance(this), localization, country)
+            Log.d(TAG, "NewPipe initialized successfully with US/Local settings")
         } catch (e: Exception) {
             // Log error but don't crash the app
             Log.e(TAG, "Failed to initialize NewPipe", e)

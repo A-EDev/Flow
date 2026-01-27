@@ -16,10 +16,10 @@ fun formatDuration(seconds: Int): String {
 
 fun formatViewCount(count: Long): String {
     return when {
-        count >= 1_000_000_000 -> "${(count / 1_000_000_000.0).roundToInt()}B views"
-        count >= 1_000_000 -> "${(count / 1_000_000.0).roundToInt()}M views"
-        count >= 1_000 -> "${(count / 1_000.0).roundToInt()}K views"
-        else -> "$count views"
+        count >= 1_000_000_000 -> "${(count / 1_000_000_000.0).roundToInt()}B"
+        count >= 1_000_000 -> "${(count / 1_000_000.0).roundToInt()}M"
+        count >= 1_000 -> "${(count / 1_000.0).roundToInt()}K"
+        else -> "$count"
     }
 }
 

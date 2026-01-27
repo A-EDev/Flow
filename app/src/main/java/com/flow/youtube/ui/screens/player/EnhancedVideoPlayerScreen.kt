@@ -55,7 +55,10 @@ import com.flow.youtube.ui.screens.player.util.VideoPlayerUtils
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.launch
+import com.flow.youtube.R
+
 
 
 @androidx.annotation.OptIn(UnstableApi::class)
@@ -668,7 +671,7 @@ fun EnhancedVideoPlayerScreen(
                     isBuffering = playerState.isBuffering,
                     currentPosition = currentPosition,
                     duration = duration,
-                    qualityLabel = if (playerState.currentQuality == 0) "Auto (${playerState.effectiveQuality}p)" else playerState.currentQuality.toString(),
+                    qualityLabel = if (playerState.currentQuality == 0) stringResource(R.string.quality_auto_template, playerState.effectiveQuality) else playerState.currentQuality.toString(),
                     resizeMode = resizeMode,
                     onResizeClick = {
                         resizeMode = (resizeMode + 1) % 3
@@ -747,6 +750,7 @@ fun EnhancedVideoPlayerScreen(
                             subscriberCount = uiState.channelSubscriberCount,
                             isSubscribed = uiState.isSubscribed,
                             likeState = uiState.likeState ?: "NONE",
+                            dislikeCount = uiState.dislikeCount,
                             onLikeClick = {
                                 val streamInfo = uiState.streamInfo
                                 val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url ?: video.thumbnailUrl
@@ -777,11 +781,11 @@ fun EnhancedVideoPlayerScreen(
                                     
                                     scope.launch {
                                         val message = if (uiState.isSubscribed) 
-                                            "Unsubscribed from $channelNameSafe" 
+                                            context.getString(R.string.unsubscribed_from, channelNameSafe) 
                                         else 
-                                            "Subscribed to $channelNameSafe"
+                                            context.getString(R.string.subscribed_to, channelNameSafe)
                                             
-                                        val result = snackbarHostState.showSnackbar(message, actionLabel = if (uiState.isSubscribed) "Undo" else null)
+                                        val result = snackbarHostState.showSnackbar(message, actionLabel = if (uiState.isSubscribed) context.getString(R.string.undo) else null)
                                         
                                         if (result == androidx.compose.material3.SnackbarResult.ActionPerformed && uiState.isSubscribed) {
                                             // Undo unsubscribe
@@ -801,9 +805,9 @@ fun EnhancedVideoPlayerScreen(
                                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
                                     putExtra(Intent.EXTRA_SUBJECT, video.title)
-                                    putExtra(Intent.EXTRA_TEXT, "Check out this video: ${video.title}\nhttps://youtube.com/watch?v=${video.id}")
+                                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.check_out_video_template, video.title, video.id))
                                 }
-                                context.startActivity(Intent.createChooser(shareIntent, "Share video"))
+                                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_video)))
                             },
                             onDownloadClick = {
                                 showDownloadDialog = true
@@ -830,7 +834,7 @@ fun EnhancedVideoPlayerScreen(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = "Related Videos",
+                                    text = stringResource(R.string.related_videos),
                                     style = MaterialTheme.typography.titleMedium,
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
                                 )
@@ -892,9 +896,9 @@ fun EnhancedVideoPlayerScreen(
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_SUBJECT, completeVideo.title)
-                    putExtra(Intent.EXTRA_TEXT, "Check out this video: ${completeVideo.title}\nhttps://youtube.com/watch?v=${completeVideo.id}")
+                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.check_out_video_template, completeVideo.title, completeVideo.id))
                 }
-                context.startActivity(Intent.createChooser(shareIntent, "Share video"))
+                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_video)))
             },
             onDownload = {
                 showQuickActions = false
@@ -902,16 +906,16 @@ fun EnhancedVideoPlayerScreen(
             },
             onNotInterested = {
                 showQuickActions = false
-                Toast.makeText(context, "Video marked as not interested", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.video_marked_not_interested), Toast.LENGTH_SHORT).show()
             },
             onReport = {
                 showQuickActions = false
                 val reportIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, "Report video: ${completeVideo.title}")
-                    putExtra(Intent.EXTRA_TEXT, "Video ID: ${completeVideo.id}\nReason: ")
+                    putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.report_video_template, completeVideo.title))
+                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.report_video_body_template, completeVideo.id))
                 }
-                context.startActivity(Intent.createChooser(reportIntent, "Report video"))
+                context.startActivity(Intent.createChooser(reportIntent, context.getString(R.string.report_video)))
             }
         )
     }
@@ -1102,25 +1106,25 @@ fun ShortsSuggestionDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Outlined.SmartDisplay, null) },
         title = {
-            Text(text = "Play Mode Suggestion", style = MaterialTheme.typography.titleLarge)
+            Text(text = stringResource(R.string.play_mode_suggestion_title), style = MaterialTheme.typography.titleLarge)
         },
         text = {
-            Text("This video is less than 2 minutes long. Would you like to switch to a specialized player?")
+            Text(stringResource(R.string.play_mode_suggestion_body))
         },
         confirmButton = {
             TextButton(onClick = onPlayAsShort) {
-                Text("Shorts Player")
+                Text(stringResource(R.string.shorts_player))
             }
         },
         dismissButton = {
             Row {
                 if (isMusic) {
                     TextButton(onClick = onPlayAsMusic) {
-                        Text("Music Player")
+                        Text(stringResource(R.string.music_player))
                     }
                 }
                 TextButton(onClick = onDismiss) {
-                    Text("Close")
+                    Text(stringResource(R.string.close))
                 }
             }
         }

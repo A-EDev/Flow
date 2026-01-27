@@ -33,6 +33,9 @@ import com.flow.youtube.ui.screens.music.MusicTrack
 import com.flow.youtube.ui.screens.music.MusicTrackRow
 import com.flow.youtube.ui.theme.extendedColors
 import android.content.Intent
+import com.flow.youtube.R
+import androidx.compose.ui.res.stringResource
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,7 +97,7 @@ fun HistoryScreen(
                 actions = {
                     if (uiState.historyEntries.isNotEmpty()) {
                         TextButton(onClick = { showClearDialog = true }) {
-                            Text("Clear All")
+                            Text(androidx.compose.ui.res.stringResource(R.string.clear_all))
                         }
                     }
                 },
@@ -195,8 +198,8 @@ fun HistoryScreen(
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text("Clear watch history?") },
-            text = { Text("This will remove all videos from your watch history. This action cannot be undone.") },
+            title = { Text(androidx.compose.ui.res.stringResource(R.string.clear_watch_history_alert_title)) },
+            text = { Text(androidx.compose.ui.res.stringResource(R.string.clear_watch_history_alert_body)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -204,12 +207,12 @@ fun HistoryScreen(
                         showClearDialog = false
                     }
                 ) {
-                    Text("Clear")
+                    Text(androidx.compose.ui.res.stringResource(R.string.clear))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
-                    Text("Cancel")
+                    Text(androidx.compose.ui.res.stringResource(R.string.cancel))
                 }
             }
         )
@@ -330,6 +333,7 @@ private fun HistoryVideoCard(
 
 @Composable
 private fun EmptyHistoryState(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -343,14 +347,14 @@ private fun EmptyHistoryState(modifier: Modifier = Modifier) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "No Watch History",
+            text = context.getString(R.string.empty_watch_history),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Videos you watch will appear here",
+            text = context.getString(R.string.empty_watch_history_body),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center

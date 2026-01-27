@@ -34,6 +34,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.ui.components.*
 import com.flow.youtube.ui.screens.notifications.NotificationViewModel
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
+
 
 // Add this import for snapshotFlow
 import androidx.compose.runtime.snapshotFlow
@@ -307,7 +310,7 @@ private fun FlowFeedFooter(
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Refresh Feed")
+            Text(androidx.compose.ui.res.stringResource(R.string.home_refresh_feed))
         }
     }
 }
@@ -332,7 +335,7 @@ private fun ErrorState(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             TextButton(onClick = onRetry) {
-                Text("Retry")
+                Text(androidx.compose.ui.res.stringResource(R.string.retry))
             }
         }
     }

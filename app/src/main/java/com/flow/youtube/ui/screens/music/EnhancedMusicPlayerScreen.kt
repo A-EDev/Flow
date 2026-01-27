@@ -47,6 +47,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.flow.youtube.player.RepeatMode
 import coil.compose.AsyncImage
+import com.flow.youtube.R
+import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -114,9 +116,9 @@ fun EnhancedMusicPlayerScreen(
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_SUBJECT, uiState.currentTrack!!.title)
-                    putExtra(Intent.EXTRA_TEXT, "Check out this song: ${uiState.currentTrack!!.title} by ${uiState.currentTrack!!.artist}\nhttps://music.youtube.com/watch?v=${uiState.currentTrack!!.videoId}")
+                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_message_template, uiState.currentTrack!!.title, uiState.currentTrack!!.artist, uiState.currentTrack!!.videoId))
                 }
-                context.startActivity(Intent.createChooser(shareIntent, "Share song"))
+                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
             },
             onInfoClick = { showInfoDialog = true }
         )
@@ -212,7 +214,7 @@ fun EnhancedMusicPlayerScreen(
                                     modifier = Modifier.padding(horizontal = 16.dp)
                                 ) {
                                     Text(
-                                        "Song",
+                                        context.getString(R.string.song),
                                         style = MaterialTheme.typography.labelLarge,
                                         color = Color.White
                                     )
@@ -229,7 +231,7 @@ fun EnhancedMusicPlayerScreen(
                                     modifier = Modifier.padding(horizontal = 16.dp)
                                 ) {
                                     Text(
-                                        "Video",
+                                        context.getString(R.string.video),
                                         style = MaterialTheme.typography.labelLarge,
                                         color = Color.White
                                     )
@@ -242,7 +244,7 @@ fun EnhancedMusicPlayerScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.Filled.KeyboardArrowDown,
-                            contentDescription = "Close",
+                            contentDescription = stringResource(R.string.close),
                             modifier = Modifier.size(32.dp),
                             tint = Color.White
                         )
@@ -252,7 +254,7 @@ fun EnhancedMusicPlayerScreen(
                     IconButton(onClick = { showMoreOptions = true }) {
                         Icon(
                             Icons.Outlined.MoreVert, 
-                            "More",
+                            stringResource(R.string.more_options),
                             tint = Color.White
                         )
                     }
@@ -391,7 +393,7 @@ fun EnhancedMusicPlayerScreen(
                     ) {
                         Icon(
                             imageVector = if (uiState.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                            contentDescription = "Like",
+                            contentDescription = stringResource(R.string.like),
                             tint = if (uiState.isLiked) MaterialTheme.colorScheme.primary else Color.White,
                             modifier = Modifier.size(28.dp)
                         )
@@ -406,11 +408,11 @@ fun EnhancedMusicPlayerScreen(
                         ) {
                             PillButton(
                                 icon = Icons.Outlined.Share,
-                                text = "Share",
+                                text = context.getString(R.string.share),
                                 onClick = {
                                     val sendIntent: Intent = Intent().apply {
                                         action = Intent.ACTION_SEND
-                                        putExtra(Intent.EXTRA_TEXT, "Check out this song: ${uiState.currentTrack?.title} by ${uiState.currentTrack?.artist}\nhttps://music.youtube.com/watch?v=${uiState.currentTrack?.videoId}")
+                                        putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_message_template, uiState.currentTrack?.title, uiState.currentTrack?.artist, uiState.currentTrack?.videoId))
                                         type = "text/plain"
                                     }
                                     val shareIntent = Intent.createChooser(sendIntent, null)
@@ -421,14 +423,16 @@ fun EnhancedMusicPlayerScreen(
                             val isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId)
                             PillButton(
                                 icon = if (isDownloaded) Icons.Filled.CheckCircle else Icons.Outlined.DownloadForOffline,
-                                text = if (isDownloaded) "Downloaded" else "Download",
+                                text = if (isDownloaded) context.getString(R.string.downloaded) else context.getString(
+                                    R.string.download
+                                ),
                                 onClick = { 
                                     if (!isDownloaded) viewModel.downloadTrack() 
                                 }
                             )
                             PillButton(
                                 icon = Icons.Outlined.PlaylistAdd,
-                                text = "Save",
+                                text = context.getString(R.string.save),
                                 onClick = { viewModel.showAddToPlaylistDialog(true) }
                             )
                             
@@ -477,7 +481,7 @@ fun EnhancedMusicPlayerScreen(
                             IconButton(onClick = { viewModel.toggleShuffle() }) {
                                 Icon(
                                     Icons.Outlined.Shuffle,
-                                    contentDescription = "Shuffle",
+                                    contentDescription = stringResource(R.string.shuffle),
                                     tint = if (uiState.shuffleEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f)
                                 )
                             }
@@ -488,7 +492,7 @@ fun EnhancedMusicPlayerScreen(
                             ) {
                                 Icon(
                                     Icons.Filled.SkipPrevious,
-                                    contentDescription = "Previous",
+                                    contentDescription = stringResource(R.string.previous),
                                     tint = Color.White,
                                     modifier = Modifier.size(36.dp)
                                 )
@@ -510,7 +514,7 @@ fun EnhancedMusicPlayerScreen(
                                     } else {
                                         Icon(
                                             imageVector = if (uiState.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                            contentDescription = if (uiState.isPlaying) "Pause" else "Play",
+                                            contentDescription = if (uiState.isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
                                             tint = Color.Black,
                                             modifier = Modifier.size(40.dp)
                                         )
@@ -524,7 +528,7 @@ fun EnhancedMusicPlayerScreen(
                             ) {
                                 Icon(
                                     Icons.Filled.SkipNext,
-                                    contentDescription = "Next",
+                                    contentDescription = stringResource(R.string.next),
                                     tint = Color.White,
                                     modifier = Modifier.size(36.dp)
                                 )
@@ -536,7 +540,7 @@ fun EnhancedMusicPlayerScreen(
                                         RepeatMode.ONE -> Icons.Outlined.RepeatOne
                                         else -> Icons.Outlined.Repeat
                                     },
-                                    contentDescription = "Repeat",
+                                    contentDescription = stringResource(R.string.repeat),
                                     tint = if (uiState.repeatMode != RepeatMode.OFF) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f)
                                 )
                             }
@@ -552,13 +556,13 @@ fun EnhancedMusicPlayerScreen(
                             horizontalArrangement = Arrangement.SpaceEvenly
                         ) {
                             TextButton(onClick = { showQueue = true }) {
-                                Text("UP NEXT", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
+                                Text(androidx.compose.ui.res.stringResource(R.string.up_next), color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
                             }
                             TextButton(onClick = { showLyrics = true }) {
-                                Text("LYRICS", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
+                                Text(androidx.compose.ui.res.stringResource(R.string.lyrics), color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
                             }
                             TextButton(onClick = { showRelated = true }) {
-                                Text("RELATED", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
+                                Text(androidx.compose.ui.res.stringResource(R.string.related), color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -609,7 +613,7 @@ fun EnhancedMusicPlayerScreen(
                         ) {
                             Icon(
                                 imageVector = if (uiState.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                contentDescription = "Like",
+                                contentDescription = stringResource(R.string.like),
                                 tint = if (uiState.isLiked) MaterialTheme.colorScheme.primary else Color.White,
                                 modifier = Modifier.size(28.dp)
                             )
@@ -625,11 +629,11 @@ fun EnhancedMusicPlayerScreen(
                 ) {
                     PillButton(
                         icon = Icons.Outlined.Share,
-                        text = "Share",
+                        text = stringResource(R.string.share),
                         onClick = {
                             val sendIntent: Intent = Intent().apply {
                                 action = Intent.ACTION_SEND
-                                putExtra(Intent.EXTRA_TEXT, "Check out this song: ${uiState.currentTrack?.title} by ${uiState.currentTrack?.artist}\nhttps://music.youtube.com/watch?v=${uiState.currentTrack?.videoId}")
+                                putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_message_template, uiState.currentTrack?.title, uiState.currentTrack?.artist, uiState.currentTrack?.videoId))
                                 type = "text/plain"
                             }
                             val shareIntent = Intent.createChooser(sendIntent, null)
@@ -640,14 +644,14 @@ fun EnhancedMusicPlayerScreen(
                     val isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId)
                     PillButton(
                         icon = if (isDownloaded) Icons.Filled.CheckCircle else Icons.Outlined.DownloadForOffline,
-                        text = if (isDownloaded) "Downloaded" else "Download",
+                        text = if (isDownloaded) stringResource(R.string.downloaded) else stringResource(R.string.download),
                         onClick = { 
                             if (!isDownloaded) viewModel.downloadTrack() 
                         }
                     )
                     PillButton(
                         icon = Icons.Outlined.PlaylistAdd,
-                        text = "Save",
+                        text = stringResource(R.string.save),
                         onClick = { viewModel.showAddToPlaylistDialog(true) }
                     )
                     
@@ -771,13 +775,13 @@ fun EnhancedMusicPlayerScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     TextButton(onClick = { showQueue = true }) {
-                        Text("UP NEXT", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.up_next), color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
                     }
                     TextButton(onClick = { showLyrics = true }) {
-                        Text("LYRICS", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.lyrics), color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
                     }
                     TextButton(onClick = { showRelated = true }) {
-                        Text("RELATED", color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.related), color = Color.White.copy(alpha = 0.7f), fontWeight = FontWeight.Bold)
                     }
                 }
                 
@@ -854,7 +858,7 @@ fun EnhancedMusicPlayerScreen(
                 ) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     Text(
-                        text = "Loading track...",
+                        text = stringResource(R.string.loading_track),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -870,13 +874,13 @@ fun EnhancedMusicPlayerScreen(
                     .padding(16.dp),
                 action = {
                     TextButton(onClick = onBackClick) {
-                        Text("Close")
+                        Text(stringResource(R.string.close))
                     }
                 },
                 containerColor = MaterialTheme.colorScheme.errorContainer,
                 contentColor = MaterialTheme.colorScheme.onErrorContainer
             ) {
-                Text(uiState.error ?: "An error occurred")
+                Text(uiState.error ?: stringResource(R.string.error_occurred))
             }
         }
     }
@@ -960,7 +964,7 @@ private fun UpNextBottomSheet(
         ) {
             // Header
             Text(
-                text = "UP NEXT",
+                text = stringResource(R.string.up_next),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                 fontWeight = FontWeight.Bold,
@@ -977,7 +981,7 @@ private fun UpNextBottomSheet(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Playing from",
+                        text = stringResource(R.string.playing_from),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
@@ -1007,7 +1011,7 @@ private fun UpNextBottomSheet(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Save", style = MaterialTheme.typography.labelLarge)
+                    Text(stringResource(R.string.save), style = MaterialTheme.typography.labelLarge)
                 }
             }
             
@@ -1020,7 +1024,7 @@ private fun UpNextBottomSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Autoplay",
+                    text = stringResource(R.string.autoplay),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold
@@ -1040,7 +1044,13 @@ private fun UpNextBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
             
             // Filter Chips
-            val filters = listOf("All", "Discover", "Popular", "Deep cuts", "Workout")
+            val filters = listOf(
+                stringResource(R.string.view_all_button_label),
+                stringResource(R.string.filter_discover),
+                stringResource(R.string.filter_popular),
+                stringResource(R.string.filter_deep_cuts),
+                stringResource(R.string.filter_workout)
+            )
             
             LazyRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -1138,7 +1148,7 @@ private fun UpNextTrackItem(
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowUp,
-                    contentDescription = "Move Up",
+                    contentDescription = stringResource(R.string.move_up),
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                 )
             }
@@ -1148,7 +1158,7 @@ private fun UpNextTrackItem(
             ) {
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Move Down",
+                    contentDescription = stringResource(R.string.move_down),
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                 )
             }
@@ -1309,7 +1319,7 @@ private fun LyricsBottomSheet(
                         }
                     } else {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("Lyrics not available", color = Color.White.copy(alpha = 0.6f))
+                            Text(stringResource(R.string.lyrics_not_available), color = Color.White.copy(alpha = 0.6f))
                         }
                     }
                 }
@@ -1381,14 +1391,14 @@ private fun QueueTrackItem(
             if (isCurrentlyPlaying) {
                 Icon(
                     imageVector = Icons.Filled.Equalizer,
-                    contentDescription = "Playing",
+                    contentDescription = stringResource(R.string.playing),
                     tint = MaterialTheme.colorScheme.primary
                 )
             } else {
                 IconButton(onClick = onRemove) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
-                        contentDescription = "Remove",
+                        contentDescription = stringResource(R.string.remove),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -1461,7 +1471,7 @@ fun RelatedBottomSheet(
                 .padding(horizontal = 20.dp)
         ) {
             Text(
-                "Related Content",
+                stringResource(R.string.related_content),
                 style = MaterialTheme.typography.titleLarge,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
@@ -1474,7 +1484,7 @@ fun RelatedBottomSheet(
                 }
             } else if (relatedTracks.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No related content found", color = Color.White.copy(alpha = 0.6f))
+                    Text(stringResource(R.string.no_related_content), color = Color.White.copy(alpha = 0.6f))
                 }
             } else {
                 LazyColumn(
@@ -1541,7 +1551,7 @@ fun RelatedTrackItem(
         IconButton(onClick = { showMoreOptions = true }) {
             Icon(
                 Icons.Outlined.MoreVert,
-                contentDescription = "More",
+                contentDescription = stringResource(R.string.more_options),
                 tint = Color.White.copy(alpha = 0.6f)
             )
         }
@@ -1565,31 +1575,31 @@ fun TrackInfoDialog(
     
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Track Details") },
+        title = { Text(stringResource(R.string.track_details)) },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                InfoRow("Title", track.title)
-                InfoRow("Artist", track.artist)
+                InfoRow(stringResource(R.string.title_label), track.title)
+                InfoRow(stringResource(R.string.artist_label), track.artist)
                 if (track.album.isNotEmpty()) {
-                    InfoRow("Album", track.album)
+                    InfoRow(stringResource(R.string.album_label), track.album)
                 }
-                InfoRow("Video ID", track.videoId)
+                InfoRow(stringResource(R.string.video_id_label), track.videoId)
                 
                 Divider()
                 
                 if (audioFormat != null) {
-                    InfoRow("Codec", audioFormat.sampleMimeType ?: "Unknown")
-                    InfoRow("Sample Rate", "${audioFormat.sampleRate} Hz")
+                    InfoRow(stringResource(R.string.codec_label), audioFormat.sampleMimeType ?: "Unknown")
+                    InfoRow(stringResource(R.string.sample_rate_label), "${audioFormat.sampleRate} ${stringResource(R.string.hz)}")
                     if (audioFormat.bitrate > 0) {
-                        InfoRow("Bitrate", "${audioFormat.bitrate / 1000} kbps")
+                        InfoRow(stringResource(R.string.bitrate_label), "${audioFormat.bitrate / 1000} ${stringResource(R.string.kbps)}")
                     }
-                    InfoRow("Channels", audioFormat.channelCount.toString())
+                    InfoRow(stringResource(R.string.channels_label), audioFormat.channelCount.toString())
                 } else {
                     Text(
-                        "Audio stream information not available yet.",
+                        stringResource(R.string.audio_info_not_available),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1598,7 +1608,7 @@ fun TrackInfoDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.close))
             }
         }
     )

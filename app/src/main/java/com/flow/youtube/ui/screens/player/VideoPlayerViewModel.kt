@@ -97,12 +97,19 @@ class VideoPlayerViewModel @Inject constructor(
             streamInfo = null,
             videoStream = null,
             audioStream = null,
-            relatedVideos = emptyList()
+            relatedVideos = emptyList(),
+            dislikeCount = null
         )
         
         viewModelScope.launch {
             Log.d("VideoPlayerViewModel", "Starting loadVideoInfo for $videoId")
             try {
+                // Fetch dislikes in parallel without blocking main video load
+                launch {
+                    val count = fetchReturnYouTubeDislike(videoId)
+                    _uiState.value = _uiState.value.copy(dislikeCount = count)
+                }
+
                 kotlinx.coroutines.withTimeout(30_000) {
                     // Determine preferred quality from preferences
                     val preferredQuality = if (isWifi) {
@@ -606,6 +613,27 @@ class VideoPlayerViewModel @Inject constructor(
     fun toggleSkipSilence(isEnabled: Boolean) {
         EnhancedPlayerManager.getInstance().toggleSkipSilence(isEnabled)
     }
+    private suspend fun fetchReturnYouTubeDislike(videoId: String): Long? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        try {
+            val url = java.net.URL("https://returnyoutubedislikeapi.com/votes?videoId=$videoId")
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.connect()
+
+            if (connection.responseCode == 200) {
+                val response = connection.inputStream.bufferedReader().use { it.readText() }
+                val json = org.json.JSONObject(response)
+                json.getLong("dislikes")
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            // Log.e("VideoPlayerViewModel", "Failed to fetch dislikes", e)
+            null
+        }
+    }
 }
 
 data class VideoPlayerUiState(
@@ -633,7 +661,8 @@ data class VideoPlayerUiState(
     val commentCountText: String = "0",
     val streamSizes: Map<Int, Long> = emptyMap(),
     val localFilePath: String? = null,
-    val metadataError: String? = null
+    val metadataError: String? = null,
+    val dislikeCount: Long? = null
 )
 
 data class SubtitleInfo(

@@ -25,6 +25,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.flow.youtube.ui.theme.extendedColors
 import androidx.compose.ui.res.vectorResource
 import com.flow.youtube.R
+import androidx.compose.ui.res.stringResource
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,7 +55,7 @@ fun LibraryScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = "Library",
+                        text = androidx.compose.ui.res.stringResource(R.string.library),
                         style = MaterialTheme.typography.headlineMedium
                     ) 
                 },
@@ -73,13 +75,13 @@ fun LibraryScreen(
         ) {
             // Main Navigation Items
             item {
-                LibrarySectionHeader("Your Content")
+                LibrarySectionHeader(context.getString(R.string.library_section_header))
             }
 
             item {
                 LibraryCard(
                     icon = Icons.Outlined.History,
-                    title = "History",
+                    title = context.getString(R.string.library_history_label),
                     subtitle = "${uiState.watchHistoryCount} videos",
                     onClick = onNavigateToHistory
                 )
@@ -88,7 +90,7 @@ fun LibraryScreen(
             item {
                 LibraryCard(
                     icon = Icons.Outlined.PlaylistPlay,
-                    title = "Playlists",
+                    title = context.getString(R.string.library_playlists_label),
                     subtitle = "${uiState.playlistsCount} playlists",
                     onClick = onNavigateToPlaylists
                 )
@@ -97,8 +99,8 @@ fun LibraryScreen(
             item {
                 LibraryCard(
                     icon = Icons.Outlined.QueueMusic,
-                    title = "Music Playlists",
-                    subtitle = "Your music collections",
+                    title = context.getString(R.string.library_music_playlists_label),
+                    subtitle = context.getString(R.string.library_music_playlists_subtitle),
                     onClick = onNavigateToMusicPlaylists
                 )
             }
@@ -106,7 +108,7 @@ fun LibraryScreen(
             item {
                 LibraryCard(
                     icon = Icons.Outlined.ThumbUp,
-                    title = "Liked Videos",
+                    title = context.getString(R.string.library_liked_videos_label),
                     subtitle = "${uiState.likedVideosCount} videos",
                     onClick = onNavigateToLikedVideos
                 )
@@ -115,7 +117,7 @@ fun LibraryScreen(
             item {
                 LibraryCard(
                     icon = ImageVector.vectorResource(id = R.drawable.ic_shorts),
-                    title = "Saved Shorts",
+                    title = context.getString(R.string.library_saved_shorts_label),
                     subtitle = "${uiState.savedShortsCount} shorts",
                     onClick = onNavigateToSavedShorts
                 )
@@ -124,7 +126,7 @@ fun LibraryScreen(
             item {
                 LibraryCard(
                     icon = Icons.Outlined.WatchLater,
-                    title = "Watch Later",
+                    title = context.getString(R.string.library_watch_later_label),
                     subtitle = "${uiState.watchLaterCount} videos",
                     onClick = onNavigateToWatchLater
                 )
@@ -133,7 +135,7 @@ fun LibraryScreen(
             item {
                 LibraryCard(
                     icon = Icons.Outlined.Download,
-                    title = "Downloads",
+                    title = context.getString(R.string.library_downloads_label),
                     subtitle = "0 videos", // Placeholder
                     onClick = onNavigateToDownloads
                 )
@@ -144,14 +146,14 @@ fun LibraryScreen(
             }
             
             item {
-                LibrarySectionHeader("Settings & Data")
+                LibrarySectionHeader(context.getString(R.string.library_settings_data_header))
             }
             
             item {
                 LibraryCard(
                     icon = Icons.Outlined.Storage,
-                    title = "Manage Data",
-                    subtitle = "Clear cache and history",
+                    title = context.getString(R.string.library_manage_data_label),
+                    subtitle = context.getString(R.string.library_manage_data_subtitle),
                     onClick = onManageData
                 )
             }

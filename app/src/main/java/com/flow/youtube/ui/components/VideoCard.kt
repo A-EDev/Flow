@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -138,7 +139,7 @@ fun VideoCard(
                     )
                     
                     Text(
-                        text = formatViewCount(video.viewCount),
+                        text = "${formatViewCount(video.viewCount)} views",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
@@ -240,9 +241,7 @@ fun VideoCardHorizontal(
 /**
  * Full-width YouTube-style video card for infinite scroll
  */
-/**
- * Full-width YouTube-style video card for infinite scroll
- */
+
 @Composable
 fun VideoCardFullWidth(
     video: Video,
@@ -361,6 +360,7 @@ fun ShortsShelf(
     shorts: List<Video>,
     onShortClick: (Video) -> Unit
 ) {
+    val context = LocalContext.current
     Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -374,7 +374,7 @@ fun ShortsShelf(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Shorts",
+                text = context.getString(R.string.shorts),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )

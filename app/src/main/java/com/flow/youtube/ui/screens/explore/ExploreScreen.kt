@@ -246,7 +246,7 @@ private fun FeaturedVideoCard(
                 Text("•", color = MaterialTheme.extendedColors.textSecondary)
                 
                 Text(
-                    text = formatViewCount(video.viewCount),
+                    text = "${formatViewCount(video.viewCount)} views",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.extendedColors.textSecondary
                 )

@@ -42,6 +42,9 @@ import androidx.compose.material.icons.rounded.Check
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.AnimatedVisibility
+import com.flow.youtube.R
+import androidx.compose.ui.res.stringResource
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -122,13 +125,13 @@ fun ChannelScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Text(
-                            text = uiState.error ?: "Failed to load channel",
+                            text = uiState.error ?: context.getString(R.string.failed_to_load_channel),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.error
                         )
                         
                         Button(onClick = { viewModel.loadChannel(channelUrl) }) {
-                            Text("Retry")
+                            Text(androidx.compose.ui.res.stringResource(R.string.retry))
                         }
                     }
                 }
@@ -581,6 +584,7 @@ private fun PlaylistCard(
 private fun AboutSection(
     channelInfo: org.schabi.newpipe.extractor.channel.ChannelInfo
 ) {
+    val context = LocalContext.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -588,7 +592,7 @@ private fun AboutSection(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "About",
+            text = context.getString(R.string.about),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
@@ -602,7 +606,7 @@ private fun AboutSection(
             )
         } else {
             Text(
-                text = "No description available",
+                text = context.getString(R.string.empty_description),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
@@ -615,7 +619,7 @@ private fun AboutSection(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Stats",
+                text = context.getString(R.string.stats),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -626,7 +630,7 @@ private fun AboutSection(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Subscribers",
+                    text = context.getString(R.string.subscribers),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.extendedColors.textSecondary
                 )

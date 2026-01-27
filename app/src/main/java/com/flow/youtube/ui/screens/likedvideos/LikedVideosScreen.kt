@@ -32,6 +32,9 @@ import com.flow.youtube.ui.screens.music.MusicTrack
 import com.flow.youtube.ui.screens.music.MusicTrackRow
 import com.flow.youtube.ui.theme.extendedColors
 import android.content.Intent
+import com.flow.youtube.R
+import androidx.compose.ui.res.stringResource
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,7 +73,8 @@ fun LikedVideosScreen(
                     putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
                     putExtra(Intent.EXTRA_TEXT, "Check out this song: ${selectedTrack!!.title} by ${selectedTrack!!.artist}\nhttps://music.youtube.com/watch?v=${selectedTrack!!.videoId}")
                 }
-                context.startActivity(Intent.createChooser(shareIntent, "Share song"))
+                context.startActivity(Intent.createChooser(shareIntent,
+                    context.getString(R.string.share_song)))
             }
         )
     }
@@ -80,7 +84,9 @@ fun LikedVideosScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = if (isMusic) "Liked Music" else "Liked Videos",
+                        text = if (isMusic) androidx.compose.ui.res.stringResource(R.string.liked_music) else androidx.compose.ui.res.stringResource(
+                            R.string.liked_videos
+                        ),
                         style = MaterialTheme.typography.headlineMedium
                     ) 
                 },
@@ -191,6 +197,7 @@ private fun LikedVideoCard(
     onUnlikeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -258,7 +265,7 @@ private fun LikedVideoCard(
             Spacer(modifier = Modifier.height(2.dp))
 
             Text(
-                text = "Liked " + formatTimestamp(video.likedAt),
+                text = context.getString(R.string.liked) + formatTimestamp(video.likedAt),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
@@ -268,6 +275,7 @@ private fun LikedVideoCard(
 
 @Composable
 private fun EmptyLikedVideosState(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -281,14 +289,14 @@ private fun EmptyLikedVideosState(modifier: Modifier = Modifier) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "No Liked Videos",
+            text = context.getString(R.string.empty_liked),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onBackground,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Videos you like will appear here",
+            text = context.getString(R.string.empty_liked_body),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center
