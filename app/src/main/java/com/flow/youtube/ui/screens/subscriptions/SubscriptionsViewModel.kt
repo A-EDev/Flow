@@ -78,8 +78,41 @@ class SubscriptionsViewModel : ViewModel() {
     }
 
     private fun updateVideos(videos: List<Video>) {
-        val (shorts, regular) = videos.partition { it.duration > 0 && it.duration <= 80 }
+        // Sort videos by date (latest first) before partitioning
+        val sortedVideos = videos.sortedByDescending { parseRelativeTime(it.uploadDate) }
+        val (shorts, regular) = sortedVideos.partition { it.duration > 0 && it.duration <= 80 }
         _uiState.update { it.copy(recentVideos = regular, shorts = shorts) }
+    }
+    
+    private fun parseRelativeTime(dateString: String): Long {
+        try {
+            val now = System.currentTimeMillis()
+            val text = dateString.lowercase().trim()
+            
+            // Handle special cases or future streams which we consider "new"
+            if (text.contains("scheduled") || text.contains("premiere")) return now + 86400000L
+            if (text.contains("live")) return now + 3600000L // Boost live streams
+            
+            // Example: "2 days ago", "1 day ago", "3 years ago"
+            val parts = text.split(" ")
+            val valueLine = parts.firstOrNull { it.any { c -> c.isDigit() } } 
+            val value = valueLine?.filter { it.isDigit() }?.toLongOrNull() ?: 1L
+            
+            val multiplier = when {
+                text.contains("second") -> 1000L
+                text.contains("minute") -> 60000L
+                text.contains("hour") -> 3600000L
+                text.contains("day") -> 86400000L
+                text.contains("week") -> 604800000L
+                text.contains("month") -> 2592000000L
+                text.contains("year") -> 31536000000L
+                else -> 0L
+            }
+            
+            return now - (value * multiplier)
+        } catch (e: Exception) {
+            return 0L
+        }
     }
     
     fun selectChannel(channelId: String?) {

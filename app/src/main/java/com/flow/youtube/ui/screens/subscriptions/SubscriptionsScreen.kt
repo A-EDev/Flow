@@ -203,11 +203,9 @@ fun SubscriptionsScreen(
                                             items(subscribedChannels.take(10)) { channel ->
                                                 ChannelAvatarItem(
                                                     channel = channel,
-                                                    isSelected = uiState.selectedChannelId == channel.id,
+                                                    isSelected = false,
                                                     onClick = {
-                                                        viewModel.selectChannel(
-                                                            if (uiState.selectedChannelId == channel.id) null else channel.id
-                                                        )
+                                                        onChannelClick("https://youtube.com/channel/${channel.id}")
                                                     }
                                                 )
                                             }

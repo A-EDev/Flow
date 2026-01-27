@@ -146,13 +146,16 @@ fun HomeScreen(
             )
         }
     ) { padding ->
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .pullRefresh(pullRefreshState)
                 .background(MaterialTheme.colorScheme.background)
         ) {
+            val isPortrait = maxWidth < 600.dp
+            val gridCells = if (isPortrait) GridCells.Fixed(1) else GridCells.Adaptive(300.dp)
+
             when {
                 uiState.isLoading && uiState.videos.isEmpty() -> {
                     // Initial loading state
@@ -175,7 +178,7 @@ fun HomeScreen(
                 
                 else -> {
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(320.dp),
+                        columns = gridCells,
                         modifier = Modifier.fillMaxSize(),
                         state = gridState,
                         contentPadding = PaddingValues(16.dp),
