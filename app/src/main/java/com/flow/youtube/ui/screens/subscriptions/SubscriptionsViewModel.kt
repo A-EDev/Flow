@@ -106,12 +106,68 @@ class SubscriptionsViewModel : ViewModel() {
                 text.contains("week") -> 604800000L
                 text.contains("month") -> 2592000000L
                 text.contains("year") -> 31536000000L
-                else -> 0L
+                else -> 86400000L
             }
             
             return now - (value * multiplier)
         } catch (e: Exception) {
-            return 0L
+            return System.currentTimeMillis() // Fallback
+        }
+    }
+    
+    fun importNewPipeBackup(uri: android.net.Uri, context: Context) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val jsonString = inputStream.bufferedReader().use { it.readText() }
+                    val jsonObject = org.json.JSONObject(jsonString)
+                    
+                    if (jsonObject.has("subscriptions")) {
+                        val subscriptionsArray = jsonObject.getJSONArray("subscriptions")
+                        var importedCount = 0
+                        
+                        for (i in 0 until subscriptionsArray.length()) {
+                            val item = subscriptionsArray.getJSONObject(i)
+                            // NewPipe Export Format: service_id, url, name
+                            val url = item.optString("url")
+                            val name = item.optString("name")
+                            
+                            // Extract ID from URL (e.g. https://www.youtube.com/channel/UCxxxx)
+                            // Or https://www.youtube.com/user/xxxx
+                            if (url.isNotEmpty() && name.isNotEmpty()) {
+                                var channelId = ""
+                                if (url.contains("/channel/")) {
+                                    channelId = url.substringAfter("/channel/")
+                                } else if (url.contains("/user/")) {
+                                    channelId = url.substringAfter("/user/")
+                                    // Note: This might not be the unique ID, but we try best effort. 
+                                    // NewPipe usually exports /channel/ URLs for subscriptions.
+                                }
+                                // Clean up any trailing slash or query params
+                                if (channelId.contains("/")) channelId = channelId.substringBefore("/")
+                                if (channelId.contains("?")) channelId = channelId.substringBefore("?")
+                                
+                                if (channelId.isNotEmpty()) {
+                                    val subscription = ChannelSubscription(
+                                        channelId = channelId,
+                                        channelName = name,
+                                        channelThumbnail = "", // Will load lazily or show placeholder
+                                        subscribedAt = System.currentTimeMillis()
+                                    )
+                                    subscriptionRepository.subscribe(subscription)
+                                    importedCount++
+                                }
+                            }
+                        }
+                        // Refresh subs
+                        if (importedCount > 0) {
+                             // The existing flow collection in initialize will auto-update because subscriptionRepository.getAllSubscriptions produces a flow
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
     

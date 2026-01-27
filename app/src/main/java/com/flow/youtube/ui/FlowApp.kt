@@ -47,6 +47,7 @@ import com.flow.youtube.ui.screens.music.MusicViewModel
 import com.flow.youtube.ui.screens.player.EnhancedVideoPlayerScreen
 import com.flow.youtube.ui.screens.search.SearchScreen
 import com.flow.youtube.ui.screens.settings.SettingsScreen
+import com.flow.youtube.ui.screens.settings.ImportDataScreen
 import com.flow.youtube.ui.screens.personality.FlowPersonalityScreen
 import com.flow.youtube.ui.screens.shorts.ShortsScreen
 import com.flow.youtube.ui.screens.subscriptions.SubscriptionsScreen
@@ -394,7 +395,15 @@ fun FlowApp(
                         onNavigateToDonations = { navController.navigate("donations") },
                         onNavigateToPersonality = { navController.navigate("personality") },
                         onNavigateToDownloads = { navController.navigate("settings/downloads") },
-                        onNavigateToTimeManagement = { navController.navigate("settings/time_management") }
+                        onNavigateToTimeManagement = { navController.navigate("settings/time_management") },
+                        onNavigateToImport = { navController.navigate("settings/import") }
+                    )
+                }
+                
+                composable("settings/import") {
+                    currentRoute.value = "settings/import"
+                    ImportDataScreen(
+                        onNavigateBack = { navController.popBackStack() }
                     )
                 }
 

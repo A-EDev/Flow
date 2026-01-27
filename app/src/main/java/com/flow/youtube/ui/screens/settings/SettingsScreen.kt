@@ -54,6 +54,7 @@ fun SettingsScreen(
     onNavigateToPersonality: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     onNavigateToTimeManagement: () -> Unit,
+    onNavigateToImport: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -81,22 +82,6 @@ fun SettingsScreen(
                         android.widget.Toast.makeText(context, "Data exported successfully", android.widget.Toast.LENGTH_SHORT).show()
                     } else {
                         android.widget.Toast.makeText(context, "Export failed: ${result.exceptionOrNull()?.message}", android.widget.Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-        }
-    )
-
-    val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-        onResult = { uri ->
-            uri?.let {
-                coroutineScope.launch {
-                    val result = backupRepo.importData(it)
-                    if (result.isSuccess) {
-                        android.widget.Toast.makeText(context, "Data imported successfully", android.widget.Toast.LENGTH_SHORT).show()
-                    } else {
-                        android.widget.Toast.makeText(context, "Import failed: ${result.exceptionOrNull()?.message}", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -550,8 +535,8 @@ item {
                     SettingsItem(
                         icon = Icons.Outlined.FileDownload,
                         title = "Import Data",
-                        subtitle = "Restore from backup",
-                        onClick = { importLauncher.launch(arrayOf("application/json", "application/octet-stream")) }
+                        subtitle = "Restore from backup or import from other apps",
+                        onClick = onNavigateToImport
                     )
                 }
             }

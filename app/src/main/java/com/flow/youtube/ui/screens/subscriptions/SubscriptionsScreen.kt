@@ -27,6 +27,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -54,6 +56,18 @@ fun SubscriptionsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    
+    // Import Launcher
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: android.net.Uri? ->
+        uri?.let {
+            viewModel.importNewPipeBackup(it, context)
+            scope.launch {
+                snackbarHostState.showSnackbar("Importing subscriptions from NewPipe backup...")
+            }
+        }
+    }
     
     var isManagingSubs by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -88,6 +102,11 @@ fun SubscriptionsScreen(
                     navigationIcon = {
                         IconButton(onClick = { isManagingSubs = false; searchQuery = "" }) {
                             Icon(Icons.Default.ArrowBack, "Back")
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { launcher.launch("application/json") }) {
+                            Icon(Icons.Default.Upload, "Import NewPipe Backup")
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
