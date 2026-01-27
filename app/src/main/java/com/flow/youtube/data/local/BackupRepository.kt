@@ -149,4 +149,49 @@ class BackupRepository(private val context: Context) {
             Result.failure(e)
         }
     }
+
+    suspend fun importYouTube(uri: Uri): Result<Int> = withContext(Dispatchers.IO) {
+        try {
+            var importedCount = 0
+            val subscriptionsToImport = mutableListOf<ChannelSubscription>()
+            
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                inputStream.bufferedReader().use { reader ->
+                    // 1. Skip the Header line blindly (handles all languages)
+                    reader.readLine()
+                    
+                    reader.forEachLine { line ->
+                        // 2. Limit split to 3 parts to handle commas in titles safely
+                        // "UC123,http://...,My Cool, Channel" -> ["UC123", "http://...", "My Cool, Channel"]
+                        val parts = line.split(",", limit = 3)
+                        
+                        if (parts.size >= 3) {
+                            val channelId = parts[0]
+                            val channelUrl = parts[1]
+                            val channelName = parts[2] // This now contains the full name, even with commas
+                            
+                            if (channelId.isNotEmpty() && channelName.isNotEmpty()) {
+                                 val subscription = ChannelSubscription(
+                                    channelId = channelId,
+                                    channelName = channelName,
+                                    channelThumbnail = "", 
+                                    subscribedAt = System.currentTimeMillis()
+                                )
+                                subscriptionsToImport.add(subscription)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            subscriptionsToImport.forEach {
+                subscriptionRepo.subscribe(it)
+                importedCount++
+            }
+            
+            Result.success(importedCount)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

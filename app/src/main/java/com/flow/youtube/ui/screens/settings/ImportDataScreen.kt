@@ -63,6 +63,22 @@ fun ImportDataScreen(
         }
     )
 
+    val youtubeImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            uri?.let {
+                scope.launch {
+                    val result = backupRepo.importYouTube(it)
+                    if (result.isSuccess) {
+                        snackbarHostState.showSnackbar("Imported ${result.getOrNull()} subscriptions from YouTube")
+                    } else {
+                        snackbarHostState.showSnackbar("Failed to import YouTube backup: ${result.exceptionOrNull()?.message}")
+                    }
+                }
+            }
+        }
+    )
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -114,10 +130,10 @@ fun ImportDataScreen(
             item {
                 ImportOptionCard(
                     title = "Import from YouTube",
-                    description = "Import data from YouTube Takeout. (Coming Soon)",
+                    description = "Import subscriptions from YouTube Takeout (CSV).",
                     icon = Icons.Default.PlayArrow,
-                    enabled = false,
-                    onClick = { /* TODO */ }
+                    enabled = true,
+                    onClick = { youtubeImportLauncher.launch(arrayOf("text/comma-separated-values", "text/csv", "text/plain")) }
                 )
             }
         }
