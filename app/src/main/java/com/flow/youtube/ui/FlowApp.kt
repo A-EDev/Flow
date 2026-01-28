@@ -29,7 +29,6 @@ import com.flow.youtube.player.GlobalPlayerState
 import com.flow.youtube.ui.components.FloatingBottomNavBar
 import com.flow.youtube.ui.components.PersistentVideoMiniPlayer
 import com.flow.youtube.ui.components.PersistentMiniMusicPlayer
-import com.flow.youtube.ui.screens.explore.ExploreScreen
 import com.flow.youtube.ui.screens.home.HomeScreen
 import com.flow.youtube.ui.screens.history.HistoryScreen
 import com.flow.youtube.ui.screens.library.LibraryScreen
@@ -255,27 +254,6 @@ fun FlowApp(
                         onBackClick = { navController.popBackStack() },
                         onNotificationClick = { videoId ->
                             navController.navigate("player/$videoId")
-                        }
-                    )
-                }
-
-                composable("explore") {
-                    currentRoute.value = "explore"
-                    showBottomNav = true
-                    selectedBottomNavIndex = -1
-                    ExploreScreen(
-                        onVideoClick = { video ->
-                            if (video.duration in 1..80) {
-                                navController.navigate("shorts?startVideoId=${video.id}")
-                            } else {
-                                navController.navigate("player/${video.id}")
-                            }
-                        },
-                        onSettingsClick = {
-                            navController.navigate("settings")
-                        },
-                        onShortsClick = {
-                            navController.navigate("shorts")
                         }
                     )
                 }

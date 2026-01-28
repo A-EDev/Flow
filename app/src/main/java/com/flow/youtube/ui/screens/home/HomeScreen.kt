@@ -184,9 +184,9 @@ fun HomeScreen(
                         columns = gridCells,
                         modifier = Modifier.fillMaxSize(),
                         state = gridState,
-                        contentPadding = PaddingValues(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        contentPadding = PaddingValues(vertical = 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         val videos = uiState.videos
                         if (videos.isNotEmpty()) {

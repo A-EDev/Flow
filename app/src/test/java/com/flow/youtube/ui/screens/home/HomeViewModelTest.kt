@@ -4,8 +4,6 @@ import com.flow.youtube.data.local.PlayerPreferences
 import com.flow.youtube.data.local.SubscriptionRepository
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.recommendation.FlowNeuroEngine
-import com.flow.youtube.data.recommendation.RecommendationRepository
-import com.flow.youtube.data.recommendation.RecommendationWorker
 import com.flow.youtube.data.repository.YouTubeRepository
 import com.flow.youtube.data.shorts.ShortsRepository
 import com.google.common.truth.Truth.assertThat
@@ -26,7 +24,6 @@ class HomeViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     
     private val repository: YouTubeRepository = mockk()
-    private val recommendationRepository: RecommendationRepository = mockk()
     private val subscriptionRepository: SubscriptionRepository = mockk()
     private val shortsRepository: ShortsRepository = mockk()
     private val playerPreferences: PlayerPreferences = mockk()
@@ -38,12 +35,10 @@ class HomeViewModelTest {
         Dispatchers.setMain(testDispatcher)
         
         mockkObject(FlowNeuroEngine)
-        mockkObject(RecommendationWorker)
         
         // Mock default behaviors
         coEvery { FlowNeuroEngine.generateDiscoveryQueries() } returns listOf("test")
         coEvery { FlowNeuroEngine.rank(any(), any(), any()) } answers { it.invocation.args[0] as List<Video> }
-        every { RecommendationWorker.schedulePeriodicRefresh(any()) } just Runs
         
         coEvery { shortsRepository.getHomeFeedShorts() } returns emptyList()
         coEvery { subscriptionRepository.getAllSubscriptionIds() } returns emptySet()
@@ -88,7 +83,7 @@ class HomeViewModelTest {
             Pair(emptyList(), null)
         }
         
-        viewModel = HomeViewModel(repository, recommendationRepository, subscriptionRepository, shortsRepository, playerPreferences)
+        viewModel = HomeViewModel(repository, subscriptionRepository, shortsRepository, playerPreferences)
         
         assertThat(viewModel.uiState.value.isLoading).isTrue()
     }
@@ -103,7 +98,7 @@ class HomeViewModelTest {
         // Mock fallback trending since FlowNeuroEngine might not be easily mockable here without static mocking
         coEvery { repository.getTrendingVideos(any(), any()) } returns Pair(mockVideos, null)
         
-        viewModel = HomeViewModel(repository, recommendationRepository, subscriptionRepository, shortsRepository, playerPreferences)
+        viewModel = HomeViewModel(repository, subscriptionRepository, shortsRepository, playerPreferences)
         
         // Advance time to allow internal coroutines to finish
         advanceUntilIdle()
@@ -116,7 +111,7 @@ class HomeViewModelTest {
 
     @Test
     fun `updateVideosAndShorts filters out short videos correctly`() = runTest {
-        viewModel = HomeViewModel(repository, recommendationRepository, subscriptionRepository, shortsRepository, playerPreferences)
+        viewModel = HomeViewModel(repository, subscriptionRepository, shortsRepository, playerPreferences)
         
         val mixedVideos = listOf(
             createVideo(id = "reg", title = "Regular", duration = 300),

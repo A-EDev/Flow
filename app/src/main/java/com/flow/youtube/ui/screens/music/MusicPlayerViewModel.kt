@@ -197,44 +197,53 @@ class MusicPlayerViewModel @Inject constructor(
                 // Check if track is downloaded
                 val localPath = downloadManager.getDownloadedTrackPath(track.videoId)
                 
-                val audioUrl = if (localPath != null && java.io.File(localPath).exists()) {
-                    localPath
-                } else {
-                    // Get audio URL from YouTube if not offline
-                    YouTubeMusicService.getAudioUrl(track.videoId)
-                }
-                
-                if (audioUrl != null) {
-                    // Play track with EnhancedMusicPlayerManager
+                if (localPath != null && java.io.File(localPath).exists()) {
+                    // Play LOCAL track (progressive is fine here)
                     EnhancedMusicPlayerManager.playTrack(
                         track = track,
-                        audioUrl = audioUrl,
+                        audioUrl = localPath,
                         queue = if (queue.isNotEmpty()) queue else listOf(track)
                     )
-                    
-                    // Fetch related content for the RELATED tab
-                    fetchRelatedContent(track.videoId)
-                    
-                    // Only fetch related tracks if we don't have a substantial queue already
-                    // This prevents resetting the queue when navigating within a playlist/search results
-                    if (queue.size <= 1) {
-                        val relatedTracks = YouTubeMusicService.getRelatedMusic(track.videoId, 20)
-                        if (relatedTracks.isNotEmpty()) {
-                            EnhancedMusicPlayerManager.updateQueue(listOf(track) + relatedTracks)
-                            _uiState.update { it.copy(autoplaySuggestions = relatedTracks) }
-                        }
-                    }
-                    
-                    _uiState.update { it.copy(
-                        currentTrack = track,
-                        isLoading = false
-                    ) }
                 } else {
-                    _uiState.update { it.copy(
-                        isLoading = false,
-                        error = "Could not load audio stream"
-                    ) }
+                    // Optimized ONLINE PLAYBACK (DASH Manifest)
+                    val streamData = YouTubeMusicService.getBestAudioStream(track.videoId)
+                    if (streamData != null) {
+                        EnhancedMusicPlayerManager.playTrack(
+                            track = track,
+                            audioStream = streamData.first,
+                            durationSeconds = streamData.second,
+                            queue = if (queue.isNotEmpty()) queue else listOf(track)
+                        )
+                    } else {
+                        // Fallback to old progressive if everything fails
+                        val audioUrl = YouTubeMusicService.getAudioUrl(track.videoId)
+                        if (audioUrl != null) {
+                            EnhancedMusicPlayerManager.playTrack(
+                                track = track,
+                                audioUrl = audioUrl,
+                                queue = if (queue.isNotEmpty()) queue else listOf(track)
+                            )
+                        } else throw Exception("Could not find audio stream")
+                    }
                 }
+                
+                // Fetch related content for the RELATED tab
+                fetchRelatedContent(track.videoId)
+                
+                // Only fetch related tracks if we don't have a substantial queue already
+                // This prevents resetting the queue when navigating within a playlist/search results
+                if (queue.size <= 1) {
+                    val relatedTracks = YouTubeMusicService.getRelatedMusic(track.videoId, 20)
+                    if (relatedTracks.isNotEmpty()) {
+                        EnhancedMusicPlayerManager.updateQueue(listOf(track) + relatedTracks)
+                        _uiState.update { it.copy(autoplaySuggestions = relatedTracks) }
+                    }
+                }
+                
+                _uiState.update { it.copy(
+                    currentTrack = track,
+                    isLoading = false
+                ) }
             } catch (e: Exception) {
                 e.printStackTrace()
                 _uiState.update { it.copy(

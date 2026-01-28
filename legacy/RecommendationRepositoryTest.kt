@@ -1,10 +1,11 @@
-package com.flow.youtube.data.recommendation
+package com.flow.youtube.legacy
 
 import android.content.Context
 import android.util.Log
 import com.flow.youtube.data.local.*
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.repository.YouTubeRepository
+import com.flow.youtube.legacy.RecommendationRepository
 import com.google.common.truth.Truth.assertThat
 import io.mockk.*
 import kotlinx.coroutines.flow.flowOf

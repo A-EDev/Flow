@@ -1,7 +1,6 @@
 package com.flow.youtube.di
 
 import android.content.Context
-import com.flow.youtube.data.recommendation.RecommendationRepository
 import com.flow.youtube.data.repository.YouTubeRepository
 import dagger.Module
 import dagger.Provides
@@ -18,12 +17,6 @@ object RepositoryModule {
     @Singleton
     fun provideYouTubeRepository(): YouTubeRepository {
         return YouTubeRepository.getInstance()
-    }
-
-    @Provides
-    @Singleton
-    fun provideRecommendationRepository(@ApplicationContext context: Context): RecommendationRepository {
-        return RecommendationRepository.getInstance(context)
     }
 
     @Provides

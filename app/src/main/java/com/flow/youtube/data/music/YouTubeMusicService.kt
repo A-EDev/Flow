@@ -236,6 +236,25 @@ object YouTubeMusicService {
     }
     
     /**
+     * Get best audio stream object including metadata for DASH optimization
+     */
+    suspend fun getBestAudioStream(videoId: String): Pair<org.schabi.newpipe.extractor.stream.AudioStream, Long>? = withContext(Dispatchers.IO) {
+        try {
+            val streamInfo = getStreamInfo(videoId) ?: return@withContext null
+            val audioStream = streamInfo.audioStreams
+                ?.filter { !it.url.isNullOrEmpty() }
+                ?.maxByOrNull { it.averageBitrate }
+            
+            if (audioStream != null) {
+                Pair(audioStream, streamInfo.duration)
+            } else null
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting best audio stream", e)
+            null
+        }
+    }
+
+    /**
      * Get best audio stream URL
      */
     suspend fun getAudioUrl(videoId: String): String? = withContext(Dispatchers.IO) {

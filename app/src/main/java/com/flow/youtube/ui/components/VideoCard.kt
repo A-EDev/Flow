@@ -279,7 +279,7 @@ fun VideoCardFullWidth(
                     .align(Alignment.BottomEnd)
                     .padding(8.dp),
                 color = Color.Black.copy(alpha = 0.7f),
-                shape = RoundedCornerShape(6.dp),
+                shape = RoundedCornerShape(5.dp),
                 border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
             ) {
                 Text(
@@ -296,7 +296,7 @@ fun VideoCardFullWidth(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 12.dp, horizontal = 4.dp),
+                .padding(vertical = 12.dp, horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Channel avatar

@@ -6,9 +6,17 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import androidx.media3.exoplayer.dash.DashMediaSource
+import androidx.media3.exoplayer.dash.manifest.DashManifestParser
+import com.flow.youtube.player.resolver.ManifestGenerator
 import com.flow.youtube.service.MusicPlaybackService
 import com.flow.youtube.ui.screens.music.MusicTrack
+import org.schabi.newpipe.extractor.stream.AudioStream
+import java.io.ByteArrayInputStream
+import java.nio.charset.StandardCharsets
+import android.net.Uri
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -150,11 +158,45 @@ object EnhancedMusicPlayerManager {
     }
 
     /**
-     * Play a track with optional queue
+     * Play a track using a DASH manifest for optimized delivery (bypasses throttling)
      */
-    fun playTrack(track: MusicTrack, audioUrl: String, queue: List<MusicTrack> = emptyList(), startIndex: Int = -1) {
+    fun playTrack(track: MusicTrack, audioStream: AudioStream, durationSeconds: Long, queue: List<MusicTrack> = emptyList(), startIndex: Int = -1) {
         _currentTrack.value = track
+        setupQueue(track, queue, startIndex)
+
+        player?.let { exoPlayer ->
+            val dataSourceFactory = DefaultDataSource.Factory(appContext!!)
+            
+            // Generate DASH manifest to avoid throttling
+            val manifestString = ManifestGenerator.generateProgressiveManifest(audioStream, audioStream.itagItem!!, durationSeconds)
+            
+            val mediaSource = if (manifestString != null) {
+                val parser = DashManifestParser()
+                val baseUri = Uri.parse(audioStream.content)
+                val manifest = parser.parse(baseUri, ByteArrayInputStream(manifestString.toByteArray(StandardCharsets.UTF_8)))
+                
+                DashMediaSource.Factory(dataSourceFactory)
+                    .createMediaSource(manifest, MediaItem.fromUri(baseUri))
+            } else {
+                // Fallback to progressive
+                ProgressiveMediaSource.Factory(dataSourceFactory)
+                    .createMediaSource(MediaItem.fromUri(Uri.parse(audioStream.content)))
+            }
+            
+            exoPlayer.setMediaSource(mediaSource)
+            exoPlayer.prepare()
+            exoPlayer.playWhenReady = true
+            
+            _playerState.value = _playerState.value.copy(
+                isPlaying = true,
+                duration = track.duration.toLong() * 1000
+            )
+        }
         
+        startMusicService()
+    }
+
+    private fun setupQueue(track: MusicTrack, queue: List<MusicTrack>, startIndex: Int) {
         if (queue.isNotEmpty()) {
             val isSameQueue = _originalQueue.size == queue.size && 
                              _originalQueue.zip(queue).all { it.first.videoId == it.second.videoId }
@@ -179,8 +221,16 @@ object EnhancedMusicPlayerManager {
                 }
             }
         }
+    }
+
+    /**
+     * Play a track with optional queue
+     */
+    fun playTrack(track: MusicTrack, audioUrl: String, queue: List<MusicTrack> = emptyList(), startIndex: Int = -1) {
+        _currentTrack.value = track
+        setupQueue(track, queue, startIndex)
         
-        // Prepare media source
+        // Prepare media source (Original Progressive Logic)
         player?.let { exoPlayer ->
             val dataSourceFactory = DefaultDataSource.Factory(appContext!!)
             

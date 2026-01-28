@@ -7,10 +7,6 @@ import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import com.flow.youtube.data.local.SubscriptionRepository
 import com.flow.youtube.data.local.ViewHistory
 import com.flow.youtube.data.model.Video
-import com.flow.youtube.data.recommendation.RecommendationRepository
-import com.flow.youtube.data.recommendation.RecommendationWorker
-import com.flow.youtube.data.recommendation.ScoredVideo
-import com.flow.youtube.data.recommendation.VideoSource
 import com.flow.youtube.data.repository.YouTubeRepository
 import com.flow.youtube.data.shorts.ShortsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,7 +25,6 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val repository: YouTubeRepository,
-    private val recommendationRepository: RecommendationRepository,
     private val subscriptionRepository: SubscriptionRepository, 
     private val shortsRepository: ShortsRepository,
     private val playerPreferences: com.flow.youtube.data.local.PlayerPreferences
@@ -72,7 +67,6 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             FlowNeuroEngine.initialize(context)
         }
-        RecommendationWorker.schedulePeriodicRefresh(context)
     }
     
     /**
@@ -302,7 +296,6 @@ class HomeViewModel @Inject constructor(
                 updateVideosAndShorts(videos, append = false)
                 
                 _uiState.update { it.copy(
-                    scoredVideos = emptyList(),
                     isLoading = false,
                     hasMorePages = nextPage != null,
                     isFlowFeed = false // Plain trending is NOT a Flow Feed
@@ -324,7 +317,6 @@ class HomeViewModel @Inject constructor(
         
         updateVideosAndShorts(videos, append = false)
         _uiState.update { it.copy(
-            scoredVideos = emptyList(),
             isLoading = false,
             hasMorePages = nextPage != null,
             isFlowFeed = false,
@@ -345,7 +337,6 @@ class HomeViewModel @Inject constructor(
 data class HomeUiState(
     val videos: List<Video> = emptyList(),
     val shorts: List<Video> = emptyList(),
-    val scoredVideos: List<ScoredVideo> = emptyList(),
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val isRefreshing: Boolean = false,
