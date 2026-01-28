@@ -38,8 +38,6 @@ import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import com.flow.youtube.ui.theme.ThemeMode
 import com.flow.youtube.ui.theme.extendedColors
 import com.flow.youtube.data.local.PlayerPreferences
-import com.flow.youtube.data.local.VideoQuality
-import com.flow.youtube.data.local.BufferProfile
 import kotlinx.coroutines.launch
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.filled.ArrowForward
@@ -56,13 +54,16 @@ fun SettingsScreen(
     onNavigateToDownloads: () -> Unit,
     onNavigateToTimeManagement: () -> Unit,
     onNavigateToImport: () -> Unit,
+    onNavigateToPlayerSettings: () -> Unit,
+    onNavigateToVideoQuality: () -> Unit,
+    onNavigateToBufferSettings: () -> Unit,
+    onNavigateToSearchHistory: () -> Unit,
+    onNavigateToAbout: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val searchHistoryRepo = remember { com.flow.youtube.data.local.SearchHistoryRepository(context) }
     val playerPreferences = remember { PlayerPreferences(context) }
-    val viewHistory = remember { com.flow.youtube.data.local.ViewHistory.getInstance(context) }
     val backupRepo = remember { com.flow.youtube.data.local.BackupRepository(context) }
     
     // Brain State
@@ -89,39 +90,13 @@ fun SettingsScreen(
         }
     )
 
-    var showVideoQualityDialog by remember { mutableStateOf(false) }
     var showRegionDialog by remember { mutableStateOf(false) }
-    var showClearSearchDialog by remember { mutableStateOf(false) }
-    var showClearWatchHistoryDialog by remember { mutableStateOf(false) }
-    var showHistorySizeDialog by remember { mutableStateOf(false) }
-    var showRetentionDaysDialog by remember { mutableStateOf(false) }
     var showResetBrainDialog by remember { mutableStateOf(false) }
-    var showBufferSettingsDialog by remember { mutableStateOf(false) }
     
     // Player preferences states
-    val backgroundPlayEnabled by playerPreferences.backgroundPlayEnabled.collectAsState(initial = false)
     val currentRegion by playerPreferences.trendingRegion.collectAsState(initial = "US")
-    val wifiQuality by playerPreferences.defaultQualityWifi.collectAsState(initial = VideoQuality.Q_1080p)
-    val cellularQuality by playerPreferences.defaultQualityCellular.collectAsState(initial = VideoQuality.Q_480p)
-    val autoplayEnabled by playerPreferences.autoplayEnabled.collectAsState(initial = true)
-    val skipSilenceEnabled by playerPreferences.skipSilenceEnabled.collectAsState(initial = false)
-    val sponsorBlockEnabled by playerPreferences.sponsorBlockEnabled.collectAsState(initial = false)
-    val manualPipButtonEnabled by playerPreferences.manualPipButtonEnabled.collectAsState(initial = true)
-    
-    // Search settings states
-    val searchHistoryEnabled by searchHistoryRepo.isSearchHistoryEnabledFlow().collectAsState(initial = true)
-    val searchSuggestionsEnabled by searchHistoryRepo.isSearchSuggestionsEnabledFlow().collectAsState(initial = true)
-    val maxHistorySize by searchHistoryRepo.getMaxHistorySizeFlow().collectAsState(initial = 50)
-    val autoDeleteHistory by searchHistoryRepo.isAutoDeleteHistoryEnabledFlow().collectAsState(initial = false)
-    val historyRetentionDays by searchHistoryRepo.getHistoryRetentionDaysFlow().collectAsState(initial = 90)
 
-    // Buffer Settings
-    val minBufferMs by playerPreferences.minBufferMs.collectAsState(initial = 30000)
-    val maxBufferMs by playerPreferences.maxBufferMs.collectAsState(initial = 100000)
-    val bufferForPlaybackMs by playerPreferences.bufferForPlaybackMs.collectAsState(initial = 1000)
-    val bufferForPlaybackAfterRebufferMs by playerPreferences.bufferForPlaybackAfterRebufferMs.collectAsState(initial = 2500)
-    val currentBufferProfile by playerPreferences.bufferProfile.collectAsState(initial = BufferProfile.STABLE)
-    
+
     // Region name mapping
     val regionNames = mapOf(
         "US" to "United States", "GB" to "United Kingdom", "CA" to "Canada", "AU" to "Australia",
@@ -182,7 +157,7 @@ item {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
-            .height(180.dp) // Fixed height for a hero card look
+            .height(180.dp) 
             .clickable(onClick = onNavigateToPersonality),
         shape = RoundedCornerShape(24.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -317,7 +292,7 @@ item {
                     )
                     Spacer(Modifier.width(4.dp))
                     Icon(
-                        Icons.Default.ArrowForward, // Use ArrowForward instead of rotated ArrowBack
+                        Icons.Default.ArrowForward, 
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(16.dp)
@@ -329,42 +304,16 @@ item {
 }
 
             // =================================================
-            // GENERAL
-            // =================================================
-            item { SectionHeader(text = "General") }
-            item {
-                SettingsItem(
-                    icon = Icons.Outlined.Schedule,
-                    title = "Time Management",
-                    subtitle = "Usage stats, Bedtime reminders",
-                    onClick = onNavigateToTimeManagement
-                )
-            }
-
-            // =================================================
             // APPEARANCE
             // =================================================
             item { SectionHeader(text = "Appearance") }
             item {
-                SettingsItem(
-                    icon = Icons.Outlined.Palette,
-                    title = "Theme",
-                    subtitle = formatThemeName(currentTheme),
-                    onClick = onNavigateToAppearance
-                )
-            }
-
-            // =================================================
-            // DOWNLOADS
-            // =================================================
-            item { SectionHeader(text = "Downloads") }
-            item {
-                SettingsGroup {
+                SettingsGroup { 
                     SettingsItem(
-                        icon = Icons.Outlined.Download,
-                        title = "Download Settings",
-                        subtitle = "Performance, Storage, Threads",
-                        onClick = onNavigateToDownloads
+                        icon = Icons.Outlined.Palette,
+                        title = "Theme",
+                        subtitle = formatThemeName(currentTheme),
+                        onClick = onNavigateToAppearance
                     )
                 }
             }
@@ -377,147 +326,61 @@ item {
             item {
                 SettingsGroup {
                     SettingsItem(
-                        icon = Icons.Outlined.TrendingUp,
-                        title = "Trending Region",
-                        subtitle = regionNames[currentRegion] ?: currentRegion,
-                        onClick = { showRegionDialog = true }
+                         icon = Icons.Outlined.PlayCircle,
+                         title = "Player Settings",
+                         subtitle = "Autoplay, Background Play, SponsorBlock",
+                         onClick = onNavigateToPlayerSettings
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                          icon = Icons.Outlined.HighQuality,
                          title = "Video Quality",
-                         subtitle = "Default resolution for Wi-Fi and Mobile",
-                         onClick = { showVideoQualityDialog = true }
+                         subtitle = "Resolution for Wi-Fi and Mobile",
+                         onClick = onNavigateToVideoQuality
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsSwitchItem(
-                        icon = Icons.Outlined.PlayCircle,
-                        title = "Background Play",
-                        subtitle = "Continue playing when app is in background",
-                        checked = backgroundPlayEnabled,
-                        onCheckedChange = { coroutineScope.launch { playerPreferences.setBackgroundPlayEnabled(it) } }
-                    )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsSwitchItem(
-                        icon = Icons.Outlined.SkipNext,
-                        title = "Autoplay",
-                        subtitle = "Automatically play the next video",
-                        checked = autoplayEnabled,
-                        onCheckedChange = { coroutineScope.launch { playerPreferences.setAutoplayEnabled(it) } }
-                    )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsSwitchItem(
-                        icon = Icons.Outlined.GraphicEq,
-                        title = "Skip Silence",
-                        subtitle = "Skip parts with no audio",
-                        checked = skipSilenceEnabled,
-                        onCheckedChange = { coroutineScope.launch { playerPreferences.setSkipSilenceEnabled(it) } }
-                    )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsSwitchItem(
-                        icon = Icons.Outlined.ContentCut,
-                        title = "SponsorBlock",
-                        subtitle = "Skip sponsored segments",
-                        checked = sponsorBlockEnabled,
-                        onCheckedChange = { coroutineScope.launch { playerPreferences.setSponsorBlockEnabled(it) } }
-                    )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsSwitchItem(
-                        icon = Icons.Outlined.PictureInPicture,
-                        title = "Show PiP Button",
-                        subtitle = "Show manual PiP button in player controls",
-                        checked = manualPipButtonEnabled,
-                        onCheckedChange = { coroutineScope.launch { playerPreferences.setManualPipButtonEnabled(it) } }
-                    )
-                }
-            }
-
-            // =================================================
-            // DATA & BUFFERING
-            // =================================================
-            item { SectionHeader(text = "Data & Buffering") }
-            
-            item {
-                SettingsGroup {
                     SettingsItem(
                         icon = Icons.Outlined.Speed,
-                        title = "Custom Buffer Settings",
+                        title = "Buffer Settings",
                         subtitle = "Configure video buffering behavior",
-                        onClick = { showBufferSettingsDialog = true }
-                    )
-                }
-            }
-
-            // =================================================
-            // SEARCH & HISTORY
-            // =================================================
-            item { SectionHeader(text = "Search & History") }
-            
-            item {
-                SettingsGroup {
-                    SettingsSwitchItem(
-                        icon = Icons.Outlined.History,
-                        title = "Save Search History",
-                        subtitle = "Save your searches for quick access",
-                        checked = searchHistoryEnabled,
-                        onCheckedChange = { coroutineScope.launch { searchHistoryRepo.setSearchHistoryEnabled(it) } }
+                        onClick = onNavigateToBufferSettings
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsSwitchItem(
+                    SettingsItem(
+                        icon = Icons.Outlined.Download,
+                        title = "Download Settings",
+                        subtitle = "Performance, Storage, Threads",
+                        onClick = onNavigateToDownloads
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
                         icon = Icons.Outlined.TrendingUp,
-                        title = "Search Suggestions",
-                        subtitle = "Show suggestions while typing",
-                        checked = searchSuggestionsEnabled,
-                        onCheckedChange = { coroutineScope.launch { searchHistoryRepo.setSearchSuggestionsEnabled(it) } }
-                    )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.Storage,
-                        title = "Max History Size",
-                        subtitle = "Currently: $maxHistorySize searches",
-                        onClick = { showHistorySizeDialog = true }
-                    )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsSwitchItem(
-                        icon = Icons.Outlined.AutoDelete,
-                        title = "Auto-Delete History",
-                        subtitle = if (autoDeleteHistory) "Delete after $historyRetentionDays days" else "Never delete automatically",
-                        checked = autoDeleteHistory,
-                        onCheckedChange = { coroutineScope.launch { searchHistoryRepo.setAutoDeleteHistory(it) } }
-                    )
-                    
-                    if (autoDeleteHistory) {
-                        Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                        SettingsItem(
-                            icon = Icons.Outlined.Schedule,
-                            title = "Retention Period",
-                            subtitle = "Delete searches older than $historyRetentionDays days",
-                            onClick = { showRetentionDaysDialog = true }
-                        )
-                    }
-                    
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.ManageSearch,
-                        title = "Clear Search History",
-                        subtitle = "Remove all search queries",
-                        onClick = { showClearSearchDialog = true }
+                        title = "Trending Region",
+                        subtitle = regionNames[currentRegion] ?: currentRegion,
+                        onClick = { showRegionDialog = true }
                     )
                 }
             }
-
+            
             // =================================================
             // DATA MANAGEMENT
             // =================================================
-            item { SectionHeader(text = "Privacy & Data Management") }
+            item { SectionHeader(text = "Data Management") }
             
             item {
                 SettingsGroup {
                     SettingsItem(
-                        icon = Icons.Outlined.DeleteSweep,
-                        title = "Clear Watch History",
-                        subtitle = "Remove all watched videos",
-                        onClick = { showClearWatchHistoryDialog = true }
+                        icon = Icons.Outlined.History,
+                        title = "Search & History",
+                        subtitle = "Clear history, manage suggestions",
+                        onClick = onNavigateToSearchHistory
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.Schedule,
+                        title = "Time Management",
+                        subtitle = "Usage stats, Bedtime reminders",
+                        onClick = onNavigateToTimeManagement
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
@@ -541,31 +404,12 @@ item {
             // =================================================
             item { SectionHeader(text = "About") }
             item {
-                val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
-                val versionName = packageInfo.versionName ?: "Unknown"
                 SettingsGroup {
                     SettingsItem(
                         icon = Icons.Outlined.Info,
-                        title = "App Version",
-                        subtitle = versionName,
-                        onClick = { }
-                    )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.Code,
-                        title = "By A-EDev",
-                        subtitle = "Visit GitHub",
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/A-EDev"))
-                            context.startActivity(intent)
-                        }
-                    )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = Icons.Outlined.Code,
-                        title = "Powered by NewPipeExtractor",
-                        subtitle = "Open source YouTube extraction library",
-                        onClick = { }
+                        title = "About Flow",
+                        subtitle = "Version, License, Contributors",
+                        onClick = onNavigateToAbout
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
@@ -613,26 +457,6 @@ item {
         )
     }
 
-    // Clear Search History Dialog
-    if (showClearSearchDialog) {
-        SimpleConfirmDialog(
-            title = "Clear Search History?",
-            text = "Permanently delete all search history.",
-            onConfirm = { coroutineScope.launch { searchHistoryRepo.clearSearchHistory(); showClearSearchDialog = false } },
-            onDismiss = { showClearSearchDialog = false }
-        )
-    }
-
-    // Clear Watch History Dialog
-    if (showClearWatchHistoryDialog) {
-        SimpleConfirmDialog(
-            title = "Clear Watch History?",
-            text = "Permanently delete watch history.",
-            onConfirm = { coroutineScope.launch { viewHistory.clearAllHistory(); showClearWatchHistoryDialog = false } },
-            onDismiss = { showClearWatchHistoryDialog = false }
-        )
-    }
-    
     // Region Selection Dialog
     if (showRegionDialog) {
         AlertDialog(
@@ -663,297 +487,6 @@ item {
         )
     }
     
-    // Max History Size Dialog
-    if (showHistorySizeDialog) {
-        var selectedSize by remember { mutableStateOf(maxHistorySize) }
-        
-        AlertDialog(
-            onDismissRequest = { showHistorySizeDialog = false },
-            icon = { Icon(Icons.Outlined.Storage, contentDescription = null) },
-            title = { Text("Max History Size") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Choose how many searches to keep:")
-                    listOf(25, 50, 100, 200, 500).forEach { size ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { selectedSize = size }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(selected = selectedSize == size, onClick = { selectedSize = size })
-                            Spacer(Modifier.width(8.dp))
-                            Text("$size searches")
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    coroutineScope.launch { searchHistoryRepo.setMaxHistorySize(selectedSize); showHistorySizeDialog = false }
-                }) { Text("Save") }
-            },
-            dismissButton = { TextButton(onClick = { showHistorySizeDialog = false }) { Text("Cancel") } }
-        )
-    }
-    
-    // Retention Days Dialog
-    if (showRetentionDaysDialog) {
-        var selectedDays by remember { mutableStateOf(historyRetentionDays) }
-        
-        AlertDialog(
-            onDismissRequest = { showRetentionDaysDialog = false },
-            icon = { Icon(Icons.Outlined.Schedule, contentDescription = null) },
-            title = { Text("Retention Period") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Delete searches older than:")
-                    listOf(7, 30, 90, 180, 365).forEach { days ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { selectedDays = days }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(selected = selectedDays == days, onClick = { selectedDays = days })
-                            Spacer(Modifier.width(8.dp))
-                            Text(when (days) {
-                                7 -> "1 week"
-                                30 -> "1 month"
-                                90 -> "3 months"
-                                180 -> "6 months"
-                                365 -> "1 year"
-                                else -> "$days days"
-                            })
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    coroutineScope.launch { searchHistoryRepo.setHistoryRetentionDays(selectedDays); showRetentionDaysDialog = false }
-                }) { Text("Save") }
-            },
-            dismissButton = { TextButton(onClick = { showRetentionDaysDialog = false }) { Text("Cancel") } }
-        )
-    }
-
-    // Video Quality Dialog
-    if (showVideoQualityDialog) {
-        var selectedWifiQuality by remember { mutableStateOf(wifiQuality) }
-        var selectedCellularQuality by remember { mutableStateOf(cellularQuality) }
-        
-        val qualities = listOf(
-            VideoQuality.Q_144p, VideoQuality.Q_240p, VideoQuality.Q_360p,
-            VideoQuality.Q_480p, VideoQuality.Q_720p, VideoQuality.Q_1080p,
-            VideoQuality.Q_1440p, VideoQuality.Q_2160p, VideoQuality.AUTO
-        )
-        
-        AlertDialog(
-            onDismissRequest = { showVideoQualityDialog = false },
-            icon = { Icon(Icons.Outlined.HighQuality, contentDescription = null) },
-            title = { Text("Video Quality") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("Wi-Fi Quality", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    LazyColumn(modifier = Modifier.heightIn(max = 120.dp)) {
-                        items(qualities.size) { index ->
-                            val quality = qualities[index]
-                            Row(
-                                modifier = Modifier.fillMaxWidth().clickable { selectedWifiQuality = quality }.padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(selected = selectedWifiQuality == quality, onClick = { selectedWifiQuality = quality })
-                                Spacer(Modifier.width(8.dp))
-                                Text(quality.label)
-                            }
-                        }
-                    }
-                    
-                    Text("Cellular Quality", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    LazyColumn(modifier = Modifier.heightIn(max = 120.dp)) {
-                        items(qualities.size) { index ->
-                            val quality = qualities[index]
-                            Row(
-                                modifier = Modifier.fillMaxWidth().clickable { selectedCellularQuality = quality }.padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(selected = selectedCellularQuality == quality, onClick = { selectedCellularQuality = quality })
-                                Spacer(Modifier.width(8.dp))
-                                Text(quality.label)
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    coroutineScope.launch {
-                        playerPreferences.setDefaultQualityWifi(selectedWifiQuality)
-                        playerPreferences.setDefaultQualityCellular(selectedCellularQuality)
-                        showVideoQualityDialog = false
-                    }
-                }) { Text("Save") }
-            },
-            dismissButton = { TextButton(onClick = { showVideoQualityDialog = false }) { Text("Cancel") } }
-        )
-    }
-
-    // Buffer Settings Dialog
-    if (showBufferSettingsDialog) {
-        var selectedProfile by remember { mutableStateOf(currentBufferProfile) }
-        var tempMinBuffer by remember { mutableStateOf(minBufferMs.toFloat()) }
-        var tempMaxBuffer by remember { mutableStateOf(maxBufferMs.toFloat()) }
-        var tempPlaybackBuffer by remember { mutableStateOf(bufferForPlaybackMs.toFloat()) }
-        var tempRebuffer by remember { mutableStateOf(bufferForPlaybackAfterRebufferMs.toFloat()) }
-        
-        // Update sliders when profile changes
-        LaunchedEffect(selectedProfile) {
-            if (selectedProfile != BufferProfile.CUSTOM) {
-                tempMinBuffer = selectedProfile.minBuffer.toFloat()
-                tempMaxBuffer = selectedProfile.maxBuffer.toFloat()
-                tempPlaybackBuffer = selectedProfile.playbackBuffer.toFloat()
-                tempRebuffer = selectedProfile.rebufferBuffer.toFloat()
-            }
-        }
-
-        AlertDialog(
-            onDismissRequest = { showBufferSettingsDialog = false },
-            icon = { Icon(Icons.Outlined.Speed, contentDescription = null) },
-            title = { Text("Buffer Settings") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    // Profile Selector
-                    Text("Performance Profile", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        BufferProfile.values().filter { it != BufferProfile.CUSTOM }.forEach { profile ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { selectedProfile = profile }
-                                    .background(if (selectedProfile == profile) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
-                                    .padding(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(
-                                    selected = selectedProfile == profile,
-                                    onClick = { selectedProfile = profile }
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Column {
-                                    Text(profile.label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                                    val desc = when(profile) {
-                                        BufferProfile.AGGRESSIVE -> "Fastest start, good for stable Wi-Fi"
-                                        BufferProfile.STABLE -> "Balanced, prevents stalling (Recommended)"
-                                        BufferProfile.DATASAVER -> "Minimizes data usage and memory"
-                                        else -> ""
-                                    }
-                                    Text(desc, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                        }
-                    }
-                    
-                    Divider()
-                    
-                    Text("Manual Configuration (${if (selectedProfile == BufferProfile.CUSTOM) "Custom" else "Locked"})", 
-                        style = MaterialTheme.typography.labelLarge, 
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    
-                    if (selectedProfile != BufferProfile.CUSTOM) {
-                        Text(
-                            "Select 'Custom' to edit values manually.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    } else {
-                        Text("Higher values prevent stalling but delay start.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    
-                    // Min Buffer
-                    Column {
-                        Text("Min Buffer: ${tempMinBuffer.toInt()/1000}s", style = MaterialTheme.typography.bodyMedium)
-                        Slider(
-                            value = tempMinBuffer,
-                            onValueChange = { tempMinBuffer = it; selectedProfile = BufferProfile.CUSTOM },
-                            valueRange = 5000f..60000f,
-                            enabled = true // Always enabled to allow switching to custom implicitly? 
-                                           // Actually let's make it so touching them switches to Custom.
-                        )
-                    }
-                    
-                    // Max Buffer
-                    Column {
-                        Text("Max Buffer: ${tempMaxBuffer.toInt()/1000}s", style = MaterialTheme.typography.bodyMedium)
-                        Slider(
-                            value = tempMaxBuffer,
-                            onValueChange = { tempMaxBuffer = it; selectedProfile = BufferProfile.CUSTOM },
-                            valueRange = 10000f..120000f,
-                            enabled = true
-                        )
-                    }
-                    
-                    // Playback Buffer
-                    Column {
-                        Text("Start Playback: ${tempPlaybackBuffer.toInt()/1000}s", style = MaterialTheme.typography.bodyMedium)
-                        Slider(
-                            value = tempPlaybackBuffer,
-                            onValueChange = { tempPlaybackBuffer = it; selectedProfile = BufferProfile.CUSTOM },
-                            valueRange = 500f..5000f,
-                            enabled = true
-                        )
-                    }
-                    
-                    // Rebuffer
-                    Column {
-                        Text("Resume after Rebuffer: ${tempRebuffer.toInt()/1000}s", style = MaterialTheme.typography.bodyMedium)
-                        Slider(
-                            value = tempRebuffer,
-                            onValueChange = { tempRebuffer = it; selectedProfile = BufferProfile.CUSTOM },
-                            valueRange = 1000f..10000f,
-                            enabled = true
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    coroutineScope.launch {
-                        // Save profile first
-                        playerPreferences.setBufferProfile(selectedProfile)
-                        
-                        // If custom, we must manually save the values because setBufferProfile only saves presets
-                        if (selectedProfile == BufferProfile.CUSTOM) {
-                            playerPreferences.setMinBufferMs(tempMinBuffer.toInt())
-                            playerPreferences.setMaxBufferMs(tempMaxBuffer.toInt())
-                            playerPreferences.setBufferForPlaybackMs(tempPlaybackBuffer.toInt())
-                            playerPreferences.setBufferForPlaybackAfterRebufferMs(tempRebuffer.toInt())
-                        }
-                        
-                        showBufferSettingsDialog = false
-                    }
-                }) { Text("Save") }
-            },
-            dismissButton = { TextButton(onClick = { showBufferSettingsDialog = false }) { Text("Cancel") } }
-        )
-    }
-}
-
-@Composable
-fun SettingsGroup(content: @Composable ColumnScope.() -> Unit) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(content = content)
-    }
 }
 
 @Composable
@@ -977,89 +510,7 @@ fun BrainTraitRow(label: String, value: Double, leftLabel: String, rightLabel: S
     }
 }
 
-@Composable
-private fun SectionHeader(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 8.dp, bottom = 8.dp, top = 8.dp)
-    )
-}
-
 private fun formatThemeName(theme: ThemeMode): String {
     return theme.name.split("_")
         .joinToString(" ") { it.lowercase().replaceFirstChar { char -> char.uppercase() } }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SettingsItem(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            if (subtitle.isNotEmpty()) {
-                Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}
-
-@Composable
-fun SettingsSwitchItem(
-    icon: ImageVector,
-    title: String,
-    subtitle: String?,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.bodyLarge)
-            if (subtitle != null) {
-                Text(text = subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
-}
-
-@Composable
-fun SimpleConfirmDialog(title: String, text: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = { Text(text) },
-        confirmButton = { TextButton(onClick = onConfirm) { Text("Confirm") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
 }

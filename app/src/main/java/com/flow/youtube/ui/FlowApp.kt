@@ -404,7 +404,44 @@ fun FlowApp(
                         onNavigateToPersonality = { navController.navigate("personality") },
                         onNavigateToDownloads = { navController.navigate("settings/downloads") },
                         onNavigateToTimeManagement = { navController.navigate("settings/time_management") },
-                        onNavigateToImport = { navController.navigate("settings/import") }
+                        onNavigateToImport = { navController.navigate("settings/import") },
+                        onNavigateToPlayerSettings = { navController.navigate("settings/player") },
+                        onNavigateToVideoQuality = { navController.navigate("settings/video_quality") },
+                        onNavigateToBufferSettings = { navController.navigate("settings/buffer") },
+                        onNavigateToSearchHistory = { navController.navigate("settings/search_history") },
+                        onNavigateToAbout = { navController.navigate("settings/about") }
+                    )
+                }
+
+                composable("settings/player") {
+                    currentRoute.value = "settings/player"
+                    showBottomNav = false
+                    com.flow.youtube.ui.screens.settings.PlayerSettingsScreen(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+                
+                composable("settings/buffer") {
+                    currentRoute.value = "settings/buffer"
+                    showBottomNav = false
+                    com.flow.youtube.ui.screens.settings.BufferSettingsScreen(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+                
+                composable("settings/search_history") {
+                    currentRoute.value = "settings/search_history"
+                    showBottomNav = false
+                    com.flow.youtube.ui.screens.settings.SearchHistorySettingsScreen(
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable("settings/video_quality") {
+                    currentRoute.value = "settings/video_quality"
+                    showBottomNav = false
+                    com.flow.youtube.ui.screens.settings.VideoQualitySettingsScreen(
+                        onNavigateBack = { navController.popBackStack() }
                     )
                 }
                 
@@ -420,6 +457,15 @@ fun FlowApp(
                     showBottomNav = false
                     com.flow.youtube.ui.screens.settings.TimeManagementScreen(
                         onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+
+                composable("settings/about") {
+                    currentRoute.value = "settings/about"
+                    showBottomNav = false
+                    com.flow.youtube.ui.screens.settings.AboutScreen(
+                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateToDonations = { navController.navigate("donations") }
                     )
                 }
 
