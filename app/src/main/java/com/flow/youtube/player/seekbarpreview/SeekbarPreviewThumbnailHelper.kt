@@ -331,7 +331,6 @@ class SeekbarPreviewThumbnailHolder {
 
     fun setup(context: Context, timeBar: TimeBar) {
         this.timeBar = timeBar
-        // In a real implementation, this would create and attach a preview view
         // For now, it's a placeholder
     }
 
