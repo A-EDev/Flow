@@ -184,7 +184,7 @@ fun HomeScreen(
                         columns = gridCells,
                         modifier = Modifier.fillMaxSize(),
                         state = gridState,
-                        contentPadding = PaddingValues(16.dp),
+                        contentPadding = PaddingValues(12.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
@@ -197,7 +197,8 @@ fun HomeScreen(
                             ) {
                                 VideoCardFullWidth(
                                     video = videos[0],
-                                    onClick = { onVideoClick(videos[0]) }
+                                    onClick = { onVideoClick(videos[0]) },
+                                    useInternalPadding = false
                                 )
                             }
                             
@@ -221,7 +222,8 @@ fun HomeScreen(
                             ) { video ->
                                 VideoCardFullWidth(
                                     video = video,
-                                    onClick = { onVideoClick(video) }
+                                    onClick = { onVideoClick(video) },
+                                    useInternalPadding = false
                                 )
                             }
                         }

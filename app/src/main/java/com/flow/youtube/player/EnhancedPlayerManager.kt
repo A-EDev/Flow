@@ -763,7 +763,18 @@ class EnhancedPlayerManager private constructor() {
         currentVideoId = videoId
         // dedupe lists by url and sort
         availableVideoStreams = videoStreams.distinctBy { it.getContent() }.sortedByDescending { it.height }
-        availableAudioStreams = audioStreams.distinctBy { it.getContent() }
+        
+        // Deduplicate audio streams to fix the "110 tracks" issue.
+        // YouTube provides many bitrates for each language track.
+        // We group by track name/locale/id and keep ONLY the highest bitrate version of each.
+        availableAudioStreams = audioStreams
+            .sortedByDescending { it.averageBitrate } // Put highest quality first
+            .distinctBy { 
+                // Unique key for the TRACK (regardless of quality/bitrate)
+                "${it.audioTrackId ?: "none"}_${it.audioTrackName ?: "none"}_${it.audioLocale?.language ?: "none"}"
+            }
+            .sortedBy { it.audioTrackName ?: "" } // Finally sort alphabetically for the menu
+        
         availableSubtitles = subtitles
         
         // Smart initial quality selection based on estimated bandwidth
@@ -806,7 +817,7 @@ class EnhancedPlayerManager private constructor() {
                         bitrate = it.bitrate.toLong()
                     )
                 },
-            availableAudioTracks = audioStreams.mapIndexed { index, stream ->
+            availableAudioTracks = availableAudioStreams.mapIndexed { index, stream ->
                 AudioTrackOption(
                     index = index,
                     label = stream.audioTrackName ?: stream.audioTrackId ?: "Track ${index + 1}",

@@ -246,6 +246,7 @@ fun VideoCardHorizontal(
 fun VideoCardFullWidth(
     video: Video,
     modifier: Modifier = Modifier,
+    useInternalPadding: Boolean = true,
     onClick: () -> Unit,
     onMoreClick: () -> Unit = {}
 ) {
@@ -255,7 +256,7 @@ fun VideoCardFullWidth(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp) // Gap from screen edges
+            .then(if (useInternalPadding) Modifier.padding(horizontal = 12.dp) else Modifier) // Gap from screen edges
     ) {
         // Thumbnail with duration
         Box(

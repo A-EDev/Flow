@@ -234,8 +234,18 @@ fun CommentsPreview(
                         contentScale = ContentScale.Crop
                     )
                     Spacer(modifier = Modifier.width(12.dp))
+                    
+                    val primaryColor = MaterialTheme.colorScheme.primary
+                    val annotatedComment = if (!latestComment.isNullOrBlank()) {
+                        formatRichText(
+                            text = latestComment,
+                            primaryColor = primaryColor,
+                            textColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    } else null
+
                     Text(
-                        text = latestComment,
+                        text = annotatedComment ?: AnnotatedString(""),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 2,
@@ -583,11 +593,15 @@ fun EnhancedDescriptionBox(
             }
             
             if (!description.isNullOrBlank()) {
-                // Formatting links and newlines
-                // Ensure newlines are respected
+                // Use unified rich text formatter for HTML, links, and timestamps
+                val annotatedDescription = formatRichText(
+                    text = description,
+                    primaryColor = primaryColor,
+                    textColor = textColor
+                )
                 
                 Text(
-                    text = description, // Pass raw text, letting Compose handle basic line breaks
+                    text = annotatedDescription,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         lineHeight = 24.sp
                     ),

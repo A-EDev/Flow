@@ -17,7 +17,7 @@ android {
         minSdk = 21
         targetSdk = 34
         versionCode = 3
-        versionName = "1.3.3"
+        versionName = "1.3.4"
 
         testInstrumentationRunner = "com.flow.youtube.HiltTestRunner"
         vectorDrawables {

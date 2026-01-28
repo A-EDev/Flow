@@ -29,9 +29,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.text.HtmlCompat
+import android.text.style.URLSpan
 import coil.compose.AsyncImage
 import com.flow.youtube.data.model.Comment
 import com.flow.youtube.utils.formatLikeCount
+import com.flow.youtube.utils.formatRichText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -138,10 +141,13 @@ fun FlowCommentItem(
     var isExpanded by remember { mutableStateOf(false) }
     var isOverflowing by remember { mutableStateOf(false) }
 
-    // Process text to make timestamps blue and clickable
-    val annotatedText = remember(comment.text) {
-        processCommentText(comment.text)
-    }
+    // Process text to make timestamps blue and clickable, and handle HTML
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val annotatedText = formatRichText(
+        text = comment.text,
+        primaryColor = primaryColor,
+        textColor = MaterialTheme.colorScheme.onSurface
+    )
 
     Row(
         modifier = Modifier
@@ -303,34 +309,8 @@ fun FlowCommentItem(
 }
 
 // ==========================================
-// HELPERS & SKELETONS
+// SKELETONS
 // ==========================================
-
-/**
- * Parses comment text to highlight Timestamps (e.g. 2:04) and URLs.
- */
-fun processCommentText(text: String): AnnotatedString {
-    return buildAnnotatedString {
-        val timestampRegex = Regex("(\\d{1,2}:\\d{2}(:\\d{2})?)") // Matches 1:30 or 01:20:30
-        val urlRegex = Regex("(https?://\\S+)")
-        
-        var lastIndex = 0
-        
-        // Find timestamps first (Simple approach)
-        timestampRegex.findAll(text).forEach { match ->
-            append(text.substring(lastIndex, match.range.first))
-            
-            pushStringAnnotation(tag = "TIMESTAMP", annotation = match.value)
-            withStyle(SpanStyle(color = Color(0xFF3EA6FF), fontWeight = FontWeight.SemiBold)) {
-                append(match.value)
-            }
-            pop()
-            lastIndex = match.range.last + 1
-        }
-        
-        append(text.substring(lastIndex))
-    }
-}
 
 @Composable
 fun CommentSkeleton() {
