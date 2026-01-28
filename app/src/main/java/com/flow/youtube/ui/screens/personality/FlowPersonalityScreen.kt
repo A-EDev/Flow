@@ -80,24 +80,27 @@ fun FlowPersonalityScreen(
 
         Scaffold(
             topBar = {
-                LargeTopAppBar(
-                    title = {
-                        Column {
-                            Text(
-                                "Flow Control Center",
-                                style = MaterialTheme.typography.headlineSmall.copy(
-                                    fontWeight = FontWeight.Black,
-                                    letterSpacing = (-0.5).sp
-                                )
-                            )
-                        }
-                    },
-                    navigationIcon = {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.Transparent
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.statusBars)
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         IconButton(onClick = onNavigateBack) {
                             Icon(Icons.Default.ArrowBack, "Back")
                         }
-                    },
-                    actions = {
+                        Text(
+                            "Flow Control Center",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold
+                            )
+                        )
                         IconButton(onClick = {
                             scope.launch {
                                 userBrain = FlowNeuroEngine.getBrainSnapshot()
@@ -106,12 +109,8 @@ fun FlowPersonalityScreen(
                         }) {
                             Icon(Icons.Default.Refresh, "Refresh")
                         }
-                    },
-                    colors = TopAppBarDefaults.largeTopAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-                    )
-                )
+                    }
+                }
             },
             containerColor = Color.Transparent
         ) { padding ->

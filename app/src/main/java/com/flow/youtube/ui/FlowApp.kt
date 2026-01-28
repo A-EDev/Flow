@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -143,12 +144,12 @@ fun FlowApp(
             modifier = Modifier.fillMaxSize(),
             snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
             containerColor = if (isInPipMode) androidx.compose.ui.graphics.Color.Black else androidx.compose.material3.MaterialTheme.colorScheme.background,
+            contentWindowInsets = WindowInsets(0.dp), // Remove default window insets to prevent black area
             bottomBar = {
-                if (!isInPipMode) {
-                    // Stack the mini players above the bottom nav
+                if (!isInPipMode && showBottomNav) {
                     Column {
-                        // Show persistent video mini player when video is playing and not on video player screen
-                        if (showBottomNav && isMiniPlayerVisible && currentVideo != null && !currentRoute.value.startsWith("player")) {
+                        // Mini players above bottom nav
+                        if (isMiniPlayerVisible && currentVideo != null && !currentRoute.value.startsWith("player")) {
                             PersistentVideoMiniPlayer(
                                 video = currentVideo!!,
                                 onExpandClick = {
@@ -160,9 +161,8 @@ fun FlowApp(
                                 }
                             )
                         }
-                    
-                        // Show persistent music mini player when music is playing and not on music player screen
-                        if (showBottomNav && currentMusicTrack != null && !currentRoute.value.startsWith("musicPlayer")) {
+                        
+                        if (currentMusicTrack != null && !currentRoute.value.startsWith("musicPlayer")) {
                             PersistentMiniMusicPlayer(
                                 onExpandClick = {
                                     currentMusicTrack?.let { track ->
@@ -170,45 +170,57 @@ fun FlowApp(
                                     }
                                 },
                                 onDismiss = {
-                                    // Stop music and clear current track
                                     EnhancedMusicPlayerManager.stop()
                                     EnhancedMusicPlayerManager.clearCurrentTrack()
                                 }
                             )
                         }
-                    
-                        if (showBottomNav) {
-                            FloatingBottomNavBar(
-                                selectedIndex = selectedBottomNavIndex,
-                                onItemSelected = { index ->
-                                    selectedBottomNavIndex = index
-                                    when (index) {
-                                        0 -> {
-                                            currentRoute.value = "home"
-                                            navController.navigate("home") {
-                                                popUpTo("home") { inclusive = true }
-                                            }
-                                        }
-                                        1 -> {
-                                            currentRoute.value = "shorts"
-                                            navController.navigate("shorts")
-                                        }
-                                        2 -> {
-                                            currentRoute.value = "music"
-                                            navController.navigate("music")
-                                        }
-                                        3 -> {
-                                            currentRoute.value = "subscriptions"
-                                            navController.navigate("subscriptions")
-                                        }
-                                        4 -> {
-                                            currentRoute.value = "library"
-                                            navController.navigate("library")
+                        
+                        // Bottom nav bar
+                        FloatingBottomNavBar(
+                            selectedIndex = selectedBottomNavIndex,
+                            onItemSelected = { index ->
+                            when (index) {
+                                0 -> {
+                                    if (currentRoute.value != "home") {
+                                        selectedBottomNavIndex = index
+                                        currentRoute.value = "home"
+                                        navController.navigate("home") {
+                                            popUpTo("home") { inclusive = true }
                                         }
                                     }
                                 }
-                            )
+                                1 -> {
+                                    selectedBottomNavIndex = index
+                                    currentRoute.value = "shorts"
+                                    navController.navigate("shorts") {
+                                        launchSingleTop = true
+                                    }
+                                }
+                                2 -> {
+                                    selectedBottomNavIndex = index
+                                    currentRoute.value = "music"
+                                    navController.navigate("music") {
+                                        launchSingleTop = true
+                                    }
+                                }
+                                3 -> {
+                                    selectedBottomNavIndex = index
+                                    currentRoute.value = "subscriptions"
+                                    navController.navigate("subscriptions") {
+                                        launchSingleTop = true
+                                    }
+                                }
+                                4 -> {
+                                    selectedBottomNavIndex = index
+                                    currentRoute.value = "library"
+                                    navController.navigate("library") {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            }
                         }
+                    )
                     }
                 }
             }
@@ -216,7 +228,25 @@ fun FlowApp(
             Box(modifier = Modifier.padding(if (isInPipMode) PaddingValues(0.dp) else paddingValues)) {
                 NavHost(
                     navController = navController,
-                    startDestination = "home"
+                    startDestination = "home",
+                    enterTransition = {
+                        fadeIn(animationSpec = tween(200)) + slideInHorizontally(
+                            initialOffsetX = { 30 },
+                            animationSpec = tween(200)
+                        )
+                    },
+                    exitTransition = {
+                        fadeOut(animationSpec = tween(150))
+                    },
+                    popEnterTransition = {
+                        fadeIn(animationSpec = tween(200))
+                    },
+                    popExitTransition = {
+                        fadeOut(animationSpec = tween(150)) + slideOutHorizontally(
+                            targetOffsetX = { 30 },
+                            animationSpec = tween(150)
+                        )
+                    }
                 ) {
                     composable("home") {
                     currentRoute.value = "home"
@@ -269,7 +299,7 @@ fun FlowApp(
                     )
                 ) { backStackEntry ->
                     currentRoute.value = "shorts"
-                    showBottomNav = false
+                    showBottomNav = true
                     selectedBottomNavIndex = 1
                     val startVideoId = backStackEntry.arguments?.getString("startVideoId")
                     ShortsScreen(

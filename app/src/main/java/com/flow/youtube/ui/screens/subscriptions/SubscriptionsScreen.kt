@@ -117,29 +117,46 @@ fun SubscriptionsScreen(
                     )
                 )
             } else {
-                TopAppBar(
-                    title = {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.statusBars)
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Text(
                             text = androidx.compose.ui.res.stringResource(R.string.top_bar_subscriptions_title),
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                         )
-                    },
-                    actions = {
-                        IconButton(onClick = { viewModel.toggleViewMode() }) {
-                            Icon(
-                                imageVector = if (uiState.isFullWidthView) Icons.Default.ViewList else Icons.Default.GridView,
-                                contentDescription = "Toggle View Mode"
-                            )
+                        Row {
+                            IconButton(
+                                onClick = { viewModel.toggleViewMode() },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (uiState.isFullWidthView) Icons.Default.ViewList else Icons.Default.GridView,
+                                    contentDescription = "Toggle View Mode",
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            IconButton(
+                                onClick = { isManagingSubs = true },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Search,
+                                    "Search Subscriptions",
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
-                        IconButton(onClick = { isManagingSubs = true }) {
-                            Icon(Icons.Outlined.Search, "Search Subscriptions")
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.background,
-                        scrolledContainerColor = MaterialTheme.colorScheme.surface
-                    )
-                )
+                    }
+                }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },

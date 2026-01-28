@@ -93,60 +93,85 @@ fun HomeScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0.dp), // Remove default insets
         topBar = {
-            TopAppBar(
-                title = { 
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
                         "FLOW",
-                        style = MaterialTheme.typography.headlineMedium.copy(
+                        style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 2.sp
+                            letterSpacing = 1.sp
                         )
-                    ) 
-                },
-                actions = {
-                    IconButton(onClick = onSearchClick) {
-                        Icon(Icons.Outlined.Search, contentDescription = "Search")
-                    }
-                    IconButton(onClick = onNotificationClick) {
-                        Box(contentAlignment = Alignment.TopEnd) {
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(0.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = onSearchClick,
+                            modifier = Modifier.size(40.dp)
+                        ) {
                             Icon(
-                                imageVector = Icons.Outlined.Notifications,
-                                contentDescription = "Notifications",
-                                modifier = Modifier.size(26.dp)
+                                Icons.Outlined.Search,
+                                contentDescription = "Search",
+                                modifier = Modifier.size(24.dp)
                             )
-                            if (unreadNotifications > 0) {
-                                Box(
-                                    modifier = Modifier
-                                        .offset(x = 2.dp, y = (-2).dp)
-                                        .background(Color.Red, shape = CircleShape)
-                                        .padding(horizontal = 4.dp, vertical = 2.dp)
-                                        .heightIn(min = 16.dp)
-                                        .widthIn(min = 16.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = if (unreadNotifications > 9) "9+" else unreadNotifications.toString(),
-                                        color = Color.White,
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontSize = 10.sp, 
-                                            fontWeight = FontWeight.Bold,
-                                            lineHeight = 10.sp
+                        }
+                        IconButton(
+                            onClick = onNotificationClick,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.TopEnd) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Notifications,
+                                    contentDescription = "Notifications",
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                if (unreadNotifications > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .offset(x = 4.dp, y = (-2).dp)
+                                            .background(MaterialTheme.colorScheme.primary, shape = CircleShape)
+                                            .size(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = if (unreadNotifications > 9) "9+" else unreadNotifications.toString(),
+                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                lineHeight = 9.sp
+                                            )
                                         )
-                                    )
+                                    }
                                 }
                             }
                         }
+                        IconButton(
+                            onClick = onSettingsClick,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                Icons.Outlined.Settings,
+                                contentDescription = "Settings",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
-                    IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "Settings")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.background
-                )
-            )
+                }
+            }
         }
     ) { padding ->
         BoxWithConstraints(
@@ -184,9 +209,9 @@ fun HomeScreen(
                         columns = gridCells,
                         modifier = Modifier.fillMaxSize(),
                         state = gridState,
-                        contentPadding = PaddingValues(vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         val videos = uiState.videos
                         if (videos.isNotEmpty()) {

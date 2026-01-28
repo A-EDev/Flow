@@ -1,25 +1,16 @@
 package com.flow.youtube.ui.screens.shorts
 
-import android.app.Activity
 import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.flow.youtube.data.model.Video
 import kotlinx.coroutines.launch
@@ -37,8 +28,6 @@ fun ShortsScreen(
     viewModel: ShortsViewModel = viewModel()
 ) {
     val context = LocalContext.current
-    val activity = context as? Activity
-    val view = LocalView.current
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
     
@@ -66,27 +55,7 @@ fun ShortsScreen(
         }
     }
     
-    // Hide system bars for immersive experience
-    DisposableEffect(Unit) {
-        activity?.let { act ->
-            val window = act.window
-            val insetsController = WindowCompat.getInsetsController(window, view)
-            
-            // Hide status and navigation bars
-            insetsController.hide(WindowInsetsCompat.Type.systemBars())
-            insetsController.systemBarsBehavior = 
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
-        
-        onDispose {
-            // Restore system bars
-            activity?.let { act ->
-                val window = act.window
-                val insetsController = WindowCompat.getInsetsController(window, view)
-                insetsController.show(WindowInsetsCompat.Type.systemBars())
-            }
-        }
-    }
+    // System bars stay visible - no forced fullscreen for a better experience
     
     Box(
         modifier = modifier
