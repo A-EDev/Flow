@@ -133,6 +133,15 @@ class EnhancedPlayerManager private constructor() {
     // Quality mode tracking
     private var isAdaptiveQualityEnabled = true  // Auto quality by default
     private var manualQualityHeight: Int? = null  // Track manually selected quality
+    
+    // Adaptive quality monitoring
+    private var adaptiveQualityJob: kotlinx.coroutines.Job? = null
+    private var lastBandwidthCheckTime = 0L
+    private var lastAdaptiveQualityHeight = 0
+    private var consecutiveBufferingCount = 0  // Track buffering events for downgrade
+    private val BANDWIDTH_CHECK_INTERVAL_MS = 5000L  // Check every 5 seconds
+    private val QUALITY_UPGRADE_THRESHOLD = 1.3f  // Need 30% more bandwidth to upgrade
+    private val QUALITY_DOWNGRADE_THRESHOLD = 0.7f  // Downgrade if bandwidth drops to 70%
 
     // Buffering watchdog with smart stall detection
     private fun startPositionTracker() {
@@ -183,12 +192,33 @@ class EnhancedPlayerManager private constructor() {
                                 if (stuckCount >= 2) {
                                     val bufferAhead = bufferedPos - currentPos
                                     Log.d("FlowDebug", "STALL: Pos=${currentPos}ms | Buff=${bufferedPos}ms (+${bufferAhead}ms ahead) | StuckFor=${stuckCount * 500}ms")
+                                    
+                                    // Track buffering for adaptive quality downgrade
+                                    if (isAdaptiveQualityEnabled) {
+                                        consecutiveBufferingCount++
+                                        if (consecutiveBufferingCount >= 3) {
+                                            // Buffering for 1.5+ seconds - consider downgrade
+                                            Log.d(TAG, "Adaptive: Frequent buffering detected, considering quality downgrade")
+                                            checkAdaptiveQualityDowngrade(forceCheck = true)
+                                            consecutiveBufferingCount = 0
+                                        }
+                                    }
                                 }
                             } else {
                                 stuckCount = 0
                             }
                         } else {
                             stuckCount = 0
+                            consecutiveBufferingCount = 0  // Reset buffering counter when playing smoothly
+                            
+                            // Periodic adaptive quality check (upgrade opportunity)
+                            if (isAdaptiveQualityEnabled && p.isPlaying) {
+                                val currentTime = System.currentTimeMillis()
+                                if (currentTime - lastBandwidthCheckTime >= BANDWIDTH_CHECK_INTERVAL_MS) {
+                                    lastBandwidthCheckTime = currentTime
+                                    checkAdaptiveQualityUpgrade()
+                                }
+                            }
                         }
                         
                         lastCheckedPosition = currentPos
@@ -251,31 +281,31 @@ class EnhancedPlayerManager private constructor() {
 
         appContext = context.applicationContext
         if (player == null) {
-            // Initialize bandwidth meter for ABR
+            // Initialize bandwidth meter for ABR with optimistic initial estimate
+            // Higher initial estimate means player will try higher quality first, then adapt down if needed
+            // This matches YouTube app behavior (start at mid-high quality, adapt quickly)
             bandwidthMeter = DefaultBandwidthMeter.Builder(context)
-                .setInitialBitrateEstimate(2_000_000) // 2 Mbps initial estimate for faster start
+                .setInitialBitrateEstimate(5_000_000) // 5 Mbps - assume decent connection initially
+                .setResetOnNetworkTypeChange(false)   // Don't reset on wifi<->mobile switch
                 .build()
             
-            // 1. Optimized Allocator to reduce request overhead (64KB segments)
+            // 1. Optimized Allocator - 64KB is good for DASH segments
             val allocator = DefaultAllocator(true, 64 * 1024)
 
-            // 2. Aggressive Adaptive Track Selection for buffering resilience (Align with NewPipe)
-            val trackSelectionFactory = AdaptiveTrackSelection.Factory(
-                /* minDurationForQualityIncreaseMs = */ 5_000,   // React more stably to bandwidth increase (from 1s)
-                /* maxDurationForQualityDecreaseMs = */ 8_000,   // Standard decrease (remains 8s)
-                /* minDurationToRetainAfterDiscardMs = */ 12_000, // Retain less to allowing faster switching (remains 12s)
-                /* bandwidthFraction = */ 0.75f // Slightly more aggressive
-            )
+            // 2. Aggressive Adaptive Track Selection optimized for fast startup
+            // Key: Be aggressive on quality increases, conservative on decreases
+            // Note: Media3 AdaptiveTrackSelection.Factory uses builder pattern
+            val trackSelectionFactory = AdaptiveTrackSelection.Factory()
 
             trackSelector = DefaultTrackSelector(context, trackSelectionFactory).apply {
-                // Enable adaptive selections and tune ABR parameters similar to NewPipe
+                // Enable adaptive selections optimized for mobile YouTube playback
                 setParameters(
                     buildUponParameters()
-                        // Allow switching between different video MIME types (e.g., VP9 <-> H264)
+                        // Allow switching between different video MIME types (VP9 <-> H264)
                         .setAllowVideoMixedMimeTypeAdaptiveness(true)
-                        // Allow multiple adaptive selections (e.g., video + audio)
+                        // Allow multiple adaptive selections (video + audio separately)
                         .setAllowMultipleAdaptiveSelections(true)
-                        // Prefer higher quality but allow adaptation
+                        // Don't force highest bitrate - let ABR algorithm work
                         .setForceHighestSupportedBitrate(false)
                         // Viewport constraints for better mobile experience
                         .setViewportSizeToPhysicalDisplaySize(context, true)
@@ -288,18 +318,19 @@ class EnhancedPlayerManager private constructor() {
             }
 
             // Create a tuned OkHttpClient for better DASH concurrency
+            // Multiple concurrent requests are needed for adaptive streaming
             val dispatcher = Dispatcher().apply {
-                maxRequestsPerHost = 15 // YouTube needs at least 2, but background tasks can hog them
-                maxRequests = 25
+                maxRequestsPerHost = 20 // YouTube uses many segment fetches in parallel
+                maxRequests = 40        // Allow many concurrent downloads for smooth ABR
             }
             
             val sharedOkHttpClient = OkHttpClient.Builder()
                 .dispatcher(dispatcher)
-                .connectionPool(ConnectionPool(10, 5, TimeUnit.MINUTES))
-                .protocols(listOf(okhttp3.Protocol.HTTP_1_1))
+                .connectionPool(ConnectionPool(15, 5, TimeUnit.MINUTES)) // More connections
+                .protocols(listOf(okhttp3.Protocol.HTTP_2, okhttp3.Protocol.HTTP_1_1)) // Prefer HTTP/2 for multiplexing
                 .retryOnConnectionFailure(true)
                 .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS) // Standard timeout for DASH
+                .readTimeout(30, TimeUnit.SECONDS) // 30s for DASH segments
                 .writeTimeout(15, TimeUnit.SECONDS)
                 .build()
 
@@ -353,25 +384,27 @@ class EnhancedPlayerManager private constructor() {
 
             // Fetch buffer settings
             val prefs = PlayerPreferences(context)
-            // Use defaults if prefs failing or use sensible consts? 
-            // The user asked to re-link to prefs.
             // Using blocking get for init - acceptable here as single init step
             val minBufferMs = kotlinx.coroutines.runBlocking { prefs.minBufferMs.first() }
             val maxBufferMs = kotlinx.coroutines.runBlocking { prefs.maxBufferMs.first() }
             val bufferForPlaybackMs = kotlinx.coroutines.runBlocking { prefs.bufferForPlaybackMs.first() }
             val bufferRebufferMs = kotlinx.coroutines.runBlocking { prefs.bufferForPlaybackAfterRebufferMs.first() }
 
-            // Optimized LoadControl
+            Log.d(TAG, "Buffer config: min=${minBufferMs}ms, max=${maxBufferMs}ms, playback=${bufferForPlaybackMs}ms, rebuffer=${bufferRebufferMs}ms")
+
+            // Optimized LoadControl for fast startup and smooth playback
+            // Key: Start playback quickly (low playback buffer), but build up a good buffer after
             val loadControl = DefaultLoadControl.Builder()
                 .setAllocator(allocator)
                 .setBufferDurationsMs(
-                    minBufferMs, 
-                    maxBufferMs, 
-                    bufferForPlaybackMs,   
-                    bufferRebufferMs    
+                    minBufferMs,         // Min buffer before downgrading quality
+                    maxBufferMs,         // Max buffer (stop downloading after this)
+                    bufferForPlaybackMs, // Start playback after this much buffer
+                    bufferRebufferMs     // Resume after rebuffer when this much is buffered
                 )
-                .setBackBuffer(10000, true) // Keep 10s for instant seek back
-                .setPrioritizeTimeOverSizeThresholds(true)
+                .setBackBuffer(15_000, true) // Keep 15s back buffer for instant rewind
+                .setPrioritizeTimeOverSizeThresholds(true) // Time-based buffering is more predictable
+                .setTargetBufferBytes(C.LENGTH_UNSET) // No size limit, use time-based only
                 .build()
 
             // Create custom RenderersFactory to inject SilenceSkippingAudioProcessor and prefer extensions
@@ -732,8 +765,30 @@ class EnhancedPlayerManager private constructor() {
         availableVideoStreams = videoStreams.distinctBy { it.getContent() }.sortedByDescending { it.height }
         availableAudioStreams = audioStreams.distinctBy { it.getContent() }
         availableSubtitles = subtitles
-        // Set defaults: prefer provided videoStream/audioStream when present
-        currentVideoStream = videoStream ?: availableVideoStreams.firstOrNull()
+        
+        // Smart initial quality selection based on estimated bandwidth
+        // Don't always pick highest quality - pick something reasonable to start
+        val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: 2_000_000L
+        val targetHeight = when {
+            estimatedBandwidth > 10_000_000 -> 1080 // 10+ Mbps = 1080p
+            estimatedBandwidth > 5_000_000 -> 720   // 5+ Mbps = 720p  
+            estimatedBandwidth > 2_000_000 -> 480   // 2+ Mbps = 480p
+            estimatedBandwidth > 1_000_000 -> 360   // 1+ Mbps = 360p
+            else -> 240                              // Low bandwidth = 240p
+        }
+        
+        // Find closest available stream to target
+        val smartStream = availableVideoStreams
+            .sortedBy { kotlin.math.abs(it.height - targetHeight) }
+            .firstOrNull()
+        
+        Log.d(TAG, "Smart quality selection: bandwidth=${estimatedBandwidth/1_000_000}Mbps, target=${targetHeight}p, selected=${smartStream?.height}p")
+        
+        // Set defaults: prefer provided videoStream if given, otherwise use smart selection
+        currentVideoStream = videoStream ?: smartStream ?: availableVideoStreams.firstOrNull()
+        // Initialize adaptive quality tracking
+        lastAdaptiveQualityHeight = currentVideoStream?.height ?: 0
+        consecutiveBufferingCount = 0
         // Prefer the provided audio stream, otherwise pick highest bitrate or preferring English if present
         currentAudioStream = audioStream
         _playerState.value = _playerState.value.copy(
@@ -887,8 +942,16 @@ class EnhancedPlayerManager private constructor() {
                     ProgressiveMediaSource.Factory(sharedProgressiveDataSourceFactory ?: dataSourceFactory)
                         .createMediaSource(MediaItem.fromUri(android.net.Uri.fromFile(java.io.File(localFilePath))))
                 } else {
-                    // Pass current streams and DASH URL
-                    resolver.resolve(availableVideoStreams, audioStream, this.currentDashManifestUrl, finalDuration)
+                    // Pass ONLY the selected video stream, not all streams
+                    // This ensures we load the quality the user selected, not always the highest
+                    val selectedStreams = if (videoStream != null) {
+                        listOf(videoStream)
+                    } else {
+                        // Fallback to current or first available
+                        listOfNotNull(currentVideoStream ?: availableVideoStreams.firstOrNull())
+                    }
+                    Log.d(TAG, "Passing ${selectedStreams.size} stream(s) to resolver: ${selectedStreams.map { "${it.height}p" }}")
+                    resolver.resolve(selectedStreams, audioStream, this.currentDashManifestUrl, finalDuration)
                 }
                 
                 if (mediaSource != null) {
@@ -954,23 +1017,39 @@ class EnhancedPlayerManager private constructor() {
             return
         }
         
+        // Check if we're already at this quality
+        if (manualQualityHeight == height) {
+            Log.d(TAG, "Already at ${height}p, no change needed")
+            return
+        }
+        
         // Disable adaptive and set fixed quality
         isAdaptiveQualityEnabled = false
         manualQualityHeight = height
 
-        // All qualities are now merged into one MergingMediaSource (Step 4)
-        // This allows for seamless track selection even for progressive streams
-        Log.d(TAG, "Switching to FIXED quality: ${height}p (Seamless via TrackSelector)")
+        Log.d(TAG, "Switching to FIXED quality: ${height}p")
         
-        trackSelector?.let { selector ->
-            val params = selector.buildUponParameters()
-                .setAllowVideoMixedMimeTypeAdaptiveness(true)
-                .setAllowMultipleAdaptiveSelections(false)
-                .setMaxVideoSize(9999, height) 
-                .setMinVideoSize(0, height)    
-                .setForceHighestSupportedBitrate(false)
-                .build()
-            selector.setParameters(params)
+        // Find the stream matching this height
+        val targetStream = availableVideoStreams.find { it.height == height }
+        if (targetStream == null) {
+            Log.w(TAG, "No stream found for ${height}p, available: ${availableVideoStreams.map { it.height }}")
+            return
+        }
+        
+        // Get current position to preserve
+        val currentPosition = player?.currentPosition ?: 0L
+        
+        // Update current video stream and reload
+        currentVideoStream = targetStream
+        val audioStream = currentAudioStream ?: availableAudioStreams.firstOrNull()
+        
+        if (audioStream != null) {
+            Log.d(TAG, "Reloading stream at ${height}p, preserving position ${currentPosition}ms")
+            loadMedia(
+                videoStream = targetStream,
+                audioStream = audioStream,
+                preservePosition = currentPosition
+            )
         }
         
         _playerState.value = _playerState.value.copy(currentQuality = height, effectiveQuality = height)
@@ -980,34 +1059,159 @@ class EnhancedPlayerManager private constructor() {
         isAdaptiveQualityEnabled = true
         manualQualityHeight = null
         
-        if (!currentDashManifestUrl.isNullOrEmpty()) {
-            Log.d(TAG, "Enabling adaptive quality mode (Seamless via TrackSelector/DASH)")
+        Log.d(TAG, "Enabling adaptive quality mode")
+        
+        // For Auto mode, estimate bandwidth and pick appropriate quality
+        // Start with a reasonable quality (720p) instead of max
+        val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: 2_000_000L
+        val targetHeight = when {
+            estimatedBandwidth > 10_000_000 -> 1080 // 10+ Mbps = 1080p
+            estimatedBandwidth > 5_000_000 -> 720   // 5+ Mbps = 720p  
+            estimatedBandwidth > 2_000_000 -> 480   // 2+ Mbps = 480p
+            estimatedBandwidth > 1_000_000 -> 360   // 1+ Mbps = 360p
+            else -> 240                              // Low bandwidth = 240p
+        }
+        
+        Log.d(TAG, "Auto quality: Estimated bandwidth ${estimatedBandwidth/1_000_000}Mbps -> targeting ${targetHeight}p")
+        
+        // Find closest available stream
+        val targetStream = availableVideoStreams
+            .sortedBy { kotlin.math.abs(it.height - targetHeight) }
+            .firstOrNull()
+        
+        if (targetStream != null && targetStream.height != currentVideoStream?.height) {
+            val currentPosition = player?.currentPosition ?: 0L
+            currentVideoStream = targetStream
+            val audioStream = currentAudioStream ?: availableAudioStreams.firstOrNull()
             
-            trackSelector?.let { selector ->
-                selector.setParameters(selector.buildUponParameters()
-                    .setAllowVideoMixedMimeTypeAdaptiveness(true)
-                    .setAllowMultipleAdaptiveSelections(true)
-                    .setMaxVideoSize(1920, 1080)
-                    .setMinVideoSize(0, 0)
-                    .build())
+            if (audioStream != null) {
+                Log.d(TAG, "Auto quality switching to ${targetStream.height}p")
+                loadMedia(
+                    videoStream = targetStream,
+                    audioStream = audioStream,
+                    preservePosition = currentPosition
+                )
             }
             
-            _playerState.value = _playerState.value.copy(currentQuality = 0)
+            _playerState.value = _playerState.value.copy(
+                currentQuality = 0,
+                effectiveQuality = targetStream.height
+            )
+            lastAdaptiveQualityHeight = targetStream.height
         } else {
-            // Progressive Fallback: Reload with best stream
-             Log.d(TAG, "Enabling adaptive quality mode (Reloading - Progressive Mode)")
-             
-             // Select the best quality stream as start
-             currentVideoStream = availableVideoStreams.maxByOrNull { it.height }
-             val currentPosition = player?.currentPosition ?: 0L
-             
-             loadMedia(
-                videoStream = currentVideoStream,
-                audioStream = currentAudioStream ?: availableAudioStreams.firstOrNull() ?: return,
+            _playerState.value = _playerState.value.copy(currentQuality = 0)
+            lastAdaptiveQualityHeight = currentVideoStream?.height ?: 0
+        }
+    }
+    
+    /**
+     * Calculate target quality height based on current bandwidth
+     */
+    private fun calculateTargetQualityForBandwidth(bandwidthBps: Long): Int {
+        return when {
+            bandwidthBps > 15_000_000 -> 2160 // 15+ Mbps = 4K
+            bandwidthBps > 10_000_000 -> 1440 // 10+ Mbps = 1440p
+            bandwidthBps > 6_000_000 -> 1080  // 6+ Mbps = 1080p
+            bandwidthBps > 3_000_000 -> 720   // 3+ Mbps = 720p  
+            bandwidthBps > 1_500_000 -> 480   // 1.5+ Mbps = 480p
+            bandwidthBps > 800_000 -> 360     // 800+ Kbps = 360p
+            else -> 240                        // Low bandwidth = 240p
+        }
+    }
+    
+    /**
+     * Check if we can upgrade quality based on current bandwidth
+     * Called periodically when playback is smooth
+     */
+    private fun checkAdaptiveQualityUpgrade() {
+        if (!isAdaptiveQualityEnabled || availableVideoStreams.isEmpty()) return
+        
+        val currentHeight = currentVideoStream?.height ?: return
+        val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: return
+        
+        val targetHeight = calculateTargetQualityForBandwidth(estimatedBandwidth)
+        
+        // Only upgrade if target is significantly higher than current
+        if (targetHeight > currentHeight) {
+            // Find next higher quality that's available
+            val nextHigherStream = availableVideoStreams
+                .filter { it.height > currentHeight && it.height <= targetHeight }
+                .minByOrNull { it.height }
+            
+            if (nextHigherStream != null) {
+                // Check if we have enough bandwidth headroom (30% above needed)
+                val streamBitrate = nextHigherStream.bitrate.toLong()
+                val requiredBandwidth = (streamBitrate * QUALITY_UPGRADE_THRESHOLD).toLong()
+                
+                if (estimatedBandwidth > requiredBandwidth || streamBitrate == 0L) {
+                    Log.d(TAG, "Adaptive UPGRADE: ${currentHeight}p -> ${nextHigherStream.height}p (bandwidth: ${estimatedBandwidth/1_000_000}Mbps)")
+                    performAdaptiveQualitySwitch(nextHigherStream)
+                }
+            }
+        }
+    }
+    
+    /**
+     * Check if we need to downgrade quality due to buffering or low bandwidth
+     * Called when buffering is detected
+     */
+    private fun checkAdaptiveQualityDowngrade(forceCheck: Boolean = false) {
+        if (!isAdaptiveQualityEnabled || availableVideoStreams.isEmpty()) return
+        
+        val currentHeight = currentVideoStream?.height ?: return
+        val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: 1_000_000L
+        
+        // Find next lower quality
+        val nextLowerStream = availableVideoStreams
+            .filter { it.height < currentHeight }
+            .maxByOrNull { it.height }
+        
+        if (nextLowerStream != null) {
+            if (forceCheck) {
+                // Forced downgrade due to buffering
+                Log.d(TAG, "Adaptive DOWNGRADE (buffering): ${currentHeight}p -> ${nextLowerStream.height}p")
+                performAdaptiveQualitySwitch(nextLowerStream)
+            } else {
+                // Check if bandwidth dropped significantly
+                val currentStreamBitrate = currentVideoStream?.bitrate?.toLong() ?: 0L
+                if (currentStreamBitrate > 0 && estimatedBandwidth < (currentStreamBitrate * QUALITY_DOWNGRADE_THRESHOLD).toLong()) {
+                    Log.d(TAG, "Adaptive DOWNGRADE (low bandwidth): ${currentHeight}p -> ${nextLowerStream.height}p (bandwidth: ${estimatedBandwidth/1_000_000}Mbps)")
+                    performAdaptiveQualitySwitch(nextLowerStream)
+                }
+            }
+        } else {
+            Log.d(TAG, "Adaptive: Already at lowest quality (${currentHeight}p), cannot downgrade further")
+        }
+    }
+    
+    /**
+     * Perform the actual quality switch for adaptive mode
+     */
+    private fun performAdaptiveQualitySwitch(targetStream: VideoStream) {
+        val currentPosition = player?.currentPosition ?: 0L
+        
+        // Don't switch if we just switched recently (debounce)
+        if (targetStream.height == lastAdaptiveQualityHeight) {
+            Log.d(TAG, "Adaptive: Skipping switch, already at ${targetStream.height}p")
+            return
+        }
+        
+        currentVideoStream = targetStream
+        lastAdaptiveQualityHeight = targetStream.height
+        
+        val audioStream = currentAudioStream ?: availableAudioStreams.firstOrNull()
+        if (audioStream != null) {
+            loadMedia(
+                videoStream = targetStream,
+                audioStream = audioStream,
                 preservePosition = currentPosition
             )
-             _playerState.value = _playerState.value.copy(currentQuality = 0, effectiveQuality = currentVideoStream?.height ?: 0)
         }
+        
+        _playerState.value = _playerState.value.copy(
+            currentQuality = 0,  // Still in Auto mode
+            effectiveQuality = targetStream.height
+        )
     }
 
     private fun applyAdaptiveTrackSelectorDefaults() {

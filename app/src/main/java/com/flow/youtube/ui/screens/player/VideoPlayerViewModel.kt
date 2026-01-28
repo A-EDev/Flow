@@ -185,12 +185,9 @@ class VideoPlayerViewModel @Inject constructor(
 
                         val availableQualities = extractAvailableQualities(streamInfo)
                         
-                        // For AUTO mode, start with 360p for fast loading, will scale up dynamically
-                        val initialQuality = if (preferredQuality == VideoQuality.AUTO) {
-                            VideoQuality.Q_360p
-                        } else {
-                            preferredQuality
-                        }
+                        // For AUTO mode, let DASH's adaptive track selection handle quality
+                        // Don't force a specific quality - DASH will start low and scale up automatically
+                        val initialQuality = preferredQuality
                         
                         val selectedStreams = selectStreams(streamInfo, initialQuality)
                         var localFilePath: String? = null

@@ -183,10 +183,11 @@ class PlayerPreferences(private val context: Context) {
         }
     }
 
-    // Buffer Preferences
+    // Buffer Preferences - Optimized for fast startup while maintaining stability
+    // These are the defaults that balance quick playback start with smooth streaming
     val minBufferMs: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            preferences[Keys.MIN_BUFFER_MS] ?: 25000 // Optimized from 30s
+            preferences[Keys.MIN_BUFFER_MS] ?: 15_000 // 15s - reduced from 25s for faster start
         }
 
     suspend fun setMinBufferMs(ms: Int) {
@@ -197,7 +198,7 @@ class PlayerPreferences(private val context: Context) {
 
     val maxBufferMs: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            preferences[Keys.MAX_BUFFER_MS] ?: 80000 // Optimized from 100s
+            preferences[Keys.MAX_BUFFER_MS] ?: 50_000 // 50s - reduced from 80s, still plenty for seeking
         }
 
     suspend fun setMaxBufferMs(ms: Int) {
@@ -208,7 +209,7 @@ class PlayerPreferences(private val context: Context) {
 
     val bufferForPlaybackMs: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            preferences[Keys.BUFFER_FOR_PLAYBACK_MS] ?: 1500 // Optimized from 1s
+            preferences[Keys.BUFFER_FOR_PLAYBACK_MS] ?: 1_000 // 1s - start playback ASAP (from 1.5s)
         }
 
     suspend fun setBufferForPlaybackMs(ms: Int) {
@@ -219,7 +220,7 @@ class PlayerPreferences(private val context: Context) {
     
     val bufferForPlaybackAfterRebufferMs: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            preferences[Keys.BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS] ?: 4000 // Optimized from 2.5s
+            preferences[Keys.BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS] ?: 2_500 // 2.5s - reduced from 4s for faster resume
         }
 
     suspend fun setBufferForPlaybackAfterRebufferMs(ms: Int) {
@@ -313,9 +314,13 @@ enum class BufferProfile(
     val playbackBuffer: Int,
     val rebufferBuffer: Int
 ) {
-    AGGRESSIVE("Aggressive (Fast Start)", 15000, 30000, 1000, 2000),      
-    STABLE("Stable (Anti-Throttling)", 25000, 80000, 1500, 4000),        
-    DATASAVER("Data Saver", 15000, 25000, 2000, 5000),                   
+    // Fast Start: Prioritize quick playback start over buffer stability
+    AGGRESSIVE("Fast Start", 10_000, 30_000, 500, 1_500),      
+    // Balanced: Good default for most connections
+    STABLE("Balanced", 15_000, 50_000, 1_000, 2_500),        
+    // Data Saver: Minimize data usage with smaller buffers
+    DATASAVER("Data Saver", 12_000, 25_000, 1_500, 3_000),                   
+    // Custom: User-defined values
     CUSTOM("Custom", -1, -1, -1, -1);                                    
 
     companion object {
