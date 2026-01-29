@@ -11,10 +11,12 @@ import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.model.Channel
 import com.flow.youtube.data.model.Playlist
 import com.flow.youtube.data.repository.YouTubeRepository
+import com.flow.youtube.utils.PerformanceDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.Page
 
 class SearchViewModel(
@@ -29,7 +31,9 @@ class SearchViewModel(
     private var currentFilters: SearchFilter? = null
     private var isLoadingMore = false
     
-    // Search with multi-type support (videos, channels, playlists)
+    /**
+     *  PERFORMANCE OPTIMIZED: Search with timeout protection
+     */
     fun search(query: String, filters: SearchFilter? = null) {
         if (query.isBlank()) {
             _uiState.value = SearchUiState()
@@ -48,25 +52,35 @@ class SearchViewModel(
             filters = filters
         )
         
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
                 // Build content filters based on ContentType
                 val contentFilters = buildContentFilters(filters?.contentType)
                 
-                val searchResult = repository.search(query, contentFilters, null)
-                currentPage = null // TODO: Implement pagination for multi-type search
+                val searchResult = withTimeoutOrNull(15_000L) {
+                    repository.search(query, contentFilters, null)
+                }
                 
-                // Apply client-side filtering if filters are set
-                val filteredVideos = applyFilters(searchResult.videos, filters)
-                
-                _uiState.value = _uiState.value.copy(
-                    videos = filteredVideos,
-                    channels = searchResult.channels,
-                    playlists = searchResult.playlists,
-                    isLoading = false,
-                    hasMorePages = true, // Enable pagination (will switch to video validation on load more)
-                    query = query
-                )
+                if (searchResult != null) {
+                    currentPage = null // TODO: Implement pagination for multi-type search
+                    
+                    // Apply client-side filtering if filters are set
+                    val filteredVideos = applyFilters(searchResult.videos, filters)
+                    
+                    _uiState.value = _uiState.value.copy(
+                        videos = filteredVideos,
+                        channels = searchResult.channels,
+                        playlists = searchResult.playlists,
+                        isLoading = false,
+                        hasMorePages = true,
+                        query = query
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = "Search timed out"
+                    )
+                }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -86,11 +100,15 @@ class SearchViewModel(
         }
     }
     
-    // Get real search suggestions from YouTube
+    /**
+     *  PERFORMANCE OPTIMIZED: Get search suggestions with timeout
+     */
     suspend fun getSearchSuggestions(query: String): List<String> {
         if (query.length < 2) return emptyList()
         return try {
-            repository.getSearchSuggestions(query)
+            withTimeoutOrNull(5_000L) {
+                repository.getSearchSuggestions(query)
+            } ?: emptyList()
         } catch (e: Exception) {
             emptyList()
         }
@@ -137,29 +155,40 @@ class SearchViewModel(
         return result
     }
     
+    /**
+     *  PERFORMANCE OPTIMIZED: Load more results with timeout
+     */
     fun loadMoreResults() {
-        // TODO: Implement pagination for multi-type search
-        // Currently disabled until search() method returns Page info
         if (isLoadingMore || !_uiState.value.hasMorePages || currentPage == null) return
         
         isLoadingMore = true
         _uiState.value = _uiState.value.copy(isLoadingMore = true)
         
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
-                // For now, use old searchVideos for pagination
-                val (videos, nextPage) = repository.searchVideos(currentQuery, currentPage)
-                currentPage = nextPage
+                val result = withTimeoutOrNull(12_000L) {
+                    repository.searchVideos(currentQuery, currentPage)
+                }
                 
-                // Apply filters to new videos
-                val filteredVideos = applyFilters(videos, currentFilters)
-                val updatedVideos = _uiState.value.videos + filteredVideos
-                
-                _uiState.value = _uiState.value.copy(
-                    videos = updatedVideos,
-                    isLoadingMore = false,
-                    hasMorePages = nextPage != null
-                )
+                if (result != null) {
+                    val (videos, nextPage) = result
+                    currentPage = nextPage
+                    
+                    // Apply filters to new videos
+                    val filteredVideos = applyFilters(videos, currentFilters)
+                    val updatedVideos = _uiState.value.videos + filteredVideos
+                    
+                    _uiState.value = _uiState.value.copy(
+                        videos = updatedVideos,
+                        isLoadingMore = false,
+                        hasMorePages = nextPage != null
+                    )
+                } else {
+                    _uiState.value = _uiState.value.copy(
+                        isLoadingMore = false,
+                        error = "Loading more results timed out"
+                    )
+                }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoadingMore = false,
@@ -190,3 +219,4 @@ data class SearchUiState(
     val hasMorePages: Boolean = true,
     val error: String? = null
 )
+

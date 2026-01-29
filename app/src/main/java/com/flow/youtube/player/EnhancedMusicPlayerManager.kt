@@ -140,20 +140,22 @@ object EnhancedMusicPlayerManager {
      * Switch between audio and video mode while preserving position
      */
     fun switchMode(url: String) {
-        player?.let { exoPlayer ->
-            val currentPosition = exoPlayer.currentPosition
-            val wasPlaying = exoPlayer.isPlaying
-            
-            val dataSourceFactory = DefaultDataSource.Factory(appContext!!)
-            
-            val mediaItem = MediaItem.fromUri(url)
-            val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
-                .createMediaSource(mediaItem)
-            
-            exoPlayer.setMediaSource(mediaSource)
-            exoPlayer.prepare()
-            exoPlayer.seekTo(currentPosition)
-            exoPlayer.playWhenReady = wasPlaying
+        scope.launch {
+            player?.let { exoPlayer ->
+                val currentPosition = exoPlayer.currentPosition
+                val wasPlaying = exoPlayer.isPlaying
+                
+                val dataSourceFactory = DefaultDataSource.Factory(appContext!!)
+                
+                val mediaItem = MediaItem.fromUri(url)
+                val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+                    .createMediaSource(mediaItem)
+                
+                exoPlayer.setMediaSource(mediaSource)
+                exoPlayer.prepare()
+                exoPlayer.seekTo(currentPosition)
+                exoPlayer.playWhenReady = wasPlaying
+            }
         }
     }
 
@@ -164,33 +166,35 @@ object EnhancedMusicPlayerManager {
         _currentTrack.value = track
         setupQueue(track, queue, startIndex)
 
-        player?.let { exoPlayer ->
-            val dataSourceFactory = DefaultDataSource.Factory(appContext!!)
-            
-            // Generate DASH manifest to avoid throttling
-            val manifestString = ManifestGenerator.generateProgressiveManifest(audioStream, audioStream.itagItem!!, durationSeconds)
-            
-            val mediaSource = if (manifestString != null) {
-                val parser = DashManifestParser()
-                val baseUri = Uri.parse(audioStream.content)
-                val manifest = parser.parse(baseUri, ByteArrayInputStream(manifestString.toByteArray(StandardCharsets.UTF_8)))
+        scope.launch {
+            player?.let { exoPlayer ->
+                val dataSourceFactory = DefaultDataSource.Factory(appContext!!)
                 
-                DashMediaSource.Factory(dataSourceFactory)
-                    .createMediaSource(manifest, MediaItem.fromUri(baseUri))
-            } else {
-                // Fallback to progressive
-                ProgressiveMediaSource.Factory(dataSourceFactory)
-                    .createMediaSource(MediaItem.fromUri(Uri.parse(audioStream.content)))
+                // Generate DASH manifest to avoid throttling
+                val manifestString = ManifestGenerator.generateProgressiveManifest(audioStream, audioStream.itagItem!!, durationSeconds)
+                
+                val mediaSource = if (manifestString != null) {
+                    val parser = DashManifestParser()
+                    val baseUri = Uri.parse(audioStream.content)
+                    val manifest = parser.parse(baseUri, ByteArrayInputStream(manifestString.toByteArray(StandardCharsets.UTF_8)))
+                    
+                    DashMediaSource.Factory(dataSourceFactory)
+                        .createMediaSource(manifest, MediaItem.fromUri(baseUri))
+                } else {
+                    // Fallback to progressive
+                    ProgressiveMediaSource.Factory(dataSourceFactory)
+                        .createMediaSource(MediaItem.fromUri(Uri.parse(audioStream.content)))
+                }
+                
+                exoPlayer.setMediaSource(mediaSource)
+                exoPlayer.prepare()
+                exoPlayer.playWhenReady = true
+                
+                _playerState.value = _playerState.value.copy(
+                    isPlaying = true,
+                    duration = track.duration.toLong() * 1000
+                )
             }
-            
-            exoPlayer.setMediaSource(mediaSource)
-            exoPlayer.prepare()
-            exoPlayer.playWhenReady = true
-            
-            _playerState.value = _playerState.value.copy(
-                isPlaying = true,
-                duration = track.duration.toLong() * 1000
-            )
         }
         
         startMusicService()
@@ -230,22 +234,24 @@ object EnhancedMusicPlayerManager {
         _currentTrack.value = track
         setupQueue(track, queue, startIndex)
         
-        // Prepare media source (Original Progressive Logic)
-        player?.let { exoPlayer ->
-            val dataSourceFactory = DefaultDataSource.Factory(appContext!!)
-            
-            val mediaItem = MediaItem.fromUri(audioUrl)
-            val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
-                .createMediaSource(mediaItem)
-            
-            exoPlayer.setMediaSource(mediaSource)
-            exoPlayer.prepare()
-            exoPlayer.playWhenReady = true
-            
-            _playerState.value = _playerState.value.copy(
-                isPlaying = true,
-                duration = track.duration.toLong() * 1000
-            )
+        scope.launch {
+            // Prepare media source (Original Progressive Logic)
+            player?.let { exoPlayer ->
+                val dataSourceFactory = DefaultDataSource.Factory(appContext!!)
+                
+                val mediaItem = MediaItem.fromUri(audioUrl)
+                val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+                    .createMediaSource(mediaItem)
+                
+                exoPlayer.setMediaSource(mediaSource)
+                exoPlayer.prepare()
+                exoPlayer.playWhenReady = true
+                
+                _playerState.value = _playerState.value.copy(
+                    isPlaying = true,
+                    duration = track.duration.toLong() * 1000
+                )
+            }
         }
         
         // Start notification service
@@ -444,33 +450,43 @@ object EnhancedMusicPlayerManager {
      * Play/pause toggle
      */
     fun togglePlayPause() {
-        player?.let {
-            if (it.isPlaying) {
-                it.pause()
-            } else {
-                it.play()
+        scope.launch {
+            player?.let {
+                if (it.isPlaying) {
+                    it.pause()
+                } else {
+                    it.play()
+                }
             }
         }
     }
     
     fun play() {
-        player?.play()
+        scope.launch {
+            player?.play()
+        }
     }
     
     fun pause() {
-        player?.pause()
+        scope.launch {
+            player?.pause()
+        }
     }
     
     fun stop() {
-        player?.stop()
-        _playerState.value = _playerState.value.copy(isPlaying = false)
+        scope.launch {
+            player?.stop()
+            _playerState.value = _playerState.value.copy(isPlaying = false)
+        }
     }
     
     /**
      * Seek to position in milliseconds
      */
     fun seekTo(positionMs: Long) {
-        player?.seekTo(positionMs)
+        scope.launch {
+            player?.seekTo(positionMs)
+        }
     }
     
     /**

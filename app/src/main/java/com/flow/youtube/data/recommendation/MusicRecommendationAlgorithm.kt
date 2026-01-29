@@ -7,6 +7,9 @@ import com.flow.youtube.data.local.ViewHistory
 import com.flow.youtube.data.music.PlaylistRepository
 import com.flow.youtube.innertube.YouTube
 import com.flow.youtube.innertube.models.SongItem
+import com.flow.youtube.innertube.models.AlbumItem
+import com.flow.youtube.innertube.models.PlaylistItem
+import com.flow.youtube.innertube.models.YTItem
 import com.flow.youtube.innertube.models.WatchEndpoint
 import com.flow.youtube.innertube.pages.HomePage
 import com.flow.youtube.ui.screens.music.MusicTrack
@@ -41,7 +44,8 @@ class MusicRecommendationAlgorithm @Inject constructor(
     private val likedVideosRepository: LikedVideosRepository,
     private val subscriptionRepository: com.flow.youtube.data.local.SubscriptionRepository,
     private val viewHistory: ViewHistory,
-    private val youTube: YouTube
+    private val youTube: YouTube,
+    private val cacheDao: com.flow.youtube.data.local.dao.CacheDao
 ) {
 
     companion object {
@@ -50,17 +54,101 @@ class MusicRecommendationAlgorithm @Inject constructor(
 
     /**
      * Loads the full Music Home experience, including dynamic sections.
+     *  INSTANT LOAD: Returns cached data immediately if available.
+     * Then refreshes from network in background (ViewModel handles flow/state).
      */
     suspend fun loadMusicHome(): List<MusicSection> = withContext(Dispatchers.IO) {
+        val cachedSections = cacheDao.getMusicHomeSections().firstOrNull()
+        if (cachedSections != null && cachedSections.isNotEmpty()) {
+            Log.d(TAG, "Loaded ${cachedSections.size} sections from cache")
+            // Deserialize and return immediately
+            val musicSections = cachedSections.map { entity ->
+                MusicSection(
+                    title = entity.title,
+                    subtitle = entity.subtitle,
+                    tracks = deserializeTracks(entity.tracksJson)
+                )
+            }
+            return@withContext musicSections
+        }
+
+        return@withContext fetchAndCacheHome()
+    }
+    
+    /**
+     * Force refresh content from network and update cache
+     */
+    suspend fun refreshMusicHome(): List<MusicSection> = withContext(Dispatchers.IO) {
+        fetchAndCacheHome()
+    }
+
+    private suspend fun fetchAndCacheHome(): List<MusicSection> {
         try {
             val homePage = youTube.home().getOrNull()
             if (homePage != null) {
-                return@withContext parseHomeSections(homePage)
+                val sections = parseHomeSections(homePage)
+                
+                // Cache them
+                val entities = sections.mapIndexed { index, section ->
+                    com.flow.youtube.data.local.entity.MusicHomeCacheEntity(
+                        sectionId = "section_$index",
+                        title = section.title,
+                        subtitle = section.subtitle,
+                        tracksJson = serializeTracks(section.tracks),
+                        orderBy = index
+                    )
+                }
+                cacheDao.clearMusicHomeCache()
+                cacheDao.insertMusicHomeSections(entities)
+                
+                return sections
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching Music Home", e)
         }
-        return@withContext emptyList()
+        return emptyList()
+    }
+
+    private fun serializeTracks(tracks: List<MusicTrack>): String {
+        val jsonArray = org.json.JSONArray()
+        tracks.forEach { track ->
+            val obj = org.json.JSONObject()
+            obj.put("id", track.videoId)
+            obj.put("title", track.title)
+            obj.put("artist", track.artist)
+            obj.put("thumb", track.thumbnailUrl)
+            obj.put("dur", track.duration)
+            obj.put("cid", track.channelId)
+            obj.put("views", track.views)
+            obj.put("album", track.album)
+            obj.put("expl", track.isExplicit)
+            jsonArray.put(obj)
+        }
+        return jsonArray.toString()
+    }
+    
+    private fun deserializeTracks(json: String): List<MusicTrack> {
+        val tracks = mutableListOf<MusicTrack>()
+        try {
+            val array = org.json.JSONArray(json)
+            for (i in 0 until array.length()) {
+                val obj = array.getJSONObject(i)
+                tracks.add(MusicTrack(
+                    videoId = obj.optString("id"),
+                    title = obj.optString("title"),
+                    artist = obj.optString("artist"),
+                    thumbnailUrl = obj.optString("thumb"),
+                    duration = obj.optInt("dur"),
+                    channelId = obj.optString("cid"),
+                    views = obj.optLong("views"),
+                    album = obj.optString("album"),
+                    isExplicit = obj.optBoolean("expl")
+                ))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error deserializing tracks", e)
+        }
+        return tracks
     }
 
     /**
@@ -76,7 +164,9 @@ class MusicRecommendationAlgorithm @Inject constructor(
                 val quickPicks = homePage.sections.find { 
                     it.title.contains("Quick picks", true) || 
                     it.title.contains("Start radio", true) ||
-                    it.title.contains("Mixed for you", true)
+                    it.title.contains("Mixed for you", true) ||
+                    it.title.contains("Recommended", true) ||
+                    it.title.contains("Listen again", true)
                 }
                 
                 if (quickPicks != null) {
@@ -165,7 +255,9 @@ class MusicRecommendationAlgorithm @Inject constructor(
 
     private fun parseHomeSections(homePage: HomePage): List<MusicSection> {
         return homePage.sections.mapNotNull { section ->
-            val tracks = section.items.filterIsInstance<SongItem>().map { mapSongItem(it) }
+            // Broaden filter to include Songs, Albums, Playlists
+            val tracks = section.items.mapNotNull { mapYTItem(it) }
+            
             if (tracks.isNotEmpty()) {
                 MusicSection(
                     title = section.title,
@@ -175,6 +267,34 @@ class MusicRecommendationAlgorithm @Inject constructor(
             } else {
                 null
             }
+        }
+    }
+
+    private fun mapYTItem(item: YTItem): MusicTrack? {
+        return when (item) {
+            is SongItem -> mapSongItem(item)
+            is AlbumItem -> MusicTrack(
+                videoId = item.id,
+                title = item.title,
+                artist = item.artists?.joinToString(", ") { it.name } ?: "",
+                thumbnailUrl = item.thumbnail,
+                duration = 0,
+                channelId = "",
+                views = 0L,
+                album = "Album",
+                isExplicit = item.explicit
+            )
+            is PlaylistItem -> MusicTrack(
+                videoId = item.id, // Playlist ID
+                title = item.title,
+                artist = item.author?.name ?: "",
+                thumbnailUrl = item.thumbnail ?: "",
+                duration = 0,
+                channelId = "",
+                views = 0L,
+                album = "Playlist"
+            )
+            else -> null
         }
     }
 

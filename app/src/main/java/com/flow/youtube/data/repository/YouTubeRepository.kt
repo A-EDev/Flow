@@ -1,13 +1,16 @@
 package com.flow.youtube.data.repository
 
 import com.flow.youtube.data.model.Video
+import com.flow.youtube.utils.PerformanceDispatcher
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
@@ -349,37 +352,92 @@ class YouTubeRepository @Inject constructor() {
     }
 
     /**
-     * Aggregate uploads from multiple channels, shuffle results and limit total items.
-     * Use parallel fetching for speed.
+     * PERFORMANCE OPTIMIZED: Aggregate uploads from multiple channels
+     * Uses SupervisorScope for error isolation - one failed channel doesn't break others
+     * Implements chunked parallel fetching to prevent overwhelming the network
      */
     suspend fun getVideosForChannels(
         channelIdsOrUrls: List<String>,
         perChannelLimit: Int = 5,
         totalLimit: Int = 50
-    ): List<Video> = withContext(Dispatchers.IO) {
+    ): List<Video> = withContext(PerformanceDispatcher.networkIO) {
         try {
-            // Use coroutineScope to enable concurrent execution
-            kotlinx.coroutines.coroutineScope {
-                val deferred = channelIdsOrUrls.map { id ->
-                    async { getChannelUploads(id, perChannelLimit) }
-                }
-                
+            // Use supervisorScope for error isolation
+            // If one channel fails, others continue fetching
+            supervisorScope {
+                // Process in chunks of 5 for optimal parallelism
+                // This prevents overwhelming the network while maintaining speed
+                val chunkSize = 5
                 val combined = mutableListOf<Video>()
-                deferred.forEach { 
-                    try {
-                        combined.addAll(it.await()) 
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
+                
+                channelIdsOrUrls.chunked(chunkSize).forEach { chunk ->
+                    val chunkResults = chunk.map { id ->
+                        async(PerformanceDispatcher.networkIO) {
+                            withTimeoutOrNull(15_000L) { // 15 second timeout per channel
+                                try {
+                                    getChannelUploads(id, perChannelLimit)
+                                } catch (e: Exception) {
+                                    Log.w("YouTubeRepository", "Channel fetch failed: ${e.message}")
+                                    emptyList()
+                                }
+                            } ?: emptyList()
+                        }
+                    }.awaitAll()
+                    
+                    chunkResults.forEach { combined.addAll(it) }
                 }
                 
                 // Shuffle to mix channels and then limit
-                val shuffled = combined.shuffled()
-                shuffled.take(totalLimit)
+                combined.shuffled().take(totalLimit)
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("YouTubeRepository", "getVideosForChannels failed: ${e.message}")
             emptyList()
+        }
+    }
+    
+    /**
+     * NEW: Parallel fetch of multiple search queries
+     * Executes all queries simultaneously for faster feed generation
+     */
+    suspend fun parallelSearchQueries(
+        queries: List<String>,
+        limitPerQuery: Int = 15
+    ): List<Video> = withContext(PerformanceDispatcher.networkIO) {
+        supervisorScope {
+            val results = queries.map { query ->
+                async(PerformanceDispatcher.networkIO) {
+                    withTimeoutOrNull(10_000L) {
+                        try {
+                            searchVideos(query).first.take(limitPerQuery)
+                        } catch (e: Exception) {
+                            Log.w("YouTubeRepository", "Search query '$query' failed: ${e.message}")
+                            emptyList()
+                        }
+                    } ?: emptyList()
+                }
+            }.awaitAll()
+            
+            results.flatten().distinctBy { it.id }
+        }
+    }
+    
+    /**
+     * NEW: Fast parallel prefetch for preloading content
+     * Returns results as they complete (not waiting for all)
+     */
+    suspend fun prefetchTrendingAndShorts(
+        region: String = "US"
+    ): Pair<List<Video>, List<Video>> = withContext(PerformanceDispatcher.networkIO) {
+        supervisorScope {
+            val trendingDeferred = async { 
+                withTimeoutOrNull(12_000L) { getTrendingVideos(region).first } ?: emptyList() 
+            }
+            val shortsDeferred = async { 
+                withTimeoutOrNull(10_000L) { getShorts().first } ?: emptyList() 
+            }
+            
+            Pair(trendingDeferred.await(), shortsDeferred.await())
         }
     }
 

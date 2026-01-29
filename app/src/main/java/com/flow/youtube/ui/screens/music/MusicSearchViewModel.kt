@@ -7,10 +7,12 @@ import com.flow.youtube.innertube.YouTube.SearchFilter
 import com.flow.youtube.innertube.models.SearchSuggestions
 import com.flow.youtube.innertube.models.YTItem
 import com.flow.youtube.innertube.pages.SearchSummaryPage
+import com.flow.youtube.utils.PerformanceDispatcher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 @OptIn(FlowPreview::class)
@@ -41,9 +43,16 @@ class MusicSearchViewModel @Inject constructor() : ViewModel() {
         }
     }
 
+    /**
+     *  PERFORMANCE OPTIMIZED: Fetch suggestions with timeout
+     */
     private fun fetchSuggestions(q: String) {
-        viewModelScope.launch {
-            YouTube.searchSuggestions(q).onSuccess { suggestions ->
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            val result = withTimeoutOrNull(5_000L) {
+                YouTube.searchSuggestions(q)
+            }
+            
+            result?.onSuccess { suggestions ->
                 _uiState.update { it.copy(
                     suggestions = suggestions.queries,
                     recommendedItems = suggestions.recommendedItems
@@ -52,42 +61,60 @@ class MusicSearchViewModel @Inject constructor() : ViewModel() {
         }
     }
 
+    /**
+     *  PERFORMANCE OPTIMIZED: Perform search with timeout protection
+     */
     fun performSearch(q: String = _query.value) {
         if (q.isBlank()) return
         
         _query.value = q
         _uiState.update { it.copy(isLoading = true, isSearching = true, activeFilter = null) }
         
-        viewModelScope.launch {
-            YouTube.searchSummary(q).onSuccess { summaryPage ->
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            val result = withTimeoutOrNull(15_000L) {
+                YouTube.searchSummary(q)
+            }
+            
+            result?.onSuccess { summaryPage ->
                 _uiState.update { state -> state.copy(
                     searchSummary = summaryPage,
                     isLoading = false,
                     isSearching = true
                 ) }
-            }.onFailure { throwable ->
+            }?.onFailure { throwable ->
                 _uiState.update { state -> state.copy(isLoading = false, error = throwable.message) }
+            } ?: run {
+                _uiState.update { state -> state.copy(isLoading = false, error = "Search timed out") }
             }
         }
     }
 
+    /**
+     *  PERFORMANCE OPTIMIZED: Apply filter with timeout protection
+     */
     fun applyFilter(filter: SearchFilter?) {
         val q = _query.value
         if (q.isBlank()) return
         
         _uiState.update { state -> state.copy(isLoading = true, activeFilter = filter) }
         
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
             if (filter == null) {
                 performSearch(q)
             } else {
-                YouTube.search(q, filter).onSuccess { result ->
+                val result = withTimeoutOrNull(12_000L) {
+                    YouTube.search(q, filter)
+                }
+                
+                result?.onSuccess { searchResult ->
                     _uiState.update { state -> state.copy(
-                        filteredResults = result.items,
+                        filteredResults = searchResult.items,
                         isLoading = false
                     ) }
-                }.onFailure { throwable ->
+                }?.onFailure { throwable ->
                     _uiState.update { state -> state.copy(isLoading = false, error = throwable.message) }
+                } ?: run {
+                    _uiState.update { state -> state.copy(isLoading = false, error = "Filter search timed out") }
                 }
             }
         }
@@ -98,9 +125,16 @@ class MusicSearchViewModel @Inject constructor() : ViewModel() {
         _uiState.value = MusicSearchUiState()
     }
 
+    /**
+     *  PERFORMANCE OPTIMIZED: Get artist tracks with timeout
+     */
     fun getArtistTracks(artistId: String, callback: (List<YTItem>) -> Unit) {
-        viewModelScope.launch {
-            YouTube.artist(artistId).onSuccess { artistPage ->
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            val result = withTimeoutOrNull(10_000L) {
+                YouTube.artist(artistId)
+            }
+            
+            result?.onSuccess { artistPage ->
                 val songsSection = artistPage.sections.find { it.title.contains("Songs", ignoreCase = true) }
                 if (songsSection != null) {
                     callback(songsSection.items)
@@ -123,3 +157,4 @@ data class MusicSearchUiState(
     val isSearching: Boolean = false,
     val error: String? = null
 )
+

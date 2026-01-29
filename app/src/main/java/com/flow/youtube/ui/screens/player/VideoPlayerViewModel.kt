@@ -13,9 +13,12 @@ import com.flow.youtube.data.repository.YouTubeRepository
 import com.flow.youtube.player.EnhancedPlayerManager
 import com.flow.youtube.innertube.YouTube
 import com.flow.youtube.innertube.models.YouTubeClient
+import com.flow.youtube.utils.PerformanceDispatcher
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.stream.*
 import com.flow.youtube.data.video.VideoDownloadManager
 import com.flow.youtube.data.video.DownloadedVideo
@@ -62,6 +65,10 @@ class VideoPlayerViewModel @Inject constructor(
         // Handled by Hilt
     }
     
+    /**
+     * PERFORMANCE OPTIMIZED: Load video info with aggressive parallel fetching
+     * Uses SupervisorScope for error isolation and optimized dispatcher for network operations
+     */
     fun loadVideoInfo(videoId: String, isWifi: Boolean = true) {
         val currentState = _uiState.value
         Log.d("VideoPlayerViewModel", "loadVideoInfo: Request=$videoId. Current=${currentState.streamInfo?.id}, IsLoading=${currentState.isLoading}")
@@ -101,49 +108,67 @@ class VideoPlayerViewModel @Inject constructor(
             dislikeCount = null
         )
         
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
             Log.d("VideoPlayerViewModel", "Starting loadVideoInfo for $videoId")
             try {
-                // Fetch dislikes in parallel without blocking main video load
-                launch {
-                    val count = fetchReturnYouTubeDislike(videoId)
-                    _uiState.value = _uiState.value.copy(dislikeCount = count)
+                // PARALLEL FETCH: Fetch dislikes, preferences, and downloaded status simultaneously
+                val parallelData = supervisorScope {
+                    val dislikesDeferred = async(PerformanceDispatcher.networkIO) {
+                        withTimeoutOrNull(5000L) { fetchReturnYouTubeDislike(videoId) }
+                    }
+                    
+                    val prefsDeferred = async(PerformanceDispatcher.diskIO) {
+                        val preferredQuality = if (isWifi) {
+                            playerPreferences.defaultQualityWifi.first()
+                        } else {
+                            playerPreferences.defaultQualityCellular.first()
+                        }
+                        preferredQuality
+                    }
+                    
+                    val downloadedDeferred = async(PerformanceDispatcher.diskIO) {
+                        videoDownloadManager.downloadedVideos.map { list -> 
+                            list.find { it.video.id == videoId } 
+                        }.first()
+                    }
+                    
+                    Triple(
+                        dislikesDeferred.await(),
+                        prefsDeferred.await(),
+                        downloadedDeferred.await()
+                    )
+                }
+                
+                val (dislikeCount, preferredQuality, downloadedVideo) = parallelData
+                
+                // Update dislikes immediately
+                dislikeCount?.let { 
+                    _uiState.value = _uiState.value.copy(dislikeCount = it)
                 }
 
                 kotlinx.coroutines.withTimeout(30_000) {
-                    // Determine preferred quality from preferences
-                    val preferredQuality = if (isWifi) {
-                        playerPreferences.defaultQualityWifi.first()
-                    } else {
-                        playerPreferences.defaultQualityCellular.first()
-                    }
-                    
                     Log.d("VideoPlayerViewModel", "Loading video $videoId with preferred quality: ${preferredQuality.label} (isWifi=$isWifi)")
-                    
-                    // Check if video is downloaded
-                    val downloadedVideo = videoDownloadManager.downloadedVideos.map { list -> 
-                        list.find { it.video.id == videoId } 
-                    }.first()
 
-                    val streamInfoDeferred = async { 
+                    // OPTIMIZED: Fetch stream info with retry and timeout
+                    val streamInfoDeferred = async(PerformanceDispatcher.networkIO) { 
                         var info: StreamInfo? = null
                         var attempt = 0
                         val maxAttempts = 3
                         while (info == null && attempt < maxAttempts) {
                             try {
                                 attempt++
-                                info = repository.getVideoStreamInfo(videoId)
+                                info = withTimeoutOrNull(10_000L) {
+                                    repository.getVideoStreamInfo(videoId)
+                                }
                                 
-                                if (info == null) { 
-                                     if (attempt < maxAttempts) {
-                                         Log.w("VideoPlayerViewModel", "Stream info fetch failed (attempt $attempt), retrying in ${attempt * 500}ms...")
-                                         delay(attempt * 500L) // Exponential backoff: 500ms, 1000ms
-                                     }
+                                if (info == null && attempt < maxAttempts) {
+                                    Log.w("VideoPlayerViewModel", "Stream info fetch failed (attempt $attempt), retrying in ${attempt * 300}ms...")
+                                    delay(attempt * 300L) // Faster backoff: 300ms, 600ms
                                 }
                             } catch (e: Exception) {
                                 Log.e("VideoPlayerViewModel", "Failed to load stream info (attempt $attempt)", e)
                                 if (attempt < maxAttempts) {
-                                    delay(attempt * 500L)
+                                    delay(attempt * 300L)
                                 }
                             }
                         }
@@ -223,68 +248,89 @@ class VideoPlayerViewModel @Inject constructor(
                             localFilePath = localFilePath
                         )
 
-                        // Fetch channel info asynchronously
-                        viewModelScope.launch {
-                            try {
-                                val channelUrl = streamInfo.uploaderUrl ?: ""
-                                if (channelUrl.isNotBlank()) {
-                                    val channelInfo = repository.getChannelInfo(channelUrl)
-                                    channelInfo?.let { ci ->
-                                        val subCount = try {
-                                            val method = ci::class.java.methods.firstOrNull { it.name.equals("getSubscriberCount", true) }
-                                            (method?.invoke(ci) as? Long) ?: 0L
-                                        } catch (ex: Exception) { 0L }
-                                        
-                                        val avatarUrl = try {
-                                            val thumbnailsMethod = ci::class.java.methods.firstOrNull { 
-                                                it.name.equals("getThumbnails", true) || it.name.equals("getAvatars", true)
+                        // PARALLEL FETCH: Channel info and stream sizes simultaneously
+                        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                            supervisorScope {
+                                // Fetch channel info
+                                val channelDeferred = async(PerformanceDispatcher.networkIO) {
+                                    withTimeoutOrNull(8000L) {
+                                        try {
+                                            val channelUrl = streamInfo.uploaderUrl ?: ""
+                                            if (channelUrl.isNotBlank()) {
+                                                val channelInfo = repository.getChannelInfo(channelUrl)
+                                                channelInfo?.let { ci ->
+                                                    val subCount = try {
+                                                        val method = ci::class.java.methods.firstOrNull { it.name.equals("getSubscriberCount", true) }
+                                                        (method?.invoke(ci) as? Long) ?: 0L
+                                                    } catch (ex: Exception) { 0L }
+                                                    
+                                                    val avatarUrl = try {
+                                                        val thumbnailsMethod = ci::class.java.methods.firstOrNull { 
+                                                            it.name.equals("getThumbnails", true) || it.name.equals("getAvatars", true)
+                                                        }
+                                                        val thumbnails = thumbnailsMethod?.invoke(ci) as? List<*>
+                                                        thumbnails?.firstOrNull()?.let { img ->
+                                                            val urlMethod = img::class.java.methods.firstOrNull { it.name.equals("getUrl", true) }
+                                                            urlMethod?.invoke(img) as? String
+                                                        } ?: ""
+                                                    } catch (ex: Exception) { "" }
+
+                                                    Pair(subCount, avatarUrl)
+                                                }
+                                            } else null
+                                        } catch (e: Exception) { 
+                                            Log.e("VideoPlayerViewModel", "Failed to fetch channel info", e)
+                                            null
+                                        }
+                                    }
+                                }
+
+                                // Fetch stream sizes
+                                val sizesDeferred = async(PerformanceDispatcher.networkIO) {
+                                    withTimeoutOrNull(8000L) {
+                                        try {
+                                            val playerResult = YouTube.player(videoId, client = YouTubeClient.MOBILE)
+                                            playerResult.getOrNull()?.let { playerResponse ->
+                                                val sizes = mutableMapOf<Int, Long>()
+                                                val bestAudioSize = playerResponse.streamingData?.adaptiveFormats
+                                                    ?.filter { it.isAudio }?.maxByOrNull { it.bitrate }?.contentLength ?: 0L
+                                                
+                                                playerResponse.streamingData?.formats?.forEach { format ->
+                                                    if (format.height != null && format.contentLength != null) {
+                                                        sizes[format.height] = format.contentLength
+                                                    }
+                                                }
+                                                playerResponse.streamingData?.adaptiveFormats?.forEach { format ->
+                                                    if (format.height != null && format.contentLength != null && !format.isAudio) {
+                                                        val totalSize = format.contentLength + bestAudioSize
+                                                        val currentSize = sizes[format.height] ?: 0L
+                                                        if (totalSize > currentSize) sizes[format.height] = totalSize
+                                                    }
+                                                }
+                                                sizes
                                             }
-                                            val thumbnails = thumbnailsMethod?.invoke(ci) as? List<*>
-                                            thumbnails?.firstOrNull()?.let { img ->
-                                                val urlMethod = img::class.java.methods.firstOrNull { it.name.equals("getUrl", true) }
-                                                urlMethod?.invoke(img) as? String
-                                            } ?: ""
-                                        } catch (ex: Exception) { "" }
-
-                                        _uiState.value = _uiState.value.copy(
-                                            channelSubscriberCount = subCount,
-                                            channelAvatarUrl = avatarUrl
-                                        )
+                                        } catch (e: Exception) {
+                                            Log.e("VideoPlayerViewModel", "Failed to fetch stream sizes", e)
+                                            null
+                                        }
                                     }
                                 }
-                            } catch (e: Exception) { 
-                                Log.e("VideoPlayerViewModel", "Failed to fetch channel info", e)
-                                _uiState.value = _uiState.value.copy(metadataError = "Channel info failed")
-                            }
-                        }
-
-                        // Fetch stream sizes
-                        viewModelScope.launch {
-                            try {
-                                val playerResult = YouTube.player(videoId, client = YouTubeClient.MOBILE)
-                                playerResult.onSuccess { playerResponse ->
-                                    val sizes = mutableMapOf<Int, Long>()
-                                    val bestAudioSize = playerResponse.streamingData?.adaptiveFormats
-                                        ?.filter { it.isAudio }?.maxByOrNull { it.bitrate }?.contentLength ?: 0L
-                                    
-                                    playerResponse.streamingData?.formats?.forEach { format ->
-                                        if (format.height != null && format.contentLength != null) {
-                                            sizes[format.height] = format.contentLength
-                                        }
-                                    }
-                                    playerResponse.streamingData?.adaptiveFormats?.forEach { format ->
-                                        if (format.height != null && format.contentLength != null && !format.isAudio) {
-                                            val totalSize = format.contentLength + bestAudioSize
-                                            val currentSize = sizes[format.height] ?: 0L
-                                            if (totalSize > currentSize) sizes[format.height] = totalSize
-                                        }
-                                    }
+                                
+                                // Await both and update UI
+                                val channelResult = channelDeferred.await()
+                                val sizesResult = sizesDeferred.await()
+                                
+                                channelResult?.let { (subCount, avatarUrl) ->
+                                    _uiState.value = _uiState.value.copy(
+                                        channelSubscriberCount = subCount,
+                                        channelAvatarUrl = avatarUrl
+                                    )
+                                }
+                                
+                                sizesResult?.let { sizes ->
                                     _uiState.value = _uiState.value.copy(streamSizes = sizes)
-                                }.onFailure { e ->
-                                    Log.e("VideoPlayerViewModel", "Failed to fetch stream sizes", e)
-                                    _uiState.value = _uiState.value.copy(metadataError = "Resolving stream sizes failed")
                                 }
-                            } catch (e: Exception) { }
+                            }
                         }
                     } else {
                         // Offline fallback

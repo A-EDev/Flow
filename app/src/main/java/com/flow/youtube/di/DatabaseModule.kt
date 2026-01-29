@@ -42,4 +42,9 @@ object DatabaseModule {
     fun provideNotificationDao(database: AppDatabase): NotificationDao {
         return database.notificationDao()
     }
+
+    @Provides
+    fun provideCacheDao(database: AppDatabase): com.flow.youtube.data.local.dao.CacheDao {
+        return database.cacheDao()
+    }
 }

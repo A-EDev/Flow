@@ -10,9 +10,12 @@ import com.flow.youtube.data.local.ViewHistory
 import com.flow.youtube.data.model.Channel
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.repository.YouTubeRepository
+import com.flow.youtube.utils.PerformanceDispatcher
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-// duplicate import removed
+import kotlinx.coroutines.async
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withTimeoutOrNull
 
 class SubscriptionsViewModel : ViewModel() {
     
@@ -24,40 +27,97 @@ class SubscriptionsViewModel : ViewModel() {
 
     // Repository to fetch feeds and video details
     private val ytRepository: YouTubeRepository = YouTubeRepository.getInstance()
+    private lateinit var cacheDao: com.flow.youtube.data.local.dao.CacheDao
     
     fun initialize(context: Context) {
         subscriptionRepository = SubscriptionRepository.getInstance(context)
         viewHistory = ViewHistory.getInstance(context)
+        cacheDao = com.flow.youtube.data.local.AppDatabase.getDatabase(context).cacheDao()
         
-        // Load subscriptions and then load feeds
-        viewModelScope.launch {
+        //  INSTANT LOAD: Observe the DB cache immediately
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            cacheDao.getSubscriptionFeed().collect { cachedFeed ->
+                if (cachedFeed.isNotEmpty()) {
+                    val videos = cachedFeed.map { entity ->
+                         Video(
+                            id = entity.videoId,
+                            title = entity.title,
+                            channelName = entity.channelName,
+                            channelId = entity.channelId,
+                            thumbnailUrl = entity.thumbnailUrl,
+                            duration = entity.duration,
+                            viewCount = entity.viewCount,
+                            uploadDate = entity.uploadDate,
+                            channelThumbnailUrl = entity.channelThumbnailUrl
+                        )
+                    }
+                    updateVideos(videos)
+                }
+            }
+        }
+        
+        //  BACKGROUND UPDATE: Smart network fetch
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
             subscriptionRepository.getAllSubscriptions().collect { subscriptions ->
                 val channels = subscriptions.map { sub ->
                     Channel(
                         id = sub.channelId,
                         name = sub.channelName,
                         thumbnailUrl = sub.channelThumbnail,
-                        subscriberCount = 0L, // We don't store this locally
+                        subscriberCount = 0L, 
                         isSubscribed = true
                     )
                 }
                 _uiState.update { it.copy(subscribedChannels = channels) }
 
-                // Fetch feeds for these channels
+                // Fetch feeds in background - Only fetch a random subset ("Smart Feed") to be fast
                 if (channels.isNotEmpty()) {
-                    _uiState.update { it.copy(isLoading = true) }
-                    val ids = channels.map { it.id }
-                    val videos = ytRepository.getVideosForChannels(ids, perChannelLimit = 4, totalLimit = 80)
-                    updateVideos(videos)
-                    _uiState.update { it.copy(isLoading = false) }
-                } else {
-                    _uiState.update { it.copy(recentVideos = emptyList(), shorts = emptyList()) }
+                    // Only show loading if we have NO cached data? 
+                    // No, let's show loading indicator non-intrusively or only if cache is empty
+                    // For now, we keep existing behavior but it finishes faster.
+                    
+                    supervisorScope {
+                         // Shuffle and take 15 channels for fast update
+                        val targetChannels = channels.shuffled().take(15).map { it.id }
+                        
+                        // We do this in background without blocking UI
+                        // If cache is empty, we might want to show loading
+                        if (_uiState.value.recentVideos.isEmpty()) {
+                             _uiState.update { it.copy(isLoading = true) }
+                        }
+                        
+                        val videos = withTimeoutOrNull(45_000L) {
+                            ytRepository.getVideosForChannels(targetChannels, perChannelLimit = 3, totalLimit = 40)
+                        } ?: emptyList()
+                        
+                        // Cache the results
+                        if (videos.isNotEmpty()) {
+                            val entities = videos.map { video ->
+                                com.flow.youtube.data.local.entity.SubscriptionFeedEntity(
+                                    videoId = video.id,
+                                    title = video.title,
+                                    channelName = video.channelName,
+                                    channelId = video.channelId,
+                                    thumbnailUrl = video.thumbnailUrl,
+                                    duration = video.duration,
+                                    viewCount = video.viewCount,
+                                    uploadDate = video.uploadDate,
+                                    channelThumbnailUrl = video.channelThumbnailUrl,
+                                    cachedAt = System.currentTimeMillis()
+                                )
+                            }
+                            launch(PerformanceDispatcher.diskIO) {
+                                cacheDao.insertSubscriptionFeed(entities)
+                            }
+                        }
+                        _uiState.update { it.copy(isLoading = false) }
+                    }
                 }
             }
         }
         
-        // Load recent videos from history (as a proxy for subscription feed)
-        viewModelScope.launch {
+        //  Load recent videos from history in parallel
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
             viewHistory.getAllHistory().collect { history ->
                 val videos = history.take(20).map { entry ->
                     Video(
@@ -116,7 +176,7 @@ class SubscriptionsViewModel : ViewModel() {
     }
     
     fun importNewPipeBackup(uri: android.net.Uri, context: Context) {
-        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
             try {
                 context.contentResolver.openInputStream(uri)?.use { inputStream ->
                     val jsonString = inputStream.bufferedReader().use { it.readText() }
@@ -176,22 +236,50 @@ class SubscriptionsViewModel : ViewModel() {
     }
 
     /**
-     * Manually refresh subscription feed
+     *  PERFORMANCE OPTIMIZED: Manually refresh subscription feed
+     * Updates cache on completion
      */
     fun refreshFeed() {
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
             val channels = _uiState.value.subscribedChannels
             if (channels.isEmpty()) return@launch
             _uiState.update { it.copy(isLoading = true) }
-            val ids = channels.map { it.id }
-            val videos = ytRepository.getVideosForChannels(ids, perChannelLimit = 6, totalLimit = 100)
-            updateVideos(videos)
-            _uiState.update { it.copy(isLoading = false) }
+            
+            supervisorScope {
+                // Refresh different set or all? Let's refresh a larger set on manual refresh
+                val targetChannels = channels.shuffled().take(30).map { it.id }
+                
+                val videos = withTimeoutOrNull(45_000L) {
+                    ytRepository.getVideosForChannels(targetChannels, perChannelLimit = 4, totalLimit = 80)
+                } ?: emptyList()
+                
+                if (videos.isNotEmpty()) {
+                    val entities = videos.map { video ->
+                        com.flow.youtube.data.local.entity.SubscriptionFeedEntity(
+                            videoId = video.id,
+                            title = video.title,
+                            channelName = video.channelName,
+                            channelId = video.channelId,
+                            thumbnailUrl = video.thumbnailUrl,
+                            duration = video.duration,
+                            viewCount = video.viewCount,
+                            uploadDate = video.uploadDate,
+                            channelThumbnailUrl = video.channelThumbnailUrl,
+                            cachedAt = System.currentTimeMillis()
+                        )
+                    }
+                    launch(PerformanceDispatcher.diskIO) {
+                        cacheDao.insertSubscriptionFeed(entities)
+                    }
+                }
+                
+                _uiState.update { it.copy(isLoading = false) }
+            }
         }
     }
 
     fun unsubscribe(channelId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
             subscriptionRepository.getSubscription(channelId).firstOrNull()?.let {
                 subscriptionRepository.unsubscribe(channelId)
                 // trigger refresh
@@ -215,7 +303,7 @@ class SubscriptionsViewModel : ViewModel() {
      * Subscribe a channel (used for undo)
      */
     fun subscribeChannel(channel: ChannelSubscription) {
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
             subscriptionRepository.subscribe(channel)
             // trigger refresh
             refreshFeed()
@@ -248,3 +336,4 @@ data class SubscriptionsUiState(
     val isLoading: Boolean = false,
     val isFullWidthView: Boolean = false
 )
+

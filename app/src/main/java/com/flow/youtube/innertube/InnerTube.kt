@@ -78,28 +78,35 @@ class InnerTube {
             deflate(0.8F)
         }
 
-        // Enhanced network configuration for better performance
+        // PERFORMANCE OPTIMIZED: Enhanced network configuration
         engine {
             config {
-                // Connection pool settings for better connection reuse
+                // Aggressive connection pool for faster connection reuse
                 connectionPool(
                     okhttp3.ConnectionPool(
-                        10, // maxIdleConnections
+                        15, // Increased from 10 - more connections available
                         5, // keepAliveDuration
                         java.util.concurrent.TimeUnit.MINUTES
                     )
                 )
                 
-                // Timeout configurations
-                connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
-                writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                // Faster timeout configurations - fail fast, retry smart
+                connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS) // Reduced from 30
+                readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)    // Reduced from 60
+                writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)   // Reduced from 60
+                callTimeout(45, java.util.concurrent.TimeUnit.SECONDS)    // Overall call limit
                 
-                // Enable HTTP/2 for better performance
+                // Enable HTTP/2 for multiplexing (parallel streams on single connection)
                 protocols(listOf(okhttp3.Protocol.HTTP_2, okhttp3.Protocol.HTTP_1_1))
                 
                 // Retry on connection failure
                 retryOnConnectionFailure(true)
+                
+                // High concurrency dispatcher
+                dispatcher(okhttp3.Dispatcher().apply {
+                    maxRequests = 48
+                    maxRequestsPerHost = 8
+                })
             }
             
             proxy?.let { proxy = this@InnerTube.proxy }
@@ -116,11 +123,11 @@ class InnerTube {
             }
         }
 
-        // Request timeout configuration
+        // OPTIMIZED: Faster request timeout configuration
         install(HttpTimeout) {
-            requestTimeoutMillis = 60000
-            connectTimeoutMillis = 30000
-            socketTimeoutMillis = 60000
+            requestTimeoutMillis = 45000  // Reduced from 60s
+            connectTimeoutMillis = 15000  // Reduced from 30s
+            socketTimeoutMillis = 30000   // Reduced from 60s
         }
 
         defaultRequest {

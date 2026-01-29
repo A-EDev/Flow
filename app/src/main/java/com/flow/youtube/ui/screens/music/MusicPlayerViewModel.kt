@@ -14,12 +14,16 @@ import java.util.UUID
 import com.flow.youtube.data.music.YouTubeMusicService
 import com.flow.youtube.player.EnhancedMusicPlayerManager
 import com.flow.youtube.player.RepeatMode
+import com.flow.youtube.utils.PerformanceDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withTimeoutOrNull
 
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -162,10 +166,31 @@ class MusicPlayerViewModel @Inject constructor(
         }
     }
 
+    /**
+     *  PERFORMANCE OPTIMIZED: Load and play track with parallel fetching
+     * Uses timeout protection for stream fetching
+     */
     fun loadAndPlayTrack(track: MusicTrack, queue: List<MusicTrack> = emptyList(), sourceName: String? = null) {
-        viewModelScope.launch {
-            // Add to history (Music specific)
-            playlistRepository.addToHistory(track)
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            // Add to history (Music specific) - parallel with main ViewHistory
+            supervisorScope {
+                launch(PerformanceDispatcher.diskIO) {
+                    playlistRepository.addToHistory(track)
+                }
+                
+                launch(PerformanceDispatcher.diskIO) {
+                    viewHistory.savePlaybackPosition(
+                        videoId = track.videoId,
+                        position = 0,
+                        duration = track.duration.toLong() * 1000,
+                        title = track.title,
+                        thumbnailUrl = track.thumbnailUrl,
+                        channelName = track.artist,
+                        channelId = "",
+                        isMusic = true
+                    )
+                }
+            }
             
             // Add to main ViewHistory
             viewHistory.savePlaybackPosition(
@@ -194,8 +219,10 @@ class MusicPlayerViewModel @Inject constructor(
             ) }
             
             try {
-                // Check if track is downloaded
-                val localPath = downloadManager.getDownloadedTrackPath(track.videoId)
+                // Check if track is downloaded (fast path)
+                val localPath = withTimeoutOrNull(2_000L) {
+                    downloadManager.getDownloadedTrackPath(track.videoId)
+                }
                 
                 if (localPath != null && java.io.File(localPath).exists()) {
                     // Play LOCAL track (progressive is fine here)
@@ -205,8 +232,11 @@ class MusicPlayerViewModel @Inject constructor(
                         queue = if (queue.isNotEmpty()) queue else listOf(track)
                     )
                 } else {
-                    // Optimized ONLINE PLAYBACK (DASH Manifest)
-                    val streamData = YouTubeMusicService.getBestAudioStream(track.videoId)
+                    //  OPTIMIZED: Online playback with timeout protection
+                    val streamData = withTimeoutOrNull(10_000L) {
+                        YouTubeMusicService.getBestAudioStream(track.videoId)
+                    }
+                    
                     if (streamData != null) {
                         EnhancedMusicPlayerManager.playTrack(
                             track = track,
@@ -216,7 +246,9 @@ class MusicPlayerViewModel @Inject constructor(
                         )
                     } else {
                         // Fallback to old progressive if everything fails
-                        val audioUrl = YouTubeMusicService.getAudioUrl(track.videoId)
+                        val audioUrl = withTimeoutOrNull(8_000L) {
+                            YouTubeMusicService.getAudioUrl(track.videoId)
+                        }
                         if (audioUrl != null) {
                             EnhancedMusicPlayerManager.playTrack(
                                 track = track,
@@ -227,16 +259,24 @@ class MusicPlayerViewModel @Inject constructor(
                     }
                 }
                 
-                // Fetch related content for the RELATED tab
-                fetchRelatedContent(track.videoId)
-                
-                // Only fetch related tracks if we don't have a substantial queue already
-                // This prevents resetting the queue when navigating within a playlist/search results
-                if (queue.size <= 1) {
-                    val relatedTracks = YouTubeMusicService.getRelatedMusic(track.videoId, 20)
-                    if (relatedTracks.isNotEmpty()) {
-                        EnhancedMusicPlayerManager.updateQueue(listOf(track) + relatedTracks)
-                        _uiState.update { it.copy(autoplaySuggestions = relatedTracks) }
+                //  PARALLEL: Fetch related content and queue update simultaneously
+                supervisorScope {
+                    launch(PerformanceDispatcher.networkIO) {
+                        fetchRelatedContent(track.videoId)
+                    }
+                    
+                    // Only fetch related tracks if we don't have a substantial queue already
+                    if (queue.size <= 1) {
+                        launch(PerformanceDispatcher.networkIO) {
+                            val relatedTracks = withTimeoutOrNull(8_000L) {
+                                YouTubeMusicService.getRelatedMusic(track.videoId, 20)
+                            } ?: emptyList()
+                            
+                            if (relatedTracks.isNotEmpty()) {
+                                EnhancedMusicPlayerManager.updateQueue(listOf(track) + relatedTracks)
+                                _uiState.update { it.copy(autoplaySuggestions = relatedTracks) }
+                            }
+                        }
                     }
                 }
                 
@@ -270,19 +310,22 @@ class MusicPlayerViewModel @Inject constructor(
         _uiState.update { it.copy(autoplayEnabled = !it.autoplayEnabled) }
     }
 
+    /**
+     *  PERFORMANCE OPTIMIZED: Set filter with timeout protection
+     */
     fun setFilter(filter: String) {
         val currentTrack = _uiState.value.currentTrack ?: return
         _uiState.update { it.copy(selectedFilter = filter, isLoading = true) }
         
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
-                // In a real app, we'd pass the filter to the service
-                // For now, we'll fetch fresh related tracks and shuffle them differently based on filter
-                val freshRelated = YouTubeMusicService.getRelatedMusic(currentTrack.videoId, 25)
+                val freshRelated = withTimeoutOrNull(10_000L) {
+                    YouTubeMusicService.getRelatedMusic(currentTrack.videoId, 25)
+                } ?: emptyList()
                 
                 val filteredList = when (filter) {
                     "Discover" -> freshRelated.shuffled().take(20)
-                    "Popular" -> freshRelated.sortedByDescending { it.title.length }.take(20) // Mock popular
+                    "Popular" -> freshRelated.sortedByDescending { it.title.length }.take(20)
                     "Deep cuts" -> freshRelated.reversed().take(20)
                     "Workout" -> freshRelated.filter { it.title.contains("remix", ignoreCase = true) || true }.shuffled()
                     else -> freshRelated
@@ -293,7 +336,6 @@ class MusicPlayerViewModel @Inject constructor(
                     isLoading = false
                 ) }
                 
-                // Update the queue: Current track + filtered suggestions
                 EnhancedMusicPlayerManager.updateQueue(listOf(currentTrack) + filteredList)
             } catch (e: Exception) {
                 _uiState.update { it.copy(isLoading = false) }
@@ -347,11 +389,17 @@ class MusicPlayerViewModel @Inject constructor(
         }
     }
 
+    /**
+     *  PERFORMANCE OPTIMIZED: Fetch related content with timeout
+     */
     fun fetchRelatedContent(videoId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
             _uiState.update { it.copy(isRelatedLoading = true) }
             try {
-                val related = YouTubeMusicService.getRelatedMusic(videoId, 20)
+                val related = withTimeoutOrNull(10_000L) {
+                    YouTubeMusicService.getRelatedMusic(videoId, 20)
+                } ?: emptyList()
+                
                 _uiState.update { it.copy(
                     relatedContent = related,
                     isRelatedLoading = false
@@ -377,7 +425,7 @@ class MusicPlayerViewModel @Inject constructor(
     fun toggleLike() {
         val currentTrack = _uiState.value.currentTrack ?: return
         
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
             // Toggle in PlaylistRepository (Music specific)
             val isNowFavorite = playlistRepository.toggleFavorite(currentTrack)
             _uiState.update { it.copy(isLiked = isNowFavorite) }
@@ -447,6 +495,9 @@ class MusicPlayerViewModel @Inject constructor(
         Toast.makeText(context, "Added to queue", Toast.LENGTH_SHORT).show()
     }
     
+    /**
+     *  PERFORMANCE OPTIMIZED: Download track with timeout protection
+     */
     fun downloadTrack(track: MusicTrack? = null) {
         val trackToDownload = track ?: _uiState.value.currentTrack ?: return
         
@@ -455,12 +506,14 @@ class MusicPlayerViewModel @Inject constructor(
              return
         }
 
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
             Toast.makeText(context, "Download started...", Toast.LENGTH_SHORT).show()
             
-            // Get audio URL first
             try {
-                val audioUrl = YouTubeMusicService.getAudioUrl(trackToDownload.videoId)
+                val audioUrl = withTimeoutOrNull(10_000L) {
+                    YouTubeMusicService.getAudioUrl(trackToDownload.videoId)
+                }
+                
                 if (audioUrl != null) {
                     val result = downloadManager.downloadTrack(trackToDownload, audioUrl)
                     if (result.isSuccess) {

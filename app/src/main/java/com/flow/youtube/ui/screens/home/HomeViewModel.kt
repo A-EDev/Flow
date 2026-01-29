@@ -9,6 +9,7 @@ import com.flow.youtube.data.local.ViewHistory
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.repository.YouTubeRepository
 import com.flow.youtube.data.shorts.ShortsRepository
+import com.flow.youtube.utils.PerformanceDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +18,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.Page
 
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -110,10 +113,13 @@ class HomeViewModel @Inject constructor(
     }
 
     /**
-     * MAIN FEED LOADER (The Smart Algo)
-     * Uses "Parallel Fetch" to create a massive initial pool (~60-100 videos)
+     * PERFORMANCE OPTIMIZED: MAIN FEED LOADER (The Smart Algo)
+     * Uses "Parallel Fetch" with SupervisorScope to create a massive initial pool (~60-100 videos)
      * 
-     * Now includes:
+     * V5 Performance Updates:
+     * - SupervisorScope: Error isolation - one failed fetch doesn't break others
+     * - Optimized networkIO dispatcher: Better thread pool management
+     * - Timeout protection: Each fetch has independent timeout
      * - Bridge queries (topic combinations)
      * - Persona-based suffixes
      * - Anti-gravity exploration
@@ -124,7 +130,7 @@ class HomeViewModel @Inject constructor(
         
         _uiState.update { it.copy(isLoading = true, error = null) }
         
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
                 // 1. Generate Brain Queries (now includes Bridge, Persona, Anti-Gravity)
                 discoveryQueries.clear()
@@ -134,71 +140,95 @@ class HomeViewModel @Inject constructor(
                 val userSubs = subscriptionRepository.getAllSubscriptionIds()
                 val region = "US" // Default to US for broader trending, or use user pref
 
-                // 2. PARALLEL FETCH (The "Wall of Content")
+                // 2. PARALLEL FETCH with SupervisorScope (The "Wall of Content")
                 // We launch multiple async tasks to get content from everywhere at once.
+                // SupervisorScope ensures one failure doesn't cancel others.
                 
-                val deferredSubs = async { 
-                    try {
-                        if (userSubs.isNotEmpty()) {
-                            val raw = repository.getSubscriptionFeed(userSubs.toList())
-                            raw.filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
-                        } else emptyList()
-                    } catch (e: Exception) { emptyList() }
-                }
+                val results = supervisorScope {
+                    val deferredSubs = async(PerformanceDispatcher.networkIO) { 
+                        withTimeoutOrNull(15_000L) {
+                            try {
+                                if (userSubs.isNotEmpty()) {
+                                    val raw = repository.getSubscriptionFeed(userSubs.toList())
+                                    raw.filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
+                                } else emptyList()
+                            } catch (e: Exception) { emptyList() }
+                        } ?: emptyList()
+                    }
 
-                val deferredQ1 = async {
-                    try {
-                        val q = discoveryQueries.getOrNull(0) ?: "Science"
-                        repository.searchVideos(q).first
-                            .filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
-                    } catch (e: Exception) { emptyList() }
-                }
+                    val deferredQ1 = async(PerformanceDispatcher.networkIO) {
+                        withTimeoutOrNull(10_000L) {
+                            try {
+                                val q = discoveryQueries.getOrNull(0) ?: "Science"
+                                repository.searchVideos(q).first
+                                    .filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
+                            } catch (e: Exception) { emptyList() }
+                        } ?: emptyList()
+                    }
 
-                val deferredQ2 = async {
-                    try {
-                        val q = discoveryQueries.getOrNull(1) ?: "Gaming"
-                        repository.searchVideos(q).first
-                             .filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
-                    } catch (e: Exception) { emptyList() }
-                }
-                
-                val deferredTrending = async {
-                    try {
-                         // Still fetch trending as a solid base
-                         repository.getTrendingVideos(region).first
-                             .filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
-                    } catch (e: Exception) { emptyList() }
-                }
-                
-                // ============================================================
-                // STRATEGY 3: RECURSIVE RELATED VIDEOS (The "Infinite Content" Booster)
-                // Fetch related videos from the user's watch history
-                // ============================================================
-                val deferredRelated = async {
-                    try {
-                        val history = viewHistory?.getAllHistory()?.first() ?: emptyList()
-                        if (history.isNotEmpty()) {
-                            // Get related videos from the most recently watched video
-                            val lastWatchedId = history.first().videoId
-                            repository.getRelatedVideos(lastWatchedId)
-                                .filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
-                                .take(15) // Limit to prevent overloading
-                        } else emptyList()
-                    } catch (e: Exception) { emptyList() }
-                }
+                    val deferredQ2 = async(PerformanceDispatcher.networkIO) {
+                        withTimeoutOrNull(10_000L) {
+                            try {
+                                val q = discoveryQueries.getOrNull(1) ?: "Gaming"
+                                repository.searchVideos(q).first
+                                     .filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
+                            } catch (e: Exception) { emptyList() }
+                        } ?: emptyList()
+                    }
+                    
+                    val deferredQ3 = async(PerformanceDispatcher.networkIO) {
+                        withTimeoutOrNull(10_000L) {
+                            try {
+                                val q = discoveryQueries.getOrNull(2) ?: "Technology"
+                                repository.searchVideos(q).first
+                                     .filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
+                            } catch (e: Exception) { emptyList() }
+                        } ?: emptyList()
+                    }
+                    
+                    val deferredTrending = async(PerformanceDispatcher.networkIO) {
+                        withTimeoutOrNull(12_000L) {
+                            try {
+                                 // Still fetch trending as a solid base
+                                 repository.getTrendingVideos(region).first
+                                     .filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
+                            } catch (e: Exception) { emptyList() }
+                        } ?: emptyList()
+                    }
+                    
+                    // STRATEGY 3: RECURSIVE RELATED VIDEOS (The "Infinite Content" Booster)
+                    // Fetch related videos from the user's watch history
+                    val deferredRelated = async(PerformanceDispatcher.networkIO) {
+                        withTimeoutOrNull(10_000L) {
+                            try {
+                                val history = viewHistory?.getAllHistory()?.first() ?: emptyList()
+                                if (history.isNotEmpty()) {
+                                    // Get related videos from the most recently watched video
+                                    val lastWatchedId = history.first().videoId
+                                    repository.getRelatedVideos(lastWatchedId)
+                                        .filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
+                                        .take(15) // Limit to prevent overloading
+                                } else emptyList()
+                            } catch (e: Exception) { emptyList() }
+                        } ?: emptyList()
+                    }
 
-                // 3. Await All
-                val subsVideos = deferredSubs.await()
-                val q1Videos = deferredQ1.await()
-                val q2Videos = deferredQ2.await()
-                val trendingVideos = deferredTrending.await()
-                val relatedVideos = deferredRelated.await()
+                    // 3. Await All - SupervisorScope ensures all complete even if one fails
+                    listOf(
+                        deferredSubs.await(),
+                        deferredQ1.await(),
+                        deferredQ2.await(),
+                        deferredQ3.await(),
+                        deferredTrending.await(),
+                        deferredRelated.await()
+                    ).flatten()
+                }
                 
-                // Bump index since we used 0 and 1
-                currentQueryIndex = 2
+                // Bump index since we used 0, 1, 2
+                currentQueryIndex = 3
                 
                 // Combine ALL sources including recursive related videos
-                val rawPool = (subsVideos + q1Videos + q2Videos + trendingVideos + relatedVideos).distinctBy { it.id }
+                val rawPool = results.distinctBy { it.id }
                 
                 if (rawPool.isEmpty()) {
                     loadTrendingFallback()
@@ -213,7 +243,7 @@ class HomeViewModel @Inject constructor(
                     lastWatchedTopics = sessionWatchedTopics.takeLast(10)
                 )
                 
-                // 5. UPDATE UI
+                // 5. UPDATE UI (on Main thread)
                 _uiState.update { it.copy(
                     videos = rankedVideos, 
                     isLoading = false,
@@ -231,8 +261,9 @@ class HomeViewModel @Inject constructor(
     }
     
     /**
-     * INFINITE SCROLL LOADER (The "Keep Digging" Fix)
+     * PERFORMANCE OPTIMIZED: INFINITE SCROLL LOADER
      * Fetches NEW topics instead of just paging old ones.
+     * Uses optimized dispatcher and timeout protection.
      */
     fun loadMoreVideos() {
         if (isLoadingMore) return
@@ -240,7 +271,7 @@ class HomeViewModel @Inject constructor(
         isLoadingMore = true
         _uiState.update { it.copy(isLoadingMore = true) }
         
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
                 // 1. Get next query
                 val nextQuery = discoveryQueries.getOrNull(currentQueryIndex++) ?: run {
@@ -249,8 +280,11 @@ class HomeViewModel @Inject constructor(
                      discoveryQueries.getOrNull(0) ?: "Viral"
                 }
 
-                // 2. Fetch
-                val (newVideos, _) = repository.searchVideos(nextQuery)
+                // 2. Fetch with timeout protection
+                val newVideos = withTimeoutOrNull(15_000L) {
+                    repository.searchVideos(nextQuery).first
+                } ?: emptyList()
+                
                 val filtered = newVideos.filter { !it.isShort && ((it.duration > 80) || (it.duration == 0 && it.isLive)) }
                 
                 if (filtered.isNotEmpty()) {

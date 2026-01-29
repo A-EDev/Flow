@@ -12,10 +12,12 @@ import com.flow.youtube.data.local.ChannelSubscription
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.paging.ChannelVideosPagingSource
 import com.flow.youtube.data.paging.ChannelPlaylistsPagingSource
+import com.flow.youtube.utils.PerformanceDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.StreamingService
 import org.schabi.newpipe.extractor.channel.ChannelInfo
@@ -53,13 +55,16 @@ class ChannelViewModel : ViewModel() {
         }
     }
     
+    /**
+     *  PERFORMANCE OPTIMIZED: Load channel with timeout protection
+     */
     fun loadChannel(channelUrl: String) {
         if (channelUrl.isBlank()) {
             _uiState.update { it.copy(error = "Invalid channel URL", isLoading = false) }
             return
         }
         
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
             _uiState.update { it.copy(isLoading = true, error = null) }
             
             try {
@@ -69,9 +74,21 @@ class ChannelViewModel : ViewModel() {
                 val normalizedUrl = normalizeChannelUrl(channelUrl)
                 Log.d(TAG, "Normalized URL: $normalizedUrl")
                 
-                val channelInfo = withContext(Dispatchers.IO) {
-                    // Use NewPipe to fetch channel info
-                    ChannelInfo.getInfo(NewPipe.getService(0), normalizedUrl)
+                val channelInfo = withTimeoutOrNull(20_000L) {
+                    withContext(PerformanceDispatcher.networkIO) {
+                        // Use NewPipe to fetch channel info
+                        ChannelInfo.getInfo(NewPipe.getService(0), normalizedUrl)
+                    }
+                }
+                
+                if (channelInfo == null) {
+                    _uiState.update { 
+                        it.copy(
+                            error = "Channel loading timed out",
+                            isLoading = false
+                        )
+                    }
+                    return@launch
                 }
                 
                 Log.d(TAG, "Channel loaded: ${channelInfo.name}")
@@ -125,12 +142,15 @@ class ChannelViewModel : ViewModel() {
         return "https://www.youtube.com/channel/$url"
     }
     
+    /**
+     *  PERFORMANCE OPTIMIZED: Load channel tabs with optimized dispatcher
+     */
     private fun loadChannelTabs(channelInfo: ChannelInfo) {
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
                 _uiState.update { it.copy(isLoadingVideos = true) }
                 
-                withContext(Dispatchers.IO) {
+                withContext(PerformanceDispatcher.networkIO) {
                     // Find the tabs
                     for (tab in channelInfo.tabs) {
                         try {
@@ -237,7 +257,7 @@ class ChannelViewModel : ViewModel() {
     }
     
     private fun loadSubscriptionState(channelId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
             subscriptionRepository?.isSubscribed(channelId)?.collect { isSubscribed ->
                 _uiState.update { it.copy(isSubscribed = isSubscribed) }
             }
@@ -245,7 +265,7 @@ class ChannelViewModel : ViewModel() {
     }
     
     fun toggleSubscription() {
-        viewModelScope.launch {
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
             val state = _uiState.value
             val channelId = state.channelId ?: return@launch
             val channelName = state.channelInfo?.name ?: return@launch
@@ -287,3 +307,4 @@ data class ChannelUiState(
     val isSubscribed: Boolean = false,
     val selectedTab: Int = 0 // 0: Videos, 1: Shorts, 2: Playlists, 3: About
 )
+
