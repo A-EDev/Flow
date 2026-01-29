@@ -40,6 +40,9 @@ class PlayerPreferences(private val context: Context) {
         val DOWNLOAD_OVER_WIFI_ONLY = booleanPreferencesKey("download_over_wifi_only")
         val DEFAULT_DOWNLOAD_QUALITY = stringPreferencesKey("default_download_quality")
         val SURFACE_READY_TIMEOUT_MS = longPreferencesKey("surface_ready_timeout_ms")
+        
+        // Audio track preference
+        val PREFERRED_AUDIO_LANGUAGE = stringPreferencesKey("preferred_audio_language")
     }
     
     // Region preference
@@ -145,6 +148,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setPreferredSubtitleLanguage(language: String) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.PREFERRED_SUBTITLE_LANGUAGE] = language
+        }
+    }
+    
+    // Audio Language Preference
+    val preferredAudioLanguage: Flow<String> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.PREFERRED_AUDIO_LANGUAGE] ?: "original" // Default to original/native
+        }
+    
+    suspend fun setPreferredAudioLanguage(language: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PREFERRED_AUDIO_LANGUAGE] = language
         }
     }
     

@@ -123,7 +123,8 @@ class VideoPlayerViewModel @Inject constructor(
                         } else {
                             playerPreferences.defaultQualityCellular.first()
                         }
-                        preferredQuality
+                        val preferredAudioLang = playerPreferences.preferredAudioLanguage.first()
+                        Pair(preferredQuality, preferredAudioLang)
                     }
                     
                     val downloadedDeferred = async(PerformanceDispatcher.diskIO) {
@@ -139,7 +140,9 @@ class VideoPlayerViewModel @Inject constructor(
                     )
                 }
                 
-                val (dislikeCount, preferredQuality, downloadedVideo) = parallelData
+                val (dislikeCount, qualityAndAudioPrefs, downloadedVideo) = parallelData
+                val preferredQuality = qualityAndAudioPrefs.first
+                val preferredAudioLanguage = qualityAndAudioPrefs.second
                 
                 // Update dislikes immediately
                 dislikeCount?.let { 
@@ -214,7 +217,7 @@ class VideoPlayerViewModel @Inject constructor(
                         // Don't force a specific quality - DASH will start low and scale up automatically
                         val initialQuality = preferredQuality
                         
-                        val selectedStreams = selectStreams(streamInfo, initialQuality)
+                        val selectedStreams = selectStreams(streamInfo, initialQuality, preferredAudioLanguage)
                         var localFilePath: String? = null
                         
                         // If downloaded, override with local path
@@ -582,16 +585,41 @@ class VideoPlayerViewModel @Inject constructor(
     
     private fun selectStreams(
         streamInfo: StreamInfo,
-        preferredQuality: VideoQuality
+        preferredQuality: VideoQuality,
+        preferredAudioLanguage: String = "original"
     ): Triple<VideoStream?, AudioStream?, VideoQuality> {
         val audioCandidates = streamInfo.audioStreams
             .distinctBy { it.url ?: "" }
             .sortedByDescending { it.bitrate }
-
-        val audioStream = audioCandidates.firstOrNull { a ->
-            val lang = a.audioLocale?.language ?: ""
-            lang.startsWith("en", true)
-        } ?: audioCandidates.firstOrNull()
+        
+        // Select audio based on preference:
+        val audioStream = when (preferredAudioLanguage) {
+            "original" -> {
+                // First, try to find the ORIGINAL track type (native language)
+                audioCandidates.firstOrNull { stream ->
+                    stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
+                }
+                // If no ORIGINAL track found, find non-DUBBED track (likely original)
+                ?: audioCandidates.firstOrNull { stream ->
+                    stream.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED
+                }
+                // Fallback to first available
+                ?: audioCandidates.firstOrNull()
+            }
+            else -> {
+                // User prefers a specific language
+                audioCandidates.firstOrNull { a ->
+                    val lang = a.audioLocale?.language ?: ""
+                    lang.startsWith(preferredAudioLanguage, true)
+                }
+                // If preferred language not available, try ORIGINAL track
+                ?: audioCandidates.firstOrNull { stream ->
+                    stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
+                }
+                // Fallback to first available
+                ?: audioCandidates.firstOrNull()
+            }
+        }
         
         val allVideoStreams = (streamInfo.videoStreams + streamInfo.videoOnlyStreams)
             .filterIsInstance<VideoStream>()
