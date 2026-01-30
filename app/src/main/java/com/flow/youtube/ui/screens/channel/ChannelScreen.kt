@@ -219,7 +219,6 @@ private fun ChannelContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .offset(y = (-32).dp) // Overlap banner
             ) {
                 Row(
                     verticalAlignment = Alignment.Bottom

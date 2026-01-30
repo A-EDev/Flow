@@ -102,7 +102,7 @@ fun DraggablePlayerLayout(
                     .background(Color.Black)
             ) {
                 videoContent(Modifier.fillMaxSize())
-                
+            }  
                 
             return@BoxWithConstraints
         }
