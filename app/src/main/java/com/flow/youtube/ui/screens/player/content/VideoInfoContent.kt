@@ -53,6 +53,7 @@ fun VideoInfoContent(
         subscriberCount = uiState.channelSubscriberCount,
         isSubscribed = uiState.isSubscribed,
         likeState = uiState.likeState ?: "NONE",
+        likeCount = uiState.streamInfo?.likeCount ?: video.likeCount,
         dislikeCount = uiState.dislikeCount,
         onLikeClick = {
             val streamInfo = uiState.streamInfo

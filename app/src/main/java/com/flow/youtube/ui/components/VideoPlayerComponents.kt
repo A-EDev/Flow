@@ -53,6 +53,7 @@ fun VideoInfoSection(
     subscriberCount: Long?,
     isSubscribed: Boolean,
     likeState: String,
+    likeCount: Long? = null,
     dislikeCount: Long?,
     onSubscribeClick: () -> Unit,
     onChannelClick: () -> Unit,
@@ -180,6 +181,7 @@ fun VideoInfoSection(
         // ============ ACTION ROW ============
         VideoActionRow(
             likeState = likeState,
+            likeCount = likeCount,
             dislikeCount = dislikeCount,
             onLikeClick = onLikeClick,
             onDislikeClick = onDislikeClick,
@@ -324,6 +326,7 @@ fun SubscribeButton(
 @Composable
 fun VideoActionRow(
     likeState: String,
+    likeCount: Long? = null,
     dislikeCount: Long?,
     onLikeClick: () -> Unit,
     onDislikeClick: () -> Unit,
@@ -338,6 +341,7 @@ fun VideoActionRow(
         item {
             SegmentedLikeDislikeButton(
                 likeState = likeState,
+                likeCount = likeCount,
                 dislikeCount = dislikeCount,
                 onLikeClick = onLikeClick,
                 onDislikeClick = onDislikeClick
@@ -368,19 +372,13 @@ fun VideoActionRow(
             )
         }
         
-        item {
-            ActionChip(
-                icon = Icons.Outlined.Flag,
-                label = "Report",
-                onClick = { /* Report */ }
-            )
-        }
     }
 }
 
 @Composable
 fun SegmentedLikeDislikeButton(
     likeState: String,
+    likeCount: Long? = null,
     dislikeCount: Long?,
     onLikeClick: () -> Unit,
     onDislikeClick: () -> Unit
@@ -405,8 +403,12 @@ fun SegmentedLikeDislikeButton(
                     tint = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.width(6.dp))
+                val likeText = if (likeCount != null && likeCount > 0) {
+                    formatViewCount(likeCount) 
+                } else if (likeState == "LIKED") "Liked" else "Like"
+                
                 Text(
-                    text = if (likeState == "LIKED") "Liked" else "Like",
+                    text = likeText,
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurface
                 )

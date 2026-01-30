@@ -141,7 +141,9 @@ fun Modifier.videoPlayerControls(
             var totalDragX = 0f
             var isDraggingVertical = false
             var isDraggingHorizontal = false
-            val dragThreshold = 50f // Lower threshold for better responsiveness
+            var shouldIgnoreGesture = false 
+            val dragThreshold = 50f 
+            val edgeIgnoreThreshold = 120f 
 
             if (currentIsFullscreen) {
                 detectDragGestures(
@@ -151,12 +153,20 @@ fun Modifier.videoPlayerControls(
                         isDraggingVertical = false
                         isDraggingHorizontal = false
                         
+                        val distanceFromTop = offset.y
+                        val distanceFromBottom = elementSize.height - offset.y
+                        
+                        shouldIgnoreGesture = distanceFromTop < edgeIgnoreThreshold || 
+                                             distanceFromBottom < edgeIgnoreThreshold
+                        
+                        if (shouldIgnoreGesture) return@detectDragGestures
+
                         val screenWidth = elementSize.width
                         val isEdge = offset.x < screenWidth * 0.2f || offset.x > screenWidth * 0.8f
                         
-                        // Hint visuals if needed
                     },
                     onDragEnd = {
+                        shouldIgnoreGesture = false
                         scope.launch {
                             delay(500) // Delay hiding controls
                             currentOnShowBrightnessChange(false)
@@ -166,6 +176,7 @@ fun Modifier.videoPlayerControls(
                         isDraggingHorizontal = false
                     },
                     onDragCancel = {
+                        shouldIgnoreGesture = false
                         scope.launch {
                             currentOnShowBrightnessChange(false)
                             currentOnShowVolumeChange(false)
@@ -174,11 +185,12 @@ fun Modifier.videoPlayerControls(
                         isDraggingHorizontal = false
                     },
                     onDrag = { change, dragAmount ->
+                        if (shouldIgnoreGesture) return@detectDragGestures
+                        
                         change.consume()
                         totalDragX += dragAmount.x
                         totalDragY += dragAmount.y
                         
-                        // Determine direction if not yet established
                         if (!isDraggingVertical && !isDraggingHorizontal) {
                             if (abs(totalDragY) > dragThreshold && abs(totalDragY) > abs(totalDragX)) {
                                 isDraggingVertical = true
@@ -195,9 +207,7 @@ fun Modifier.videoPlayerControls(
                              if (screenHeight > 0) {
                                  if (dragPosition < screenWidth / 2) {
                                      // Left side - brightness
-                                     // Invert dragAmount for natural scrolling (Up = increase brightness)
-                                     // dy is positive when going down. So -dy to increase.
-                                     val sensitivity = 1.5f // Multiplier
+                                     val sensitivity = 1.5f 
                                      val delta = -dragAmount.y / screenHeight * sensitivity
                                      
                                      val newBrightness = (currentBrightnessLevel + delta).coerceIn(0f, 1f)
@@ -229,12 +239,9 @@ fun Modifier.videoPlayerControls(
                                  }
                              }
                         } else if (isDraggingHorizontal) {
-                            // Horizontal Seek (Swipe)
-                            // Every X pixels -> Seek Y seconds
-                            // Simple implementation: Threshold based triggering
-                            // Or accumulating
+                            // Horizontal Seek 
                             
-                            val seekSensitivity = 100f // pixels per seek step
+                            val seekSensitivity = 100f
                             
                             if (totalDragX > seekSensitivity) {
                                 // Right - Forward
@@ -242,7 +249,7 @@ fun Modifier.videoPlayerControls(
                                 EnhancedPlayerManager.getInstance().seekTo(
                                     (currentPositionValue + 5000).coerceAtMost(currentDuration)
                                 )
-                                totalDragX = 0f // Reset to require more drag for next seek
+                                totalDragX = 0f 
                             } else if (totalDragX < -seekSensitivity) {
                                 // Left - Backward
                                 currentOnShowSeekBackChange(true)
@@ -255,7 +262,6 @@ fun Modifier.videoPlayerControls(
                     }
                 )
             } else {
-                // Non-fullscreen: Minimize on drag down
                 detectVerticalDragGestures(
                     onDragEnd = {
                         if (totalDragY > dragThreshold) {

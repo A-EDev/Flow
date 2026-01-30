@@ -25,7 +25,6 @@ class SubscriptionsViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(SubscriptionsUiState())
     val uiState: StateFlow<SubscriptionsUiState> = _uiState.asStateFlow()
 
-    // Repository to fetch feeds and video details
     private val ytRepository: YouTubeRepository = YouTubeRepository.getInstance()
     private lateinit var cacheDao: com.flow.youtube.data.local.dao.CacheDao
     
@@ -34,7 +33,6 @@ class SubscriptionsViewModel : ViewModel() {
         viewHistory = ViewHistory.getInstance(context)
         cacheDao = com.flow.youtube.data.local.AppDatabase.getDatabase(context).cacheDao()
         
-        //  INSTANT LOAD: Observe the DB cache immediately
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             cacheDao.getSubscriptionFeed().collect { cachedFeed ->
                 if (cachedFeed.isNotEmpty()) {
@@ -56,7 +54,6 @@ class SubscriptionsViewModel : ViewModel() {
             }
         }
         
-        //  BACKGROUND UPDATE: Smart network fetch
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             subscriptionRepository.getAllSubscriptions().collect { subscriptions ->
                 val channels = subscriptions.map { sub ->
@@ -70,24 +67,17 @@ class SubscriptionsViewModel : ViewModel() {
                 }
                 _uiState.update { it.copy(subscribedChannels = channels) }
 
-                // Fetch feeds in background - Only fetch a random subset ("Smart Feed") to be fast
                 if (channels.isNotEmpty()) {
-                    // Only show loading if we have NO cached data? 
-                    // No, let's show loading indicator non-intrusively or only if cache is empty
-                    // For now, we keep existing behavior but it finishes faster.
                     
                     supervisorScope {
-                         // Shuffle and take 15 channels for fast update
-                        val targetChannels = channels.shuffled().take(15).map { it.id }
+                        val targetChannels = channels.map { it.id }
                         
-                        // We do this in background without blocking UI
-                        // If cache is empty, we might want to show loading
                         if (_uiState.value.recentVideos.isEmpty()) {
                              _uiState.update { it.copy(isLoading = true) }
                         }
                         
-                        val videos = withTimeoutOrNull(45_000L) {
-                            ytRepository.getVideosForChannels(targetChannels, perChannelLimit = 3, totalLimit = 40)
+                        val videos = withTimeoutOrNull(60_000L) {
+                            ytRepository.getVideosForChannels(targetChannels, perChannelLimit = 3, totalLimit = 100)
                         } ?: emptyList()
                         
                         // Cache the results
@@ -116,30 +106,12 @@ class SubscriptionsViewModel : ViewModel() {
             }
         }
         
-        //  Load recent videos from history in parallel
-        viewModelScope.launch(PerformanceDispatcher.diskIO) {
-            viewHistory.getAllHistory().collect { history ->
-                val videos = history.take(20).map { entry ->
-                    Video(
-                        id = entry.videoId,
-                        title = entry.title,
-                        channelName = entry.channelName,
-                        channelId = entry.channelId,
-                        thumbnailUrl = entry.thumbnailUrl,
-                        duration = (entry.duration / 1000).toInt(),
-                        viewCount = 0L,
-                        uploadDate = formatTimestamp(entry.timestamp),
-                        channelThumbnailUrl = ""
-                    )
-                }
-                updateVideos(videos)
-            }
-        }
+       
     }
 
     private fun updateVideos(videos: List<Video>) {
-        // Sort videos by date (latest first) before partitioning
         val sortedVideos = videos.sortedByDescending { parseRelativeTime(it.uploadDate) }
+
         val (shorts, regular) = sortedVideos.partition { it.duration > 0 && it.duration <= 80 }
         _uiState.update { it.copy(recentVideos = regular, shorts = shorts) }
     }
@@ -149,11 +121,9 @@ class SubscriptionsViewModel : ViewModel() {
             val now = System.currentTimeMillis()
             val text = dateString.lowercase().trim()
             
-            // Handle special cases or future streams which we consider "new"
             if (text.contains("scheduled") || text.contains("premiere")) return now + 86400000L
             if (text.contains("live")) return now + 3600000L // Boost live streams
             
-            // Example: "2 days ago", "1 day ago", "3 years ago"
             val parts = text.split(" ")
             val valueLine = parts.firstOrNull { it.any { c -> c.isDigit() } } 
             val value = valueLine?.filter { it.isDigit() }?.toLongOrNull() ?: 1L
@@ -171,7 +141,7 @@ class SubscriptionsViewModel : ViewModel() {
             
             return now - (value * multiplier)
         } catch (e: Exception) {
-            return System.currentTimeMillis() // Fallback
+            return System.currentTimeMillis() 
         }
     }
     
@@ -188,22 +158,16 @@ class SubscriptionsViewModel : ViewModel() {
                         
                         for (i in 0 until subscriptionsArray.length()) {
                             val item = subscriptionsArray.getJSONObject(i)
-                            // NewPipe Export Format: service_id, url, name
                             val url = item.optString("url")
                             val name = item.optString("name")
                             
-                            // Extract ID from URL (e.g. https://www.youtube.com/channel/UCxxxx)
-                            // Or https://www.youtube.com/user/xxxx
                             if (url.isNotEmpty() && name.isNotEmpty()) {
                                 var channelId = ""
                                 if (url.contains("/channel/")) {
                                     channelId = url.substringAfter("/channel/")
                                 } else if (url.contains("/user/")) {
                                     channelId = url.substringAfter("/user/")
-                                    // Note: This might not be the unique ID, but we try best effort. 
-                                    // NewPipe usually exports /channel/ URLs for subscriptions.
                                 }
-                                // Clean up any trailing slash or query params
                                 if (channelId.contains("/")) channelId = channelId.substringBefore("/")
                                 if (channelId.contains("?")) channelId = channelId.substringBefore("?")
                                 
@@ -221,7 +185,6 @@ class SubscriptionsViewModel : ViewModel() {
                         }
                         // Refresh subs
                         if (importedCount > 0) {
-                             // The existing flow collection in initialize will auto-update because subscriptionRepository.getAllSubscriptions produces a flow
                         }
                     }
                 }
@@ -235,10 +198,7 @@ class SubscriptionsViewModel : ViewModel() {
         _uiState.update { it.copy(selectedChannelId = channelId) }
     }
 
-    /**
-     *  PERFORMANCE OPTIMIZED: Manually refresh subscription feed
-     * Updates cache on completion
-     */
+    
     fun refreshFeed() {
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             val channels = _uiState.value.subscribedChannels
@@ -246,7 +206,6 @@ class SubscriptionsViewModel : ViewModel() {
             _uiState.update { it.copy(isLoading = true) }
             
             supervisorScope {
-                // Refresh different set or all? Let's refresh a larger set on manual refresh
                 val targetChannels = channels.shuffled().take(30).map { it.id }
                 
                 val videos = withTimeoutOrNull(45_000L) {
@@ -282,7 +241,6 @@ class SubscriptionsViewModel : ViewModel() {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             subscriptionRepository.getSubscription(channelId).firstOrNull()?.let {
                 subscriptionRepository.unsubscribe(channelId)
-                // trigger refresh
                 refreshFeed()
             }
         }
@@ -305,7 +263,6 @@ class SubscriptionsViewModel : ViewModel() {
     fun subscribeChannel(channel: ChannelSubscription) {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             subscriptionRepository.subscribe(channel)
-            // trigger refresh
             refreshFeed()
         }
     }
