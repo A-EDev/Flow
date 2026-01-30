@@ -173,7 +173,7 @@ fun SeekbarWithPreview(
             if (bufferedValue > 0f) {
                 val bufferWidth = width * bufferedValue.coerceIn(0f, 1f)
                 drawRoundRect(
-                    color = Color.White.copy(alpha = 0.25f), // Lighter than background, darker than active
+                    color = Color.White.copy(alpha = 0.5f), // Increased visibility for buffer
                     size = Size(bufferWidth, height),
                     cornerRadius = CornerRadius(height / 2)
                 )

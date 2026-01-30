@@ -2,67 +2,30 @@ package com.flow.youtube.ui
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBars
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavType
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navDeepLink
-import androidx.navigation.navArgument
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
+import androidx.media3.common.util.UnstableApi
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.player.EnhancedMusicPlayerManager
+import com.flow.youtube.player.EnhancedPlayerManager
 import com.flow.youtube.player.GlobalPlayerState
 import com.flow.youtube.ui.components.FloatingBottomNavBar
-import com.flow.youtube.ui.components.PersistentVideoMiniPlayer
 import com.flow.youtube.ui.components.PersistentMiniMusicPlayer
-import com.flow.youtube.ui.screens.home.HomeScreen
-import com.flow.youtube.ui.screens.history.HistoryScreen
-import com.flow.youtube.ui.screens.library.LibraryScreen
-import com.flow.youtube.ui.screens.library.WatchLaterScreen
-import com.flow.youtube.ui.screens.likedvideos.LikedVideosScreen
-import com.flow.youtube.ui.screens.playlists.PlaylistsScreen
-import com.flow.youtube.ui.screens.playlists.PlaylistDetailScreen
-import com.flow.youtube.ui.screens.notifications.NotificationScreen
-import com.flow.youtube.ui.screens.music.EnhancedMusicScreen
-import com.flow.youtube.ui.screens.music.EnhancedMusicPlayerScreen
-import com.flow.youtube.ui.screens.music.MusicTrack
-import com.flow.youtube.ui.screens.music.MusicPlayerViewModel
-import com.flow.youtube.ui.screens.music.ArtistPage
-import com.flow.youtube.ui.screens.music.MusicViewModel
-import com.flow.youtube.ui.screens.player.EnhancedVideoPlayerScreen
-import com.flow.youtube.ui.screens.search.SearchScreen
-import com.flow.youtube.ui.screens.settings.SettingsScreen
-import com.flow.youtube.ui.screens.settings.ImportDataScreen
-import com.flow.youtube.ui.screens.personality.FlowPersonalityScreen
-import com.flow.youtube.ui.screens.shorts.ShortsScreen
-import com.flow.youtube.ui.screens.subscriptions.SubscriptionsScreen
-import com.flow.youtube.ui.screens.channel.ChannelScreen
+import com.flow.youtube.ui.components.PlayerSheetValue
+import com.flow.youtube.ui.components.rememberPlayerDraggableState
+import com.flow.youtube.ui.screens.player.VideoPlayerViewModel
 import com.flow.youtube.ui.theme.ThemeMode
-import androidx.lifecycle.viewmodel.compose.viewModel
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
-import androidx.hilt.navigation.compose.hiltViewModel
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.content.Context
-import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.delay
 
+@UnstableApi
 @Composable
 fun FlowApp(
     currentTheme: ThemeMode,
@@ -71,68 +34,90 @@ fun FlowApp(
     isShort: Boolean = false,
     onDeeplinkConsumed: () -> Unit = {}
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
+    val activity = context as? androidx.activity.ComponentActivity
     val navController = rememberNavController()
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     
-     // Offline Monitoring
+    val playerViewModel: VideoPlayerViewModel = hiltViewModel(activity!!)
+    val playerUiStateResult = playerViewModel.uiState.collectAsStateWithLifecycle()
+    val playerUiState by playerUiStateResult
+    val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
+    
+    // Offline Monitoring
     val currentRoute = remember { mutableStateOf("home") }
 
-    // Handle Deeplink
-    LaunchedEffect(deeplinkVideoId, isShort) {
-        if (deeplinkVideoId != null) {
-            if (isShort) {
-                navController.navigate("shorts?startVideoId=$deeplinkVideoId")
-            } else {
-                navController.navigate("player/$deeplinkVideoId")
-            }
-            onDeeplinkConsumed()
-        }
-    }
-    LaunchedEffect(Unit) {
-        while (true) {
-            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val network = connectivityManager.activeNetwork
-            val capabilities = connectivityManager.getNetworkCapabilities(network)
-            val hasInternet = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-            
-            if (!hasInternet) {
-                // If offline, just check if we should notify
-                val route = currentRoute.value
-                val isSafeRoute = route == "downloads" || 
-                                  route.startsWith("player") || 
-                                  route.startsWith("musicPlayer") ||
-                                  route == "settings"
-                
-                if (!isSafeRoute) {
-                    val result = snackbarHostState.showSnackbar(
-                        message = "No internet connection found",
-                        actionLabel = "Downloads",
-                        duration = androidx.compose.material3.SnackbarDuration.Short
-                    )
-                    if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
-                         navController.navigate("downloads") {
-                            launchSingleTop = true
-                        }
-                    }
-                }
-            }
-            delay(10000) // Check every 10 seconds
-        }
-    }
+    HandleDeepLinks(deeplinkVideoId, isShort, navController, onDeeplinkConsumed)
+    OfflineMonitor(context, navController, snackbarHostState, currentRoute)
     
-    var selectedBottomNavIndex by remember { mutableIntStateOf(0) }
-    var showBottomNav by remember { mutableStateOf(true) }
+    val selectedBottomNavIndex = remember { mutableIntStateOf(0) }
+    val showBottomNav = remember { mutableStateOf(true) }
     
     // Observer global player state
-    val isMiniPlayerVisible by GlobalPlayerState.isMiniPlayerVisible.collectAsState()
     val isInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
     val currentVideo by GlobalPlayerState.currentVideo.collectAsState()
+    
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val density = LocalDensity.current
+        val screenHeightPx = constraints.maxHeight.toFloat()
+        
+        val navBarBottomInset = WindowInsets.navigationBars.getBottom(density)
+        
+        val bottomNavContentHeightDp = 48.dp
+        val bottomNavContentHeightPx = with(density) { bottomNavContentHeightDp.toPx() }
+        
+        val bottomNavHeightPx = bottomNavContentHeightPx + navBarBottomInset
+        
+        // Mini Player Floating Dimensions (55% width, 16:9 aspect)
+        val screenWidthPx = constraints.maxWidth.toFloat()
+        val miniPlayerWidthPx = screenWidthPx * 0.55f
+        // Used float division for aspect ratio calculation
+        val miniPlayerHeightPx = miniPlayerWidthPx * (9f / 16f)
+        val marginPx = with(density) { 12.dp.toPx() }
+        
+        // Calculate maxOffset: Position of Mini Player Top
+        // We want it to sit at bottom-right, respecting bottom nav
+        // Y = FullHeight - (Content + Inset) - MiniPlayer - Margin
+        val maxOffset = screenHeightPx - bottomNavHeightPx - miniPlayerHeightPx - marginPx
+        
+        // Draggable player state
+        val playerSheetState = rememberPlayerDraggableState(maxOffset = maxOffset)
+        val playerVisibleState = remember { mutableStateOf(false) }
+        var playerVisible by playerVisibleState
+    
+    val activeVideo = playerUiState.cachedVideo ?: playerUiState.streamInfo?.let { streamInfo ->
+        Video(
+            id = streamInfo.id,
+            title = streamInfo.name ?: "",
+            channelName = streamInfo.uploaderName ?: "",
+            channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: "",
+            thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: "",
+            duration = streamInfo.duration.toInt(),
+            viewCount = streamInfo.viewCount,
+            uploadDate = ""
+        )
+    }
+    
+    LaunchedEffect(playerSheetState.currentValue) {
+        // Show bottom nav when player is collapsed OR no video is playing
+        showBottomNav.value = playerSheetState.currentValue != PlayerSheetValue.Expanded
+        // Sync with GlobalPlayerState
+        when (playerSheetState.currentValue) {
+            PlayerSheetValue.Expanded -> GlobalPlayerState.expandMiniPlayer()
+            PlayerSheetValue.Collapsed -> GlobalPlayerState.collapseMiniPlayer()
+        }
+    }
+    
+    LaunchedEffect(playerUiState.cachedVideo) {
+        if (playerUiState.cachedVideo != null) {
+            playerVisible = true
+            playerSheetState.expand()
+        }
+    }
     
     // Observe music player state
     val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
 
-    // Navigate to player if entering PiP from another screen
     LaunchedEffect(isInPipMode) {
         if (isInPipMode && !currentRoute.value.startsWith("player") && currentVideo != null) {
             navController.navigate("player/${currentVideo!!.id}")
@@ -146,22 +131,9 @@ fun FlowApp(
             containerColor = if (isInPipMode) androidx.compose.ui.graphics.Color.Black else androidx.compose.material3.MaterialTheme.colorScheme.background,
             contentWindowInsets = WindowInsets(0.dp), // Remove default window insets to prevent black area
             bottomBar = {
-                if (!isInPipMode && showBottomNav) {
+                if (!isInPipMode && showBottomNav.value) {
                     Column {
-                        // Mini players above bottom nav
-                        if (isMiniPlayerVisible && currentVideo != null && !currentRoute.value.startsWith("player")) {
-                            PersistentVideoMiniPlayer(
-                                video = currentVideo!!,
-                                onExpandClick = {
-                                    GlobalPlayerState.hideMiniPlayer()
-                                    navController.navigate("player/${currentVideo!!.id}")
-                                },
-                                onDismiss = {
-                                    GlobalPlayerState.stop()
-                                }
-                            )
-                        }
-                        
+                        // Music mini player above bottom nav
                         if (currentMusicTrack != null && !currentRoute.value.startsWith("musicPlayer")) {
                             PersistentMiniMusicPlayer(
                                 onExpandClick = {
@@ -178,12 +150,12 @@ fun FlowApp(
                         
                         // Bottom nav bar
                         FloatingBottomNavBar(
-                            selectedIndex = selectedBottomNavIndex,
+                            selectedIndex = selectedBottomNavIndex.intValue,
                             onItemSelected = { index ->
                             when (index) {
                                 0 -> {
                                     if (currentRoute.value != "home") {
-                                        selectedBottomNavIndex = index
+                                        selectedBottomNavIndex.intValue = index
                                         currentRoute.value = "home"
                                         navController.navigate("home") {
                                             popUpTo("home") { inclusive = true }
@@ -191,28 +163,28 @@ fun FlowApp(
                                     }
                                 }
                                 1 -> {
-                                    selectedBottomNavIndex = index
+                                    selectedBottomNavIndex.intValue = index
                                     currentRoute.value = "shorts"
                                     navController.navigate("shorts") {
                                         launchSingleTop = true
                                     }
                                 }
                                 2 -> {
-                                    selectedBottomNavIndex = index
+                                    selectedBottomNavIndex.intValue = index
                                     currentRoute.value = "music"
                                     navController.navigate("music") {
                                         launchSingleTop = true
                                     }
                                 }
                                 3 -> {
-                                    selectedBottomNavIndex = index
+                                    selectedBottomNavIndex.intValue = index
                                     currentRoute.value = "subscriptions"
                                     navController.navigate("subscriptions") {
                                         launchSingleTop = true
                                     }
                                 }
                                 4 -> {
-                                    selectedBottomNavIndex = index
+                                    selectedBottomNavIndex.intValue = index
                                     currentRoute.value = "library"
                                     navController.navigate("library") {
                                         launchSingleTop = true
@@ -248,813 +220,37 @@ fun FlowApp(
                         )
                     }
                 ) {
-                    composable("home") {
-                    currentRoute.value = "home"
-                    showBottomNav = true
-                    selectedBottomNavIndex = 0
-                    HomeScreen(
-                        onVideoClick = { video ->
-                            if (video.duration in 1..80) {
-                                navController.navigate("shorts?startVideoId=${video.id}")
-                            } else {
-                                navController.navigate("player/${video.id}")
-                            }
-                        },
-                        onShortClick = { video ->
-                            // Navigate to shorts screen with the clicked short's ID
-                            navController.navigate("shorts?startVideoId=${video.id}")
-                        },
-                        onSearchClick = {
-                            navController.navigate("search")
-                        },
-                        onNotificationClick = {
-                            navController.navigate("notifications")
-                        },
-                        onSettingsClick = {
-                            navController.navigate("settings")
-                        }
-                    )
-                }
-
-                // Notifications Screen
-                composable("notifications") {
-                    currentRoute.value = "notifications"
-                    showBottomNav = false
-                    NotificationScreen(
-                        onBackClick = { navController.popBackStack() },
-                        onNotificationClick = { videoId ->
-                            navController.navigate("player/$videoId")
-                        }
-                    )
-                }
-
-                composable(
-                    route = "shorts?startVideoId={startVideoId}",
-                    arguments = listOf(
-                        navArgument("startVideoId") { 
-                            type = NavType.StringType
-                            nullable = true
-                            defaultValue = null
-                        }
-                    )
-                ) { backStackEntry ->
-                    currentRoute.value = "shorts"
-                    showBottomNav = true
-                    selectedBottomNavIndex = 1
-                    val startVideoId = backStackEntry.arguments?.getString("startVideoId")
-                    ShortsScreen(
-                        startVideoId = startVideoId,
-                        onBack = {
-                            navController.popBackStack()
-                        },
-                        onChannelClick = { channelId ->
-                            navController.navigate("channel?url=$channelId")
-                        }
-                    )
-                }
-
-                composable("subscriptions") {
-                    currentRoute.value = "subscriptions"
-                    showBottomNav = true
-                    selectedBottomNavIndex = 3
-                    SubscriptionsScreen(
-                        onVideoClick = { video ->
-                            if (video.duration in 1..80) {
-                                navController.navigate("shorts?startVideoId=${video.id}")
-                            } else {
-                                navController.navigate("player/${video.id}")
-                            }
-                        },
-                        onShortClick = { videoId ->
-                            navController.navigate("shorts?startVideoId=$videoId")
-                        },
-                        onChannelClick = { channelUrl ->
-                            val encodedUrl = channelUrl.replace("/", "%2F").replace(":", "%3A")
-                            navController.navigate("channel?url=$encodedUrl")
-                        }
-                    )
-                }
-
-                composable("library") {
-                    currentRoute.value = "library"
-                    showBottomNav = true
-                    selectedBottomNavIndex = 4
-                    LibraryScreen(
-                        onNavigateToHistory = { 
-                            navController.navigate("history")
-                        },
-                        onNavigateToPlaylists = { 
-                            navController.navigate("playlists")
-                        },
-                        onNavigateToMusicPlaylists = {
-                            navController.navigate("musicPlaylists")
-                        },
-                        onNavigateToLikedVideos = { 
-                            navController.navigate("likedVideos")
-                        },
-                        onNavigateToWatchLater = {
-                            navController.navigate("watchLater")
-                        },
-                        onNavigateToSavedShorts = {
-                            navController.navigate("savedShorts")
-                        },
-                        onNavigateToDownloads = {
-                            navController.navigate("downloads")
-                        },
-                        onManageData = {
-                            navController.navigate("settings")
-                        }
-                    )
-                }
-
-                composable("search") {
-                    currentRoute.value = "search"
-                    showBottomNav = true
-                    selectedBottomNavIndex = -1
-                    SearchScreen(
-                        onVideoClick = { video ->
-                            if (video.duration in 1..80) {
-                                navController.navigate("shorts?startVideoId=${video.id}")
-                            } else {
-                                navController.navigate("player/${video.id}")
-                            }
-                        },
-                        onChannelClick = { channel ->
-                            // Use the full URL if available, otherwise construct from ID
-                            val channelUrl = if (channel.url.isNotBlank()) {
-                                channel.url
-                            } else {
-                                "https://www.youtube.com/channel/${channel.id}"
-                            }
-                            val encodedUrl = java.net.URLEncoder.encode(channelUrl, "UTF-8")
-                            navController.navigate("channel?url=$encodedUrl")
-                        }
-                    )
-                }
-
-                composable("settings") {
-                    currentRoute.value = "settings"
-                    showBottomNav = false
-                    SettingsScreen(
+                    flowAppGraph(
+                        navController = navController,
+                        currentRoute = currentRoute,
+                        showBottomNav = showBottomNav,
+                        selectedBottomNavIndex = selectedBottomNavIndex,
+                        playerSheetState = playerSheetState,
+                        playerViewModel = playerViewModel,
+                        playerUiStateResult = playerUiStateResult,
+                        playerVisibleState = playerVisibleState,
                         currentTheme = currentTheme,
-
-                        onNavigateBack = { navController.popBackStack() },
-                        onNavigateToAppearance = { navController.navigate("settings/appearance") },
-                        onNavigateToDonations = { navController.navigate("donations") },
-                        onNavigateToPersonality = { navController.navigate("personality") },
-                        onNavigateToDownloads = { navController.navigate("settings/downloads") },
-                        onNavigateToTimeManagement = { navController.navigate("settings/time_management") },
-                        onNavigateToImport = { navController.navigate("settings/import") },
-                        onNavigateToPlayerSettings = { navController.navigate("settings/player") },
-                        onNavigateToVideoQuality = { navController.navigate("settings/video_quality") },
-                        onNavigateToBufferSettings = { navController.navigate("settings/buffer") },
-                        onNavigateToSearchHistory = { navController.navigate("settings/search_history") },
-                        onNavigateToAbout = { navController.navigate("settings/about") }
-                    )
-                }
-
-                composable("settings/player") {
-                    currentRoute.value = "settings/player"
-                    showBottomNav = false
-                    com.flow.youtube.ui.screens.settings.PlayerSettingsScreen(
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-                }
-                
-                composable("settings/buffer") {
-                    currentRoute.value = "settings/buffer"
-                    showBottomNav = false
-                    com.flow.youtube.ui.screens.settings.BufferSettingsScreen(
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-                }
-                
-                composable("settings/search_history") {
-                    currentRoute.value = "settings/search_history"
-                    showBottomNav = false
-                    com.flow.youtube.ui.screens.settings.SearchHistorySettingsScreen(
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-                }
-
-                composable("settings/video_quality") {
-                    currentRoute.value = "settings/video_quality"
-                    showBottomNav = false
-                    com.flow.youtube.ui.screens.settings.VideoQualitySettingsScreen(
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-                }
-                
-                composable("settings/import") {
-                    currentRoute.value = "settings/import"
-                    ImportDataScreen(
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-                }
-
-                composable("settings/time_management") {
-                    currentRoute.value = "settings/time_management"
-                    showBottomNav = false
-                    com.flow.youtube.ui.screens.settings.TimeManagementScreen(
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-                }
-
-                composable("settings/about") {
-                    currentRoute.value = "settings/about"
-                    showBottomNav = false
-                    com.flow.youtube.ui.screens.settings.AboutScreen(
-                        onNavigateBack = { navController.popBackStack() },
-                        onNavigateToDonations = { navController.navigate("donations") }
-                    )
-                }
-
-                composable("settings/appearance") {
-                    currentRoute.value = "settings/appearance"
-                    showBottomNav = false
-                    com.flow.youtube.ui.screens.settings.AppearanceScreen(
-                        currentTheme = currentTheme,
-                        onThemeChange = onThemeChange,
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-                }
-
-                composable("settings/downloads") {
-                    currentRoute.value = "settings/downloads"
-                    showBottomNav = false
-                    com.flow.youtube.ui.screens.settings.DownloadSettingsScreen(
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-                }
-
-                composable("donations") {
-                    currentRoute.value = "donations"
-                    showBottomNav = false
-                    com.flow.youtube.ui.screens.settings.DonationsScreen(
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-                }
-
-                composable("personality") {
-                    currentRoute.value = "personality"
-                    showBottomNav = false
-                    FlowPersonalityScreen(
-                        onNavigateBack = { navController.popBackStack() }
-                    )
-                }
-                
-                composable(
-                    route = "channel?url={channelUrl}",
-                    arguments = listOf(navArgument("channelUrl") { type = NavType.StringType })
-                ) { backStackEntry ->
-                    currentRoute.value = "channel"
-                    showBottomNav = false
-                    val channelUrl = backStackEntry.arguments?.getString("channelUrl")?.let {
-                        java.net.URLDecoder.decode(it, "UTF-8")
-                    } ?: ""
-                    
-                    ChannelScreen(
-                        channelUrl = channelUrl,
-                        onVideoClick = { video ->
-                            if (video.duration in 1..80) {
-                                navController.navigate("shorts?startVideoId=${video.id}")
-                            } else {
-                                navController.navigate("player/${video.id}")
-                            }
-                        },
-                        onShortClick = { videoId ->
-                            navController.navigate("shorts?startVideoId=$videoId")
-                        },
-                        onPlaylistClick = { playlistId ->
-                            navController.navigate("playlist/$playlistId")
-                        },
-                        onBackClick = { navController.popBackStack() }
-                    )
-                }
-
-                // History Screen
-                composable("history") {
-                    currentRoute.value = "history"
-                    showBottomNav = false
-                    HistoryScreen(
-                        onVideoClick = { track ->
-                            if (track.duration in 1..80) {
-                                navController.navigate("shorts?startVideoId=${track.videoId}")
-                            } else {
-                                navController.navigate("player/${track.videoId}")
-                            }
-                        },
-                        onBackClick = { navController.popBackStack() },
-                        onArtistClick = { channelId ->
-                            navController.navigate("channel?url=$channelId")
-                        }
-                    )
-                }
-
-                // Liked Videos Screen
-                composable("likedVideos") {
-                    currentRoute.value = "likedVideos"
-                    showBottomNav = false
-                    LikedVideosScreen(
-                        onVideoClick = { track ->
-                            if (track.duration in 1..80) {
-                                navController.navigate("shorts?startVideoId=${track.videoId}")
-                            } else {
-                                navController.navigate("player/${track.videoId}")
-                            }
-                        },
-                        onBackClick = { navController.popBackStack() },
-                        onArtistClick = { channelId ->
-                            navController.navigate("channel?url=$channelId")
-                        }
-                    )
-                }
-
-                // Watch Later Screen
-                composable("watchLater") {
-                    currentRoute.value = "watchLater"
-                    showBottomNav = false
-                    WatchLaterScreen(
-                        onBackClick = { navController.popBackStack() },
-                        onVideoClick = { video ->
-                            if (video.isMusic) {
-                                navController.navigate("musicPlayer/${video.id}")
-                            } else if (video.duration in 1..80) {
-                                navController.navigate("shorts?startVideoId=${video.id}")
-                            } else {
-                                navController.navigate("player/${video.id}")
-                            }
-                        }
-                    )
-                }
-
-                // Playlists Screen
-                composable("playlists") {
-                    currentRoute.value = "playlists"
-                    showBottomNav = false
-                    PlaylistsScreen(
-                        onBackClick = { navController.popBackStack() },
-                        onPlaylistClick = { playlist ->
-                            navController.navigate("playlist/${playlist.id}")
-                        },
-                        onNavigateToWatchLater = { navController.navigate("watchLater") },
-                        onNavigateToLikedVideos = { navController.navigate("likedVideos") }
-                    )
-                }
-
-                // Music Playlists Screen
-                composable("musicPlaylists") {
-                    currentRoute.value = "musicPlaylists"
-                    showBottomNav = false
-                    com.flow.youtube.ui.screens.music.MusicPlaylistsScreen(
-                        onBackClick = { navController.popBackStack() },
-                        onPlaylistClick = { playlist ->
-                            navController.navigate("musicPlaylist/${playlist.id}")
-                        },
-                        onNavigateToLikedMusic = { navController.navigate("likedMusic") },
-                        onNavigateToMusicHistory = { navController.navigate("musicHistory") }
-                    )
-                }
-
-                composable("likedMusic") {
-                    currentRoute.value = "likedMusic"
-                    showBottomNav = false
-                    LikedVideosScreen(
-                        onBackClick = { navController.popBackStack() },
-                        onVideoClick = { track ->
-                            val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
-                            val encodedTitle = android.net.Uri.encode(track.title)
-                            val encodedArtist = android.net.Uri.encode(track.artist)
-                            navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
-                        },
-                        isMusic = true,
-                        onArtistClick = { channelId ->
-                            navController.navigate("artist/$channelId")
-                        }
-                    )
-                }
-
-                composable("musicHistory") {
-                    currentRoute.value = "musicHistory"
-                    showBottomNav = false
-                    HistoryScreen(
-                        onBackClick = { navController.popBackStack() },
-                        onVideoClick = { track ->
-                            val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
-                            val encodedTitle = android.net.Uri.encode(track.title)
-                            val encodedArtist = android.net.Uri.encode(track.artist)
-                            navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
-                        },
-                        isMusic = true,
-                        onArtistClick = { channelId ->
-                            navController.navigate("artist/$channelId")
-                        }
-                    )
-                }
-
-                // Playlist Detail Screen
-                composable("playlist/{playlistId}") { _ ->
-                    currentRoute.value = "playlist"
-                    showBottomNav = false
-                    PlaylistDetailScreen(
-                        // playlistId is handled by ViewModel via SavedStateHandle
-                        // playlistRepository is injected by Hilt
-                        onNavigateBack = { navController.popBackStack() },
-                        onVideoClick = { video ->
-                            if (video.isMusic) {
-                                navController.navigate("musicPlayer/${video.id}")
-                            } else if (video.duration in 1..80) {
-                                navController.navigate("shorts?startVideoId=${video.id}")
-                            } else {
-                                navController.navigate("player/${video.id}")
-                            }
-                        }
-                    )
-                }
-
-                // Saved Shorts Grid
-                composable("savedShorts") {
-                    currentRoute.value = "savedShorts"
-                    showBottomNav = false
-                    com.flow.youtube.ui.screens.library.SavedShortsGridScreen(
-                        onBackClick = { navController.popBackStack() },
-                        onVideoClick = { videoId ->
-                            navController.navigate("savedShortsPlayer/$videoId")
-                        }
-                    )
-                }
-
-                // Saved Shorts Player
-                composable(
-                    route = "savedShortsPlayer/{startVideoId}",
-                    arguments = listOf(navArgument("startVideoId") { type = NavType.StringType })
-                ) { backStackEntry ->
-                    currentRoute.value = "savedShortsPlayer"
-                    showBottomNav = false
-                    val startVideoId = backStackEntry.arguments?.getString("startVideoId")
-                    ShortsScreen(
-                        startVideoId = startVideoId,
-                        isSavedMode = true,
-                        onBack = {
-                            navController.popBackStack()
-                        },
-                        onChannelClick = { channelId ->
-                            navController.navigate("channel?url=$channelId")
-                        }
-                    )
-                }
-                composable("downloads") {
-                    currentRoute.value = "downloads"
-                    showBottomNav = false
-                    
-                    // Inject MusicPlayerViewModel here to handle queue playback
-                    val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
-                    
-                    com.flow.youtube.ui.screens.library.DownloadsScreen(
-                        onBackClick = { navController.popBackStack() },
-                        onVideoClick = { videoId ->
-                            navController.navigate("player/$videoId")
-                        },
-                        onMusicClick = { tracks, index ->
-                            // Convert DownloadedTrack to MusicTrack
-                            val musicTracks = tracks.map { it.track }
-                            val selectedTrack = musicTracks[index]
-                            
-                            // Load and play queue
-                            musicPlayerViewModel.loadAndPlayTrack(selectedTrack, musicTracks, "Downloads")
-                            
-                            val encodedUrl = android.net.Uri.encode(selectedTrack.thumbnailUrl)
-                            val encodedTitle = android.net.Uri.encode(selectedTrack.title)
-                            val encodedArtist = android.net.Uri.encode(selectedTrack.artist)
-                            navController.navigate("musicPlayer/${selectedTrack.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
-                        }
-                    )
-                }
-                // Music Screen - Enhanced with SoundCloud
-                composable("music") {
-                    currentRoute.value = "music"
-                    showBottomNav = true
-                    selectedBottomNavIndex = 2
-                    
-                    // Get the MusicPlayerViewModel from this composable context
-                    val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
-                    
-                    EnhancedMusicScreen(
-                        onBackClick = { navController.popBackStack() },
-                        onSongClick = { track, queue, source ->
-                            // Load and play the track with the provided queue
-                            musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
-                            
-                            // Navigate to player
-                            val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
-                            val encodedTitle = android.net.Uri.encode(track.title)
-                            val encodedArtist = android.net.Uri.encode(track.artist)
-                            navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
-                        },
-                        onVideoClick = { track ->
-                            if (track.duration in 1..80) {
-                                navController.navigate("shorts?startVideoId=${track.videoId}")
-                            } else {
-                                navController.navigate("player/${track.videoId}")
-                            }
-                        },
-                        onArtistClick = { channelId ->
-                            navController.navigate("artist/$channelId")
-                        },
-                        onSearchClick = {
-                            navController.navigate("musicSearch")
-                        },
-                        onSettingsClick = {
-                            navController.navigate("settings")
-                        },
-                        onAlbumClick = { albumId ->
-                            navController.navigate("musicPlaylist/$albumId")
-                        }
-                    )
-                }
-
-                // Music Search Screen
-                composable("musicSearch") {
-                    currentRoute.value = "musicSearch"
-                    showBottomNav = false
-                    
-                    val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
-                    
-                    com.flow.youtube.ui.screens.music.MusicSearchScreen(
-                        onBackClick = { navController.popBackStack() },
-                        onTrackClick = { track, queue, source ->
-                            musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
-                            val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
-                            val encodedTitle = android.net.Uri.encode(track.title)
-                            val encodedArtist = android.net.Uri.encode(track.artist)
-                            navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
-                        },
-                        onAlbumClick = { albumId ->
-                            navController.navigate("musicPlaylist/$albumId")
-                        },
-                        onArtistClick = { channelId ->
-                            navController.navigate("artist/$channelId")
-                        },
-                        onPlaylistClick = { playlistId ->
-                            navController.navigate("musicPlaylist/$playlistId")
-                        }
-                    )
-                }
-                
-                // Library Screen - Playlists, Favorites, Downloads
-                composable("musicLibrary") {
-                    currentRoute.value = "musicLibrary"
-                    showBottomNav = false
-                    
-                    val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
-                    
-                    com.flow.youtube.ui.screens.music.LibraryScreen(
-                        onBackClick = { navController.popBackStack() },
-                        onTrackClick = { track, queue ->
-                            musicPlayerViewModel.loadAndPlayTrack(track, queue)
-                            val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
-                            val encodedTitle = android.net.Uri.encode(track.title)
-                            val encodedArtist = android.net.Uri.encode(track.artist)
-                            navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
-                        }
-                    )
-                }
-
-                // Artist Page
-                composable("artist/{channelId}") { backStackEntry ->
-                    val channelId = backStackEntry.arguments?.getString("channelId") ?: return@composable
-                    val musicViewModel: MusicViewModel = hiltViewModel()
-                    val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
-                    val uiState by musicViewModel.uiState.collectAsState()
-                    
-                    LaunchedEffect(channelId) {
-                        musicViewModel.fetchArtistDetails(channelId)
-                    }
-                    
-                    if (uiState.isArtistLoading) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    } else {
-                        uiState.artistDetails?.let { details ->
-                            ArtistPage(
-                                artistDetails = details,
-                                onBackClick = { navController.popBackStack() },
-                                onTrackClick = { track, queue ->
-                                    musicPlayerViewModel.loadAndPlayTrack(track, queue)
-                                    val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
-                                    val encodedTitle = android.net.Uri.encode(track.title)
-                                    val encodedArtist = android.net.Uri.encode(track.artist)
-                                    navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
-                                },
-                                onAlbumClick = { album ->
-                                    navController.navigate("musicPlaylist/${album.id}")
-                                },
-                                onArtistClick = { id ->
-                                    navController.navigate("artist/$id")
-                                },
-                                onFollowClick = {
-                                    musicViewModel.toggleFollowArtist(details)
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Music Playlist Page
-                composable("musicPlaylist/{playlistId}") { backStackEntry ->
-                    val playlistId = backStackEntry.arguments?.getString("playlistId") ?: return@composable
-                    val musicViewModel: MusicViewModel = hiltViewModel()
-                    val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
-                    val uiState by musicViewModel.uiState.collectAsState()
-                    
-                    LaunchedEffect(playlistId) {
-                        // Handle community playlists - map genre to tracks
-                        if (playlistId.startsWith("community_")) {
-                            val genre = playlistId.substringAfter("community_")
-                            musicViewModel.loadCommunityPlaylist(genre)
-                        } else {
-                            musicViewModel.fetchPlaylistDetails(playlistId)
-                        }
-                    }
-                    
-                    if (uiState.isPlaylistLoading) {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    } else {
-                        uiState.playlistDetails?.let { details ->
-                            com.flow.youtube.ui.screens.music.PlaylistPage(
-                                playlistDetails = details,
-                                onBackClick = { navController.popBackStack() },
-                                onTrackClick = { track, queue ->
-                                    musicPlayerViewModel.loadAndPlayTrack(track, queue)
-                                    val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
-                                    val encodedTitle = android.net.Uri.encode(track.title)
-                                    val encodedArtist = android.net.Uri.encode(track.artist)
-                                    navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
-                                },
-                                onArtistClick = { channelId ->
-                                    navController.navigate("artist/$channelId")
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Music Player Screen - Enhanced
-                composable(
-                    route = "musicPlayer/{trackId}?title={title}&artist={artist}&thumbnailUrl={thumbnailUrl}",
-                    arguments = listOf(
-                        navArgument("trackId") { type = NavType.StringType },
-                        navArgument("title") { type = NavType.StringType; defaultValue = "" },
-                        navArgument("artist") { type = NavType.StringType; defaultValue = "" },
-                        navArgument("thumbnailUrl") { type = NavType.StringType; defaultValue = "" }
-                    )
-                ) { backStackEntry ->
-                    currentRoute.value = "musicPlayer"
-                    showBottomNav = false
-                    
-                    val trackId = backStackEntry.arguments?.getString("trackId") ?: ""
-                    val title = backStackEntry.arguments?.getString("title") ?: ""
-                    val artist = backStackEntry.arguments?.getString("artist") ?: ""
-                    val thumbnailUrl = backStackEntry.arguments?.getString("thumbnailUrl") ?: ""
-                    
-                    val managerTrack = EnhancedMusicPlayerManager.currentTrack.value
-                    
-                    val track = if (managerTrack?.videoId == trackId) {
-                        managerTrack
-                    } else {
-                        MusicTrack(
-                            videoId = trackId,
-                            title = title,
-                            artist = artist,
-                            thumbnailUrl = thumbnailUrl,
-                            duration = 0,
-                            sourceUrl = ""
-                        )
-                    }
-                    
-                    EnhancedMusicPlayerScreen(
-                        track = track,
-                        onBackClick = { navController.popBackStack() },
-                        onArtistClick = { channelId ->
-                            navController.navigate("artist/$channelId")
-                        }
-                    )
-                }
-
-
-
-                composable(
-                    route = "player/{videoId}",
-                    arguments = listOf(navArgument("videoId") { type = NavType.StringType }),
-                    deepLinks = listOf(
-                        navDeepLink {
-                            uriPattern = "http://www.youtube.com/watch?v={videoId}"
-                            action = android.content.Intent.ACTION_VIEW
-                        },
-                        navDeepLink {
-                            uriPattern = "https://www.youtube.com/watch?v={videoId}"
-                            action = android.content.Intent.ACTION_VIEW
-                        },
-                        navDeepLink {
-                            uriPattern = "http://youtube.com/watch?v={videoId}"
-                            action = android.content.Intent.ACTION_VIEW
-                        },
-                        navDeepLink {
-                            uriPattern = "https://youtube.com/watch?v={videoId}"
-                            action = android.content.Intent.ACTION_VIEW
-                        },
-                        navDeepLink {
-                            uriPattern = "http://youtu.be/{videoId}"
-                            action = android.content.Intent.ACTION_VIEW
-                        },
-                        navDeepLink {
-                            uriPattern = "https://youtu.be/{videoId}"
-                            action = android.content.Intent.ACTION_VIEW
-                        },
-                        navDeepLink {
-                            uriPattern = "http://m.youtube.com/watch?v={videoId}"
-                            action = android.content.Intent.ACTION_VIEW
-                        },
-                        navDeepLink {
-                            uriPattern = "https://m.youtube.com/watch?v={videoId}"
-                            action = android.content.Intent.ACTION_VIEW
-                        },
-                        navDeepLink {
-                            uriPattern = "https://www.youtube.com/shorts/{videoId}"
-                            action = android.content.Intent.ACTION_VIEW
-                        },
-                        navDeepLink {
-                            uriPattern = "https://youtube.com/shorts/{videoId}"
-                            action = android.content.Intent.ACTION_VIEW
-                        }
-                    )
-                ) { backStackEntry ->
-                    currentRoute.value = "player"
-                    showBottomNav = false
-                    val videoId = backStackEntry.arguments?.getString("videoId")
-
-                    // Use a real YouTube video ID for testing if available
-                    // Otherwise use the provided videoId or a known test video
-                    val effectiveVideoId = when {
-                        !videoId.isNullOrEmpty() && videoId != "sample" -> videoId
-                        else -> "jNQXAC9IVRw"  // Default to popular "Me at the zoo" video for testing
-                    }
-
-                    // Pass a minimal placeholder Video (id only). Real metadata will be loaded by the player via extractor.
-                    val placeholder = Video(
-                        id = effectiveVideoId,
-                        title = "",
-                        channelName = "",
-                        channelId = "",
-                        thumbnailUrl = "",
-                        duration = 0,
-                        viewCount = 0L,
-                        uploadDate = "",
-                        description = "",
-                        channelThumbnailUrl = ""
-                    )
-
-                    EnhancedVideoPlayerScreen(
-                        video = placeholder,
-                        onBack = { 
-                            // Show mini player when exiting
-                            GlobalPlayerState.showMiniPlayer()
-                            navController.popBackStack() 
-                        },
-                        onVideoClick = { video ->
-                            if (video.duration <= 80) {
-                                navController.navigate("shorts?startVideoId=${video.id}")
-                            } else {
-                                navController.navigate("player/${video.id}") {
-                                    popUpTo("player/{videoId}") { inclusive = true }
-                                }
-                            }
-                        },
-                        onChannelClick = { channelId ->
-                            // Construct a URL for the channel since the route expects one
-                            val channelUrl = "https://www.youtube.com/channel/$channelId"
-                            val encodedUrl = java.net.URLEncoder.encode(channelUrl, "UTF-8")
-                            navController.navigate("channel?url=$encodedUrl")
-                        },
-                        onPlayAsShort = { vidId ->
-                            GlobalPlayerState.stop()
-                            navController.navigate("shorts?startVideoId=$vidId") {
-                                popUpTo("player/{videoId}") { inclusive = true }
-                            }
-                        },
-                        onPlayAsMusic = { vidId ->
-                            GlobalPlayerState.stop()
-                            navController.navigate("musicPlayer/$vidId") {
-                                popUpTo("player/{videoId}") { inclusive = true }
-                            }
-                        }
+                        onThemeChange = onThemeChange
                     )
                 }
             }
         }
     }
-}
+    
+    // ===== GLOBAL PLAYER OVERLAY =====
+    GlobalPlayerOverlay(
+        video = activeVideo,
+        isVisible = playerVisible,
+        playerSheetState = playerSheetState,
+        onClose = { playerVisible = false },
+        onNavigateToChannel = { channelId ->
+            val channelUrl = "https://www.youtube.com/channel/$channelId"
+            val encodedUrl = java.net.URLEncoder.encode(channelUrl, "UTF-8")
+            navController.navigate("channel?url=$encodedUrl")
+        },
+        onNavigateToShorts = { videoId ->
+            navController.navigate("shorts?startVideoId=$videoId")
+        }
+    )
+  } 
 }

@@ -66,21 +66,49 @@ class VideoPlayerViewModel @Inject constructor(
     }
     
     /**
+     * Plays a video by immediately caching metadata and triggering stream load.
+     * This ensures the UI shows video info immediately while streams are fetched.
+     */
+    fun playVideo(video: Video) {
+        // Stop current playback
+        EnhancedPlayerManager.getInstance().pause()
+        EnhancedPlayerManager.getInstance().clearCurrentVideo()
+        
+        // Cache video metadata for immediate UI display
+        _uiState.value = _uiState.value.copy(
+            cachedVideo = video,
+            isLoading = true,
+            error = null,
+            metadataError = null,
+            streamInfo = null,
+            videoStream = null,
+            audioStream = null,
+            relatedVideos = emptyList(),
+            isSubscribed = false,
+            likeState = null
+        )
+        
+        // Start loading streams
+        loadVideoInfo(video.id, forceRefresh = true)
+    }
+    
+    /**
      * PERFORMANCE OPTIMIZED: Load video info with aggressive parallel fetching
      * Uses SupervisorScope for error isolation and optimized dispatcher for network operations
+     * @param forceRefresh If true, forces a fresh load even if the video appears to be already loaded
      */
-    fun loadVideoInfo(videoId: String, isWifi: Boolean = true) {
+    fun loadVideoInfo(videoId: String, isWifi: Boolean = true, forceRefresh: Boolean = false) {
         val currentState = _uiState.value
-        Log.d("VideoPlayerViewModel", "loadVideoInfo: Request=$videoId. Current=${currentState.streamInfo?.id}, IsLoading=${currentState.isLoading}")
+        Log.d("VideoPlayerViewModel", "loadVideoInfo: Request=$videoId. Current=${currentState.streamInfo?.id}, IsLoading=${currentState.isLoading}, ForceRefresh=$forceRefresh")
 
-        // Don't reload if already loaded the same video successfully
-        if (currentState.streamInfo?.id == videoId && !currentState.isLoading && currentState.error == null) {
+        // Don't reload if already loaded the same video successfully (unless forceRefresh)
+        if (!forceRefresh && currentState.streamInfo?.id == videoId && !currentState.isLoading && currentState.error == null) {
             Log.d("VideoPlayerViewModel", "Video $videoId already loaded successfully. Skipping.")
             return
         }
         
-        // If loading the same video, skip. If loading a different video, proceed (and effectively restart/override)
-        if (currentState.isLoading && currentState.streamInfo?.id == videoId) {
+        // If loading the same video and not forcing refresh, skip
+        if (!forceRefresh && currentState.isLoading && currentState.streamInfo?.id == videoId) {
              Log.d("VideoPlayerViewModel", "Video $videoId is currently loading. Skipping redundant request.")
              return
         }
@@ -105,7 +133,10 @@ class VideoPlayerViewModel @Inject constructor(
             videoStream = null,
             audioStream = null,
             relatedVideos = emptyList(),
-            dislikeCount = null
+            dislikeCount = null,
+            // Also reset subscription and like state for new video
+            isSubscribed = false,
+            likeState = null
         )
         
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
@@ -708,6 +739,7 @@ class VideoPlayerViewModel @Inject constructor(
 }
 
 data class VideoPlayerUiState(
+    val cachedVideo: Video? = null, // Video metadata for immediate display while streams load
     val streamInfo: StreamInfo? = null,
     val relatedVideos: List<Video> = emptyList(),
     val videoStream: VideoStream? = null,
