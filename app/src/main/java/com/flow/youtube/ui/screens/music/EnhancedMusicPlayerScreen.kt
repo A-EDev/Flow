@@ -269,8 +269,7 @@ fun EnhancedMusicPlayerScreen(
                     .fillMaxSize()
                     .padding(horizontal = 24.dp)
             ) {
-                // Adjust threshold for landscape and utilize height check
-                val isLandscape = maxWidth > maxHeight && maxWidth > 400.dp
+                val isWideLayout = maxWidth > 600.dp || (maxWidth > maxHeight && maxWidth > 400.dp)
                 
                 val artworkContent: @Composable (Modifier) -> Unit = { modifier ->
                     // Artwork / Video Area with Gestures
@@ -333,7 +332,7 @@ fun EnhancedMusicPlayerScreen(
                     }
                 }
                 
-                if (isLandscape) {
+                if (isWideLayout) {
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
@@ -341,7 +340,6 @@ fun EnhancedMusicPlayerScreen(
                         horizontalArrangement = Arrangement.spacedBy(24.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // In landscape, constrain artwork by height to ensure it fits
                         Box(
                             modifier = Modifier
                                 .weight(0.45f)

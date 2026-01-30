@@ -355,6 +355,118 @@ fun VideoCardFullWidth(
     }
 }
 
+/**
+ * A horizontal Video Card optimized for side panes (tablets/foldables) or lists.
+ * Image on Left, Info on Right.
+ */
+@Composable
+fun CompactVideoCard(
+    video: Video,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    onMoreClick: () -> Unit = {}
+) {
+    var showQuickActions by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 12.dp)
+    ) {
+        // Thumbnail (Left side)
+        Box(
+            modifier = Modifier
+                .width(168.dp)
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        ) {
+            SafeAsyncImage(
+                model = video.thumbnailUrl,
+                contentDescription = video.title,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+
+            // Duration badge
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(4.dp),
+                color = Color.Black.copy(alpha = 0.7f),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Text(
+                    text = formatDuration(video.duration),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Info (Right side)
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = video.title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onBackground,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = video.channelName,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.extendedColors.textSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            
+            Text(
+                text = "${formatViewCount(video.viewCount)} • ${video.uploadDate}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.extendedColors.textSecondary.copy(alpha = 0.8f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 11.sp
+            )
+        }
+
+        // More options button
+        IconButton(
+            onClick = { showQuickActions = true },
+            modifier = Modifier
+                .size(24.dp)
+                .align(Alignment.Top)
+        ) {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = "More options",
+                tint = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+    
+    if (showQuickActions) {
+         VideoQuickActionsBottomSheet(
+            video = video,
+            onDismiss = { showQuickActions = false }
+        )
+    }
+}
+
 
 @Composable
 fun ShortsShelf(

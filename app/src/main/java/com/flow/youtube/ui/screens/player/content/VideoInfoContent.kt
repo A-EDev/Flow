@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import com.flow.youtube.R
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.ui.components.CommentsPreview
+import com.flow.youtube.ui.components.CompactVideoCard
 import com.flow.youtube.ui.components.VideoCardFullWidth
 import com.flow.youtube.ui.screens.player.VideoPlayerUiState
 import com.flow.youtube.ui.screens.player.VideoPlayerViewModel
@@ -135,7 +136,8 @@ fun VideoInfoContent(
  */
 fun LazyListScope.relatedVideosContent(
     relatedVideos: List<Video>,
-    onVideoClick: (Video) -> Unit
+    onVideoClick: (Video) -> Unit,
+    useCompactView: Boolean = false
 ) {
     // Header
     item {
@@ -156,10 +158,17 @@ fun LazyListScope.relatedVideosContent(
         key = { index -> relatedVideos[index].id }
     ) { index ->
         val relatedVideo = relatedVideos[index]
-        VideoCardFullWidth(
-            video = relatedVideo,
-            onClick = { onVideoClick(relatedVideo) }
-        )
+        if (useCompactView) {
+            CompactVideoCard(
+                video = relatedVideo,
+                onClick = { onVideoClick(relatedVideo) }
+            )
+        } else {
+            VideoCardFullWidth(
+                video = relatedVideo,
+                onClick = { onVideoClick(relatedVideo) }
+            )
+        }
     }
 }
 

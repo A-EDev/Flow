@@ -62,15 +62,18 @@ fun EnhancedVideoPlayerScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val isWideLayout = maxWidth > 600.dp && maxHeight < maxWidth && 
+            val isWideLayout = maxWidth > 600.dp && 
                               !screenState.isFullscreen && !screenState.isInPipMode
 
             if (isWideLayout) {
+                val descriptionWeight = if (maxWidth < 840.dp) 0.55f else 0.65f
+                val relatedWeight = 1f - descriptionWeight
+
                 // Tablet/Foldable Layout
                 Row(Modifier.fillMaxSize()) {
                     Column(
                         Modifier
-                            .weight(0.65f)
+                            .weight(descriptionWeight)
                             .fillMaxHeight()
                             .verticalScroll(rememberScrollState())
                     ) {
@@ -87,12 +90,13 @@ fun EnhancedVideoPlayerScreen(
                         )
                     }
                     LazyColumn(
-                        Modifier.weight(0.35f), 
+                        Modifier.weight(relatedWeight), 
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
                         relatedVideosContent(
                             relatedVideos = uiState.relatedVideos,
-                            onVideoClick = onVideoClick
+                            onVideoClick = onVideoClick,
+                            useCompactView = true
                         )
                     }
                 }
