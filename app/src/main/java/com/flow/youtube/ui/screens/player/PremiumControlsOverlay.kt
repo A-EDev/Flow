@@ -93,7 +93,7 @@ fun PremiumControlsOverlay(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopStart)
-                    .padding(16.dp),
+                    .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -271,7 +271,7 @@ fun PremiumControlsOverlay(
                             colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
                         )
                     )
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
             ) {
                 // Time and Chapter (Pill Shape) - Positioned better
                 Row(

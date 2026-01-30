@@ -129,7 +129,7 @@ fun FlowApp(
             modifier = Modifier.fillMaxSize(),
             snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
             containerColor = if (isInPipMode) androidx.compose.ui.graphics.Color.Black else androidx.compose.material3.MaterialTheme.colorScheme.background,
-            contentWindowInsets = WindowInsets(0.dp), // Remove default window insets to prevent black area
+            contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Top), 
             bottomBar = {
                 if (!isInPipMode && showBottomNav.value) {
                     Column {

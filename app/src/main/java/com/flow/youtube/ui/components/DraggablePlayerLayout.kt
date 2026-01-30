@@ -1,5 +1,6 @@
 package com.flow.youtube.ui.components
 
+import android.content.res.Configuration
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.spring
@@ -15,7 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
@@ -25,7 +26,6 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-// Helper function for linear interpolation
 private fun lerpFloat(start: Float, stop: Float, fraction: Float): Float {
     return start + (stop - start) * fraction
 }
@@ -45,13 +45,13 @@ class PlayerDraggableState(
 
     fun expand() {
         scope.launch {
-            offsetY.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = 350f))
+            offsetY.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 300f))
         }
     }
 
     fun collapse() {
         scope.launch {
-            offsetY.animateTo(maxOffset, spring(dampingRatio = 0.85f, stiffness = 350f))
+            offsetY.animateTo(maxOffset, spring(dampingRatio = 0.82f, stiffness = 300f))
         }
     }
     
@@ -82,74 +82,109 @@ fun DraggablePlayerLayout(
 ) {
     val density = LocalDensity.current
     val config = LocalConfiguration.current
-    val screenWidth = with(density) { config.screenWidthDp.dp.toPx() }
+    val isLandscape = config.orientation == Configuration.ORIENTATION_LANDSCAPE
     
-    val fraction = state.fraction
-   
-    // Video Dimensions
-    val videoHeight = screenWidth * (9f / 16f)
-    
-    // Mini Player Target Dimensions
-    val miniScale = 0.55f
-    val miniWidth = screenWidth * miniScale
-    val margin = with(density) { 12.dp.toPx() } // Margin from edges
-    
-    // Calculate Target Position (Bottom-Right)
-    // X goes from 0 to (Screen - MiniWidth - Margin)
-    val targetX = screenWidth - miniWidth - margin
-    
-    // Pre-calculate px for graphicsLayer
-    val elevationPx = with(density) { 16.dp.toPx() }
-    
-    Box(modifier = Modifier.fillMaxSize()) {
+    // Get Status Bar Height
+    val statusBarHeight = WindowInsets.statusBars.getTop(density).toFloat()
+
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        val fullScreenWidth = constraints.maxWidth.toFloat()
+        val fullScreenHeight = constraints.maxHeight.toFloat()
         
-        // 1. Background Scrim - Fades out as we collapse
+        // --- 1. LANDSCAPE MODE---
+        if (isLandscape) {
+            
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            ) {
+                videoContent(Modifier.fillMaxSize())
+                
+                
+            return@BoxWithConstraints
+        }
+
+        // --- 2. PORTRAIT MODE ---
+        
+        val fraction = state.fraction
+        
+        // Target Dimensions for Mini Player
+        val miniScale = 0.55f
+        val miniWidth = fullScreenWidth * miniScale
+        val miniHeight = miniWidth * (9f / 16f)
+        val margin = with(density) { 12.dp.toPx() }
+        
+        // Portrait Video Height (16:9)
+        val expandedVideoHeight = fullScreenWidth * (9f / 16f)
+        
+        // Calculate Positions
+        val currentTopPadding = lerpFloat(statusBarHeight, 0f, fraction)
+        
+        // Target X (Right align)
+        val targetX = fullScreenWidth - miniWidth - margin
+        
+        // Main Background (Scrim)
         if (fraction < 1f) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .alpha(1f - fraction)
-                    .background(MaterialTheme.colorScheme.background)
-            )
+            ) {
+                // Top Black Bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(with(density) { statusBarHeight.toDp() })
+                        .background(Color.Black)
+                )
+                // Bottom Content Background
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight()
+                        .padding(top = with(density) { statusBarHeight.toDp() })
+                        .background(MaterialTheme.colorScheme.background)
+                )
+            }
         }
 
-        // 2. Body Content - Fades out and moves down as we collapse
+        // Body Content (Scrollable info)
         if (fraction < 0.8f) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = with(density) { videoHeight.toDp() })
+                    // Push content down below the Video + Status Bar
+                    .padding(top = with(density) { (expandedVideoHeight + statusBarHeight).toDp() })
                     .alpha(1f - fraction)
-                    .graphicsLayer {
-                        translationY = fraction * 100f // Parallax nudge
-                    }
+                    .graphicsLayer { translationY = fraction * 100f }
             ) {
                 bodyContent(1f - fraction)
             }
         }
 
-        // 3. Floating Video Player
+        // THE DRAGGABLE VIDEO PLAYER
         Box(
             modifier = Modifier
-                .width(with(density) { config.screenWidthDp.dp })
-                .height(with(density) { videoHeight.toDp() })
+                .width(with(density) { fullScreenWidth.toDp() })
+                .height(with(density) { expandedVideoHeight.toDp() })
                 .graphicsLayer(
-                    // Translation Y: Controlled by Drag
-                    translationY = state.offsetY.value,
+                    // Y Translation: The drag offset + the dynamic top padding
+                    translationY = state.offsetY.value + currentTopPadding,
                     
-                    // Translation X: Interpolate to Right Edge
+                    // X Translation: Move to right
                     translationX = targetX * fraction,
                     
-                    // Scale: Shrink to mini size
+                    // Scale: Shrink
                     scaleX = lerpFloat(1f, miniScale, fraction),
                     scaleY = lerpFloat(1f, miniScale, fraction),
-                    
-                    // Pivot at Top-Left
                     transformOrigin = TransformOrigin(0f, 0f),
                     
-                    // Shadow & Clip
-                    shadowElevation = if (fraction > 0f) elevationPx else 0f,
-                    shape = RoundedCornerShape(if (fraction > 0.1f) 16.dp else 0.dp),
+                    // Visuals
+                    shadowElevation = with(density) { if (fraction > 0f) 16.dp.toPx() else 0f },
+                    shape = RoundedCornerShape(if (fraction > 0.1f) 12.dp else 0.dp),
                     clip = true
                 )
                 .background(Color.Black)
@@ -175,7 +210,7 @@ fun DraggablePlayerLayout(
         ) {
             // Video Surface
             videoContent(Modifier.fillMaxSize())
-            
+
             // Mini Controls Overlay
             if (fraction > 0.6f) {
                 Box(
