@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -471,31 +472,55 @@ class MusicPlayerViewModel @Inject constructor(
         val trackToDownload = track ?: _uiState.value.currentTrack ?: return
         
         if (_uiState.value.downloadedTrackIds.contains(trackToDownload.videoId)) {
-             Toast.makeText(context, "Already downloaded", Toast.LENGTH_SHORT).show()
+             viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
+                 Toast.makeText(context, "Already downloaded", Toast.LENGTH_SHORT).show()
+             }
              return
         }
 
-        viewModelScope.launch(PerformanceDispatcher.networkIO) {
-            Toast.makeText(context, "Download started...", Toast.LENGTH_SHORT).show()
+        viewModelScope.launch {
+            // Show toast on main thread
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                Toast.makeText(context, "Download started...", Toast.LENGTH_SHORT).show()
+            }
             
             try {
-                val audioUrl = withTimeoutOrNull(10_000L) {
-                    YouTubeMusicService.getAudioUrl(trackToDownload.videoId)
+                android.util.Log.d("MusicDownload", "Starting download for: ${trackToDownload.title}")
+                
+                val audioUrl = withContext(PerformanceDispatcher.networkIO) {
+                    withTimeoutOrNull(15_000L) {
+                        YouTubeMusicService.getAudioUrl(trackToDownload.videoId)
+                    }
                 }
                 
+                android.util.Log.d("MusicDownload", "Audio URL: ${if (audioUrl != null) "obtained" else "null"}")
+                
                 if (audioUrl != null) {
-                    val result = downloadManager.downloadTrack(trackToDownload, audioUrl)
-                    if (result.isSuccess) {
-                        Toast.makeText(context, "Saved to Library", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(context, "Download failed", Toast.LENGTH_SHORT).show()
+                    val result = withContext(PerformanceDispatcher.networkIO) {
+                        downloadManager.downloadTrack(trackToDownload, audioUrl)
+                    }
+                    
+                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        if (result.isSuccess) {
+                            Toast.makeText(context, "Saved to Library", Toast.LENGTH_SHORT).show()
+                        } else {
+                            val error = result.exceptionOrNull()?.message ?: "Unknown error"
+                            android.util.Log.e("MusicDownload", "Download failed: $error")
+                            Toast.makeText(context, "Download failed: $error", Toast.LENGTH_SHORT).show()
+                        }
                     }
                 } else {
-                    Toast.makeText(context, "Could not get audio URL", Toast.LENGTH_SHORT).show()
+                    android.util.Log.e("MusicDownload", "Could not get audio URL")
+                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        Toast.makeText(context, "Could not get audio URL", Toast.LENGTH_SHORT).show()
+                    }
                 }
             } catch (e: Exception) {
+                android.util.Log.e("MusicDownload", "Download exception", e)
                 e.printStackTrace()
-                Toast.makeText(context, "Download failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    Toast.makeText(context, "Download failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }

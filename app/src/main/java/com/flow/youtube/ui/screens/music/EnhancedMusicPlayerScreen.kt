@@ -63,12 +63,9 @@ fun EnhancedMusicPlayerScreen(
     // Unified Sheet State
     var currentTab by remember { mutableStateOf(PlayerTab.UP_NEXT) }
     
-    // Drag State
+    // Drag State - initialized lazily inside BoxWithConstraints
     val density = LocalDensity.current
-    val peekHeight = with(density) { 60.dp.toPx() } 
-    
-    var dragOffsetY by remember { mutableStateOf(Float.MAX_VALUE) }
-    var isInitialized by remember { mutableStateOf(false) }
+    val peekHeight = with(density) { 60.dp.toPx() }
     
     LaunchedEffect(isVideoMode) {
         viewModel.switchMode(isVideoMode)
@@ -154,15 +151,15 @@ fun EnhancedMusicPlayerScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         val navBarInsets = WindowInsets.navigationBars.asPaddingValues()
-        val navBarHeightPx = with(density) { navBarInsets.calculateBottomPadding().toPx() }
         val maxHeight = constraints.maxHeight.toFloat()
+        val navBarHeightPx = with(density) { navBarInsets.calculateBottomPadding().toPx() }
+        
         val collapsedY = maxHeight - peekHeight - navBarHeightPx
         val expandedY = with(density) { 100.dp.toPx() }
         
-        if (!isInitialized) {
-            dragOffsetY = collapsedY
-            isInitialized = true
-        }
+        var dragOffsetY by remember(collapsedY) { mutableFloatStateOf(collapsedY) }
+        
+        val sheetOffset = dragOffsetY.coerceIn(expandedY, collapsedY)
 
         val draggableState = rememberDraggableState { delta ->
              val newOffset = (dragOffsetY + delta).coerceIn(expandedY, collapsedY)
@@ -170,7 +167,7 @@ fun EnhancedMusicPlayerScreen(
         }
         
         val dragFraction = if (collapsedY != expandedY) {
-            (1f - ((dragOffsetY - expandedY) / (collapsedY - expandedY))).coerceIn(0f, 1f)
+            (1f - ((sheetOffset - expandedY) / (collapsedY - expandedY))).coerceIn(0f, 1f)
         } else 0f
         
         // --- Animations ---
@@ -214,6 +211,7 @@ fun EnhancedMusicPlayerScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .navigationBarsPadding() // Restored to prevent controls from being hidden
         ) {
              // Top bar
             Box(
@@ -447,7 +445,6 @@ fun EnhancedMusicPlayerScreen(
         }
         
         // Unified Bottom Sheet
-        val sheetOffset = dragOffsetY
         
         fun animateSheet(target: Float) {
             scope.launch {
@@ -468,7 +465,8 @@ fun EnhancedMusicPlayerScreen(
             modifier = Modifier
                 .offset { IntOffset(0, sheetOffset.roundToInt()) }
                 .fillMaxWidth()
-                .height((maxHeight - expandedY).dp)
+                .height(with(density) { (maxHeight - expandedY).toDp() }) // CORRECTION: Convert pixel diff to DP
+                .shadow(elevation = 16.dp) // Visual separation
                 .draggable(
                     orientation = Orientation.Vertical,
                     state = draggableState,
