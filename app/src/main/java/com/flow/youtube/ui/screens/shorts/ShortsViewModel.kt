@@ -300,6 +300,29 @@ class ShortsViewModel(
             }
         }
     }
+
+    fun loadCommentReplies(comment: com.flow.youtube.data.model.Comment) {
+        val currentVideo = _uiState.value.shorts.getOrNull(_uiState.value.currentIndex) ?: return
+        val repliesPage = comment.repliesPage ?: return
+        
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            try {
+                val url = "https://www.youtube.com/watch?v=${currentVideo.id}"
+                val (replies, nextPage) = repository.getCommentReplies(url, repliesPage)
+                
+                _commentsState.value = _commentsState.value.map { c ->
+                    if (c.id == comment.id) {
+                        c.copy(
+                            replies = replies,
+                            repliesPage = nextPage
+                        )
+                    } else c
+                }
+            } catch (e: Exception) {
+                Log.e("ShortsViewModel", "Error loading replies", e)
+            }
+        }
+    }
 }
 
 data class ShortsUiState(

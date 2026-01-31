@@ -43,8 +43,9 @@ fun FlowCommentsBottomSheet(
     commentCount: String,
     isLoading: Boolean,
     onDismiss: () -> Unit,
-    onTimestampClick: (String) -> Unit = {}, // Callback when user clicks "2:04"
+    onTimestampClick: (String) -> Unit = {}, 
     onFilterChanged: (Boolean) -> Unit = {},
+    onLoadReplies: (Comment) -> Unit = {},
     isTopSelected: Boolean = true,
     modifier: Modifier = Modifier
 ) {
@@ -124,7 +125,8 @@ fun FlowCommentsBottomSheet(
                     items(comments) { comment ->
                         FlowCommentItem(
                             comment = comment,
-                            onTimestampClick = onTimestampClick
+                            onTimestampClick = onTimestampClick,
+                            onLoadReplies = onLoadReplies
                         )
                     }
                 }
@@ -136,10 +138,17 @@ fun FlowCommentsBottomSheet(
 @Composable
 fun FlowCommentItem(
     comment: Comment,
-    onTimestampClick: (String) -> Unit
+    onTimestampClick: (String) -> Unit,
+    onLoadReplies: (Comment) -> Unit
 ) {
     var isExpanded by remember { mutableStateOf(false) }
+    var isRepliesVisible by remember { mutableStateOf(false) }
     var isOverflowing by remember { mutableStateOf(false) }
+    var isLoadingReplies by remember { mutableStateOf(false) }
+
+    LaunchedEffect(comment.replies) {
+        isLoadingReplies = false
+    }
 
     // Process text to make timestamps blue and clickable, and handle HTML
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -170,8 +179,6 @@ fun FlowCommentItem(
 
         Column(modifier = Modifier.weight(1f)) {
             
-            // Pinned Indicator (You'll need to map this field from your model)
-            // if (comment.isPinned) { ... }
             
             // Header: Author + Time
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -281,13 +288,19 @@ fun FlowCommentItem(
             }
 
             // View Replies Button
-            if (comment.replies.isNotEmpty()) {
+            if (comment.replyCount > 0) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))
-                        .clickable { /* Load replies */ }
+                        .clickable { 
+                            if (!isRepliesVisible && comment.replies.isEmpty()) {
+                                isLoadingReplies = true
+                                onLoadReplies(comment)
+                            }
+                            isRepliesVisible = !isRepliesVisible 
+                        }
                         .padding(vertical = 4.dp)
                 ) {
                     Box(
@@ -297,15 +310,126 @@ fun FlowCommentItem(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = "${comment.replies.size} replies",
+                        text = if (isRepliesVisible) "Hide replies" else "View ${comment.replyCount} replies",
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )
+                    if (isLoadingReplies) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(12.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+
+            // Display Replies
+            if (isRepliesVisible && comment.replies.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                ) {
+                    comment.replies.forEach { reply ->
+                        FlowReplyItem(reply = reply, onTimestampClick = onTimestampClick)
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+fun FlowReplyItem(
+    reply: Comment,
+    onTimestampClick: (String) -> Unit
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val annotatedText = formatRichText(
+        text = reply.text,
+        primaryColor = primaryColor,
+        textColor = MaterialTheme.colorScheme.onSurface
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp)
+    ) {
+        // Avatar (Small for replies)
+        AsyncImage(
+            model = reply.authorThumbnail,
+            contentDescription = null,
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentScale = ContentScale.Crop
+        )
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            // Header: Author + Time
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = "@${reply.author.trim()}",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = reply.publishedTime,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            // Reply Body
+            ClickableText(
+                text = annotatedText,
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = MaterialTheme.colorScheme.onSurface,
+                    lineHeight = 16.sp
+                ),
+                onClick = { offset ->
+                    annotatedText.getStringAnnotations(tag = "TIMESTAMP", start = offset, end = offset)
+                        .firstOrNull()?.let { annotation ->
+                            onTimestampClick(annotation.item)
+                        }
+                }
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Action Bar (Minimal for replies)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Outlined.ThumbUp,
+                    contentDescription = "Like",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(12.dp)
+                )
+                if (reply.likeCount > 0) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = formatLikeCount(reply.likeCount),
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+            }
+        }
+    }
+}
 }
 
 // ==========================================

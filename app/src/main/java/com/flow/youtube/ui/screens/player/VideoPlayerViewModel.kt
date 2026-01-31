@@ -613,6 +613,30 @@ class VideoPlayerViewModel @Inject constructor(
             }
         }
     }
+
+    fun loadCommentReplies(comment: com.flow.youtube.data.model.Comment) {
+        val videoId = _uiState.value.streamInfo?.id ?: return
+        val repliesPage = comment.repliesPage ?: return
+        
+        viewModelScope.launch {
+            try {
+                val url = "https://www.youtube.com/watch?v=$videoId"
+                val (replies, nextPage) = repository.getCommentReplies(url, repliesPage)
+                
+                // Update the comment in the list
+                _commentsState.value = _commentsState.value.map { c ->
+                    if (c.id == comment.id) {
+                        c.copy(
+                            replies = replies,
+                            repliesPage = nextPage
+                        )
+                    } else c
+                }
+            } catch (e: Exception) {
+                Log.e("VideoPlayerViewModel", "Error loading replies", e)
+            }
+        }
+    }
     
     private fun selectStreams(
         streamInfo: StreamInfo,

@@ -473,7 +473,9 @@ class YouTubeRepository @Inject constructor() {
                     authorThumbnail = item.uploaderAvatars.firstOrNull()?.url ?: "",
                     text = item.commentText?.content ?: "",
                     likeCount = item.likeCount.toInt(),
-                    publishedTime = item.textualUploadDate ?: ""
+                    publishedTime = item.textualUploadDate ?: "",
+                    replyCount = item.replyCount.toInt(),
+                    repliesPage = item.replies
                 )
             })
             
@@ -489,7 +491,9 @@ class YouTubeRepository @Inject constructor() {
                         authorThumbnail = item.uploaderAvatars.firstOrNull()?.url ?: "",
                         text = item.commentText?.content ?: "",
                         likeCount = item.likeCount.toInt(),
-                        publishedTime = item.textualUploadDate ?: ""
+                        publishedTime = item.textualUploadDate ?: "",
+                        replyCount = item.replyCount.toInt(),
+                        repliesPage = item.replies
                     )
                 })
                 nextPage = moreItems.nextPage
@@ -500,6 +504,34 @@ class YouTubeRepository @Inject constructor() {
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
+        }
+    }
+
+    /**
+     * Fetch replies for a comment
+     */
+    suspend fun getCommentReplies(
+        url: String,
+        repliesPage: Page
+    ): Pair<List<com.flow.youtube.data.model.Comment>, Page?> = withContext(Dispatchers.IO) {
+        try {
+            val moreItems = org.schabi.newpipe.extractor.comments.CommentsInfo.getMoreItems(service, url, repliesPage)
+            val replies = moreItems.items.map { item ->
+                com.flow.youtube.data.model.Comment(
+                    id = item.commentId ?: "",
+                    author = item.uploaderName ?: "Unknown",
+                    authorThumbnail = item.uploaderAvatars.firstOrNull()?.url ?: "",
+                    text = item.commentText?.content ?: "",
+                    likeCount = item.likeCount.toInt(),
+                    publishedTime = item.textualUploadDate ?: "",
+                    replyCount = item.replyCount.toInt(),
+                    repliesPage = item.replies
+                )
+            }
+            Pair(replies, moreItems.nextPage)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Pair(emptyList(), null)
         }
     }
 
@@ -548,10 +580,8 @@ class YouTubeRepository @Inject constructor() {
 
     /**
      * Extension function to convert StreamInfoItem to our Video model
-     * CRITICAL FIXES APPLIED HERE
      */
     private fun StreamInfoItem.toVideo(): Video {
-        // 1. Robust ID Extraction
         val rawUrl = url ?: ""
         val videoId = when {
             rawUrl.contains("watch?v=") -> rawUrl.substringAfter("watch?v=").substringBefore("&")
@@ -560,30 +590,22 @@ class YouTubeRepository @Inject constructor() {
             else -> rawUrl.substringAfterLast("/") 
         }
 
-        // Get highest quality thumbnail
         val bestThumbnail = thumbnails
             .sortedByDescending { it.height }
             .firstOrNull()?.url ?: ""
         
-        // Get highest quality channel avatar
         val bestAvatar = uploaderAvatars
             .sortedByDescending { it.height }
             .firstOrNull()?.url ?: ""
         
-        // 2. Robust Duration & Shorts Detection
         var durationSecs = if (duration > 0) duration.toInt() else 0
         
-        // NewPipe doesn't have StreamType.SHORT_VIDEO in older versions, 
-        // so we rely on URL inspection which is safer.
         val isShortUrl = rawUrl.contains("/shorts/")
         
-        // If it looks like a short but NewPipe gave 0 duration (common bug), 
-        // force it to 60s so downstream logic treats it as a short
         if (isShortUrl && durationSecs == 0) {
             durationSecs = 60 
         }
         
-        // Normalize Live streams
         val isLiveStream = streamType == StreamType.LIVE_STREAM
         if (isLiveStream) {
             durationSecs = 0 

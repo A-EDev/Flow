@@ -1,5 +1,7 @@
 package com.flow.youtube.data.model
 
+import org.schabi.newpipe.extractor.Page
+
 data class Video(
     val id: String,
     val title: String,
@@ -36,7 +38,6 @@ data class Playlist(
     val videos: List<Video> = emptyList(),
     val isLocal: Boolean = true
 )
-
 data class Comment(
     val id: String,
     val author: String,
@@ -44,7 +45,9 @@ data class Comment(
     val text: String,
     val likeCount: Int,
     val publishedTime: String,
-    val replies: List<Comment> = emptyList()
+    val replies: List<Comment> = emptyList(),
+    val replyCount: Int = 0,
+    val repliesPage: Page? = null
 )
 
 data class SearchResult(

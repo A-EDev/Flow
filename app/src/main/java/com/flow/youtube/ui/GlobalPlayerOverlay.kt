@@ -458,6 +458,9 @@ fun GlobalPlayerOverlay(
             },
             onPlayAsMusic = { _ ->
                 // Handle play as music - still placeholder for now
+            },
+            onLoadReplies = { comment ->
+                playerViewModel.loadCommentReplies(comment)
             }
         )
     }

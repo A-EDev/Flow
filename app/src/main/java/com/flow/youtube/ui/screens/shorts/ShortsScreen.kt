@@ -141,6 +141,9 @@ fun ShortsScreen(
                 onFilterChanged = { isTop ->
                     isTopComments = isTop
                 },
+                onLoadReplies = { comment ->
+                    viewModel.loadCommentReplies(comment)
+                },
                 onDismiss = { showCommentsSheet = false }
             )
         }

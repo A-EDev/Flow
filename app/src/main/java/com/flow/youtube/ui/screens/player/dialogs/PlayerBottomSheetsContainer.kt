@@ -32,7 +32,8 @@ fun PlayerBottomSheetsContainer(
     context: Context,
     musicVm: MusicPlayerViewModel,
     onPlayAsShort: (String) -> Unit,
-    onPlayAsMusic: (String) -> Unit
+    onPlayAsMusic: (String) -> Unit,
+    onLoadReplies: (Comment) -> Unit = {}
 ) {
     // Sorted comments based on filter
     val sortedComments = remember(comments, screenState.isTopComments) {
@@ -91,6 +92,7 @@ fun PlayerBottomSheetsContainer(
             onFilterChanged = { isTop ->
                 screenState.isTopComments = isTop
             },
+            onLoadReplies = onLoadReplies,
             onDismiss = { screenState.showCommentsSheet = false }
         )
     }
