@@ -42,13 +42,8 @@ class MusicPlayerViewModel @Inject constructor(
     val uiState: StateFlow<MusicPlayerUiState> = _uiState.asStateFlow()
     
     private var isInitialized = false
-    // private lateinit var playlistRepository: PlaylistRepository // Injected
-    // private lateinit var downloadManager: DownloadManager // Injected
 
     init {
-        // We initialize EnhancedMusicPlayerManager here as it needs context. 
-        // Ideally this should be in Application or a separate Manager that is injected.
-        // But for now, using the injected ApplicationContext is safe.
         EnhancedMusicPlayerManager.initialize(context)
         initializeObservers()
     }
@@ -57,7 +52,6 @@ class MusicPlayerViewModel @Inject constructor(
         if (isInitialized) return
         isInitialized = true
         
-        // Observe player events (Queue navigation)
         viewModelScope.launch {
             EnhancedMusicPlayerManager.playerEvents.collect { event ->
                 when (event) {
@@ -68,7 +62,6 @@ class MusicPlayerViewModel @Inject constructor(
             }
         }
         
-        // Observe player state
         viewModelScope.launch {
             EnhancedMusicPlayerManager.playerState.collect { playerState ->
                 _uiState.update { it.copy(
@@ -79,14 +72,12 @@ class MusicPlayerViewModel @Inject constructor(
             }
         }
             
-        // Observe current track
         viewModelScope.launch {
             EnhancedMusicPlayerManager.currentTrack.collect { track ->
                 _uiState.update { it.copy(
                     currentTrack = track,
-                    lyrics = null // Reset lyrics for new track
+                    lyrics = null 
                 ) }
-                // Check if current track is favorite
                 track?.let { 
                     checkIfFavorite(it.videoId)
                     fetchLyrics(it.artist, it.title)
@@ -95,14 +86,12 @@ class MusicPlayerViewModel @Inject constructor(
             }
         }
 
-        // Observe playing from
         viewModelScope.launch {
             EnhancedMusicPlayerManager.playingFrom.collect { source ->
                 _uiState.update { it.copy(playingFrom = source) }
             }
         }
         
-        // Observe downloaded tracks status
         viewModelScope.launch {
             downloadManager.downloadedTracks.collect { tracks ->
                 val ids = tracks.map { it.track.videoId }.toSet()
@@ -110,44 +99,38 @@ class MusicPlayerViewModel @Inject constructor(
             }
         }
             
-        // Observe queue
         viewModelScope.launch {
             EnhancedMusicPlayerManager.queue.collect { queue ->
                 _uiState.update { it.copy(queue = queue) }
             }
         }
             
-        // Observe queue index
         viewModelScope.launch {
             EnhancedMusicPlayerManager.currentQueueIndex.collect { index ->
                 _uiState.update { it.copy(currentQueueIndex = index) }
             }
         }
             
-        // Observe shuffle
         viewModelScope.launch {
             EnhancedMusicPlayerManager.shuffleEnabled.collect { enabled ->
                 _uiState.update { it.copy(shuffleEnabled = enabled) }
             }
         }
             
-        // Observe repeat mode
         viewModelScope.launch {
             EnhancedMusicPlayerManager.repeatMode.collect { mode ->
                 _uiState.update { it.copy(repeatMode = mode) }
             }
         }
             
-        // Observe playlists (From Local Room DB now)
         viewModelScope.launch {
             localPlaylistRepository.getMusicPlaylistsFlow().collect { playlistInfos ->
-                // Map PlaylistInfo to Music Playlist (simplified)
                 val playlists = playlistInfos.map { info ->
                     com.flow.youtube.data.music.Playlist(
                         id = info.id,
                         name = info.name,
                         description = info.description,
-                        tracks = emptyList(), // Tracks not needed for selection list
+                        tracks = emptyList(), 
                         createdAt = info.createdAt,
                         thumbnailUrl = info.thumbnailUrl
                     )
@@ -159,7 +142,6 @@ class MusicPlayerViewModel @Inject constructor(
     
     private fun checkIfFavorite(videoId: String) {
         viewModelScope.launch {
-            // Check LikedVideosRepository
             likedVideosRepository.getLikeState(videoId).collect { state ->
                 _uiState.update { it.copy(isLiked = state == "LIKED") }
             }
@@ -172,7 +154,6 @@ class MusicPlayerViewModel @Inject constructor(
      */
     fun loadAndPlayTrack(track: MusicTrack, queue: List<MusicTrack> = emptyList(), sourceName: String? = null) {
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
-            // Add to history (Music specific) - parallel with main ViewHistory
             supervisorScope {
                 launch(PerformanceDispatcher.diskIO) {
                     playlistRepository.addToHistory(track)
@@ -192,7 +173,6 @@ class MusicPlayerViewModel @Inject constructor(
                 }
             }
             
-            // Add to main ViewHistory
             viewHistory.savePlaybackPosition(
                 videoId = track.videoId,
                 position = 0,
@@ -200,39 +180,34 @@ class MusicPlayerViewModel @Inject constructor(
                 title = track.title,
                 thumbnailUrl = track.thumbnailUrl,
                 channelName = track.artist,
-                channelId = "", // Music tracks might not have channel ID readily available
+                channelId = "", 
                 isMusic = true
             )
 
             val finalSourceName = sourceName ?: "Radio • ${track.artist}"
 
-            // Set track data immediately in Manager so all observers (including FlowApp) see it
             EnhancedMusicPlayerManager.setCurrentTrack(track, finalSourceName)
 
-            // Set track data immediately in local UI state
             _uiState.update { it.copy(
                 currentTrack = track,
                 isLoading = true, 
                 error = null,
                 playingFrom = finalSourceName,
-                selectedFilter = "All" // Reset filter for new track
+                selectedFilter = "All" 
             ) }
             
             try {
-                // Check if track is downloaded (fast path)
                 val localPath = withTimeoutOrNull(2_000L) {
                     downloadManager.getDownloadedTrackPath(track.videoId)
                 }
                 
                 if (localPath != null && java.io.File(localPath).exists()) {
-                    // Play LOCAL track (progressive is fine here)
                     EnhancedMusicPlayerManager.playTrack(
                         track = track,
                         audioUrl = localPath,
                         queue = if (queue.isNotEmpty()) queue else listOf(track)
                     )
                 } else {
-                    //  OPTIMIZED: Online playback with timeout protection
                     val streamData = withTimeoutOrNull(10_000L) {
                         YouTubeMusicService.getBestAudioStream(track.videoId)
                     }
@@ -245,7 +220,6 @@ class MusicPlayerViewModel @Inject constructor(
                             queue = if (queue.isNotEmpty()) queue else listOf(track)
                         )
                     } else {
-                        // Fallback to old progressive if everything fails
                         val audioUrl = withTimeoutOrNull(8_000L) {
                             YouTubeMusicService.getAudioUrl(track.videoId)
                         }
@@ -259,13 +233,11 @@ class MusicPlayerViewModel @Inject constructor(
                     }
                 }
                 
-                //  PARALLEL: Fetch related content and queue update simultaneously
                 supervisorScope {
                     launch(PerformanceDispatcher.networkIO) {
                         fetchRelatedContent(track.videoId)
                     }
                     
-                    // Only fetch related tracks if we don't have a substantial queue already
                     if (queue.size <= 1) {
                         launch(PerformanceDispatcher.networkIO) {
                             val relatedTracks = withTimeoutOrNull(8_000L) {
@@ -426,11 +398,9 @@ class MusicPlayerViewModel @Inject constructor(
         val currentTrack = _uiState.value.currentTrack ?: return
         
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
-            // Toggle in PlaylistRepository (Music specific)
             val isNowFavorite = playlistRepository.toggleFavorite(currentTrack)
             _uiState.update { it.copy(isLiked = isNowFavorite) }
             
-            // Sync with LikedVideosRepository (Main Library)
             if (isNowFavorite) {
                 likedVideosRepository.likeVideo(
                     LikedVideoInfo(
@@ -451,7 +421,6 @@ class MusicPlayerViewModel @Inject constructor(
         val trackToAdd = track ?: _uiState.value.currentTrack ?: return
         
         viewModelScope.launch {
-            // Convert to Video domain object
             val video = Video(
                 id = trackToAdd.videoId,
                 title = trackToAdd.title,
@@ -553,7 +522,6 @@ class MusicPlayerViewModel @Inject constructor(
                 syncedLyrics = emptyList()
             ) }
             
-            // Small delay to avoid spamming API while skipping
             delay(500)
             
             val response = com.flow.youtube.data.music.LyricsService.getLyrics(
@@ -577,8 +545,6 @@ class MusicPlayerViewModel @Inject constructor(
 
     private fun parseLyrics(lrc: String): List<LyricLine> {
         val lines = mutableListOf<LyricLine>()
-        // Support [mm:ss.xx], [mm:ss.xxx], [m:ss.xx], etc.
-        // Also support multiple timestamps like [00:12.34][00:45.67] Lyrics
         val timeRegex = Regex("\\[(\\d{1,2}):(\\d{2})[.:](\\d{2,3})\\]")
         
         lrc.lines().forEach { line ->
@@ -612,7 +578,6 @@ class MusicPlayerViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        // Don't release the player, it's managed globally
     }
 }
 
