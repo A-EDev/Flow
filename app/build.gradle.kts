@@ -16,8 +16,8 @@ android {
         applicationId = "com.flow.youtube"
         minSdk = 21
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.3.4"
+        versionCode = 4
+        versionName = "1.4.0"
 
         testInstrumentationRunner = "com.flow.youtube.HiltTestRunner"
         vectorDrawables {

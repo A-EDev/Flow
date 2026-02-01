@@ -18,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -36,6 +37,21 @@ fun UpdateDialog(
     onDismiss: () -> Unit,
     onUpdate: () -> Unit
 ) {
+    val context = LocalContext.current
+    
+    val displayedChangelog = remember(updateInfo.changelog, updateInfo.version) {
+        if (updateInfo.version.contains("1.4.0") || updateInfo.changelog.isBlank()) {
+            try {
+                val filename = if (updateInfo.version.startsWith("v")) updateInfo.version else "v${updateInfo.version}"
+                context.assets.open("changelog/$filename.txt").bufferedReader().use { it.readText() }
+            } catch (e: Exception) {
+                updateInfo.changelog
+            }
+        } else {
+            updateInfo.changelog
+        }
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = androidx.compose.ui.window.DialogProperties(
@@ -67,7 +83,6 @@ fun UpdateDialog(
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // 1. Original Logo (restored)
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
@@ -85,9 +100,8 @@ fun UpdateDialog(
 
                     Spacer(modifier = Modifier.height(20.dp))
 
-                    // 2. Original Headlines
                     Text(
-                        text = "New Update Available", // Restored original text
+                        text = "New Update Available", 
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold
@@ -98,7 +112,7 @@ fun UpdateDialog(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "${updateInfo.version} is now available", // Using original data
+                        text = "${updateInfo.version} is now available", 
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         color = Color.LightGray.copy(alpha = 0.8f)
@@ -106,7 +120,7 @@ fun UpdateDialog(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // 3. Version Info Box (Reference Design Style)
+                    // 3. Version Info Box 
                     Surface(
                         shape = RoundedCornerShape(16.dp),
                         color = Color(0xFF131316),
@@ -122,7 +136,7 @@ fun UpdateDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "RELEASE NOTES", // Original text
+                                    text = "RELEASE NOTES", 
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary,
@@ -145,7 +159,7 @@ fun UpdateDialog(
                                     .verticalScroll(rememberScrollState())
                             ) {
                                 MarkdownChangelogText(
-                                    markdown = updateInfo.changelog,
+                                    markdown = displayedChangelog,
                                     textColor = Color.LightGray
                                 )
                             }
