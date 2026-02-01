@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.local.PlaylistRepository
 import com.flow.youtube.data.model.Video
+import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import com.flow.youtube.data.repository.YouTubeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -37,6 +38,25 @@ class QuickActionsViewModel @Inject constructor(
                     playlistRepository.addToWatchLater(video)
                     Toast.makeText(context, "Added to Watch Later", Toast.LENGTH_SHORT).show()
                 }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    /**
+     * Mark a video as "Not Interested" - this strongly penalizes the video's topics
+     * and channel in the FlowNeuroEngine, making similar content much less likely to appear.
+     */
+    fun markNotInterested(video: Video) {
+        viewModelScope.launch {
+            try {
+                FlowNeuroEngine.markNotInterested(context, video)
+                Toast.makeText(
+                    context, 
+                    "Got it! You'll see less content like this.", 
+                    Toast.LENGTH_SHORT
+                ).show()
             } catch (e: Exception) {
                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }

@@ -59,6 +59,7 @@ fun SettingsScreen(
     onNavigateToBufferSettings: () -> Unit,
     onNavigateToSearchHistory: () -> Unit,
     onNavigateToAbout: () -> Unit,
+    onNavigateToUserPreferences: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -324,6 +325,13 @@ item {
             
             item {
                 SettingsGroup {
+                    SettingsItem(
+                        icon = Icons.Outlined.FilterAlt,
+                        title = "Content Preferences",
+                        subtitle = "Block topics you don't want to see",
+                        onClick = onNavigateToUserPreferences
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                          icon = Icons.Outlined.PlayCircle,
                          title = "Player Settings",

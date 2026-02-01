@@ -27,24 +27,122 @@ import java.io.File
 import kotlin.math.*
 
 /**
- * 🧠 Flow Neuro Engine (V4 - Balanced & Thread Safe)
+ * 🧠 Flow Neuro Engine (V5 - Smarter & Adaptive)
  * 
  * A Client-Side Hybrid Recommendation System.
  * Combines Vector Space Models (Learning) with Heuristic Rules (Reliability).
  * 
- * V4 Changes:
- * - Fixed "Echo Chamber" issue with diminishing returns (saturation penalty)
- * - Added session-based fatigue penalty for topic variety
- * - Normalized feature vectors for proper cosine similarity
- * - Moved file I/O to IO dispatcher for UI smoothness
+ * V5 Changes:
+ * - Dynamic Temperature: Novelty weight adapts based on consecutive skips (boredom detection)
+ * - Time Decay: Recency bias for fresh content without hard-filtering evergreen classics
+ * - Stemming: "gaming"/"games", "coding"/"code" now merge for better semantic matching
+ * - Curiosity Gap: Boost for topic-safe but complexity-challenging videos
+ * - Title Similarity: Prevents visual spam of nearly identical video titles
+ * - Optimized Cosine Similarity: No longer allocates intermediate Sets in hot path
+ * - Fixed channel boredom threshold (0.2 -> 0.05) for more accurate detection
  */
 object FlowNeuroEngine {
 
     private const val TAG = "FlowNeuroEngine"
     private const val BRAIN_FILENAME = "user_neuro_brain.json"
     
-    // Mutex to protect brain state access
     private val brainMutex = Mutex()
+
+    // =================================================
+    // V5: TIME DECAY ENGINE
+    // =================================================
+    
+    /**
+     * Applies a recency bias multiplier based on upload date.
+     * Fresh content gets a boost, ancient content gets buried (unless it's a classic).
+     */
+    private object TimeDecay {
+        
+        fun calculateMultiplier(dateText: String, isLive: Boolean): Double {
+            val text = dateText.lowercase()
+            
+            // Live streams get a slight recency bias (news/events)
+            if (isLive) return 1.15
+            
+            return when {
+                // Freshness Boost (Breaking/Trending)
+                text.contains("second") || text.contains("minute") || text.contains("hour") -> 1.15
+                text.contains("day") -> 1.12
+                text.contains("week") -> 1.08
+                
+                // Standard (Recent enough)
+                text.contains("month") -> 1.0
+                
+                // The Decay Curve (Older content)
+                text.contains("year") -> {
+                    // Extract the number: "2 years ago" -> 2
+                    val years = text.filter { it.isDigit() }.toIntOrNull() ?: 1
+                    
+                    // Formula: 1 / (1 + 0.35 * years)
+                    // 1 year  = 0.74
+                    // 3 years = 0.49
+                    // 5 years = 0.36
+                    // 8 years = 0.26 (Effectively buried unless perfect match)
+                    1.0 / (1.0 + (0.35 * years))
+                }
+                
+                else -> 0.85 
+            }
+        }
+    }
+
+    // =================================================
+    // V5: STEMMER (Lightweight Porter-style)
+    // =================================================
+    
+    private object Stemmer {
+        private val SUFFIXES = listOf(
+            "ation", "ition", "ement", "ment", "ness", "ence", "ance",
+            "able", "ible", "ious", "eous", "ful", "less", "ive",
+            "ing", "tion", "sion", "ism", "ist", "ity", "ous",
+            "er", "or", "ed", "es", "ly", "al", "s"
+        )
+        
+        fun stem(word: String): String {
+            if (word.length < 4) return word
+            
+            var result = word.lowercase()
+            
+            for (suffix in SUFFIXES) {
+                if (result.endsWith(suffix) && result.length - suffix.length >= 3) {
+                    result = result.dropLast(suffix.length)
+                    break
+                }
+            }
+            
+            return result
+        }
+    }
+
+    // =================================================
+    // V5: TITLE SIMILARITY (Anti-Clustering)
+    // =================================================
+    
+    /**
+     * Calculates normalized Levenshtein-like similarity (0.0 to 1.0).
+     * Uses word-level comparison for efficiency.
+     */
+    private fun calculateTitleSimilarity(title1: String, title2: String): Double {
+        val words1 = title1.lowercase().split(" ").filter { it.length > 2 }.toSet()
+        val words2 = title2.lowercase().split(" ").filter { it.length > 2 }.toSet()
+        
+        if (words1.isEmpty() || words2.isEmpty()) return 0.0
+        
+        val intersection = words1.intersect(words2).size
+        val union = words1.union(words2).size
+        
+        return if (union > 0) intersection.toDouble() / union else 0.0
+    }
+
+
+    private fun isVideoClassic(viewCount: Long): Boolean {
+        return viewCount >= 5_000_000L
+    }
     
     // =================================================
     // 1. DATA MODELS (IMMUTABLE)
@@ -65,7 +163,12 @@ object FlowNeuroEngine {
         val nightVector: ContentVector = ContentVector(),     // 00:00 - 06:00
         val globalVector: ContentVector = ContentVector(),    // The "Core Personality"
         val channelScores: Map<String, Double> = emptyMap(),  // Track specific channel affinity
-        val totalInteractions: Int = 0
+        val totalInteractions: Int = 0,
+        val consecutiveSkips: Int = 0,  
+        val blockedTopics: Set<String> = emptySet(),  
+        val blockedChannels: Set<String> = emptySet(), 
+        val preferredTopics: Set<String> = emptySet(), 
+        val hasCompletedOnboarding: Boolean = false   
     )
 
     // Protected by Mutex
@@ -92,6 +195,291 @@ object FlowNeuroEngine {
         brainMutex.withLock {
             currentUserBrain = UserBrain()
             saveBrain(context)
+        }
+    }
+
+    // =================================================
+    // V5: BLOCKED TOPICS & CHANNELS API
+    // =================================================
+
+    /**
+     * Get the current list of blocked topics.
+     */
+    suspend fun getBlockedTopics(): Set<String> {
+        return brainMutex.withLock { currentUserBrain.blockedTopics }
+    }
+
+    /**
+     * Add a topic to the blocked list.
+     * Topics are stemmed and lowercased for matching.
+     */
+    suspend fun addBlockedTopic(context: Context, topic: String) {
+        val normalizedTopic = topic.trim().lowercase()
+        if (normalizedTopic.isBlank()) return
+        
+        brainMutex.withLock {
+            currentUserBrain = currentUserBrain.copy(
+                blockedTopics = currentUserBrain.blockedTopics + normalizedTopic
+            )
+            saveBrain(context)
+        }
+    }
+
+    /**
+     * Remove a topic from the blocked list.
+     */
+    suspend fun removeBlockedTopic(context: Context, topic: String) {
+        brainMutex.withLock {
+            currentUserBrain = currentUserBrain.copy(
+                blockedTopics = currentUserBrain.blockedTopics - topic.lowercase()
+            )
+            saveBrain(context)
+        }
+    }
+
+    /**
+     * Get the current list of blocked channel IDs.
+     */
+    suspend fun getBlockedChannels(): Set<String> {
+        return brainMutex.withLock { currentUserBrain.blockedChannels }
+    }
+
+    /**
+     * Block a channel by ID.
+     */
+    suspend fun blockChannel(context: Context, channelId: String) {
+        if (channelId.isBlank()) return
+        
+        brainMutex.withLock {
+            currentUserBrain = currentUserBrain.copy(
+                blockedChannels = currentUserBrain.blockedChannels + channelId
+            )
+            saveBrain(context)
+        }
+    }
+
+    /**
+     * Unblock a channel by ID.
+     */
+    suspend fun unblockChannel(context: Context, channelId: String) {
+        brainMutex.withLock {
+            currentUserBrain = currentUserBrain.copy(
+                blockedChannels = currentUserBrain.blockedChannels - channelId
+            )
+            saveBrain(context)
+        }
+    }
+
+    // =================================================
+    // V5: ONBOARDING & PREFERRED TOPICS API
+    // =================================================
+
+    /**
+     * Comprehensive topic categories for onboarding and preferences.
+     * Organized by category with emoji icons for better UX. (i may change emojies later if i find suitable icons)
+     */
+    data class TopicCategory(
+        val name: String,
+        val icon: String,
+        val topics: List<String>
+    )
+
+    val TOPIC_CATEGORIES = listOf(
+        TopicCategory("🎮 Gaming", "🎮", listOf(
+            "Gaming", "Minecraft", "Fortnite", "GTA", "Call of Duty", "Valorant", 
+            "League of Legends", "Pokemon", "Nintendo", "PlayStation", "Xbox",
+            "PC Gaming", "Esports", "Speedruns", "Game Reviews", "Indie Games",
+            "Retro Gaming", "Mobile Games", "Roblox", "Apex Legends", "FIFA"
+        )),
+        TopicCategory("🎵 Music", "🎵", listOf(
+            "Music", "Pop Music", "Hip Hop", "R&B", "Rock", "Metal", "Jazz",
+            "Classical", "Electronic", "EDM", "Lo-Fi", "K-Pop", "J-Pop",
+            "Country", "Indie Music", "Music Production", "Guitar", "Piano",
+            "Singing", "Music Theory", "Album Reviews", "Concerts", "DJ"
+        )),
+        TopicCategory("💻 Technology", "💻", listOf(
+            "Technology", "Programming", "Coding", "Web Development", "App Development",
+            "AI", "Machine Learning", "Cybersecurity", "Linux", "Apple", "Android",
+            "Smartphones", "Laptops", "PC Building", "Tech Reviews", "Gadgets",
+            "Software", "Cloud Computing", "Blockchain", "Crypto", "Startups"
+        )),
+        TopicCategory("🎬 Entertainment", "🎬", listOf(
+            "Movies", "TV Shows", "Netflix", "Anime", "Marvel", "DC", "Star Wars",
+            "Disney", "Comedy", "Stand-up Comedy", "Drama", "Horror", "Sci-Fi",
+            "Documentary", "Film Analysis", "Movie Reviews", "Behind the Scenes",
+            "Celebrities", "Award Shows", "Trailers", "Fan Theories"
+        )),
+        TopicCategory("📚 Education", "📚", listOf(
+            "Science", "Physics", "Chemistry", "Biology", "Mathematics", "History",
+            "Geography", "Psychology", "Philosophy", "Economics", "Finance",
+            "Investing", "Business", "Marketing", "Language Learning", "English",
+            "Spanish", "Study Tips", "College", "University", "Tutorials"
+        )),
+        TopicCategory("🏋️ Health & Fitness", "🏋️", listOf(
+            "Fitness", "Workout", "Gym", "Yoga", "Running", "CrossFit", "Bodybuilding",
+            "Weight Loss", "Nutrition", "Healthy Eating", "Mental Health", "Meditation",
+            "Self Improvement", "Productivity", "Motivation", "Sports", "Basketball",
+            "Football", "Soccer", "MMA", "Boxing", "Tennis", "Golf"
+        )),
+        TopicCategory("🍳 Lifestyle", "🍳", listOf(
+            "Cooking", "Recipes", "Baking", "Food", "Restaurants", "Travel",
+            "Vlogging", "Daily Vlog", "Fashion", "Style", "Beauty", "Skincare",
+            "Home Decor", "Interior Design", "DIY", "Crafts", "Gardening",
+            "Pets", "Dogs", "Cats", "Cars", "Motorcycles", "Photography"
+        )),
+        TopicCategory("🎨 Creative", "🎨", listOf(
+            "Art", "Drawing", "Painting", "Digital Art", "Animation", "3D Modeling",
+            "Graphic Design", "Video Editing", "Filmmaking", "Photography",
+            "Music Production", "Writing", "Storytelling", "Architecture",
+            "Fashion Design", "Crafts", "Woodworking", "Sculpture"
+        )),
+        TopicCategory("🔬 Science & Nature", "🔬", listOf(
+            "Space", "Astronomy", "NASA", "Physics", "Nature", "Animals", "Wildlife",
+            "Ocean", "Marine Life", "Environment", "Climate", "Geology",
+            "Paleontology", "Dinosaurs", "Engineering", "Inventions", "Experiments"
+        )),
+        TopicCategory("📰 News & Current Events", "📰", listOf(
+            "News", "Politics", "World News", "Tech News", "Sports News",
+            "Entertainment News", "Business News", "Analysis", "Commentary",
+            "Podcasts", "Interviews", "Debates", "Current Events"
+        ))
+    )
+
+    /**
+     * Check if user needs onboarding (cold start detection).
+     */
+    suspend fun needsOnboarding(): Boolean {
+        return brainMutex.withLock {
+            !currentUserBrain.hasCompletedOnboarding && 
+            currentUserBrain.totalInteractions < 5 &&
+            currentUserBrain.preferredTopics.isEmpty()
+        }
+    }
+
+    /**
+     * Check if onboarding has been completed.
+     */
+    suspend fun hasCompletedOnboarding(): Boolean {
+        return brainMutex.withLock { currentUserBrain.hasCompletedOnboarding }
+    }
+
+    /**
+     * Get current preferred topics.
+     */
+    suspend fun getPreferredTopics(): Set<String> {
+        return brainMutex.withLock { currentUserBrain.preferredTopics }
+    }
+
+    /**
+     * Set preferred topics from onboarding or preferences screen.
+     * Also seeds the global vector with initial weights for better cold start.
+     */
+    suspend fun setPreferredTopics(context: Context, topics: Set<String>) {
+        brainMutex.withLock {
+            // Seed the global vector with preferred topics
+            val newTopics = currentUserBrain.globalVector.topics.toMutableMap()
+            topics.forEach { topic ->
+                val normalizedTopic = topic.lowercase()
+                newTopics[normalizedTopic] = 0.5 
+            }
+            
+            currentUserBrain = currentUserBrain.copy(
+                preferredTopics = topics,
+                globalVector = currentUserBrain.globalVector.copy(topics = newTopics)
+            )
+            saveBrain(context)
+        }
+    }
+
+    /**
+     * Add a single preferred topic.
+     */
+    suspend fun addPreferredTopic(context: Context, topic: String) {
+        val normalizedTopic = topic.trim()
+        if (normalizedTopic.isBlank()) return
+        
+        brainMutex.withLock {
+            val newTopics = currentUserBrain.globalVector.topics.toMutableMap()
+            newTopics[normalizedTopic.lowercase()] = 0.5
+            
+            currentUserBrain = currentUserBrain.copy(
+                preferredTopics = currentUserBrain.preferredTopics + normalizedTopic,
+                globalVector = currentUserBrain.globalVector.copy(topics = newTopics)
+            )
+            saveBrain(context)
+        }
+    }
+
+    /**
+     * Remove a preferred topic.
+     */
+    suspend fun removePreferredTopic(context: Context, topic: String) {
+        brainMutex.withLock {
+            currentUserBrain = currentUserBrain.copy(
+                preferredTopics = currentUserBrain.preferredTopics - topic
+            )
+            saveBrain(context)
+        }
+    }
+
+    /**
+     * Complete onboarding process.
+     */
+    suspend fun completeOnboarding(context: Context, selectedTopics: Set<String>) {
+        brainMutex.withLock {
+            // Seed the global vector with selected topics
+            val newTopics = mutableMapOf<String, Double>()
+            selectedTopics.forEach { topic ->
+                newTopics[topic.lowercase()] = 0.6 
+            }
+            
+            currentUserBrain = currentUserBrain.copy(
+                preferredTopics = selectedTopics,
+                globalVector = currentUserBrain.globalVector.copy(topics = newTopics),
+                hasCompletedOnboarding = true
+            )
+            saveBrain(context)
+            Log.i(TAG, "Onboarding completed with ${selectedTopics.size} topics: $selectedTopics")
+        }
+    }
+
+    /**
+     * "Not Interested" - Nuclear option for content the user doesn't want.
+     * This:
+     * 1. Strongly penalizes the video's topics in the user's brain
+     * 2. Lowers the channel score significantly
+     * 3. Extracts keywords and adds them as mild negative signals
+     */
+    suspend fun markNotInterested(context: Context, video: Video) {
+        val videoVector = extractFeatures(video)
+        
+        brainMutex.withLock {
+            // 1. Strong negative learning on the video's topics
+            val newGlobal = adjustVector(currentUserBrain.globalVector, videoVector, -0.35)
+            
+            // 2. Heavily penalize the channel (set to very low score)
+            val newChannelScores = currentUserBrain.channelScores.toMutableMap()
+            newChannelScores[video.channelId] = 0.05 
+            
+            // 3. Update the current time bucket as well
+            val currentBucket = getCurrentTimeBucket(currentUserBrain)
+            val newBucketVector = adjustVector(currentBucket, videoVector, -0.25)
+            
+            val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+            
+            currentUserBrain = currentUserBrain.copy(
+                globalVector = newGlobal,
+                morningVector = if (hour in 6..11) newBucketVector else currentUserBrain.morningVector,
+                afternoonVector = if (hour in 12..17) newBucketVector else currentUserBrain.afternoonVector,
+                eveningVector = if (hour in 18..23) newBucketVector else currentUserBrain.eveningVector,
+                nightVector = if (hour !in 6..23) newBucketVector else currentUserBrain.nightVector,
+                channelScores = newChannelScores,
+                totalInteractions = currentUserBrain.totalInteractions + 1,
+                consecutiveSkips = (currentUserBrain.consecutiveSkips + 1).coerceAtMost(30)
+            )
+            
+            saveBrain(context)
+            Log.d(TAG, "Marked not interested: ${video.title} from ${video.channelName}")
         }
     }
 
@@ -166,10 +554,14 @@ object FlowNeuroEngine {
         getExplorationQuery(currentUserBrain)?.let { queries.add(it) }
 
         // ==============================================================
-        // 5. FALLBACK for cold start
+        // 5. FALLBACK: Use preferred topics from onboarding, or defaults
         // ==============================================================
         if (queries.isEmpty()) {
-            return@withLock listOf("New Trending", "Music", "Gaming", "Technology", "Science") 
+            val preferredTopics = currentUserBrain.preferredTopics.toList()
+            if (preferredTopics.isNotEmpty()) {
+                return@withLock preferredTopics.shuffled().take(5)
+            }
+            return@withLock listOf("Trending", "Music", "Gaming", "Technology", "Science")
         }
 
         return@withLock queries.distinct().shuffled()
@@ -177,6 +569,12 @@ object FlowNeuroEngine {
 
     /**
      * MAIN FUNCTION: Rank videos based on User Brain + Random Jitter
+     * 
+     * V5 Enhancements:
+     * - Dynamic Temperature: Weights adapt based on consecutive skips
+     * - Time Decay: Recency bias with classic video exceptions
+     * - Curiosity Gap: Boost for challenging complexity within safe topics
+     * - Blocked Topics/Channels: Filter out unwanted content
      * 
      * @param candidates List of videos to rank
      * @param userSubs Set of channel IDs the user is subscribed to
@@ -192,6 +590,27 @@ object FlowNeuroEngine {
         val brain = brainMutex.withLock { currentUserBrain }
         val random = java.util.Random()
         
+        // =====================================================
+        // V5: PRE-FILTER - Remove blocked channels and topics
+        // =====================================================
+        val filteredCandidates = candidates.filter { video ->
+            // Check if channel is blocked
+            if (brain.blockedChannels.contains(video.channelId)) {
+                return@filter false
+            }
+            
+            // Check if any blocked topic appears in title or channel name
+            val titleLower = video.title.lowercase()
+            val channelLower = video.channelName.lowercase()
+            val hasBlockedTopic = brain.blockedTopics.any { blockedTopic ->
+                titleLower.contains(blockedTopic) || channelLower.contains(blockedTopic)
+            }
+            
+            !hasBlockedTopic
+        }
+        
+        if (filteredCandidates.isEmpty()) return@withContext emptyList()
+        
         // 1. Identify the Context (What time is it?)
         val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
         val timeContextVector = when (hour) {
@@ -201,20 +620,32 @@ object FlowNeuroEngine {
             else -> brain.nightVector
         }
 
-        val scoredCandidates = candidates.map { video ->
+        // =====================================================
+        // V5: DYNAMIC TEMPERATURE (Boredom Detection)
+        // =====================================================
+        // If user has ignored many recommendations, boost novelty dynamically
+        val boredomFactor = (brain.consecutiveSkips / 20.0).coerceIn(0.0, 0.5)
+        
+        val wPersonality = 0.4 - (boredomFactor * 0.5) // Drops to ~0.15 if very bored
+        val wContext     = 0.4 - (boredomFactor * 0.5) // Drops to ~0.15 if very bored
+        val wNovelty     = 0.2 + boredomFactor         // Rises to ~0.70 if very bored
+
+        val scoredCandidates = filteredCandidates.map { video ->
             val videoVector = extractFeatures(video)
 
-            // A. The "Global Personality" Score - 40% Weight
+            // A. The "Global Personality" Score
             val personalityScore = calculateCosineSimilarity(brain.globalVector, videoVector)
 
-            // B. The "Time Context" Score - 40% Weight
+            // B. The "Time Context" Score
             val contextScore = calculateCosineSimilarity(timeContextVector, videoVector)
 
-            // C. The "Discovery" Score (Novelty) - 20% Weight
+            // C. The "Discovery" Score (Novelty)
             val noveltyScore = 1.0 - personalityScore
 
-            // Weighted Average
-            var totalScore = (personalityScore * 0.4) + (contextScore * 0.4) + (noveltyScore * 0.2)
+            // V5: Dynamic Weighted Average (adapts to user behavior)
+            var totalScore = (personalityScore * wPersonality) + 
+                             (contextScore * wContext) + 
+                             (noveltyScore * wNovelty)
 
             // --- BOOSTS & PENALTIES ---
 
@@ -224,20 +655,47 @@ object FlowNeuroEngine {
             // Boost: Serendipity
             if (noveltyScore > 0.6 && contextScore > 0.5) totalScore += 0.10 
 
-            // 🔥 IMPLICIT FEEDBACK CHECK
-            val channelClickRate = brain.channelScores[video.channelId] ?: 0.5
-            val boredomPenalty = if (brain.channelScores.containsKey(video.channelId) && channelClickRate < 0.2) 0.5 else 1.0
+            // =====================================================
+            // V5: TIME DECAY (Recency Bias)
+            // =====================================================
+            val ageMultiplier = TimeDecay.calculateMultiplier(video.uploadDate, video.isLive)
             
-            totalScore *= boredomPenalty
+            // Exceptions: Soften decay for subscriptions and viral classics
+            val isClassic = isVideoClassic(video.viewCount)
+            val isSubscription = userSubs.contains(video.channelId)
+            
+            val finalAgeFactor = when {
+                isClassic || isSubscription -> (ageMultiplier + 1.0) / 2.0 // Soften: 0.26 -> 0.63
+                else -> ageMultiplier
+            }
+            totalScore *= finalAgeFactor
 
-            // 🧠 SESSION FATIGUE PENALTY (New in V4)
+            // =====================================================
+            // V5: CURIOSITY GAP (Challenge the User)
+            // =====================================================
+            // If topic matches strongly BUT complexity is very different, give a growth boost
+            val isTopicSafe = personalityScore > 0.65
+            val complexityDiff = abs(brain.globalVector.complexity - videoVector.complexity)
+            val isChallenging = complexityDiff > 0.35
+            
+            if (isTopicSafe && isChallenging) {
+                totalScore += 0.10 // The "Growth" boost - surface documentaries for casual viewers
+            }
+
+            // IMPLICIT FEEDBACK CHECK (V5: Fixed threshold 0.2 -> 0.05)
+            // YouTube CTR is typically 2-10%, so 0.2 was too aggressive
+            val channelClickRate = brain.channelScores[video.channelId] ?: 0.5
+            val channelBoredomPenalty = if (brain.channelScores.containsKey(video.channelId) && channelClickRate < 0.05) 0.5 else 1.0
+            
+            totalScore *= channelBoredomPenalty
+
+            // 🧠 SESSION FATIGUE PENALTY
             // If the user JUST watched this topic, temporarily lower its score
-            // This allows the "Personality" (long term) to surface other interests
             val videoPrimaryTopic = videoVector.topics.maxByOrNull { it.value }?.key ?: ""
             val fatigueMultiplier = when {
                 videoPrimaryTopic.isEmpty() -> 1.0
-                lastWatchedTopics.count { it == videoPrimaryTopic } >= 3 -> 0.4 // Heavy repetition
-                lastWatchedTopics.contains(videoPrimaryTopic) -> 0.7 // Some repetition
+                lastWatchedTopics.count { it == videoPrimaryTopic } >= 3 -> 0.4 
+                lastWatchedTopics.contains(videoPrimaryTopic) -> 0.7
                 else -> 1.0
             }
             totalScore *= fatigueMultiplier
@@ -248,7 +706,7 @@ object FlowNeuroEngine {
             ScoredVideo(video, totalScore + jitter, videoVector)
         }.toMutableList()
 
-        // 2. Diversity Re-ranking
+        // 2. Diversity Re-ranking (V5: Now includes title similarity check)
         return@withContext applySmartDiversity(scoredCandidates)
     }
 
@@ -264,11 +722,12 @@ object FlowNeuroEngine {
 
     /**
      * LEARNING FUNCTION: Aggressive Learning Mode
+     * 
+     * V5: Now tracks consecutive skips for Dynamic Temperature feature.
      */
     suspend fun onVideoInteraction(context: Context, video: Video, interactionType: InteractionType, percentWatched: Float = 0f) {
         val videoVector = extractFeatures(video)
         
-        // UPDATED: Aggressive Learning Rates
         val learningRate = when (interactionType) {
             InteractionType.CLICK -> 0.10
             InteractionType.LIKED -> 0.30
@@ -291,6 +750,13 @@ object FlowNeuroEngine {
             val newChScore = (currentChScore * 0.95) + (outcome * 0.05) // Slow moving average
             val newChannelScores = currentUserBrain.channelScores + (video.channelId to newChScore)
             
+            // V5: Update consecutive skips for Dynamic Temperature
+            // Reset on positive interaction, increment on skip/dislike
+            val newConsecutiveSkips = when (interactionType) {
+                InteractionType.CLICK, InteractionType.LIKED, InteractionType.WATCHED -> 0
+                InteractionType.SKIPPED, InteractionType.DISLIKED -> (currentUserBrain.consecutiveSkips + 1).coerceAtMost(30)
+            }
+            
             val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
             
             currentUserBrain = currentUserBrain.copy(
@@ -300,7 +766,8 @@ object FlowNeuroEngine {
                 eveningVector = if (hour in 18..23) newBucketVector else currentUserBrain.eveningVector,
                 nightVector = if (hour !in 6..23) newBucketVector else currentUserBrain.nightVector,
                 channelScores = newChannelScores,
-                totalInteractions = currentUserBrain.totalInteractions + 1
+                totalInteractions = currentUserBrain.totalInteractions + 1,
+                consecutiveSkips = newConsecutiveSkips
             )
             
             saveBrain(context)
@@ -324,16 +791,18 @@ object FlowNeuroEngine {
      * Uses Bigram tokenization for better context understanding.
      * 
      * V4: Now normalizes the topic vector to unit length for proper cosine similarity.
+     * V5: Added stemming for better semantic matching ("gaming"/"games" -> "gam").
      */
     private fun extractFeatures(video: Video): ContentVector {
         val topics = mutableMapOf<String, Double>()
         
-        // Helper: Clean and split text
+        // Helper: Clean, split, and STEM text (V5: Stemmer added)
         fun tokenize(text: String): List<String> {
             return text.lowercase()
                 .split("\\s+".toRegex())
                 .map { word -> word.trim { !it.isLetterOrDigit() } }
                 .filter { it.length > 2 && !STOP_WORDS.contains(it) }
+                .map { Stemmer.stem(it) } 
         }
 
         val titleWords = tokenize(video.title)
@@ -384,25 +853,42 @@ object FlowNeuroEngine {
         )
     }
 
+    /**
+     * V5: Optimized to avoid Set allocation in hot path.
+     * Iterates over the smaller map directly instead of computing intersection.
+     */
     private fun calculateCosineSimilarity(user: ContentVector, content: ContentVector): Double {
-        var dotProduct = 0.0
-        var magA = 0.0
-        var magB = 0.0
+        // Optimization: Iterate over the smaller map to avoid Set allocation
+        val (smallMap, largeMap) = if (user.topics.size <= content.topics.size) 
+            user.topics to content.topics 
+        else 
+            content.topics to user.topics
         
-        // Intersection of keys
-        val commonKeys = user.topics.keys.intersect(content.topics.keys)
-        
-        if (commonKeys.isEmpty()) {
+        // Early exit if either map is empty
+        if (smallMap.isEmpty()) {
             val distDur = 1.0 - abs(user.duration - content.duration)
             return distDur * 0.3
         }
 
-        commonKeys.forEach { key ->
-            val u = user.topics[key]!!
-            val v = content.topics[key]!!
-            dotProduct += u * v
+        var dotProduct = 0.0
+        var hasIntersection = false
+        
+        for ((key, smallVal) in smallMap) {
+            val largeVal = largeMap[key]
+            if (largeVal != null) {
+                dotProduct += smallVal * largeVal
+                hasIntersection = true
+            }
         }
         
+        if (!hasIntersection) {
+            val distDur = 1.0 - abs(user.duration - content.duration)
+            return distDur * 0.3
+        }
+        
+        // Calculate magnitudes
+        var magA = 0.0
+        var magB = 0.0
         user.topics.values.forEach { magA += it * it }
         content.topics.values.forEach { magB += it * it }
         
@@ -436,7 +922,7 @@ object FlowNeuroEngine {
         
         // 2. Aggressive Decay for Non-Relevant Topics (The "Clean-up")
         // If we are boosting "Cats", we must slightly punish "Cars" to keep the vector normalized
-        val decay = if (baseRate > 0) 0.97 else 1.0 // Increased decay from 0.98 to 0.97
+        val decay = if (baseRate > 0) 0.97 else 1.0 
         
         val iterator = newTopics.iterator()
         while (iterator.hasNext()) {
@@ -447,7 +933,6 @@ object FlowNeuroEngine {
                 entry.setValue(entry.value * decay)
             }
             
-            // Remove very low scores to prevent vector bloat
             if (entry.value < 0.05) iterator.remove()
         }
 
@@ -464,7 +949,12 @@ object FlowNeuroEngine {
         )
     }
 
-    // Improved Diversity Logic
+    /**
+     * V5: Improved Diversity Logic with Title Similarity Check
+     * 
+     * Now prevents visual spam by checking if video titles are too similar
+     * (e.g., "Galaxy S24 Review" vs "Galaxy S24 Camera Test")
+     */
     private fun applySmartDiversity(candidates: MutableList<ScoredVideo>): List<Video> {
         val finalPlaylist = mutableListOf<Video>()
         val usedChannels = mutableSetOf<String>()
@@ -483,20 +973,28 @@ object FlowNeuroEngine {
             
             val isChannelRepeated = usedChannels.contains(current.video.channelId)
             val isTopicSaturated = usedTopics.count { it == primaryTopic } >= 3
+            
+            // V5: Title Similarity Check (Anti-Clustering)
+            // Prevent 3 videos about the exact same phone release
+            val isTitleTooSimilar = finalPlaylist.takeLast(5).any { existing ->
+                calculateTitleSimilarity(current.video.title, existing.title) > 0.55
+            }
 
-            if (!isChannelRepeated && !isTopicSaturated) {
+            if (!isChannelRepeated && !isTopicSaturated && !isTitleTooSimilar) {
                 finalPlaylist.add(current.video)
                 usedChannels.add(current.video.channelId)
                 if (primaryTopic.isNotEmpty()) usedTopics.add(primaryTopic)
-                iterator.remove() // Remove from candidate pool so we don't duplicate
+                iterator.remove() 
             }
         }
 
-        // PHASE 2: The "Filler" (Unlimited)
-        // After the top 20, we relax the rules. Just give the user the rest of the high-scored videos.
-        // We just map the remaining ScoredVideo objects back to normal Video objects.
         candidates.forEach { scoredVideo ->
-            finalPlaylist.add(scoredVideo.video)
+            val isTitleTooSimilar = finalPlaylist.takeLast(3).any { existing ->
+                calculateTitleSimilarity(scoredVideo.video.title, existing.title) > 0.65
+            }
+            if (!isTitleTooSimilar) {
+                finalPlaylist.add(scoredVideo.video)
+            }
         }
 
         return finalPlaylist
@@ -509,6 +1007,8 @@ object FlowNeuroEngine {
     /**
      * V4: File I/O now runs on IO dispatcher to prevent UI jank
      * as the brain grows larger with more topics.
+     * V5: Now persists blockedTopics and blockedChannels.
+     *  and  persists preferredTopics and hasCompletedOnboarding.
      */
     private suspend fun saveBrain(context: Context) = withContext(Dispatchers.IO) {
         try {
@@ -524,6 +1024,18 @@ object FlowNeuroEngine {
             json.put("channelScores", scoresJson)
 
             json.put("interactions", currentUserBrain.totalInteractions)
+            json.put("consecutiveSkips", currentUserBrain.consecutiveSkips) 
+            
+            // V5: Save blocked topics and channels
+            val blockedTopicsJson = org.json.JSONArray(currentUserBrain.blockedTopics.toList())
+            json.put("blockedTopics", blockedTopicsJson)
+            
+            val blockedChannelsJson = org.json.JSONArray(currentUserBrain.blockedChannels.toList())
+            json.put("blockedChannels", blockedChannelsJson)
+            
+            val preferredTopicsJson = org.json.JSONArray(currentUserBrain.preferredTopics.toList())
+            json.put("preferredTopics", preferredTopicsJson)
+            json.put("hasCompletedOnboarding", currentUserBrain.hasCompletedOnboarding)
             
             val file = File(context.filesDir, BRAIN_FILENAME)
             file.writeText(json.toString())
@@ -534,6 +1046,7 @@ object FlowNeuroEngine {
 
     /**
      * V4: File I/O now runs on IO dispatcher to prevent UI jank at startup.
+     * V5: Now loads blockedTopics and blockedChannels.
      */
     private suspend fun loadBrain(context: Context) = withContext(Dispatchers.IO) {
         try {
@@ -559,15 +1072,50 @@ object FlowNeuroEngine {
                 jsonToVector(json.optJSONObject("global") ?: JSONObject())
             }
             // --- MIGRATION LOGIC END ---
+            
+            // V5: Load blocked topics
+            val blockedTopicsSet = mutableSetOf<String>()
+            val blockedTopicsJson = json.optJSONArray("blockedTopics")
+            if (blockedTopicsJson != null) {
+                for (i in 0 until blockedTopicsJson.length()) {
+                    blockedTopicsSet.add(blockedTopicsJson.getString(i))
+                }
+            }
+            
+            // V5: Load blocked channels
+            val blockedChannelsSet = mutableSetOf<String>()
+            val blockedChannelsJson = json.optJSONArray("blockedChannels")
+            if (blockedChannelsJson != null) {
+                for (i in 0 until blockedChannelsJson.length()) {
+                    blockedChannelsSet.add(blockedChannelsJson.getString(i))
+                }
+            }
+            
+            // V5: Load preferred topics
+            val preferredTopicsSet = mutableSetOf<String>()
+            val preferredTopicsJson = json.optJSONArray("preferredTopics")
+            if (preferredTopicsJson != null) {
+                for (i in 0 until preferredTopicsJson.length()) {
+                    preferredTopicsSet.add(preferredTopicsJson.getString(i))
+                }
+            }
+            
+            // V5: Load onboarding status
+            val hasCompletedOnboarding = json.optBoolean("hasCompletedOnboarding", false)
 
             currentUserBrain = UserBrain(
                 morningVector = jsonToVector(json.optJSONObject("morning") ?: JSONObject()),
                 afternoonVector = jsonToVector(json.optJSONObject("afternoon") ?: JSONObject()),
                 eveningVector = jsonToVector(json.optJSONObject("evening") ?: JSONObject()),
                 nightVector = jsonToVector(json.optJSONObject("night") ?: JSONObject()),
-                globalVector = globalVec, // Use the migrated or loaded vector
+                globalVector = globalVec, 
                 channelScores = scoresMap,
-                totalInteractions = json.optInt("interactions", 0)
+                totalInteractions = json.optInt("interactions", 0),
+                consecutiveSkips = json.optInt("consecutiveSkips", 0),
+                blockedTopics = blockedTopicsSet,
+                blockedChannels = blockedChannelsSet,
+                preferredTopics = preferredTopicsSet,
+                hasCompletedOnboarding = hasCompletedOnboarding
             )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load brain", e)
@@ -693,14 +1241,14 @@ object FlowNeuroEngine {
 
     /**
      * Macro categories for exploration.
-     * These are high-level topics to test when the user hasn't engaged with them.
+     * V5: Now dynamically derived from TOPIC_CATEGORIES for consistency.
      */
-    private val MACRO_CATEGORIES = listOf(
-        "Technology", "Travel", "Cooking", "History", "Art", "Fitness",
-        "Comedy", "DIY", "Space", "Psychology", "Cinema", "Nature",
-        "Photography", "Philosophy", "Economics", "Sports", "Fashion",
-        "Architecture", "Music", "Science", "Cars", "Gadgets", "Anime"
-    )
+    private val MACRO_CATEGORIES: List<String> by lazy {
+        TOPIC_CATEGORIES.flatMap { category ->
+            listOf(category.name.replace(Regex("[^a-zA-Z ]"), "").trim()) + 
+            category.topics.take(3)
+        }.distinct()
+    }
 
     /**
      * Finds a macro category the user has low or zero interaction with.

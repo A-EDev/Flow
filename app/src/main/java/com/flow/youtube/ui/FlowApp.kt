@@ -15,6 +15,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import androidx.media3.common.util.UnstableApi
 import com.flow.youtube.data.model.Video
+import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import com.flow.youtube.player.EnhancedMusicPlayerManager
 import com.flow.youtube.player.EnhancedPlayerManager
 import com.flow.youtube.player.GlobalPlayerState
@@ -46,6 +47,14 @@ fun FlowApp(
     
     // Offline Monitoring
     val currentRoute = remember { mutableStateOf("home") }
+    
+    // Onboarding check
+    var needsOnboarding by remember { mutableStateOf<Boolean?>(null) }
+    
+    LaunchedEffect(Unit) {
+        FlowNeuroEngine.initialize(context)
+        needsOnboarding = FlowNeuroEngine.needsOnboarding()
+    }
 
     HandleDeepLinks(deeplinkVideoId, isShort, navController, onDeeplinkConsumed)
     OfflineMonitor(context, navController, snackbarHostState, currentRoute)
@@ -198,40 +207,42 @@ fun FlowApp(
             }
         ) { paddingValues ->
             Box(modifier = Modifier.padding(if (isInPipMode) PaddingValues(0.dp) else paddingValues)) {
-                NavHost(
-                    navController = navController,
-                    startDestination = "home",
-                    enterTransition = {
-                        fadeIn(animationSpec = tween(200)) + slideInHorizontally(
-                            initialOffsetX = { 30 },
-                            animationSpec = tween(200)
-                        )
-                    },
-                    exitTransition = {
-                        fadeOut(animationSpec = tween(150))
-                    },
-                    popEnterTransition = {
-                        fadeIn(animationSpec = tween(200))
-                    },
-                    popExitTransition = {
-                        fadeOut(animationSpec = tween(150)) + slideOutHorizontally(
-                            targetOffsetX = { 30 },
-                            animationSpec = tween(150)
+                if (needsOnboarding != null) {
+                    NavHost(
+                        navController = navController,
+                        startDestination = if (needsOnboarding == true) "onboarding" else "home",
+                        enterTransition = {
+                            fadeIn(animationSpec = tween(200)) + slideInHorizontally(
+                                initialOffsetX = { 30 },
+                                animationSpec = tween(200)
+                            )
+                        },
+                        exitTransition = {
+                            fadeOut(animationSpec = tween(150))
+                        },
+                        popEnterTransition = {
+                            fadeIn(animationSpec = tween(200))
+                        },
+                        popExitTransition = {
+                            fadeOut(animationSpec = tween(150)) + slideOutHorizontally(
+                                targetOffsetX = { 30 },
+                                animationSpec = tween(150)
+                            )
+                        }
+                    ) {
+                        flowAppGraph(
+                            navController = navController,
+                            currentRoute = currentRoute,
+                            showBottomNav = showBottomNav,
+                            selectedBottomNavIndex = selectedBottomNavIndex,
+                            playerSheetState = playerSheetState,
+                            playerViewModel = playerViewModel,
+                            playerUiStateResult = playerUiStateResult,
+                            playerVisibleState = playerVisibleState,
+                            currentTheme = currentTheme,
+                            onThemeChange = onThemeChange
                         )
                     }
-                ) {
-                    flowAppGraph(
-                        navController = navController,
-                        currentRoute = currentRoute,
-                        showBottomNav = showBottomNav,
-                        selectedBottomNavIndex = selectedBottomNavIndex,
-                        playerSheetState = playerSheetState,
-                        playerViewModel = playerViewModel,
-                        playerUiStateResult = playerUiStateResult,
-                        playerVisibleState = playerVisibleState,
-                        currentTheme = currentTheme,
-                        onThemeChange = onThemeChange
-                    )
                 }
             }
         }

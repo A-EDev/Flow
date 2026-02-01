@@ -42,6 +42,7 @@ import com.flow.youtube.ui.screens.personality.FlowPersonalityScreen
 import com.flow.youtube.ui.screens.shorts.ShortsScreen
 import com.flow.youtube.ui.screens.subscriptions.SubscriptionsScreen
 import com.flow.youtube.ui.screens.channel.ChannelScreen
+import com.flow.youtube.ui.screens.onboarding.OnboardingScreen
 import com.flow.youtube.ui.theme.ThemeMode
 import androidx.media3.common.util.UnstableApi
 import java.net.URLEncoder
@@ -59,6 +60,22 @@ fun NavGraphBuilder.flowAppGraph(
     currentTheme: ThemeMode,
     onThemeChange: (ThemeMode) -> Unit
 ) {
+    // =============================================
+    // ONBOARDING (First-time user experience)
+    // =============================================
+    composable("onboarding") {
+        currentRoute.value = "onboarding"
+        showBottomNav.value = false
+        OnboardingScreen(
+            onComplete = {
+                // Navigate to home and clear the backstack so user can't go back to onboarding
+                navController.navigate("home") {
+                    popUpTo("onboarding") { inclusive = true }
+                }
+            }
+        )
+    }
+    
     composable("home") {
         currentRoute.value = "home"
         showBottomNav.value = playerSheetState.currentValue != PlayerSheetValue.Expanded
@@ -219,7 +236,16 @@ fun NavGraphBuilder.flowAppGraph(
             onNavigateToVideoQuality = { navController.navigate("settings/video_quality") },
             onNavigateToBufferSettings = { navController.navigate("settings/buffer") },
             onNavigateToSearchHistory = { navController.navigate("settings/search_history") },
-            onNavigateToAbout = { navController.navigate("settings/about") }
+            onNavigateToAbout = { navController.navigate("settings/about") },
+            onNavigateToUserPreferences = { navController.navigate("settings/user_preferences") }
+        )
+    }
+
+    composable("settings/user_preferences") {
+        currentRoute.value = "settings/user_preferences"
+        showBottomNav.value = false
+        com.flow.youtube.ui.screens.settings.UserPreferencesScreen(
+            onNavigateBack = { navController.popBackStack() }
         )
     }
 

@@ -119,6 +119,7 @@ fun VideoQuickActionsBottomSheet(
                 icon = Icons.Outlined.ThumbDown,
                 text = "Not interested",
                 onClick = {
+                    viewModel.markNotInterested(video)
                     onNotInterested()
                     onDismiss()
                 }
