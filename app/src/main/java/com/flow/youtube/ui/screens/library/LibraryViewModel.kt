@@ -23,16 +23,16 @@ class LibraryViewModel : ViewModel() {
         viewHistory = ViewHistory.getInstance(context)
         playlistRepository = PlaylistRepository(context)
         
-        // Load liked videos count
+        // Load liked videos count (excluding music)
         viewModelScope.launch {
-            likedVideosRepository.getAllLikedVideos().collect { likedVideos ->
+            likedVideosRepository.getLikedVideosFlow().collect { likedVideos ->
                 _uiState.update { it.copy(likedVideosCount = likedVideos.size) }
             }
         }
         
-        // Load watch history count
+        // Load watch history count (excluding music)
         viewModelScope.launch {
-            viewHistory.getAllHistory().collect { history ->
+            viewHistory.getVideoHistoryFlow().collect { history ->
                 _uiState.update { it.copy(watchHistoryCount = history.size) }
             }
         }
@@ -46,13 +46,13 @@ class LibraryViewModel : ViewModel() {
             }
 
             viewModelScope.launch {
-                repo.getWatchLaterVideosFlow().collect { videos ->
+                repo.getVideoOnlyWatchLaterFlow().collect { videos ->
                     _uiState.update { it.copy(watchLaterCount = videos.size) }
                 }
             }
 
             viewModelScope.launch {
-                repo.getSavedShortsFlow().collect { videos ->
+                repo.getVideoOnlySavedShortsFlow().collect { videos ->
                     _uiState.update { it.copy(savedShortsCount = videos.size) }
                 }
             }

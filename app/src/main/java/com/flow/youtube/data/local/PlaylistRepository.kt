@@ -69,6 +69,9 @@ class PlaylistRepository @Inject constructor(
             entities.map { it.toDomain() }
         }
 
+    fun getVideoOnlySavedShortsFlow(): Flow<List<Video>> = 
+        getSavedShortsFlow().map { list -> list.filter { !it.isMusic } }
+
     suspend fun isInSavedShorts(videoId: String): Boolean {
         val videos = playlistDao.getVideosForPlaylist(SAVED_SHORTS_ID).firstOrNull() ?: emptyList()
         return videos.any { it.id == videoId }
@@ -113,10 +116,6 @@ class PlaylistRepository @Inject constructor(
     }
     
     suspend fun clearWatchLater() {
-        // Since we can't delete by playlistId in crossref easily without a custom query, 
-        // we might iterate or add a specific generic custom query.
-        // For now, let's just leave it or implement a clear method in DAO.
-        // Simple hack: delete the playlist and recreate
         playlistDao.deletePlaylist(WATCH_LATER_ID)
     }
 
@@ -124,6 +123,12 @@ class PlaylistRepository @Inject constructor(
         playlistDao.getVideosForPlaylist(WATCH_LATER_ID).map { entities ->
             entities.map { it.toDomain() }
         }
+
+    fun getVideoOnlyWatchLaterFlow(): Flow<List<Video>> = 
+        getWatchLaterVideosFlow().map { list -> list.filter { !it.isMusic } }
+    
+    fun getMusicOnlyWatchLaterFlow(): Flow<List<Video>> = 
+        getWatchLaterVideosFlow().map { list -> list.filter { it.isMusic } }
 
     fun getWatchLaterIdsFlow(): Flow<Set<String>> = 
         playlistDao.getVideosForPlaylist(WATCH_LATER_ID).map { entities ->

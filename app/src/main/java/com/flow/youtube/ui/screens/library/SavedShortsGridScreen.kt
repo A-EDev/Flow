@@ -40,7 +40,7 @@ fun SavedShortsGridScreen(
     var savedShorts by remember { mutableStateOf<List<Video>>(emptyList()) }
     
     LaunchedEffect(Unit) {
-        repository.getSavedShortsFlow().collectLatest { videos ->
+        repository.getVideoOnlySavedShortsFlow().collectLatest { videos ->
             savedShorts = videos
         }
     }

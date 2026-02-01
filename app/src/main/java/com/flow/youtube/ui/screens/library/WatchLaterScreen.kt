@@ -45,7 +45,7 @@ fun WatchLaterScreen(
     
     // Load watch later videos
     LaunchedEffect(Unit) {
-        repo.getWatchLaterVideosFlow().collect { videos ->
+        repo.getVideoOnlyWatchLaterFlow().collect { videos ->
             watchLaterVideos = videos
             isLoading = false
         }

@@ -70,15 +70,7 @@ fun PlayerBottomSheetsContainer(
                 screenState.showQuickActions = false
                 Toast.makeText(context, context.getString(R.string.video_marked_not_interested), Toast.LENGTH_SHORT).show()
             },
-            onReport = {
-                screenState.showQuickActions = false
-                val reportIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.report_video_template, completeVideo.title))
-                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.report_video_body_template, completeVideo.id))
-                }
-                context.startActivity(Intent.createChooser(reportIntent, context.getString(R.string.report_video)))
-            }
+            
         )
     }
 

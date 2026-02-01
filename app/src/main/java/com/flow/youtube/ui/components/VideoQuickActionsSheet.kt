@@ -29,7 +29,6 @@ fun VideoQuickActionsBottomSheet(
     onShare: () -> Unit = {},
     onDownload: (() -> Unit)? = null,
     onNotInterested: () -> Unit = {},
-    onReport: () -> Unit = {},
     viewModel: QuickActionsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -125,14 +124,7 @@ fun VideoQuickActionsBottomSheet(
                 }
             )
             
-            QuickActionItem(
-                icon = Icons.Outlined.Flag,
-                text = "Report",
-                onClick = {
-                    onReport()
-                    onDismiss()
-                }
-            )
+    
         }
     }
     

@@ -96,9 +96,6 @@
     <string name="quality_auto">Auto</string>
     <string name="quality_auto_template">Auto (%1$dp)</string>
     <string name="video_marked_not_interested">Video marked as not interested</string>
-    <string name="report_video">Report video</string>
-    <string name="report_video_template">Report video: %s</string>
-    <string name="report_video_body_template">Video ID: %1$s\nReason: </string>
     <string name="play_mode_suggestion_title">Play Mode Suggestion</string>
     <string name="play_mode_suggestion_body">This video is less than 2 minutes long. Would you like to switch to a specialized player?</string>
     <string name="shorts_player">Shorts Player</string>
