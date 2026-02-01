@@ -43,6 +43,7 @@ class MusicPlayerViewModel @Inject constructor(
     val uiState: StateFlow<MusicPlayerUiState> = _uiState.asStateFlow()
     
     private var isInitialized = false
+    private var loadTrackJob: kotlinx.coroutines.Job? = null
 
     init {
         EnhancedMusicPlayerManager.initialize(context)
@@ -59,6 +60,9 @@ class MusicPlayerViewModel @Inject constructor(
                     is EnhancedMusicPlayerManager.PlayerEvent.RequestPlayTrack -> {
                         loadAndPlayTrack(event.track, _uiState.value.queue)
                     }
+                    is EnhancedMusicPlayerManager.PlayerEvent.RequestToggleLike -> {
+                        toggleLike()
+                    }
                 }
             }
         }
@@ -68,8 +72,15 @@ class MusicPlayerViewModel @Inject constructor(
                 _uiState.update { it.copy(
                     isPlaying = playerState.isPlaying,
                     isBuffering = playerState.isBuffering,
-                    duration = playerState.duration
+                    duration = playerState.duration,
+                    currentPosition = playerState.position
                 ) }
+            }
+        }
+        
+        viewModelScope.launch {
+            EnhancedMusicPlayerManager.currentPosition.collect { position ->
+                _uiState.update { it.copy(currentPosition = position) }
             }
         }
             
@@ -144,17 +155,16 @@ class MusicPlayerViewModel @Inject constructor(
     private fun checkIfFavorite(videoId: String) {
         viewModelScope.launch {
             likedVideosRepository.getLikeState(videoId).collect { state ->
-                _uiState.update { it.copy(isLiked = state == "LIKED") }
+                val isLiked = state == "LIKED"
+                _uiState.update { it.copy(isLiked = isLiked) }
+                EnhancedMusicPlayerManager.setLiked(isLiked)
             }
         }
     }
 
-    /**
-     *  PERFORMANCE OPTIMIZED: Load and play track with parallel fetching
-     * Uses timeout protection for stream fetching
-     */
     fun loadAndPlayTrack(track: MusicTrack, queue: List<MusicTrack> = emptyList(), sourceName: String? = null) {
-        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+        loadTrackJob?.cancel()
+        loadTrackJob = viewModelScope.launch(PerformanceDispatcher.networkIO) {
             supervisorScope {
                 launch(PerformanceDispatcher.diskIO) {
                     playlistRepository.addToHistory(track)
@@ -186,8 +196,10 @@ class MusicPlayerViewModel @Inject constructor(
             )
 
             val finalSourceName = sourceName ?: "Radio • ${track.artist}"
-
-            EnhancedMusicPlayerManager.setCurrentTrack(track, finalSourceName)
+            
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                EnhancedMusicPlayerManager.setPendingTrack(track, finalSourceName)
+            }
 
             _uiState.update { it.copy(
                 currentTrack = track,
@@ -203,33 +215,39 @@ class MusicPlayerViewModel @Inject constructor(
                 }
                 
                 if (localPath != null && java.io.File(localPath).exists()) {
-                    EnhancedMusicPlayerManager.playTrack(
-                        track = track,
-                        audioUrl = localPath,
-                        queue = if (queue.isNotEmpty()) queue else listOf(track)
-                    )
+                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        EnhancedMusicPlayerManager.playTrack(
+                            track = track,
+                            audioUrl = localPath,
+                            queue = if (queue.isNotEmpty()) queue else listOf(track)
+                        )
+                    }
                 } else {
                     val streamData = withTimeoutOrNull(10_000L) {
                         YouTubeMusicService.getBestAudioStream(track.videoId)
                     }
                     
                     if (streamData != null) {
-                        EnhancedMusicPlayerManager.playTrack(
-                            track = track,
-                            audioStream = streamData.first,
-                            durationSeconds = streamData.second,
-                            queue = if (queue.isNotEmpty()) queue else listOf(track)
-                        )
+                        withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            EnhancedMusicPlayerManager.playTrack(
+                                track = track,
+                                audioStream = streamData.first,
+                                durationSeconds = streamData.second,
+                                queue = if (queue.isNotEmpty()) queue else listOf(track)
+                            )
+                        }
                     } else {
                         val audioUrl = withTimeoutOrNull(8_000L) {
                             YouTubeMusicService.getAudioUrl(track.videoId)
                         }
                         if (audioUrl != null) {
-                            EnhancedMusicPlayerManager.playTrack(
-                                track = track,
-                                audioUrl = audioUrl,
-                                queue = if (queue.isNotEmpty()) queue else listOf(track)
-                            )
+                            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                EnhancedMusicPlayerManager.playTrack(
+                                    track = track,
+                                    audioUrl = audioUrl,
+                                    queue = if (queue.isNotEmpty()) queue else listOf(track)
+                                )
+                            }
                         } else throw Exception("Could not find audio stream")
                     }
                 }
@@ -283,9 +301,6 @@ class MusicPlayerViewModel @Inject constructor(
         _uiState.update { it.copy(autoplayEnabled = !it.autoplayEnabled) }
     }
 
-    /**
-     *  PERFORMANCE OPTIMIZED: Set filter with timeout protection
-     */
     fun setFilter(filter: String) {
         val currentTrack = _uiState.value.currentTrack ?: return
         _uiState.update { it.copy(selectedFilter = filter, isLoading = true) }
@@ -362,9 +377,6 @@ class MusicPlayerViewModel @Inject constructor(
         }
     }
 
-    /**
-     *  PERFORMANCE OPTIMIZED: Fetch related content with timeout
-     */
     fun fetchRelatedContent(videoId: String) {
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             _uiState.update { it.copy(isRelatedLoading = true) }
@@ -465,9 +477,6 @@ class MusicPlayerViewModel @Inject constructor(
         Toast.makeText(context, "Added to queue", Toast.LENGTH_SHORT).show()
     }
     
-    /**
-     *  PERFORMANCE OPTIMIZED: Download track with timeout protection
-     */
     fun downloadTrack(track: MusicTrack? = null) {
         val trackToDownload = track ?: _uiState.value.currentTrack ?: return
         
@@ -479,7 +488,6 @@ class MusicPlayerViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            // Show toast on main thread
             withContext(kotlinx.coroutines.Dispatchers.Main) {
                 Toast.makeText(context, "Download started...", Toast.LENGTH_SHORT).show()
             }

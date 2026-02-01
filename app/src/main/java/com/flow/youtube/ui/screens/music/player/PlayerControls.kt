@@ -1,5 +1,6 @@
 package com.flow.youtube.ui.screens.music.player
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -28,6 +29,11 @@ fun PlayerPlaybackControls(
     onRepeatToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val controlColor = MaterialTheme.colorScheme.onSurface
+    val controlColorDimmed = controlColor.copy(alpha = 0.6f)
+    val playButtonBg = MaterialTheme.colorScheme.onSurface
+    val playButtonFg = MaterialTheme.colorScheme.surface
+    
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -38,7 +44,7 @@ fun PlayerPlaybackControls(
             Icon(
                 Icons.Outlined.Shuffle,
                 contentDescription = stringResource(R.string.shuffle),
-                tint = if (shuffleEnabled) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f)
+                tint = if (shuffleEnabled) MaterialTheme.colorScheme.primary else controlColorDimmed
             )
         }
         
@@ -50,7 +56,7 @@ fun PlayerPlaybackControls(
             Icon(
                 Icons.Filled.SkipPrevious,
                 contentDescription = stringResource(R.string.previous),
-                tint = Color.White,
+                tint = controlColor,
                 modifier = Modifier.size(36.dp)
             )
         }
@@ -58,7 +64,7 @@ fun PlayerPlaybackControls(
         // Play/Pause
         Surface(
             shape = CircleShape,
-            color = Color.White,
+            color = playButtonBg,
             modifier = Modifier.size(72.dp),
             onClick = onPlayPauseToggle
         ) {
@@ -66,14 +72,14 @@ fun PlayerPlaybackControls(
                 if (isBuffering) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(32.dp),
-                        color = Color.Black,
+                        color = playButtonFg,
                         strokeWidth = 3.dp
                     )
                 } else {
                     Icon(
                         imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                         contentDescription = if (isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
-                        tint = Color.Black,
+                        tint = playButtonFg,
                         modifier = Modifier.size(40.dp)
                     )
                 }
@@ -88,7 +94,7 @@ fun PlayerPlaybackControls(
             Icon(
                 Icons.Filled.SkipNext,
                 contentDescription = stringResource(R.string.next),
-                tint = Color.White,
+                tint = controlColor,
                 modifier = Modifier.size(36.dp)
             )
         }
@@ -101,7 +107,7 @@ fun PlayerPlaybackControls(
                     else -> Icons.Outlined.Repeat
                 },
                 contentDescription = stringResource(R.string.repeat),
-                tint = if (repeatMode != RepeatMode.OFF) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.6f)
+                tint = if (repeatMode != RepeatMode.OFF) MaterialTheme.colorScheme.primary else controlColorDimmed
             )
         }
     }
@@ -114,15 +120,19 @@ fun PlayerProgressSlider(
     onSeekTo: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val sliderColor = MaterialTheme.colorScheme.primary
+    val sliderInactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+    val textColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+    
     Column(modifier = modifier.fillMaxWidth()) {
         Slider(
             value = currentPosition.toFloat(),
             onValueChange = { onSeekTo(it.toLong()) },
             valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
             colors = SliderDefaults.colors(
-                thumbColor = Color.White,
-                activeTrackColor = Color.White,
-                inactiveTrackColor = Color.White.copy(alpha = 0.2f)
+                thumbColor = sliderColor,
+                activeTrackColor = sliderColor,
+                inactiveTrackColor = sliderInactiveColor
             ),
             modifier = Modifier.fillMaxWidth()
         )
@@ -133,12 +143,12 @@ fun PlayerProgressSlider(
             Text(
                 formatTime(currentPosition),
                 style = MaterialTheme.typography.labelMedium,
-                color = Color.White.copy(alpha = 0.6f)
+                color = textColor
             )
             Text(
                 formatTime(duration),
                 style = MaterialTheme.typography.labelMedium,
-                color = Color.White.copy(alpha = 0.6f)
+                color = textColor
             )
         }
     }

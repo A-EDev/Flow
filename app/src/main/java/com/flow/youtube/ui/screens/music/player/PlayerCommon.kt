@@ -1,6 +1,7 @@
 package com.flow.youtube.ui.screens.music.player
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -77,9 +78,12 @@ fun PillButton(
     text: String,
     onClick: () -> Unit
 ) {
+    val buttonBgColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+    val contentColor = MaterialTheme.colorScheme.onSurface
+    
     Surface(
         shape = RoundedCornerShape(24.dp),
-        color = Color.White.copy(alpha = 0.1f),
+        color = buttonBgColor,
         onClick = onClick,
         modifier = Modifier.height(40.dp)
     ) {
@@ -90,14 +94,14 @@ fun PillButton(
             Icon(
                 imageVector = icon,
                 contentDescription = text,
-                tint = Color.White,
+                tint = contentColor,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = text,
                 style = MaterialTheme.typography.labelLarge,
-                color = Color.White
+                color = contentColor
             )
         }
     }

@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#0F0F0F</color>
+    <color name="flow_primary">#6200EE</color>
+    <color name="flow_primary_variant">#3700B3</color>
+    <color name="flow_secondary">#03DAC6</color>
 </resources>
 

@@ -1,22 +1,19 @@
 package com.flow.youtube.player
 
+import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
-import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.source.MediaSource
-import androidx.media3.exoplayer.source.ProgressiveMediaSource
-import androidx.media3.exoplayer.dash.DashMediaSource
-import androidx.media3.exoplayer.dash.manifest.DashManifestParser
-import com.flow.youtube.player.resolver.ManifestGenerator
-import com.flow.youtube.service.MusicPlaybackService
-import com.flow.youtube.ui.screens.music.MusicTrack
-import org.schabi.newpipe.extractor.stream.AudioStream
-import java.io.ByteArrayInputStream
-import java.nio.charset.StandardCharsets
 import android.net.Uri
+import androidx.annotation.OptIn
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import com.flow.youtube.service.Media3MusicService
+import com.flow.youtube.ui.screens.music.MusicTrack
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,451 +24,341 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.schabi.newpipe.extractor.stream.AudioStream
+import java.util.concurrent.ExecutionException
+import android.util.Log
+import kotlinx.coroutines.CoroutineExceptionHandler
 
-/**
- * Singleton manager for enhanced music playback across the app
- * Manages ExoPlayer instance, queue, shuffle, repeat modes
- */
+@OptIn(UnstableApi::class)
 object EnhancedMusicPlayerManager {
-    var player: ExoPlayer? = null
+    
+    var player: Player? = null
         private set
         
+    private var controllerFuture: ListenableFuture<MediaController>? = null
     private var isInitialized = false
-    private var appContext: Context? = null
-    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        Log.e("EnhancedMusicPlayer", "Error in player scope: ${throwable.message}", throwable)
+    }
+    private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob() + exceptionHandler)
     
-    // Player state
+    // Player state flows
     private val _playerState = MutableStateFlow(MusicPlayerState())
     val playerState: StateFlow<MusicPlayerState> = _playerState.asStateFlow()
+    
+    private val _currentPosition = MutableStateFlow(0L)
+    val currentPosition: StateFlow<Long> = _currentPosition.asStateFlow()
 
     // Events
     sealed class PlayerEvent {
         data class RequestPlayTrack(val track: MusicTrack) : PlayerEvent()
+        object RequestToggleLike : PlayerEvent()
     }
     
     private val _playerEvents = MutableSharedFlow<PlayerEvent>()
     val playerEvents: SharedFlow<PlayerEvent> = _playerEvents.asSharedFlow()
     
-    // Queue management
+    // Queue
     private val _queue = MutableStateFlow<List<MusicTrack>>(emptyList())
     val queue: StateFlow<List<MusicTrack>> = _queue.asStateFlow()
     
-    private val _originalQueue = mutableListOf<MusicTrack>()
     private val _currentQueueIndex = MutableStateFlow(0)
     val currentQueueIndex: StateFlow<Int> = _currentQueueIndex.asStateFlow()
     
-    // Playback modes
+    private val _currentTrack = MutableStateFlow<MusicTrack?>(null)
+    val currentTrack: StateFlow<MusicTrack?> = _currentTrack.asStateFlow()
+    
     private val _shuffleEnabled = MutableStateFlow(false)
     val shuffleEnabled: StateFlow<Boolean> = _shuffleEnabled.asStateFlow()
     
     private val _repeatMode = MutableStateFlow(RepeatMode.OFF)
     val repeatMode: StateFlow<RepeatMode> = _repeatMode.asStateFlow()
     
-    // Current track
-    private val _currentTrack = MutableStateFlow<MusicTrack?>(null)
-    val currentTrack: StateFlow<MusicTrack?> = _currentTrack.asStateFlow()
-
-    // Playing from source info
-    private val _playingFrom = MutableStateFlow("Unknown Source")
+    private val _playingFrom = MutableStateFlow("Flow Music")
     val playingFrom: StateFlow<String> = _playingFrom.asStateFlow()
     
-    /**
-     * Initialize the player
-     */
+    private val _isLiked = MutableStateFlow(false)
+    val isLiked: StateFlow<Boolean> = _isLiked.asStateFlow()
+
     fun initialize(context: Context) {
-        if (!isInitialized) {
-            appContext = context.applicationContext
-            player = ExoPlayer.Builder(appContext!!).build()
-            setupPlayerListener()
-            isInitialized = true
-        }
-    }
-    
-    /**
-     * Start foreground service for notifications
-     */
-    private fun startMusicService() {
-        appContext?.let { context ->
-            val intent = Intent(context, MusicPlaybackService::class.java)
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
+        if (isInitialized) return
+        isInitialized = true
+        
+        val sessionToken = SessionToken(context, ComponentName(context, Media3MusicService::class.java))
+        controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        
+        controllerFuture?.addListener({
+            try {
+                val controller = controllerFuture?.get()
+                player = controller
+                if (controller != null) {
+                    setupPlayerListener(controller)
+                }
+            } catch (e: ExecutionException) {
+                e.printStackTrace()
+            } catch (e: InterruptedException) {
+                e.printStackTrace()
             }
-        }
+        }, MoreExecutors.directExecutor())
+        
+        startPositionUpdates()
     }
     
-    /**
-     * Setup player event listener
-     */
-    private fun setupPlayerListener() {
-        player?.addListener(object : Player.Listener {
+    private fun setupPlayerListener(controller: Player) {
+        controller.addListener(object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
-                _playerState.value = _playerState.value.copy(
-                    isBuffering = playbackState == Player.STATE_BUFFERING,
-                    isReady = playbackState == Player.STATE_READY
-                )
-                
-                // Handle song end
+                updatePlayerState()
                 if (playbackState == Player.STATE_ENDED) {
-                    handleTrackEnd()
                 }
             }
             
             override fun onIsPlayingChanged(isPlaying: Boolean) {
-                _playerState.value = _playerState.value.copy(isPlaying = isPlaying)
+                updatePlayerState()
+                if (isPlaying) startPositionUpdates()
             }
             
-            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-                _playerState.value = _playerState.value.copy(playWhenReady = playWhenReady)
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                if (mediaItem == null) return
+
+                mediaItem.let { item ->
+                    val trackId = item.mediaId
+                    val currentQ = _queue.value
+                    val track = currentQ.find { it.videoId == trackId }
+                    if (track != null) {
+                        _currentTrack.value = track
+                        _currentQueueIndex.value = currentQ.indexOf(track)
+                    }
+                }
+            }
+
+            override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                _shuffleEnabled.value = shuffleModeEnabled
+            }
+
+            override fun onRepeatModeChanged(repeatMode: Int) {
+                 _repeatMode.value = when(repeatMode) {
+                     Player.REPEAT_MODE_ONE -> RepeatMode.ONE
+                     Player.REPEAT_MODE_ALL -> RepeatMode.ALL
+                     else -> RepeatMode.OFF
+                 }
             }
         })
     }
     
-    /**
-     * Set the current track metadata immediately (before audio URL is ready)
-     */
-    fun setCurrentTrack(track: MusicTrack, sourceName: String? = null) {
+    private fun updatePlayerState() {
+        player?.let { p ->
+            _playerState.value = _playerState.value.copy(
+                isPlaying = p.isPlaying,
+                isBuffering = p.playbackState == Player.STATE_BUFFERING,
+                duration = if (p.duration > 0) p.duration else _playerState.value.duration,
+                position = p.currentPosition
+            )
+        }
+    }
+    
+    private fun startPositionUpdates() {
+        scope.launch {
+            while (true) {
+                player?.let { p ->
+                    if (p.isPlaying) {
+                        _currentPosition.value = p.currentPosition
+                        _playerState.value = _playerState.value.copy(position = p.currentPosition)
+                    }
+                }
+                kotlinx.coroutines.delay(500)
+            }
+        }
+    }
+
+    // --- Playback Control Methods ---
+
+    fun setPendingTrack(track: MusicTrack, sourceName: String? = null) {
+
+        player?.stop()
+        player?.clearMediaItems()
+        
         _currentTrack.value = track
         sourceName?.let { _playingFrom.value = it }
+        _playerState.value = _playerState.value.copy(
+            isPlaying = false, 
+            isBuffering = false,
+            isPreparing = true,  
+            position = 0
+        )
+    }
+    
+    fun setCurrentTrack(track: MusicTrack, sourceName: String?) {
+         _currentTrack.value = track
+         sourceName?.let { _playingFrom.value = it }
     }
 
-    /**
-     * Switch between audio and video mode while preserving position
-     */
-    fun switchMode(url: String) {
-        scope.launch {
-            player?.let { exoPlayer ->
-                val currentPosition = exoPlayer.currentPosition
-                val wasPlaying = exoPlayer.isPlaying
-                
-                val dataSourceFactory = DefaultDataSource.Factory(appContext!!)
-                
-                val mediaItem = MediaItem.fromUri(url)
-                val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
-                    .createMediaSource(mediaItem)
-                
-                exoPlayer.setMediaSource(mediaSource)
-                exoPlayer.prepare()
-                exoPlayer.seekTo(currentPosition)
-                exoPlayer.playWhenReady = wasPlaying
-            }
-        }
-    }
-
-    /**
-     * Play a track using a DASH manifest for optimized delivery (bypasses throttling)
-     */
     fun playTrack(track: MusicTrack, audioStream: AudioStream, durationSeconds: Long, queue: List<MusicTrack> = emptyList(), startIndex: Int = -1) {
-        _currentTrack.value = track
-        setupQueue(track, queue, startIndex)
-
-        scope.launch {
-            player?.let { exoPlayer ->
-                val dataSourceFactory = DefaultDataSource.Factory(appContext!!)
-                
-                // Generate DASH manifest to avoid throttling
-                val manifestString = ManifestGenerator.generateProgressiveManifest(audioStream, audioStream.itagItem!!, durationSeconds)
-                
-                val mediaSource = if (manifestString != null) {
-                    val parser = DashManifestParser()
-                    val baseUri = Uri.parse(audioStream.content)
-                    val manifest = parser.parse(baseUri, ByteArrayInputStream(manifestString.toByteArray(StandardCharsets.UTF_8)))
-                    
-                    DashMediaSource.Factory(dataSourceFactory)
-                        .createMediaSource(manifest, MediaItem.fromUri(baseUri))
-                } else {
-                    // Fallback to progressive
-                    ProgressiveMediaSource.Factory(dataSourceFactory)
-                        .createMediaSource(MediaItem.fromUri(Uri.parse(audioStream.content)))
-                }
-                
-                exoPlayer.setMediaSource(mediaSource)
-                exoPlayer.prepare()
-                exoPlayer.playWhenReady = true
-                
-                _playerState.value = _playerState.value.copy(
-                    isPlaying = true,
-                    duration = track.duration.toLong() * 1000
-                )
-            }
-        }
-        
-        startMusicService()
+        playTrack(track, audioStream.content, queue, startIndex)
     }
 
-    private fun setupQueue(track: MusicTrack, queue: List<MusicTrack>, startIndex: Int) {
-        if (queue.isNotEmpty()) {
-            val isSameQueue = _originalQueue.size == queue.size && 
-                             _originalQueue.zip(queue).all { it.first.videoId == it.second.videoId }
-            
-            if (!isSameQueue) {
-                _originalQueue.clear()
-                _originalQueue.addAll(queue)
-                _queue.value = if (_shuffleEnabled.value) {
-                    queue.shuffled()
-                } else {
-                    queue
-                }
-            }
-            
-            // Update current index
-            if (startIndex >= 0) {
-                _currentQueueIndex.value = startIndex
-            } else {
-                val indexInQueue = _queue.value.indexOfFirst { it.videoId == track.videoId }
-                if (indexInQueue >= 0) {
-                    _currentQueueIndex.value = indexInQueue
-                }
-            }
-        }
-    }
-
-    /**
-     * Play a track with optional queue
-     */
     fun playTrack(track: MusicTrack, audioUrl: String, queue: List<MusicTrack> = emptyList(), startIndex: Int = -1) {
-        _currentTrack.value = track
-        setupQueue(track, queue, startIndex)
+        player?.stop()
+        player?.clearMediaItems()
+
+        _playerState.value = _playerState.value.copy(isPreparing = false)
         
-        scope.launch {
-            // Prepare media source (Original Progressive Logic)
-            player?.let { exoPlayer ->
-                val dataSourceFactory = DefaultDataSource.Factory(appContext!!)
-                
-                val mediaItem = MediaItem.fromUri(audioUrl)
-                val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
-                    .createMediaSource(mediaItem)
-                
-                exoPlayer.setMediaSource(mediaSource)
-                exoPlayer.prepare()
-                exoPlayer.playWhenReady = true
-                
-                _playerState.value = _playerState.value.copy(
-                    isPlaying = true,
-                    duration = track.duration.toLong() * 1000
+        val activeQueue = if (queue.isNotEmpty()) queue else listOf(track)
+        _queue.value = activeQueue
+        _currentTrack.value = track
+        
+        val mediaItems = activeQueue.map { t ->
+            val uri = if (t.videoId == track.videoId) Uri.parse(audioUrl) else Uri.EMPTY 
+            
+            MediaItem.Builder()
+                .setUri(uri)
+                .setMediaId(t.videoId)
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                    .setTitle(t.title)
+                    .setArtist(t.artist)
+                    .setArtworkUri(Uri.parse(t.thumbnailUrl))
+                    .build()
                 )
+                .build()
+        }
+        
+        val startIdx = if (startIndex >= 0) startIndex else activeQueue.indexOfFirst { it.videoId == track.videoId }.coerceAtLeast(0)
+        
+        player?.setMediaItems(mediaItems, startIdx, 0)
+        player?.prepare()
+        player?.play()
+    }
+    
+    fun updateQueue(newQueue: List<MusicTrack>) {
+        _queue.value = newQueue
+    }
+
+    fun togglePlayPause() {
+        scope.launch {
+            player?.let {
+                if (it.isPlaying) it.pause() else it.play()
             }
         }
-        
-        // Start notification service
-        startMusicService()
     }
     
-    /**
-     * Add tracks to queue
-     */
-    fun addToQueue(tracks: List<MusicTrack>) {
-        val currentQueue = _queue.value.toMutableList()
-        currentQueue.addAll(tracks)
-        _queue.value = currentQueue
-        _originalQueue.addAll(tracks)
-    }
-
-    /**
-     * Add track to play immediately after current track
-     */
     fun playNext(track: MusicTrack) {
-        val currentQueue = _queue.value.toMutableList()
-        val currentIndex = _currentQueueIndex.value
+        val currentQ = _queue.value.toMutableList()
+        val currentId = _currentTrack.value?.videoId
+        val idx = currentQ.indexOfFirst { it.videoId == currentId }
         
-        // Remove if already in queue to avoid duplicates
-        currentQueue.remove(track)
-        
-        if (currentQueue.isEmpty()) {
-            currentQueue.add(track)
+        if (idx != -1) {
+            currentQ.add(idx + 1, track)
         } else {
-            val insertIndex = (currentIndex + 1).coerceAtMost(currentQueue.size)
-            currentQueue.add(insertIndex, track)
+            currentQ.add(track)
         }
-        
-        _queue.value = currentQueue
-        // Also update original queue for shuffle/unshuffle
-        if (!_originalQueue.contains(track)) {
-            _originalQueue.add(track)
-        }
+        _queue.value = currentQ
     }
 
-    /**
-     * Add single track to end of queue
-     */
     fun addToQueue(track: MusicTrack) {
-        if (!_queue.value.contains(track)) {
-            val currentQueue = _queue.value.toMutableList()
-            currentQueue.add(track)
-            _queue.value = currentQueue
-            _originalQueue.add(track)
-        }
+        val currentQ = _queue.value.toMutableList()
+        currentQ.add(track)
+        _queue.value = currentQ
     }
     
-    /**
-     * Play next track in queue
-     */
     fun playNext() {
         val queue = _queue.value
-        val currentIndex = _currentQueueIndex.value
+        val currentId = _currentTrack.value?.videoId
+        val idx = queue.indexOfFirst { it.videoId == currentId }
         
-        if (queue.isNotEmpty() && currentIndex < queue.size - 1) {
-            val nextIndex = currentIndex + 1
-            val nextTrack = queue[nextIndex]
-            _currentQueueIndex.value = nextIndex
-            _currentTrack.value = nextTrack
-            
-            scope.launch {
-                _playerEvents.emit(PlayerEvent.RequestPlayTrack(nextTrack))
-            }
+        if (idx != -1 && idx < queue.size - 1) {
+             val nextTrack = queue[idx + 1]
+             setPendingTrack(nextTrack) 
+             scope.launch { _playerEvents.emit(PlayerEvent.RequestPlayTrack(nextTrack)) }
         }
     }
     
-    /**
-     * Play previous track
-     */
     fun playPrevious() {
-        val currentPosition = player?.currentPosition ?: 0
-        val queue = _queue.value
-        val currentIndex = _currentQueueIndex.value
-        
-        // If more than 3 seconds into track or it's the first track, restart it
-        if (currentPosition > 3000 || currentIndex == 0) {
-            player?.seekTo(0)
-        } else if (queue.isNotEmpty() && currentIndex > 0) {
-            val prevIndex = currentIndex - 1
-            val prevTrack = queue[prevIndex]
-            _currentQueueIndex.value = prevIndex
-            _currentTrack.value = prevTrack
+        scope.launch {
+            val queue = _queue.value
+            val currentId = _currentTrack.value?.videoId
+            val idx = queue.indexOfFirst { it.videoId == currentId }
             
-            scope.launch {
-                _playerEvents.emit(PlayerEvent.RequestPlayTrack(prevTrack))
+             if ((player?.currentPosition ?: 0) > 3000) {
+                 player?.seekTo(0)
+                 return@launch
+             }
+
+            if (idx > 0) {
+                 val prevTrack = queue[idx - 1]
+                 setPendingTrack(prevTrack)
+                 _playerEvents.emit(PlayerEvent.RequestPlayTrack(prevTrack))
             }
         }
     }
     
-    /**
-     * Play track from queue at index
-     */
     fun playFromQueue(index: Int) {
         val queue = _queue.value
         if (index in queue.indices) {
             val track = queue[index]
-            _currentQueueIndex.value = index
-            _currentTrack.value = track
-            
-            scope.launch {
-                _playerEvents.emit(PlayerEvent.RequestPlayTrack(track))
-            }
+            setPendingTrack(track)
+            scope.launch { _playerEvents.emit(PlayerEvent.RequestPlayTrack(track)) }
         }
     }
-    
-    /**
-     * Toggle shuffle mode
-     */
+
     fun toggleShuffle() {
-        _shuffleEnabled.value = !_shuffleEnabled.value
-        
-        if (_shuffleEnabled.value) {
-            // Shuffle queue
-            val currentTrack = _currentTrack.value
-            val shuffled = _originalQueue.shuffled().toMutableList()
-            
-            // Keep current track at current position
-            currentTrack?.let { track ->
-                shuffled.remove(track)
-                shuffled.add(_currentQueueIndex.value, track)
-            }
-            
-            _queue.value = shuffled
-        } else {
-            // Restore original order
-            _queue.value = _originalQueue.toList()
-            
-            // Update current index
-            _currentTrack.value?.let { track ->
-                val newIndex = _originalQueue.indexOf(track)
-                if (newIndex != -1) {
-                    _currentQueueIndex.value = newIndex
-                }
-            }
-        }
-    }
-    
-    /**
-     * Cycle through repeat modes: OFF -> ALL -> ONE -> OFF
-     */
-    fun toggleRepeat() {
-        _repeatMode.value = when (_repeatMode.value) {
-            RepeatMode.OFF -> RepeatMode.ALL
-            RepeatMode.ALL -> RepeatMode.ONE
-            RepeatMode.ONE -> RepeatMode.OFF
-        }
-    }
-    
-    /**
-     * Handle track end based on repeat mode
-     */
-    private fun handleTrackEnd() {
-        when (_repeatMode.value) {
-            RepeatMode.ONE -> {
-                // Repeat current track
-                player?.seekTo(0)
-                player?.play()
-            }
-            RepeatMode.ALL -> {
-                // Play next, or loop to start
-                val queue = _queue.value
-                val currentIndex = _currentQueueIndex.value
-                
-                if (currentIndex < queue.size - 1) {
-                    playNext()
-                } else if (queue.isNotEmpty()) {
-                    // Loop back to first track
-                    val firstTrack = queue.first()
-                    _currentQueueIndex.value = 0
-                    _currentTrack.value = firstTrack
-                    scope.launch {
-                        _playerEvents.emit(PlayerEvent.RequestPlayTrack(firstTrack))
-                    }
-                }
-            }
-            RepeatMode.OFF -> {
-                // Play next if available, otherwise stop
-                val queue = _queue.value
-                val currentIndex = _currentQueueIndex.value
-                
-                if (currentIndex < queue.size - 1) {
-                    playNext()
-                } else {
-                    _playerState.value = _playerState.value.copy(isPlaying = false)
-                }
-            }
-        }
-    }
-    
-    /**
-     * Play/pause toggle
-     */
-    fun togglePlayPause() {
         scope.launch {
             player?.let {
-                if (it.isPlaying) {
-                    it.pause()
-                } else {
-                    it.play()
-                }
+                it.shuffleModeEnabled = !it.shuffleModeEnabled
             }
         }
     }
     
-    fun play() {
+    fun toggleRepeat() {
         scope.launch {
-            player?.play()
+            player?.let {
+                 val newMode = when(it.repeatMode) {
+                     Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+                     Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+                     else -> Player.REPEAT_MODE_OFF
+                 }
+                 it.repeatMode = newMode
+            }
         }
     }
     
-    fun pause() {
+    fun seekTo(position: Long) {
         scope.launch {
-            player?.pause()
+            player?.seekTo(position)
         }
     }
+
+    fun switchMode(url: String) {
+        scope.launch {
+            player?.let { p ->
+                 val currentPos = p.currentPosition
+                 val wasPlaying = p.isPlaying
+                 
+                 val currentItem = p.currentMediaItem ?: return@let
+                 val newItem = currentItem.buildUpon()
+                     .setUri(Uri.parse(url))
+                     .build()
+                 
+                 val currentIndex = p.currentMediaItemIndex
+                 if (currentIndex >= 0 && currentIndex < p.mediaItemCount) {
+                      p.replaceMediaItem(currentIndex, newItem)
+                      p.seekTo(currentPos)
+                      if (wasPlaying) p.play()
+                 }
+            }
+        }
+    }
+    
+    fun getCurrentPosition(): Long = _currentPosition.value // Use state flow value
+    fun getDuration(): Long = _playerState.value.duration
+    
+    fun toggleLike() {
+        _isLiked.value = !_isLiked.value
+        scope.launch { _playerEvents.emit(PlayerEvent.RequestToggleLike) }
+    }
+    fun setLiked(liked: Boolean) { _isLiked.value = liked }
+    
+    fun play() { scope.launch { player?.play() } }
+    fun pause() { scope.launch { player?.pause() } }
     
     fun stop() {
         scope.launch {
@@ -479,102 +366,38 @@ object EnhancedMusicPlayerManager {
             _playerState.value = _playerState.value.copy(isPlaying = false)
         }
     }
-    
-    /**
-     * Seek to position in milliseconds
-     */
-    fun seekTo(positionMs: Long) {
-        scope.launch {
-            player?.seekTo(positionMs)
-        }
-    }
-    
-    /**
-     * Get current position in milliseconds
-     */
-    fun getCurrentPosition(): Long {
-        return player?.currentPosition ?: 0
-    }
-    
-    /**
-     * Get duration in milliseconds
-     */
-    fun getDuration(): Long {
-        return player?.duration ?: 0
-    }
-    
-    /**
-     * Check if player is playing
-     */
-    fun isPlaying(): Boolean {
-        return player?.isPlaying ?: false
-    }
-    
-    /**
-     * Clear current track (for dismiss functionality)
-     */
+
+    fun isPlaying(): Boolean = _playerState.value.isPlaying
+
     fun clearCurrentTrack() {
-        _currentTrack.value = null
-        _playerState.value = _playerState.value.copy(isPlaying = false)
-    }
-
-    /**
-     * Update the entire queue
-     */
-    fun updateQueue(newQueue: List<MusicTrack>) {
-        _queue.value = newQueue
-        _originalQueue.clear()
-        _originalQueue.addAll(newQueue)
-        
-        // Update current index if current track is in the new queue
-        _currentTrack.value?.let { track ->
-            val newIndex = newQueue.indexOfFirst { it.videoId == track.videoId }
-            if (newIndex != -1) {
-                _currentQueueIndex.value = newIndex
-            }
+        scope.launch {
+            player?.stop()
+            player?.clearMediaItems()
+            _currentTrack.value = null
         }
     }
-
-    /**
-     * Remove track from queue at index
-     */
+    
     fun removeFromQueue(index: Int) {
-        val currentQueue = _queue.value.toMutableList()
-        if (index in currentQueue.indices) {
-            currentQueue.removeAt(index)
-            _queue.value = currentQueue
-            _originalQueue.clear()
-            _originalQueue.addAll(currentQueue)
-            
-            // Adjust current index if needed
-            if (index < _currentQueueIndex.value) {
-                _currentQueueIndex.value -= 1
-            } else if (index == _currentQueueIndex.value && currentQueue.isNotEmpty()) {
-                // If we removed the current track, play the next one (which is now at the same index)
-                val nextIndex = if (index < currentQueue.size) index else 0
-                playFromQueue(nextIndex)
-            }
-        }
+         val currentQ = _queue.value.toMutableList()
+         if (index in currentQ.indices) {
+             currentQ.removeAt(index)
+             _queue.value = currentQ
+         }
     }
 }
 
-/**
- * Music player state
- */
 data class MusicPlayerState(
     val isPlaying: Boolean = false,
     val isBuffering: Boolean = false,
+    val isPreparing: Boolean = false,  
     val isReady: Boolean = false,
     val playWhenReady: Boolean = false,
     val duration: Long = 0,
     val position: Long = 0
 )
 
-/**
- * Repeat modes
- */
 enum class RepeatMode {
-    OFF,    // No repeat
-    ALL,    // Repeat all tracks in queue
-    ONE     // Repeat current track
+    OFF,    
+    ALL,    
+    ONE     
 }

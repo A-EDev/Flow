@@ -3,6 +3,7 @@ package com.flow.youtube.ui.screens.music.player
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -180,6 +181,9 @@ fun LyricsContent(
     onSeekTo: (Long) -> Unit
 ) {
     val listState = rememberLazyListState()
+    val textColor = MaterialTheme.colorScheme.onSurface
+    val dimmedTextColor = textColor.copy(alpha = 0.4f)
+    val loaderColor = MaterialTheme.colorScheme.primary
     
     val currentLineIndex = remember(currentPosition, syncedLyrics) {
         val index = syncedLyrics.indexOfLast { it.time <= currentPosition }
@@ -187,7 +191,7 @@ fun LyricsContent(
     }
     
     LaunchedEffect(currentLineIndex) {
-        if (syncedLyrics.isNotEmpty()) {
+        if (syncedLyrics.isNotEmpty() && currentLineIndex > 0) {
             listState.animateScrollToItem(currentLineIndex, scrollOffset = -400)
         }
     }
@@ -195,7 +199,7 @@ fun LyricsContent(
     Box(modifier = Modifier.fillMaxSize()) {
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = Color.White)
+                CircularProgressIndicator(color = loaderColor)
             }
         } else if (syncedLyrics.isNotEmpty()) {
             LazyColumn(
@@ -208,11 +212,13 @@ fun LyricsContent(
                     val isCurrent = index == currentLineIndex
                     val alpha by animateFloatAsState(
                         targetValue = if (isCurrent) 1f else 0.4f,
-                        animationSpec = tween(durationMillis = 600)
+                        animationSpec = tween(durationMillis = 600),
+                        label = "lyric_alpha"
                     )
                     val scale by animateFloatAsState(
                         targetValue = if (isCurrent) 1.08f else 1f,
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy)
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy),
+                        label = "lyric_scale"
                     )
                     
                     Text(
@@ -223,7 +229,7 @@ fun LyricsContent(
                             lineHeight = 38.sp,
                             letterSpacing = (-0.5).sp
                         ),
-                        color = Color.White,
+                        color = textColor,
                         modifier = Modifier
                             .fillMaxWidth()
                             .graphicsLayer {
@@ -248,14 +254,14 @@ fun LyricsContent(
                             lineHeight = 36.sp,
                             fontWeight = FontWeight.Bold
                         ),
-                        color = Color.White.copy(alpha = 0.9f),
+                        color = textColor.copy(alpha = 0.9f),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
         } else {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.lyrics_not_available), color = Color.White.copy(alpha = 0.6f))
+                Text(stringResource(R.string.lyrics_not_available), color = dimmedTextColor)
             }
         }
     }
@@ -267,6 +273,8 @@ fun RelatedContent(
     isLoading: Boolean,
     onTrackClick: (MusicTrack) -> Unit
 ) {
+    val dimmedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -279,7 +287,7 @@ fun RelatedContent(
             }
         } else if (relatedTracks.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(stringResource(R.string.no_related_content), color = Color.White.copy(alpha = 0.6f))
+                Text(stringResource(R.string.no_related_content), color = dimmedTextColor)
             }
         } else {
             LazyColumn(

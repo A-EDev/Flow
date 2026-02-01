@@ -64,12 +64,23 @@
             </intent-filter>
         </activity>
         
-        <!-- Music Playback Service for notifications and media controls -->
-        <service
+        <!-- Music Playback Service for notifications and media controls (Legacy) -->
+        <!-- <service
             android:name=".service.MusicPlaybackService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback">
+        </service> -->
+
+        <!-- Media3 Music Service -->
+        <service
+            android:name=".service.Media3MusicService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaLibraryService"/>
+                <action android:name="android.media.browse.MediaBrowserService"/>
+            </intent-filter>
         </service>
         
         <!-- Video Playback Service for background playback and media controls -->
