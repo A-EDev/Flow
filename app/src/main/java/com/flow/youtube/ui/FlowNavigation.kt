@@ -534,6 +534,11 @@ fun NavGraphBuilder.flowAppGraph(
                 val encodedTitle = android.net.Uri.encode(selectedTrack.title)
                 val encodedArtist = android.net.Uri.encode(selectedTrack.artist)
                 navController.navigate("musicPlayer/${selectedTrack.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
+            },
+            onHomeClick = {
+                navController.navigate("home") {
+                    popUpTo("home") { inclusive = true }
+                }
             }
         )
     }

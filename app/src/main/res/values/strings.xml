@@ -104,5 +104,12 @@
         <item quantity="one">%d channel</item>
         <item quantity="other">%d channels</item>
     </plurals>
+    <string name="tab_videos">Videos</string>
+    <string name="tab_music">Music</string>
+    <string name="empty_offline_title">Offline %1$s</string>
+    <string name="empty_offline_body">Your downloaded %1$s will appear here.\nEnjoy your content even without internet.</string>
+    <string name="action_go_to_home">Go to Home</string>
+    <string name="action_delete">Delete</string>
+    <string name="downloads_title">Downloads</string>
 </resources>
 
