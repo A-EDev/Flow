@@ -79,7 +79,7 @@ fun VideoInfoSection(
                 lineHeight = 28.sp
             ),
             color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 2,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
         

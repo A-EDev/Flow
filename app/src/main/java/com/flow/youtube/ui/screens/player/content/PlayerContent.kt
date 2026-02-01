@@ -194,7 +194,8 @@ fun PlayerContent(
             },
             hasPrevious = canGoPrevious,
             hasNext = uiState.relatedVideos.isNotEmpty(),
-            bufferedPercentage = playerState.bufferedPercentage
+            bufferedPercentage = playerState.bufferedPercentage,
+            windowInsets = WindowInsets(0, 0, 0, 0)
         )
     }
 }

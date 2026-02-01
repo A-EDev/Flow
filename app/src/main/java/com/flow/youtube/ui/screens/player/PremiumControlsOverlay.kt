@@ -66,6 +66,7 @@ fun PremiumControlsOverlay(
     hasPrevious: Boolean = false,
     hasNext: Boolean = false,
     bufferedPercentage: Float = 0f,
+    windowInsets: WindowInsets = WindowInsets.systemBars,
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -81,7 +82,9 @@ fun PremiumControlsOverlay(
         visible = isVisible,
         enter = fadeIn(animationSpec = tween(300)),
         exit = fadeOut(animationSpec = tween(300)),
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
+            .windowInsetsPadding(windowInsets)
     ) {
         Box(
             modifier = Modifier

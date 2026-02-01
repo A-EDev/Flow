@@ -399,7 +399,8 @@ fun GlobalPlayerOverlay(
                             },
                             hasPrevious = canGoPrevious,
                             hasNext = playerUiState.relatedVideos.isNotEmpty(),
-                            bufferedPercentage = playerState.bufferedPercentage
+                            bufferedPercentage = playerState.bufferedPercentage,
+                            windowInsets = WindowInsets(0, 0, 0, 0)
                         )
                     }
                 }
