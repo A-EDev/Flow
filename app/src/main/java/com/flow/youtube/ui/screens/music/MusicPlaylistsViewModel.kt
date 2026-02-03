@@ -79,7 +79,6 @@ class MusicPlaylistsViewModel @Inject constructor(
         }
     }
 
-    // State for playlist downloads
     private val _playlistDownloadProgress = MutableStateFlow<Float>(0f)
     val playlistDownloadProgress = _playlistDownloadProgress.asStateFlow()
 
@@ -97,8 +96,6 @@ class MusicPlaylistsViewModel @Inject constructor(
             Toast.makeText(context, "Starting download for ${playlist.name}...", Toast.LENGTH_SHORT).show()
             
             try {
-                // Fetch videos if not already available in playlist info (depends on implementation)
-                // Assuming we might need to fetch tracks if it's a playlist info without tracks
                 val videos = playlistRepository.getPlaylistVideosFlow(playlist.id).first()
                 val totalTracks = videos.size
                 
@@ -124,11 +121,8 @@ class MusicPlaylistsViewModel @Inject constructor(
                             sourceUrl = ""
                         )
                         
-                        val audioUrl = YouTubeMusicService.getAudioUrl(video.id)
-                        if (audioUrl != null) {
-                            val result = downloadManager.downloadTrack(musicTrack, audioUrl)
-                            if (result.isSuccess) successCount++
-                        }
+                        val result = downloadManager.downloadTrack(musicTrack)
+                        if (result.isSuccess) successCount++
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
@@ -172,7 +166,6 @@ class MusicPlaylistsViewModel @Inject constructor(
                 var successCount = 0
                 val processedCount = java.util.concurrent.atomic.AtomicInteger(0)
                 
-                // Process with Semaphore for better concurrency (sliding window)
                 val semaphore = kotlinx.coroutines.sync.Semaphore(3)
                 
                 tracks.map { track ->
@@ -182,7 +175,6 @@ class MusicPlaylistsViewModel @Inject constructor(
                             var currentTrack = track
                             
                             try {
-                                // Fix missing duration
                                 if (currentTrack.duration == 0) {
                                     try {
                                         val duration = YouTubeMusicService.fetchVideoDuration(track.videoId)
@@ -190,34 +182,25 @@ class MusicPlaylistsViewModel @Inject constructor(
                                             currentTrack = currentTrack.copy(duration = duration)
                                         }
                                     } catch (e: Exception) {
-                                        // Ignore fetch error, proceed with 0
                                     }
                                 }
 
-                                val audioUrl = YouTubeMusicService.getAudioUrl(currentTrack.videoId)
-                                if (audioUrl != null) {
-                                    val result = downloadManager.downloadTrack(currentTrack, audioUrl)
-                                    return@withPermit result.isSuccess
-                                }
+                                val result = downloadManager.downloadTrack(currentTrack)
+                                return@withPermit result.isSuccess
                             } catch (e: Exception) {
                                 Log.e("MusicViewModel", "Failed to download track ${track.title}", e)
                             }
                             false
                         }
                         
-                        // Update progress regardless of success/fail
                         val currentProcessed = processedCount.incrementAndGet()
                         _playlistDownloadProgress.value = currentProcessed.toFloat() / totalTracks
                         
                         isSuccess
                     }
-                }.awaitAll().count { it } // Count true results
+                }.awaitAll().count { it }
                 
-                // assign successCount
-                successCount = tracks.size // wait, I need the actual count. The awaitAll returns list of booleans?
-                // The async block returns whatever the last expression is.
-                // My async block returns false at the end?
-                // No. I need to structure it correctly.
+                successCount = tracks.size 
 
                 
                 if (successCount > 0) {

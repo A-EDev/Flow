@@ -1,6 +1,7 @@
 package com.flow.youtube.data.music
 
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -8,31 +9,29 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.flow.youtube.ui.screens.music.MusicTrack
-import com.flow.youtube.notification.NotificationHelper
+import com.flow.youtube.data.download.DownloadUtil
+import com.flow.youtube.service.ExoDownloadService
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.io.IOException
-import java.util.concurrent.TimeUnit
-import java.io.File
-import java.io.FileOutputStream
-import java.net.URL
+import androidx.media3.exoplayer.offline.Download
+import androidx.media3.exoplayer.offline.DownloadRequest
+import androidx.media3.exoplayer.offline.DownloadService
+import javax.inject.Inject
+import javax.inject.Singleton
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 private val Context.downloadDataStore: DataStore<Preferences> by preferencesDataStore(name = "downloads")
 
-/**
- * Download status for tracks
- */
 enum class DownloadStatus {
     NOT_DOWNLOADED,
     DOWNLOADING,
@@ -48,10 +47,11 @@ data class DownloadedTrack(
     val downloadId: Long = -1
 )
 
-/**
- * Manages music downloads for offline playback
- */
-class DownloadManager(private val context: Context) {
+@Singleton
+class DownloadManager @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val downloadUtil: DownloadUtil
+) {
     private val gson = Gson()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     
@@ -59,217 +59,132 @@ class DownloadManager(private val context: Context) {
         private val DOWNLOADED_TRACKS_KEY = stringPreferencesKey("downloaded_tracks")
     }
     
-    // Download progress tracking
-    private val _downloadProgress = MutableStateFlow<Map<String, Int>>(emptyMap())
-    val downloadProgress: StateFlow<Map<String, Int>> = _downloadProgress
+    val downloadProgress: StateFlow<Map<String, Int>> = downloadUtil.downloads.map { downloads ->
+        downloads.mapValues { (_, download) ->
+            download.percentDownloaded.toInt()
+        }
+    }.stateIn(scope, SharingStarted.WhileSubscribed(5000), emptyMap())
     
-    private val _downloadStatus = MutableStateFlow<Map<String, DownloadStatus>>(emptyMap())
-    val downloadStatus: StateFlow<Map<String, DownloadStatus>> = _downloadStatus
+    val downloadStatus: StateFlow<Map<String, DownloadStatus>> = downloadUtil.downloads.map { downloads ->
+        downloads.mapValues { (_, download) ->
+            when (download.state) {
+                 Download.STATE_COMPLETED -> DownloadStatus.DOWNLOADED
+                 Download.STATE_FAILED -> DownloadStatus.FAILED
+                 Download.STATE_DOWNLOADING, Download.STATE_QUEUED, Download.STATE_RESTARTING -> DownloadStatus.DOWNLOADING
+                 else -> DownloadStatus.NOT_DOWNLOADED
+            }
+        }
+    }.stateIn(scope, SharingStarted.WhileSubscribed(5000), emptyMap())
     
-    // Get all downloaded tracks
     val downloadedTracks: Flow<List<DownloadedTrack>> = context.downloadDataStore.data.map { prefs ->
         val json = prefs[DOWNLOADED_TRACKS_KEY] ?: "[]"
         val type = object : TypeToken<List<DownloadedTrack>>() {}.type
         gson.fromJson(json, type)
     }
+
+    init {
+        downloadUtil.getDownloadManagerInstance().addListener(object : androidx.media3.exoplayer.offline.DownloadManager.Listener {
+            override fun onDownloadChanged(
+                downloadManager: androidx.media3.exoplayer.offline.DownloadManager,
+                download: Download,
+                finalException: Exception?
+            ) {
+                if (download.state == Download.STATE_COMPLETED) {
+                   scope.launch {
+                       updateDownloadedTrack(download.request.id, download.contentLength)
+                   }
+                }
+            }
+        })
+    }
     
-    /**
-     * Download a track for offline playback
-     */
-    /**
-     * Download a track for offline playback
-     */
-    suspend fun downloadTrack(track: MusicTrack, audioUrl: String): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun downloadTrack(track: MusicTrack): Result<String> = withContext(Dispatchers.IO) {
         try {
-            // Update status
-            updateDownloadStatus(track.videoId, DownloadStatus.DOWNLOADING)
+            val uri = Uri.parse("music://${track.videoId}")
             
-            // Sanitize filename
-            val sanitizedTitle = track.title.replace(Regex("[^a-zA-Z0-9\\s-]"), "").take(50)
-            val fileName = "${sanitizedTitle}.m4a"
+            val downloadRequest = DownloadRequest.Builder(track.videoId, uri)
+                .setCustomCacheKey(track.videoId)
+                .setData(track.title.toByteArray())
+                .build()
             
-            // Use Android DownloadManager
-            val request = android.app.DownloadManager.Request(android.net.Uri.parse(audioUrl))
-                .setTitle(track.title)
-                .setDescription("Downloading music...")
-                .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_HIDDEN)
-                .setDestinationInExternalFilesDir(context, android.os.Environment.DIRECTORY_MUSIC, fileName)
-                .setAllowedOverMetered(true)
-                .setAllowedOverRoaming(true)
+            DownloadService.sendAddDownload(context, ExoDownloadService::class.java, downloadRequest, false)
             
-            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
-            val downloadId = downloadManager.enqueue(request)
-            
-            // Pre-load thumbnail for notification
-            // This prevents loading it every second during progress updates
-            val largeIcon = NotificationHelper.getBitmapFromUrl(track.thumbnailUrl)
-            
-            // Start monitoring progress
-            monitorDownloadProgress(downloadId, track, largeIcon)
-            
-            // Save metadata
-            val filePath = "${context.getExternalFilesDir(android.os.Environment.DIRECTORY_MUSIC)}/$fileName"
             val downloadedTrack = DownloadedTrack(
                 track = track,
-                filePath = filePath,
-                fileSize = 0, // Will be updated when finished
-                downloadId = downloadId
+                filePath = track.videoId, 
+                fileSize = 0, 
+                downloadId = 0 
             )
-            
             saveDownloadedTrack(downloadedTrack)
             
-            Result.success(filePath)
+            Result.success(track.videoId)
         } catch (e: Exception) {
             Log.e("DownloadManager", "Download failed", e)
-            updateDownloadStatus(track.videoId, DownloadStatus.FAILED)
             Result.failure(e)
         }
     }
-
-    private fun monitorDownloadProgress(downloadId: Long, track: MusicTrack, largeIcon: android.graphics.Bitmap?) {
-        scope.launch {
-            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
-            var downloading = true
-            
-            while (downloading) {
-                val query = android.app.DownloadManager.Query().setFilterById(downloadId)
-                val cursor = downloadManager.query(query)
-                
-                if (cursor != null && cursor.moveToFirst()) {
-                    val bytesDownloadedIdx = cursor.getColumnIndex(android.app.DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
-                    val bytesTotalIdx = cursor.getColumnIndex(android.app.DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
-                    val statusIdx = cursor.getColumnIndex(android.app.DownloadManager.COLUMN_STATUS)
-                    
-                    if (bytesDownloadedIdx != -1 && bytesTotalIdx != -1 && statusIdx != -1) {
-                        val bytesDownloaded = cursor.getInt(bytesDownloadedIdx)
-                        val bytesTotal = cursor.getInt(bytesTotalIdx)
-                        val status = cursor.getInt(statusIdx)
-                        
-                        if (status == android.app.DownloadManager.STATUS_SUCCESSFUL) {
-                            downloading = false
-                            updateDownloadStatus(track.videoId, DownloadStatus.DOWNLOADED)
-                            NotificationHelper.showDownloadComplete(context, track.title, null, track.thumbnailUrl)
-                        } else if (status == android.app.DownloadManager.STATUS_FAILED) {
-                            downloading = false
-                            updateDownloadStatus(track.videoId, DownloadStatus.FAILED)
-                            NotificationHelper.cancelNotification(context, NotificationHelper.NOTIFICATION_DOWNLOAD_PROGRESS)
-                        } else {
-                            val progress = if (bytesTotal > 0) (bytesDownloaded * 100L / bytesTotal).toInt() else 0
-                            updateDownloadProgress(track.videoId, progress)
-                            
-                            // Show custom notification with pre-loaded bitmap
-                            NotificationHelper.showDownloadProgress(
-                                context = context,
-                                videoTitle = track.title,
-                                progress = progress,
-                                largeIcon = largeIcon,
-                                downloadId = downloadId
-                            )
-                        }
-                    }
-                    cursor.close()
-                } else {
-                    downloading = false
-                }
-                
-                if (downloading) {
-                    delay(1000) // Update every second
-                }
-            }
+    
+    suspend fun updateDownloadedTrack(videoId: String, size: Long = 0) {
+        context.downloadDataStore.edit { prefs ->
+             val json = prefs[DOWNLOADED_TRACKS_KEY] ?: "[]"
+             val type = object : TypeToken<List<DownloadedTrack>>() {}.type
+             val storedTracks: MutableList<DownloadedTrack> = gson.fromJson(json, type)
+             
+             val index = storedTracks.indexOfFirst { it.track.videoId == videoId }
+             if (index != -1) {
+                 val updated = storedTracks[index].copy(
+                      fileSize = size,
+                      downloadedAt = System.currentTimeMillis()
+                 )
+                 storedTracks[index] = updated
+                 prefs[DOWNLOADED_TRACKS_KEY] = gson.toJson(storedTracks)
+             }
         }
     }
     
-
-    
-    /**
-     * Check if track is downloaded
-     */
     suspend fun isDownloaded(videoId: String): Boolean {
-        return downloadedTracks.map { list -> list.any { it.track.videoId == videoId } }.firstOrNull() ?: false
+        val download = downloadUtil.downloads.value[videoId]
+        return download?.state == Download.STATE_COMPLETED
     }
     
-    /**
-     * Get downloaded track file path
-     */
     suspend fun getDownloadedTrackPath(videoId: String): String? {
-        return downloadedTracks.map { list -> list.find { it.track.videoId == videoId }?.filePath }.firstOrNull()
+        return if (isDownloaded(videoId)) videoId else null
     }
     
-    /**
-     * Delete downloaded track
-     */
-    suspend fun deleteDownload(videoId: String): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // Get track info
-            val track = downloadedTracks.map { list -> list.find { it.track.videoId == videoId } }.firstOrNull()
-            
-            if (track != null) {
-                // Delete file
-                val file = File(track.filePath)
-                if (file.exists()) {
-                    file.delete()
-                }
-                
-                // Remove from DataStore
-                removeDownloadedTrack(videoId)
-                
-                // Update status
-                updateDownloadStatus(videoId, DownloadStatus.NOT_DOWNLOADED)
-                
-                Log.d("DownloadManager", "Deleted download: $videoId")
-                true
-            } else {
-                false
-            }
-        } catch (e: Exception) {
-            Log.e("DownloadManager", "Failed to delete download: $videoId", e)
-            false
-        }
-    }
-    
-    /**
-     * Get total downloads size
-     */
-    suspend fun getTotalDownloadsSize(): Long {
-        return downloadedTracks.map { list -> list.sumOf { it.fileSize } }.firstOrNull() ?: 0L
-    }
-    
-    private suspend fun saveDownloadedTrack(downloadedTrack: DownloadedTrack) {
+    suspend fun deleteDownload(videoId: String) {
+        DownloadService.sendRemoveDownload(context, ExoDownloadService::class.java, videoId, false)
+        
         context.downloadDataStore.edit { prefs ->
-            val currentJson = prefs[DOWNLOADED_TRACKS_KEY] ?: "[]"
-            val type = object : TypeToken<MutableList<DownloadedTrack>>() {}.type
-            val currentList: MutableList<DownloadedTrack> = gson.fromJson(currentJson, type)
-            
-            // Remove if already exists
-            currentList.removeIf { it.track.videoId == downloadedTrack.track.videoId }
-            // Add new
-            currentList.add(downloadedTrack)
-            
-            prefs[DOWNLOADED_TRACKS_KEY] = gson.toJson(currentList)
+             val json = prefs[DOWNLOADED_TRACKS_KEY] ?: "[]"
+             val type = object : TypeToken<List<DownloadedTrack>>() {}.type
+             val currentTracks: MutableList<DownloadedTrack> = gson.fromJson(json, type)
+             currentTracks.removeAll { it.track.videoId == videoId }
+             prefs[DOWNLOADED_TRACKS_KEY] = gson.toJson(currentTracks)
         }
     }
-    
-    private suspend fun removeDownloadedTrack(videoId: String) {
+
+    private suspend fun saveDownloadedTrack(track: DownloadedTrack) {
         context.downloadDataStore.edit { prefs ->
-            val currentJson = prefs[DOWNLOADED_TRACKS_KEY] ?: "[]"
-            val type = object : TypeToken<MutableList<DownloadedTrack>>() {}.type
-            val currentList: MutableList<DownloadedTrack> = gson.fromJson(currentJson, type)
-            
-            currentList.removeIf { it.track.videoId == videoId }
-            
-            prefs[DOWNLOADED_TRACKS_KEY] = gson.toJson(currentList)
+            val json = prefs[DOWNLOADED_TRACKS_KEY] ?: "[]"
+            val type = object : TypeToken<List<DownloadedTrack>>() {}.type
+            val currentTracks: MutableList<DownloadedTrack> = gson.fromJson(json, type)
+            currentTracks.removeAll { it.track.videoId == track.track.videoId } 
+            currentTracks.add(track)
+            prefs[DOWNLOADED_TRACKS_KEY] = gson.toJson(currentTracks)
         }
     }
-    
-    private fun updateDownloadProgress(videoId: String, progress: Int) {
-        _downloadProgress.value = _downloadProgress.value.toMutableMap().apply {
-            this[videoId] = progress
-        }
-    }
-    
-    private fun updateDownloadStatus(videoId: String, status: DownloadStatus) {
-        _downloadStatus.value = _downloadStatus.value.toMutableMap().apply {
-            this[videoId] = status
+
+    private suspend fun updateDownloadedTrackSize(videoId: String, size: Long) {
+        context.downloadDataStore.edit { prefs ->
+             val json = prefs[DOWNLOADED_TRACKS_KEY] ?: "[]"
+             val type = object : TypeToken<List<DownloadedTrack>>() {}.type
+             val currentTracks: MutableList<DownloadedTrack> = gson.fromJson(json, type)
+             val index = currentTracks.indexOfFirst { it.track.videoId == videoId }
+             if (index != -1) {
+                 val existing = currentTracks[index]
+                 currentTracks[index] = existing.copy(fileSize = size, downloadedAt = System.currentTimeMillis()) 
+                 prefs[DOWNLOADED_TRACKS_KEY] = gson.toJson(currentTracks)
+             }
         }
     }
 }

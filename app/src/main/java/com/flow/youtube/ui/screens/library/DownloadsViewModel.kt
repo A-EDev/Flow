@@ -15,10 +15,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DownloadsViewModel @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val musicDownloadManager: MusicDownloadManager
 ) : ViewModel() {
 
-    private val musicDownloadManager = MusicDownloadManager(context)
     private val videoDownloadManager = VideoDownloadManager.getInstance(context)
 
     private val _uiState = MutableStateFlow(DownloadsUiState())

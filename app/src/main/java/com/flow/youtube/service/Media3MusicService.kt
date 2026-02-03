@@ -2,9 +2,11 @@ package com.flow.youtube.service
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaLibraryService
@@ -21,13 +23,25 @@ import androidx.media3.common.Player
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import android.os.Bundle
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import com.flow.youtube.data.download.DownloadUtil
+import com.flow.youtube.extensions.setOffloadEnabled
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class Media3MusicService : MediaLibraryService() {
 
     companion object {
+        private const val TAG = "Media3MusicService"
         private const val ACTION_TOGGLE_SHUFFLE = "ACTION_TOGGLE_SHUFFLE"
         private const val ACTION_TOGGLE_REPEAT = "ACTION_TOGGLE_REPEAT"
+        private const val MAX_RETRY_PER_SONG = 3
+        private const val RETRY_DELAY_MS = 1000L
         
         private val CommandToggleShuffle = SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY)
         private val CommandToggleRepeat = SessionCommand(ACTION_TOGGLE_REPEAT, Bundle.EMPTY)
@@ -35,6 +49,13 @@ class Media3MusicService : MediaLibraryService() {
 
     private lateinit var mediaLibrarySession: MediaLibrarySession
     private lateinit var player: ExoPlayer
+    
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    
+    private val retryCountMap = mutableMapOf<String, Int>()
+
+    @Inject
+    lateinit var downloadUtil: DownloadUtil
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -48,13 +69,23 @@ class Media3MusicService : MediaLibraryService() {
             .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
             .setUsage(C.USAGE_MEDIA)
             .build()
+            
+        val mediaSourceFactory = DefaultMediaSourceFactory(downloadUtil.getPlayerDataSourceFactory())
+        
+        val renderersFactory = androidx.media3.exoplayer.DefaultRenderersFactory(this)
+            .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
 
         player = ExoPlayer.Builder(this)
+            .setMediaSourceFactory(mediaSourceFactory)
+            .setRenderersFactory(renderersFactory)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
-            .setWakeMode(C.WAKE_MODE_NETWORK)
+            .setSeekBackIncrementMs(5000)
+            .setSeekForwardIncrementMs(5000)
             .build()
+        
+        player.setOffloadEnabled(true)
             
         player.addListener(object : Player.Listener {
             override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
@@ -62,6 +93,47 @@ class Media3MusicService : MediaLibraryService() {
             }
             override fun onRepeatModeChanged(repeatMode: Int) {
                 updateNotification()
+            }
+            
+            override fun onPlayerError(error: PlaybackException) {
+                val mediaId = player.currentMediaItem?.mediaId ?: return
+                Log.e(TAG, "Playback error for $mediaId: ${error.message}", error)
+                
+                val currentRetry = retryCountMap.getOrDefault(mediaId, 0)
+                if (currentRetry < MAX_RETRY_PER_SONG) {
+                    retryCountMap[mediaId] = currentRetry + 1
+                    Log.d(TAG, "Attempting retry ${currentRetry + 1}/$MAX_RETRY_PER_SONG for $mediaId")
+                    
+                    downloadUtil.invalidateUrlCache(mediaId)
+                    
+                    serviceScope.launch {
+                        delay(RETRY_DELAY_MS)
+                        try {
+                            val position = player.currentPosition
+                            player.prepare()
+                            player.seekTo(position)
+                            player.play()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Retry failed for $mediaId", e)
+                        }
+                    }
+                } else {
+                    Log.w(TAG, "Max retries reached for $mediaId, skipping to next")
+                    retryCountMap.remove(mediaId)
+                    if (player.hasNextMediaItem()) {
+                        player.seekToNextMediaItem()
+                        player.prepare()
+                        player.play()
+                    }
+                }
+            }
+            
+            override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
+                mediaItem?.mediaId?.let { 
+                    if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
+                        retryCountMap.clear()
+                    }
+                }
             }
         })
     }

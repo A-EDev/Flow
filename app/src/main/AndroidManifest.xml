@@ -98,6 +98,16 @@
             android:exported="false"
             android:foregroundServiceType="dataSync">
         </service>
+
+        <!-- ExoPlayer Download Service -->
+        <service
+            android:name=".service.ExoDownloadService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync">
+            <intent-filter>
+                <action android:name="androidx.media3.exoplayer.downloadService.action.INIT"/>
+            </intent-filter>
+        </service>
         
         <!-- Media button receiver -->
         <receiver android:name="androidx.media.session.MediaButtonReceiver"

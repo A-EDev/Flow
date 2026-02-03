@@ -210,46 +210,22 @@ class MusicPlayerViewModel @Inject constructor(
             ) }
             
             try {
-                val localPath = withTimeoutOrNull(2_000L) {
-                    downloadManager.getDownloadedTrackPath(track.videoId)
-                }
+                val playbackData = com.flow.youtube.utils.MusicPlayerUtils.playerResponseForPlayback(track.videoId).getOrNull()
                 
-                if (localPath != null && java.io.File(localPath).exists()) {
-                    withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        EnhancedMusicPlayerManager.playTrack(
-                            track = track,
-                            audioUrl = localPath,
-                            queue = if (queue.isNotEmpty()) queue else listOf(track)
-                        )
-                    }
+                val streamUrl = playbackData?.streamUrl ?: "music://${track.videoId}"
+                
+                if (playbackData != null) {
+                    android.util.Log.d("MusicPlayerViewModel", "Resolved stream URL: $streamUrl")
                 } else {
-                    val streamData = withTimeoutOrNull(10_000L) {
-                        YouTubeMusicService.getBestAudioStream(track.videoId)
-                    }
-                    
-                    if (streamData != null) {
-                        withContext(kotlinx.coroutines.Dispatchers.Main) {
-                            EnhancedMusicPlayerManager.playTrack(
-                                track = track,
-                                audioStream = streamData.first,
-                                durationSeconds = streamData.second,
-                                queue = if (queue.isNotEmpty()) queue else listOf(track)
-                            )
-                        }
-                    } else {
-                        val audioUrl = withTimeoutOrNull(8_000L) {
-                            YouTubeMusicService.getAudioUrl(track.videoId)
-                        }
-                        if (audioUrl != null) {
-                            withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                EnhancedMusicPlayerManager.playTrack(
-                                    track = track,
-                                    audioUrl = audioUrl,
-                                    queue = if (queue.isNotEmpty()) queue else listOf(track)
-                                )
-                            }
-                        } else throw Exception("Could not find audio stream")
-                    }
+                     android.util.Log.w("MusicPlayerViewModel", "MusicPlayerUtils failed, falling back to ResolvingDataSource")
+                }
+
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    EnhancedMusicPlayerManager.playTrack(
+                        track = track,
+                        audioUrl = streamUrl,
+                        queue = if (queue.isNotEmpty()) queue else listOf(track)
+                    )
                 }
                 
                 supervisorScope {
@@ -493,41 +469,12 @@ class MusicPlayerViewModel @Inject constructor(
             }
             
             try {
-                android.util.Log.d("MusicDownload", "Starting download for: ${trackToDownload.title}")
+                downloadManager.downloadTrack(trackToDownload)
                 
-                val audioUrl = withContext(PerformanceDispatcher.networkIO) {
-                    withTimeoutOrNull(15_000L) {
-                        YouTubeMusicService.getAudioUrl(trackToDownload.videoId)
-                    }
-                }
-                
-                android.util.Log.d("MusicDownload", "Audio URL: ${if (audioUrl != null) "obtained" else "null"}")
-                
-                if (audioUrl != null) {
-                    val result = withContext(PerformanceDispatcher.networkIO) {
-                        downloadManager.downloadTrack(trackToDownload, audioUrl)
-                    }
-                    
-                    withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        if (result.isSuccess) {
-                            Toast.makeText(context, "Saved to Library", Toast.LENGTH_SHORT).show()
-                        } else {
-                            val error = result.exceptionOrNull()?.message ?: "Unknown error"
-                            android.util.Log.e("MusicDownload", "Download failed: $error")
-                            Toast.makeText(context, "Download failed: $error", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                } else {
-                    android.util.Log.e("MusicDownload", "Could not get audio URL")
-                    withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        Toast.makeText(context, "Could not get audio URL", Toast.LENGTH_SHORT).show()
-                    }
-                }
             } catch (e: Exception) {
-                android.util.Log.e("MusicDownload", "Download exception", e)
-                e.printStackTrace()
+                android.util.Log.e("MusicDownload", "Download start exception", e)
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    Toast.makeText(context, "Download failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Download error: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }

@@ -207,11 +207,16 @@ object EnhancedMusicPlayerManager {
         _currentTrack.value = track
         
         val mediaItems = activeQueue.map { t ->
-            val uri = if (t.videoId == track.videoId) Uri.parse(audioUrl) else Uri.EMPTY 
+            val uri = if (t.videoId == track.videoId && audioUrl.isNotEmpty()) {
+                Uri.parse(audioUrl)
+            } else {
+                Uri.parse("music://${t.videoId}")
+            }
             
             MediaItem.Builder()
                 .setUri(uri)
                 .setMediaId(t.videoId)
+                .setCustomCacheKey(t.videoId)
                 .setMediaMetadata(
                     MediaMetadata.Builder()
                     .setTitle(t.title)
@@ -221,6 +226,8 @@ object EnhancedMusicPlayerManager {
                 )
                 .build()
         }
+        
+        Log.d("EnhancedMusicPlayer", "Playing ${track.title}. Queue size: ${mediaItems.size}. Start index: ${startIndex}")
         
         val startIdx = if (startIndex >= 0) startIndex else activeQueue.indexOfFirst { it.videoId == track.videoId }.coerceAtLeast(0)
         
