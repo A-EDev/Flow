@@ -12,6 +12,7 @@ import com.flow.youtube.innertube.models.PlaylistItem
 import com.flow.youtube.innertube.models.YTItem
 import com.flow.youtube.innertube.models.WatchEndpoint
 import com.flow.youtube.innertube.pages.HomePage
+import com.flow.youtube.data.local.entity.MusicHomeChipEntity
 import com.flow.youtube.ui.screens.music.MusicTrack
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -52,12 +53,9 @@ class MusicRecommendationAlgorithm @Inject constructor(
         private const val TAG = "MusicRecAlgo"
     }
 
-    /**
-     * Loads the full Music Home experience, including dynamic sections.
-     *  INSTANT LOAD: Returns cached data immediately if available.
-     * Then refreshes from network in background (ViewModel handles flow/state).
-     */
-    suspend fun loadMusicHome(): List<MusicSection> = withContext(Dispatchers.IO) {
+
+
+    suspend fun loadMusicHome(): Pair<List<MusicSection>, String?> = withContext(Dispatchers.IO) {
         val cachedSections = cacheDao.getMusicHomeSections().firstOrNull()
         if (cachedSections != null && cachedSections.isNotEmpty()) {
             Log.d(TAG, "Loaded ${cachedSections.size} sections from cache")
@@ -69,20 +67,50 @@ class MusicRecommendationAlgorithm @Inject constructor(
                     tracks = deserializeTracks(entity.tracksJson)
                 )
             }
-            return@withContext musicSections
+            return@withContext musicSections to null
         }
 
         return@withContext fetchAndCacheHome()
+    }
+
+    /**
+     * Get home chips from cache
+     */
+    suspend fun getHomeChips(): List<HomePage.Chip> = withContext(Dispatchers.IO) {
+        val cachedChips = cacheDao.getMusicHomeChips().firstOrNull() ?: emptyList()
+        cachedChips.map { entity ->
+            HomePage.Chip(
+                title = entity.title,
+                endpoint = if (entity.browseId != null) com.flow.youtube.innertube.models.BrowseEndpoint(entity.browseId, entity.params) else null,
+                deselectEndPoint = if (entity.deselectBrowseId != null) com.flow.youtube.innertube.models.BrowseEndpoint(entity.deselectBrowseId, entity.deselectParams) else null
+            )
+        }
     }
     
     /**
      * Force refresh content from network and update cache
      */
-    suspend fun refreshMusicHome(): List<MusicSection> = withContext(Dispatchers.IO) {
+    suspend fun refreshMusicHome(): Pair<List<MusicSection>, String?> = withContext(Dispatchers.IO) {
         fetchAndCacheHome()
     }
+    
+    /**
+     * Load more home content (pagination)
+     */
+    suspend fun loadHomeContinuation(continuation: String): Pair<List<MusicSection>, String?> = withContext(Dispatchers.IO) {
+        try {
+            val homePage = youTube.home(continuation = continuation).getOrNull()
+            if (homePage != null) {
+                val sections = parseHomeSections(homePage)
+                return@withContext sections to homePage.continuation
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading home continuation", e)
+        }
+        return@withContext emptyList<MusicSection>() to null
+    }
 
-    private suspend fun fetchAndCacheHome(): List<MusicSection> {
+    private suspend fun fetchAndCacheHome(): Pair<List<MusicSection>, String?> {
         try {
             val homePage = youTube.home().getOrNull()
             if (homePage != null) {
@@ -101,12 +129,27 @@ class MusicRecommendationAlgorithm @Inject constructor(
                 cacheDao.clearMusicHomeCache()
                 cacheDao.insertMusicHomeSections(entities)
                 
-                return sections
+                homePage.chips?.let { chips ->
+                    val chipEntities = chips.mapIndexed { index, chip ->
+                        com.flow.youtube.data.local.entity.MusicHomeChipEntity(
+                            title = chip.title,
+                            browseId = chip.endpoint?.browseId,
+                            params = chip.endpoint?.params,
+                            deselectBrowseId = chip.deselectEndPoint?.browseId,
+                            deselectParams = chip.deselectEndPoint?.params,
+                            orderBy = index
+                        )
+                    }
+                    cacheDao.clearMusicHomeChips()
+                    cacheDao.insertMusicHomeChips(chipEntities)
+                }
+                
+                return sections to homePage.continuation
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching Music Home", e)
         }
-        return emptyList()
+        return emptyList<MusicSection>() to null
     }
 
     private fun serializeTracks(tracks: List<MusicTrack>): String {
@@ -253,7 +296,7 @@ class MusicRecommendationAlgorithm @Inject constructor(
         return@coroutineScope finalRecommendations
     }
 
-    private fun parseHomeSections(homePage: HomePage): List<MusicSection> {
+    fun parseHomeSections(homePage: HomePage): List<MusicSection> {
         return homePage.sections.mapNotNull { section ->
             // Broaden filter to include Songs, Albums, Playlists
             val tracks = section.items.mapNotNull { mapYTItem(it) }

@@ -160,7 +160,10 @@ object YouTube {
                             ?.distinctBy { it.id }
                             ?.ifEmpty { null } ?: return@mapNotNull null
                     )
-            }!!
+            }!!,
+            continuation = response.contents?.tabbedSearchResultsRenderer?.tabs?.firstOrNull()
+                ?.tabRenderer?.content?.sectionListRenderer?.contents?.lastOrNull()
+                ?.musicShelfRenderer?.continuations?.getContinuation()
         )
     }
 

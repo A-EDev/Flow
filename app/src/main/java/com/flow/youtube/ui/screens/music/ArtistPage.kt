@@ -49,6 +49,7 @@ fun ArtistPage(
     onAlbumClick: (MusicPlaylist) -> Unit,
     onArtistClick: (String) -> Unit,
     onFollowClick: () -> Unit,
+    onSeeAllClick: (String, String?) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberLazyListState()
@@ -267,7 +268,16 @@ fun ArtistPage(
 
             // Singles & EPs
             if (artistDetails.singles.isNotEmpty()) {
-                item { SectionHeader(title = "Singles & EPs") }
+                item { 
+                    SectionHeader(
+                        title = "Singles & EPs",
+                        onSeeAllClick = { 
+                            artistDetails.singlesBrowseId?.let { id ->
+                                onSeeAllClick(id, artistDetails.singlesParams)
+                            }
+                        }
+                    )
+                }
                 item {
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 24.dp),
@@ -282,7 +292,16 @@ fun ArtistPage(
 
             // Albums
             if (artistDetails.albums.isNotEmpty()) {
-                item { SectionHeader(title = "Albums") }
+                item { 
+                    SectionHeader(
+                        title = "Albums",
+                        onSeeAllClick = { 
+                            artistDetails.albumsBrowseId?.let { id ->
+                                onSeeAllClick(id, artistDetails.albumsParams)
+                            }
+                        }
+                    )
+                }
                 item {
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 24.dp),
@@ -368,12 +387,24 @@ fun ArtistPage(
 }
 
 @Composable
-fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 32.dp, bottom = 16.dp)
-    )
+fun SectionHeader(title: String, onSeeAllClick: (() -> Unit)? = null) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 24.dp, end = 12.dp, top = 32.dp, bottom = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+        )
+        if (onSeeAllClick != null) {
+            TextButton(onClick = onSeeAllClick) {
+                Text("See all", color = MaterialTheme.colorScheme.primary)
+            }
+        }
+    }
 }
 
 

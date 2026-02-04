@@ -26,6 +26,7 @@ data class SearchSummary(
 
 data class SearchSummaryPage(
     val summaries: List<SearchSummary>,
+    val continuation: String? = null,
 ) {
     fun filterExplicit(enabled: Boolean) =
         if (enabled) {

@@ -79,7 +79,8 @@ class MusicSearchViewModel @Inject constructor() : ViewModel() {
                 _uiState.update { state -> state.copy(
                     searchSummary = summaryPage,
                     isLoading = false,
-                    isSearching = true
+                    isSearching = true,
+                    continuation = summaryPage.continuation
                 ) }
             }?.onFailure { throwable ->
                 _uiState.update { state -> state.copy(isLoading = false, error = throwable.message) }
@@ -109,7 +110,8 @@ class MusicSearchViewModel @Inject constructor() : ViewModel() {
                 result?.onSuccess { searchResult ->
                     _uiState.update { state -> state.copy(
                         filteredResults = searchResult.items,
-                        isLoading = false
+                        isLoading = false,
+                        continuation = searchResult.continuation
                     ) }
                 }?.onFailure { throwable ->
                     _uiState.update { state -> state.copy(isLoading = false, error = throwable.message) }
@@ -145,6 +147,42 @@ class MusicSearchViewModel @Inject constructor() : ViewModel() {
             }
         }
     }
+
+    fun loadMore() {
+        val token = _uiState.value.continuation ?: return
+        if (_uiState.value.isMoreLoading) return
+        
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            _uiState.update { it.copy(isMoreLoading = true) }
+            val result = YouTube.searchContinuation(token)
+            
+             result.onSuccess { searchResult ->
+                 _uiState.update { state ->
+                     if (state.activeFilter == null) {
+                         val newSummary = com.flow.youtube.innertube.pages.SearchSummary(
+                             title = "More results", 
+                             items = searchResult.items
+                         )
+                         state.copy(
+                             searchSummary = state.searchSummary?.copy(
+                                 summaries = state.searchSummary.summaries + newSummary
+                             ),
+                             continuation = searchResult.continuation,
+                             isMoreLoading = false
+                         )
+                     } else {
+                         state.copy(
+                             filteredResults = state.filteredResults + searchResult.items,
+                             continuation = searchResult.continuation,
+                             isMoreLoading = false
+                         )
+                     }
+                 }
+             }.onFailure {
+                 _uiState.update { it.copy(isMoreLoading = false) }
+             }
+        }
+    }
 }
 
 data class MusicSearchUiState(
@@ -155,6 +193,8 @@ data class MusicSearchUiState(
     val activeFilter: SearchFilter? = null,
     val isLoading: Boolean = false,
     val isSearching: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val continuation: String? = null,
+    val isMoreLoading: Boolean = false
 )
 

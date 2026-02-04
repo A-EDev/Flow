@@ -92,7 +92,7 @@ class MusicPlayerViewModel @Inject constructor(
                 ) }
                 track?.let { 
                     checkIfFavorite(it.videoId)
-                    fetchLyrics(it.artist, it.title)
+                    fetchLyrics(it.videoId, it.artist, it.title)
                     fetchRelatedContent(it.videoId)
                 }
             }
@@ -490,34 +490,52 @@ class MusicPlayerViewModel @Inject constructor(
 
     private var lyricsJob: kotlinx.coroutines.Job? = null
 
-    fun fetchLyrics(artist: String, title: String) {
+    fun fetchLyrics(videoId: String, artist: String, title: String) {
         lyricsJob?.cancel()
         lyricsJob = viewModelScope.launch {
-            val cleanArtist = artist.trim()
-            val cleanTitle = title.trim()
-            
             _uiState.update { it.copy(
                 isLyricsLoading = true, 
                 lyrics = null,
                 syncedLyrics = emptyList()
             ) }
             
-            delay(500)
-            
-            val response = com.flow.youtube.data.music.LyricsService.getLyrics(
-                cleanArtist, 
-                cleanTitle, 
-                _uiState.value.duration.toInt() / 1000
-            )
-            
-            if (response != null) {
-                val parsedSynced = response.syncedLyrics?.let { parseLyrics(it) } ?: emptyList()
-                _uiState.update { it.copy(
-                    isLyricsLoading = false,
-                    lyrics = response.plainLyrics,
-                    syncedLyrics = parsedSynced
-                ) }
-            } else {
+            // Priority 1: Innertube (Official)
+            try {
+                val officialLyrics = com.flow.youtube.data.newmusic.InnertubeMusicService.fetchLyrics(videoId)
+                if (officialLyrics != null) {
+                    _uiState.update { it.copy(
+                        lyrics = officialLyrics,
+                        isLyricsLoading = false
+                    ) }
+                    // We don't return here because we might want to still try LRCLib for synced lyrics if available
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MusicPlayerViewModel", "Innertube lyrics fetch failed", e)
+            }
+
+            // Priority 2: LRCLib (for Synced Lyrics)
+            try {
+                val cleanArtist = artist.trim()
+                val cleanTitle = title.trim()
+                
+                val response = com.flow.youtube.data.music.LyricsService.getLyrics(
+                    cleanArtist, 
+                    cleanTitle, 
+                    _uiState.value.duration.toInt() / 1000
+                )
+                
+                if (response != null) {
+                    val parsedSynced = response.syncedLyrics?.let { parseLyrics(it) } ?: emptyList()
+                    _uiState.update { it.copy(
+                        isLyricsLoading = false,
+                        // Only overwrite plain lyrics if we don't have Innertube ones yet or if LRCLib has better ones
+                        lyrics = if (it.lyrics == null) response.plainLyrics else it.lyrics,
+                        syncedLyrics = parsedSynced
+                    ) }
+                } else {
+                    _uiState.update { it.copy(isLyricsLoading = false) }
+                }
+            } catch (e: Exception) {
                 _uiState.update { it.copy(isLyricsLoading = false) }
             }
         }

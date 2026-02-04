@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.flow.youtube.data.local.entity.MusicHomeCacheEntity
+import com.flow.youtube.data.local.entity.MusicHomeChipEntity
 import com.flow.youtube.data.local.entity.SubscriptionFeedEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -29,4 +30,14 @@ interface CacheDao {
 
     @Query("DELETE FROM music_home_cache")
     suspend fun clearMusicHomeCache()
+
+    // Music Chips
+    @Query("SELECT * FROM music_home_chips_cache ORDER BY orderBy ASC")
+    fun getMusicHomeChips(): Flow<List<MusicHomeChipEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertMusicHomeChips(chips: List<MusicHomeChipEntity>)
+
+    @Query("DELETE FROM music_home_chips_cache")
+    suspend fun clearMusicHomeChips()
 }

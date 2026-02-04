@@ -33,7 +33,8 @@ data class PlaylistDetails(
     val views: Long? = null,
     val durationText: String? = null,
     val dateText: String? = null,
-    val tracks: List<MusicTrack> = emptyList()
+    val tracks: List<MusicTrack> = emptyList(),
+    val continuation: String? = null
 )
 
 data class ArtistDetails(
@@ -41,13 +42,17 @@ data class ArtistDetails(
     val channelId: String,
     val thumbnailUrl: String,
     val subscriberCount: Long,
-    val description: String,
-    val bannerUrl: String,
-    val topTracks: List<MusicTrack>,
+    val description: String = "",
+    val bannerUrl: String = "",
+    val topTracks: List<MusicTrack> = emptyList(),
     val albums: List<MusicPlaylist> = emptyList(),
     val singles: List<MusicPlaylist> = emptyList(),
     val videos: List<MusicTrack> = emptyList(),
     val relatedArtists: List<ArtistDetails> = emptyList(),
     val featuredOn: List<MusicPlaylist> = emptyList(),
-    val isSubscribed: Boolean = false
+    val isSubscribed: Boolean = false,
+    val albumsBrowseId: String? = null,
+    val albumsParams: String? = null,
+    val singlesBrowseId: String? = null,
+    val singlesParams: String? = null
 )

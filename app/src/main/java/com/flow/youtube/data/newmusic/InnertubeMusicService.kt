@@ -5,7 +5,14 @@ import com.flow.youtube.innertube.models.YouTubeLocale
 import com.flow.youtube.innertube.models.YTItem
 import com.flow.youtube.innertube.models.SongItem
 import com.flow.youtube.innertube.YouTube.SearchFilter
+import com.flow.youtube.innertube.pages.ExplorePage
+import com.flow.youtube.innertube.models.SearchSuggestions
+import com.flow.youtube.innertube.pages.SearchSummaryPage
 import com.flow.youtube.ui.screens.music.MusicTrack
+import com.flow.youtube.ui.screens.music.PlaylistDetails
+import com.flow.youtube.ui.screens.music.MusicPlaylist
+import com.flow.youtube.ui.screens.music.ArtistDetails
+import com.flow.youtube.innertube.pages.AlbumPage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -36,10 +43,26 @@ object InnertubeMusicService {
     suspend fun fetchTrendingMusic(): List<MusicTrack> = withContext(Dispatchers.IO) {
         try {
             val result = YouTube.home()
-            result.getOrNull()?.let { page ->
-                page.sections.flatMap { it.items }
-                    .mapNotNull { convertToMusicTrack(it) }
-            } ?: emptyList()
+            result.getOrNull()?.sections?.flatMap { it.items }
+                ?.mapNotNull { convertToMusicTrack(it) } ?: emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    suspend fun fetchExplore(): ExplorePage? = withContext(Dispatchers.IO) {
+        try {
+            YouTube.explore().getOrNull()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun fetchMoodAndGenres(): List<com.flow.youtube.innertube.pages.MoodAndGenres> = withContext(Dispatchers.IO) {
+        try {
+            YouTube.moodAndGenres().getOrNull() ?: emptyList()
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
@@ -52,9 +75,146 @@ object InnertubeMusicService {
     suspend fun searchMusic(query: String): List<MusicTrack> = withContext(Dispatchers.IO) {
         try {
             val result = YouTube.search(query, SearchFilter.FILTER_SONG)
-            result.getOrNull()?.let { page ->
-                page.items.mapNotNull { convertToMusicTrack(it) }
-            } ?: emptyList()
+            result.getOrNull()?.items?.mapNotNull { convertToMusicTrack(it) } ?: emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    /**
+     * Get search suggestions from Innertube
+     */
+    suspend fun getSearchSuggestions(query: String): SearchSuggestions? = withContext(Dispatchers.IO) {
+        try {
+            YouTube.searchSuggestions(query).getOrNull()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * Search with summary (Top result + categories)
+     */
+    suspend fun searchWithSummary(query: String): SearchSummaryPage? = withContext(Dispatchers.IO) {
+        try {
+            YouTube.searchSummary(query).getOrNull()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * Search for playlists using Innertube
+     */
+    suspend fun searchPlaylists(query: String): List<MusicPlaylist> = withContext(Dispatchers.IO) {
+        try {
+            val result = YouTube.search(query, SearchFilter.FILTER_FEATURED_PLAYLIST)
+            result.getOrNull()?.items?.filterIsInstance<com.flow.youtube.innertube.models.PlaylistItem>()
+                ?.map { convertPlaylistToMusicPlaylist(it) } ?: emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    /**
+     * Fetch new release albums from Innertube
+     */
+    suspend fun fetchNewReleases(): List<MusicPlaylist> = withContext(Dispatchers.IO) {
+        try {
+            val result = YouTube.newReleaseAlbums()
+            result.getOrNull()?.map { convertAlbumToPlaylist(it) } ?: emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    /**
+     * Fetch playlist details using Innertube
+     */
+    suspend fun fetchPlaylistDetails(playlistId: String): PlaylistDetails? = withContext(Dispatchers.IO) {
+        try {
+            val result = YouTube.playlist(playlistId)
+            val page = result.getOrNull() ?: return@withContext null
+            
+            val tracks = page.songs.mapNotNull { convertToMusicTrack(it) }
+            
+            PlaylistDetails(
+                id = page.playlist.id ?: playlistId,
+                title = page.playlist.title,
+                thumbnailUrl = page.playlist.thumbnail ?: "",
+                author = page.playlist.author?.name ?: "",
+                authorId = page.playlist.author?.id,
+                trackCount = tracks.size,
+                description = null,
+                tracks = tracks,
+                continuation = page.continuation
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+
+    /**
+     * Fetch album details using Innertube
+     */
+    suspend fun fetchAlbum(albumId: String): PlaylistDetails? = withContext(Dispatchers.IO) {
+        try {
+            val result = YouTube.album(albumId)
+            val page = result.getOrNull() ?: return@withContext null
+            
+            val tracks = page.songs.mapNotNull { convertToMusicTrack(it) }
+            
+            PlaylistDetails(
+                id = page.album.browseId ?: albumId,
+                title = page.album.title ?: "",
+                thumbnailUrl = page.album.thumbnail ?: "",
+                author = page.album.artists?.joinToString(", ") { it.name } ?: "",
+                authorId = page.album.artists?.firstOrNull()?.id,
+                trackCount = tracks.size,
+                description = page.album.year?.toString(),
+                tracks = tracks,
+                continuation = null // AlbumPage doesn't have continuation
+            )
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * Get related music using Innertube next endpoint
+     */
+    suspend fun getRelatedMusic(videoId: String): List<MusicTrack> = withContext(Dispatchers.IO) {
+        try {
+            val nextResult = YouTube.next(com.flow.youtube.innertube.models.WatchEndpoint(videoId = videoId)).getOrNull()
+            val relatedEndpoint = nextResult?.relatedEndpoint
+            if (relatedEndpoint != null) {
+                val related = YouTube.related(relatedEndpoint).getOrNull()
+                related?.songs?.mapNotNull { convertToMusicTrack(it) } ?: emptyList()
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    /**
+     * Fetch charts from Innertube
+     */
+    suspend fun fetchCharts(): List<MusicTrack> = withContext(Dispatchers.IO) {
+        try {
+            val result = YouTube.getChartsPage()
+            result.getOrNull()?.sections?.flatMap { it.items }
+                ?.mapNotNull { convertToMusicTrack(it) } ?: emptyList()
         } catch (e: Exception) {
             e.printStackTrace()
             emptyList()
@@ -79,6 +239,11 @@ object InnertubeMusicService {
             var relatedArtists: List<com.flow.youtube.ui.screens.music.ArtistDetails> = emptyList()
             var featuredOn: List<com.flow.youtube.ui.screens.music.MusicPlaylist> = emptyList()
             
+            var albumsBrowseId: String? = null
+            var albumsParams: String? = null
+            var singlesBrowseId: String? = null
+            var singlesParams: String? = null
+            
             page.sections.forEach { section ->
                 val title = section.title.lowercase()
                 when {
@@ -87,9 +252,13 @@ object InnertubeMusicService {
                     }
                     title.contains("albums") -> {
                         albums = section.items.filterIsInstance<com.flow.youtube.innertube.models.AlbumItem>().map { convertAlbumToPlaylist(it) }
+                        albumsBrowseId = section.moreEndpoint?.browseId
+                        albumsParams = section.moreEndpoint?.params
                     }
                     title.contains("singles") || title.contains("ep") -> {
                         singles = section.items.filterIsInstance<com.flow.youtube.innertube.models.AlbumItem>().map { convertAlbumToPlaylist(it) }
+                        singlesBrowseId = section.moreEndpoint?.browseId
+                        singlesParams = section.moreEndpoint?.params
                     }
                     title.contains("videos") -> {
                         // Videos are often SongItems or video items in Innertube
@@ -117,11 +286,74 @@ object InnertubeMusicService {
                 videos = videos,
                 relatedArtists = relatedArtists,
                 featuredOn = featuredOn,
-                isSubscribed = false // We'll need another way to check this or sync with local DB
+                isSubscribed = false,
+                albumsBrowseId = albumsBrowseId,
+                albumsParams = albumsParams,
+                singlesBrowseId = singlesBrowseId,
+                singlesParams = singlesParams
             )
         } catch (e: Exception) {
             e.printStackTrace()
             null
+        }
+    }
+
+
+    /**
+     * Fetch all items (Albums, Singles, etc.) for a specific artist section
+     */
+    suspend fun fetchArtistItems(browseId: String, params: String?): List<MusicPlaylist> = withContext(Dispatchers.IO) {
+        try {
+            val result = YouTube.artistItems(com.flow.youtube.innertube.models.BrowseEndpoint(browseId, params))
+            result.getOrNull()?.items?.filterIsInstance<com.flow.youtube.innertube.models.AlbumItem>()
+                ?.map { convertAlbumToPlaylist(it) } ?: emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    /**
+     * Fetch continuation items for a playlist
+     */
+    suspend fun fetchPlaylistContinuation(playlistId: String, continuation: String): Pair<List<MusicTrack>, String?> = withContext(Dispatchers.IO) {
+        try {
+            val result = YouTube.playlistContinuation(continuation)
+            val page = result.getOrNull() ?: return@withContext emptyList<MusicTrack>() to null
+            
+            val tracks = page.songs.mapNotNull { convertToMusicTrack(it) }
+            tracks to page.continuation
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList<MusicTrack>() to null
+        }
+    }
+
+    /**
+     * Fetch lyrics for a song
+     */
+    suspend fun fetchLyrics(videoId: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val nextResult = YouTube.next(com.flow.youtube.innertube.models.WatchEndpoint(videoId = videoId)).getOrNull()
+            val lyricsEndpoint = nextResult?.lyricsEndpoint ?: return@withContext null
+            YouTube.lyrics(lyricsEndpoint).getOrNull()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    /**
+     * Fetch queue metadata for video IDs or a playlist
+     * Uses YouTube.queue() for faster queue loading compared to next()
+     */
+    suspend fun fetchQueue(videoIds: List<String>? = null, playlistId: String? = null): List<MusicTrack> = withContext(Dispatchers.IO) {
+        try {
+            val result = YouTube.queue(videoIds, playlistId)
+            result.getOrNull()?.mapNotNull { convertToMusicTrack(it) } ?: emptyList()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
         }
     }
     
@@ -150,9 +382,7 @@ object InnertubeMusicService {
             name = item.title ?: "",
             channelId = item.id ?: "",
             thumbnailUrl = item.thumbnail ?: "",
-            subscriberCount = 0,
-            description = "",
-            bannerUrl = "",
+            subscriberCount = 0L,
             topTracks = emptyList()
         )
     }
@@ -163,14 +393,11 @@ object InnertubeMusicService {
                 MusicTrack(
                     videoId = item.id,
                     title = item.title,
-                    artist = item.artists.joinToString(", ") { it.name },
-                    thumbnailUrl = item.thumbnail ?: "",
+                    artist = item.artists.firstOrNull()?.name ?: "Unknown Artist",
+                    thumbnailUrl = item.thumbnail,
                     duration = item.duration ?: 0,
-                    sourceUrl = "https://youtube.com/watch?v=${item.id}",
                     album = item.album?.name ?: "",
-                    channelId = item.artists.firstOrNull()?.id ?: "",
-                    isExplicit = item.explicit,
-                    views = parseViewCount(item.viewCountText)
+                    channelId = item.artists.firstOrNull()?.id ?: ""
                 )
             }
             // We can add support for VideoItem or others here if needed

@@ -110,9 +110,13 @@ object YouTubeMusicService {
      */
     suspend fun fetchNewReleases(limit: Int = 30): List<MusicTrack> = withContext(Dispatchers.IO) {
         try {
+            val innertubeResults = com.flow.youtube.data.newmusic.InnertubeMusicService.searchMusic("new music releases 2025")
+            if (innertubeResults.isNotEmpty()) {
+                return@withContext innertubeResults.take(limit)
+            }
+            
             val tracks = fetchPlaylistTracks(NEW_RELEASES).take(limit)
             if (tracks.isEmpty()) {
-                // Fallback to search
                 return@withContext searchMusic("new music releases 2025", limit)
             }
             tracks
@@ -313,8 +317,21 @@ object YouTubeMusicService {
      * Fetch full playlist details (info + tracks)
      */
     suspend fun fetchPlaylistDetails(playlistId: String): com.flow.youtube.ui.screens.music.PlaylistDetails? = withContext(Dispatchers.IO) {
+        Log.d("YouTubeMusicService", "Fetching playlist details for: $playlistId")
+        
         try {
-            // Check if it's an album/single (browseId) or a playlist
+            if (playlistId.startsWith("MPREb_") || playlistId.startsWith("FEmusic_library_privately_owned_release_")) {
+                val album = com.flow.youtube.data.newmusic.InnertubeMusicService.fetchAlbum(playlistId)
+                if (album != null) return@withContext album
+            } else {
+                val playlist = com.flow.youtube.data.newmusic.InnertubeMusicService.fetchPlaylistDetails(playlistId)
+                if (playlist != null) return@withContext playlist
+            }
+        } catch (e: Exception) {
+            Log.e("YouTubeMusicService", "Innertube fetch failed for $playlistId, falling back to NewPipe", e)
+        }
+
+        try {
             if (playlistId.startsWith("MPREb_") || playlistId.startsWith("FMDM") || playlistId.startsWith("OLAK")) {
                 val albumResult = YouTube.album(playlistId)
                 val albumPage = albumResult.getOrNull()
@@ -340,7 +357,6 @@ object YouTubeMusicService {
                 }
             }
 
-            // Fallback to Playlist strategy
             val service = ServiceList.YouTube
             val playlistUrl = "https://www.youtube.com/playlist?list=$playlistId"
             val playlistInfo = PlaylistInfo.getInfo(service, playlistUrl)
@@ -372,6 +388,18 @@ object YouTubeMusicService {
         }
     }
 
+    /**
+     * Fetch more tracks for a playlist using a continuation token
+     */
+    suspend fun fetchPlaylistContinuation(playlistId: String, continuation: String): Pair<List<MusicTrack>, String?> = withContext(Dispatchers.IO) {
+        try {
+            com.flow.youtube.data.newmusic.InnertubeMusicService.fetchPlaylistContinuation(playlistId, continuation)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching continuation for $playlistId", e)
+            emptyList<MusicTrack>() to null
+        }
+    }
+
     private fun formatTotalDuration(totalSeconds: Int): String {
         if (totalSeconds <= 0) return ""
         val hours = totalSeconds / 3600
@@ -399,6 +427,11 @@ object YouTubeMusicService {
      */
     suspend fun getRelatedMusic(videoId: String, limit: Int = 20): List<MusicTrack> = withContext(Dispatchers.IO) {
         try {
+            val innertubeRelated = com.flow.youtube.data.newmusic.InnertubeMusicService.getRelatedMusic(videoId)
+            if (innertubeRelated.isNotEmpty()) {
+                return@withContext innertubeRelated.take(limit)
+            }
+            
             val streamInfo = getStreamInfo(videoId)
             streamInfo?.relatedItems
                 ?.filterIsInstance<StreamInfoItem>()
@@ -463,6 +496,11 @@ object YouTubeMusicService {
      */
     suspend fun searchPlaylists(query: String, limit: Int = 10): List<com.flow.youtube.ui.screens.music.MusicPlaylist> = withContext(Dispatchers.IO) {
         try {
+            val innertubePlaylists = com.flow.youtube.data.newmusic.InnertubeMusicService.searchPlaylists(query)
+            if (innertubePlaylists.isNotEmpty()) {
+                return@withContext innertubePlaylists.take(limit)
+            }
+            
             val service = ServiceList.YouTube
             val searchExtractor = service.getSearchExtractor(query, emptyList(), "")
             searchExtractor.fetchPage()

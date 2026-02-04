@@ -42,6 +42,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.BorderStroke
 import kotlin.math.absoluteValue
 import com.flow.youtube.data.recommendation.MusicSection
+import com.flow.youtube.innertube.pages.HomePage
 import com.flow.youtube.ui.components.MusicQuickActionsSheet
 import com.flow.youtube.ui.components.AddToPlaylistDialog
 import com.flow.youtube.data.model.Video
@@ -59,6 +60,7 @@ fun EnhancedMusicScreen(
     onSearchClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onAlbumClick: (String) -> Unit = {},
+    onMoodsClick: () -> Unit = {},
     viewModel: MusicViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -93,7 +95,6 @@ fun EnhancedMusicScreen(
         )
     }
     
-    val categories = listOf("Energize", "Relax", "Feel good", "Workout", "Party", "Focus", "Sleep", "Romance", "Commute")
 
     Scaffold(
         topBar = {
@@ -157,6 +158,33 @@ fun EnhancedMusicScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
+                        // Moods & Genres Entry
+                        item {
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                                    .clickable(onClick = onMoodsClick),
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    Spacer(modifier = Modifier.width(16.dp))
+                                    Text(
+                                        "Moods & genres",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = null)
+                                }
+                            }
+                        }
+
                         // Listen Again
                         if (uiState.listenAgain.isNotEmpty()) {
                             item {
@@ -177,32 +205,34 @@ fun EnhancedMusicScreen(
                             }
                         }
 
-                        // Categories Chips
-                        item {
-                            LazyRow(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                items(categories) { category ->
-                                    val isSelected = uiState.selectedFilter == category
-                                    FilterChip(
-                                        selected = isSelected,
-                                        onClick = { 
-                                            if (isSelected) {
-                                                viewModel.setFilter(null)
-                                            } else {
-                                                viewModel.setFilter(category)
-                                            }
-                                        },
-                                        label = { Text(category) },
-                                        colors = FilterChipDefaults.filterChipColors(
-                                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                        // Home Chips
+                        if (uiState.homeChips.isNotEmpty()) {
+                            item {
+                                LazyRow(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp),
+                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    items(uiState.homeChips) { chip ->
+                                        val isSelected = uiState.selectedHomeChip?.title == chip.title
+                                        FilterChip(
+                                            selected = isSelected,
+                                            onClick = { 
+                                                if (isSelected) {
+                                                    viewModel.setHomeChip(null)
+                                                } else {
+                                                    viewModel.setHomeChip(chip)
+                                                }
+                                            },
+                                            label = { Text(chip.title) },
+                                            colors = FilterChipDefaults.filterChipColors(
+                                                selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+                                            )
                                         )
-                                    )
+                                    }
                                 }
                             }
                         }
@@ -531,6 +561,29 @@ fun EnhancedMusicScreen(
                                                     onSongClick(tracks.first(), tracks, "community_$genre")
                                                 }
                                             }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        // Continuation Loader
+                        if (uiState.homeContinuation != null) {
+                            item {
+                                LaunchedEffect(Unit) {
+                                    viewModel.loadMoreHomeContent()
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (uiState.isMoreLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                 }

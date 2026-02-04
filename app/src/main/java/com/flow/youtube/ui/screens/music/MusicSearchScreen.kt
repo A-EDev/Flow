@@ -286,6 +286,29 @@ fun MusicSearchScreen(
                                     )
                                 }
                             }
+                            
+                            // Continuation Logic
+                            if (uiState.continuation != null) {
+                                item {
+                                    LaunchedEffect(Unit) {
+                                        viewModel.loadMore()
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (uiState.isMoreLoading) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(24.dp),
+                                                strokeWidth = 2.dp,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

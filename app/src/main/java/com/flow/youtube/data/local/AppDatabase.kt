@@ -10,6 +10,7 @@ import com.flow.youtube.data.local.entity.MusicHomeCacheEntity
 import com.flow.youtube.data.local.entity.NotificationEntity
 import com.flow.youtube.data.local.entity.PlaylistEntity
 import com.flow.youtube.data.local.entity.PlaylistVideoCrossRef
+import com.flow.youtube.data.local.entity.MusicHomeChipEntity
 import com.flow.youtube.data.local.entity.SubscriptionFeedEntity
 import com.flow.youtube.data.local.entity.VideoEntity
 
@@ -20,9 +21,10 @@ import com.flow.youtube.data.local.entity.VideoEntity
         PlaylistVideoCrossRef::class, 
         NotificationEntity::class,
         SubscriptionFeedEntity::class,
-        MusicHomeCacheEntity::class
+        MusicHomeCacheEntity::class,
+        MusicHomeChipEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

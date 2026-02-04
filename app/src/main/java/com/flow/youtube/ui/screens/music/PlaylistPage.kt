@@ -46,6 +46,7 @@ fun PlaylistPage(
     onArtistClick: (String) -> Unit,
     onDownloadClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
+    onLoadMore: () -> Unit = {},
     modifier: Modifier = Modifier,
     playlistsViewModel: MusicPlaylistsViewModel = hiltViewModel()
 ) {
@@ -60,6 +61,19 @@ fun PlaylistPage(
     
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
+    
+    val reachedBottom by remember {
+        derivedStateOf {
+            val lastVisibleItem = scrollState.layoutInfo.visibleItemsInfo.lastOrNull()
+            lastVisibleItem?.index != 0 && lastVisibleItem?.index == scrollState.layoutInfo.totalItemsCount - 1
+        }
+    }
+
+    LaunchedEffect(reachedBottom) {
+        if (reachedBottom && playlistDetails.continuation != null) {
+            onLoadMore()
+        }
+    }
 
     if (showBottomSheet && selectedTrack != null) {
         MusicQuickActionsSheet(
@@ -190,6 +204,14 @@ fun PlaylistPage(
                         }
 
                         Spacer(modifier = Modifier.height(32.dp))
+
+                        Text(
+                            text = if (playlistDetails.description != null) "Album • ${playlistDetails.description}" else "Playlist • ${playlistDetails.author}",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         // Title
                         Text(
@@ -350,7 +372,6 @@ fun PlaylistPage(
                     )
                 }
 
-                // Footer
                 item {
                     Column(
                         modifier = Modifier
@@ -358,6 +379,15 @@ fun PlaylistPage(
                             .padding(vertical = 48.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        if (playlistDetails.continuation != null) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                        
                         Text(
                             text = "${playlistDetails.trackCount} tracks • ${playlistDetails.durationText ?: ""}",
                             style = MaterialTheme.typography.bodyMedium,
