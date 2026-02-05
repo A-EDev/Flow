@@ -76,6 +76,12 @@ class DownloadManager @Inject constructor(
         }
     }.stateIn(scope, SharingStarted.WhileSubscribed(5000), emptyMap())
     
+    /**
+     * Check if a track is cached for offline playback.
+     * This checks the actual cache, not the download state metadata.
+     */
+    fun isCachedForOffline(mediaId: String): Boolean = downloadUtil.isCachedForOffline(mediaId)
+    
     val downloadedTracks: Flow<List<DownloadedTrack>> = context.downloadDataStore.data.map { prefs ->
         val json = prefs[DOWNLOADED_TRACKS_KEY] ?: "[]"
         val type = object : TypeToken<List<DownloadedTrack>>() {}.type

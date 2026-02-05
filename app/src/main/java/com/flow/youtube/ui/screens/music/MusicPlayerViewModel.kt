@@ -210,14 +210,21 @@ class MusicPlayerViewModel @Inject constructor(
             ) }
             
             try {
-                val playbackData = com.flow.youtube.utils.MusicPlayerUtils.playerResponseForPlayback(track.videoId).getOrNull()
+                val isCached = downloadManager.isCachedForOffline(track.videoId)
                 
-                val streamUrl = playbackData?.streamUrl ?: "music://${track.videoId}"
-                
-                if (playbackData != null) {
-                    android.util.Log.d("MusicPlayerViewModel", "Resolved stream URL: $streamUrl")
+                val streamUrl = if (isCached) {
+                    android.util.Log.d("MusicPlayerViewModel", "Track ${track.videoId} found in cache - playing offline")
+                    "music://${track.videoId}"
                 } else {
-                     android.util.Log.w("MusicPlayerViewModel", "MusicPlayerUtils failed, falling back to ResolvingDataSource")
+                    val playbackData = com.flow.youtube.utils.MusicPlayerUtils.playerResponseForPlayback(track.videoId).getOrNull()
+                    
+                    if (playbackData != null) {
+                        android.util.Log.d("MusicPlayerViewModel", "Resolved stream URL: ${playbackData.streamUrl}")
+                        playbackData.streamUrl
+                    } else {
+                        android.util.Log.w("MusicPlayerViewModel", "MusicPlayerUtils failed, falling back to ResolvingDataSource")
+                        "music://${track.videoId}"
+                    }
                 }
 
                 withContext(kotlinx.coroutines.Dispatchers.Main) {

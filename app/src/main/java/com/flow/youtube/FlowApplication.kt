@@ -5,6 +5,7 @@ import android.util.Log
 import com.flow.youtube.notification.SubscriptionCheckWorker
 import com.flow.youtube.data.repository.NewPipeDownloader
 import com.flow.youtube.notification.NotificationHelper
+import com.flow.youtube.utils.FlowCrashHandler
 import com.flow.youtube.utils.PerformanceDispatcher
 import org.schabi.newpipe.extractor.NewPipe
 // Import Localization and ContentCountry
@@ -32,6 +33,9 @@ class FlowApplication : Application(), ImageLoaderFactory {
     
     override fun onCreate() {
         super.onCreate()
+        
+        // Install crash handler for real-time monitoring
+        FlowCrashHandler.install(this)
         
         try {
             // Initialize NewPipeExtractor with proper Localization and Country

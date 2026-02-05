@@ -3,39 +3,33 @@ package com.flow.youtube.utils
 import android.util.Log
 import com.flow.youtube.innertube.YouTube
 import com.flow.youtube.innertube.models.YouTubeClient
+import com.flow.youtube.innertube.models.YouTubeClient.Companion.ANDROID_CREATOR
 import com.flow.youtube.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_43_32
 import com.flow.youtube.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_61_48
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.WEB_REMIX
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.ANDROID_CREATOR
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.IPADOS
 import com.flow.youtube.innertube.models.YouTubeClient.Companion.ANDROID_VR_NO_AUTH
+import com.flow.youtube.innertube.models.YouTubeClient.Companion.IOS
+import com.flow.youtube.innertube.models.YouTubeClient.Companion.IPADOS
 import com.flow.youtube.innertube.models.YouTubeClient.Companion.MOBILE
 import com.flow.youtube.innertube.models.YouTubeClient.Companion.TVHTML5
 import com.flow.youtube.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY_EMBEDDED_PLAYER
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.IOS
 import com.flow.youtube.innertube.models.YouTubeClient.Companion.WEB
 import com.flow.youtube.innertube.models.YouTubeClient.Companion.WEB_CREATOR
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.ANDROID
+import com.flow.youtube.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import com.flow.youtube.innertube.models.response.PlayerResponse
-import kotlinx.coroutines.Deferred
+import com.flow.youtube.innertube.pages.NewPipeExtractor
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.cancelChildren
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.util.regex.Pattern
+import java.io.IOException
+import java.util.concurrent.ConcurrentHashMap
 
 object MusicPlayerUtils {
     private const val TAG = "MusicPlayerUtils"
-    
-    private val httpClient: OkHttpClient
-        get() = OkHttpClient.Builder()
+
+    private val httpClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
             .proxy(YouTube.proxy)
             .proxyAuthenticator { _, response ->
                 YouTube.proxyAuth?.let { auth ->
@@ -44,14 +38,36 @@ object MusicPlayerUtils {
                         .build()
                 } ?: response.request
             }
+            .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
             .build()
+    }
     
-    private var cachedSignatureTimestamp: Int? = null
-    private var timestampLastUpdated: Long = 0
-    private const val TIMESTAMP_TTL = 24 * 60 * 60 * 1000L // 24 hours
+    private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
+    
+    private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
+        TVHTML5,
+        ANDROID_VR_1_43_32,
+        ANDROID_VR_1_61_48,
+        ANDROID_CREATOR,
+        IPADOS,
+        ANDROID_VR_NO_AUTH,
+        MOBILE,
+        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
+        IOS,
+        WEB,
+        WEB_CREATOR
+    )
 
-    private val fetchMutex = Mutex()
-    private val activeFetches = mutableMapOf<String, Deferred<Result<PlaybackData>>>()
+    // Request deduplication - prevents duplicate fetches for same video
+    private val activeRequests = ConcurrentHashMap<String, CompletableDeferred<Result<PlaybackData>>>()
+    
+    // Result cache - keeps completed results for short-term reuse
+    private data class CachedResult(val result: Result<PlaybackData>, val timestamp: Long)
+    private val resultCache = ConcurrentHashMap<String, CachedResult>()
+    private const val RESULT_CACHE_TTL_MS = 30_000L // Cache successful results for 30 seconds
+    
+    private val videoRefreshTimestamps = ConcurrentHashMap<String, Long>()
 
     data class PlaybackData(
         val audioConfig: PlayerResponse.PlayerConfig.AudioConfig?,
@@ -65,299 +81,279 @@ object MusicPlayerUtils {
 
     private fun isLoggedIn(): Boolean = YouTube.cookie != null
 
+    fun forceRefreshForVideo(videoId: String) {
+        Log.d(TAG, "Force refresh requested for $videoId")
+        videoRefreshTimestamps[videoId] = System.currentTimeMillis()
+        activeRequests.remove(videoId)
+        resultCache.remove(videoId)
+    }
+
     suspend fun playerResponseForPlayback(
         videoId: String,
         playlistId: String? = null
-    ): Result<PlaybackData> = coroutineScope {
-        val deferred = fetchMutex.withLock {
-            activeFetches[videoId]?.let { return@withLock it }
-            
-            async(Dispatchers.IO) {
-                innerPlayerResponseForPlayback(videoId, playlistId)
-            }.also {
-                activeFetches[videoId] = it
-            }
-        }
-
-        try {
-            deferred.await()
-        } finally {
-            fetchMutex.withLock {
-                activeFetches.remove(videoId)
-            }
-        }
-    }
-
-    private suspend fun innerPlayerResponseForPlayback(
-        videoId: String,
-        playlistId: String? = null
     ): Result<PlaybackData> = withContext(Dispatchers.IO) {
-        runCatching {
-            val startTime = System.currentTimeMillis()
-            Log.d(TAG, "Fetching playback for $videoId (logged in: ${isLoggedIn()})")
-            
-            val sts = getSignatureTimestamp()
-            Log.d(TAG, "Using signature timestamp: $sts")
-
-            val batch1 = listOf(ANDROID_VR_1_61_48, WEB_REMIX, TVHTML5, ANDROID_VR_1_43_32)
-            
-            val batch2 = listOf(IOS, ANDROID_CREATOR, IPADOS, MOBILE)
-
-            val batch3 = listOf(WEB, WEB_CREATOR, ANDROID, TVHTML5_SIMPLY_EMBEDDED_PLAYER)
-
-            val batches = listOf(batch1, batch2, batch3)
-            
-            var successResult: Triple<YouTubeClient, PlayerResponse, Pair<PlayerResponse.StreamingData.Format, String>>? = null
-
-            for ((index, batch) in batches.withIndex()) {
-                Log.d(TAG, "Starting Batch ${index + 1} with ${batch.size} clients...")
-                
-                successResult = fetchInParallel(batch, videoId, playlistId, sts)
-                
-                if (successResult != null) {
-                    Log.i(TAG, "Batch ${index + 1} Winner: ${successResult.first.clientName}")
-                    break
-                } else {
-                    Log.w(TAG, "Batch ${index + 1} failed. Moving to next...")
-                }
-            }           
-            var playerResponse: PlayerResponse? = null
-            var usedClient: YouTubeClient? = null
-            var format: PlayerResponse.StreamingData.Format? = null
-            var streamUrl: String? = null
-
-            if (successResult != null) {
-                usedClient = successResult.first
-                playerResponse = successResult.second
-                format = successResult.third.first
-                streamUrl = successResult.third.second
-            }
-            
-            val playbackTracking = if (usedClient != null && usedClient != WEB_REMIX && playerResponse != null) {
-                Log.d(TAG, "Fetching playbackTracking from WEB_REMIX for history sync")
-                YouTube.player(videoId, playlistId, WEB_REMIX, sts)
-                    .getOrNull()?.playbackTracking ?: playerResponse.playbackTracking
+        val cached = resultCache[videoId]
+        if (cached != null) {
+            val age = System.currentTimeMillis() - cached.timestamp
+            if (age < RESULT_CACHE_TTL_MS && cached.result.isSuccess) {
+                Log.d(TAG, "Returning cached result for $videoId (age: ${age}ms)")
+                return@withContext cached.result
             } else {
-                playerResponse?.playbackTracking
+                resultCache.remove(videoId)
             }
-
-            if (format == null || streamUrl == null || playerResponse == null) {
-                Log.w(TAG, "All InnerTube Batches failed. Trying NewPipe fallback...")
-                
-                val newPipeUrl = try {
-                    com.flow.youtube.data.music.YouTubeMusicService.getAudioUrl(videoId)
-                } catch (e: Exception) {
-                    Log.e(TAG, "NewPipe extractor crashed", e)
-                    null
-                }
-
-                if (newPipeUrl != null) {
-                    Log.i(TAG, "NewPipe Fallback Successful! Total time: ${System.currentTimeMillis() - startTime}ms")
-                    return@runCatching PlaybackData(
-                        audioConfig = null,
-                        videoDetails = PlayerResponse.VideoDetails(
-                            videoId = videoId,
-                            title = "Resolved via NewPipe",
-                            author = "Unknown Artist",
-                            channelId = "",
-                            lengthSeconds = "0",
-                            musicVideoType = null,
-                            viewCount = null,
-                            thumbnail = com.flow.youtube.innertube.models.Thumbnails(emptyList())
-                        ),
-                        playbackTracking = null,
-                        format = PlayerResponse.StreamingData.Format(
-                            itag = 140,
-                            url = newPipeUrl,
-                            mimeType = "audio/mp4",
-                            bitrate = 128000,
-                            width = null,
-                            height = null,
-                            contentLength = null,
-                            quality = "medium",
-                            fps = null,
-                            qualityLabel = null,
-                            averageBitrate = 128000,
-                            audioQuality = "AUDIO_QUALITY_MEDIUM",
-                            approxDurationMs = null,
-                            audioSampleRate = 44100,
-                            audioChannels = 2,
-                            loudnessDb = null,
-                            lastModified = null,
-                            signatureCipher = null,
-                            audioTrack = null
-                        ),
-                        streamUrl = newPipeUrl,
-                        streamExpiresInSeconds = 21600,
-                        usedClient = YouTubeClient.WEB
-                    )
-                }
-
-                throw Exception("No suitable audio format found after trying all clients and NewPipe")
-            }
-
-            Log.i(TAG, "InnerTube Success! Client: ${usedClient!!.clientName}. Total time: ${System.currentTimeMillis() - startTime}ms")
+        }
+        
+        val existingRequest = activeRequests[videoId]
+        if (existingRequest != null && existingRequest.isActive) {
+            Log.d(TAG, "Reusing existing request for $videoId")
+            return@withContext existingRequest.await()
+        }
+        
+        val deferred = CompletableDeferred<Result<PlaybackData>>()
+        val previousRequest = activeRequests.putIfAbsent(videoId, deferred)
+        
+        if (previousRequest != null && previousRequest.isActive) {
+            Log.d(TAG, "Another thread started request for $videoId, waiting...")
+            return@withContext previousRequest.await()
+        }
+        
+        try {
+            val result = fetchPlaybackData(videoId, playlistId)
+            deferred.complete(result)
             
-            PlaybackData(
-                audioConfig = playerResponse?.playerConfig?.audioConfig,
-                videoDetails = playerResponse?.videoDetails,
-                playbackTracking = playbackTracking,
-                format = format!!,
-                streamUrl = streamUrl!!,
-                streamExpiresInSeconds = playerResponse!!.streamingData?.expiresInSeconds ?: 3600,
-                usedClient = usedClient!!
-            )
-        }
-    }
-
-    private suspend fun fetchInParallel(
-        clients: List<YouTubeClient>,
-        videoId: String,
-        playlistId: String?,
-        sts: Int?
-    ): Triple<YouTubeClient, PlayerResponse, Pair<PlayerResponse.StreamingData.Format, String>>? = coroutineScope {
-        
-        val validClients = clients.filter { !it.loginRequired || isLoggedIn() }
-        
-        if (validClients.isEmpty()) return@coroutineScope null
-
-        val resultChannel = Channel<Triple<YouTubeClient, PlayerResponse, Pair<PlayerResponse.StreamingData.Format, String>>?>()
-        val job = this.coroutineContext
-
-        validClients.forEach { client ->
-            launch {
-                try {
-                    val response = YouTube.player(videoId, playlistId, client, sts).getOrNull()
-                    
-                    val result = tryExtract(response, client)
-                    if (result != null) {
-                        resultChannel.send(Triple(client, response!!, result))
-                    } else {
-                        resultChannel.send(null)
-                    }
-                } catch (e: Exception) {
-                    resultChannel.send(null)
-                }
+            if (result.isSuccess) {
+                resultCache[videoId] = CachedResult(result, System.currentTimeMillis())
             }
+            
+            result
+        } catch (e: Exception) {
+            val failure = Result.failure<PlaybackData>(e)
+            deferred.complete(failure)
+            failure
+        } finally {
+            activeRequests.remove(videoId, deferred)
         }
-
-        var failures = 0
-        while (failures < validClients.size) {
-            val result = resultChannel.receive()
-            if (result != null) {
-                job.cancelChildren() 
-                return@coroutineScope result
-            }
-            failures++
-        }
-        
-        return@coroutineScope null
-    }
-
-
-    private fun tryExtractNoValidation(response: PlayerResponse?, client: YouTubeClient): Pair<PlayerResponse.StreamingData.Format, String>? {
-        if (response?.playabilityStatus?.status != "OK") {
-            Log.d(TAG, "Client ${client.clientName} failed with status: ${response?.playabilityStatus?.status}")
-            return null
-        }
-        
-        val format = findBestAudioFormat(response) ?: return null
-        val url = format.url ?: return null
-        
-        val len = format.contentLength ?: 10000000
-        val streamUrl = "$url&range=0-$len"
-        Log.d(TAG, "Found format (no validation): ${format.mimeType} via ${client.clientName}")
-        return Pair(format, streamUrl)
-    }
-
-    private fun tryExtract(response: PlayerResponse?, client: YouTubeClient): Pair<PlayerResponse.StreamingData.Format, String>? {
-        if (response?.playabilityStatus?.status != "OK") {
-            Log.d(TAG, "Client ${client.clientName} failed with status: ${response?.playabilityStatus?.status}")
-            return null
-        }
-        
-        val format = findBestAudioFormat(response) ?: return null
-        val url = format.url ?: return null
-        
-        if (!checkUrl(url, client.userAgent)) {
-            Log.w(TAG, "Format found but URL failed validation with ${client.clientName}")
-            return null
-        }
-
-        val len = format.contentLength ?: 10000000
-        val streamUrl = "$url&range=0-$len"
-        Log.d(TAG, "Found valid format: ${format.mimeType} via ${client.clientName}")
-        return Pair(format, streamUrl)
     }
     
+    private suspend fun fetchPlaybackData(
+        videoId: String,
+        playlistId: String?
+    ): Result<PlaybackData> = runCatching {
+        val startTime = System.currentTimeMillis()
+        Log.d(TAG, "Fetching playback for $videoId (logged in: ${isLoggedIn()})")
+        
+        val sts = getSignatureTimestamp(videoId)
+        Log.d(TAG, "Signature timestamp: $sts")
+        
+        var response: PlayerResponse? = null
+        var usedClient: YouTubeClient? = null
+        var extraction: Pair<PlayerResponse.StreamingData.Format, String>? = null
+        var mainPlayerResponse: PlayerResponse? = null
 
-    private fun findBestAudioFormat(response: PlayerResponse): PlayerResponse.StreamingData.Format? {
-        val allFormats = (response.streamingData?.adaptiveFormats ?: emptyList()) + 
-                         (response.streamingData?.formats ?: emptyList())
+        Log.d(TAG, "Trying MAIN_CLIENT: ${MAIN_CLIENT.clientName}")
+        mainPlayerResponse = YouTube.player(videoId, playlistId, MAIN_CLIENT, sts).getOrNull()
         
-        var bestFormat = allFormats
-            .filter { it.mimeType.startsWith("audio/") }
-            .maxByOrNull { it.bitrate }
+        if (mainPlayerResponse?.playabilityStatus?.status == "OK") {
+            val enhancedResponse = YouTube.newPipePlayer(videoId, mainPlayerResponse)
+            val responseToUse = enhancedResponse ?: mainPlayerResponse
+            
+            extraction = tryExtract(responseToUse, MAIN_CLIENT, videoId)
+            if (extraction != null) {
+                response = responseToUse
+                usedClient = MAIN_CLIENT
+                Log.i(TAG, "MAIN_CLIENT success with NewPipe enhancement")
+            }
+        }
+
+        if (usedClient == null) {
+            Log.d(TAG, "MAIN_CLIENT failed or invalid. Starting fallback...")
+            
+            for ((index, client) in STREAM_FALLBACK_CLIENTS.withIndex()) {
+                if (client.loginRequired && !isLoggedIn()) {
+                    Log.d(TAG, "Skipping ${client.clientName} - requires login")
+                    continue
+                }
+                
+                Log.d(TAG, "Trying fallback ${index + 1}/${STREAM_FALLBACK_CLIENTS.size}: ${client.clientName}")
+                
+                try {
+                    val fallbackResponse = YouTube.player(videoId, playlistId, client, sts).getOrNull()
+                    
+                    if (fallbackResponse?.playabilityStatus?.status == "OK") {
+                        val enhancedResponse = YouTube.newPipePlayer(videoId, fallbackResponse)
+                        val responseToUse = enhancedResponse ?: fallbackResponse
+                        
+                        val skipValidation = index == STREAM_FALLBACK_CLIENTS.size - 1
+                        val result = tryExtract(responseToUse, client, videoId, validate = !skipValidation)
+                        
+                        if (result != null) {
+                            response = responseToUse
+                            extraction = result
+                            usedClient = client
+                            Log.i(TAG, "Fallback success with ${client.clientName}")
+                            break
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Client ${client.clientName} threw exception: ${e.message}")
+                }
+            }
+        }
+
+        if (response == null || extraction == null || usedClient == null) {
+            throw IOException("Failed to resolve stream for $videoId after trying all clients")
+        }
+
+        val (format, streamUrl) = extraction
+
+        val playbackTracking = if (usedClient != MAIN_CLIENT && mainPlayerResponse != null) {
+            mainPlayerResponse.playbackTracking ?: response.playbackTracking
+        } else {
+            response.playbackTracking
+        }
+
+        val elapsedMs = System.currentTimeMillis() - startTime
+        Log.i(TAG, "Playback resolved in ${elapsedMs}ms via ${usedClient.clientName}")
+
+        PlaybackData(
+            audioConfig = mainPlayerResponse?.playerConfig?.audioConfig ?: response.playerConfig?.audioConfig,
+            videoDetails = mainPlayerResponse?.videoDetails ?: response.videoDetails,
+            playbackTracking = playbackTracking,
+            format = format,
+            streamUrl = streamUrl,
+            streamExpiresInSeconds = response.streamingData?.expiresInSeconds ?: 21600,
+            usedClient = usedClient
+        )
+    }
+
+    private fun tryExtract(
+        response: PlayerResponse?, 
+        client: YouTubeClient,
+        videoId: String,
+        validate: Boolean = true
+    ): Pair<PlayerResponse.StreamingData.Format, String>? {
+        if (response?.playabilityStatus?.status != "OK") return null
         
-        if (bestFormat == null) {
-            bestFormat = allFormats
-                .filter { it.mimeType.startsWith("video/") }
-                .minByOrNull { it.bitrate } 
+        val format = findBestAudioFormat(response) ?: return null
+        
+        val url = findUrlOrNull(format, videoId, response)
+        if (url == null) {
+            Log.d(TAG, "Could not find stream URL for format ${format.itag}")
+            return null
         }
         
+        if (validate && !checkUrl(url, client.userAgent)) {
+            Log.d(TAG, "URL validation failed for ${client.clientName}")
+            return null
+        }
+
+        val streamUrl = if (format.contentLength != null) {
+            "$url&range=0-${format.contentLength}"
+        } else {
+            url
+        }
+        
+        return Pair(format, streamUrl)
+    }
+
+    private fun findUrlOrNull(
+        format: PlayerResponse.StreamingData.Format,
+        videoId: String,
+        playerResponse: PlayerResponse
+    ): String? {
+        if (!format.url.isNullOrEmpty()) {
+            Log.d(TAG, "Using URL from format directly")
+            return format.url
+        }
+
+        val deobfuscatedUrl = NewPipeExtractor.getStreamUrl(format, videoId)
+        if (deobfuscatedUrl != null) {
+            Log.d(TAG, "URL obtained via NewPipe deobfuscation")
+            return deobfuscatedUrl
+        }
+
+        val streamUrls = YouTube.getNewPipeStreamUrls(videoId)
+        if (streamUrls.isNotEmpty()) {
+            val exactMatch = streamUrls.find { it.first == format.itag }?.second
+            if (exactMatch != null) {
+                Log.d(TAG, "URL obtained from StreamInfo (exact itag match)")
+                return exactMatch
+            }
+
+            val audioStream = streamUrls.find { urlPair ->
+                playerResponse.streamingData?.adaptiveFormats?.any {
+                    it.itag == urlPair.first && it.mimeType.startsWith("audio/")
+                } == true
+            }?.second
+
+            if (audioStream != null) {
+                Log.d(TAG, "Audio stream URL obtained from StreamInfo")
+                return audioStream
+            }
+        }
+
+        Log.w(TAG, "Failed to get stream URL for format ${format.itag}")
+        return null
+    }
+
+    private fun findBestAudioFormat(response: PlayerResponse): PlayerResponse.StreamingData.Format? {
+        val adaptiveFormats = response.streamingData?.adaptiveFormats ?: emptyList()
+        
+        val audioFormats = adaptiveFormats.filter { it.mimeType.startsWith("audio/") }
+        
+        if (audioFormats.isEmpty()) {
+            Log.d(TAG, "No audio formats found")
+            return null
+        }
+        
+        val bestFormat = audioFormats.maxByOrNull { format ->
+            format.bitrate + (if (format.mimeType.contains("webm")) 10240 else 0)
+        }
+        
+        Log.d(TAG, "Selected format: ${bestFormat?.mimeType}, bitrate: ${bestFormat?.bitrate}")
         return bestFormat
     }
 
     private fun checkUrl(url: String, userAgent: String): Boolean {
-        return try {
+        try {
             val request = Request.Builder()
                 .url(url)
                 .header("User-Agent", userAgent)
                 .head()
                 .build()
-            val response = httpClient.newCall(request).execute()
-            response.isSuccessful.also { response.close() }
+            
+            httpClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) return true
+            }
         } catch (e: Exception) {
-            false
-        }
-    }
-
-    private fun getSignatureTimestamp(): Int? {
-        if (cachedSignatureTimestamp != null && (System.currentTimeMillis() - timestampLastUpdated < TIMESTAMP_TTL)) {
-            return cachedSignatureTimestamp
+            // HEAD might not be supported, try GET
         }
 
         return try {
             val request = Request.Builder()
-                .url("https://www.youtube.com")
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+                .url(url)
+                .header("User-Agent", userAgent)
+                .header("Range", "bytes=0-100")
+                .get()
                 .build()
-            val response = httpClient.newCall(request).execute()
-            val html = response.body?.string() ?: return null
             
-            val matcher = Pattern.compile("\"jsUrl\":\"([^\"]+)\"").matcher(html)
-            if (matcher.find()) {
-                val jsPath = matcher.group(1)
-                val jsUrl = "https://www.youtube.com$jsPath"
-                
-                val jsRequest = Request.Builder().url(jsUrl).build()
-                val jsResponse = httpClient.newCall(jsRequest).execute()
-                val jsContent = jsResponse.body?.string() ?: return null
-                
-                val stsMatcher = Pattern.compile("signatureTimestamp:(\\d+)").matcher(jsContent)
-                if (stsMatcher.find()) {
-                    val sts = stsMatcher.group(1)?.toIntOrNull()
-                    if (sts != null) {
-                        cachedSignatureTimestamp = sts
-                        timestampLastUpdated = System.currentTimeMillis()
-                        Log.i(TAG, "Refreshed Signature Timestamp: $sts")
-                        return sts
-                    }
-                }
+            httpClient.newCall(request).execute().use { response ->
+                response.isSuccessful || response.code == 206
             }
-            null
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch signature timestamp", e)
+            Log.d(TAG, "URL validation failed: ${e.message}")
+            false
+        }
+    }
+
+    private fun getSignatureTimestamp(videoId: String): Int? {
+        return try {
+            NewPipeExtractor.getSignatureTimestamp(videoId)
+                .onSuccess { Log.d(TAG, "Signature timestamp: $it") }
+                .onFailure { Log.w(TAG, "Failed to get signature timestamp: ${it.message}") }
+                .getOrNull()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting signature timestamp", e)
             null
         }
     }

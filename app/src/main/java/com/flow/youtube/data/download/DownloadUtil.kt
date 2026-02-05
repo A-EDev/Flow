@@ -1,8 +1,11 @@
 package com.flow.youtube.data.download
 
 import android.content.Context
+import android.util.Log
 import androidx.media3.database.DatabaseProvider
+import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.datasource.cache.CacheDataSink
 import androidx.media3.datasource.cache.CacheDataSource
 import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -13,18 +16,6 @@ import com.flow.youtube.service.ExoDownloadService
 import com.flow.youtube.di.DownloadCache
 import com.flow.youtube.di.PlayerCache
 import com.flow.youtube.innertube.YouTube
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_43_32
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.ANDROID_VR_1_61_48
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.WEB_REMIX
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.ANDROID_CREATOR
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.IPADOS
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.ANDROID_VR_NO_AUTH
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.MOBILE
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.TVHTML5
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.TVHTML5_SIMPLY_EMBEDDED_PLAYER
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.IOS
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.WEB
-import com.flow.youtube.innertube.models.YouTubeClient.Companion.WEB_CREATOR
 import com.flow.youtube.utils.MusicPlayerUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -35,6 +26,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import java.util.concurrent.Executor
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 import androidx.core.net.toUri
@@ -47,12 +39,17 @@ class DownloadUtil @Inject constructor(
     @DownloadCache private val downloadCache: SimpleCache,
     @PlayerCache private val playerCache: SimpleCache,
 ) {
+    companion object {
+        private const val TAG = "DownloadUtil"
+        private const val CHUNK_LENGTH = 512 * 1024L // 512KB for cache check
+    }
+
     private val songUrlCache = HashMap<String, Triple<String, String, Long>>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val downloads = MutableStateFlow<Map<String, Download>>(emptyMap())
 
-    private fun createProxyAwareOkHttpClient(): OkHttpClient {
-        return OkHttpClient.Builder()
+    private val okHttpClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
             .proxy(YouTube.proxy)
             .proxyAuthenticator { _, response ->
                 YouTube.proxyAuth?.let { auth ->
@@ -61,94 +58,211 @@ class DownloadUtil @Inject constructor(
                         .build()
                 } ?: response.request
             }
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
             .build()
     }
 
-    val dataSourceFactory = ResolvingDataSource.Factory(
+    /**
+     * DataSource factory for DOWNLOADS - writes to downloadCache.
+     * Used by DownloadManager for downloading tracks for offline playback.
+     */
+    val dataSourceFactory: ResolvingDataSource.Factory = ResolvingDataSource.Factory(
         CacheDataSource.Factory()
-            .setCache(playerCache)
-            .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(createProxyAwareOkHttpClient()))
+            .setCache(downloadCache)
+            .setCacheWriteDataSinkFactory(CacheDataSink.Factory().setCache(downloadCache))
+            .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(okHttpClient))
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
     ) { dataSpec ->
-        val mediaId = dataSpec.key 
-            ?: dataSpec.uri.host 
-            ?: error("No media id in dataSpec: ${dataSpec.uri}")
+        resolveDataSpec(dataSpec, "Download")
+    }
 
-        android.util.Log.d("DownloadUtil", "Resolving DataSpec for $mediaId. Key: ${dataSpec.key}, URI: ${dataSpec.uri}")
+    /**
+     * Resolve DataSpec by looking up cached URL or fetching from network.
+     */
+    private fun resolveDataSpec(dataSpec: DataSpec, source: String): DataSpec {
+        val mediaId = dataSpec.key ?: error("No media id (key) in dataSpec")
+
+        Log.d(TAG, "[$source] Resolving for $mediaId")
 
         try {
             val cachedSpans = downloadCache.getCachedSpans(mediaId)
             if (cachedSpans.isNotEmpty()) {
-                android.util.Log.d("DownloadUtil", "Short-circuit resolution: content $mediaId is in downloadCache")
-                return@Factory dataSpec
+                val totalCached = cachedSpans.sumOf { it.length }
+                Log.d(TAG, "[$source] $mediaId found in downloadCache (${totalCached / 1024}KB)")
+                return dataSpec
             }
         } catch (e: Exception) {
-            android.util.Log.w("DownloadUtil", "Error checking cache spans for $mediaId: ${e.message}")
+            Log.w(TAG, "[$source] Error checking downloadCache for $mediaId: ${e.message}")
         }
-
         songUrlCache[mediaId]?.takeIf { it.third > System.currentTimeMillis() }?.let { (url, ua, _) ->
-            android.util.Log.d("DownloadUtil", "Using memory-cached URL and UA for $mediaId")
-            return@Factory dataSpec.buildUpon()
+            Log.d(TAG, "[$source] Using cached URL for $mediaId")
+            return dataSpec.buildUpon()
                 .setUri(url.toUri())
                 .setHttpRequestHeaders(mapOf("User-Agent" to ua))
                 .build()
         }
 
-        var audioUrl: String? = null
-        var userAgent: String? = null
-        var expiration: Long = 0L
-
-        try {
-            val playbackDataResult = runBlocking(Dispatchers.IO) {
-                MusicPlayerUtils.playerResponseForPlayback(mediaId)
-            }
-            
-            val playbackData = playbackDataResult.getOrThrow()
-            audioUrl = playbackData.streamUrl
-            userAgent = playbackData.usedClient.userAgent
-            expiration = System.currentTimeMillis() + (playbackData.streamExpiresInSeconds - 60) * 1000L
-            
-            android.util.Log.d("DownloadUtil", "Resolved using MusicPlayerUtils with client: ${playbackData.usedClient.clientName}")
-            
-        } catch (e: Exception) {
-             android.util.Log.e("DownloadUtil", "MusicPlayerUtils resolution failed for $mediaId", e)
+        Log.d(TAG, "[$source] Resolving URL from network for $mediaId")
+        val playbackData = runBlocking(Dispatchers.IO) {
+            MusicPlayerUtils.playerResponseForPlayback(mediaId)
+        }.getOrElse { e ->
+            Log.e(TAG, "[$source] Failed to resolve $mediaId: ${e.message}")
+            throw IOException("Could not resolve URL for $mediaId: ${e.message}", e)
         }
 
-        if (audioUrl == null || userAgent == null) {
-             android.util.Log.e("DownloadUtil", "All clients failed to resolve $mediaId")
-             throw IOException("Could not resolve URL for $mediaId after trying all clients")
-        }
-        
-        songUrlCache[mediaId] = Triple(audioUrl!!, userAgent!!, expiration)
+        val streamUrl = playbackData.streamUrl
+        val userAgent = playbackData.usedClient.userAgent
+        val expiration = System.currentTimeMillis() + (playbackData.streamExpiresInSeconds - 60) * 1000L
 
-        val resolvedDataSpec = dataSpec.buildUpon()
-            .setUri(audioUrl.toUri())
+        songUrlCache[mediaId] = Triple(streamUrl, userAgent, expiration)
+        Log.d(TAG, "[$source] Resolved $mediaId via ${playbackData.usedClient.clientName}")
+
+        return dataSpec.buildUpon()
+            .setUri(streamUrl.toUri())
             .setHttpRequestHeaders(mapOf("User-Agent" to userAgent))
             .build()
-        
-        android.util.Log.d("DownloadUtil", "Final DataSpec for $mediaId: URI=${resolvedDataSpec.uri}")
-        resolvedDataSpec
     }
 
+    /**
+     * DataSource factory for PLAYBACK - reads from both caches.
+     * Chain: downloadCache (read-only) -> playerCache (read-write) -> network
+     */
+    fun getPlayerDataSourceFactory(): androidx.media3.datasource.DataSource.Factory {
+        val downloadCacheFactory = CacheDataSource.Factory()
+            .setCache(downloadCache)
+            .setCacheWriteDataSinkFactory(null)
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+
+        val playerCacheFactory = CacheDataSource.Factory()
+            .setCache(playerCache)
+            .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(okHttpClient))
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+
+        val cachedDataSourceFactory = downloadCacheFactory
+            .setUpstreamDataSourceFactory(playerCacheFactory)
+
+        return ResolvingDataSource.Factory(cachedDataSourceFactory) { dataSpec ->
+            val mediaId = dataSpec.key ?: error("No media id (key) in dataSpec")
+
+            try {
+                if (downloadCache.isCached(mediaId, dataSpec.position, maxOf(dataSpec.length, 1))) {
+                    Log.d(TAG, "[Player] Serving from downloadCache: $mediaId")
+                    return@Factory dataSpec
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "[Player] downloadCache check error for $mediaId", e)
+                try { downloadCache.removeResource(mediaId) } catch (_: Exception) {}
+            }
+
+            try {
+                if (playerCache.isCached(mediaId, dataSpec.position, CHUNK_LENGTH)) {
+                    Log.d(TAG, "[Player] Serving from playerCache: $mediaId")
+                    return@Factory dataSpec
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "[Player] playerCache check error for $mediaId", e)
+            }
+
+            songUrlCache[mediaId]?.takeIf { it.third > System.currentTimeMillis() }?.let { (url, ua, _) ->
+                Log.d(TAG, "[Player] Using cached URL for $mediaId")
+                return@Factory dataSpec.buildUpon()
+                    .setUri(url.toUri())
+                    .setHttpRequestHeaders(mapOf("User-Agent" to ua))
+                    .build()
+            }
+
+            val playbackData = runBlocking(Dispatchers.IO) {
+                MusicPlayerUtils.playerResponseForPlayback(mediaId)
+            }.getOrThrow()
+
+            val streamUrl = playbackData.streamUrl
+            val userAgent = playbackData.usedClient.userAgent
+            val expiration = System.currentTimeMillis() + (playbackData.streamExpiresInSeconds - 60) * 1000L
+
+            songUrlCache[mediaId] = Triple(streamUrl, userAgent, expiration)
+            Log.d(TAG, "[Player] Resolved $mediaId via ${playbackData.usedClient.clientName}")
+
+            dataSpec.buildUpon()
+                .setUri(streamUrl.toUri())
+                .setHttpRequestHeaders(mapOf("User-Agent" to userAgent))
+                .build()
+        }
+    }
+
+    /**
+     * Invalidate URL cache for a specific media ID.
+     * Called during error recovery.
+     */
     fun invalidateUrlCache(mediaId: String) {
         songUrlCache.remove(mediaId)
-        android.util.Log.d("DownloadUtil", "Invalidated URL cache for $mediaId")
+        Log.d(TAG, "Invalidated URL cache for $mediaId")
     }
 
+    /**
+     * Clear all URL cache entries.
+     */
     fun clearUrlCache() {
         songUrlCache.clear()
-        android.util.Log.d("DownloadUtil", "Cleared all URL cache entries")
+        Log.d(TAG, "Cleared all URL cache entries")
     }
-    
-    fun getPlayerDataSourceFactory(): androidx.media3.datasource.DataSource.Factory {
-        return CacheDataSource.Factory()
-            .setCache(downloadCache) 
-            .setCacheKeyFactory { dataSpec ->
 
-                dataSpec.key ?: dataSpec.uri.host ?: dataSpec.uri.toString()
+    /**
+     * Aggressive cache clear for error recovery.
+     * Clears URL cache, player cache, and triggers force refresh.
+     */
+    fun performAggressiveCacheClear(mediaId: String) {
+        Log.d(TAG, "Performing aggressive cache clear for $mediaId")
+        
+        songUrlCache.remove(mediaId)
+        
+        try {
+            playerCache.removeResource(mediaId)
+        } catch (e: Exception) {
+            Log.w(TAG, "Error clearing playerCache for $mediaId: ${e.message}")
+        }
+        
+        MusicPlayerUtils.forceRefreshForVideo(mediaId)
+    }
+
+    /**
+     * Check if a track is fully downloaded and available offline.
+     */
+    fun isFullyDownloaded(mediaId: String): Boolean {
+        val download = downloads.value[mediaId] ?: return false
+        return download.state == Download.STATE_COMPLETED
+    }
+
+    /**
+     * Check if a track's audio is in the downloadCache and available for offline playback.
+     * This checks the actual cache content, not just the download state.
+     */
+    fun isCachedForOffline(mediaId: String): Boolean {
+        return try {
+            val spans = downloadCache.getCachedSpans(mediaId)
+            if (spans.isEmpty()) {
+                false
+            } else {
+                val totalCached = spans.sumOf { it.length }
+                Log.d(TAG, "[CacheCheck] $mediaId has ${totalCached / 1024}KB in cache")
+                totalCached >= 100 * 1024
             }
-            .setUpstreamDataSourceFactory(dataSourceFactory)
-            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        } catch (e: Exception) {
+            Log.w(TAG, "[CacheCheck] Error checking cache for $mediaId: ${e.message}")
+            false
+        }
+    }
+
+    fun verifyCacheIntegrity(mediaId: String): Boolean {
+        return try {
+            val spans = downloadCache.getCachedSpans(mediaId)
+            spans.isNotEmpty() && spans.all { span ->
+                span.file?.exists() == true && span.length > 0
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Cache integrity check failed for $mediaId", e)
+            false
+        }
     }
 
     val downloadNotificationHelper = DownloadNotificationHelper(context, ExoDownloadService.CHANNEL_ID)

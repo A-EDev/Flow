@@ -10,6 +10,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.flow.youtube.data.local.QueuePersistence
 import com.flow.youtube.service.Media3MusicService
 import com.flow.youtube.ui.screens.music.MusicTrack
 import com.google.common.util.concurrent.ListenableFuture
@@ -41,6 +42,12 @@ object EnhancedMusicPlayerManager {
         Log.e("EnhancedMusicPlayer", "Error in player scope: ${throwable.message}", throwable)
     }
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob() + exceptionHandler)
+    
+    private var retryCount = 0
+    private const val MAX_RETRIES = 3
+    
+    // Queue persistence
+    private var queuePersistence: QueuePersistence? = null
     
     // Player state flows
     private val _playerState = MutableStateFlow(MusicPlayerState())
@@ -84,6 +91,8 @@ object EnhancedMusicPlayerManager {
         if (isInitialized) return
         isInitialized = true
         
+        queuePersistence = QueuePersistence.getInstance(context)
+        
         val sessionToken = SessionToken(context, ComponentName(context, Media3MusicService::class.java))
         controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
         
@@ -93,6 +102,29 @@ object EnhancedMusicPlayerManager {
                 player = controller
                 if (controller != null) {
                     setupPlayerListener(controller)
+                    
+                    scope.launch {
+                        restoreSavedQueue()
+                    }
+                    
+                    queuePersistence?.startAutoSave {
+                        val currentQ = _queue.value
+                        if (currentQ.isNotEmpty()) {
+                            QueuePersistence.QueueState(
+                                queue = currentQ,
+                                currentIndex = _currentQueueIndex.value,
+                                currentPosition = _currentPosition.value, // Use StateFlow, not player directly
+                                currentTrackId = _currentTrack.value?.videoId,
+                                shuffleEnabled = _shuffleEnabled.value,
+                                repeatMode = when (_repeatMode.value) {
+                                    RepeatMode.OFF -> 0
+                                    RepeatMode.ALL -> 1
+                                    RepeatMode.ONE -> 2
+                                },
+                                savedAt = System.currentTimeMillis()
+                            )
+                        } else null
+                    }
                 }
             } catch (e: ExecutionException) {
                 e.printStackTrace()
@@ -142,11 +174,37 @@ object EnhancedMusicPlayerManager {
                      else -> RepeatMode.OFF
                  }
             }
+            
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                Log.e("EnhancedMusicPlayer", "Player error: ${error.errorCodeName} (${error.errorCode})", error)
+                
+                if (retryCount < MAX_RETRIES) {
+                    retryCount++
+                    Log.i("EnhancedMusicPlayer", "Retrying... Attempt $retryCount/$MAX_RETRIES")
+                    scope.launch {
+                        kotlinx.coroutines.delay(1000)
+                        if (error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED || 
+                            error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT) {
+                             kotlinx.coroutines.delay(2000) 
+                        }
+                        player?.prepare()
+                        player?.play()
+                    }
+                } else {
+                    Log.w("EnhancedMusicPlayer", "Max retries reached. Skipping to next track.")
+                    retryCount = 0
+                    playNext()
+                }
+            }
         })
     }
-    
+   
     private fun updatePlayerState() {
         player?.let { p ->
+            if (p.playbackState == Player.STATE_READY && p.isPlaying) {
+                retryCount = 0
+            }
+            
             _playerState.value = _playerState.value.copy(
                 isPlaying = p.isPlaying,
                 isBuffering = p.playbackState == Player.STATE_BUFFERING,
@@ -238,6 +296,82 @@ object EnhancedMusicPlayerManager {
     
     fun updateQueue(newQueue: List<MusicTrack>) {
         _queue.value = newQueue
+        triggerQueueSave()
+    }
+
+    private fun triggerQueueSave() {
+        val currentQ = _queue.value
+        if (currentQ.isNotEmpty()) {
+            queuePersistence?.saveQueueDebounced(
+                queue = currentQ,
+                currentIndex = _currentQueueIndex.value,
+                currentPosition = _currentPosition.value, // Use StateFlow for thread safety
+                currentTrackId = _currentTrack.value?.videoId,
+                shuffleEnabled = _shuffleEnabled.value,
+                repeatMode = when (_repeatMode.value) {
+                    RepeatMode.OFF -> 0
+                    RepeatMode.ALL -> 1
+                    RepeatMode.ONE -> 2
+                }
+            )
+        }
+    }
+    
+    /**
+     * Restore queue from persistent storage
+     */
+    private suspend fun restoreSavedQueue() {
+        try {
+            val savedState = queuePersistence?.restoreQueue() ?: return
+            
+            if (savedState.queue.isEmpty()) return
+            
+            if ((player?.mediaItemCount ?: 0) > 0) return
+            
+            Log.d("EnhancedMusicPlayer", "Restoring saved queue: ${savedState.queue.size} tracks")
+            
+            _queue.value = savedState.queue
+            _currentQueueIndex.value = savedState.currentIndex.coerceIn(0, savedState.queue.size - 1)
+            _shuffleEnabled.value = savedState.shuffleEnabled
+            _repeatMode.value = when (savedState.repeatMode) {
+                1 -> RepeatMode.ALL
+                2 -> RepeatMode.ONE
+                else -> RepeatMode.OFF
+            }
+            
+            val currentTrack = savedState.currentTrackId?.let { id ->
+                savedState.queue.find { it.videoId == id }
+            } ?: savedState.queue.getOrNull(savedState.currentIndex)
+            
+            currentTrack?.let { _currentTrack.value = it }
+            
+        } catch (e: Exception) {
+            Log.e("EnhancedMusicPlayer", "Failed to restore queue", e)
+        }
+    }
+    
+    /**
+     * Force save current queue immediately.
+     * Uses cached position from StateFlow for thread safety.
+     */
+    fun saveQueueNow() {
+        scope.launch(Dispatchers.IO) {
+            val currentQ = _queue.value
+            if (currentQ.isNotEmpty()) {
+                queuePersistence?.saveQueueImmediate(
+                    queue = currentQ,
+                    currentIndex = _currentQueueIndex.value,
+                    currentPosition = _currentPosition.value, // Use StateFlow for thread safety
+                    currentTrackId = _currentTrack.value?.videoId,
+                    shuffleEnabled = _shuffleEnabled.value,
+                    repeatMode = when (_repeatMode.value) {
+                        RepeatMode.OFF -> 0
+                        RepeatMode.ALL -> 1
+                        RepeatMode.ONE -> 2
+                    }
+                )
+            }
+        }
     }
 
     fun togglePlayPause() {
@@ -259,12 +393,14 @@ object EnhancedMusicPlayerManager {
             currentQ.add(track)
         }
         _queue.value = currentQ
+        triggerQueueSave()
     }
 
     fun addToQueue(track: MusicTrack) {
         val currentQ = _queue.value.toMutableList()
         currentQ.add(track)
         _queue.value = currentQ
+        triggerQueueSave()
     }
     
     fun playNext() {
@@ -389,6 +525,7 @@ object EnhancedMusicPlayerManager {
          if (index in currentQ.indices) {
              currentQ.removeAt(index)
              _queue.value = currentQ
+             triggerQueueSave()
          }
     }
 }

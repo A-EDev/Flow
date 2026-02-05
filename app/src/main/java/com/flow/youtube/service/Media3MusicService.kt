@@ -26,12 +26,17 @@ import android.os.Bundle
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.flow.youtube.data.download.DownloadUtil
 import com.flow.youtube.extensions.setOffloadEnabled
+import com.flow.youtube.utils.MusicPlayerUtils
+import com.flow.youtube.utils.NetworkConnectivityObserver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.math.min
 
 @AndroidEntryPoint
 class Media3MusicService : MediaLibraryService() {
@@ -40,8 +45,11 @@ class Media3MusicService : MediaLibraryService() {
         private const val TAG = "Media3MusicService"
         private const val ACTION_TOGGLE_SHUFFLE = "ACTION_TOGGLE_SHUFFLE"
         private const val ACTION_TOGGLE_REPEAT = "ACTION_TOGGLE_REPEAT"
-        private const val MAX_RETRY_PER_SONG = 3
-        private const val RETRY_DELAY_MS = 1000L
+        
+        private const val MAX_RETRY_PER_SONG = 5
+        private const val BASE_RETRY_DELAY_MS = 3000L
+        private const val MAX_RETRY_DELAY_MS = 30000L
+        private const val FAILED_SONGS_CACHE_SIZE = 50
         
         private val CommandToggleShuffle = SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY)
         private val CommandToggleRepeat = SessionCommand(ACTION_TOGGLE_REPEAT, Bundle.EMPTY)
@@ -49,10 +57,17 @@ class Media3MusicService : MediaLibraryService() {
 
     private lateinit var mediaLibrarySession: MediaLibrarySession
     private lateinit var player: ExoPlayer
+    private lateinit var connectivityObserver: NetworkConnectivityObserver
     
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
     private val retryCountMap = mutableMapOf<String, Int>()
+    
+    private val recentlyFailedSongs = LinkedHashSet<String>()
+    
+    private var pendingRetryJob: Job? = null
+    
+    private var waitingForNetwork = false
 
     @Inject
     lateinit var downloadUtil: DownloadUtil
@@ -60,6 +75,20 @@ class Media3MusicService : MediaLibraryService() {
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+        
+        connectivityObserver = NetworkConnectivityObserver(this)
+        connectivityObserver.startObserving()
+        
+        serviceScope.launch {
+            connectivityObserver.isConnected.collectLatest { isConnected ->
+                if (isConnected && waitingForNetwork) {
+                    Log.d(TAG, "Network restored, triggering retry")
+                    waitingForNetwork = false
+                    triggerRetryAfterNetworkRestore()
+                }
+            }
+        }
+        
         initializePlayer()
         initializeSession()
     }
@@ -96,46 +125,220 @@ class Media3MusicService : MediaLibraryService() {
             }
             
             override fun onPlayerError(error: PlaybackException) {
-                val mediaId = player.currentMediaItem?.mediaId ?: return
-                Log.e(TAG, "Playback error for $mediaId: ${error.message}", error)
-                
-                val currentRetry = retryCountMap.getOrDefault(mediaId, 0)
-                if (currentRetry < MAX_RETRY_PER_SONG) {
-                    retryCountMap[mediaId] = currentRetry + 1
-                    Log.d(TAG, "Attempting retry ${currentRetry + 1}/$MAX_RETRY_PER_SONG for $mediaId")
-                    
-                    downloadUtil.invalidateUrlCache(mediaId)
-                    
-                    serviceScope.launch {
-                        delay(RETRY_DELAY_MS)
-                        try {
-                            val position = player.currentPosition
-                            player.prepare()
-                            player.seekTo(position)
-                            player.play()
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Retry failed for $mediaId", e)
-                        }
-                    }
-                } else {
-                    Log.w(TAG, "Max retries reached for $mediaId, skipping to next")
-                    retryCountMap.remove(mediaId)
-                    if (player.hasNextMediaItem()) {
-                        player.seekToNextMediaItem()
-                        player.prepare()
-                        player.play()
-                    }
-                }
+                handlePlayerError(error)
             }
             
             override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
-                mediaItem?.mediaId?.let { 
-                    if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
-                        retryCountMap.clear()
+                if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
+                    retryCountMap.clear()
+                }
+            }
+            
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    player.currentMediaItem?.mediaId?.let { mediaId ->
+                        retryCountMap.remove(mediaId)
+                        recentlyFailedSongs.remove(mediaId)
                     }
                 }
             }
         })
+    }
+
+    /**
+     * Main error handling logic with error-type-specific handlers.
+     */
+    private fun handlePlayerError(error: PlaybackException) {
+        val mediaId = player.currentMediaItem?.mediaId
+        if (mediaId == null) {
+            Log.e(TAG, "Player error with no current media item", error)
+            return
+        }
+        
+        Log.e(TAG, "Playback error for $mediaId: ${error.errorCodeName}", error)
+        
+        if (recentlyFailedSongs.contains(mediaId)) {
+            Log.w(TAG, "$mediaId is in recently failed list, skipping to next")
+            skipToNext()
+            return
+        }
+        
+        val currentRetry = retryCountMap.getOrDefault(mediaId, 0)
+        
+        if (currentRetry >= MAX_RETRY_PER_SONG) {
+            handleFinalFailure(mediaId)
+            return
+        }
+        
+        when {
+            isExpiredUrlError(error) -> handleExpiredUrlError(mediaId, currentRetry)
+            isRangeNotSatisfiableError(error) -> handleRangeError(mediaId, currentRetry)
+            isNetworkError(error) -> handleNetworkError(mediaId, currentRetry)
+            else -> handleGenericError(mediaId, currentRetry)
+        }
+    }
+
+    /**
+     * Check if error is due to expired URL (HTTP 403)
+     */
+    private fun isExpiredUrlError(error: PlaybackException): Boolean {
+        val cause = error.cause?.toString() ?: ""
+        return error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS &&
+               (cause.contains("403") || cause.contains("Forbidden"))
+    }
+
+    /**
+     * Check if error is Range Not Satisfiable (HTTP 416)
+     */
+    private fun isRangeNotSatisfiableError(error: PlaybackException): Boolean {
+        val cause = error.cause?.toString() ?: ""
+        return error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS &&
+               (cause.contains("416") || cause.contains("Range Not Satisfiable"))
+    }
+
+    /**
+     * Check if error is network-related
+     */
+    private fun isNetworkError(error: PlaybackException): Boolean {
+        return error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+               error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ||
+               error.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED
+    }
+
+    /**
+     * Handle expired URL error (HTTP 403) - aggressive cache clear needed
+     */
+    private fun handleExpiredUrlError(mediaId: String, currentRetry: Int) {
+        Log.d(TAG, "Handling expired URL error for $mediaId (retry $currentRetry)")
+        
+        downloadUtil.performAggressiveCacheClear(mediaId)
+        
+        scheduleRetry(mediaId, currentRetry, delayMultiplier = 1.0)
+    }
+
+    /**
+     * Handle Range Not Satisfiable error (HTTP 416) - seek position issue
+     */
+    private fun handleRangeError(mediaId: String, currentRetry: Int) {
+        Log.d(TAG, "Handling range error for $mediaId (retry $currentRetry)")
+        
+        downloadUtil.performAggressiveCacheClear(mediaId)
+        
+        retryCountMap[mediaId] = currentRetry + 1
+        
+        serviceScope.launch {
+            delay(BASE_RETRY_DELAY_MS)
+            try {
+                player.seekTo(0)
+                player.prepare()
+                player.play()
+            } catch (e: Exception) {
+                Log.e(TAG, "Range error retry failed for $mediaId", e)
+            }
+        }
+    }
+
+    /**
+     * Handle network-related errors - wait for connectivity
+     */
+    private fun handleNetworkError(mediaId: String, currentRetry: Int) {
+        Log.d(TAG, "Handling network error for $mediaId (retry $currentRetry)")
+        
+        if (!connectivityObserver.checkCurrentConnectivity()) {
+            Log.d(TAG, "No network connectivity, waiting...")
+            waitingForNetwork = true
+            retryCountMap[mediaId] = currentRetry + 1
+        } else {
+            downloadUtil.invalidateUrlCache(mediaId)
+            scheduleRetry(mediaId, currentRetry, delayMultiplier = 2.0)
+        }
+    }
+
+    /**
+     * Handle generic errors with exponential backoff
+     */
+    private fun handleGenericError(mediaId: String, currentRetry: Int) {
+        Log.d(TAG, "Handling generic error for $mediaId (retry $currentRetry)")
+        
+        downloadUtil.invalidateUrlCache(mediaId)
+        scheduleRetry(mediaId, currentRetry, delayMultiplier = 1.5)
+    }
+
+    /**
+     * Schedule a retry with exponential backoff
+     */
+    private fun scheduleRetry(mediaId: String, currentRetry: Int, delayMultiplier: Double) {
+        retryCountMap[mediaId] = currentRetry + 1
+        
+        val baseDelay = (BASE_RETRY_DELAY_MS * delayMultiplier).toLong()
+        val delay = min(baseDelay * (1L shl currentRetry), MAX_RETRY_DELAY_MS)
+        
+        Log.d(TAG, "Scheduling retry ${currentRetry + 1}/$MAX_RETRY_PER_SONG for $mediaId in ${delay}ms")
+        
+        pendingRetryJob?.cancel()
+        pendingRetryJob = serviceScope.launch {
+            delay(delay)
+            try {
+                val position = player.currentPosition
+                player.prepare()
+                player.seekTo(position)
+                player.play()
+            } catch (e: Exception) {
+                Log.e(TAG, "Scheduled retry failed for $mediaId", e)
+            }
+        }
+    }
+
+    /**
+     * Handle final failure after all retries exhausted
+     */
+    private fun handleFinalFailure(mediaId: String) {
+        Log.w(TAG, "All retries exhausted for $mediaId, marking as failed")
+        
+        retryCountMap.remove(mediaId)
+        
+        if (recentlyFailedSongs.size >= FAILED_SONGS_CACHE_SIZE) {
+            recentlyFailedSongs.iterator().next().let { recentlyFailedSongs.remove(it) }
+        }
+        recentlyFailedSongs.add(mediaId)
+        
+        skipToNext()
+    }
+
+    /**
+     * Skip to next track
+     */
+    private fun skipToNext() {
+        if (player.hasNextMediaItem()) {
+            player.seekToNextMediaItem()
+            player.prepare()
+            player.play()
+        }
+    }
+
+    /**
+     * Trigger retry after network is restored
+     */
+    private fun triggerRetryAfterNetworkRestore() {
+        val mediaId = player.currentMediaItem?.mediaId ?: return
+        val currentRetry = retryCountMap.getOrDefault(mediaId, 0)
+        
+        if (currentRetry < MAX_RETRY_PER_SONG) {
+            Log.d(TAG, "Triggering retry after network restore for $mediaId")
+            downloadUtil.invalidateUrlCache(mediaId)
+            
+            serviceScope.launch {
+                delay(1000) 
+                try {
+                    val position = player.currentPosition
+                    player.prepare()
+                    player.seekTo(position)
+                    player.play()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Network restore retry failed for $mediaId", e)
+                }
+            }
+        }
     }
 
     @OptIn(UnstableApi::class)
@@ -162,6 +365,12 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        if (::connectivityObserver.isInitialized) {
+            connectivityObserver.stopObserving()
+        }
+        
+        pendingRetryJob?.cancel()
+        
         if (::mediaLibrarySession.isInitialized) {
             mediaLibrarySession.release()
         }

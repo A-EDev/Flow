@@ -26,6 +26,8 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import java.net.Proxy
 import java.util.*
+import kotlinx.coroutines.delay
+import java.io.IOException
 import okhttp3.ConnectionPool
 import okhttp3.Protocol
 import okhttp3.OkHttpClient
@@ -91,10 +93,10 @@ class InnerTube {
                 )
                 
                 // Faster timeout configurations - fail fast, retry smart
-                connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS) // Reduced from 30
-                readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)    // Reduced from 60
-                writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)   // Reduced from 60
-                callTimeout(45, java.util.concurrent.TimeUnit.SECONDS)    // Overall call limit
+                connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS) 
+                readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                callTimeout(45, java.util.concurrent.TimeUnit.SECONDS)    
                 
                 // Enable HTTP/2 for multiplexing (parallel streams on single connection)
                 protocols(listOf(okhttp3.Protocol.HTTP_2, okhttp3.Protocol.HTTP_1_1))
@@ -107,6 +109,14 @@ class InnerTube {
                     maxRequests = 48
                     maxRequestsPerHost = 8
                 })
+                
+                // Cache configuration for better performance
+                cache(
+                     okhttp3.Cache(
+                         directory = java.io.File(System.getProperty("java.io.tmpdir"), "http_cache"),
+                         maxSize = 50L * 1024L * 1024L // 50 MB
+                     )
+                )
             }
             
             proxy?.let { proxy = this@InnerTube.proxy }
@@ -123,11 +133,10 @@ class InnerTube {
             }
         }
 
-        // OPTIMIZED: Faster request timeout configuration
         install(HttpTimeout) {
-            requestTimeoutMillis = 45000  // Reduced from 60s
-            connectTimeoutMillis = 15000  // Reduced from 30s
-            socketTimeoutMillis = 30000   // Reduced from 60s
+            requestTimeoutMillis = 45000  
+            connectTimeoutMillis = 15000  
+            socketTimeoutMillis = 30000   
         }
 
         defaultRequest {
@@ -136,6 +145,31 @@ class InnerTube {
             header("Accept", "application/json")
             header("Accept-Language", "en-US,en;q=0.9")
             header("Cache-Control", "no-cache")
+        }
+    }
+
+    /**
+     * Simple retry wrapper for transient IO errors (socket aborts, timeouts).
+     * Retries the given block up to [maxAttempts] times with exponential backoff.
+     * Cancellation is respected since [delay] will throw if the coroutine is cancelled.
+     */
+    private suspend fun <T> withRetry(
+        maxAttempts: Int = 3,
+        initialDelay: Long = 500L,
+        factor: Double = 2.0,
+        block: suspend () -> T,
+    ): T {
+        var currentDelay = initialDelay
+        var attempt = 0
+        while (true) {
+            try {
+                return block()
+            } catch (e: IOException) {
+                attempt++
+                if (attempt >= maxAttempts) throw e
+                delay(currentDelay)
+                currentDelay = (currentDelay * factor).toLong()
+            }
         }
     }
 
@@ -166,21 +200,23 @@ class InnerTube {
         query: String? = null,
         params: String? = null,
         continuation: String? = null,
-    ) = httpClient.post("search") {
-        ytClient(client, setLogin = useLoginForBrowse)
-        setBody(
-            SearchBody(
-                context = client.toContext(
-                    locale,
-                    visitorData,
-                    if (useLoginForBrowse) dataSyncId else null
-                ),
-                query = query,
-                params = params
+    ) = withRetry {
+        httpClient.post("search") {
+            ytClient(client, setLogin = useLoginForBrowse)
+            setBody(
+                SearchBody(
+                    context = client.toContext(
+                        locale,
+                        visitorData,
+                        if (useLoginForBrowse) dataSyncId else null
+                    ),
+                    query = query,
+                    params = params
+                )
             )
-        )
-        parameter("continuation", continuation)
-        parameter("ctoken", continuation)
+            parameter("continuation", continuation)
+            parameter("ctoken", continuation)
+        }
     }
 
     suspend fun player(
@@ -188,30 +224,32 @@ class InnerTube {
         videoId: String,
         playlistId: String?,
         signatureTimestamp: Int?,
-    ) = httpClient.post("player") {
-        ytClient(client, setLogin = true)
-        setBody(
-            PlayerBody(
-                context = client.toContext(locale, visitorData, dataSyncId).let {
-                    if (client.isEmbedded) {
-                        it.copy(
-                            thirdParty = Context.ThirdParty(
-                                embedUrl = "https://www.youtube.com/watch?v=${videoId}"
+    ) = withRetry {
+        httpClient.post("player") {
+            ytClient(client, setLogin = true)
+            setBody(
+                PlayerBody(
+                    context = client.toContext(locale, visitorData, dataSyncId).let {
+                        if (client.isEmbedded) {
+                            it.copy(
+                                thirdParty = Context.ThirdParty(
+                                    embedUrl = "https://www.youtube.com/watch?v=${videoId}"
+                                )
+                            )
+                        } else it
+                    },
+                    videoId = videoId,
+                    playlistId = playlistId,
+                    playbackContext = if (client.useSignatureTimestamp && signatureTimestamp != null) {
+                        PlayerBody.PlaybackContext(
+                            PlayerBody.PlaybackContext.ContentPlaybackContext(
+                                signatureTimestamp
                             )
                         )
-                    } else it
-                },
-                videoId = videoId,
-                playlistId = playlistId,
-                playbackContext = if (client.useSignatureTimestamp && signatureTimestamp != null) {
-                    PlayerBody.PlaybackContext(
-                        PlayerBody.PlaybackContext.ContentPlaybackContext(
-                            signatureTimestamp
-                        )
-                    )
-                } else null,
+                    } else null,
+                )
             )
-        )
+        }
     }
 
     suspend fun registerPlayback(
@@ -237,20 +275,22 @@ class InnerTube {
         params: String? = null,
         continuation: String? = null,
         setLogin: Boolean = false,
-    ) = httpClient.post("browse") {
-        ytClient(client, setLogin = setLogin || useLoginForBrowse)
-        setBody(
-            BrowseBody(
-                context = client.toContext(
-                    locale,
-                    visitorData,
-                    if (setLogin || useLoginForBrowse) dataSyncId else null
-                ),
-                browseId = browseId,
-                params = params,
-                continuation = continuation
+    ) = withRetry {
+        httpClient.post("browse") {
+            ytClient(client, setLogin = setLogin || useLoginForBrowse)
+            setBody(
+                BrowseBody(
+                    context = client.toContext(
+                        locale,
+                        visitorData,
+                        if (setLogin || useLoginForBrowse) dataSyncId else null
+                    ),
+                    browseId = browseId,
+                    params = params,
+                    continuation = continuation
+                )
             )
-        )
+        }
     }
 
     suspend fun reel(
@@ -281,19 +321,21 @@ class InnerTube {
         index: Int?,
         params: String?,
         continuation: String? = null,
-    ) = httpClient.post("next") {
-        ytClient(client, setLogin = true)
-        setBody(
-            NextBody(
-                context = client.toContext(locale, visitorData, dataSyncId),
-                videoId = videoId,
-                playlistId = playlistId,
-                playlistSetVideoId = playlistSetVideoId,
-                index = index,
-                params = params,
-                continuation = continuation
+    ) = withRetry {
+        httpClient.post("next") {
+            ytClient(client, setLogin = true)
+            setBody(
+                NextBody(
+                    context = client.toContext(locale, visitorData, dataSyncId),
+                    videoId = videoId,
+                    playlistId = playlistId,
+                    playlistSetVideoId = playlistSetVideoId,
+                    index = index,
+                    params = params,
+                    continuation = continuation
+                )
             )
-        )
+        }
     }
 
     suspend fun feedback(
@@ -312,29 +354,33 @@ class InnerTube {
     suspend fun getSearchSuggestions(
         client: YouTubeClient,
         input: String,
-    ) = httpClient.post("music/get_search_suggestions") {
-        ytClient(client)
-        setBody(
-            GetSearchSuggestionsBody(
-                context = client.toContext(locale, visitorData, null),
-                input = input
+    ) = withRetry {
+        httpClient.post("music/get_search_suggestions") {
+            ytClient(client)
+            setBody(
+                GetSearchSuggestionsBody(
+                    context = client.toContext(locale, visitorData, null),
+                    input = input
+                )
             )
-        )
+        }
     }
 
     suspend fun getQueue(
         client: YouTubeClient,
         videoIds: List<String>?,
         playlistId: String?,
-    ) = httpClient.post("music/get_queue") {
-        ytClient(client)
-        setBody(
-            GetQueueBody(
-                context = client.toContext(locale, visitorData, null),
-                videoIds = videoIds,
-                playlistId = playlistId
+    ) = withRetry {
+        httpClient.post("music/get_queue") {
+            ytClient(client)
+            setBody(
+                GetQueueBody(
+                    context = client.toContext(locale, visitorData, null),
+                    videoIds = videoIds,
+                    playlistId = playlistId
+                )
             )
-        )
+        }
     }
 
     suspend fun getTranscript(

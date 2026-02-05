@@ -1148,5 +1148,53 @@ object YouTube {
         )?.toShortsPage()
     }
     
+    fun getNewPipeStreamUrls(videoId: String): List<Pair<Int, String>> {
+        return com.flow.youtube.innertube.pages.NewPipeExtractor.newPipePlayer(videoId)
+    }
+
+    suspend fun newPipePlayer(
+        videoId: String,
+        tempRes: PlayerResponse,
+    ): PlayerResponse? {
+        val streamsList = getNewPipeStreamUrls(videoId)
+        
+        if (streamsList.isEmpty()) return null
+        
+        val newFormats = streamsList.map { (itag, url) ->
+             PlayerResponse.StreamingData.Format(
+                 itag = itag,
+                 url = url,
+                 mimeType = if (itag == 140) "audio/mp4" else "audio/webm",
+                 bitrate = if (itag == 140) 128000 else 0,
+                 width = null,
+                 height = null,
+                 contentLength = null,
+                 quality = "medium",
+                 fps = null,
+                 qualityLabel = null,
+                 averageBitrate = null,
+                 audioQuality = "AUDIO_QUALITY_MEDIUM",
+                 approxDurationMs = null,
+                 audioSampleRate = 44100,
+                 audioChannels = 2,
+                 loudnessDb = null,
+                 lastModified = null,
+                 signatureCipher = null,
+                 audioTrack = null
+             )
+        }
+        
+        return tempRes.copy(
+            playabilityStatus = PlayerResponse.PlayabilityStatus(status = "OK", reason = null),
+            streamingData = tempRes.streamingData?.copy(
+                adaptiveFormats = (tempRes.streamingData.adaptiveFormats + newFormats).distinctBy { it.itag }
+            ) ?: PlayerResponse.StreamingData(
+                formats = emptyList(),
+                adaptiveFormats = newFormats,
+                expiresInSeconds = 21600
+            )
+        )
+    }
+
     private val VISITOR_DATA_REGEX = Regex("^Cg[t|s]")
 }
