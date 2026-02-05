@@ -53,6 +53,9 @@ class Media3MusicService : MediaLibraryService() {
         
         private val CommandToggleShuffle = SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY)
         private val CommandToggleRepeat = SessionCommand(ACTION_TOGGLE_REPEAT, Bundle.EMPTY)
+        
+        private const val ACTION_TOGGLE_LIKE = "ACTION_TOGGLE_LIKE"
+        private val CommandToggleLike = SessionCommand(ACTION_TOGGLE_LIKE, Bundle.EMPTY)
     }
 
     private lateinit var mediaLibrarySession: MediaLibrarySession
@@ -86,6 +89,12 @@ class Media3MusicService : MediaLibraryService() {
                     waitingForNetwork = false
                     triggerRetryAfterNetworkRestore()
                 }
+            }
+        }
+        
+        serviceScope.launch {
+            com.flow.youtube.player.EnhancedMusicPlayerManager.isLiked.collectLatest { 
+                updateNotification()
             }
         }
         
@@ -383,9 +392,19 @@ class Media3MusicService : MediaLibraryService() {
     private fun updateNotification() {
         if (!::mediaLibrarySession.isInitialized) return
         
+        val isLiked = com.flow.youtube.player.EnhancedMusicPlayerManager.isLiked.value
+        
+        val likeButton = CommandButton.Builder()
+            .setDisplayName(if (isLiked) "Unlike" else "Like")
+            .setIconResId(if (isLiked) R.drawable.ic_like_filled else R.drawable.ic_like)
+            .setSessionCommand(CommandToggleLike)
+            .setEnabled(true)
+            .build()
+        
         val shuffleIcon = if (player.shuffleModeEnabled) R.drawable.ic_shuffle_on else R.drawable.ic_shuffle
+        
         val repeatIcon = when (player.repeatMode) {
-             Player.REPEAT_MODE_ONE -> R.drawable.ic_repeat_one
+             Player.REPEAT_MODE_ONE -> R.drawable.ic_repeat_one_on
              Player.REPEAT_MODE_ALL -> R.drawable.ic_repeat_on
              else -> R.drawable.ic_repeat
         }
@@ -402,7 +421,7 @@ class Media3MusicService : MediaLibraryService() {
             .setSessionCommand(CommandToggleRepeat)
             .build()
             
-        mediaLibrarySession.setCustomLayout(listOf(shuffleButton, repeatButton))
+        mediaLibrarySession.setCustomLayout(listOf(likeButton, shuffleButton, repeatButton))
     }
 
     @OptIn(UnstableApi::class)
@@ -414,6 +433,7 @@ class Media3MusicService : MediaLibraryService() {
             val validCommands = MediaSession.ConnectionResult.DEFAULT_SESSION_AND_LIBRARY_COMMANDS.buildUpon()
                 .add(CommandToggleShuffle)
                 .add(CommandToggleRepeat)
+                .add(CommandToggleLike)
                 .build()
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(validCommands)
@@ -426,6 +446,11 @@ class Media3MusicService : MediaLibraryService() {
             customCommand: SessionCommand,
             args: Bundle
         ): ListenableFuture<SessionResult> {
+             if (customCommand.customAction == ACTION_TOGGLE_LIKE) {
+                 com.flow.youtube.player.EnhancedMusicPlayerManager.emitToggleLikeEvent()
+                 val newIsLiked = !com.flow.youtube.player.EnhancedMusicPlayerManager.isLiked.value
+                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+             }
              if (customCommand.customAction == ACTION_TOGGLE_SHUFFLE) {
                  player.shuffleModeEnabled = !player.shuffleModeEnabled
                  return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
@@ -474,17 +499,21 @@ class Media3MusicService : MediaLibraryService() {
 
             var shuffleButton: CommandButton? = null
             var repeatButton: CommandButton? = null
+            var likeButton: CommandButton? = null
             
             for (button in customLayout) {
                 if (button.sessionCommand?.customAction == ACTION_TOGGLE_SHUFFLE) {
                     shuffleButton = button
                 } else if (button.sessionCommand?.customAction == ACTION_TOGGLE_REPEAT) {
                     repeatButton = button
+                } else if (button.sessionCommand?.customAction == ACTION_TOGGLE_LIKE) {
+                    likeButton = button
                 }
             }
             
             val builder = ImmutableList.builder<CommandButton>()
             
+            likeButton?.let { builder.add(it) }
             shuffleButton?.let { builder.add(it) }
             builder.add(prevButton)
             builder.add(playPauseButton)

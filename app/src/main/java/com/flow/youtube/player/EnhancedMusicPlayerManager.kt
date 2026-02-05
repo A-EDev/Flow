@@ -295,8 +295,38 @@ object EnhancedMusicPlayerManager {
     }
     
     fun updateQueue(newQueue: List<MusicTrack>) {
+        if (newQueue.isEmpty()) return
+        
         _queue.value = newQueue
         triggerQueueSave()
+        
+        scope.launch {
+            val currentMediaId = player?.currentMediaItem?.mediaId
+            val currentPosition = player?.currentPosition ?: 0L
+            
+            val mediaItems = newQueue.map { track ->
+                MediaItem.Builder()
+                    .setUri(Uri.parse("music://${track.videoId}"))
+                    .setMediaId(track.videoId)
+                    .setCustomCacheKey(track.videoId)
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setTitle(track.title)
+                            .setArtist(track.artist)
+                            .setArtworkUri(Uri.parse(track.thumbnailUrl))
+                            .build()
+                    )
+                    .build()
+            }
+            
+            val newIndex = newQueue.indexOfFirst { it.videoId == currentMediaId }.coerceAtLeast(0)
+            
+            player?.let { p ->
+                 if (p.mediaItemCount != mediaItems.size || p.currentMediaItem?.mediaId != currentMediaId) {
+                     p.setMediaItems(mediaItems, newIndex, currentPosition)
+                 }
+            }
+        }
     }
 
     private fun triggerQueueSave() {
@@ -496,6 +526,10 @@ object EnhancedMusicPlayerManager {
     
     fun toggleLike() {
         _isLiked.value = !_isLiked.value
+        emitToggleLikeEvent()
+    }
+
+    fun emitToggleLikeEvent() {
         scope.launch { _playerEvents.emit(PlayerEvent.RequestToggleLike) }
     }
     fun setLiked(liked: Boolean) { _isLiked.value = liked }
