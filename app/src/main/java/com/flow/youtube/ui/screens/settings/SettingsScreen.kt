@@ -56,6 +56,7 @@ fun SettingsScreen(
     onNavigateToImport: () -> Unit,
     onNavigateToPlayerSettings: () -> Unit,
     onNavigateToVideoQuality: () -> Unit,
+    onNavigateToContentSettings: () -> Unit,
     onNavigateToBufferSettings: () -> Unit,
     onNavigateToSearchHistory: () -> Unit,
     onNavigateToAbout: () -> Unit,
@@ -344,6 +345,13 @@ item {
                          title = "Video Quality",
                          subtitle = "Resolution for Wi-Fi and Mobile",
                          onClick = onNavigateToVideoQuality
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                         icon = Icons.Outlined.GridView,
+                         title = "Content Display",
+                         subtitle = "Grid size, thumbnails, layout",
+                         onClick = onNavigateToContentSettings
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(

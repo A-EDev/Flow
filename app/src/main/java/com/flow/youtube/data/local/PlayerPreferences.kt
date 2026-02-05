@@ -43,6 +43,21 @@ class PlayerPreferences(private val context: Context) {
         
         // Audio track preference
         val PREFERRED_AUDIO_LANGUAGE = stringPreferencesKey("preferred_audio_language")
+        
+        // UI preferences
+        val GRID_ITEM_SIZE = stringPreferencesKey("grid_item_size")
+    }
+    
+    // Grid item size preference
+    val gridItemSize: Flow<String> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.GRID_ITEM_SIZE] ?: "BIG"
+        }
+    
+    suspend fun setGridItemSize(size: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.GRID_ITEM_SIZE] = size
+        }
     }
     
     // Region preference

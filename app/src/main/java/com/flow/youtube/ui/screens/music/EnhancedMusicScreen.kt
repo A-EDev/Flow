@@ -6,27 +6,30 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.flow.youtube.player.EnhancedMusicPlayerManager
-import com.flow.youtube.ui.components.MusicQuickActionsSheet
+import com.flow.youtube.ui.components.*
 import com.flow.youtube.ui.screens.music.components.*
 import com.flow.youtube.ui.screens.music.tabs.*
+import com.flow.youtube.ui.theme.Dimensions
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -38,7 +41,7 @@ fun EnhancedMusicScreen(
     onSearchClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onAlbumClick: (String) -> Unit = {},
-    onMoodsClick: () -> Unit = {},
+    onMoodsClick: (com.flow.youtube.innertube.pages.MoodAndGenres.Item?) -> Unit = {},
     viewModel: MusicViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -113,8 +116,8 @@ fun EnhancedMusicScreen(
                 .padding(paddingValues)
         ) {
             when {
-                uiState.isLoading && uiState.trendingSongs.isEmpty() -> {
-                    LoadingContent()
+                uiState.isLoading -> {
+                    HomeShimmerLoading()
                 }
                 
                 uiState.error != null && uiState.trendingSongs.isEmpty() -> {
@@ -125,7 +128,6 @@ fun EnhancedMusicScreen(
                 }
                 
                 else -> {
-                    // Popular Artists
                     val popularArtists = remember(uiState.trendingSongs, uiState.newReleases) {
                         (uiState.trendingSongs + uiState.newReleases)
                             .distinctBy { it.artist }
@@ -134,48 +136,23 @@ fun EnhancedMusicScreen(
 
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp)
+                        contentPadding = PaddingValues(bottom = 16.dp)
                     ) {
-                        // Moods & Genres Entry
-                        item {
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                                    .clickable(onClick = onMoodsClick),
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(Icons.Default.Tune, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                    Spacer(modifier = Modifier.width(16.dp))
-                                    Text(
-                                        "Moods & genres",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Spacer(modifier = Modifier.weight(1f))
-                                    Icon(Icons.Default.KeyboardArrowRight, contentDescription = null)
-                                }
-                            }
-                        }
-
                         // Listen Again
                         if (uiState.listenAgain.isNotEmpty()) {
                             item {
-                                SectionHeader(title = "Listen again")
+                                NavigationTitle(title = "Listen again")
+                                val listenThumbnailHeight = currentGridThumbnailHeight()
                                 LazyRow(
-                                    contentPadding = PaddingValues(horizontal = 16.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    contentPadding = PaddingValues(horizontal = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     items(uiState.listenAgain) { track ->
-                                        AlbumCard(
+                                        GridItem(
                                             title = track.title,
                                             subtitle = track.artist,
                                             thumbnailUrl = track.thumbnailUrl,
+                                            thumbnailHeight = listenThumbnailHeight,
                                             onClick = { onSongClick(track, uiState.listenAgain, "listen_again") }
                                         )
                                     }
@@ -190,25 +167,21 @@ fun EnhancedMusicScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(vertical = 8.dp),
-                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                    contentPadding = PaddingValues(horizontal = 12.dp),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     items(uiState.homeChips) { chip ->
-                                        val isSelected = uiState.selectedHomeChip?.title == chip.title
-                                        FilterChip(
-                                            selected = isSelected,
+                                        val isChipSelected = uiState.selectedHomeChip?.title == chip.title
+                                        ContentFilterChip(
+                                            title = chip.title,
+                                            isSelected = isChipSelected,
                                             onClick = { 
-                                                if (isSelected) {
+                                                if (isChipSelected) {
                                                     viewModel.setHomeChip(null)
                                                 } else {
                                                     viewModel.setHomeChip(chip)
                                                 }
-                                            },
-                                            label = { Text(chip.title) },
-                                            colors = FilterChipDefaults.filterChipColors(
-                                                selectedContainerColor = MaterialTheme.colorScheme.primary,
-                                                selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                                            )
+                                            }
                                         )
                                     }
                                 }
@@ -216,7 +189,6 @@ fun EnhancedMusicScreen(
                         }
 
                         if (uiState.selectedFilter != null) {
-                            // Filtered List View
                             if (uiState.isSearching) {
                                 item {
                                     Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
@@ -237,49 +209,52 @@ fun EnhancedMusicScreen(
                                 }
                             }
                         } else {
-                            // Quick Picks
                             if (uiState.forYouTracks.isNotEmpty()) {
                                 item {
-                                    SectionHeader(
-                                        title = "Quick picks", 
-                                        onPlayAll = {
-                                            if (uiState.forYouTracks.isNotEmpty()) {
-                                                onSongClick(uiState.forYouTracks.first(), uiState.forYouTracks, "quick_picks")
-                                            }
+                                    SectionTitle(title = "Quick picks")
+                                    LazyHorizontalGrid(
+                                        rows = GridCells.Fixed(4),
+                                        state = rememberLazyGridState(),
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                                        modifier = Modifier
+                                            .height(Dimensions.ListItemHeight * 4 + 12.dp)
+                                            .fillMaxWidth()
+                                    ) {
+                                        items(uiState.forYouTracks.take(20)) { track ->
+                                            ListItem(
+                                                title = track.title,
+                                                subtitle = track.artist,
+                                                thumbnailUrl = track.thumbnailUrl,
+                                                isPlaying = currentTrack?.videoId == track.videoId,
+                                                onClick = { onSongClick(track, uiState.forYouTracks, "quick_picks") },
+                                                onLongClick = {
+                                                    selectedTrack = track
+                                                    showBottomSheet = true
+                                                },
+                                                modifier = Modifier.width(320.dp)
+                                            )
                                         }
-                                    )
-                                    QuickPicksGrid(
-                                        songs = uiState.forYouTracks.take(16),
-                                        currentVideoId = currentTrack?.videoId,
-                                        onSongClick = onSongClick,
-                                        onMenuClick = { track ->
-                                            selectedTrack = track
-                                            showBottomSheet = true
-                                        }
-                                    )
+                                    }
                                 }
                             }
 
                             // Recommended for you
                             if (uiState.recommendedTracks.isNotEmpty()) {
                                 item {
-                                    SectionHeader(
-                                        title = "Recommended for you",
-                                        onPlayAll = {
-                                            if (uiState.recommendedTracks.isNotEmpty()) {
-                                                onSongClick(uiState.recommendedTracks.first(), uiState.recommendedTracks, "recommended")
-                                            }
-                                        }
-                                    )
+                                    SectionTitle(title = "Recommended")
+                                    val thumbnailHeight = currentGridThumbnailHeight()
                                     LazyRow(
-                                        contentPadding = PaddingValues(horizontal = 16.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
                                         items(uiState.recommendedTracks) { track ->
-                                            AlbumCard(
+                                            GridItem(
                                                 title = track.title,
                                                 subtitle = track.artist,
                                                 thumbnailUrl = track.thumbnailUrl,
+                                                thumbnailHeight = thumbnailHeight,
                                                 onClick = { onSongClick(track, uiState.recommendedTracks, "recommended") }
                                             )
                                         }
@@ -287,19 +262,21 @@ fun EnhancedMusicScreen(
                                 }
                             }
                         
-                            // Speed Dial (History)
+                            // History / Speed Dial
                             if (uiState.history.isNotEmpty()) {
                                 item {
-                                    SectionHeader(title = "Listen again", subtitle = "Based on your history")
+                                    SectionTitle(title = "Recently played")
+                                    val historyThumbnailHeight = currentGridThumbnailHeight()
                                     LazyRow(
-                                        contentPadding = PaddingValues(horizontal = 16.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
                                         items(uiState.history.distinctBy { it.videoId }.take(10)) { track ->
-                                            SquircleHistoryItem(
+                                            GridItem(
                                                 title = track.title,
-                                                artist = track.artist,
+                                                subtitle = track.artist,
                                                 thumbnailUrl = track.thumbnailUrl,
+                                                thumbnailHeight = historyThumbnailHeight,
                                                 onClick = { onSongClick(track, uiState.history, "history") }
                                             )
                                         }
@@ -307,35 +284,21 @@ fun EnhancedMusicScreen(
                                 }
                             }
 
-                            // Long Listens
-                            if (uiState.longListens.isNotEmpty()) {
-                                item {
-                                    SectionHeader(title = "Long listens")
-                                    QuickPicksGrid(
-                                        songs = uiState.longListens.take(16),
-                                        currentVideoId = currentTrack?.videoId,
-                                        onSongClick = onSongClick,
-                                        onMenuClick = { track ->
-                                            selectedTrack = track
-                                            showBottomSheet = true
-                                        }
-                                    )
-                                }
-                            }
-
                             // Music Videos
                             if (uiState.musicVideos.isNotEmpty()) {
                                 item {
-                                    SectionHeader(title = "Music Videos for you")
+                                    SectionTitle(title = "Music videos")
                                     LazyRow(
-                                        contentPadding = PaddingValues(horizontal = 16.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
                                         items(uiState.musicVideos) { track ->
-                                            VideoCard(
+                                            GridItem(
                                                 title = track.title,
                                                 subtitle = track.artist,
                                                 thumbnailUrl = track.thumbnailUrl,
+                                                thumbnailHeight = currentGridThumbnailHeight(),
+                                                aspectRatio = 16f / 9f,
                                                 onClick = { onVideoClick(track) }
                                             )
                                         }
@@ -344,18 +307,20 @@ fun EnhancedMusicScreen(
                             }
 
                             // Genre Sections
-                            uiState.genreTracks.forEach { (genre, tracks) ->
+                            uiState.genreTracks.entries.take(3).forEach { (genre, tracks) ->
                                 item {
-                                    SectionHeader(title = "$genre Mix")
+                                    SectionTitle(title = "$genre mix")
+                                    val genreThumbnailHeight = currentGridThumbnailHeight()
                                     LazyRow(
-                                        contentPadding = PaddingValues(horizontal = 16.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
                                         items(tracks) { track ->
-                                            AlbumCard(
+                                            GridItem(
                                                 title = track.title,
                                                 subtitle = track.artist,
                                                 thumbnailUrl = track.thumbnailUrl,
+                                                thumbnailHeight = genreThumbnailHeight,
                                                 onClick = { onSongClick(track, tracks, genre) }
                                             )
                                         }
@@ -363,8 +328,8 @@ fun EnhancedMusicScreen(
                                 }
                             }
 
-                            // Dynamic Home Sections (Smart Content)
-                            uiState.dynamicSections.forEach { section ->
+                            // Dynamic Home Sections
+                            uiState.dynamicSections.take(5).forEach { section ->
                                 if (!section.title.contains("Quick picks", true) && 
                                     !section.title.contains("Music videos", true) &&
                                     !section.title.contains("Long listens", true) &&
@@ -373,24 +338,18 @@ fun EnhancedMusicScreen(
                                     !section.title.contains("Listen again", true)) {
                                     
                                     item {
-                                        SectionHeader(
-                                            title = section.title, 
-                                            subtitle = section.subtitle,
-                                            onPlayAll = {
-                                                if (section.tracks.isNotEmpty()) {
-                                                    onSongClick(section.tracks.first(), section.tracks, section.title)
-                                                }
-                                            }
-                                        )
+                                        SectionTitle(title = section.title)
+                                        val sectionThumbnailHeight = currentGridThumbnailHeight()
                                         LazyRow(
-                                            contentPadding = PaddingValues(horizontal = 16.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                            contentPadding = PaddingValues(horizontal = 12.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                                         ) {
                                             items(section.tracks) { track ->
-                                                AlbumCard(
+                                                GridItem(
                                                     title = track.title,
                                                     subtitle = track.artist,
                                                     thumbnailUrl = track.thumbnailUrl,
+                                                    thumbnailHeight = sectionThumbnailHeight,
                                                     onClick = { onSongClick(track, section.tracks, section.title) }
                                                 )
                                             }
@@ -402,37 +361,19 @@ fun EnhancedMusicScreen(
                             // New Releases
                             if (uiState.newReleases.isNotEmpty()) {
                                 item {
-                                    SectionHeader(title = "New releases")
+                                    SectionTitle(title = "New releases")
+                                    val newReleaseThumbnailHeight = currentGridThumbnailHeight()
                                     LazyRow(
-                                        contentPadding = PaddingValues(horizontal = 16.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
                                         items(uiState.newReleases.take(10)) { track ->
-                                            AlbumCard(
+                                            GridItem(
                                                 title = track.title,
-                                                subtitle = "Single • ${track.artist}",
+                                                subtitle = "Single · ${track.artist}",
                                                 thumbnailUrl = track.thumbnailUrl,
+                                                thumbnailHeight = newReleaseThumbnailHeight,
                                                 onClick = { onSongClick(track, uiState.newReleases, "new_releases") }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            // Music Videos
-                            if (uiState.musicVideos.isNotEmpty()) {
-                                item {
-                                    SectionHeader(title = "Music videos", subtitle = "Recommended for you")
-                                    LazyRow(
-                                        contentPadding = PaddingValues(horizontal = 16.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                    ) {
-                                        items(uiState.musicVideos) { track ->
-                                            VideoCard(
-                                                title = track.title,
-                                                subtitle = track.artist,
-                                                thumbnailUrl = track.thumbnailUrl,
-                                                onClick = { onVideoClick(track) }
                                             )
                                         }
                                     }
@@ -442,74 +383,83 @@ fun EnhancedMusicScreen(
                             // Charts
                             if (uiState.trendingSongs.isNotEmpty()) {
                                 item {
-                                    SectionHeader(title = "Charts", onPlayAll = {
-                                        if (uiState.trendingSongs.isNotEmpty()) {
-                                            onSongClick(uiState.trendingSongs.first(), uiState.trendingSongs, "charts")
-                                        }
-                                    })
-                                    LazyRow(
-                                        contentPadding = PaddingValues(horizontal = 16.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    SectionTitle(title = "Trending")
+                                    LazyHorizontalGrid(
+                                        rows = GridCells.Fixed(4),
+                                        state = rememberLazyGridState(),
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                                        modifier = Modifier
+                                            .height(Dimensions.ListItemHeight * 4 + 12.dp)
+                                            .fillMaxWidth()
                                     ) {
-                                        items(uiState.trendingSongs.take(6)) { track ->
-                                            AlbumCard(
+                                        items(uiState.trendingSongs.take(20).size) { index ->
+                                            val track = uiState.trendingSongs[index]
+                                            ChartTrackItem(
+                                                rank = index + 1,
                                                 title = track.title,
-                                                subtitle = track.artist,
-                                                thumbnailUrl = track.thumbnailUrl,
-                                                onClick = { onSongClick(track, uiState.trendingSongs, "charts") }
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (popularArtists.isNotEmpty()) {
-                                item {
-                                    SectionHeader(title = "Popular Artists")
-                                    LazyRow(
-                                        contentPadding = PaddingValues(horizontal = 16.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                    ) {
-                                        items(popularArtists) { track ->
-                                            ArtistCircleItem(
                                                 artist = track.artist,
                                                 thumbnailUrl = track.thumbnailUrl,
-                                                onClick = { onArtistClick(track.channelId) }
+                                                isPlaying = currentTrack?.videoId == track.videoId,
+                                                onClick = { onSongClick(track, uiState.trendingSongs, "charts") },
+                                                onLongClick = {
+                                                    selectedTrack = track
+                                                    showBottomSheet = true
+                                                },
+                                                modifier = Modifier.width(280.dp)
                                             )
                                         }
                                     }
                                 }
                             }
 
-                            // Long Listens
-                            if (uiState.longListens.isNotEmpty()) {
+                            // Popular Artists
+                            if (popularArtists.isNotEmpty()) {
                                 item {
-                                    SectionHeader(title = "Long listens", subtitle = "Deep dives and albums")
-                                    QuickPicksGrid(
-                                        songs = uiState.longListens.take(12),
-                                        currentVideoId = currentTrack?.videoId,
-                                        onSongClick = onSongClick,
-                                        onMenuClick = { track ->
-                                            selectedTrack = track
-                                            showBottomSheet = true
+                                    SectionTitle(title = "Popular artists")
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        items(popularArtists) { track ->
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                modifier = Modifier
+                                                    .width(100.dp)
+                                                    .clickable { onArtistClick(track.channelId) }
+                                            ) {
+                                                ArtistThumbnail(
+                                                    thumbnailUrl = track.thumbnailUrl,
+                                                    size = 100.dp
+                                                )
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = track.artist,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    maxLines = 1
+                                                )
+                                            }
                                         }
-                                    )
+                                    }
                                 }
                             }
 
-                            // Mixed for you (Official Playlists)
+                            // Mixed for you 
                             if (uiState.featuredPlaylists.isNotEmpty()) {
                                 item {
-                                    SectionHeader(title = "Mixed for you")
+                                    SectionTitle(title = "Mixed for you")
+                                    val playlistThumbnailHeight = currentGridThumbnailHeight()
                                     LazyRow(
-                                        contentPadding = PaddingValues(horizontal = 16.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
                                         items(uiState.featuredPlaylists) { playlist ->
-                                            AlbumCard(
+                                            GridItem(
                                                 title = playlist.title,
                                                 subtitle = playlist.author,
                                                 thumbnailUrl = playlist.thumbnailUrl,
+                                                thumbnailHeight = playlistThumbnailHeight,
                                                 onClick = { onAlbumClick(playlist.id) }
                                             )
                                         }
@@ -517,50 +467,64 @@ fun EnhancedMusicScreen(
                                 }
                             }
 
-                            // From the Community (Genre Playlists)
-                            if (uiState.genreTracks.isNotEmpty()) {
+                            if (uiState.moodsAndGenres.isNotEmpty()) {
                                 item {
-                                    SectionHeader(title = "From the community")
-                                    LazyRow(
-                                        contentPadding = PaddingValues(horizontal = 16.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    NavigationTitle(
+                                        title = "Moods & Genres",
+                                        onClick = { onMoodsClick(null) },
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                    )
+                                    
+                                    val moodItems = remember(uiState.moodsAndGenres) {
+                                        uiState.moodsAndGenres.flatMap { it.items }
+                                    }
+                                    
+                                    val rows = 4
+                                    val gridHeight = (Dimensions.MoodButtonHeight * rows) + (8.dp * (rows - 1))
+                                    
+                                    LazyHorizontalGrid(
+                                        rows = GridCells.Fixed(rows),
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier
+                                            .height(gridHeight)
+                                            .fillMaxWidth()
                                     ) {
-                                        items(uiState.genreTracks.keys.take(5).toList()) { genre ->
-                                            val tracks = uiState.genreTracks[genre] ?: emptyList()
-                                            CommunityCard(
-                                                title = genre,
-                                                subtitle = "Community Playlist",
-                                                tracks = tracks.take(3),
-                                                onCardClick = { onAlbumClick("community_$genre") },
-                                                onPlayClick = {
-                                                    if (tracks.isNotEmpty()) {
-                                                        onSongClick(tracks.first(), tracks, "community_$genre")
-                                                    }
-                                                }
+                                        items(moodItems) { item ->
+                                            MoodAndGenresButton(
+                                                title = item.title,
+                                                onClick = { onMoodsClick(item) },
+                                                modifier = Modifier.width(190.dp)
                                             )
                                         }
                                     }
                                 }
                             }
 
-                            // Continuation Loader
                             if (uiState.homeContinuation != null) {
                                 item {
                                     LaunchedEffect(Unit) {
                                         viewModel.loadMoreHomeContent()
                                     }
                                     Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        if (uiState.isMoreLoading) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(24.dp),
-                                                strokeWidth = 2.dp,
-                                                color = MaterialTheme.colorScheme.primary
-                                            )
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .then(
+                                            if (uiState.isMoreLoading) {
+                                                Modifier.padding(16.dp)
+                                            } else {
+                                                Modifier.height(0.dp)
+                                            }
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (uiState.isMoreLoading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
                                         }
                                     }
                                 }

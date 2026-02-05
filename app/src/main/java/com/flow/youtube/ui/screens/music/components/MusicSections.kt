@@ -92,7 +92,7 @@ fun QuickPicksGrid(
     LazyHorizontalGrid(
         rows = GridCells.Fixed(4),
         modifier = Modifier
-            .height(280.dp)
+            .height(340.dp)
             .fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -144,8 +144,10 @@ fun GenreSection(
             contentPadding = PaddingValues(horizontal = 16.dp)
         ) {
             items(tracks.take(10)) { track ->
-                GenreTrackCard(
-                    track = track,
+                com.flow.youtube.ui.screens.music.components.AlbumCard(
+                    title = track.title,
+                    subtitle = track.artist,
+                    thumbnailUrl = track.thumbnailUrl,
                     onClick = { onSongClick(track, tracks, "genre_$genre") }
                 )
             }

@@ -234,6 +234,7 @@ fun NavGraphBuilder.flowAppGraph(
             onNavigateToImport = { navController.navigate("settings/import") },
             onNavigateToPlayerSettings = { navController.navigate("settings/player") },
             onNavigateToVideoQuality = { navController.navigate("settings/video_quality") },
+            onNavigateToContentSettings = { navController.navigate("settings/content") },
             onNavigateToBufferSettings = { navController.navigate("settings/buffer") },
             onNavigateToSearchHistory = { navController.navigate("settings/search_history") },
             onNavigateToAbout = { navController.navigate("settings/about") },
@@ -278,6 +279,14 @@ fun NavGraphBuilder.flowAppGraph(
         showBottomNav.value = false
         com.flow.youtube.ui.screens.settings.VideoQualitySettingsScreen(
             onNavigateBack = { navController.popBackStack() }
+        )
+    }
+    
+    composable("settings/content") {
+        currentRoute.value = "settings/content"
+        showBottomNav.value = false
+        com.flow.youtube.ui.screens.settings.ContentSettingsScreen(
+            onBackClick = { navController.popBackStack() }
         )
     }
     
@@ -604,6 +613,27 @@ fun NavGraphBuilder.flowAppGraph(
             },
             onAlbumClick = { albumId ->
                 navController.navigate("musicPlaylist/$albumId")
+            },
+            onMoodsClick = { item ->
+                if (item != null) {
+                    // Navigate to browse screen with browseId and params for proper content fetching
+                    val encodedParams = android.net.Uri.encode(item.endpoint.params ?: "")
+                    navController.navigate("youtube_browse/${item.endpoint.browseId}?params=$encodedParams")
+                } else {
+                    navController.navigate("moodsAndGenres")
+                }
+            }
+        )
+    }
+
+    composable("moodsAndGenres") {
+        currentRoute.value = "moodsAndGenres"
+        showBottomNav.value = false
+        com.flow.youtube.ui.screens.music.MoodsAndGenresScreen(
+            onBackClick = { navController.popBackStack() },
+            onGenreClick = { item ->
+                val encodedParams = android.net.Uri.encode(item.endpoint.params ?: "")
+                navController.navigate("youtube_browse/${item.endpoint.browseId}?params=$encodedParams")
             }
         )
     }
@@ -619,6 +649,53 @@ fun NavGraphBuilder.flowAppGraph(
             onBackClick = { navController.popBackStack() },
             onTrackClick = { track, queue, source ->
                 musicPlayerViewModel.loadAndPlayTrack(track, queue, source)
+                val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                val encodedTitle = android.net.Uri.encode(track.title)
+                val encodedArtist = android.net.Uri.encode(track.artist)
+                navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
+            },
+            onAlbumClick = { albumId ->
+                navController.navigate("musicPlaylist/$albumId")
+            },
+            onArtistClick = { channelId ->
+                navController.navigate("artist/$channelId")
+            },
+            onPlaylistClick = { playlistId ->
+                navController.navigate("musicPlaylist/$playlistId")
+            }
+        )
+    }
+    
+    // YouTube Browse Screen (for mood/genre content)
+    composable(
+        route = "youtube_browse/{browseId}?params={params}",
+        arguments = listOf(
+            navArgument("browseId") { type = NavType.StringType },
+            navArgument("params") { 
+                type = NavType.StringType 
+                nullable = true
+                defaultValue = null
+            }
+        )
+    ) {
+        currentRoute.value = "youtube_browse"
+        showBottomNav.value = false
+        
+        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        
+        com.flow.youtube.ui.screens.music.YouTubeBrowseScreen(
+            onBackClick = { navController.popBackStack() },
+            onSongClick = { song ->
+                val track = com.flow.youtube.ui.screens.music.MusicTrack(
+                    videoId = song.id,
+                    title = song.title,
+                    artist = song.artists.joinToString(", ") { it.name },
+                    thumbnailUrl = song.thumbnail,
+                    duration = song.duration ?: 0,
+                    album = song.album?.name ?: "",
+                    channelId = song.artists.firstOrNull()?.id ?: ""
+                )
+                musicPlayerViewModel.loadAndPlayTrack(track, emptyList())
                 val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
                 val encodedTitle = android.net.Uri.encode(track.title)
                 val encodedArtist = android.net.Uri.encode(track.artist)

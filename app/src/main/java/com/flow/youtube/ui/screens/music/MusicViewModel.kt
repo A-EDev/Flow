@@ -654,7 +654,7 @@ data class MusicUiState(
     val moodsAndGenres: List<MoodAndGenres> = emptyList(),
     val selectedGenre: String? = null,
     val selectedFilter: String? = null,
-    val isLoading: Boolean = false,
+    val isLoading: Boolean = true,
     val isSearching: Boolean = false,
     val error: String? = null,
     val artistDetails: ArtistDetails? = null,
