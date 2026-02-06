@@ -393,16 +393,27 @@ object InnertubeMusicService {
                 MusicTrack(
                     videoId = item.id,
                     title = item.title,
-                    artist = item.artists.firstOrNull()?.name ?: "Unknown Artist",
+                    artist = item.artists.joinToString(", ") { it.name },
                     thumbnailUrl = item.thumbnail,
                     duration = item.duration ?: 0,
                     album = item.album?.name ?: "",
-                    channelId = item.artists.firstOrNull()?.id ?: ""
+                    channelId = item.artists.firstOrNull()?.id ?: "",
+                    albumId = item.album?.id,
+                    artists = item.artists.map { com.flow.youtube.ui.screens.music.MusicArtist(it.name, it.id) }
                 )
             }
             // We can add support for VideoItem or others here if needed
             else -> null
         }
+    }
+
+    suspend fun getMediaInfo(videoId: String): com.flow.youtube.innertube.models.MediaInfo? = withContext(Dispatchers.IO) {
+         try {
+             YouTube.getMediaInfo(videoId).getOrNull()
+         } catch (e: Exception) {
+             e.printStackTrace()
+             null
+         }
     }
 
     private fun parseViewCount(text: String?): Long {

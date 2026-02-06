@@ -49,10 +49,6 @@ fun PlayerBottomSheetsContainer(
         VideoQuickActionsBottomSheet(
             video = completeVideo,
             onDismiss = { screenState.showQuickActions = false },
-            onAddToPlaylist = {
-                screenState.showQuickActions = false
-                musicVm.showAddToPlaylistDialog(true)
-            },
             onShare = {
                 screenState.showQuickActions = false
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {

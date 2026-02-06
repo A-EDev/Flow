@@ -7,6 +7,7 @@ import com.flow.youtube.innertube.models.YouTubeClient
 import com.flow.youtube.innertube.models.YouTubeLocale
 import com.flow.youtube.innertube.models.body.*
 import com.flow.youtube.innertube.models.response.NextResponse
+import com.flow.youtube.innertube.models.response.PlayerResponse
 import com.flow.youtube.innertube.models.response.ReelWatchSequenceResponse
 import com.flow.youtube.innertube.utils.parseCookieString
 import com.flow.youtube.innertube.utils.sha1
@@ -680,6 +681,7 @@ class InnerTube {
     suspend fun getMediaInfo(videoId: String): Result<MediaInfo> =
         runCatching {
             val response = next(client = YouTubeClient.WEB, videoId, null, null, null, null, null).body<NextResponse>()
+            val playerResponse = player(client = YouTubeClient.ANDROID, videoId = videoId, playlistId = null, signatureTimestamp = null).body<PlayerResponse>()
 
             val baseForInfo =
                 response.contents.twoColumnWatchNextResults
@@ -701,6 +703,9 @@ class InnerTube {
 
             val returnYouTubeDislikeResponse =
                 returnYouTubeDislike(videoId).body<ReturnYouTubeDislikeResponse>()
+
+            val bestAudio = playerResponse.streamingData?.adaptiveFormats?.filter { it.isAudio }?.maxByOrNull { it.bitrate }
+                ?: playerResponse.streamingData?.formats?.filter { it.isAudio }?.maxByOrNull { it.bitrate }
 
             return@runCatching MediaInfo(
                 videoId = videoId,
@@ -744,6 +749,15 @@ class InnerTube {
                 viewCount = returnYouTubeDislikeResponse.viewCount,
                 like = returnYouTubeDislikeResponse.likes,
                 dislike = returnYouTubeDislikeResponse.dislikes,
+                mimeType = bestAudio?.mimeType,
+                bitrate = bestAudio?.bitrate?.toLong(),
+                sampleRate = bestAudio?.audioSampleRate,
+                frameRate = bestAudio?.fps,
+                width = bestAudio?.width,
+                height = bestAudio?.height,
+                contentLength = bestAudio?.contentLength.toString(),
+                qualityLabel = bestAudio?.qualityLabel,
+                videoId_tag = bestAudio?.itag
             )
 
         }

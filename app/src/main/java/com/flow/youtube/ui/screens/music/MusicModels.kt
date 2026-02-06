@@ -10,7 +10,14 @@ data class MusicTrack(
     val sourceUrl: String = "", // Full URL for NewPipe extraction
     val album: String = "",
     val channelId: String = "",
-    val isExplicit: Boolean? = false
+    val isExplicit: Boolean? = false,
+    val albumId: String? = null,
+    val artists: List<MusicArtist> = emptyList()
+)
+
+data class MusicArtist(
+    val name: String,
+    val id: String? = null
 )
 
 data class MusicPlaylist(

@@ -12,4 +12,13 @@ data class MediaInfo(
     val viewCount: Int? = null,
     val like: Int? = null,
     val dislike: Int? = null,
+    val mimeType: String? = null,
+    val bitrate: Long? = null,
+    val sampleRate: Int? = null,
+    val frameRate: Int? = null,
+    val width: Int? = null,
+    val height: Int? = null,
+    val contentLength: String? = null,
+    val qualityLabel: String? = null,
+    val videoId_tag: Int? = null // itag
 )

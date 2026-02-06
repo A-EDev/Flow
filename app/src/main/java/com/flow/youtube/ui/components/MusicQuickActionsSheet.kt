@@ -1,37 +1,58 @@
 package com.flow.youtube.ui.components
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.outlined.PlaylistAdd
+import androidx.compose.material.icons.outlined.PlaylistPlay
+import androidx.compose.material.icons.filled.GraphicEq
+import androidx.compose.material.icons.outlined.Album
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.QueueMusic
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
-import com.flow.youtube.ui.screens.music.MusicTrack
-import com.flow.youtube.ui.screens.music.MusicTrackRow
-import com.flow.youtube.ui.screens.music.MusicPlayerViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.flow.youtube.ui.screens.music.AddToPlaylistDialog
 import com.flow.youtube.ui.screens.music.CreatePlaylistDialog
-import androidx.hilt.navigation.compose.hiltViewModel
+import com.flow.youtube.ui.screens.music.MusicPlayerViewModel
+import com.flow.youtube.ui.screens.music.MusicTrack
+import com.flow.youtube.ui.screens.music.MusicTrackRow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MusicQuickActionsSheet(
     track: MusicTrack,
     onDismiss: () -> Unit,
-    onViewArtist: () -> Unit = {},
-    onViewAlbum: () -> Unit = {},
+    onViewArtist: (String) -> Unit = {},
+    onViewAlbum: (String) -> Unit = {},
     onShare: () -> Unit = {},
     onInfoClick: () -> Unit = {},
     onAudioEffectsClick: () -> Unit = {},
     viewModel: MusicPlayerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    var showMediaInfo by remember { mutableStateOf(false) }
+    var showArtistSelection by remember { mutableStateOf(false) }
     
     // Dialogs
     if (uiState.showCreatePlaylistDialog) {
@@ -57,136 +78,163 @@ fun MusicQuickActionsSheet(
         )
     }
 
+    if (showMediaInfo) {
+        MediaInfoDialog(
+            track = track,
+            onDismiss = { showMediaInfo = false }
+        )
+    }
+
+    if (showArtistSelection) {
+        ArtistSelectionDialog(
+            artists = track.artists,
+            onArtistSelected = { channelId ->
+                onViewArtist(channelId)
+            },
+            onDismiss = { showArtistSelection = false }
+        )
+    }
+
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
         ) {
-            // Header with track info - using a simplified version or the existing row
-            // We can't easily reuse MusicTrackRow if it has specific padding/clicks we don't want, 
-            // but let's try to use it for consistency.
-            MusicTrackRow(
-                track = track,
-                onClick = {}, // No action on click in header
-                onMenuClick = {} // No menu in header
-            )
-            
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
-            
-            // Actions
-            MusicQuickActionItem(
-                icon = Icons.Outlined.PlaylistAdd,
-                text = "Add to playlist",
-                onClick = {
-                    viewModel.showAddToPlaylistDialog(true)
-                }
-            )
-            
-            MusicQuickActionItem(
-                icon = Icons.Outlined.QueueMusic,
-                text = "Play next",
-                onClick = {
-                    viewModel.playNext(track)
-                    onDismiss()
-                }
-            )
+            // Header
+            item {
+                MusicTrackRow(
+                    track = track,
+                    onClick = {}, // No action on click in header
+                    onMenuClick = {} // No menu in header
+                )
+                Divider(modifier = Modifier.padding(vertical = 8.dp))
+            }
 
-            MusicQuickActionItem(
-                icon = Icons.Outlined.PlaylistPlay,
-                text = "Add to queue",
-                onClick = {
-                    viewModel.addToQueue(track)
-                    onDismiss()
-                }
-            )
-
-            MusicQuickActionItem(
-                icon = Icons.Default.GraphicEq,
-                text = "Audio Effects",
-                onClick = {
-                    onAudioEffectsClick()
-                    onDismiss()
-                }
-            )
-
-            val isDownloaded = uiState.downloadedTrackIds.contains(track.videoId)
-            MusicQuickActionItem(
-                icon = if (isDownloaded) Icons.Outlined.CheckCircle else Icons.Outlined.Download,
-                text = if (isDownloaded) "Downloaded" else "Download",
-                onClick = {
-                    if (!isDownloaded) {
-                        viewModel.downloadTrack(track)
-                    }
-                    onDismiss()
-                }
-            )
-            
-            if (track.channelId.isNotEmpty()) {
-                MusicQuickActionItem(
-                    icon = Icons.Outlined.Person,
-                    text = "View Artist",
-                    onClick = {
-                        onViewArtist()
-                        onDismiss()
-                    }
+            // Quick Actions Grid
+            item {
+                val isDownloaded = uiState.downloadedTrackIds.contains(track.videoId)
+                
+                FlowActionGrid(
+                    actions = listOf(
+                        FlowAction(
+                            icon = { Icon(Icons.Outlined.PlaylistAdd, null) },
+                            text = "Add to playlist",
+                            onClick = { viewModel.showAddToPlaylistDialog(true) }
+                        ),
+                        FlowAction(
+                            icon = { 
+                                Icon(
+                                    if (isDownloaded) Icons.Outlined.CheckCircle else Icons.Outlined.Download,
+                                    null,
+                                    tint = if (isDownloaded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                ) 
+                            },
+                            text = if (isDownloaded) "Downloaded" else "Download",
+                            onClick = {
+                                if (!isDownloaded) viewModel.downloadTrack(track)
+                                onDismiss()
+                            }
+                        ),
+                        FlowAction(
+                            icon = { Icon(Icons.Outlined.Share, null) },
+                            text = "Share",
+                            onClick = {
+                                onShare()
+                                onDismiss()
+                            }
+                        )
+                    ),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
             
-            if (track.album.isNotEmpty()) {
-                MusicQuickActionItem(
-                    icon = Icons.Outlined.Album,
-                    text = "View Album",
-                    onClick = {
-                        onViewAlbum()
-                        onDismiss()
-                    }
+            item { Spacer(modifier = Modifier.height(8.dp)) }
+
+            // Playback Options Group
+            item {
+                FlowMenuSectionHeader("Playback")
+                FlowMenuGroup(
+                    items = listOf(
+                        FlowMenuItemData(
+                            icon = { Icon(Icons.Outlined.QueueMusic, null) },
+                            title = { Text("Play next") },
+                            description = { Text("Add to start of queue") },
+                            onClick = {
+                                viewModel.playNext(track)
+                                onDismiss()
+                            }
+                        ),
+                        FlowMenuItemData(
+                            icon = { Icon(Icons.Outlined.PlaylistPlay, null) },
+                            title = { Text("Add to queue") },
+                            description = { Text("Add to end of queue") },
+                            onClick = {
+                                viewModel.addToQueue(track)
+                                onDismiss()
+                            }
+                        ),
+                        FlowMenuItemData(
+                            icon = { Icon(Icons.Default.GraphicEq, null) },
+                            title = { Text("Audio Effects") },
+                            onClick = {
+                                onAudioEffectsClick()
+                                onDismiss()
+                            }
+                        )
+                    ),
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
             }
-            
-            MusicQuickActionItem(
-                icon = Icons.Outlined.Info,
-                text = "Info & Details",
-                onClick = {
-                    onInfoClick()
-                    onDismiss()
-                }
-            )
 
-            MusicQuickActionItem(
-                icon = Icons.Outlined.Share,
-                text = "Share",
-                onClick = {
-                    onShare()
-                    onDismiss()
-                }
-            )
+            item { Spacer(modifier = Modifier.height(16.dp)) }
+
+            // Info & Navigation Group
+            item {
+                FlowMenuSectionHeader("More")
+                FlowMenuGroup(
+                    items = listOfNotNull(
+                        if (track.channelId.isNotEmpty() || track.artists.isNotEmpty()) {
+                            FlowMenuItemData(
+                                icon = { Icon(Icons.Outlined.Person, null) },
+                                title = { Text("View Artist") },
+                                description = { Text(track.artist) },
+                                onClick = {
+                                    if (track.artists.size > 1) {
+                                        showArtistSelection = true
+                                    } else {
+                        val artistId = track.artists.firstOrNull()?.id ?: track.channelId
+                                        if (artistId.isNotEmpty()) {
+                                            onViewArtist(artistId)
+                                            onDismiss()
+                                        }
+                                    }
+                                }
+                            )
+                        } else null,
+                        if (!track.albumId.isNullOrEmpty()) {
+                            FlowMenuItemData(
+                                icon = { Icon(Icons.Outlined.Album, null) },
+                                title = { Text("View Album") },
+                                description = { Text(track.album) },
+                                onClick = {
+                                    onViewAlbum(track.albumId.orEmpty())
+                                    onDismiss()
+                                }
+                            )
+                        } else null,
+                        FlowMenuItemData(
+                            icon = { Icon(Icons.Outlined.Info, null) },
+                            title = { Text("Details & Metadata") },
+                            onClick = {
+                                showMediaInfo = true
+                                // Do not dismiss so user can come back or dismiss manually
+                            }
+                        )
+                    ),
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
         }
-    }
-}
-
-@Composable
-private fun MusicQuickActionItem(
-    icon: ImageVector,
-    text: String,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 24.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge
-        )
     }
 }

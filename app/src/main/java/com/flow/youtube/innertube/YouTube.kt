@@ -793,14 +793,22 @@ object YouTube {
                     val titleRun = firstColumn.runs?.firstOrNull() ?: return null
                     val title = titleRun.text.takeIf { it.isNotBlank() } ?: return null
 
-                    val artists = secondColumn.runs?.mapNotNull { run ->
-                        run.text.takeIf { it.isNotBlank() }?.let { name ->
-                            Artist(
-                                name = name,
-                                id = run.navigationEndpoint?.browseEndpoint?.browseId
-                            )
+                    val artists = mutableListOf<Artist>()
+                    val album = secondColumn.runs?.firstNotNullOfOrNull { run ->
+                        run.navigationEndpoint?.browseEndpoint?.browseId?.takeIf { 
+                            it.startsWith("MPRE") || it.startsWith("OLAK") 
+                        }?.let { id ->
+                            com.flow.youtube.innertube.models.Album(name = run.text, id = id)
                         }
-                    } ?: emptyList()
+                    }
+
+                    secondColumn.runs?.forEach { run ->
+                        if (run.navigationEndpoint?.browseEndpoint?.browseId != null && 
+                            !run.navigationEndpoint.browseEndpoint.browseId.startsWith("MPRE") &&
+                            !run.navigationEndpoint.browseEndpoint.browseId.startsWith("OLAK")) {
+                             artists.add(Artist(name = run.text, id = run.navigationEndpoint.browseEndpoint.browseId))
+                        }
+                    }
 
                     val thirdColumn = renderer.flexColumns.getOrNull(2)
                         ?.musicResponsiveListItemFlexColumnRenderer
@@ -810,6 +818,7 @@ object YouTube {
                         id = renderer.playlistItemData.videoId,
                         title = title,
                         artists = artists,
+                        album = album,
                         thumbnail = renderer.thumbnail?.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                         musicVideoType = renderer.musicVideoType,
                         explicit = renderer.badges?.any { 
@@ -832,14 +841,28 @@ object YouTube {
             when {
                 renderer.isSong -> {
                     val subtitle = renderer.subtitle?.runs ?: return null
+                    
+                    val artists = mutableListOf<Artist>()
+                    var album: com.flow.youtube.innertube.models.Album? = null
+                    
+                    subtitle.forEach { run ->
+                        run.navigationEndpoint?.browseEndpoint?.browseId?.let { id ->
+                            if (id.startsWith("MPRE") || id.startsWith("OLAK")) {
+                                album = com.flow.youtube.innertube.models.Album(
+                                    name = run.text,
+                                    id = id
+                                )
+                            } else {
+                                artists.add(Artist(name = run.text, id = id))
+                            }
+                        }
+                    }
+
                     SongItem(
                         id = renderer.navigationEndpoint.watchEndpoint?.videoId ?: return null,
                         title = renderer.title.runs?.firstOrNull()?.text ?: return null,
-                        artists = subtitle.mapNotNull {
-                            it.navigationEndpoint?.browseEndpoint?.browseId?.let { id ->
-                                Artist(name = it.text, id = id)
-                            }
-                        },
+                        artists = artists,
+                        album = album,
                         thumbnail = renderer.thumbnailRenderer.musicThumbnailRenderer?.getThumbnailUrl() ?: return null,
                         musicVideoType = renderer.musicVideoType,
                         explicit = renderer.subtitleBadges?.any {
