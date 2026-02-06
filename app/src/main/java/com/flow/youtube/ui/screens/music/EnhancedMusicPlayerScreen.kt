@@ -57,6 +57,7 @@ fun EnhancedMusicPlayerScreen(
     
     var isVideoMode by remember { mutableStateOf(false) }
     var showMoreOptions by remember { mutableStateOf(false) }
+    var showAudioSettings by remember { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }
     var skipDirection by remember { mutableStateOf<SkipDirection?>(null) }
     
@@ -116,7 +117,14 @@ fun EnhancedMusicPlayerScreen(
                 }
                 context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
             },
-            onInfoClick = { showInfoDialog = true }
+            onInfoClick = { showInfoDialog = true },
+            onAudioEffectsClick = { showAudioSettings = true }
+        )
+    }
+
+    if (showAudioSettings) {
+        AudioSettingsSheet(
+            onDismiss = { showAudioSettings = false }
         )
     }
 

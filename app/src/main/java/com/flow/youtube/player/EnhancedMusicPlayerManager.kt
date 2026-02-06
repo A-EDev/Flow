@@ -30,6 +30,14 @@ import java.util.concurrent.ExecutionException
 import android.util.Log
 import kotlinx.coroutines.CoroutineExceptionHandler
 
+import androidx.media3.common.PlaybackParameters
+import kotlin.math.pow
+import kotlinx.serialization.json.Json
+import android.os.Bundle
+import androidx.media3.session.SessionCommand
+import com.flow.youtube.data.local.AudioSettingsPersistence
+import kotlinx.coroutines.flow.first
+
 @OptIn(UnstableApi::class)
 object EnhancedMusicPlayerManager {
     
@@ -46,9 +54,23 @@ object EnhancedMusicPlayerManager {
     private var retryCount = 0
     private const val MAX_RETRIES = 3
     
-    // Queue persistence
+    // Persistence
     private var queuePersistence: QueuePersistence? = null
+    private var audioSettingsPersistence: AudioSettingsPersistence? = null
     
+    // Audio Settings State
+    private val _playbackSpeed = MutableStateFlow(1.0f)
+    val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
+
+    private val _playbackPitch = MutableStateFlow(0.0f)
+    val playbackPitch: StateFlow<Float> = _playbackPitch.asStateFlow()
+
+    private val _currentEqProfile = MutableStateFlow("Flat")
+    val currentEqProfile: StateFlow<String> = _currentEqProfile.asStateFlow()
+    
+    private val _bassBoostLevel = MutableStateFlow(0f)
+    val bassBoostLevel: StateFlow<Float> = _bassBoostLevel.asStateFlow()
+
     // Player state flows
     private val _playerState = MutableStateFlow(MusicPlayerState())
     val playerState: StateFlow<MusicPlayerState> = _playerState.asStateFlow()
@@ -92,6 +114,7 @@ object EnhancedMusicPlayerManager {
         isInitialized = true
         
         queuePersistence = QueuePersistence.getInstance(context)
+        audioSettingsPersistence = AudioSettingsPersistence.getInstance(context)
         
         val sessionToken = SessionToken(context, ComponentName(context, Media3MusicService::class.java))
         controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
@@ -105,6 +128,7 @@ object EnhancedMusicPlayerManager {
                     
                     scope.launch {
                         restoreSavedQueue()
+                        restoreAudioSettings()
                     }
                     
                     queuePersistence?.startAutoSave {
@@ -541,6 +565,111 @@ object EnhancedMusicPlayerManager {
         scope.launch {
             player?.stop()
             _playerState.value = _playerState.value.copy(isPlaying = false)
+        }
+    }
+
+    fun setPlaybackSpeed(speed: Float) {
+        _playbackSpeed.value = speed
+        scope.launch { audioSettingsPersistence?.saveSpeed(speed) }
+        
+        player?.let { p ->
+            val currentPitch = p.playbackParameters.pitch
+            p.playbackParameters = PlaybackParameters(speed, currentPitch)
+        }
+    }
+
+    fun setPlaybackPitch(semitones: Float) {
+        _playbackPitch.value = semitones
+        scope.launch { audioSettingsPersistence?.savePitch(semitones) }
+        
+        player?.let { p ->
+            val pitch = 2.0.pow(semitones.toDouble() / 12.0).toFloat()
+            val currentSpeed = p.playbackParameters.speed
+            p.playbackParameters = PlaybackParameters(currentSpeed, pitch)
+        }
+    }
+
+    fun setBassBoost(strength: Float) {
+        _bassBoostLevel.value = strength
+        scope.launch { audioSettingsPersistence?.saveBassBoost(strength) }
+        
+        val currentProfileName = _currentEqProfile.value
+        setEqProfile(currentProfileName)
+    }
+
+    fun setEqProfile(profileName: String) {
+        _currentEqProfile.value = profileName
+        scope.launch { audioSettingsPersistence?.saveEqProfile(profileName) }
+        
+        val baseProfile = com.flow.youtube.data.model.EqPresets.presets[profileName] 
+            ?: com.flow.youtube.data.model.EqPresets.presets["Flat"]
+            ?: com.flow.youtube.data.model.ParametricEQ.createFlat()
+            
+        val boost = _bassBoostLevel.value
+        val finalProfile = if (boost > 0) {
+            val existingBandIndex = baseProfile.bands.indexOfFirst { 
+                it.filterType == com.flow.youtube.data.model.FilterType.LSC && 
+                it.frequency in 40.0..80.0 
+            }
+            
+            val newBands = if (existingBandIndex >= 0) {
+                val mutableBands = baseProfile.bands.toMutableList()
+                val existing = mutableBands[existingBandIndex]
+                mutableBands[existingBandIndex] = existing.copy(gain = existing.gain + boost.toDouble())
+                mutableBands.toList()
+            } else {
+                 val boostBand = com.flow.youtube.data.model.ParametricEQBand(
+                    60.0, 
+                    boost.toDouble(), 
+                    0.7, 
+                    com.flow.youtube.data.model.FilterType.LSC
+                )
+                listOf(boostBand) + baseProfile.bands
+            }
+            baseProfile.copy(bands = newBands)
+        } else {
+            baseProfile
+        }
+        
+        applyEqProfile(finalProfile)
+    }
+
+    fun applyEqProfile(profile: com.flow.youtube.data.model.ParametricEQ) {
+        try {
+            val json = Json.encodeToString(com.flow.youtube.data.model.ParametricEQ.serializer(), profile)
+            val bundle = Bundle().apply {
+                putString("EQ_PROFILE", json)
+            }
+            val command = SessionCommand(Media3MusicService.ACTION_SET_EQ, Bundle.EMPTY)
+            
+            if (controllerFuture?.isDone == true) {
+                 controllerFuture?.get()?.sendCustomCommand(command, bundle)
+            }
+        } catch (e: Exception) {
+             Log.e("EnhancedMusicPlayer", "Error sending EQ profile", e)
+        }
+    }
+    
+    private suspend fun restoreAudioSettings() {
+        try {
+            val settings = audioSettingsPersistence?.settingsFlow?.first() ?: return
+            
+            Log.d("EnhancedMusicPlayer", "Restoring audio settings: $settings")
+            
+            _playbackSpeed.value = settings.speed
+            _playbackPitch.value = settings.pitch
+            _currentEqProfile.value = settings.eqProfile
+            _bassBoostLevel.value = settings.bassBoost
+            
+            player?.let { p ->
+                val pitch = 2.0.pow(settings.pitch.toDouble() / 12.0).toFloat()
+                p.playbackParameters = PlaybackParameters(settings.speed, pitch)
+            }
+            
+            setEqProfile(settings.eqProfile)
+            
+        } catch (e: Exception) {
+            Log.e("EnhancedMusicPlayer", "Failed to restore audio settings", e)
         }
     }
 

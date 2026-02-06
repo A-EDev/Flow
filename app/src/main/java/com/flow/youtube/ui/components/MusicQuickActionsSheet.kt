@@ -28,6 +28,7 @@ fun MusicQuickActionsSheet(
     onViewAlbum: () -> Unit = {},
     onShare: () -> Unit = {},
     onInfoClick: () -> Unit = {},
+    onAudioEffectsClick: () -> Unit = {},
     viewModel: MusicPlayerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -96,6 +97,15 @@ fun MusicQuickActionsSheet(
                 text = "Add to queue",
                 onClick = {
                     viewModel.addToQueue(track)
+                    onDismiss()
+                }
+            )
+
+            MusicQuickActionItem(
+                icon = Icons.Default.GraphicEq,
+                text = "Audio Effects",
+                onClick = {
+                    onAudioEffectsClick()
                     onDismiss()
                 }
             )

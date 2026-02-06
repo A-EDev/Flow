@@ -9,10 +9,14 @@ import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import com.flow.youtube.MainActivity
 import com.flow.youtube.R
+import com.flow.youtube.data.model.ParametricEQ
+import com.flow.youtube.player.audio.CustomEqualizerAudioProcessor
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.media3.session.DefaultMediaNotificationProvider
 import com.google.common.collect.ImmutableList
@@ -35,6 +39,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
 import kotlin.math.min
 
@@ -45,6 +50,7 @@ class Media3MusicService : MediaLibraryService() {
         private const val TAG = "Media3MusicService"
         private const val ACTION_TOGGLE_SHUFFLE = "ACTION_TOGGLE_SHUFFLE"
         private const val ACTION_TOGGLE_REPEAT = "ACTION_TOGGLE_REPEAT"
+        const val ACTION_SET_EQ = "ACTION_SET_EQ"
         
         private const val MAX_RETRY_PER_SONG = 5
         private const val BASE_RETRY_DELAY_MS = 3000L
@@ -53,6 +59,7 @@ class Media3MusicService : MediaLibraryService() {
         
         private val CommandToggleShuffle = SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY)
         private val CommandToggleRepeat = SessionCommand(ACTION_TOGGLE_REPEAT, Bundle.EMPTY)
+        private val CommandSetEq = SessionCommand(ACTION_SET_EQ, Bundle.EMPTY)
         
         private const val ACTION_TOGGLE_LIKE = "ACTION_TOGGLE_LIKE"
         private val CommandToggleLike = SessionCommand(ACTION_TOGGLE_LIKE, Bundle.EMPTY)
@@ -60,6 +67,7 @@ class Media3MusicService : MediaLibraryService() {
 
     private lateinit var mediaLibrarySession: MediaLibrarySession
     private lateinit var player: ExoPlayer
+    private val customEqualizer = CustomEqualizerAudioProcessor()
     private lateinit var connectivityObserver: NetworkConnectivityObserver
     
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -110,8 +118,17 @@ class Media3MusicService : MediaLibraryService() {
             
         val mediaSourceFactory = DefaultMediaSourceFactory(downloadUtil.getPlayerDataSourceFactory())
         
-        val renderersFactory = androidx.media3.exoplayer.DefaultRenderersFactory(this)
-            .setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+        val renderersFactory = object : androidx.media3.exoplayer.DefaultRenderersFactory(this) {
+            override fun buildAudioSink(
+                context: android.content.Context,
+                enableFloatOutput: Boolean,
+                enableAudioTrackPlaybackParams: Boolean
+            ): androidx.media3.exoplayer.audio.AudioSink? {
+                return androidx.media3.exoplayer.audio.DefaultAudioSink.Builder(context)
+                    .setAudioProcessors(arrayOf(customEqualizer))
+                    .build()
+            }
+        }.setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
 
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(mediaSourceFactory)
@@ -434,6 +451,7 @@ class Media3MusicService : MediaLibraryService() {
                 .add(CommandToggleShuffle)
                 .add(CommandToggleRepeat)
                 .add(CommandToggleLike)
+                .add(CommandSetEq)
                 .build()
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(validCommands)
@@ -448,13 +466,27 @@ class Media3MusicService : MediaLibraryService() {
         ): ListenableFuture<SessionResult> {
              if (customCommand.customAction == ACTION_TOGGLE_LIKE) {
                  com.flow.youtube.player.EnhancedMusicPlayerManager.emitToggleLikeEvent()
-                 val newIsLiked = !com.flow.youtube.player.EnhancedMusicPlayerManager.isLiked.value
                  return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
              }
+             
+             if (customCommand.customAction == ACTION_SET_EQ) {
+                 val eqJson = args.getString("EQ_PROFILE")
+                 if (eqJson != null) {
+                     try {
+                         val profile = Json.decodeFromString<ParametricEQ>(eqJson)
+                         customEqualizer.applyProfile(profile)
+                     } catch (e: Exception) {
+                         android.util.Log.e(TAG, "Failed to apply EQ profile", e)
+                     }
+                 }
+                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+             }
+
              if (customCommand.customAction == ACTION_TOGGLE_SHUFFLE) {
                  player.shuffleModeEnabled = !player.shuffleModeEnabled
                  return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
              }
+
              if (customCommand.customAction == ACTION_TOGGLE_REPEAT) {
                  val newMode = when (player.repeatMode) {
                      Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
@@ -464,6 +496,7 @@ class Media3MusicService : MediaLibraryService() {
                  player.repeatMode = newMode
                  return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
              }
+             
              return super.onCustomCommand(session, controller, customCommand, args)
         }
     }
