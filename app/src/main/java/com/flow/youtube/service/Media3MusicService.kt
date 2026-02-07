@@ -63,6 +63,15 @@ class Media3MusicService : MediaLibraryService() {
         
         private const val ACTION_TOGGLE_LIKE = "ACTION_TOGGLE_LIKE"
         private val CommandToggleLike = SessionCommand(ACTION_TOGGLE_LIKE, Bundle.EMPTY)
+        
+        /**
+         * Current audio session ID for the music player.
+         * External audio processors (like James DSP) can use this to apply effects.
+         * Value is 0 when no active session exists.
+         */
+        @Volatile
+        var currentAudioSessionId: Int = 0
+            private set
     }
 
     private lateinit var mediaLibrarySession: MediaLibrarySession
@@ -139,6 +148,11 @@ class Media3MusicService : MediaLibraryService() {
             .setSeekBackIncrementMs(5000)
             .setSeekForwardIncrementMs(5000)
             .build()
+        
+        // Expose audio session ID for external audio processors (James DSP, etc.)
+        currentAudioSessionId = player.audioSessionId
+        Log.i(TAG, "Audio session initialized - Session ID: $currentAudioSessionId")
+        Log.i(TAG, "External audio processors can target this session for effects")
         
         player.setOffloadEnabled(true)
             
@@ -391,6 +405,10 @@ class Media3MusicService : MediaLibraryService() {
     }
 
     override fun onDestroy() {
+        // Clear audio session ID so external processors know we're gone
+        currentAudioSessionId = 0
+        Log.i(TAG, "Audio session destroyed")
+        
         if (::connectivityObserver.isInitialized) {
             connectivityObserver.stopObserving()
         }

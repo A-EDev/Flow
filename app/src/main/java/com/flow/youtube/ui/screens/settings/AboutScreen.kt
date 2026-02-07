@@ -42,6 +42,7 @@ fun AboutScreen(
     val context = LocalContext.current
     var showLicenseDialog by remember { mutableStateOf(false) }
     var showDeviceInfoDialog by remember { mutableStateOf(false) }
+    var showChangelogDialog by remember { mutableStateOf(false) }
     
     val packageInfo = remember {
         try {
@@ -184,6 +185,13 @@ fun AboutScreen(
                         )
                         Divider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         SettingsItem(
+                            icon = Icons.Outlined.History,
+                            title = "Changelog",
+                            subtitle = "What's new in Flow",
+                            onClick = { showChangelogDialog = true }
+                        )
+                        Divider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        SettingsItem(
                             icon = Icons.Outlined.Smartphone,
                             title = "Device Info",
                             subtitle = "${Build.MANUFACTURER} ${Build.MODEL}",
@@ -201,6 +209,10 @@ fun AboutScreen(
 
     if (showDeviceInfoDialog) {
         DeviceInfoDialog(onDismiss = { showDeviceInfoDialog = false })
+    }
+
+    if (showChangelogDialog) {
+        ChangelogDialog(onDismiss = { showChangelogDialog = false })
     }
 }
 
@@ -275,6 +287,55 @@ fun DeviceInfoDialog(onDismiss: () -> Unit) {
             TextButton(onClick = {
                 clipboardManager.setText(AnnotatedString(deviceInfo))
             }) { Text("Copy") }
+        }
+    )
+}
+
+@Composable
+fun ChangelogDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var changelogText by remember { mutableStateOf("Loading...") }
+
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            try {
+                val assetManager = context.assets
+                val files = assetManager.list("changelog") ?: emptyArray()
+                val latestFile = files.filter { it.endsWith(".txt") }
+                    .sortedWith(compareByDescending { it })
+                    .firstOrNull()
+
+                if (latestFile != null) {
+                    assetManager.open("changelog/$latestFile").bufferedReader().use {
+                        changelogText = it.readText()
+                    }
+                } else {
+                    changelogText = "No changelog found."
+                }
+            } catch (e: Exception) {
+                changelogText = "Could not load changelog file."
+                e.printStackTrace()
+            }
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Changelog") },
+        text = {
+            Box(Modifier.heightIn(max = 400.dp)) {
+                LazyColumn {
+                    item {
+                        Text(
+                            text = changelogText,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("OK") }
         }
     )
 }

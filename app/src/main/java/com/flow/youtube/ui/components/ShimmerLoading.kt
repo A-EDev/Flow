@@ -45,8 +45,8 @@ fun Modifier.shimmerEffect(
         label = "shimmer_progress"
     )
 
-    val surfaceColor = MaterialTheme.colorScheme.surfaceColorAtElevation(3.dp)
-    val highlightColor = MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp)
+    val surfaceColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+    val highlightColor = MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp).copy(alpha = 0.15f)
 
     val shimmerColors = listOf(
         surfaceColor,

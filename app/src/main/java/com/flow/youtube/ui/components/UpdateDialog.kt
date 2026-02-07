@@ -43,7 +43,21 @@ fun UpdateDialog(
         if (updateInfo.version.contains("1.4.0") || updateInfo.changelog.isBlank()) {
             try {
                 val filename = if (updateInfo.version.startsWith("v")) updateInfo.version else "v${updateInfo.version}"
-                context.assets.open("changelog/$filename.txt").bufferedReader().use { it.readText() }
+                try {
+                    context.assets.open("changelog/$filename.txt").bufferedReader().use { it.readText() }
+                } catch (e: Exception) {
+                    // If specific version file not found, try to find the latest
+                    val files = context.assets.list("changelog") ?: emptyArray()
+                    val latestFile = files.filter { it.endsWith(".txt") }
+                        .sortedWith(compareByDescending { it })
+                        .firstOrNull()
+                    
+                    if (latestFile != null) {
+                        context.assets.open("changelog/$latestFile").bufferedReader().use { it.readText() }
+                    } else {
+                        updateInfo.changelog
+                    }
+                }
             } catch (e: Exception) {
                 updateInfo.changelog
             }
