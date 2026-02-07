@@ -165,6 +165,7 @@ dependencies {
 
     // DataStore
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+    implementation("androidx.datastore:datastore:1.0.0")
     
     // Paging 3 for infinite scroll
     implementation("androidx.paging:paging-runtime-ktx:3.2.1")

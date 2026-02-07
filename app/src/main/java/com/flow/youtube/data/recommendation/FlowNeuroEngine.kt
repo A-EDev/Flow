@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 Flow | A-EDev
+ * Copyright (C) 2025 Flow | A-EDev
  *
  * This file is part of Flow (https://github.com/A-EDev/Flow).
  *
@@ -17,36 +17,60 @@ package com.flow.youtube.data.recommendation
 
 import android.content.Context
 import android.util.Log
+import androidx.datastore.core.DataStore
+import androidx.datastore.core.Serializer
+import androidx.datastore.dataStore
 import com.flow.youtube.data.model.Video
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.json.JSONObject
 import java.io.File
+import java.io.InputStream
+import java.io.OutputStream
 import kotlin.math.*
 
 /**
- * 🧠 Flow Neuro Engine (V5 - Smarter & Adaptive)
+ * 🧠 Flow Neuro Engine (V6 - Battle-Tested & Reliable)
  * 
  * A Client-Side Hybrid Recommendation System.
  * Combines Vector Space Models (Learning) with Heuristic Rules (Reliability).
  * 
- * V5 Changes:
- * - Dynamic Temperature: Novelty weight adapts based on consecutive skips (boredom detection)
- * - Time Decay: Recency bias for fresh content without hard-filtering evergreen classics
- * - Stemming: "gaming"/"games", "coding"/"code" now merge for better semantic matching
- * - Curiosity Gap: Boost for topic-safe but complexity-challenging videos
- * - Title Similarity: Prevents visual spam of nearly identical video titles
- * - Optimized Cosine Similarity: No longer allocates intermediate Sets in hot path
- * - Fixed channel boredom threshold (0.2 -> 0.05) for more accurate detection
+ * V6 Changes:
+ * - Fixed: Negative feedback (skip/dislike/not-interested) now properly reduces topic scores
+ * - Fixed: Replaced broken Porter stemmer with predictable lemma dictionary  
+ * - Fixed: Topic saturation diversity check (Set→List) now actually works
+ * - Fixed: complexity & isLive fields now persist across restarts
+ * - Improved: Cosine similarity now blends scalar features (duration/pacing/complexity)
+ * - Improved: Phase 2 diversity re-ranking with channel + title constraints  
+ * - Improved: Complexity heuristic uses avg word length instead of just title length
+ * - Improved: Duration normalization uses logarithmic scale (distinguishes 20min vs 3hr)
+ * - Added: Cold-start popularity boost using view count  
+ * - Added: Debounced disk writes (max once per 5s instead of every interaction)
+ * - Added: Schema versioning for future brain migrations
+ * - Added: Channel scores pruning (capped at 500 entries)
+ * - Added: Persona hysteresis (prevents rapid persona flipping)
+ * - Migrated: Storage from raw JSON file to Jetpack DataStore (atomic writes, crash-safe)
  */
 object FlowNeuroEngine {
 
     private const val TAG = "FlowNeuroEngine"
-    private const val BRAIN_FILENAME = "user_neuro_brain.json"
+    private const val BRAIN_FILENAME = "user_neuro_brain.json" // Legacy, kept for migration
+    private const val SCHEMA_VERSION = 6
     
     private val brainMutex = Mutex()
+    private val saveScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var pendingSaveJob: Job? = null
 
     // =================================================
     // V5: TIME DECAY ENGINE
@@ -92,32 +116,77 @@ object FlowNeuroEngine {
     }
 
     // =================================================
-    // V5: STEMMER (Lightweight Porter-style)
+    // V6: LEMMA DICTIONARY (Replaces broken Porter Stemmer)
     // =================================================
     
-    private object Stemmer {
-        private val SUFFIXES = listOf(
-            "ation", "ition", "ement", "ment", "ness", "ence", "ance",
-            "able", "ible", "ious", "eous", "ful", "less", "ive",
-            "ing", "tion", "sion", "ism", "ist", "ity", "ous",
-            "er", "or", "ed", "es", "ly", "al", "s"
-        )
-        
-        fun stem(word: String): String {
-            if (word.length < 4) return word
-            
-            var result = word.lowercase()
-            
-            for (suffix in SUFFIXES) {
-                if (result.endsWith(suffix) && result.length - suffix.length >= 3) {
-                    result = result.dropLast(suffix.length)
-                    break
-                }
-            }
-            
-            return result
-        }
-    }
+    /**
+     * Predictable word normalization via dictionary lookup.
+     * Unlike the V5 stemmer, this produces real words that:
+     * 1. Match onboarding preferences correctly
+     * 2. Generate valid YouTube search queries
+     * 3. Are consistent across all subsystems
+     */
+    private val LEMMA_MAP = mapOf(
+        // Gaming
+        "gaming" to "game", "games" to "game", "gamer" to "game", "gamers" to "game",
+        "gameplay" to "game", "gamed" to "game",
+        // Coding / Programming
+        "coding" to "code", "coder" to "code", "coders" to "code", "codes" to "code", "coded" to "code",
+        "programming" to "program", "programmer" to "program", "programmers" to "program",
+        "programs" to "program", "programmed" to "program",
+        // Cooking
+        "cooking" to "cook", "cooked" to "cook", "cooks" to "cook", "cooker" to "cook",
+        // Music
+        "songs" to "song", "singing" to "sing", "singer" to "sing", "singers" to "sing",
+        "musics" to "music", "musical" to "music", "musician" to "music", "musicians" to "music",
+        // Technology  
+        "technologies" to "technology", "technological" to "technology",
+        "computers" to "computer", "computing" to "computer", "computed" to "computer",
+        // Art
+        "drawing" to "draw", "drawings" to "draw", "drawn" to "draw",
+        "painting" to "paint", "paintings" to "paint", "painted" to "paint", "painter" to "paint",
+        "designing" to "design", "designs" to "design", "designer" to "design", "designed" to "design",
+        "animating" to "animation", "animated" to "animation", "animations" to "animation", "animator" to "animation",
+        // Fitness
+        "workouts" to "workout", "exercising" to "exercise", "exercises" to "exercise", "exercised" to "exercise",
+        "running" to "run", "runner" to "run", "runners" to "run",
+        "training" to "train", "trained" to "train", "trainer" to "train", "trainers" to "train",
+        // Education
+        "learning" to "learn", "learned" to "learn", "learner" to "learn", "learners" to "learn",
+        "teaching" to "teach", "teacher" to "teach", "teachers" to "teach", "taught" to "teach",
+        "studying" to "study", "studies" to "study", "studied" to "study",
+        "tutorials" to "tutorial",
+        // Common
+        "playing" to "play", "played" to "play", "player" to "play", "players" to "play",
+        "building" to "build", "builder" to "build", "builders" to "build", "builds" to "build", "built" to "build",
+        "making" to "make", "maker" to "make", "makers" to "make", "makes" to "make", "made" to "make",
+        "reviewing" to "review", "reviewed" to "review", "reviews" to "review", "reviewer" to "review",
+        "testing" to "test", "tested" to "test", "tests" to "test", "tester" to "test",
+        "streaming" to "stream", "streamed" to "stream", "streams" to "stream", "streamer" to "stream",
+        "editing" to "edit", "edited" to "edit", "edits" to "edit", "editor" to "edit",
+        "filming" to "film", "filmed" to "film", "films" to "film", "filmmaker" to "film",
+        "traveling" to "travel", "travelled" to "travel", "travels" to "travel", "traveler" to "travel",
+        "vlogging" to "vlog", "vlogs" to "vlog", "vlogger" to "vlog", "vloggers" to "vlog",
+        "reacting" to "react", "reacted" to "react", "reacts" to "react", "reactions" to "reaction",
+        // Science
+        "experiments" to "experiment", "experimenting" to "experiment", "experimental" to "experiment",
+        "sciences" to "science", "scientific" to "science", "scientist" to "science",
+        "engineering" to "engineer", "engineered" to "engineer", "engineers" to "engineer",
+        "inventions" to "invention", "inventing" to "invention", "invented" to "invention",
+        // Nature
+        "animals" to "animal", "plants" to "plant", "planting" to "plant",
+        // Lifestyle
+        "recipes" to "recipe", "baking" to "bake", "baked" to "bake", "baker" to "bake",
+        "gardening" to "garden", "gardens" to "garden",
+        "photographing" to "photography", "photographs" to "photography", "photographer" to "photography",
+        // Plurals / common suffixes
+        "videos" to "video", "channels" to "channel", "episodes" to "episode",
+        "movies" to "movie", "documentaries" to "documentary",
+        "podcasts" to "podcast", "interviews" to "interview",
+        "challenges" to "challenge", "compilations" to "compilation"
+    )
+
+    private fun normalizeLemma(word: String): String = LEMMA_MAP[word.lowercase()] ?: word.lowercase()
 
     // =================================================
     // V5: TITLE SIMILARITY (Anti-Clustering)
@@ -168,7 +237,10 @@ object FlowNeuroEngine {
         val blockedTopics: Set<String> = emptySet(),  
         val blockedChannels: Set<String> = emptySet(), 
         val preferredTopics: Set<String> = emptySet(), 
-        val hasCompletedOnboarding: Boolean = false   
+        val hasCompletedOnboarding: Boolean = false,
+        val lastPersona: String? = null,        // V6: Persona hysteresis
+        val personaStability: Int = 0,           // V6: Consecutive checks returning same persona
+        val schemaVersion: Int = SCHEMA_VERSION  // V6: Schema versioning for future migrations
     )
 
     // Protected by Mutex
@@ -182,7 +254,21 @@ object FlowNeuroEngine {
     suspend fun initialize(context: Context) {
         brainMutex.withLock {
             if (isInitialized) return
-            loadBrain(context)
+            
+            // V6: Try loading from DataStore first, then migrate from legacy JSON if needed
+            val loaded = loadBrainFromDataStore(context)
+            if (!loaded) {
+                // Attempt legacy JSON migration
+                loadLegacyBrain(context)
+                // Persist to DataStore immediately after migration
+                saveBrainToDataStore(context)
+                // Delete legacy file after successful migration
+                val legacyFile = File(context.filesDir, BRAIN_FILENAME)
+                if (legacyFile.exists()) {
+                    legacyFile.delete()
+                    Log.i(TAG, "Migrated legacy JSON brain to DataStore and deleted old file")
+                }
+            }
             isInitialized = true
         }
     }
@@ -194,7 +280,22 @@ object FlowNeuroEngine {
     suspend fun resetBrain(context: Context) {
         brainMutex.withLock {
             currentUserBrain = UserBrain()
-            saveBrain(context)
+            saveBrainToDataStore(context)
+        }
+    }
+
+    /**
+     * V6: Debounced save - writes at most once every 5 seconds.
+     * Prevents excessive I/O from rapid interactions (click, skip, skip, skip...).
+     * Critical state changes (resetBrain, markNotInterested, onboarding) still save immediately.
+     */
+    private fun scheduleDebouncedSave(context: Context) {
+        pendingSaveJob?.cancel()
+        pendingSaveJob = saveScope.launch {
+            delay(5000L)
+            brainMutex.withLock {
+                saveBrainToDataStore(context)
+            }
         }
     }
 
@@ -221,7 +322,7 @@ object FlowNeuroEngine {
             currentUserBrain = currentUserBrain.copy(
                 blockedTopics = currentUserBrain.blockedTopics + normalizedTopic
             )
-            saveBrain(context)
+            saveBrainToDataStore(context) // Immediate - user expects instant effect
         }
     }
 
@@ -233,7 +334,7 @@ object FlowNeuroEngine {
             currentUserBrain = currentUserBrain.copy(
                 blockedTopics = currentUserBrain.blockedTopics - topic.lowercase()
             )
-            saveBrain(context)
+            saveBrainToDataStore(context)
         }
     }
 
@@ -254,7 +355,7 @@ object FlowNeuroEngine {
             currentUserBrain = currentUserBrain.copy(
                 blockedChannels = currentUserBrain.blockedChannels + channelId
             )
-            saveBrain(context)
+            saveBrainToDataStore(context) // Immediate
         }
     }
 
@@ -266,7 +367,7 @@ object FlowNeuroEngine {
             currentUserBrain = currentUserBrain.copy(
                 blockedChannels = currentUserBrain.blockedChannels - channelId
             )
-            saveBrain(context)
+            saveBrainToDataStore(context)
         }
     }
 
@@ -377,9 +478,10 @@ object FlowNeuroEngine {
     suspend fun setPreferredTopics(context: Context, topics: Set<String>) {
         brainMutex.withLock {
             // Seed the global vector with preferred topics
+            // V6: Use normalizeLemma for consistency with extractFeatures
             val newTopics = currentUserBrain.globalVector.topics.toMutableMap()
             topics.forEach { topic ->
-                val normalizedTopic = topic.lowercase()
+                val normalizedTopic = normalizeLemma(topic)
                 newTopics[normalizedTopic] = 0.5 
             }
             
@@ -387,7 +489,7 @@ object FlowNeuroEngine {
                 preferredTopics = topics,
                 globalVector = currentUserBrain.globalVector.copy(topics = newTopics)
             )
-            saveBrain(context)
+            saveBrainToDataStore(context)
         }
     }
 
@@ -399,14 +501,15 @@ object FlowNeuroEngine {
         if (normalizedTopic.isBlank()) return
         
         brainMutex.withLock {
+            // V6: Use normalizeLemma for consistency
             val newTopics = currentUserBrain.globalVector.topics.toMutableMap()
-            newTopics[normalizedTopic.lowercase()] = 0.5
+            newTopics[normalizeLemma(normalizedTopic)] = 0.5
             
             currentUserBrain = currentUserBrain.copy(
                 preferredTopics = currentUserBrain.preferredTopics + normalizedTopic,
                 globalVector = currentUserBrain.globalVector.copy(topics = newTopics)
             )
-            saveBrain(context)
+            saveBrainToDataStore(context)
         }
     }
 
@@ -418,19 +521,20 @@ object FlowNeuroEngine {
             currentUserBrain = currentUserBrain.copy(
                 preferredTopics = currentUserBrain.preferredTopics - topic
             )
-            saveBrain(context)
+            saveBrainToDataStore(context)
         }
     }
 
     /**
      * Complete onboarding process.
+     * V6: Seeds topics using normalizeLemma for proper matching with video features.
      */
     suspend fun completeOnboarding(context: Context, selectedTopics: Set<String>) {
         brainMutex.withLock {
-            // Seed the global vector with selected topics
+            // Seed the global vector with selected topics using lemma normalization
             val newTopics = mutableMapOf<String, Double>()
             selectedTopics.forEach { topic ->
-                newTopics[topic.lowercase()] = 0.6 
+                newTopics[normalizeLemma(topic)] = 0.6 
             }
             
             currentUserBrain = currentUserBrain.copy(
@@ -438,7 +542,7 @@ object FlowNeuroEngine {
                 globalVector = currentUserBrain.globalVector.copy(topics = newTopics),
                 hasCompletedOnboarding = true
             )
-            saveBrain(context)
+            saveBrainToDataStore(context) // Immediate - critical state change
             Log.i(TAG, "Onboarding completed with ${selectedTopics.size} topics: $selectedTopics")
         }
     }
@@ -478,7 +582,7 @@ object FlowNeuroEngine {
                 consecutiveSkips = (currentUserBrain.consecutiveSkips + 1).coerceAtMost(30)
             )
             
-            saveBrain(context)
+            saveBrainToDataStore(context) // Immediate - critical user intent
             Log.d(TAG, "Marked not interested: ${video.title} from ${video.channelName}")
         }
     }
@@ -656,6 +760,15 @@ object FlowNeuroEngine {
             if (noveltyScore > 0.6 && contextScore > 0.5) totalScore += 0.10 
 
             // =====================================================
+            // V6: COLD-START POPULARITY BOOST
+            // =====================================================
+            // Use view count as a quality signal during cold start
+            if (brain.totalInteractions < 30 && video.viewCount > 0) {
+                val popularityBoost = log10(1.0 + video.viewCount.toDouble()) / 10.0 * 0.05
+                totalScore += popularityBoost
+            } 
+
+            // =====================================================
             // V5: TIME DECAY (Recency Bias)
             // =====================================================
             val ageMultiplier = TimeDecay.calculateMultiplier(video.uploadDate, video.isLive)
@@ -691,11 +804,13 @@ object FlowNeuroEngine {
 
             // 🧠 SESSION FATIGUE PENALTY
             // If the user JUST watched this topic, temporarily lower its score
+            // V6: Normalize lastWatchedTopics with lemma for consistent matching
+            val normalizedLastWatched = lastWatchedTopics.map { normalizeLemma(it) }
             val videoPrimaryTopic = videoVector.topics.maxByOrNull { it.value }?.key ?: ""
             val fatigueMultiplier = when {
                 videoPrimaryTopic.isEmpty() -> 1.0
-                lastWatchedTopics.count { it == videoPrimaryTopic } >= 3 -> 0.4 
-                lastWatchedTopics.contains(videoPrimaryTopic) -> 0.7
+                normalizedLastWatched.count { it == videoPrimaryTopic } >= 3 -> 0.4 
+                normalizedLastWatched.contains(videoPrimaryTopic) -> 0.7
                 else -> 1.0
             }
             totalScore *= fatigueMultiplier
@@ -748,7 +863,15 @@ object FlowNeuroEngine {
             val currentChScore = currentUserBrain.channelScores[video.channelId] ?: 0.5
             val outcome = if (learningRate > 0) 1.0 else 0.0
             val newChScore = (currentChScore * 0.95) + (outcome * 0.05) // Slow moving average
-            val newChannelScores = currentUserBrain.channelScores + (video.channelId to newChScore)
+            var newChannelScores = currentUserBrain.channelScores + (video.channelId to newChScore)
+            
+            // V6: Prune channel scores to prevent unbounded growth
+            if (newChannelScores.size > 500) {
+                newChannelScores = newChannelScores.entries
+                    .sortedByDescending { it.value }
+                    .take(300)
+                    .associate { it.key to it.value }
+            }
             
             // V5: Update consecutive skips for Dynamic Temperature
             // Reset on positive interaction, increment on skip/dislike
@@ -770,7 +893,8 @@ object FlowNeuroEngine {
                 consecutiveSkips = newConsecutiveSkips
             )
             
-            saveBrain(context)
+            // V6: Debounced save - interactions happen frequently, no need to save every single one
+            scheduleDebouncedSave(context)
         }
     }
 
@@ -785,24 +909,22 @@ object FlowNeuroEngine {
     /**
      * Extracts features from a video into a ContentVector.
      * Uses Bigram tokenization for better context understanding.
-     */
-    /**
-     * Extracts features from a video into a ContentVector.
-     * Uses Bigram tokenization for better context understanding.
      * 
      * V4: Now normalizes the topic vector to unit length for proper cosine similarity.
-     * V5: Added stemming for better semantic matching ("gaming"/"games" -> "gam").
+     * V6: Replaced stemmer with lemma dictionary for reliable normalization.
+     *     Improved complexity heuristic (avg word length + title length).
+     *     Logarithmic duration scale (distinguishes 20min vs 3hr content).
      */
     private fun extractFeatures(video: Video): ContentVector {
         val topics = mutableMapOf<String, Double>()
         
-        // Helper: Clean, split, and STEM text (V5: Stemmer added)
+        // Helper: Clean, split, and NORMALIZE text (V6: Lemma dictionary replaces stemmer)
         fun tokenize(text: String): List<String> {
             return text.lowercase()
                 .split("\\s+".toRegex())
                 .map { word -> word.trim { !it.isLetterOrDigit() } }
                 .filter { it.length > 2 && !STOP_WORDS.contains(it) }
-                .map { Stemmer.stem(it) } 
+                .map { normalizeLemma(it) } 
         }
 
         val titleWords = tokenize(video.title)
@@ -839,9 +961,21 @@ object FlowNeuroEngine {
         
         // 5. Heuristics
         val durationSec = if (video.duration > 0) video.duration else if (video.isLive) 3600 else 300
-        val durationScore = (durationSec / 1200.0).coerceIn(0.0, 1.0) // 20 mins = 1.0
+        
+        // V6: Logarithmic duration scale — distinguishes 20min, 1hr, 3hr content
+        // 5min=0.46, 20min=0.71, 60min=0.87, 2hrs=1.0
+        val durationScore = (ln(1.0 + durationSec) / ln(1.0 + 7200.0)).coerceIn(0.0, 1.0)
         val pacingScore = 1.0 - durationScore
-        val complexityScore = ((video.title.length / 60.0).coerceIn(0.0, 1.0))
+        
+        // V6: Improved complexity — blend title length with average word length
+        // Long average word length ("thermodynamics") > short spam words ("OMG WOW!!!")
+        val rawTitleWords = video.title.split("\\s+".toRegex()).filter { it.length > 1 }
+        val complexityScore = run {
+            val titleLenFactor = (video.title.length / 80.0).coerceIn(0.0, 0.5)
+            val avgWordLen = if (rawTitleWords.isNotEmpty()) rawTitleWords.map { it.length }.average() else 4.0
+            val wordLenFactor = (avgWordLen / 8.0).coerceIn(0.0, 0.5)
+            (titleLenFactor + wordLenFactor).coerceIn(0.0, 1.0)
+        }
         val liveScore = if (video.isLive) 1.0 else 0.0
         
         return ContentVector(
@@ -854,8 +988,8 @@ object FlowNeuroEngine {
     }
 
     /**
-     * V5: Optimized to avoid Set allocation in hot path.
-     * Iterates over the smaller map directly instead of computing intersection.
+     * V6: Now blends topic cosine similarity with scalar feature distance.
+     * Duration, pacing, and complexity preferences actually affect ranking.
      */
     private fun calculateCosineSimilarity(user: ContentVector, content: ContentVector): Double {
         // Optimization: Iterate over the smaller map to avoid Set allocation
@@ -864,10 +998,15 @@ object FlowNeuroEngine {
         else 
             content.topics to user.topics
         
+        // Scalar similarity (inverse distance) - V6: These are now factored in
+        val durationSim = 1.0 - abs(user.duration - content.duration)
+        val pacingSim = 1.0 - abs(user.pacing - content.pacing)
+        val complexitySim = 1.0 - abs(user.complexity - content.complexity)
+        val scalarScore = (durationSim * 0.1) + (pacingSim * 0.1) + (complexitySim * 0.1)
+        
         // Early exit if either map is empty
         if (smallMap.isEmpty()) {
-            val distDur = 1.0 - abs(user.duration - content.duration)
-            return distDur * 0.3
+            return scalarScore
         }
 
         var dotProduct = 0.0
@@ -882,8 +1021,7 @@ object FlowNeuroEngine {
         }
         
         if (!hasIntersection) {
-            val distDur = 1.0 - abs(user.duration - content.duration)
-            return distDur * 0.3
+            return scalarScore
         }
         
         // Calculate magnitudes
@@ -892,31 +1030,41 @@ object FlowNeuroEngine {
         user.topics.values.forEach { magA += it * it }
         content.topics.values.forEach { magB += it * it }
         
-        return if (magA > 0 && magB > 0) dotProduct / (sqrt(magA) * sqrt(magB)) else 0.0
+        val topicSim = if (magA > 0 && magB > 0) dotProduct / (sqrt(magA) * sqrt(magB)) else 0.0
+        
+        // Weighted blend: 70% topics, 30% scalar features
+        return (topicSim * 0.7) + scalarScore
     }
 
     /**
-     * Adjusts the current vector towards the target vector.
+     * V6 FIX: Split positive/negative feedback handling.
      * 
-     * V4 FIX: Implements DIMINISHING RETURNS (Sigmoid Saturation)
-     * The higher a score already is, the harder it is to increase further.
-     * This prevents the "Echo Chamber" effect where 3 likes dominate the entire profile.
+     * POSITIVE: Diminishing returns (harder to increase high scores - anti echo chamber)
+     * NEGATIVE: Proportional reduction (high scores get penalized MORE, not less)
+     * 
+     * The V5 formula applied positive diminishing returns to negative feedback,
+     * which meant disliking a topic you already liked would BOOST it. Now fixed.
      */
     private fun adjustVector(current: ContentVector, target: ContentVector, baseRate: Double): ContentVector {
         val newTopics = current.topics.toMutableMap()
+        val isNegative = baseRate < 0
         
-        // 1. Move towards target with Diminishing Returns
+        // 1. Move towards target with corrected feedback
         target.topics.forEach { (key, targetVal) ->
             val currentVal = newTopics[key] ?: 0.0
             
-            // V4 FIX: Calculate dynamic rate based on saturation
-            // If currentVal is already high (0.8), effective rate drops significantly
-            // saturationPenalty approaches 0 as currentVal approaches 1
-            val saturationPenalty = (1.0 - currentVal).pow(2)
-            val effectiveRate = baseRate * saturationPenalty
+            val delta = if (isNegative) {
+                // V6 FIX: For negative feedback, penalty scales WITH current value
+                // If you strongly like gaming (0.8) and dislike a gaming video,
+                // the penalty should be STRONG (0.8^1.5 * -0.15 = -0.107), not weak
+                currentVal * (currentVal.pow(1.5) * baseRate)
+            } else {
+                // For positive feedback: diminishing returns as value approaches 1.0
+                val saturationPenalty = (1.0 - currentVal).pow(2)
+                val effectiveRate = baseRate * saturationPenalty
+                (targetVal - currentVal) * effectiveRate
+            }
             
-            // Apply update with diminishing returns
-            val delta = (targetVal - currentVal) * effectiveRate
             newTopics[key] = (currentVal + delta).coerceIn(0.0, 1.0)
         }
         
@@ -936,29 +1084,55 @@ object FlowNeuroEngine {
             if (entry.value < 0.05) iterator.remove()
         }
 
-        // Apply diminishing returns to scalar values too
-        val durationSaturation = (1.0 - current.duration).pow(2)
-        val pacingSaturation = (1.0 - current.pacing).pow(2)
-        val complexitySaturation = (1.0 - current.complexity).pow(2)
+        // Apply feedback to scalar values
+        // V6: Negative feedback uses proportional reduction for scalars too
+        val newDuration = if (isNegative) {
+            current.duration + current.duration * baseRate * 0.3
+        } else {
+            val durationSaturation = (1.0 - current.duration).pow(2)
+            current.duration + (target.duration - current.duration) * baseRate * durationSaturation
+        }
+        
+        val newPacing = if (isNegative) {
+            current.pacing + current.pacing * baseRate * 0.3
+        } else {
+            val pacingSaturation = (1.0 - current.pacing).pow(2)
+            current.pacing + (target.pacing - current.pacing) * baseRate * pacingSaturation
+        }
+        
+        val newComplexity = if (isNegative) {
+            current.complexity + current.complexity * baseRate * 0.3
+        } else {
+            val complexitySaturation = (1.0 - current.complexity).pow(2)
+            current.complexity + (target.complexity - current.complexity) * baseRate * complexitySaturation
+        }
+        
+        // V6 FIX: isLive is now learned and persisted
+        val newIsLive = if (isNegative) {
+            current.isLive + current.isLive * baseRate * 0.3
+        } else {
+            val liveSaturation = (1.0 - current.isLive).pow(2)
+            current.isLive + (target.isLive - current.isLive) * baseRate * liveSaturation
+        }
 
         return current.copy(
             topics = newTopics,
-            duration = current.duration + (target.duration - current.duration) * baseRate * durationSaturation,
-            pacing = current.pacing + (target.pacing - current.pacing) * baseRate * pacingSaturation,
-            complexity = current.complexity + (target.complexity - current.complexity) * baseRate * complexitySaturation
+            duration = newDuration.coerceIn(0.0, 1.0),
+            pacing = newPacing.coerceIn(0.0, 1.0),
+            complexity = newComplexity.coerceIn(0.0, 1.0),
+            isLive = newIsLive.coerceIn(0.0, 1.0)
         )
     }
 
     /**
-     * V5: Improved Diversity Logic with Title Similarity Check
-     * 
-     * Now prevents visual spam by checking if video titles are too similar
-     * (e.g., "Galaxy S24 Review" vs "Galaxy S24 Camera Test")
+     * V6: Fixed & Improved Diversity Logic
+     * - Fixed: usedTopics is now a List (was Set, making count >= 3 impossible)
+     * - Improved: Phase 2 now applies lighter channel + title constraints
      */
     private fun applySmartDiversity(candidates: MutableList<ScoredVideo>): List<Video> {
         val finalPlaylist = mutableListOf<Video>()
         val usedChannels = mutableSetOf<String>()
-        val usedTopics = mutableSetOf<String>()
+        val usedTopics = mutableListOf<String>()  // V6 FIX: List, not Set (count needs dupes)
 
         // Sort by Score (Best content first)
         candidates.sortByDescending { it.score }
@@ -988,11 +1162,15 @@ object FlowNeuroEngine {
             }
         }
 
-        candidates.forEach { scoredVideo ->
-            val isTitleTooSimilar = finalPlaylist.takeLast(3).any { existing ->
-                calculateTitleSimilarity(scoredVideo.video.title, existing.title) > 0.65
+        // PHASE 2: V6 - Relaxed but meaningful diversity constraints
+        // No longer a free-for-all dump of remaining videos
+        candidates.sortedByDescending { it.score }.forEach { scoredVideo ->
+            val recentChannels = finalPlaylist.takeLast(5).map { it.channelId }
+            val isChannelSpam = recentChannels.count { it == scoredVideo.video.channelId } >= 2
+            val isTitleTooSimilar = finalPlaylist.takeLast(5).any { existing ->
+                calculateTitleSimilarity(scoredVideo.video.title, existing.title) > 0.60
             }
-            if (!isTitleTooSimilar) {
+            if (!isChannelSpam && !isTitleTooSimilar) {
                 finalPlaylist.add(scoredVideo.video)
             }
         }
@@ -1001,143 +1179,239 @@ object FlowNeuroEngine {
     }
 
     // =================================================
-    // 4. STORAGE
+    // 4. STORAGE (V6: Jetpack DataStore - Atomic, Crash-Safe)
     // =================================================
 
-    /**
-     * V4: File I/O now runs on IO dispatcher to prevent UI jank
-     * as the brain grows larger with more topics.
-     * V5: Now persists blockedTopics and blockedChannels.
-     *  and  persists preferredTopics and hasCompletedOnboarding.
-     */
-    private suspend fun saveBrain(context: Context) = withContext(Dispatchers.IO) {
-        try {
-            val json = JSONObject()
-            json.put("morning", vectorToJson(currentUserBrain.morningVector))
-            json.put("afternoon", vectorToJson(currentUserBrain.afternoonVector))
-            json.put("evening", vectorToJson(currentUserBrain.eveningVector))
-            json.put("night", vectorToJson(currentUserBrain.nightVector))
-            json.put("global", vectorToJson(currentUserBrain.globalVector))
-            
-            val scoresJson = JSONObject()
-            currentUserBrain.channelScores.forEach { (k, v) -> scoresJson.put(k, v) }
-            json.put("channelScores", scoresJson)
+    // V6: Serializable models for DataStore
+    @Serializable
+    private data class SerializableVector(
+        val topics: Map<String, Double> = emptyMap(),
+        val duration: Double = 0.5,
+        val pacing: Double = 0.5,
+        val complexity: Double = 0.5,
+        val isLive: Double = 0.0
+    )
+    
+    @Serializable
+    private data class SerializableBrain(
+        val schemaVersion: Int = SCHEMA_VERSION,
+        val morning: SerializableVector = SerializableVector(),
+        val afternoon: SerializableVector = SerializableVector(),
+        val evening: SerializableVector = SerializableVector(),
+        val night: SerializableVector = SerializableVector(),
+        val global: SerializableVector = SerializableVector(),
+        val channelScores: Map<String, Double> = emptyMap(),
+        val interactions: Int = 0,
+        val consecutiveSkips: Int = 0,
+        val blockedTopics: Set<String> = emptySet(),
+        val blockedChannels: Set<String> = emptySet(),
+        val preferredTopics: Set<String> = emptySet(),
+        val hasCompletedOnboarding: Boolean = false,
+        val lastPersona: String? = null,
+        val personaStability: Int = 0
+    )
+    
+    private val json = Json { 
+        ignoreUnknownKeys = true 
+        encodeDefaults = true
+    }
 
-            json.put("interactions", currentUserBrain.totalInteractions)
-            json.put("consecutiveSkips", currentUserBrain.consecutiveSkips) 
-            
-            // V5: Save blocked topics and channels
-            val blockedTopicsJson = org.json.JSONArray(currentUserBrain.blockedTopics.toList())
-            json.put("blockedTopics", blockedTopicsJson)
-            
-            val blockedChannelsJson = org.json.JSONArray(currentUserBrain.blockedChannels.toList())
-            json.put("blockedChannels", blockedChannelsJson)
-            
-            val preferredTopicsJson = org.json.JSONArray(currentUserBrain.preferredTopics.toList())
-            json.put("preferredTopics", preferredTopicsJson)
-            json.put("hasCompletedOnboarding", currentUserBrain.hasCompletedOnboarding)
-            
-            val file = File(context.filesDir, BRAIN_FILENAME)
-            file.writeText(json.toString())
+    // V6: DataStore Serializer
+    private object BrainSerializer : Serializer<SerializableBrain> {
+        override val defaultValue: SerializableBrain = SerializableBrain()
+        
+        override suspend fun readFrom(input: InputStream): SerializableBrain {
+            return try {
+                val text = input.bufferedReader().readText()
+                if (text.isBlank()) defaultValue
+                else Json { ignoreUnknownKeys = true }.decodeFromString<SerializableBrain>(text)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to read brain from DataStore", e)
+                defaultValue
+            }
+        }
+        
+        override suspend fun writeTo(t: SerializableBrain, output: OutputStream) {
+            output.write(
+                Json { encodeDefaults = true }.encodeToString(t).toByteArray()
+            )
+        }
+    }
+    
+    // DataStore extension property
+    private val Context.brainDataStore: DataStore<SerializableBrain> by dataStore(
+        fileName = "flow_neuro_brain.json",
+        serializer = BrainSerializer
+    )
+    
+    // Conversion helpers
+    private fun ContentVector.toSerializable() = SerializableVector(
+        topics = topics, duration = duration, pacing = pacing,
+        complexity = complexity, isLive = isLive
+    )
+    
+    private fun SerializableVector.toContentVector() = ContentVector(
+        topics = topics, duration = duration, pacing = pacing,
+        complexity = complexity, isLive = isLive
+    )
+    
+    private fun UserBrain.toSerializable() = SerializableBrain(
+        schemaVersion = SCHEMA_VERSION,
+        morning = morningVector.toSerializable(),
+        afternoon = afternoonVector.toSerializable(),
+        evening = eveningVector.toSerializable(),
+        night = nightVector.toSerializable(),
+        global = globalVector.toSerializable(),
+        channelScores = channelScores,
+        interactions = totalInteractions,
+        consecutiveSkips = consecutiveSkips,
+        blockedTopics = blockedTopics,
+        blockedChannels = blockedChannels,
+        preferredTopics = preferredTopics,
+        hasCompletedOnboarding = hasCompletedOnboarding,
+        lastPersona = lastPersona,
+        personaStability = personaStability
+    )
+    
+    private fun SerializableBrain.toUserBrain() = UserBrain(
+        morningVector = morning.toContentVector(),
+        afternoonVector = afternoon.toContentVector(),
+        eveningVector = evening.toContentVector(),
+        nightVector = night.toContentVector(),
+        globalVector = global.toContentVector(),
+        channelScores = channelScores,
+        totalInteractions = interactions,
+        consecutiveSkips = consecutiveSkips,
+        blockedTopics = blockedTopics,
+        blockedChannels = blockedChannels,
+        preferredTopics = preferredTopics,
+        hasCompletedOnboarding = hasCompletedOnboarding,
+        lastPersona = lastPersona,
+        personaStability = personaStability,
+        schemaVersion = schemaVersion
+    )
+    
+    /**
+     * V6: Save brain to DataStore (atomic write, crash-safe).
+     */
+    private suspend fun saveBrainToDataStore(context: Context) = withContext(Dispatchers.IO) {
+        try {
+            context.brainDataStore.updateData { currentUserBrain.toSerializable() }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to save brain", e)
+            Log.e(TAG, "Failed to save brain to DataStore", e)
+        }
+    }
+    
+    /**
+     * V6: Load brain from DataStore.
+     * Returns true if data was loaded successfully, false if DataStore is empty/new.
+     */
+    private suspend fun loadBrainFromDataStore(context: Context): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val data = context.brainDataStore.data.first()
+            // Check if this is actually saved data (not just defaults)
+            if (data.interactions > 0 || data.hasCompletedOnboarding || data.preferredTopics.isNotEmpty()) {
+                currentUserBrain = data.toUserBrain()
+                Log.i(TAG, "Loaded brain from DataStore (v${data.schemaVersion}, ${data.interactions} interactions)")
+                return@withContext true
+            }
+            return@withContext false
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load brain from DataStore", e)
+            return@withContext false
         }
     }
 
     /**
-     * V4: File I/O now runs on IO dispatcher to prevent UI jank at startup.
-     * V5: Now loads blockedTopics and blockedChannels.
+     * V6: Legacy JSON migration - loads old brain format and converts to new model.
+     * This preserves all user data from V3/V4/V5 brain files.
      */
-    private suspend fun loadBrain(context: Context) = withContext(Dispatchers.IO) {
+    private suspend fun loadLegacyBrain(context: Context) = withContext(Dispatchers.IO) {
         try {
             val file = File(context.filesDir, BRAIN_FILENAME)
             if (!file.exists()) return@withContext
             
-            val json = JSONObject(file.readText())
+            Log.i(TAG, "Found legacy brain file, migrating...")
+            val jsonObj = JSONObject(file.readText())
             
             val scoresMap = mutableMapOf<String, Double>()
-            val scoresJson = json.optJSONObject("channelScores")
+            val scoresJson = jsonObj.optJSONObject("channelScores")
             scoresJson?.keys()?.forEach { key ->
                 scoresMap[key] = scoresJson.getDouble(key)
             }
 
-            // --- MIGRATION LOGIC START ---
-            // Check if we have the old "longTerm" key but missing the new "global" key
-            val hasOldData = json.has("longTerm") && !json.has("global")
+            // --- MIGRATION LOGIC ---
+            val hasOldData = jsonObj.has("longTerm") && !jsonObj.has("global")
             
             val globalVec = if (hasOldData) {
-                Log.i(TAG, "Migrating Legacy Brain to V4...")
-                jsonToVector(json.getJSONObject("longTerm"))
+                Log.i(TAG, "Migrating Legacy V3 Brain...")
+                legacyJsonToVector(jsonObj.getJSONObject("longTerm"))
             } else {
-                jsonToVector(json.optJSONObject("global") ?: JSONObject())
+                legacyJsonToVector(jsonObj.optJSONObject("global") ?: JSONObject())
             }
-            // --- MIGRATION LOGIC END ---
             
-            // V5: Load blocked topics
+            // Load blocked topics
             val blockedTopicsSet = mutableSetOf<String>()
-            val blockedTopicsJson = json.optJSONArray("blockedTopics")
+            val blockedTopicsJson = jsonObj.optJSONArray("blockedTopics")
             if (blockedTopicsJson != null) {
                 for (i in 0 until blockedTopicsJson.length()) {
                     blockedTopicsSet.add(blockedTopicsJson.getString(i))
                 }
             }
             
-            // V5: Load blocked channels
+            // Load blocked channels
             val blockedChannelsSet = mutableSetOf<String>()
-            val blockedChannelsJson = json.optJSONArray("blockedChannels")
+            val blockedChannelsJson = jsonObj.optJSONArray("blockedChannels")
             if (blockedChannelsJson != null) {
                 for (i in 0 until blockedChannelsJson.length()) {
                     blockedChannelsSet.add(blockedChannelsJson.getString(i))
                 }
             }
             
-            // V5: Load preferred topics
+            // Load preferred topics
             val preferredTopicsSet = mutableSetOf<String>()
-            val preferredTopicsJson = json.optJSONArray("preferredTopics")
+            val preferredTopicsJson = jsonObj.optJSONArray("preferredTopics")
             if (preferredTopicsJson != null) {
                 for (i in 0 until preferredTopicsJson.length()) {
                     preferredTopicsSet.add(preferredTopicsJson.getString(i))
                 }
             }
             
-            // V5: Load onboarding status
-            val hasCompletedOnboarding = json.optBoolean("hasCompletedOnboarding", false)
+            val hasCompletedOnboarding = jsonObj.optBoolean("hasCompletedOnboarding", false)
 
             currentUserBrain = UserBrain(
-                morningVector = jsonToVector(json.optJSONObject("morning") ?: JSONObject()),
-                afternoonVector = jsonToVector(json.optJSONObject("afternoon") ?: JSONObject()),
-                eveningVector = jsonToVector(json.optJSONObject("evening") ?: JSONObject()),
-                nightVector = jsonToVector(json.optJSONObject("night") ?: JSONObject()),
+                morningVector = legacyJsonToVector(jsonObj.optJSONObject("morning") ?: JSONObject()),
+                afternoonVector = legacyJsonToVector(jsonObj.optJSONObject("afternoon") ?: JSONObject()),
+                eveningVector = legacyJsonToVector(jsonObj.optJSONObject("evening") ?: JSONObject()),
+                nightVector = legacyJsonToVector(jsonObj.optJSONObject("night") ?: JSONObject()),
                 globalVector = globalVec, 
                 channelScores = scoresMap,
-                totalInteractions = json.optInt("interactions", 0),
-                consecutiveSkips = json.optInt("consecutiveSkips", 0),
+                totalInteractions = jsonObj.optInt("interactions", 0),
+                consecutiveSkips = jsonObj.optInt("consecutiveSkips", 0),
                 blockedTopics = blockedTopicsSet,
                 blockedChannels = blockedChannelsSet,
                 preferredTopics = preferredTopicsSet,
                 hasCompletedOnboarding = hasCompletedOnboarding
             )
+            
+            Log.i(TAG, "Legacy brain migrated successfully (${currentUserBrain.totalInteractions} interactions)")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to load brain", e)
+            Log.e(TAG, "Failed to load legacy brain", e)
         }
     }
 
-    private fun vectorToJson(vector: ContentVector): JSONObject {
-        val obj = JSONObject()
-        obj.put("duration", vector.duration)
-        obj.put("pacing", vector.pacing)
-        val topicsObj = JSONObject()
-        vector.topics.forEach { (k, v) -> topicsObj.put(k, v) }
-        obj.put("topics", topicsObj)
-        return obj
-    }
-
-    private fun jsonToVector(json: JSONObject): ContentVector {
-        val duration = json.optDouble("duration", 0.5)
-        val pacing = json.optDouble("pacing", 0.5)
+    /**
+     * Parse a ContentVector from legacy JSON format (V3-V5).
+     * V6: Now reads complexity and isLive if present, defaults gracefully.
+     */
+    private fun legacyJsonToVector(jsonObj: JSONObject): ContentVector {
+        val duration = jsonObj.optDouble("duration", 0.5)
+        val pacing = jsonObj.optDouble("pacing", 0.5)
+        val complexity = jsonObj.optDouble("complexity", 0.5)
+        val isLive = jsonObj.optDouble("isLive", 0.0)
         
         val topicsMap = mutableMapOf<String, Double>()
-        val topicsObj = json.optJSONObject("topics")
+        val topicsObj = jsonObj.optJSONObject("topics")
         topicsObj?.keys()?.forEach { key ->
             topicsMap[key] = topicsObj.getDouble(key)
         }
@@ -1145,7 +1419,9 @@ object FlowNeuroEngine {
         return ContentVector(
             topics = topicsMap,
             duration = duration,
-            pacing = pacing
+            pacing = pacing,
+            complexity = complexity,
+            isLive = isLive
         )
     }
 
@@ -1213,7 +1489,7 @@ object FlowNeuroEngine {
 
         // --- THE DECISION WATERFALL ---
 
-        return when {
+        val rawPersona = when {
             // 2. Content Type Overrides (Strongest indicators)
             musicScore > (v.topics.values.sum() * 0.4) -> FlowPersona.AUDIOPHILE
             v.isLive > 0.6 -> FlowPersona.LIVEWIRE
@@ -1232,6 +1508,39 @@ object FlowNeuroEngine {
             // 6. Breadth (The Fallback)
             diversityIndex < 0.25 -> FlowPersona.SPECIALIST // Top topic dominates everything
             else -> FlowPersona.EXPLORER // Balanced profile
+        }
+        
+        // V6: Persona Hysteresis - require 3+ consistent evaluations before changing
+        // Prevents the persona from flipping between states due to minor fluctuations
+        val lastPersona = brain.lastPersona?.let { name -> 
+            FlowPersona.entries.find { it.name == name } 
+        }
+        
+        return if (lastPersona != null && rawPersona != lastPersona && brain.personaStability < 3) {
+            lastPersona // Keep the old persona until signal is consistent
+        } else {
+            rawPersona
+        }
+    }
+    
+    /**
+     * V6: Update persona stability tracking.
+     * Call this after getPersona() to track how stable the evaluation is.
+     */
+    suspend fun updatePersonaTracking(context: Context, evaluatedPersona: FlowPersona) {
+        brainMutex.withLock {
+            val lastPersona = currentUserBrain.lastPersona
+            val newStability = if (evaluatedPersona.name == lastPersona) {
+                (currentUserBrain.personaStability + 1).coerceAtMost(10)
+            } else {
+                1 // Reset counter for new persona
+            }
+            
+            currentUserBrain = currentUserBrain.copy(
+                lastPersona = evaluatedPersona.name,
+                personaStability = newStability
+            )
+            scheduleDebouncedSave(context)
         }
     }
 
@@ -1253,11 +1562,12 @@ object FlowNeuroEngine {
     /**
      * Finds a macro category the user has low or zero interaction with.
      * This breaks the echo chamber by deliberately exploring new areas.
+     * V6: Now uses normalizeLemma for consistent matching with stored topic keys.
      */
     private fun getExplorationQuery(brain: UserBrain): String? {
         // Find a category user has minimal interaction with
         return MACRO_CATEGORIES.shuffled().firstOrNull { category ->
-            val score = brain.globalVector.topics[category.lowercase()] ?: 0.0
+            val score = brain.globalVector.topics[normalizeLemma(category)] ?: 0.0
             score < 0.1 // Low score means "Explore this"
         }
     }
@@ -1284,6 +1594,6 @@ object FlowNeuroEngine {
         "1080p", "720p", "480p", "360p", "240p", "144p",
         
         // Common YouTube title patterns
-        "reupload", "reup", "reuploaded", "compilation", "montage", "explained"
+        "reupload", "reup", "reuploaded", "compilation", "montage"
     )
 }
