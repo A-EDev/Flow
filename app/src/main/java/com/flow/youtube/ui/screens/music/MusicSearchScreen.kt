@@ -329,7 +329,6 @@ fun MusicSearchBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .statusBarsPadding()
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
