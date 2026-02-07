@@ -1,5 +1,6 @@
 package com.flow.youtube.ui.screens.personality
 
+import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
@@ -34,6 +35,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -43,6 +46,8 @@ import androidx.compose.ui.unit.sp
 import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.util.Calendar
 import kotlin.math.*
 import kotlin.random.Random
@@ -192,9 +197,69 @@ fun FlowPersonalityScreen(
                             subtitle = "Under the hood"
                         )
                         AlgorithmInsightsCard(brain = userBrain!!)
+                        
+                        // 8.5 ENGAGEMENT INDICATOR (Boredom Meter)
+                        EngagementIndicator(brain = userBrain!!)
+                        
+                        // 9. BLOCKED CONTENT (Filters)
+                        if (userBrain!!.blockedTopics.isNotEmpty() || userBrain!!.blockedChannels.isNotEmpty()) {
+                            SectionHeader(
+                                icon = Icons.Outlined.Block,
+                                title = "Filters",
+                                subtitle = "Blocked topics and channels"
+                            )
+                            BlockedContentSection(
+                                brain = userBrain!!,
+                                onUnblockTopic = { topic ->
+                                    scope.launch {
+                                        FlowNeuroEngine.removeBlockedTopic(context, topic)
+                                        userBrain = FlowNeuroEngine.getBrainSnapshot()
+                                    }
+                                },
+                                onUnblockChannel = { channelId ->
+                                    scope.launch {
+                                        FlowNeuroEngine.unblockChannel(context, channelId)
+                                        userBrain = FlowNeuroEngine.getBrainSnapshot()
+                                    }
+                                }
+                            )
+                        }
 
-                        // 9. MAINTENANCE
-                        MaintenanceSection(onReset = { showResetDialog = true })
+                        // 10. MAINTENANCE
+                        MaintenanceSection(
+                            onReset = { showResetDialog = true },
+                            onExport = {
+                                // Export brain data as JSON via share sheet
+                                scope.launch {
+                                    val brain = userBrain ?: return@launch
+                                    val jsonData = buildString {
+                                        appendLine("{")
+                                        appendLine("  \"totalInteractions\": ${brain.totalInteractions},")
+                                        appendLine("  \"consecutiveSkips\": ${brain.consecutiveSkips},")
+                                        appendLine("  \"topicsCount\": ${brain.globalVector.topics.size},")
+                                        appendLine("  \"channelsCount\": ${brain.channelScores.size},")
+                                        appendLine("  \"blockedTopics\": [${brain.blockedTopics.joinToString { "\"$it\"" }}],")
+                                        appendLine("  \"blockedChannels\": [${brain.blockedChannels.joinToString { "\"$it\"" }}],")
+                                        appendLine("  \"preferredTopics\": [${brain.preferredTopics.joinToString { "\"$it\"" }}],")
+                                        appendLine("  \"globalVector\": {")
+                                        appendLine("    \"pacing\": ${brain.globalVector.pacing},")
+                                        appendLine("    \"complexity\": ${brain.globalVector.complexity},")
+                                        appendLine("    \"duration\": ${brain.globalVector.duration},")
+                                        appendLine("    \"isLive\": ${brain.globalVector.isLive},")
+                                        appendLine("    \"topics\": {${brain.globalVector.topics.entries.take(20).joinToString { "\"${it.key}\": ${it.value}" }}}")
+                                        appendLine("  },")
+                                        appendLine("  \"topChannels\": {${brain.channelScores.entries.sortedByDescending { it.value }.take(10).joinToString { "\"${it.key}\": ${it.value}" }}}")
+                                        appendLine("}")
+                                    }
+                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "application/json"
+                                        putExtra(Intent.EXTRA_TEXT, jsonData)
+                                        putExtra(Intent.EXTRA_SUBJECT, "Flow Neural Profile Export")
+                                    }
+                                    context.startActivity(Intent.createChooser(shareIntent, "Export Profile Data"))
+                                }
+                            }
+                        )
 
                         Spacer(Modifier.height(40.dp))
                     }
@@ -651,9 +716,16 @@ private fun NeuralBubbleCloud(brain: FlowNeuroEngine.UserBrain) {
                 }
             }
             
-            // Physics Engine
+            // Physics Engine with Settling Detection (Performance Optimization)
             LaunchedEffect(Unit) {
+                var settleCounter = 0
                 while (true) {
+                    // If settled for ~1 second, switch to idle mode (10fps) to save battery
+                    val isSettled = settleCounter > 60
+                    if (isSettled) {
+                        delay(100) // 10fps idle mode
+                    }
+                    
                     withFrameNanos { nanos ->
                         time = nanos
                         
@@ -696,7 +768,8 @@ private fun NeuralBubbleCloud(brain: FlowNeuroEngine.UserBrain) {
                             }
                         }
                         
-                        // 2. Update Positions
+                        // 2. Update Positions & Calculate Total Velocity for Settling Detection
+                        var totalVelocity = 0f
                         bubbles.forEach { b ->
                             // Apply damping
                             b.velocityX *= damping
@@ -715,13 +788,34 @@ private fun NeuralBubbleCloud(brain: FlowNeuroEngine.UserBrain) {
                             if (b.x > width - padding) { b.x = width - padding; b.velocityX *= -0.5f }
                             if (b.y < padding) { b.y = padding; b.velocityY *= -0.5f }
                             if (b.y > height - padding) { b.y = height - padding; b.velocityY *= -0.5f }
+                            
+                            // Track total velocity for settling detection
+                            totalVelocity += abs(b.velocityX) + abs(b.velocityY)
+                        }
+                        
+                        // Update settle counter based on total movement
+                        if (totalVelocity < 0.5f) {
+                            settleCounter++
+                        } else {
+                            settleCounter = 0
                         }
                     }
                 }
             }
             
+            // Generate accessibility description for screen readers
+            val accessibilityDescription = remember(bubbles) {
+                val topTopics = bubbles.sortedByDescending { it.score }.take(5)
+                "Interest bubble visualization showing ${bubbles.size} topics. " +
+                    "Top interests: ${topTopics.joinToString(", ") { it.topic }}"
+            }
+            
             // Draw
-            Canvas(modifier = Modifier.fillMaxSize()) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .semantics { contentDescription = accessibilityDescription }
+            ) {
                 // Ensure recomposition on physics update
                 val t = time 
                 
@@ -845,12 +939,25 @@ private fun AdvancedRadarChart(brain: FlowNeuroEngine.UserBrain) {
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
         )
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
-            contentAlignment = Alignment.Center
         ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
+            val accessibilityDescription = remember(personalityVector) {
+                "Radar chart showing cognitive fingerprint. " +
+                "Pacing: ${String.format("%.0f%%", personalityVector.pacing * 100)}, " +
+                "Complexity: ${String.format("%.0f%%", personalityVector.complexity * 100)}, " +
+                "Duration: ${String.format("%.0f%%", personalityVector.duration * 100)}, " +
+                "Live: ${String.format("%.0f%%", personalityVector.isLive * 100)}, " +
+                "Breadth: ${String.format("%.0f%%", (personalityVector.topics.size / 50.0).coerceAtMost(1.0) * 100)}."
+            }
+            
+            Box(
+                modifier = Modifier.fillMaxSize().padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .semantics { contentDescription = accessibilityDescription }
+                ) {
                 val center = Offset(size.width / 2, size.height / 2)
                 val radius = minOf(size.width, size.height) / 2 * 0.85f
                 val angleStep = (2 * PI / labels.size).toFloat()
@@ -939,23 +1046,29 @@ private fun AdvancedRadarChart(brain: FlowNeuroEngine.UserBrain) {
                 }
             }
             
-            // Labels
-            val labelPositions = listOf(
-                Alignment.TopCenter,
-                Alignment.TopEnd,
-                Alignment.BottomEnd,
-                Alignment.BottomStart,
-                Alignment.TopStart
-            )
+            // Labels - positioned mathematically at each radar axis endpoint
+            val density = LocalDensity.current
+            val labelAngleStep = (2 * PI / labels.size).toFloat()
             
-            labels.forEachIndexed { index, label ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(4.dp),
-                    contentAlignment = labelPositions[index]
-                ) {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val boxWidth = constraints.maxWidth.toFloat()
+                val boxHeight = constraints.maxHeight.toFloat()
+                val chartRadius = minOf(boxWidth, boxHeight) / 2 * 0.85f
+                val labelRadius = chartRadius * 1.15f // Slightly outside the chart
+                val centerX = boxWidth / 2
+                val centerY = boxHeight / 2
+                
+                labels.forEachIndexed { index, label ->
+                    val angle = index * labelAngleStep - (PI / 2).toFloat()
+                    val labelX = centerX + labelRadius * cos(angle)
+                    val labelY = centerY + labelRadius * sin(angle)
+                    
                     Surface(
+                        modifier = Modifier
+                            .offset(
+                                x = with(density) { (labelX - 30f).toDp() },
+                                y = with(density) { (labelY - 12f).toDp() }
+                            ),
                         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
                         shape = RoundedCornerShape(8.dp)
                     ) {
@@ -1157,11 +1270,15 @@ private fun TimeContextCards(brain: FlowNeuroEngine.UserBrain) {
         items(periods.size) { index ->
             val (name, time, vector) = periods[index]
             val isActive = index == currentPeriod
-            val topTopic = vector.topics.entries.maxByOrNull { it.value }?.key ?: "None"
+            
+            // Get top 3 topics for this time period
+            val topTopics = vector.topics.entries
+                .sortedByDescending { it.value }
+                .take(3)
             
             Card(
                 modifier = Modifier
-                    .width(140.dp)
+                    .width(170.dp) // Increased from 140.dp for top 3 display
                     .then(
                         if (isActive) Modifier.border(
                             2.dp,
@@ -1194,18 +1311,41 @@ private fun TimeContextCards(brain: FlowNeuroEngine.UserBrain) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(12.dp))
-                    Surface(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
+                    
+                    // Top 3 topics with percentages
+                    if (topTopics.isEmpty()) {
                         Text(
-                            topTopic.replaceFirstChar { it.uppercase() },
+                            "No data yet",
                             style = MaterialTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         )
+                    } else {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            topTopics.forEach { (topic, score) ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        topic.replaceFirstChar { it.uppercase() },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(
+                                        String.format("%.0f%%", score * 100),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
                     }
+                    
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "${vector.topics.size} topics",
@@ -1223,7 +1363,10 @@ private fun TimeContextCards(brain: FlowNeuroEngine.UserBrain) {
 // ============================================================================
 
 @Composable
-private fun ChannelAffinitySection(brain: FlowNeuroEngine.UserBrain) {
+private fun ChannelAffinitySection(
+    brain: FlowNeuroEngine.UserBrain,
+    channelNames: Map<String, String> = emptyMap() // channelId -> displayName (for future integration)
+) {
     val channels = brain.channelScores.entries
         .sortedByDescending { it.value }
         .take(10)
@@ -1241,12 +1384,16 @@ private fun ChannelAffinitySection(brain: FlowNeuroEngine.UserBrain) {
         )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            channels.forEach { (channelId, score) ->
+            channels.forEachIndexed { index, (channelId, score) ->
                 val sentiment = when {
                     score > 0.7 -> Pair("🟢", "Positive")
                     score > 0.4 -> Pair("🟡", "Neutral")
                     else -> Pair("🔴", "Negative")
                 }
+                
+                // Use channel name if available, otherwise show truncated ID
+                val displayName = channelNames[channelId] 
+                    ?: (channelId.take(20) + if (channelId.length > 20) "..." else "")
                 
                 Row(
                     modifier = Modifier
@@ -1258,7 +1405,7 @@ private fun ChannelAffinitySection(brain: FlowNeuroEngine.UserBrain) {
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            channelId.take(20) + if (channelId.length > 20) "..." else "",
+                            displayName,
                             style = MaterialTheme.typography.bodySmall,
                             maxLines = 1
                         )
@@ -1275,7 +1422,7 @@ private fun ChannelAffinitySection(brain: FlowNeuroEngine.UserBrain) {
                     )
                 }
                 
-                if (channels.indexOf(channels.find { it.key == channelId }) < channels.size - 1) {
+                if (index < channels.lastIndex) {
                     Divider(
                         modifier = Modifier.padding(vertical = 4.dp),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
@@ -1379,54 +1526,288 @@ private fun AlgorithmStat(label: String, value: String) {
 // ============================================================================
 
 @Composable
-private fun MaintenanceSection(onReset: () -> Unit) {
+private fun MaintenanceSection(
+    onReset: () -> Unit,
+    onExport: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Export Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f)
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onExport() }
+                    .padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.FileDownload,
+                        null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Export Profile Data",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Download your neural profile as JSON",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    Icons.Default.ChevronRight,
+                    null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        
+        // Reset Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onReset() }
+                    .padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.DeleteForever,
+                        null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Reset Neural Profile",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Erase all learned preferences and start fresh",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    Icons.Default.ChevronRight,
+                    null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+// ============================================================================
+// 11. BLOCKED CONTENT SECTION
+// ============================================================================
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun BlockedContentSection(
+    brain: FlowNeuroEngine.UserBrain,
+    onUnblockTopic: (String) -> Unit,
+    onUnblockChannel: (String) -> Unit
+) {
+    val blockedTopics = brain.blockedTopics
+    val blockedChannels = brain.blockedChannels
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.1f)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            if (blockedTopics.isNotEmpty()) {
+                Text(
+                    "Blocked Topics",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(8.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    blockedTopics.forEach { topic ->
+                        InputChip(
+                            selected = false,
+                            onClick = { onUnblockTopic(topic) },
+                            label = { Text(topic.replaceFirstChar { it.uppercase() }) },
+                            trailingIcon = {
+                                Icon(
+                                    Icons.Default.Close,
+                                    "Unblock",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        )
+                    }
+                }
+            }
+            
+            if (blockedChannels.isNotEmpty()) {
+                if (blockedTopics.isNotEmpty()) {
+                    Spacer(Modifier.height(16.dp))
+                    Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    Spacer(Modifier.height(16.dp))
+                }
+                Text(
+                    "Blocked Channels",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(8.dp))
+                blockedChannels.forEach { channelId ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("🚫", modifier = Modifier.padding(end = 8.dp))
+                        Text(
+                            channelId.take(24) + if (channelId.length > 24) "..." else "",
+                            modifier = Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        IconButton(
+                            onClick = { onUnblockChannel(channelId) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                "Unblock",
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// 12. ENGAGEMENT INDICATOR (Boredom Meter)
+// ============================================================================
+
+@Composable
+private fun EngagementIndicator(brain: FlowNeuroEngine.UserBrain) {
+    val (engagementLevel, engagementColor) = remember(brain.consecutiveSkips) {
+        when {
+            brain.consecutiveSkips < 5 -> Pair("Engaged", Color(0xFF4CAF50))
+            brain.consecutiveSkips < 15 -> Pair("Exploring", Color(0xFFFFC107))
+            brain.consecutiveSkips < 25 -> Pair("Bored", Color(0xFFFF9800))
+            else -> Pair("Restless", Color(0xFFF44336))
+        }
+    }
+    
+    val engagementDescription = remember(brain.consecutiveSkips) {
+        when {
+            brain.consecutiveSkips < 5 -> "You're enjoying your current content mix"
+            brain.consecutiveSkips < 15 -> "Looking for something new—algorithm is boosting variety"
+            brain.consecutiveSkips < 25 -> "Skipping frequently—feed is getting more experimental"
+            else -> "High skip rate—maximum serendipity mode activated"
+        }
+    }
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = engagementColor.copy(alpha = 0.1f)
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onReset() }
-                .padding(20.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(
-                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-                        CircleShape
-                    ),
+                    .size(40.dp)
+                    .background(engagementColor.copy(alpha = 0.2f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    Icons.Default.DeleteForever,
-                    null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(24.dp)
+                Text(
+                    when {
+                        brain.consecutiveSkips < 5 -> "😊"
+                        brain.consecutiveSkips < 15 -> "🔍"
+                        brain.consecutiveSkips < 25 -> "😐"
+                        else -> "🔀"
+                    },
+                    style = MaterialTheme.typography.titleMedium
                 )
             }
-            Spacer(Modifier.width(16.dp))
+            Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Engagement: ",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        engagementLevel,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = engagementColor
+                    )
+                }
                 Text(
-                    "Reset Neural Profile",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    "Erase all learned preferences and start fresh",
+                    engagementDescription,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
                 )
             }
-            Icon(
-                Icons.Default.ChevronRight,
-                null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            Text(
+                "${brain.consecutiveSkips}",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = engagementColor
             )
         }
     }
