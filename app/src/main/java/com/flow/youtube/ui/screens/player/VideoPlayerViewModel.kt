@@ -11,6 +11,7 @@ import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import com.flow.youtube.data.recommendation.FlowNeuroEngine.InteractionType
 import com.flow.youtube.data.repository.YouTubeRepository
 import com.flow.youtube.player.EnhancedPlayerManager
+import com.flow.youtube.player.EnhancedMusicPlayerManager
 import com.flow.youtube.innertube.YouTube
 import com.flow.youtube.innertube.models.YouTubeClient
 import com.flow.youtube.utils.PerformanceDispatcher
@@ -100,6 +101,10 @@ class VideoPlayerViewModel @Inject constructor(
         EnhancedPlayerManager.getInstance().pause()
         EnhancedPlayerManager.getInstance().clearCurrentVideo()
         
+        // Ensure music player is stopped and hidden
+        EnhancedMusicPlayerManager.stop()
+        EnhancedMusicPlayerManager.clearCurrentTrack()
+        
         // Cache video metadata for immediate UI display
         _uiState.value = _uiState.value.copy(
             cachedVideo = video,
@@ -123,6 +128,10 @@ class VideoPlayerViewModel @Inject constructor(
     fun playPlaylist(videos: List<Video>, startIndex: Int, title: String? = null) {
         if (videos.isEmpty()) return
         val startVideo = videos.getOrNull(startIndex) ?: videos.first()
+        
+        // Stop music player
+        EnhancedMusicPlayerManager.stop()
+        EnhancedMusicPlayerManager.clearCurrentTrack()
         
         // Update Player Manager Queue
         EnhancedPlayerManager.getInstance().setQueue(videos, startIndex, title)

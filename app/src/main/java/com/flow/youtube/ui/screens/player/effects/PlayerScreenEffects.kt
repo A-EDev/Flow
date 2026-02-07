@@ -155,7 +155,8 @@ fun FullscreenEffect(
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
                 insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             } else {
-                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_USER
+                // Return to portrait mode when exiting fullscreen
+                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                 
                 WindowCompat.setDecorFitsSystemWindows(act.window, true)
                 val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)

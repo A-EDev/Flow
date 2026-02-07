@@ -66,7 +66,34 @@ class PlayerDraggableState(
 @Composable
 fun rememberPlayerDraggableState(maxOffset: Float): PlayerDraggableState {
     val scope = rememberCoroutineScope()
+    // Use remember with keys removed for Animatable creation to avoid recreation on maxOffset change
+    // We want to KEEP the current offset value but respect the NEW maxOffset constraints
     val offsetY = remember { Animatable(maxOffset) }
+
+    // If maxOffset changes (e.g. orientation change), we need to decide where to snap
+    // If we were collapsed (near old MaxOffset), snap to new MaxOffset.
+    // If we were expanded (near 0), stay near 0.
+    LaunchedEffect(maxOffset) {
+        val current = offsetY.value
+        // Heuristic: If we are closer to the "bottom" (> 50% down), snap to new bottom. (Collapsed)
+        // Otherwise, stay at top. (Expanded)
+        if (current > maxOffset * 0.25f) { // Using 25% to be safer for "stuck" scenarios 
+             // We use a broader threshold because the "old maxOffset" (Landscape) might be small
+             // compared to "new maxOffset" (Portrait).
+             // Actually, if we are switching Landscape -> Portrait:
+             // Old Max (e.g. 300) -> New Max (e.g. 1000).
+             // If we were at 300 (Collapsed), 300 is < 1000 * 0.5. So simple thresholding fails.
+             // We need to know if we were "Collapsed" based on previous state logic.
+             // But we only have current value.
+             // Let's assume if value > 0 and not explicitly expanded, we snap to bottom.
+             if (current > 50f) { // arbitrary small threshold
+                 offsetY.snapTo(maxOffset) 
+             }
+        } else {
+             offsetY.snapTo(0f)
+        }
+    }
+
     return remember(maxOffset) {
         PlayerDraggableState(offsetY, maxOffset, scope)
     }
@@ -93,8 +120,10 @@ fun DraggablePlayerLayout(
         val fullScreenWidth = constraints.maxWidth.toFloat()
         val fullScreenHeight = constraints.maxHeight.toFloat()
         
-        // --- 1. LANDSCAPE MODE---
-        if (isLandscape) {
+        // --- 1. LANDSCAPE MODE ---
+        // Only show fullscreen landscape IF the player is actually expanded.
+        // If it's collapsed (mini player), we want it to behave like portrait mode (floating)
+        if (isLandscape && state.currentValue == PlayerSheetValue.Expanded) {
             
             Box(
                 modifier = Modifier

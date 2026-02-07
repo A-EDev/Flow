@@ -143,7 +143,8 @@ fun FlowApp(
                 if (!isInPipMode && showBottomNav.value) {
                     Column {
                         // Music mini player above bottom nav
-                        if (currentMusicTrack != null && !currentRoute.value.startsWith("musicPlayer")) {
+                        // Only show music player if NOT on music screen AND no video is currently active/cached
+                        if (currentMusicTrack != null && !currentRoute.value.startsWith("musicPlayer") && playerUiState.cachedVideo == null && playerUiState.streamInfo == null) {
                             PersistentMiniMusicPlayer(
                                 onExpandClick = {
                                     currentMusicTrack?.let { track ->

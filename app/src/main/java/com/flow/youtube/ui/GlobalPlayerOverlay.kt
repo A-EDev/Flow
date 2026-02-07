@@ -1,6 +1,7 @@
 package com.flow.youtube.ui
 
 import android.content.Context
+import android.content.pm.ActivityInfo
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -27,6 +28,7 @@ import com.flow.youtube.player.GlobalPlayerState
 import com.flow.youtube.ui.components.DraggablePlayerLayout
 import com.flow.youtube.ui.components.PlayerDraggableState
 import com.flow.youtube.ui.components.rememberPlayerDraggableState
+import com.flow.youtube.ui.components.PlayerSheetValue
 import com.flow.youtube.ui.screens.music.MusicPlayerViewModel
 import com.flow.youtube.ui.screens.player.EnhancedVideoPlayerScreen
 import com.flow.youtube.ui.screens.player.VideoPlayerViewModel
@@ -102,6 +104,18 @@ fun GlobalPlayerOverlay(
         (screenState.currentPosition.toFloat() / screenState.duration.toFloat()).coerceIn(0f, 1f)
     } else 0f
     
+    // Sync fullscreen state with player sheet state
+    LaunchedEffect(playerSheetState.currentValue) {
+        if (playerSheetState.currentValue == PlayerSheetValue.Collapsed) {
+            screenState.isFullscreen = false
+        }
+    }
+
+    // Handle Back press in Fullscreen
+    BackHandler(enabled = screenState.isFullscreen) {
+        screenState.isFullscreen = false
+    }
+    
     // ===== EFFECTS =====
     LaunchedEffect(playerUiState.isLoading) {
         if (playerUiState.isLoading) {
@@ -136,6 +150,11 @@ fun GlobalPlayerOverlay(
             localIsInPipMode = inPipMode
             screenState.isInPipMode = inPipMode
         }
+    )
+
+    FullscreenEffect(
+        isFullscreen = screenState.isFullscreen,
+        activity = activity
     )
     
     OrientationResetEffect(activity)
@@ -269,7 +288,10 @@ fun GlobalPlayerOverlay(
                         onShowBrightnessChange = { screenState.showBrightnessOverlay = it },
                         onVolumeChange = { screenState.volumeLevel = it },
                         onShowVolumeChange = { screenState.showVolumeOverlay = it },
-                        onBack = { playerSheetState.collapse() },
+                        onBack = { 
+                            screenState.isFullscreen = false
+                            playerSheetState.collapse() 
+                        },
                         brightnessLevel = screenState.brightnessLevel,
                         volumeLevel = screenState.volumeLevel,
                         maxVolume = audioSystemInfo.maxVolume,

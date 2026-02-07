@@ -553,12 +553,16 @@ object EnhancedMusicPlayerManager {
         emitToggleLikeEvent()
     }
 
+    fun setLiked(liked: Boolean) {
+        _isLiked.value = liked
+    }
+
     fun emitToggleLikeEvent() {
         scope.launch { _playerEvents.emit(PlayerEvent.RequestToggleLike) }
     }
-    fun setLiked(liked: Boolean) { _isLiked.value = liked }
     
     fun play() { scope.launch { player?.play() } }
+    
     fun pause() { scope.launch { player?.pause() } }
     
     fun stop() {
@@ -680,6 +684,7 @@ object EnhancedMusicPlayerManager {
             player?.stop()
             player?.clearMediaItems()
             _currentTrack.value = null
+            _playerState.value = _playerState.value.copy(isPlaying = false, isBuffering = false)
         }
     }
     
