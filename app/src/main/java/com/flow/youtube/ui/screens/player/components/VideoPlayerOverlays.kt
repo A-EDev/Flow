@@ -93,6 +93,8 @@ fun BrightnessOverlay(
     brightnessLevel: Float,
     modifier: Modifier = Modifier
 ) {
+    val isAuto = brightnessLevel < 0f
+
     AnimatedVisibility(
         visible = isVisible,
         enter = fadeIn(tween(200)) + slideInHorizontally(tween(200)) { -it / 2 },
@@ -100,7 +102,7 @@ fun BrightnessOverlay(
         modifier = modifier
     ) {
         val animatedBrightness by animateFloatAsState(
-            targetValue = brightnessLevel,
+            targetValue = if (isAuto) 0f else brightnessLevel,
             animationSpec = spring(stiffness = Spring.StiffnessLow),
             label = "brightness"
         )
@@ -139,17 +141,21 @@ fun BrightnessOverlay(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
+                    val iconVector = if (isAuto) {
+                        Icons.Rounded.BrightnessMedium // Safe fallback, text says "Auto"
+                    } else if (brightnessLevel > 0.7f) Icons.Rounded.BrightnessHigh 
+                    else if (brightnessLevel > 0.3f) Icons.Rounded.BrightnessMedium
+                    else Icons.Rounded.BrightnessLow
+
                     Icon(
-                        imageVector = if (brightnessLevel > 0.7f) Icons.Rounded.BrightnessHigh 
-                                     else if (brightnessLevel > 0.3f) Icons.Rounded.BrightnessMedium
-                                     else Icons.Rounded.BrightnessLow,
+                        imageVector = iconVector,
                         contentDescription = null,
                         tint = if (animatedBrightness > 0.8f) Color.Black.copy(alpha = 0.7f) else Color.White,
                         modifier = Modifier.size(22.dp)
                     )
                     
                     Text(
-                        text = "${(brightnessLevel * 100).toInt()}",
+                        text = if (isAuto) "Auto" else "${(brightnessLevel * 100).toInt()}",
                         color = if (animatedBrightness > 0.1f) Color.Black.copy(alpha = 0.7f) else Color.White,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold

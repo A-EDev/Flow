@@ -210,7 +210,16 @@ fun Modifier.videoPlayerControls(
                                      val sensitivity = 1.5f 
                                      val delta = -dragAmount.y / screenHeight * sensitivity
                                      
-                                     val newBrightness = (currentBrightnessLevel + delta).coerceIn(0f, 1f)
+                                     val startLevel = if (currentBrightnessLevel < 0) 0f else currentBrightnessLevel
+                                     val rawNewLevel = startLevel + delta
+                                     
+                                     // Auto brightness logic: if dragging down past -5%
+                                     val newBrightness = if (rawNewLevel < -0.05f) {
+                                         -1.0f // Auto mode
+                                     } else {
+                                         rawNewLevel.coerceIn(0f, 1f)
+                                     }
+                                     
                                      currentOnBrightnessChange(newBrightness)
                                      
                                      try {
