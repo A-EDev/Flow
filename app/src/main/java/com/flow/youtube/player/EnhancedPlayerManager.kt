@@ -17,6 +17,7 @@ import com.flow.youtube.data.local.PlayerPreferences
 import com.flow.youtube.player.audio.AudioFeaturesManager
 import com.flow.youtube.player.cache.PlayerCacheManager
 import com.flow.youtube.player.config.PlayerConfig
+import com.flow.youtube.data.model.Video
 import com.flow.youtube.player.error.PlayerErrorHandler
 import com.flow.youtube.player.factory.PlayerFactory
 import com.flow.youtube.player.media.MediaLoader
@@ -76,6 +77,11 @@ class EnhancedPlayerManager private constructor() {
     // Duration and manifest info
     private var currentDurationSeconds: Long = -1
     private var currentDashManifestUrl: String? = null
+
+    // Queue management
+    private var playbackQueue: List<com.flow.youtube.data.model.Video> = emptyList()
+    private var currentQueueIndex: Int = -1
+    private var queueTitle: String? = null
     
     // Application context
     private var appContext: Context? = null
@@ -236,6 +242,12 @@ class EnhancedPlayerManager private constructor() {
                     hasEnded = playbackState == Player.STATE_ENDED
                 )
                 
+                if (playbackState == Player.STATE_ENDED) {
+                    if (hasNext()) {
+                        playNext()
+                    }
+                }
+                
                 if (playbackState == Player.STATE_BUFFERING) {
                     logBandwidthInfo()
                 }
@@ -368,6 +380,65 @@ class EnhancedPlayerManager private constructor() {
         )
     }
 
+    // ===== Queue Management =====
+
+    fun setQueue(videos: List<Video>, startIndex: Int, title: String? = null) {
+        playbackQueue = videos
+        currentQueueIndex = startIndex.coerceIn(0, videos.size - 1)
+        queueTitle = title
+        updateQueueState()
+        
+        if (videos.isNotEmpty()) {
+            val video = videos[currentQueueIndex]
+            startPlaybackFromQueue(video)
+        }
+    }
+
+    fun playNext() {
+        if (currentQueueIndex < playbackQueue.size - 1) {
+            currentQueueIndex++
+            startPlaybackFromQueue(playbackQueue[currentQueueIndex])
+            updateQueueState()
+        }
+    }
+
+    fun playPrevious() {
+        // If we are more than 3 seconds into the video, restart it
+        if ((player?.currentPosition ?: 0) > 3000) {
+            player?.seekTo(0)
+            return
+        }
+
+        if (currentQueueIndex > 0) {
+            currentQueueIndex--
+            startPlaybackFromQueue(playbackQueue[currentQueueIndex])
+            updateQueueState()
+        }
+    }
+
+    fun hasNext(): Boolean = currentQueueIndex < playbackQueue.size - 1
+
+    fun hasPrevious(): Boolean = currentQueueIndex > 0 || (player?.currentPosition ?: 0) > 3000
+
+    private fun startPlaybackFromQueue(video: Video) {
+        // Reset player state for new video
+        resetPlaybackStateForNewVideo(video.id)
+        
+        _playerState.value = _playerState.value.copy(
+            currentVideoId = video.id,
+            isPlaying = true,
+            isBuffering = true
+        )
+    }
+
+    private fun updateQueueState() {
+        _playerState.value = _playerState.value.copy(
+            hasNext = hasNext(),
+            hasPrevious = hasPrevious(),
+            queueTitle = queueTitle
+        )
+    }
+
     // ===== Playback Controls =====
     
     fun play() = player?.play()
@@ -486,8 +557,13 @@ class EnhancedPlayerManager private constructor() {
         currentAudioStream = null
         _playerState.value = _playerState.value.copy(
             isPlaying = false, currentVideoId = null, currentQuality = 0,
-            bufferedPercentage = 0f, isBuffering = false, isPrepared = false, hasEnded = false
+            bufferedPercentage = 0f, isBuffering = false, isPrepared = false, hasEnded = false,
+            hasNext = false, hasPrevious = false, queueTitle = null
         )
+        // Also clear queue
+        playbackQueue = emptyList()
+        currentQueueIndex = -1
+        queueTitle = null
     }
 
     fun release() {

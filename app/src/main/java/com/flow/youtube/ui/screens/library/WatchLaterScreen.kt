@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -34,6 +35,7 @@ import kotlinx.coroutines.launch
 fun WatchLaterScreen(
     onBackClick: () -> Unit,
     onVideoClick: (Video) -> Unit,
+    onPlayPlaylist: (List<Video>, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -85,8 +87,17 @@ fun WatchLaterScreen(
                 WatchLaterHeader(
                     videoCount = watchLaterVideos.size,
                     thumbnailUrl = watchLaterVideos.firstOrNull()?.thumbnailUrl ?: "",
-                    onPlayAll = { watchLaterVideos.firstOrNull()?.let { onVideoClick(it) } },
-                    onShuffle = { watchLaterVideos.randomOrNull()?.let { onVideoClick(it) } }
+                    onPlayAll = { 
+                        if (watchLaterVideos.isNotEmpty()) {
+                            onPlayPlaylist(watchLaterVideos, 0)
+                        }
+                    },
+                    onShuffle = { 
+                        if (watchLaterVideos.isNotEmpty()) {
+                            val shuffled = watchLaterVideos.shuffled()
+                            onPlayPlaylist(shuffled, 0) 
+                        }
+                    }
                 )
             }
 
@@ -107,13 +118,13 @@ fun WatchLaterScreen(
                     )
                 }
             } else {
-                items(
+                itemsIndexed(
                     items = watchLaterVideos,
-                    key = { it.id }
-                ) { video ->
+                    key = { _, video -> video.id }
+                ) { index, video ->
                     WatchLaterVideoItem(
                         video = video,
-                        onClick = { onVideoClick(video) },
+                        onClick = { onPlayPlaylist(watchLaterVideos, index) },
                         onRemove = {
                             scope.launch {
                                 repo.removeFromWatchLater(video.id)

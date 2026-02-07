@@ -429,6 +429,9 @@ fun NavGraphBuilder.flowAppGraph(
                 } else {
                     navController.navigate("player/${video.id}")
                 }
+            },
+            onPlayPlaylist = { videos, index ->
+                playerViewModel.playPlaylist(videos, index, "Watch Later")
             }
         )
     }
@@ -513,6 +516,9 @@ fun NavGraphBuilder.flowAppGraph(
                 } else {
                     navController.navigate("player/${video.id}")
                 }
+            },
+            onPlayPlaylist = { videos, index ->
+                playerViewModel.playPlaylist(videos, index, "Playlist")
             }
         )
     }

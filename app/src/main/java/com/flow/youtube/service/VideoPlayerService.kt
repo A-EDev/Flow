@@ -18,6 +18,9 @@ import com.flow.youtube.player.EnhancedPlayerManager
 import com.flow.youtube.data.model.Video
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
+import android.content.Context
+import android.net.wifi.WifiManager
+import android.os.PowerManager
 import java.net.URL
 
 /**
@@ -31,6 +34,9 @@ class VideoPlayerService : Service() {
     private lateinit var mediaSession: MediaSessionCompat
     private lateinit var notificationManager: NotificationManager
     
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
+    
     private var currentVideo: Video? = null
     private var isPlaying = false
     
@@ -40,6 +46,8 @@ class VideoPlayerService : Service() {
         private const val CHANNEL_NAME = "Video Playback"
         
         const val ACTION_PLAY_PAUSE = "com.flow.youtube.video.ACTION_PLAY_PAUSE"
+        const val ACTION_NEXT = "com.flow.youtube.video.ACTION_NEXT"
+        const val ACTION_PREVIOUS = "com.flow.youtube.video.ACTION_PREVIOUS"
         const val ACTION_STOP = "com.flow.youtube.video.ACTION_STOP"
         const val ACTION_CLOSE = "com.flow.youtube.video.ACTION_CLOSE"
         
@@ -54,6 +62,19 @@ class VideoPlayerService : Service() {
         
         notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         createNotificationChannel()
+        
+        // Initialize WakeLock and WifiLock
+        try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Flow:VideoPlayerWakeLock")
+            wakeLock?.setReferenceCounted(false)
+            
+            val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "Flow:VideoPlayerWifiLock")
+            wifiLock?.setReferenceCounted(false)
+        } catch (e: Exception) {
+            Log.e("VideoPlayerService", "Failed to acquire locks", e)
+        }
         
         // Initialize MediaSession for lock-screen controls
         mediaSession = MediaSessionCompat(this, "VideoPlayerService").apply {
@@ -73,6 +94,14 @@ class VideoPlayerService : Service() {
                 override fun onSeekTo(pos: Long) {
                     EnhancedPlayerManager.getInstance().seekTo(pos)
                 }
+                
+                override fun onSkipToNext() {
+                    EnhancedPlayerManager.getInstance().playNext()
+                }
+                
+                override fun onSkipToPrevious() {
+                    EnhancedPlayerManager.getInstance().playPrevious()
+                }
             })
             
             isActive = true
@@ -82,6 +111,13 @@ class VideoPlayerService : Service() {
         serviceScope.launch {
             EnhancedPlayerManager.getInstance().playerState.collectLatest { state ->
                 isPlaying = state.isPlaying
+                
+                if (isPlaying) {
+                     acquireLocks()
+                } else {
+                     releaseLocks()
+                }
+                
                 updatePlaybackState(state.isPlaying, EnhancedPlayerManager.getInstance().getCurrentPosition())
                 
                 // Stop service if playback ended
@@ -95,6 +131,11 @@ class VideoPlayerService : Service() {
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Android 12+ requires immediate startForeground to avoid crashes
+        if (Build.VERSION.SDK_INT >= 31 && intent != null) { // Build.VERSION_CODES.S is 31
+             startForeground(NOTIFICATION_ID, createPlaceholderNotification())
+        }
+        
         intent?.let { handleIntent(it) }
         MediaButtonReceiver.handleIntent(mediaSession, intent)
         
@@ -110,6 +151,8 @@ class VideoPlayerService : Service() {
                     EnhancedPlayerManager.getInstance().play()
                 }
             }
+            ACTION_NEXT -> EnhancedPlayerManager.getInstance().playNext()
+            ACTION_PREVIOUS -> EnhancedPlayerManager.getInstance().playPrevious()
             ACTION_STOP, ACTION_CLOSE -> {
                 stopPlayback()
             }
@@ -142,6 +185,7 @@ class VideoPlayerService : Service() {
     override fun onDestroy() {
         Log.d("VideoPlayerService", "onDestroy() called")
         stopPlayback()
+        releaseLocks()
         EnhancedPlayerManager.getInstance().release()
         mediaSession.isActive = false
         mediaSession.release()
@@ -175,7 +219,9 @@ class VideoPlayerService : Service() {
             .setActions(
                 PlaybackStateCompat.ACTION_PLAY_PAUSE or
                 PlaybackStateCompat.ACTION_STOP or
-                PlaybackStateCompat.ACTION_SEEK_TO
+                PlaybackStateCompat.ACTION_SEEK_TO or
+                PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
             )
             .setState(state, position, 1f)
             .build()
@@ -248,6 +294,24 @@ class VideoPlayerService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         
+        val nextIntent = PendingIntent.getService(
+            this,
+            0,
+            Intent(this, VideoPlayerService::class.java).apply {
+                action = ACTION_NEXT
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        val prevIntent = PendingIntent.getService(
+            this,
+            0,
+            Intent(this, VideoPlayerService::class.java).apply {
+                action = ACTION_PREVIOUS
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        
         // Build notification
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(video.title)
@@ -261,19 +325,59 @@ class VideoPlayerService : Service() {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
+             // Add Previous Action
+            .addAction(
+                R.drawable.ic_previous,
+                "Previous",
+                prevIntent
+            )
             .addAction(
                 if (isPlaying) R.drawable.ic_pause else R.drawable.ic_play,
                 if (isPlaying) "Pause" else "Play",
                 playPauseIntent
             )
+            // Add Next Action
+            .addAction(
+                R.drawable.ic_next,
+                "Next",
+                nextIntent
+            )
             .setStyle(
                 androidx.media.app.NotificationCompat.MediaStyle()
                     .setMediaSession(mediaSession.sessionToken)
-                    .setShowActionsInCompactView(0)
+                    .setShowActionsInCompactView(0, 1, 2) // Show Prev, Play, Next
             )
             .build()
         
         startForeground(NOTIFICATION_ID, notification)
+    }
+
+    private fun createPlaceholderNotification(): Notification {
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("Flow Player")
+            .setContentText("Loading...")
+            .setSmallIcon(R.drawable.ic_play)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .build()
+    }
+    
+    private fun acquireLocks() {
+        if (wakeLock?.isHeld != true) {
+            wakeLock?.acquire(10 * 60 * 1000L /*10 minutes*/)
+        }
+        if (wifiLock?.isHeld != true) {
+            wifiLock?.acquire()
+        }
+    }
+    
+    private fun releaseLocks() {
+        if (wakeLock?.isHeld == true) {
+            wakeLock?.release()
+        }
+        if (wifiLock?.isHeld == true) {
+            wifiLock?.release()
+        }
     }
     
     private fun stopPlayback() {

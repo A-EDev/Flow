@@ -25,9 +25,12 @@ import com.flow.youtube.data.video.DownloadedVideo
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
 
+
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+
+import kotlinx.coroutines.flow.update
 
 @HiltViewModel
 class VideoPlayerViewModel @Inject constructor(
@@ -61,6 +64,29 @@ class VideoPlayerViewModel @Inject constructor(
         // Handled by Hilt
     }
     
+    init {
+        viewModelScope.launch {
+            EnhancedPlayerManager.getInstance().playerState.collect { playerState ->
+                _uiState.update { 
+                    it.copy(
+                        hasNext = playerState.hasNext,
+                        hasPrevious = playerState.hasPrevious,
+                        queueTitle = playerState.queueTitle
+                    )
+                }
+
+                // Handle external video id changes (e.g. from queue auto-advance)
+                playerState.currentVideoId?.let { videoId ->
+                    if (videoId != _uiState.value.streamInfo?.id && 
+                        videoId != _uiState.value.cachedVideo?.id &&
+                        !_uiState.value.isLoading) {
+                         loadVideoInfo(videoId)
+                    }
+                }
+            }
+        }
+    }
+    
     fun initializeViewHistory(context: Context) {
         // Handled by Hilt
     }
@@ -90,6 +116,44 @@ class VideoPlayerViewModel @Inject constructor(
         
         // Start loading streams
         loadVideoInfo(video.id, forceRefresh = true)
+    
+
+    }
+
+    fun playPlaylist(videos: List<Video>, startIndex: Int, title: String? = null) {
+        if (videos.isEmpty()) return
+        val startVideo = videos.getOrNull(startIndex) ?: videos.first()
+        
+        // Update Player Manager Queue
+        EnhancedPlayerManager.getInstance().setQueue(videos, startIndex, title)
+        
+        // Update UI state immediately
+        _uiState.update { 
+            it.copy(
+                cachedVideo = startVideo,
+                isLoading = true,
+                error = null,
+                metadataError = null,
+                streamInfo = null,
+                videoStream = null,
+                audioStream = null,
+                relatedVideos = emptyList(),
+                isSubscribed = false,
+                likeState = null,
+                queueTitle = title
+            )
+        }
+        
+        // Start loading the first video
+        loadVideoInfo(startVideo.id, forceRefresh = true)
+    }
+
+    fun playNext() {
+        EnhancedPlayerManager.getInstance().playNext()
+    }
+
+    fun playPrevious() {
+        EnhancedPlayerManager.getInstance().playPrevious()
     }
     
     /**
@@ -762,8 +826,9 @@ class VideoPlayerViewModel @Inject constructor(
     }
 }
 
+
 data class VideoPlayerUiState(
-    val cachedVideo: Video? = null, // Video metadata for immediate display while streams load
+    val cachedVideo: Video? = null,
     val streamInfo: StreamInfo? = null,
     val relatedVideos: List<Video> = emptyList(),
     val videoStream: VideoStream? = null,
@@ -789,7 +854,10 @@ data class VideoPlayerUiState(
     val streamSizes: Map<Int, Long> = emptyMap(),
     val localFilePath: String? = null,
     val metadataError: String? = null,
-    val dislikeCount: Long? = null
+    val dislikeCount: Long? = null,
+    val hasNext: Boolean = false,
+    val hasPrevious: Boolean = false,
+    val queueTitle: String? = null
 )
 
 data class SubtitleInfo(

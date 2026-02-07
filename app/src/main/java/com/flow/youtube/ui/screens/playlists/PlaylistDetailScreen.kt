@@ -49,6 +49,7 @@ import javax.inject.Inject
 fun PlaylistDetailScreen(
     onNavigateBack: () -> Unit,
     onVideoClick: (Video) -> Unit,
+    onPlayPlaylist: (List<Video>, Int) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlaylistDetailViewModel = hiltViewModel()
 ) {
@@ -130,10 +131,11 @@ fun PlaylistDetailScreen(
                     thumbnailUrl = uiState.thumbnailUrl.ifEmpty { uiState.videos.firstOrNull()?.thumbnailUrl ?: "" },
                     isPrivate = uiState.isPrivate,
                     onPlayAll = {
-                        uiState.videos.firstOrNull()?.let { onVideoClick(it) }
+                        onPlayPlaylist(uiState.videos, 0)
                     },
                     onShuffle = {
-                        uiState.videos.randomOrNull()?.let { onVideoClick(it) }
+                        val shuffled = uiState.videos.shuffled()
+                        onPlayPlaylist(shuffled, 0)
                     }
                 )
             }
@@ -153,7 +155,7 @@ fun PlaylistDetailScreen(
                     PlaylistVideoItem(
                         video = video,
                         position = index + 1,
-                        onVideoClick = { onVideoClick(video) },
+                        onVideoClick = { onPlayPlaylist(uiState.videos, index) },
                         onRemove = { viewModel.removeVideo(video.id) }
                     )
                 }
