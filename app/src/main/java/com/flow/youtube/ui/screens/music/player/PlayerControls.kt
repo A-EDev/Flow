@@ -1,20 +1,42 @@
 package com.flow.youtube.ui.screens.music.player
 
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.RepeatOne
+import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.filled.PlaylistAdd
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.flow.youtube.R
 import com.flow.youtube.player.RepeatMode
+
 
 @Composable
 fun PlayerPlaybackControls(
@@ -29,90 +51,126 @@ fun PlayerPlaybackControls(
     onRepeatToggle: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val controlColor = MaterialTheme.colorScheme.onSurface
-    val controlColorDimmed = controlColor.copy(alpha = 0.6f)
-    val playButtonBg = MaterialTheme.colorScheme.onSurface
-    val playButtonFg = MaterialTheme.colorScheme.surface
-    
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Shuffle
-        IconButton(onClick = onShuffleToggle) {
-            Icon(
-                Icons.Outlined.Shuffle,
-                contentDescription = stringResource(R.string.shuffle),
-                tint = if (shuffleEnabled) MaterialTheme.colorScheme.primary else controlColorDimmed
-            )
-        }
+        ControlButton(
+            icon =  Icons.Rounded.Shuffle,
+            contentDescription = stringResource(R.string.shuffle),
+            onClick = onShuffleToggle,
+            isActive = shuffleEnabled,
+            size = 24.dp,
+            activeColor = Color.White,
+            inactiveColor = Color.White.copy(alpha = 0.4f)
+        )
         
         // Previous
-        IconButton(
+        ControlButton(
+            icon = Icons.Rounded.SkipPrevious,
+            contentDescription = stringResource(R.string.previous),
             onClick = onPreviousClick,
-            modifier = Modifier.size(48.dp)
-        ) {
-            Icon(
-                Icons.Filled.SkipPrevious,
-                contentDescription = stringResource(R.string.previous),
-                tint = controlColor,
-                modifier = Modifier.size(36.dp)
-            )
-        }
+            size = 36.dp
+        )
 
         // Play/Pause
-        Surface(
-            shape = CircleShape,
-            color = playButtonBg,
-            modifier = Modifier.size(72.dp),
-            onClick = onPlayPauseToggle
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(72.dp)
+                .shadow(12.dp, CircleShape)
+                .clip(CircleShape)
+                .background(
+                    Brush.linearGradient(
+                        colors = listOf(
+                            Color.White,
+                            Color(0xFFE0E0E0)
+                        )
+                    )
+                )
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { onPlayPauseToggle() }
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                if (isBuffering) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(32.dp),
-                        color = playButtonFg,
-                        strokeWidth = 3.dp
-                    )
-                } else {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
-                        tint = playButtonFg,
-                        modifier = Modifier.size(40.dp)
-                    )
-                }
+            if (isBuffering) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(32.dp),
+                    color = Color.Black,
+                    strokeWidth = 3.dp
+                )
+            } else {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    contentDescription = if (isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
+                    tint = Color.Black,
+                    modifier = Modifier.size(40.dp)
+                )
             }
         }
 
         // Next
-        IconButton(
+        ControlButton(
+            icon = Icons.Rounded.SkipNext,
+            contentDescription = stringResource(R.string.next),
             onClick = onNextClick,
-            modifier = Modifier.size(48.dp)
-        ) {
-            Icon(
-                Icons.Filled.SkipNext,
-                contentDescription = stringResource(R.string.next),
-                tint = controlColor,
-                modifier = Modifier.size(36.dp)
-            )
-        }
+            size = 36.dp
+        )
 
         // Repeat
-        IconButton(onClick = onRepeatToggle) {
-            Icon(
-                when (repeatMode) {
-                    RepeatMode.ONE -> Icons.Outlined.RepeatOne
-                    else -> Icons.Outlined.Repeat
-                },
-                contentDescription = stringResource(R.string.repeat),
-                tint = if (repeatMode != RepeatMode.OFF) MaterialTheme.colorScheme.primary else controlColorDimmed
-            )
-        }
+        ControlButton(
+            icon = when (repeatMode) {
+                RepeatMode.ONE -> Icons.Rounded.RepeatOne
+                RepeatMode.ALL -> Icons.Rounded.Repeat
+                else -> Icons.Rounded.Repeat
+            },
+            contentDescription = stringResource(R.string.repeat),
+            onClick = onRepeatToggle,
+            isActive = repeatMode != RepeatMode.OFF,
+            size = 24.dp,
+            activeColor = Color.White,
+            inactiveColor = Color.White.copy(alpha = 0.4f)
+        )
     }
 }
 
+@Composable
+fun ControlButton(
+    icon: ImageVector,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 24.dp,
+    isActive: Boolean = false,
+    activeColor: Color = Color.White,
+    inactiveColor: Color = Color.White
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(targetValue = if (isPressed) 0.85f else 1f, label = "scale")
+    
+    IconButton(
+        onClick = onClick,
+        modifier = modifier
+            .size(48.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            },
+        interactionSource = interactionSource,
+        colors = IconButtonDefaults.iconButtonColors(contentColor = if (isActive) activeColor else inactiveColor)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(size)
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerProgressSlider(
     currentPosition: Long,
@@ -120,38 +178,101 @@ fun PlayerProgressSlider(
     onSeekTo: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val sliderColor = MaterialTheme.colorScheme.primary
-    val sliderInactiveColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-    val textColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isDragged by interactionSource.collectIsDraggedAsState()
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val isInteracting = isDragged || isPressed
+
+    val animatedTrackHeight by animateDpAsState(
+        targetValue = if (isInteracting) 16.dp else 12.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
+        label = "trackHeight"
+    )
     
-    Column(modifier = modifier.fillMaxWidth()) {
-        Slider(
-            value = currentPosition.toFloat(),
-            onValueChange = { onSeekTo(it.toLong()) },
-            valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
-            colors = SliderDefaults.colors(
-                thumbColor = sliderColor,
-                activeTrackColor = sliderColor,
-                inactiveTrackColor = sliderInactiveColor
-            ),
-            modifier = Modifier.fillMaxWidth()
-        )
+    val thumbAlpha by animateFloatAsState(
+        targetValue = if (isInteracting) 1f else 0f,
+        label = "thumbAlpha"
+    )
+
+    Column(
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Slider(
+                value = currentPosition.toFloat(),
+                onValueChange = { onSeekTo(it.toLong()) },
+                valueRange = 0f..duration.toFloat().coerceAtPositive(1f),
+                interactionSource = interactionSource,
+                colors = SliderDefaults.colors(
+                    thumbColor = Color.Transparent,
+                    activeTrackColor = Color.Transparent,
+                    inactiveTrackColor = Color.Transparent
+                ),
+                thumb = {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .graphicsLayer { alpha = thumbAlpha }
+                            .shadow(8.dp, CircleShape)
+                            .background(Color.White, CircleShape)
+                    )
+                },
+                track = { sliderPositions ->
+                    val fraction = sliderPositions.activeRange.endInclusive
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(animatedTrackHeight)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.1f))
+                    ) {
+                        // Active Track
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(fraction)
+                                .fillMaxHeight()
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(
+                                            Color.White.copy(alpha = 0.6f),
+                                            Color.White
+                                        )
+                                    )
+                                )
+                        )
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(24.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(2.dp))
+
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 formatTime(currentPosition),
-                style = MaterialTheme.typography.labelMedium,
-                color = textColor
+                style = MaterialTheme.typography.labelSmall,
+                color = if (isInteracting) Color.White else Color.White.copy(alpha = 0.5f),
+                fontWeight = if (isInteracting) FontWeight.Bold else FontWeight.Medium
             )
             Text(
                 formatTime(duration),
-                style = MaterialTheme.typography.labelMedium,
-                color = textColor
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.White.copy(alpha = 0.5f),
+                fontWeight = FontWeight.Medium
             )
         }
     }
+}
+
+private fun Float.coerceAtPositive(minimumValue: Float): Float {
+    return if (this < minimumValue) minimumValue else this
 }
 
 @Composable
@@ -163,24 +284,57 @@ fun PlayerActionButtons(
     modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        PillButton(
+        MinimalActionButton(
             icon = Icons.Outlined.Share,
             text = stringResource(R.string.share),
             onClick = onShare
         )
         
-        PillButton(
-            icon = if (isDownloaded) Icons.Filled.CheckCircle else Icons.Outlined.DownloadForOffline,
+        MinimalActionButton(
+            icon = if (isDownloaded) Icons.Rounded.CheckCircle else Icons.Outlined.Download,
             text = if (isDownloaded) stringResource(R.string.downloaded) else stringResource(R.string.download),
-            onClick = onDownload
+            onClick = onDownload,
+            isActive = isDownloaded
         )
-        PillButton(
-            icon = Icons.Outlined.PlaylistAdd,
+        
+        MinimalActionButton(
+            icon = Icons.Filled.PlaylistAdd, 
             text = stringResource(R.string.save),
             onClick = onAddToPlaylist
+        )
+    }
+}
+
+@Composable
+fun MinimalActionButton(
+    icon: ImageVector,
+    text: String,
+    onClick: () -> Unit,
+    isActive: Boolean = false
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(onClick = onClick)
+            .padding(8.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = text,
+            tint = if (isActive) Color.Green else Color.White.copy(alpha = 0.8f),
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = text.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (isActive) Color.Green else Color.White.copy(alpha = 0.6f),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium
         )
     }
 }

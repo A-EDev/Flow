@@ -78,6 +78,7 @@ fun PillButton(
     text: String,
     onClick: () -> Unit
 ) {
+    // Deprecated: Used MinimalActionButton in PlayerControls instead (Maybe i will reuse later)
     val buttonBgColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
     val contentColor = MaterialTheme.colorScheme.onSurface
     

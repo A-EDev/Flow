@@ -12,64 +12,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.flow.youtube.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerTopBar(
-    isVideoMode: Boolean,
-    onModeChange: (Boolean) -> Unit,
     onBackClick: () -> Unit,
     onMoreOptionsClick: () -> Unit
 ) {
     CenterAlignedTopAppBar(
         title = {
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = Color.White.copy(alpha = 0.1f),
-                modifier = Modifier.height(36.dp)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = if (!isVideoMode) Color.White.copy(alpha = 0.2f) else Color.Transparent,
-                        onClick = { onModeChange(false) },
-                        modifier = Modifier.height(28.dp)
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.song),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = Color.White
-                            )
-                        }
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(20.dp),
-                        color = if (isVideoMode) Color.White.copy(alpha = 0.2f) else Color.Transparent,
-                        onClick = { onModeChange(true) },
-                        modifier = Modifier.height(28.dp)
-                    ) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        ) {
-                            Text(
-                                stringResource(R.string.video),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = Color.White
-                            )
-                        }
-                    }
-                }
-            }
+            Text(
+                text = "NOW PLAYING",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp,
+                color = Color.White.copy(alpha = 0.7f)
+            )
         },
         navigationIcon = {
             IconButton(onClick = onBackClick) {

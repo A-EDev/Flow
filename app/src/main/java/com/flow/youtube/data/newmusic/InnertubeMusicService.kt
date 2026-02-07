@@ -243,12 +243,16 @@ object InnertubeMusicService {
             var albumsParams: String? = null
             var singlesBrowseId: String? = null
             var singlesParams: String? = null
+            var topTracksBrowseId: String? = null
+            var topTracksParams: String? = null
             
             page.sections.forEach { section ->
                 val title = section.title.lowercase()
                 when {
                     title.contains("songs") || title.contains("popular") -> {
                         topTracks = section.items.filterIsInstance<SongItem>().mapNotNull { convertToMusicTrack(it) }
+                        topTracksBrowseId = section.moreEndpoint?.browseId
+                        topTracksParams = section.moreEndpoint?.params
                     }
                     title.contains("albums") -> {
                         albums = section.items.filterIsInstance<com.flow.youtube.innertube.models.AlbumItem>().map { convertAlbumToPlaylist(it) }
@@ -290,7 +294,9 @@ object InnertubeMusicService {
                 albumsBrowseId = albumsBrowseId,
                 albumsParams = albumsParams,
                 singlesBrowseId = singlesBrowseId,
-                singlesParams = singlesParams
+                singlesParams = singlesParams,
+                topTracksBrowseId = topTracksBrowseId,
+                topTracksParams = topTracksParams
             )
         } catch (e: Exception) {
             e.printStackTrace()

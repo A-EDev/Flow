@@ -72,7 +72,7 @@ fun MusicTrackRow(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.PlayArrow, // Or a wave animation icon if available
+                        imageVector = Icons.Default.PlayArrow, 
                         contentDescription = "Playing",
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
@@ -105,8 +105,9 @@ fun MusicTrackRow(
                     Spacer(modifier = Modifier.width(4.dp))
                 }
                 
+                val durationText = if (track.duration > 0) " • ${formatDuration(track.duration)}" else ""
                 Text(
-                    text = "${track.artist} • ${formatDuration(track.duration)}",
+                    text = "${track.artist}$durationText",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -123,7 +124,7 @@ fun MusicTrackRow(
                      Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = "Downloaded",
-                        tint = MaterialTheme.colorScheme.primary, // Or secondary
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp).padding(end = 12.dp)
                     )
                 }

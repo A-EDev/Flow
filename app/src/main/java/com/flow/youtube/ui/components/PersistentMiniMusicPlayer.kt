@@ -1,4 +1,4 @@
-package com.flow.youtube.ui.components
+﻿package com.flow.youtube.ui.components
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -18,7 +18,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -36,10 +35,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/**
- * Premium Spotify x YouTube Music style mini player
- * Features: glassmorphism, swipe gestures, smooth animations, dominant color extraction
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PersistentMiniMusicPlayer(
@@ -55,16 +50,14 @@ fun PersistentMiniMusicPlayer(
     var offsetX by remember { mutableFloatStateOf(0f) }
     var isDismissing by remember { mutableStateOf(false) }
 
-    // Smooth progress animation
     val animatedProgress by animateFloatAsState(
         targetValue = if (playerState.duration > 0) {
             (currentPosition.toFloat() / playerState.duration.toFloat()).coerceIn(0f, 1f)
         } else 0f,
-        animationSpec = tween(100, easing = LinearEasing),
+        animationSpec = tween(150, easing = LinearEasing),
         label = "progress"
     )
 
-    // Update progress
     LaunchedEffect(playerState.isPlaying) {
         if (playerState.isPlaying) {
             while (playerState.isPlaying) {
@@ -74,7 +67,6 @@ fun PersistentMiniMusicPlayer(
         }
     }
 
-    // Play/pause button scale animation
     var playPauseScale by remember { mutableFloatStateOf(1f) }
     val animatedScale by animateFloatAsState(
         targetValue = playPauseScale,
@@ -82,28 +74,38 @@ fun PersistentMiniMusicPlayer(
         label = "scale"
     )
 
+    // Dismiss offset animation
+    val dismissAlpha by animateFloatAsState(
+        targetValue = if (kotlin.math.abs(offsetX) > 80) {
+            1f - (kotlin.math.abs(offsetX) - 80f) / 200f
+        } else 1f,
+        animationSpec = tween(50),
+        label = "dismiss_alpha"
+    )
+
     AnimatedVisibility(
         visible = currentTrack != null && !isDismissing,
         enter = slideInVertically(
             initialOffsetY = { it },
-            animationSpec = spring(dampingRatio = 0.8f, stiffness = 300f)
-        ) + fadeIn(animationSpec = tween(300)),
+            animationSpec = spring(dampingRatio = 0.85f, stiffness = 280f)
+        ) + fadeIn(animationSpec = tween(250)),
         exit = slideOutVertically(
             targetOffsetY = { it },
-            animationSpec = tween(250, easing = FastOutSlowInEasing)
-        ) + fadeOut(animationSpec = tween(200)),
+            animationSpec = tween(200, easing = FastOutSlowInEasing)
+        ) + fadeOut(animationSpec = tween(150)),
         modifier = modifier
     ) {
         currentTrack?.let { track ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
                     .offset { IntOffset(offsetX.roundToInt(), 0) }
+                    .graphicsLayer { alpha = dismissAlpha.coerceIn(0f, 1f) }
                     .pointerInput(Unit) {
                         detectHorizontalDragGestures(
                             onDragEnd = {
-                                if (kotlin.math.abs(offsetX) > 150) {
+                                if (kotlin.math.abs(offsetX) > 140) {
                                     isDismissing = true
                                     onDismiss()
                                 }
@@ -115,19 +117,13 @@ fun PersistentMiniMusicPlayer(
                         )
                     }
             ) {
-                // Main container with glassmorphism effect
+                // Container 
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(72.dp)
-                        .shadow(
-                            elevation = 24.dp,
-                            shape = RoundedCornerShape(16.dp),
-                            ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
-                        )
+                        .height(64.dp)
                         .clickable(onClick = onExpandClick),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(14.dp),
                     color = Color.Transparent
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
@@ -137,122 +133,115 @@ fun PersistentMiniMusicPlayer(
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .blur(40.dp),
+                                .blur(50.dp),
                             contentScale = ContentScale.Crop,
-                            alpha = 0.6f
+                            alpha = 0.55f
                         )
-                        
-                        // Dark overlay for readability
+
+                        // Glass overlay
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(
                                     Brush.horizontalGradient(
                                         colors = listOf(
-                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.85f),
-                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
-                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)
+                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
+                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
                                         )
                                     )
                                 )
                         )
 
-                        // Progress bar at bottom with glow
+                        // Progress 
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(3.dp)
+                                .height(2.5.dp)
                                 .align(Alignment.BottomCenter)
                         ) {
-                            // Track background
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .background(
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
                                     )
                             )
-                            // Progress with glow effect
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth(animatedProgress)
                                     .fillMaxHeight()
-                                    .background(
-                                        Brush.horizontalGradient(
-                                            colors = listOf(
-                                                MaterialTheme.colorScheme.primary,
-                                                MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                                            )
-                                        )
-                                    )
+                                    .background(MaterialTheme.colorScheme.primary)
                             )
                         }
 
-                        // Content
+                        // Content row
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 11.dp),
+                                .padding(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 8.5.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            // Album art + track info
+                            // Album art + info
                             Row(
                                 modifier = Modifier.weight(1f),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Premium album art with subtle animation
-                                Box {
-                                    Surface(
-                                        modifier = Modifier.size(52.dp),
-                                        shape = RoundedCornerShape(10.dp),
-                                        shadowElevation = 8.dp,
-                                        tonalElevation = 0.dp
-                                    ) {
+                                // Album art
+                                Surface(
+                                    modifier = Modifier.size(48.dp),
+                                    shape = RoundedCornerShape(10.dp),
+                                    tonalElevation = 0.dp,
+                                    color = Color.Transparent
+                                ) {
+                                    Box {
                                         AsyncImage(
                                             model = track.thumbnailUrl,
                                             contentDescription = "Album art",
-                                            modifier = Modifier.fillMaxSize(),
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .clip(RoundedCornerShape(10.dp)),
                                             contentScale = ContentScale.Crop
                                         )
-                                    }
-                                    
-                                    // Playing visualization overlay
-                                    if (playerState.isPlaying) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(52.dp)
-                                                .clip(RoundedCornerShape(10.dp))
-                                                .background(Color.Black.copy(alpha = 0.3f)),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            WaveformAnimation()
+
+                                        // Subtle playing indicator
+                                        if (playerState.isPlaying) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(48.dp)
+                                                    .clip(RoundedCornerShape(10.dp))
+                                                    .background(Color.Black.copy(alpha = 0.25f)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                MiniWaveform()
+                                            }
                                         }
                                     }
                                 }
 
-                                // Track info with marquee effect for long titles
+                                // Track info
                                 Column(
                                     modifier = Modifier.weight(1f),
                                     verticalArrangement = Arrangement.Center
                                 ) {
                                     Text(
                                         text = track.title,
-                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                        style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = FontWeight.SemiBold,
-                                            fontSize = 15.sp,
+                                            fontSize = 14.sp,
                                             letterSpacing = (-0.2).sp
                                         ),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Spacer(modifier = Modifier.height(1.dp))
                                     Text(
                                         text = track.artist,
                                         style = MaterialTheme.typography.bodySmall.copy(
-                                            fontSize = 13.sp
+                                            fontSize = 12.sp
                                         ),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
@@ -261,18 +250,17 @@ fun PersistentMiniMusicPlayer(
                                 }
                             }
 
-                            // Playback controls - minimal and elegant
+                            // Controls
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(0.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                
-                                // Play/Pause - main action
+                                // Play/Pause
                                 Box(
                                     modifier = Modifier
-                                        .size(48.dp)
+                                        .size(42.dp)
                                         .scale(animatedScale)
-                                        .clip(CircleShape)
+                                        .clip(RoundedCornerShape(12.dp))
                                         .background(MaterialTheme.colorScheme.primary)
                                         .clickable {
                                             playPauseScale = 0.85f
@@ -286,8 +274,8 @@ fun PersistentMiniMusicPlayer(
                                 ) {
                                     if (playerState.isBuffering) {
                                         CircularProgressIndicator(
-                                            modifier = Modifier.size(24.dp),
-                                            strokeWidth = 2.5.dp,
+                                            modifier = Modifier.size(20.dp),
+                                            strokeWidth = 2.dp,
                                             color = MaterialTheme.colorScheme.onPrimary
                                         )
                                     } else {
@@ -297,21 +285,21 @@ fun PersistentMiniMusicPlayer(
                                             else
                                                 Icons.Filled.PlayArrow,
                                             contentDescription = if (playerState.isPlaying) "Pause" else "Play",
-                                            modifier = Modifier.size(28.dp),
+                                            modifier = Modifier.size(24.dp),
                                             tint = MaterialTheme.colorScheme.onPrimary
                                         )
                                     }
                                 }
 
-                                // Next button
+                                // Next
                                 IconButton(
                                     onClick = { EnhancedMusicPlayerManager.playNext() },
-                                    modifier = Modifier.size(40.dp)
+                                    modifier = Modifier.size(38.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.SkipNext,
                                         contentDescription = "Next",
-                                        modifier = Modifier.size(24.dp),
+                                        modifier = Modifier.size(22.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -325,95 +313,46 @@ fun PersistentMiniMusicPlayer(
 }
 
 /**
- * Animated waveform visualization for playing state
+ * Minimal waveform bars for mini player
  */
 @Composable
-private fun WaveformAnimation() {
+private fun MiniWaveform() {
     val infiniteTransition = rememberInfiniteTransition(label = "waveform")
-    
+
     Row(
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(1.5.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        repeat(4) { index ->
-            val delay = index * 100
+        repeat(3) { index ->
+            val delayMs = index * 120
             val height by infiniteTransition.animateFloat(
-                initialValue = 8f,
-                targetValue = 20f,
+                initialValue = 6f,
+                targetValue = 16f,
                 animationSpec = infiniteRepeatable(
-                    animation = tween(400, delayMillis = delay, easing = FastOutSlowInEasing),
+                    animation = tween(350, delayMillis = delayMs, easing = FastOutSlowInEasing),
                     repeatMode = RepeatMode.Reverse
                 ),
                 label = "bar$index"
             )
-            
+
             Box(
                 modifier = Modifier
-                    .width(3.dp)
+                    .width(2.5.dp)
                     .height(height.dp)
-                    .clip(RoundedCornerShape(1.5.dp))
-                    .background(Color.White)
+                    .clip(RoundedCornerShape(1.25.dp))
+                    .background(Color.White.copy(alpha = 0.9f))
             )
         }
     }
 }
 
 /**
- * Modern playing state indicator with subtle glow effect
- */
-@Composable
-private fun PlayingIndicator() {
-    val infiniteTransition = rememberInfiniteTransition(label = "playing")
-    val scale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "scale"
-    )
-
-    val alpha by infiniteTransition.animateFloat(
-        initialValue = 0.1f,
-        targetValue = 0.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "alpha"
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .scale(scale)
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primary.copy(alpha = alpha),
-                        Color.Transparent
-                    )
-                )
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = Icons.Filled.Equalizer,
-            contentDescription = null,
-            modifier = Modifier.size(16.dp),
-            tint = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f)
-        )
-    }
-}
-
-/**
- * Premium compact mini player for use in constrained spaces
+ * Compact mini player for constrained spaces
  */
 @Composable
 fun CompactMiniMusicPlayer(
     onExpandClick: () -> Unit,
-    onDismiss: () -> Unit, // New dismiss callback
+    onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
@@ -421,47 +360,57 @@ fun CompactMiniMusicPlayer(
 
     AnimatedVisibility(
         visible = currentTrack != null,
-        enter = fadeIn(animationSpec = tween(300)) + expandVertically(),
-        exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(),
+        enter = fadeIn(animationSpec = tween(250)) + expandVertically(),
+        exit = fadeOut(animationSpec = tween(180)) + shrinkVertically(),
         modifier = modifier
     ) {
         currentTrack?.let { track ->
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
+                    .height(56.dp)
                     .padding(horizontal = 8.dp, vertical = 4.dp)
                     .clickable(onClick = onExpandClick),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 3.dp,
-                shape = RoundedCornerShape(16.dp)
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                tonalElevation = 0.dp,
+                shape = RoundedCornerShape(14.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Row(
                         modifier = Modifier.weight(1f),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Modern album art
+                        // Album art
                         Surface(
-                            modifier = Modifier.size(44.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            shadowElevation = 4.dp
+                            modifier = Modifier.size(40.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color.Transparent
                         ) {
                             Box {
                                 AsyncImage(
                                     model = track.thumbnailUrl,
                                     contentDescription = null,
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(RoundedCornerShape(8.dp))
                                 )
                                 if (playerState.isPlaying) {
-                                    PlayingIndicator()
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color.Black.copy(alpha = 0.25f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        MiniWaveform()
+                                    }
                                 }
                             }
                         }
@@ -469,8 +418,9 @@ fun CompactMiniMusicPlayer(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = track.title,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    fontWeight = FontWeight.Medium
+                                ),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -485,20 +435,20 @@ fun CompactMiniMusicPlayer(
                     }
 
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Play/Pause button
                         FilledIconButton(
                             onClick = { EnhancedMusicPlayerManager.togglePlayPause() },
-                            modifier = Modifier.size(44.dp),
+                            modifier = Modifier.size(40.dp),
+                            shape = RoundedCornerShape(10.dp),
                             colors = IconButtonDefaults.filledIconButtonColors(
                                 containerColor = MaterialTheme.colorScheme.primary
                             )
                         ) {
                             if (playerState.isBuffering) {
                                 CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(18.dp),
                                     strokeWidth = 2.dp,
                                     color = MaterialTheme.colorScheme.onPrimary
                                 )
@@ -509,21 +459,20 @@ fun CompactMiniMusicPlayer(
                                     else
                                         Icons.Filled.PlayArrow,
                                     contentDescription = if (playerState.isPlaying) "Pause" else "Play",
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(18.dp),
                                     tint = MaterialTheme.colorScheme.onPrimary
                                 )
                             }
                         }
 
-                        // Dismiss button
                         IconButton(
                             onClick = onDismiss,
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(34.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
                                 contentDescription = "Close player",
-                                modifier = Modifier.size(18.dp),
+                                modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }

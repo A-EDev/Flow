@@ -766,10 +766,65 @@ fun NavGraphBuilder.flowAppGraph(
                     },
                     onFollowClick = {
                         musicViewModel.toggleFollowArtist(details)
+                    },
+                    onSeeAllClick = { browseId, params ->
+                         val encodedParams = if (params != null) android.net.Uri.encode(params) else null
+                         navController.navigate("artistItems/$channelId/$browseId?params=$encodedParams")
                     }
                 )
             }
         }
+    }
+
+    // Artist Items Page (View All)
+    composable(
+        "artistItems/{channelId}/{browseId}?params={params}",
+        arguments = listOf(
+            navArgument("browseId") { type = NavType.StringType },
+            navArgument("params") { 
+                type = NavType.StringType
+                nullable = true
+                defaultValue = null
+            },
+             navArgument("channelId") { type = NavType.StringType }
+        )
+    ) { backStackEntry ->
+        val browseId = backStackEntry.arguments?.getString("browseId") ?: return@composable
+        val params = backStackEntry.arguments?.getString("params")
+        // channelId is available if needed contextually
+        
+        val musicViewModel: MusicViewModel = hiltViewModel()
+        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+
+        com.flow.youtube.ui.screens.music.ArtistItemsScreen(
+            browseId = browseId,
+            params = params,
+            onBackClick = { navController.popBackStack() },
+            viewModel = musicViewModel,
+            onTrackClick = { songItem ->
+                val track = com.flow.youtube.ui.screens.music.MusicTrack(
+                    videoId = songItem.id,
+                    title = songItem.title,
+                    artist = songItem.artists.joinToString(", ") { it.name },
+                    thumbnailUrl = songItem.thumbnail,
+                    duration = songItem.duration ?: 0
+                )
+                musicPlayerViewModel.loadAndPlayTrack(track, listOf(track))
+                val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                val encodedTitle = android.net.Uri.encode(track.title)
+                val encodedArtist = android.net.Uri.encode(track.artist)
+                navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
+            },
+            onAlbumClick = { albumId ->
+                 navController.navigate("musicPlaylist/$albumId")
+            },
+            onArtistClick = { id ->
+                 navController.navigate("artist/$id")
+            },
+             onPlaylistClick = { playlistId ->
+                navController.navigate("musicPlaylist/$playlistId")
+            }
+        )
     }
 
     // Music Playlist Page

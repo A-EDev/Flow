@@ -7,6 +7,8 @@ import com.flow.youtube.data.music.MusicCache
 import com.flow.youtube.data.music.YouTubeMusicService
 import com.flow.youtube.data.recommendation.MusicRecommendationAlgorithm
 import com.flow.youtube.data.recommendation.MusicSection
+import com.flow.youtube.innertube.models.BrowseEndpoint
+import com.flow.youtube.innertube.pages.ArtistItemsPage
 import com.flow.youtube.innertube.YouTube
 import com.flow.youtube.innertube.models.SongItem
 import com.flow.youtube.innertube.pages.MoodAndGenres
@@ -289,6 +291,39 @@ class MusicViewModel @Inject constructor(
         }
     }
     
+    fun loadArtistItems(browseId: String, params: String?) {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            _uiState.update { it.copy(isArtistItemsLoading = true, artistItemsPage = null) }
+            YouTube.artistItems(BrowseEndpoint(browseId, params)).onSuccess { page ->
+                _uiState.update { it.copy(artistItemsPage = page, isArtistItemsLoading = false) }
+            }.onFailure {
+                _uiState.update { it.copy(isArtistItemsLoading = false) }
+            }
+        }
+    }
+
+    fun loadMoreArtistItems() {
+        val continuation = _uiState.value.artistItemsPage?.continuation ?: return
+        if (_uiState.value.isMoreLoading) return
+        
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            _uiState.update { it.copy(isMoreLoading = true) }
+            YouTube.artistItemsContinuation(continuation).onSuccess { page ->
+                _uiState.update { 
+                    it.copy(
+                        isMoreLoading = false,
+                        artistItemsPage = it.artistItemsPage?.copy(
+                            items = it.artistItemsPage.items + page.items,
+                            continuation = page.continuation
+                        )
+                    ) 
+                }
+            }.onFailure {
+                _uiState.update { it.copy(isMoreLoading = false) }
+            }
+        }
+    }
+
     // Helper to process sections to avoid code duplication
     private suspend fun processHomeSections(sections: List<MusicSection>) {
         val quickPicks = sections.find { 
@@ -664,5 +699,7 @@ data class MusicUiState(
     val isPlaylistLoading: Boolean = false,
     val isMoreLoading: Boolean = false,
     val searchResultsArtists: List<ArtistDetails> = emptyList(),
-    val homeContinuation: String? = null
+    val homeContinuation: String? = null,
+    val artistItemsPage: com.flow.youtube.innertube.pages.ArtistItemsPage? = null,
+    val isArtistItemsLoading: Boolean = false
 )

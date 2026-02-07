@@ -1,5 +1,9 @@
 package com.flow.youtube.ui.screens.music
 
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,33 +16,35 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.ClipboardManager
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.mutableStateOf
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.flow.youtube.ui.components.MusicQuickActionsSheet
 import com.flow.youtube.ui.components.AddToPlaylistDialog
 import com.flow.youtube.data.model.Video
-import android.content.Intent
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,11 +59,19 @@ fun ArtistPage(
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberLazyListState()
-    val isScrolled by remember { derivedStateOf { scrollState.firstVisibleItemIndex > 0 || scrollState.firstVisibleItemScrollOffset > 0 } }
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    val density = LocalDensity.current
+    
+    val transparentAppBar by remember {
+        derivedStateOf {
+            scrollState.firstVisibleItemIndex == 0 && scrollState.firstVisibleItemScrollOffset < 100
+        }
+    }
     
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
+    var descriptionExpanded by remember { mutableStateOf(false) }
 
     if (showBottomSheet && selectedTrack != null) {
         MusicQuickActionsSheet(
@@ -68,7 +82,11 @@ fun ArtistPage(
                     onArtistClick(selectedTrack!!.channelId)
                 }
             },
-            onViewAlbum = { /* TODO: Implement view album */ },
+            onViewAlbum = { 
+                selectedTrack!!.albumId?.let { albumId ->
+                     onAlbumClick(MusicPlaylist(id = albumId, title = selectedTrack!!.album ?: "Album", thumbnailUrl = ""))
+                }
+            },
             onShare = { 
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
@@ -83,302 +101,351 @@ fun ArtistPage(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
-            // Fading Top Bar
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        if (isScrolled) MaterialTheme.colorScheme.background.copy(alpha = 0.95f) 
-                        else Color.Transparent
-                    )
-                    .statusBarsPadding()
-                    .height(56.dp)
-                    .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Back",
-                        tint = if (isScrolled) MaterialTheme.colorScheme.onBackground else Color.White
-                    )
-                }
-                
-                if (isScrolled) {
-                    Text(
-                        text = artistDetails.name,
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        modifier = Modifier.padding(start = 56.dp),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
+            TopAppBar(
+                title = { 
+                    if (!transparentAppBar) {
+                        Text(
+                            text = artistDetails.name,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
+                },
+                navigationIcon = {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = if (transparentAppBar) Color.White else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        val shareText = "https://music.youtube.com/channel/${artistDetails.channelId}"
+                        clipboardManager.setText(AnnotatedString(shareText))
+                        Toast.makeText(context, "Link copied", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Link,
+                            contentDescription = "Share Link",
+                            tint = if (transparentAppBar) Color.White else MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                },
+                windowInsets = WindowInsets(0, 0, 0, 0),
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = if (transparentAppBar) Color.Transparent else MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background
+                )
+            )
         }
-    ) { _ ->
-        LazyColumn(
-            state = scrollState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 120.dp) // Space for player
-        ) {
-            // Header Image & Info
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(380.dp)
-                ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(artistDetails.bannerUrl.ifEmpty { artistDetails.thumbnailUrl })
-                            .crossfade(true)
-                            .build(),
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                    
-                    // Gradient Overlay
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Black.copy(alpha = 0.3f),
-                                        Color.Transparent,
-                                        MaterialTheme.colorScheme.background.copy(alpha = 0.6f),
-                                        MaterialTheme.colorScheme.background
-                                    ),
-                                    startY = 0f
-                                )
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = scrollState,
+                contentPadding = PaddingValues(bottom = 32.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // Header Image Setup
+                item {
+                    val imageUrl = artistDetails.thumbnailUrl.ifEmpty { artistDetails.bannerUrl }
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        // Background Image
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(imageUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(400.dp)
+                                .blur(50.dp)
+                                .mediaQuery(
+                                    comparator = androidx.compose.ui.layout.ContentScale.Crop
+                                ),
+                            contentScale = ContentScale.Crop,
+                            alpha = 0.6f
+                        )
+                        
+                        // Main Hero Image
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(1f)
+                        ) {
+                             AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(imageUrl)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .fillMaxSize(),
+                                contentScale = ContentScale.Crop
                             )
-                    )
-                    
+                            
+                            // Bottom Gradient for Text
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.Transparent,
+                                                Color.Black.copy(alpha = 0.1f),
+                                                Color.Black.copy(alpha = 0.5f),
+                                                MaterialTheme.colorScheme.background
+                                            ),
+                                            startY = 0.5f
+                                        )
+                                    )
+                            )
+                        }
+                    }
+                }
+
+                // Artist Info & Controls
+                item {
                     Column(
                         modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(24.dp)
+                            .fillMaxWidth()
+                            .offset(y = (-32).dp)
+                            .padding(horizontal = 24.dp)
                     ) {
                         Text(
                             text = artistDetails.name,
-                            style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Bold),
-                            color = Color.White
+                            style = MaterialTheme.typography.displaySmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = (-1).sp
+                            ),
+                            color = MaterialTheme.colorScheme.onBackground
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        if (artistDetails.subscriberCount > 0) {
-                            Text(
-                                text = "${formatViews(artistDetails.subscriberCount)} Monthly Listeners",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = Color.White.copy(alpha = 0.7f)
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
                         
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // Controls Row
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            // Subscribe Button
                             Button(
                                 onClick = onFollowClick,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (artistDetails.isSubscribed) 
-                                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                        MaterialTheme.colorScheme.surfaceVariant
                                     else 
-                                        Color.White.copy(alpha = 0.1f),
-                                    contentColor = Color.White
+                                        MaterialTheme.colorScheme.primary,
+                                    contentColor = if (artistDetails.isSubscribed)
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    else
+                                        MaterialTheme.colorScheme.onPrimary
                                 ),
-                                shape = RoundedCornerShape(24.dp),
-                                border = if (!artistDetails.isSubscribed) null else null, // Can add border if needed
-                                modifier = Modifier.height(36.dp),
-                                contentPadding = PaddingValues(horizontal = 16.dp)
+                                contentPadding = PaddingValues(horizontal = 24.dp),
+                                shape = RoundedCornerShape(32.dp),
+                                modifier = Modifier.height(44.dp)
                             ) {
                                 Text(
                                     text = if (artistDetails.isSubscribed) "Subscribed" else "Subscribe",
-                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium)
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                                 )
-                                if (artistDetails.isSubscribed && artistDetails.subscriberCount > 0) {
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = formatViews(artistDetails.subscriberCount),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = Color.White.copy(alpha = 0.7f)
-                                    )
-                                }
                             }
                             
                             Spacer(modifier = Modifier.weight(1f))
                             
-                            // Play / Shuffle Buttons could go here or floating
-                            IconButton(
+                            // Shuffle Button
+                            FilledIconButton(
                                 onClick = { 
                                     if (artistDetails.topTracks.isNotEmpty()) {
                                         onTrackClick(artistDetails.topTracks.random(), artistDetails.topTracks.shuffled())
                                     }
                                 },
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), CircleShape)
+                                modifier = Modifier.size(48.dp),
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                )
                             ) {
-                                Icon(Icons.Default.Shuffle, contentDescription = "Shuffle", tint = Color.White)
+                                Icon(Icons.Default.Shuffle, "Shuffle")
                             }
-                            Spacer(modifier = Modifier.width(16.dp))
+
+                            // Play Button
                             FilledIconButton(
-                                onClick = { if (artistDetails.topTracks.isNotEmpty()) onTrackClick(artistDetails.topTracks.first(), artistDetails.topTracks) },
-                                modifier = Modifier.size(56.dp),
-                                colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.White)
+                                onClick = { 
+                                    if (artistDetails.topTracks.isNotEmpty()) {
+                                        onTrackClick(artistDetails.topTracks.first(), artistDetails.topTracks)
+                                    }
+                                },
+                                modifier = Modifier.size(48.dp),
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                )
                             ) {
-                                Icon(Icons.Default.PlayArrow, contentDescription = "Play", tint = Color.Black)
+                                Icon(Icons.Default.PlayArrow, "Play")
                             }
                         }
                     }
                 }
-            }
 
-            // Top Songs
-            if (artistDetails.topTracks.isNotEmpty()) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 24.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Top songs",
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                        )
-                        TextButton(onClick = { /* TODO: View All Songs */ }) {
-                            Text("Play all", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-                
-                itemsIndexed(artistDetails.topTracks.take(5)) { index, track ->
-                    MusicTrackRow(
-                        index = index + 1,
-                        track = track,
-                        onClick = { onTrackClick(track, artistDetails.topTracks) },
-                        onMenuClick = { 
-                            selectedTrack = track
-                            showBottomSheet = true
-                        }
-                    )
-                }
-            }
-
-            // Singles & EPs
-            if (artistDetails.singles.isNotEmpty()) {
-                item { 
-                    SectionHeader(
-                        title = "Singles & EPs",
-                        onSeeAllClick = { 
-                            artistDetails.singlesBrowseId?.let { id ->
-                                onSeeAllClick(id, artistDetails.singlesParams)
-                            }
-                        }
-                    )
-                }
-                item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(artistDetails.singles) { album ->
-                            AlbumCard(album = album, onClick = { onAlbumClick(album) })
-                        }
-                    }
-                }
-            }
-
-            // Albums
-            if (artistDetails.albums.isNotEmpty()) {
-                item { 
-                    SectionHeader(
-                        title = "Albums",
-                        onSeeAllClick = { 
-                            artistDetails.albumsBrowseId?.let { id ->
-                                onSeeAllClick(id, artistDetails.albumsParams)
-                            }
-                        }
-                    )
-                }
-                item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(artistDetails.albums) { album ->
-                            AlbumCard(album = album, onClick = { onAlbumClick(album) })
-                        }
-                    }
-                }
-            }
-            
-            // Videos
-            if (artistDetails.videos.isNotEmpty()) {
-                item { SectionHeader(title = "Videos") }
-                item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(artistDetails.videos) { video ->
-                            VideoCard(video = video, onClick = { onTrackClick(video, listOf(video)) })
-                        }
-                    }
-                }
-            }
-
-            // Featured On
-            if (artistDetails.featuredOn.isNotEmpty()) {
-                item { SectionHeader(title = "Featured on") }
-                item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(artistDetails.featuredOn) { playlist ->
-                            AlbumCard(album = playlist, onClick = { onAlbumClick(playlist) }, showAuthor = true)
-                        }
-                    }
-                }
-            }
-            
-            // Fans Also Like
-            if (artistDetails.relatedArtists.isNotEmpty()) {
-                item { SectionHeader(title = "Fans might also like") }
-                item {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(20.dp)
-                    ) {
-                        items(artistDetails.relatedArtists) { artist ->
-                            RelatedArtistCard(
-                                artist = artist,
-                                onClick = { onArtistClick(artist.channelId) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // About
-            if (artistDetails.description.isNotEmpty()) {
-                item { SectionHeader(title = "About") }
+                // About Artist Section
                 item {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp)
                             .padding(bottom = 24.dp)
+                            .animateContentSize()
                     ) {
-                        Text(
-                            text = artistDetails.description,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 4,
-                            overflow = TextOverflow.Ellipsis
+                         if (artistDetails.subscriberCount > 0) {
+                            Text(
+                                text = "${formatViews(artistDetails.subscriberCount)} Subscribers",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+
+                        if (artistDetails.description.isNotEmpty()) {
+                            Text(
+                                text = artistDetails.description,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = if (descriptionExpanded) Int.MAX_VALUE else 3,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.clickable { descriptionExpanded = !descriptionExpanded }
+                            )
+                        }
+                    }
+                }
+
+                // Top Songs
+                if (artistDetails.topTracks.isNotEmpty()) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Popular",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                            )
+                            if (artistDetails.topTracks.size > 5 || artistDetails.topTracksBrowseId != null) {
+                                TextButton(onClick = { 
+                                    artistDetails.topTracksBrowseId?.let { onSeeAllClick(it, artistDetails.topTracksParams) }
+                                }) {
+                                    Text("View all")
+                                }
+                            }
+                        }
+                    }
+                    
+                    itemsIndexed(artistDetails.topTracks.take(5)) { index, track ->
+                        MusicTrackRow(
+                            index = index + 1,
+                            track = track,
+                            onClick = { onTrackClick(track, artistDetails.topTracks) },
+                            onMenuClick = { 
+                                selectedTrack = track
+                                showBottomSheet = true
+                            }
                         )
+                    }
+                }
+                
+                // Singles & EPs
+                if (artistDetails.singles.isNotEmpty()) {
+                    item { 
+                        SectionHeader(
+                            title = "Singles",
+                            onSeeAllClick = { artistDetails.singlesBrowseId?.let { onSeeAllClick(it, artistDetails.singlesParams) } }
+                        )
+                    }
+                    item {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 24.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(artistDetails.singles) { album ->
+                                AlbumCard(album = album, onClick = { onAlbumClick(album) })
+                            }
+                        }
+                    }
+                }
+
+                // Albums
+                if (artistDetails.albums.isNotEmpty()) {
+                    item { 
+                        SectionHeader(
+                            title = "Albums",
+                            onSeeAllClick = { artistDetails.albumsBrowseId?.let { onSeeAllClick(it, artistDetails.albumsParams) } }
+                        )
+                    }
+                    item {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 24.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(artistDetails.albums) { album ->
+                                AlbumCard(album = album, onClick = { onAlbumClick(album) })
+                            }
+                        }
+                    }
+                }
+                
+                // Videos
+                if (artistDetails.videos.isNotEmpty()) {
+                    item { SectionHeader(title = "Videos") }
+                    item {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 24.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(artistDetails.videos) { video ->
+                                VideoCard(video = video, onClick = { onTrackClick(video, listOf(video)) })
+                            }
+                        }
+                    }
+                }
+
+                // Featured On
+                if (artistDetails.featuredOn.isNotEmpty()) {
+                    item { SectionHeader(title = "Featured on") }
+                    item {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 24.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(artistDetails.featuredOn) { playlist ->
+                                AlbumCard(album = playlist, onClick = { onAlbumClick(playlist) }, showAuthor = true)
+                            }
+                        }
+                    }
+                }
+                
+                // Related Artists
+                if (artistDetails.relatedArtists.isNotEmpty()) {
+                    item { SectionHeader(title = "Fans also like") }
+                    item {
+                        LazyRow(
+                            contentPadding = PaddingValues(horizontal = 24.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(artistDetails.relatedArtists) { artist ->
+                                RelatedArtistCard(
+                                    artist = artist,
+                                    onClick = { onArtistClick(artist.channelId) }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -386,12 +453,14 @@ fun ArtistPage(
     }
 }
 
+private fun Modifier.mediaQuery(comparator: androidx.compose.ui.layout.ContentScale): Modifier = this
+
 @Composable
 fun SectionHeader(title: String, onSeeAllClick: (() -> Unit)? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 24.dp, end = 12.dp, top = 32.dp, bottom = 16.dp),
+            .padding(start = 24.dp, end = 12.dp, top = 24.dp, bottom = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -400,8 +469,14 @@ fun SectionHeader(title: String, onSeeAllClick: (() -> Unit)? = null) {
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
         )
         if (onSeeAllClick != null) {
-            TextButton(onClick = onSeeAllClick) {
-                Text("See all", color = MaterialTheme.colorScheme.primary)
+            TextButton(
+                onClick = onSeeAllClick,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+            ) {
+                Text(
+                    "View all",
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
         }
     }
@@ -426,12 +501,12 @@ fun AlbumCard(album: MusicPlaylist, onClick: () -> Unit, showAuthor: Boolean = f
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = album.title,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
         Text(
-            text = if (showAuthor) "Playlist • ${album.author}" else "${album.author} • ${if (album.trackCount > 0) "${album.trackCount} tracks" else ""}".trimEnd(' ', '•', ' '),
+            text = if (showAuthor) "Playlist • ${album.author}" else if (album.trackCount > 0) "${album.trackCount} tracks" else "Album",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -453,7 +528,7 @@ fun VideoCard(video: MusicTrack, onClick: () -> Unit) {
                 contentDescription = null,
                 modifier = Modifier
                     .width(220.dp)
-                    .height(124.dp)
+                    .aspectRatio(16f/9f)
                     .clip(RoundedCornerShape(12.dp)),
                 contentScale = ContentScale.Crop
             )
@@ -462,7 +537,7 @@ fun VideoCard(video: MusicTrack, onClick: () -> Unit) {
         Text(
             text = video.title,
             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
         
@@ -480,33 +555,25 @@ fun RelatedArtistCard(artist: ArtistDetails, onClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier
-            .width(120.dp)
+            .width(100.dp)
             .clickable(onClick = onClick)
     ) {
         AsyncImage(
             model = artist.thumbnailUrl,
             contentDescription = null,
             modifier = Modifier
-                .size(120.dp)
+                .size(100.dp)
                 .clip(CircleShape),
             contentScale = ContentScale.Crop
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = artist.name,
-            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
-        if (artist.subscriberCount > 0) {
-            Text(
-                text = "${formatViews(artist.subscriberCount)} fans",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-        }
     }
 }
 

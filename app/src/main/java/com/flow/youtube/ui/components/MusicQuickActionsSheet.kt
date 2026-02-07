@@ -87,7 +87,7 @@ fun MusicQuickActionsSheet(
 
     if (showArtistSelection) {
         ArtistSelectionDialog(
-            artists = track.artists,
+            artists = track.artists ?: emptyList(),
             onArtistSelected = { channelId ->
                 onViewArtist(channelId)
             },
@@ -194,17 +194,17 @@ fun MusicQuickActionsSheet(
                 FlowMenuSectionHeader("More")
                 FlowMenuGroup(
                     items = listOfNotNull(
-                        if (track.channelId.isNotEmpty() || track.artists.isNotEmpty()) {
+                        if ((track.channelId?.isNotEmpty() == true) || (track.artists?.isNotEmpty() == true)) {
                             FlowMenuItemData(
                                 icon = { Icon(Icons.Outlined.Person, null) },
                                 title = { Text("View Artist") },
-                                description = { Text(track.artist) },
+                                description = { Text(track.artist ?: "") },
                                 onClick = {
-                                    if (track.artists.size > 1) {
+                                    if ((track.artists?.size ?: 0) > 1) {
                                         showArtistSelection = true
                                     } else {
-                        val artistId = track.artists.firstOrNull()?.id ?: track.channelId
-                                        if (artistId.isNotEmpty()) {
+                                        val artistId = track.artists?.firstOrNull()?.id ?: track.channelId
+                                        if (artistId?.isNotEmpty() == true) {
                                             onViewArtist(artistId)
                                             onDismiss()
                                         }

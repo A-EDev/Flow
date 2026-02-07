@@ -61,5 +61,7 @@ data class ArtistDetails(
     val albumsBrowseId: String? = null,
     val albumsParams: String? = null,
     val singlesBrowseId: String? = null,
-    val singlesParams: String? = null
+    val singlesParams: String? = null,
+    val topTracksBrowseId: String? = null,
+    val topTracksParams: String? = null
 )

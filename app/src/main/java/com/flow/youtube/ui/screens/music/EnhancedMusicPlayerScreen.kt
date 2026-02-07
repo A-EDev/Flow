@@ -40,7 +40,12 @@ import kotlin.math.roundToInt
 import com.flow.youtube.R
 import com.flow.youtube.player.EnhancedMusicPlayerManager
 import com.flow.youtube.ui.screens.music.player.*
-import com.flow.youtube.ui.components.MusicQuickActionsSheet
+import com.flow.youtube.ui.components.MusicQuickActionsSheet 
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.PlaylistAdd
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.foundation.clickable
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,7 +60,7 @@ fun EnhancedMusicPlayerScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
-    var isVideoMode by remember { mutableStateOf(false) }
+    val isVideoMode = false 
     var showMoreOptions by remember { mutableStateOf(false) }
     var showAudioSettings by remember { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }
@@ -67,10 +72,6 @@ fun EnhancedMusicPlayerScreen(
     // Drag State - initialized lazily inside BoxWithConstraints
     val density = LocalDensity.current
     val peekHeight = with(density) { 60.dp.toPx() }
-    
-    LaunchedEffect(isVideoMode) {
-        viewModel.switchMode(isVideoMode)
-    }
     
     if (uiState.showCreatePlaylistDialog) {
         CreatePlaylistDialog(
@@ -197,8 +198,8 @@ fun EnhancedMusicPlayerScreen(
             contentDescription = null,
             modifier = Modifier
                 .fillMaxSize()
-                .blur(80.dp),
-            alpha = 0.4f,
+                .blur(100.dp),
+            alpha = 0.6f,
             contentScale = ContentScale.Crop
         )
         
@@ -208,9 +209,9 @@ fun EnhancedMusicPlayerScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.background.copy(alpha = 0.5f),
-                            MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
-                            MaterialTheme.colorScheme.background
+                            Color.Black.copy(alpha = 0.3f),
+                            Color.Black.copy(alpha = 0.6f),
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.95f)
                         )
                     )
                 )
@@ -219,7 +220,7 @@ fun EnhancedMusicPlayerScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .navigationBarsPadding() // Restored to prevent controls from being hidden
+                .navigationBarsPadding()
         ) {
              // Top bar
             Box(
@@ -227,8 +228,6 @@ fun EnhancedMusicPlayerScreen(
                     .graphicsLayer { alpha = mainContentAlpha }
             ) {
                 PlayerTopBar(
-                    isVideoMode = isVideoMode,
-                    onModeChange = { isVideoMode = it },
                     onBackClick = onBackClick,
                     onMoreOptionsClick = { showMoreOptions = true }
                 )
@@ -310,7 +309,7 @@ fun EnhancedMusicPlayerScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = uiState.currentTrack?.title ?: track.title,
-                                style = MaterialTheme.typography.headlineSmall,
+                                style = MaterialTheme.typography.headlineMedium,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 1,
@@ -321,7 +320,12 @@ fun EnhancedMusicPlayerScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 color = Color.White.copy(alpha = 0.7f),
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier
+                                    .clickable {
+                                        uiState.currentTrack?.channelId?.takeIf { it.isNotEmpty() }?.let { onArtistClick(it) }
+                                    }
+                                    
                             )
                         }
                         
@@ -332,13 +336,37 @@ fun EnhancedMusicPlayerScreen(
                             Icon(
                                 imageVector = if (uiState.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                 contentDescription = stringResource(R.string.like),
-                                tint = if (uiState.isLiked) MaterialTheme.colorScheme.primary else Color.White,
+                                tint = if (uiState.isLiked) Color.Red else Color.White,
                                 modifier = Modifier.size(28.dp)
                             )
                         }
                     }
         
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Seekbar
+                    PlayerProgressSlider(
+                        currentPosition = uiState.currentPosition,
+                        duration = uiState.duration,
+                        onSeekTo = { viewModel.seekTo(it) }
+                    )
+                
+                    Spacer(modifier = Modifier.height(16.dp)) 
+
+                    // Playback Controls
+                    PlayerPlaybackControls(
+                        isPlaying = uiState.isPlaying,
+                        isBuffering = uiState.isBuffering,
+                        shuffleEnabled = uiState.shuffleEnabled,
+                        repeatMode = uiState.repeatMode,
+                        onShuffleToggle = { viewModel.toggleShuffle() },
+                        onPreviousClick = { viewModel.skipToPrevious() },
+                        onPlayPauseToggle = { viewModel.togglePlayPause() },
+                        onNextClick = { viewModel.skipToNext() },
+                        onRepeatToggle = { viewModel.toggleRepeat() }
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     // Action Buttons
                     PlayerActionButtons(
@@ -357,30 +385,6 @@ fun EnhancedMusicPlayerScreen(
                             if (!isDownloaded) viewModel.downloadTrack()
                         },
                         onAddToPlaylist = { viewModel.showAddToPlaylistDialog(true) }
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp)) 
-
-                    // Seekbar
-                    PlayerProgressSlider(
-                        currentPosition = uiState.currentPosition,
-                        duration = uiState.duration,
-                        onSeekTo = { viewModel.seekTo(it) }
-                    )
-                
-                    Spacer(modifier = Modifier.height(4.dp)) 
-
-                    // Playback Controls
-                    PlayerPlaybackControls(
-                        isPlaying = uiState.isPlaying,
-                        isBuffering = uiState.isBuffering,
-                        shuffleEnabled = uiState.shuffleEnabled,
-                        repeatMode = uiState.repeatMode,
-                        onShuffleToggle = { viewModel.toggleShuffle() },
-                        onPreviousClick = { viewModel.skipToPrevious() },
-                        onPlayPauseToggle = { viewModel.togglePlayPause() },
-                        onNextClick = { viewModel.skipToNext() },
-                        onRepeatToggle = { viewModel.toggleRepeat() }
                     )
                      
                     Spacer(modifier = Modifier.height(16.dp)) 
@@ -473,13 +477,12 @@ fun EnhancedMusicPlayerScreen(
             modifier = Modifier
                 .offset { IntOffset(0, sheetOffset.roundToInt()) }
                 .fillMaxWidth()
-                .height(with(density) { (maxHeight - expandedY).toDp() }) // CORRECTION: Convert pixel diff to DP
-                .shadow(elevation = 16.dp) // Visual separation
+                .height(with(density) { (maxHeight - expandedY).toDp() })
+                .shadow(elevation = 16.dp)  
                 .draggable(
                     orientation = Orientation.Vertical,
                     state = draggableState,
                     onDragStopped = { velocity ->
-                        // Fling logic
                         val target = if (velocity < -1000f || (velocity < 0f && dragOffsetY < (collapsedY + expandedY) * 0.6)) {
                             expandedY
                         } else if (velocity > 1000f) {
