@@ -46,13 +46,13 @@ jobs:
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
+          name: flow-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
+          name: flow-apk
           path: app/build/outputs/apk/release/app-release.apk
 
   release:
@@ -89,6 +89,9 @@ jobs:
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
+      - name: Prepare Release APK
+        run: cp app/build/outputs/apk/release/app-release.apk flow.apk
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -112,7 +115,7 @@ jobs:
 
           generate_release_notes: true
           files: |
-            app/build/outputs/apk/release/app-release.apk
+            flow.apk
           draft: false
           prerelease: false
         env:
