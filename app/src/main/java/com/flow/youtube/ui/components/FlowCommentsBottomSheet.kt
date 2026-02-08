@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.text.HtmlCompat
 import android.text.style.URLSpan
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import coil.compose.AsyncImage
 import com.flow.youtube.data.model.Comment
 import com.flow.youtube.utils.formatLikeCount
@@ -71,7 +73,7 @@ fun FlowCommentsBottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Comments",
+                        text = stringResource(R.string.comments),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -83,7 +85,7 @@ fun FlowCommentsBottomSheet(
                     )
                     Spacer(modifier = Modifier.weight(1f))
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                     }
                 }
 
@@ -95,12 +97,12 @@ fun FlowCommentsBottomSheet(
                     FilterChip(
                         selected = isTopSelected,
                         onClick = { onFilterChanged(true) },
-                        label = { Text("Top") }
+                        label = { Text(stringResource(R.string.filter_top)) }
                     )
                     FilterChip(
                         selected = !isTopSelected,
                         onClick = { onFilterChanged(false) },
-                        label = { Text("Newest") }
+                        label = { Text(stringResource(R.string.filter_newest)) }
                     )
                 }
             }
@@ -115,7 +117,7 @@ fun FlowCommentsBottomSheet(
                 }
             } else if (comments.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No comments yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.no_comments_yet), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             } else {
                 LazyColumn(
@@ -236,7 +238,7 @@ fun FlowCommentItem(
 
             if (isOverflowing && !isExpanded) {
                 Text(
-                    text = "Read more",
+                    text = stringResource(R.string.read_more),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
@@ -253,7 +255,7 @@ fun FlowCommentItem(
                 // Like
                 Icon(
                     imageVector = Icons.Outlined.ThumbUp,
-                    contentDescription = "Like",
+                    contentDescription = stringResource(R.string.like),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(14.dp)
                 )
@@ -271,7 +273,7 @@ fun FlowCommentItem(
                 // Dislike (Visual only usually)
                 Icon(
                     imageVector = Icons.Outlined.ThumbDown,
-                    contentDescription = "Dislike",
+                    contentDescription = stringResource(R.string.dislikes),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(14.dp)
                 )
@@ -281,7 +283,7 @@ fun FlowCommentItem(
                 // Replies
                 Icon(
                     imageVector = Icons.Outlined.ChatBubbleOutline,
-                    contentDescription = "Reply",
+                    contentDescription = stringResource(R.string.reply),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(14.dp)
                 )
@@ -310,7 +312,7 @@ fun FlowCommentItem(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = if (isRepliesVisible) "Hide replies" else "View ${comment.replyCount} replies",
+                        text = if (isRepliesVisible) stringResource(R.string.hide_replies) else stringResource(R.string.view_replies_template, comment.replyCount),
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
@@ -415,7 +417,7 @@ fun FlowReplyItem(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Outlined.ThumbUp,
-                    contentDescription = "Like",
+                    contentDescription = stringResource(R.string.like),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(12.dp)
                 )

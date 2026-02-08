@@ -15,8 +15,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.flow.youtube.R
 import com.flow.youtube.data.model.Channel
 import com.flow.youtube.ui.theme.extendedColors
 import com.flow.youtube.utils.formatSubscriberCount

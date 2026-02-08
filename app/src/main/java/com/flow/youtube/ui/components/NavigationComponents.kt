@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.ui.res.stringResource
 import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,31 +56,31 @@ fun FloatingBottomNavBar(
         ) {
             BottomNavItem(
                 icon = if (selectedIndex == 0) Icons.Filled.Home else Icons.Outlined.Home,
-                label = "Home",
+                label = stringResource(R.string.nav_home),
                 selected = selectedIndex == 0,
                 onClick = { onItemSelected(0) }
             )
             BottomNavItem(
                 icon = ImageVector.vectorResource(id = R.drawable.ic_shorts),
-                label = "Shorts",
+                label = stringResource(R.string.nav_shorts),
                 selected = selectedIndex == 1,
                 onClick = { onItemSelected(1) }
             )
             BottomNavItem(
                 icon = if (selectedIndex == 2) Icons.Filled.MusicNote else Icons.Outlined.MusicNote,
-                label = "Music",
+                label = stringResource(R.string.nav_music),
                 selected = selectedIndex == 2,
                 onClick = { onItemSelected(2) }
             )
             BottomNavItem(
                 icon = if (selectedIndex == 3) Icons.Filled.Subscriptions else Icons.Outlined.Subscriptions,
-                label = "Subs",
+                label = stringResource(R.string.nav_subs),
                 selected = selectedIndex == 3,
                 onClick = { onItemSelected(3) }
             )
             BottomNavItem(
                 icon = if (selectedIndex == 4) Icons.Filled.VideoLibrary else Icons.Outlined.VideoLibrary,
-                label = "Library",
+                label = stringResource(R.string.nav_library),
                 selected = selectedIndex == 4,
                 onClick = { onItemSelected(4) }
             )
@@ -185,7 +186,7 @@ fun TopAppBarWithActions(
                 IconButton(onClick = onNotificationClick) {
                     Icon(
                         imageVector = Icons.Outlined.Notifications,
-                        contentDescription = "Notifications",
+                        contentDescription = stringResource(R.string.notifications),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -193,7 +194,7 @@ fun TopAppBarWithActions(
                 IconButton(onClick = onSearchClick) {
                     Icon(
                         imageVector = Icons.Outlined.Search,
-                        contentDescription = "Search",
+                        contentDescription = stringResource(R.string.search),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -201,7 +202,7 @@ fun TopAppBarWithActions(
                 IconButton(onClick = onSettingsClick) {
                     Icon(
                         imageVector = Icons.Outlined.Settings,
-                        contentDescription = "Settings",
+                        contentDescription = stringResource(R.string.settings),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }

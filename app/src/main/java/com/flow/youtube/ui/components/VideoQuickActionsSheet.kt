@@ -30,7 +30,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.flow.youtube.R
 import com.flow.youtube.data.model.Video
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -106,7 +108,7 @@ fun VideoQuickActionsBottomSheet(
                     actions = listOf(
                         FlowAction(
                             icon = { Icon(Icons.Outlined.PlaylistAdd, null) },
-                            text = "Save to playlist",
+                            text = stringResource(R.string.save_to_playlist),
                             onClick = { showAddToPlaylistDialog = true }
                         ),
                         FlowAction(
@@ -117,7 +119,7 @@ fun VideoQuickActionsBottomSheet(
                                     tint = if (isInWatchLater) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             },
-                            text = if (isInWatchLater) "Unsave Watch Later" else "Watch Later",
+                            text = if (isInWatchLater) stringResource(R.string.watch_later_unsave) else stringResource(R.string.watch_later),
                             onClick = {
                                 if (onWatchLater != null) {
                                     onWatchLater()
@@ -129,7 +131,7 @@ fun VideoQuickActionsBottomSheet(
                         ),
                         FlowAction(
                             icon = { Icon(Icons.Outlined.Share, null) },
-                            text = "Share",
+                            text = stringResource(R.string.share),
                             onClick = {
                                 onShare()
                                 onDismiss()
@@ -148,7 +150,7 @@ fun VideoQuickActionsBottomSheet(
                     items = listOf(
                          FlowMenuItemData(
                             icon = { Icon(Icons.Outlined.Download, null) },
-                            title = { Text("Download") },
+                            title = { Text(stringResource(R.string.download)) },
                             onClick = {
                                 if (onDownload != null) {
                                     onDownload()
@@ -160,7 +162,7 @@ fun VideoQuickActionsBottomSheet(
                         ),
                         FlowMenuItemData(
                             icon = { Icon(Icons.Outlined.ThumbDown, null) },
-                            title = { Text("Not interested") },
+                            title = { Text(stringResource(R.string.not_interested)) },
                             onClick = {
                                 viewModel.markNotInterested(video)
                                 onNotInterested()
@@ -169,7 +171,7 @@ fun VideoQuickActionsBottomSheet(
                         ),
                         FlowMenuItemData(
                             icon = { Icon(Icons.Outlined.Info, null) },
-                            title = { Text("Details & Metadata") },
+                            title = { Text(stringResource(R.string.details_metadata)) },
                             onClick = {
                                 showMediaInfo = true
                             }

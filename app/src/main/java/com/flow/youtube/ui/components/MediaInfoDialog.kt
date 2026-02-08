@@ -34,9 +34,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.flow.youtube.R
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.ui.screens.music.MusicTrack
 
@@ -84,7 +86,7 @@ fun MediaInfoDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = "Track Information",
+                    text = stringResource(R.string.track_info),
                     style = MaterialTheme.typography.headlineSmall.copy(
                         fontWeight = FontWeight.ExtraBold,
                         letterSpacing = (-0.5).sp
@@ -92,7 +94,7 @@ fun MediaInfoDialog(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Detailed technical and social metrics",
+                    text = stringResource(R.string.track_info_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -106,56 +108,76 @@ fun MediaInfoDialog(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Content
+            val info = mediaInfo
+            val currentTitle = track?.title ?: video?.title
+            val currentArtist = track?.artist ?: video?.channelName
+            val currentId = track?.videoId ?: video?.id
+
+            val titleLabel = stringResource(R.string.title_label)
+            val artistLabel = stringResource(R.string.artist_label)
+            val albumLabel = stringResource(R.string.album_label)
+            val viewsLabel = stringResource(R.string.views)
+            val likesLabel = stringResource(R.string.likes)
+            val dislikesLabel = stringResource(R.string.dislikes)
+            val subscribersLabel = stringResource(R.string.subscribers)
+            val videoIdLabel = stringResource(R.string.video_id_label)
+            val channelIdLabel = stringResource(R.string.channel_id)
+            val uploadedLabel = stringResource(R.string.uploaded)
+            val itagLabel = stringResource(R.string.itag)
+            val mimeTypeLabel = stringResource(R.string.mime_type)
+            val bitrateLabel = stringResource(R.string.bitrate_label)
+            val kbpsUnit = stringResource(R.string.kbps)
+            val sampleRateLabel = stringResource(R.string.sample_rate_label)
+            val hzUnit = stringResource(R.string.hz)
+            val fileSizeLabel = stringResource(R.string.file_size)
+            val qualityLabel = stringResource(R.string.quality)
+            val durationLabel = stringResource(R.string.duration)
+            val unknownText = stringResource(R.string.unknown)
+
             LazyColumn(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 if (track != null || video != null) {
-                    val currentTitle = track?.title ?: video?.title
-                    val currentArtist = track?.artist ?: video?.channelName
-                    val currentId = track?.videoId ?: video?.id
-                    
-                    val info = mediaInfo
-
                     val details = mutableListOf<Pair<String, String?>>()
                     
                     // Basic Info
-                    details.add("Title" to (info?.title ?: currentTitle))
-                    details.add("Artist" to (info?.author ?: currentArtist))
+                    details.add(titleLabel to (info?.title ?: currentTitle))
+                    details.add(artistLabel to (info?.author ?: currentArtist))
                     if (track?.album?.isNotEmpty() == true) {
-                        details.add("Album" to track.album)
+                        details.add(albumLabel to track.album)
                     }
                     
                     // Social
-                    if (info?.viewCount != null) details.add("Views" to info.viewCount.toString())
-                    else if (track?.views != null && track.views > 0) details.add("Views" to track.views.toString())
-                    else if (video?.viewCount != null) details.add("Views" to video.viewCount.toString())
+                    if (info?.viewCount != null) details.add(viewsLabel to info.viewCount.toString())
+                    else if (track?.views != null && track.views > 0) details.add(viewsLabel to track.views.toString())
+                    else if (video?.viewCount != null) details.add(viewsLabel to video.viewCount.toString())
 
-                    if (info?.like != null) details.add("Likes" to info.like.toString())
-                    else if (video?.likeCount != null) details.add("Likes" to video.likeCount.toString())
+                    if (info?.like != null) details.add(likesLabel to info.like.toString())
+                    else if (video?.likeCount != null) details.add(likesLabel to video.likeCount.toString())
                     
-                    if (info?.dislike != null) details.add("Dislikes" to info.dislike.toString())
+                    if (info?.dislike != null) details.add(dislikesLabel to info.dislike.toString())
                     
-                    if (info?.subscribers != null) details.add("Subscribers" to info.subscribers)
+                    if (info?.subscribers != null) details.add(subscribersLabel to info.subscribers)
 
                     // Technical Info
-                    details.add("Video ID" to currentId)
-                    if (info?.authorId != null) details.add("Channel ID" to info.authorId)
-                    else if (track?.channelId?.isNotEmpty() == true) details.add("Channel ID" to track.channelId)
+                    details.add(videoIdLabel to currentId)
+                    if (info?.authorId != null) details.add(channelIdLabel to info.authorId)
+                    else if (track?.channelId?.isNotEmpty() == true) details.add(channelIdLabel to track.channelId)
 
-                    if (info?.uploadDate != null) details.add("Uploaded" to info.uploadDate)
-                    else if (video?.uploadDate != null) details.add("Uploaded" to video.uploadDate)
+                    if (info?.uploadDate != null) details.add(uploadedLabel to info.uploadDate)
+                    else if (video?.uploadDate != null) details.add(uploadedLabel to video.uploadDate)
                     
                     // Stream Info
-                    if (info?.videoId_tag != null) details.add("iTag" to info.videoId_tag.toString())
-                    if (info?.mimeType != null) details.add("Mime Type" to info.mimeType)
-                    if (info?.bitrate != null) details.add("Bitrate" to "${info.bitrate / 1000} kbps")
-                    if (info?.sampleRate != null) details.add("Sample Rate" to "${info.sampleRate} Hz")
-                    if (info?.contentLength != null) details.add("File Size" to formatFileSize(info.contentLength.toLongOrNull()))
-                    if (info?.qualityLabel != null) details.add("Quality" to info.qualityLabel)
+                    if (info?.videoId_tag != null) details.add(itagLabel to info.videoId_tag.toString())
+                    if (info?.mimeType != null) details.add(mimeTypeLabel to info.mimeType)
+                    if (info?.bitrate != null) details.add(bitrateLabel to "${info.bitrate / 1000} $kbpsUnit")
+                    if (info?.sampleRate != null) details.add(sampleRateLabel to "${info.sampleRate} $hzUnit")
+                    if (info?.contentLength != null) details.add(fileSizeLabel to formatFileSize(info.contentLength.toLongOrNull(), unknownText))
+                    if (info?.qualityLabel != null) details.add(qualityLabel to info.qualityLabel)
                     
                     // Fallback Duration
                     val duration = track?.duration ?: video?.duration
-                    if (duration != null) details.add("Duration" to formatDuration(duration))
+                    if (duration != null) details.add(durationLabel to formatDuration(duration))
 
                     items(details.filter { it.second != null }) { (label, value) ->
                         InfoItem(label, value!!)
@@ -186,6 +208,7 @@ private fun InfoItem(
     value: String
 ) {
     val context = LocalContext.current
+    val copiedMessage = stringResource(R.string.copied_to_clipboard, label)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -193,7 +216,7 @@ private fun InfoItem(
                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 val clip = ClipData.newPlainText(label, value)
                 clipboard.setPrimaryClip(clip)
-                Toast.makeText(context, "Copied $label", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, copiedMessage, Toast.LENGTH_SHORT).show()
             }
             .padding(horizontal = 24.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -226,8 +249,8 @@ private fun formatDuration(seconds: Int): String {
     return "%d:%02d".format(minutes, remainingSeconds)
 }
 
-private fun formatFileSize(bytes: Long?): String {
-    if (bytes == null) return "Unknown"
+private fun formatFileSize(bytes: Long?, unknownText: String): String {
+    if (bytes == null) return unknownText
     val mb = bytes / (1024.0 * 1024.0)
     return "%.2f MB".format(mb)
 }

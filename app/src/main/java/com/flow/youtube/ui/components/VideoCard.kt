@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.res.stringResource
 import com.flow.youtube.R
 import coil.compose.AsyncImage
 import com.flow.youtube.data.model.Video
@@ -139,7 +140,7 @@ fun VideoCard(
                     )
                     
                     Text(
-                        text = "${formatViewCount(video.viewCount)} views",
+                        text = stringResource(R.string.views_template, formatViewCount(video.viewCount)),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
@@ -324,7 +325,7 @@ fun VideoCardFullWidth(
                 )
 
                 Text(
-                    text = "${video.channelName} • ${formatViewCount(video.viewCount)} • ${video.uploadDate}",
+                    text = "${video.channelName} • ${stringResource(R.string.views_template, formatViewCount(video.viewCount))} • ${video.uploadDate}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.extendedColors.textSecondary,
                     maxLines = 1,
@@ -537,7 +538,7 @@ fun ShortsCard(
             fontWeight = FontWeight.SemiBold
         )
         Text(
-            text = "${formatViewCount(video.viewCount)} views",
+            text = stringResource(R.string.views_template, formatViewCount(video.viewCount)),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.extendedColors.textSecondary
         )

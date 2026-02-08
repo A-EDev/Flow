@@ -30,8 +30,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.flow.youtube.R
 import com.flow.youtube.ui.screens.music.AddToPlaylistDialog
 import com.flow.youtube.ui.screens.music.CreatePlaylistDialog
 import com.flow.youtube.ui.screens.music.MusicPlayerViewModel
@@ -119,7 +121,7 @@ fun MusicQuickActionsSheet(
                     actions = listOf(
                         FlowAction(
                             icon = { Icon(Icons.Outlined.PlaylistAdd, null) },
-                            text = "Add to playlist",
+                            text = stringResource(R.string.add_to_playlist),
                             onClick = { viewModel.showAddToPlaylistDialog(true) }
                         ),
                         FlowAction(
@@ -130,7 +132,7 @@ fun MusicQuickActionsSheet(
                                     tint = if (isDownloaded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 ) 
                             },
-                            text = if (isDownloaded) "Downloaded" else "Download",
+                            text = if (isDownloaded) stringResource(R.string.downloaded) else stringResource(R.string.download),
                             onClick = {
                                 if (!isDownloaded) viewModel.downloadTrack(track)
                                 onDismiss()
@@ -138,7 +140,7 @@ fun MusicQuickActionsSheet(
                         ),
                         FlowAction(
                             icon = { Icon(Icons.Outlined.Share, null) },
-                            text = "Share",
+                            text = stringResource(R.string.share),
                             onClick = {
                                 onShare()
                                 onDismiss()
@@ -153,13 +155,13 @@ fun MusicQuickActionsSheet(
 
             // Playback Options Group
             item {
-                FlowMenuSectionHeader("Playback")
+                FlowMenuSectionHeader(stringResource(R.string.playback_header))
                 FlowMenuGroup(
                     items = listOf(
                         FlowMenuItemData(
                             icon = { Icon(Icons.Outlined.QueueMusic, null) },
-                            title = { Text("Play next") },
-                            description = { Text("Add to start of queue") },
+                            title = { Text(stringResource(R.string.play_next)) },
+                            description = { Text(stringResource(R.string.play_next_desc)) },
                             onClick = {
                                 viewModel.playNext(track)
                                 onDismiss()
@@ -167,8 +169,8 @@ fun MusicQuickActionsSheet(
                         ),
                         FlowMenuItemData(
                             icon = { Icon(Icons.Outlined.PlaylistPlay, null) },
-                            title = { Text("Add to queue") },
-                            description = { Text("Add to end of queue") },
+                            title = { Text(stringResource(R.string.add_to_queue)) },
+                            description = { Text(stringResource(R.string.add_to_queue_desc)) },
                             onClick = {
                                 viewModel.addToQueue(track)
                                 onDismiss()
@@ -176,7 +178,7 @@ fun MusicQuickActionsSheet(
                         ),
                         FlowMenuItemData(
                             icon = { Icon(Icons.Default.GraphicEq, null) },
-                            title = { Text("Audio Effects") },
+                            title = { Text(stringResource(R.string.audio_effects)) },
                             onClick = {
                                 onAudioEffectsClick()
                                 onDismiss()
@@ -191,13 +193,13 @@ fun MusicQuickActionsSheet(
 
             // Info & Navigation Group
             item {
-                FlowMenuSectionHeader("More")
+                FlowMenuSectionHeader(stringResource(R.string.more_header))
                 FlowMenuGroup(
                     items = listOfNotNull(
                         if ((track.channelId?.isNotEmpty() == true) || (track.artists?.isNotEmpty() == true)) {
                             FlowMenuItemData(
                                 icon = { Icon(Icons.Outlined.Person, null) },
-                                title = { Text("View Artist") },
+                                title = { Text(stringResource(R.string.view_artist)) },
                                 description = { Text(track.artist ?: "") },
                                 onClick = {
                                     if ((track.artists?.size ?: 0) > 1) {
@@ -215,7 +217,7 @@ fun MusicQuickActionsSheet(
                         if (!track.albumId.isNullOrEmpty()) {
                             FlowMenuItemData(
                                 icon = { Icon(Icons.Outlined.Album, null) },
-                                title = { Text("View Album") },
+                                title = { Text(stringResource(R.string.view_album)) },
                                 description = { Text(track.album) },
                                 onClick = {
                                     onViewAlbum(track.albumId.orEmpty())
@@ -225,7 +227,7 @@ fun MusicQuickActionsSheet(
                         } else null,
                         FlowMenuItemData(
                             icon = { Icon(Icons.Outlined.Info, null) },
-                            title = { Text("Details & Metadata") },
+                            title = { Text(stringResource(R.string.details_metadata)) },
                             onClick = {
                                 showMediaInfo = true
                                 // Do not dismiss so user can come back or dismiss manually

@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Hexagon
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material3.*
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -106,7 +107,7 @@ fun UpdateDialog(
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_notification_logo),
-                            contentDescription = "Update",
+                            contentDescription = stringResource(R.string.update_flow),
                             tint = MaterialTheme.colorScheme.primary, // Using primary color as before
                             modifier = Modifier.size(36.dp)
                         )
@@ -115,7 +116,7 @@ fun UpdateDialog(
                     Spacer(modifier = Modifier.height(20.dp))
 
                     Text(
-                        text = "New Update Available", 
+                        text = stringResource(R.string.new_update_available), 
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold
@@ -126,7 +127,7 @@ fun UpdateDialog(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = "${updateInfo.version} is now available", 
+                        text = stringResource(R.string.update_available_template, updateInfo.version), 
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         color = Color.LightGray.copy(alpha = 0.8f)
@@ -150,7 +151,7 @@ fun UpdateDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "RELEASE NOTES", 
+                                    text = stringResource(R.string.release_notes), 
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.primary,
@@ -201,7 +202,7 @@ fun UpdateDialog(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "Update Flow", // Restored original text
+                            text = stringResource(R.string.update_flow), // Restored original text
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -221,7 +222,7 @@ fun UpdateDialog(
                         shape = RoundedCornerShape(26.dp)
                     ) {
                         Text(
-                            text = "Maybe later", // Restored original text
+                            text = stringResource(R.string.maybe_later), // Restored original text
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.SemiBold
                         )

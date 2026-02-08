@@ -12,8 +12,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.flow.youtube.R
 import com.flow.youtube.ui.screens.music.MusicArtist
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -34,7 +36,7 @@ fun ArtistSelectionDialog(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "Select Artist",
+                text = stringResource(R.string.select_artist),
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.5).sp

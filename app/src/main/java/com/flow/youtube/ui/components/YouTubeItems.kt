@@ -27,7 +27,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
+import com.flow.youtube.R
 import com.flow.youtube.innertube.models.AlbumItem
 import com.flow.youtube.innertube.models.ArtistItem
 import com.flow.youtube.innertube.models.PlaylistItem
@@ -57,7 +59,13 @@ fun YouTubeListItem(
         is SongItem -> {
             val artistNames = item.artists.joinToString { it.name }
             val duration = item.duration?.let { formatDuration(it) } ?: ""
-            val subtitleText = if (duration.isNotEmpty()) "$artistNames • $duration" else artistNames
+            val subtitleText = buildString {
+                append(artistNames)
+                if (duration.isNotEmpty()) {
+                    append(" • ")
+                    append(duration)
+                }
+            }
             Quadruple(
                 item.title,
                 subtitleText,
@@ -79,13 +87,13 @@ fun YouTubeListItem(
         }
         is ArtistItem -> Quadruple(
             item.title,
-            "Artist",
+            stringResource(R.string.artist),
             item.thumbnail,
             CircleShape
         )
         is PlaylistItem -> Quadruple(
             item.title,
-            item.author?.name ?: item.songCountText ?: "Playlist",
+            item.author?.name ?: item.songCountText ?: stringResource(R.string.playlist),
             item.thumbnail,
             RoundedCornerShape(Dimensions.ThumbnailCornerRadius)
         )
@@ -111,7 +119,7 @@ fun YouTubeListItem(
                 IconButton(onClick = onMenuClick) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
+                        contentDescription = stringResource(R.string.more_options),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -164,13 +172,13 @@ fun YouTubeGridItem(
         }
         is ArtistItem -> Quadruple(
             item.title,
-            "Artist",
+            stringResource(R.string.artist),
             item.thumbnail,
             CircleShape
         )
         is PlaylistItem -> Quadruple(
             item.title,
-            item.author?.name ?: item.songCountText ?: "Playlist",
+            item.author?.name ?: item.songCountText ?: stringResource(R.string.playlist),
             item.thumbnail,
             RoundedCornerShape(Dimensions.ThumbnailCornerRadius)
         )
@@ -276,7 +284,7 @@ fun ChartTrackItem(
                 IconButton(onClick = onMenuClick) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
+                        contentDescription = stringResource(R.string.more_options),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

@@ -20,6 +20,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.flow.youtube.data.local.PlaylistRepository
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.ui.screens.playlists.PlaylistInfo
 import kotlinx.coroutines.launch
@@ -58,9 +60,8 @@ fun AddToPlaylistDialog(
                 .fillMaxWidth()
                 .padding(bottom = 24.dp)
         ) {
-            // Header
             Text(
-                text = "Save to...",
+                text = stringResource(R.string.save_to),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
@@ -77,7 +78,7 @@ fun AddToPlaylistDialog(
                     val isInWatchLater = watchLaterVideos.any { it.id == video.id }
                     PlaylistItem(
                         icon = Icons.Outlined.WatchLater,
-                        name = "Watch later",
+                        name = stringResource(R.string.watch_later),
                         isChecked = isInWatchLater,
                         onClick = {
                             scope.launch {
@@ -116,7 +117,7 @@ fun AddToPlaylistDialog(
                     PlaylistItemWithThumbnail(
                         thumbnail = playlist.thumbnailUrl,
                         name = playlist.name,
-                        privacy = if (playlist.isPrivate) "Private" else "Public",
+                        privacy = if (playlist.isPrivate) stringResource(R.string.playlist_private) else stringResource(R.string.playlist_public),
                         isChecked = isInPlaylist,
                         onClick = {
                             scope.launch {
@@ -148,7 +149,7 @@ fun AddToPlaylistDialog(
                             modifier = Modifier.size(24.dp)
                         )
                         Text(
-                            text = "Create new playlist",
+                            text = stringResource(R.string.create_new_playlist),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Medium
                         )
@@ -292,7 +293,7 @@ private fun CreateNewPlaylistDialog(
             Icon(Icons.Outlined.PlaylistAdd, null)
         },
         title = {
-            Text("Create new playlist")
+            Text(stringResource(R.string.create_new_playlist))
         },
         text = {
             Column(
@@ -301,7 +302,7 @@ private fun CreateNewPlaylistDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name") },
+                    label = { Text(stringResource(R.string.playlist_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -309,7 +310,7 @@ private fun CreateNewPlaylistDialog(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Description (optional)") },
+                    label = { Text(stringResource(R.string.playlist_description_optional)) },
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -329,7 +330,7 @@ private fun CreateNewPlaylistDialog(
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = if (isPrivate) "Private" else "Public",
+                            text = if (isPrivate) stringResource(R.string.playlist_private) else stringResource(R.string.playlist_public),
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
@@ -350,12 +351,12 @@ private fun CreateNewPlaylistDialog(
                 },
                 enabled = name.isNotBlank()
             ) {
-                Text("Create")
+                Text(stringResource(R.string.create))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

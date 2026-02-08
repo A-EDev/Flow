@@ -15,6 +15,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import org.schabi.newpipe.extractor.stream.StreamSegment
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -48,7 +50,7 @@ fun FlowChaptersBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Chapters",
+                    text = stringResource(R.string.chapters),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )

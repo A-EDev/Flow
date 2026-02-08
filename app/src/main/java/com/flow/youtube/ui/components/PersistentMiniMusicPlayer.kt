@@ -26,8 +26,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.flow.youtube.R
 import coil.compose.AsyncImage
 import com.flow.youtube.player.EnhancedMusicPlayerManager
 import com.flow.youtube.ui.screens.music.MusicTrack
@@ -199,7 +201,7 @@ fun PersistentMiniMusicPlayer(
                                     Box {
                                         AsyncImage(
                                             model = track.thumbnailUrl,
-                                            contentDescription = "Album art",
+                                            contentDescription = stringResource(R.string.album_art),
                                             modifier = Modifier
                                                 .fillMaxSize()
                                                 .clip(RoundedCornerShape(10.dp)),
@@ -284,7 +286,7 @@ fun PersistentMiniMusicPlayer(
                                                 Icons.Filled.Pause
                                             else
                                                 Icons.Filled.PlayArrow,
-                                            contentDescription = if (playerState.isPlaying) "Pause" else "Play",
+                                            contentDescription = if (playerState.isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
                                             modifier = Modifier.size(24.dp),
                                             tint = MaterialTheme.colorScheme.onPrimary
                                         )
@@ -298,7 +300,7 @@ fun PersistentMiniMusicPlayer(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Filled.SkipNext,
-                                        contentDescription = "Next",
+                                        contentDescription = stringResource(R.string.next),
                                         modifier = Modifier.size(22.dp),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -458,7 +460,7 @@ fun CompactMiniMusicPlayer(
                                         Icons.Filled.Pause
                                     else
                                         Icons.Filled.PlayArrow,
-                                    contentDescription = if (playerState.isPlaying) "Pause" else "Play",
+                                    contentDescription = if (playerState.isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
                                     modifier = Modifier.size(18.dp),
                                     tint = MaterialTheme.colorScheme.onPrimary
                                 )
@@ -471,7 +473,7 @@ fun CompactMiniMusicPlayer(
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
-                                contentDescription = "Close player",
+                                contentDescription = stringResource(R.string.close_player),
                                 modifier = Modifier.size(16.dp),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )

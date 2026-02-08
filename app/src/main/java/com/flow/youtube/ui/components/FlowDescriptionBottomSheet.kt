@@ -24,8 +24,10 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.flow.youtube.R
 import androidx.core.text.HtmlCompat
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.utils.formatLikeCount
@@ -113,7 +115,7 @@ fun FlowDescriptionBottomSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Description",
+                    text = stringResource(R.string.description),
                     style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp),
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -148,17 +150,17 @@ fun FlowDescriptionBottomSheet(
                 ) {
                     StatItem(
                         value = formatLikeCount(video.likeCount.toInt()),
-                        label = "Likes"
+                        label = stringResource(R.string.likes)
                     )
                     VerticalDivider()
                     StatItem(
                         value = formatViewCount(video.viewCount).replace(" views", ""),
-                        label = "Views"
+                        label = stringResource(R.string.views)
                     )
                     VerticalDivider()
                     StatItem(
                         value = formatTimeAgo(video.uploadDate).replace(" ago", ""), // "5d" instead of "5d ago"
-                        label = formatTimeAgo(video.uploadDate).let { if(it.contains("mo") || it.contains("yr")) "Ago" else "Since" }
+                        label = formatTimeAgo(video.uploadDate).let { if(it.contains("mo") || it.contains("yr")) stringResource(R.string.ago) else stringResource(R.string.since) }
                     )
                 }
 
