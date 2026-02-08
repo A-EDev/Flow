@@ -34,6 +34,8 @@ import com.flow.youtube.player.seekbarpreview.SeekbarPreviewThumbnailHelper
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import org.schabi.newpipe.extractor.stream.StreamSegment
 
 @Composable
@@ -70,7 +72,11 @@ fun PremiumControlsOverlay(
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    val resizeModes = listOf("Fit", "Fill", "Zoom")
+    val resizeModes = listOf(
+        stringResource(R.string.resize_fit),
+        stringResource(R.string.resize_fill),
+        stringResource(R.string.resize_zoom)
+    )
     
     // Find current chapter
     val currentChapter = remember(currentPosition, chapters) {
@@ -107,7 +113,7 @@ fun PremiumControlsOverlay(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.KeyboardArrowDown,
-                        contentDescription = "Minimize",
+                        contentDescription = stringResource(R.string.btn_minimize),
                         tint = Color.White,
                         modifier = Modifier.size(32.dp)
                     )
@@ -140,7 +146,7 @@ fun PremiumControlsOverlay(
                                 1 -> Icons.Rounded.Fullscreen // Fill
                                 else -> Icons.Rounded.ZoomIn // Zoom
                             },
-                            contentDescription = "Resize: ${resizeModes[resizeMode]}",
+                            contentDescription = stringResource(R.string.resize_to, resizeModes[resizeMode]),
                             tint = Color.White,
                             modifier = Modifier.size(24.dp)
                         )
@@ -153,7 +159,7 @@ fun PremiumControlsOverlay(
                     ) {
                         Icon(
                             imageVector = if (isSubtitlesEnabled) Icons.Rounded.ClosedCaption else Icons.Outlined.ClosedCaption,
-                            contentDescription = "Captions",
+                            contentDescription = stringResource(R.string.captions),
                             tint = if (isSubtitlesEnabled) primaryColor else Color.White,
                             modifier = Modifier.size(24.dp)
                         )
@@ -166,7 +172,7 @@ fun PremiumControlsOverlay(
                     ) {
                         Icon(
                             imageVector = if (autoplayEnabled) Icons.Rounded.SlowMotionVideo else Icons.Rounded.SlowMotionVideo,
-                            contentDescription = "Autoplay",
+                            contentDescription = stringResource(R.string.autoplay),
                             tint = if (autoplayEnabled) primaryColor else Color.White.copy(alpha = 0.7f),
                             modifier = Modifier.size(24.dp)
                         )
@@ -180,7 +186,7 @@ fun PremiumControlsOverlay(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.PictureInPicture,
-                                contentDescription = "Picture-in-Picture",
+                                contentDescription = stringResource(R.string.pip_mode),
                                 tint = Color.White,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -194,7 +200,7 @@ fun PremiumControlsOverlay(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Settings,
-                            contentDescription = "Settings",
+                            contentDescription = stringResource(R.string.settings),
                             tint = Color.White
                         )
                     }
@@ -218,7 +224,7 @@ fun PremiumControlsOverlay(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.SkipPrevious,
-                            contentDescription = "Previous Video",
+                            contentDescription = stringResource(R.string.previous_video),
                             tint = if (hasPrevious) Color.White else Color.White.copy(alpha = 0.3f),
                             modifier = Modifier.size(36.dp)
                         )
@@ -241,7 +247,7 @@ fun PremiumControlsOverlay(
                         } else {
                             Icon(
                                 imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                contentDescription = if (isPlaying) "Pause" else "Play",
+                                contentDescription = if (isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
                                 tint = Color.White,
                                 modifier = Modifier.size(40.dp)
                             )
@@ -256,7 +262,7 @@ fun PremiumControlsOverlay(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.SkipNext,
-                            contentDescription = "Next Video",
+                            contentDescription = stringResource(R.string.next_video),
                             tint = if (hasNext) Color.White else Color.White.copy(alpha = 0.3f),
                             modifier = Modifier.size(36.dp)
                         )
@@ -358,7 +364,7 @@ fun PremiumControlsOverlay(
                     ) {
                         Icon(
                             imageVector = if (isFullscreen) Icons.Rounded.FullscreenExit else Icons.Rounded.Fullscreen,
-                            contentDescription = "Fullscreen",
+                            contentDescription = stringResource(R.string.fullscreen),
                             tint = Color.White
                         )
                     }

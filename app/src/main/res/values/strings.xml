@@ -797,5 +797,31 @@
     <string name="empty_downloads_subtitle">Download tracks for offline playback</string>
     <string name="total_size">Total Size</string>
     <string name="tracks_count_template">%1$s tracks</string>
+    <!-- Player Controls -->
+    <string name="btn_minimize">Minimize</string>
+    <string name="captions">Captions</string>
+    <string name="pip_mode">Picture-in-Picture</string>
+    <string name="previous_video">Previous Video</string>
+    <string name="next_video">Next Video</string>
+    <string name="fullscreen">Fullscreen</string>
+    <string name="resize_to">Resize: %1$s</string>
+    <string name="resize_fit">Fit</string>
+    <string name="resize_fill">Fill</string>
+    <string name="resize_zoom">Zoom</string>
+
+    <!-- Player Dialogs -->
+    <string name="download_video">Download Video</string>
+    <string name="select_quality">Select your preferred quality</string>
+    <string name="no_download_streams">No download streams available</string>
+    <string name="downloading_template">Downloading %1$s...</string>
+    <string name="audio_track">Audio Track</string>
+    <string name="off">Off</string>
+    <string name="on">On</string>
+    <string name="player_settings">Player Settings</string>
+    <string name="playback_speed">Playback Speed</string>
+    <string name="autoplay_next">Auto-play Next Video</string>
+    <string name="subtitle_style">Subtitle Style</string>
+    <string name="normal">Normal</string>
+    <string name="done">Done</string>
 </resources>
 

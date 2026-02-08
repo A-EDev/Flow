@@ -30,6 +30,8 @@ import com.flow.youtube.ui.components.SubtitleCustomizer
 import com.flow.youtube.ui.components.SubtitleStyle
 import com.flow.youtube.ui.screens.player.VideoPlayerUiState
 import com.flow.youtube.ui.screens.player.util.VideoPlayerUtils
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import org.schabi.newpipe.extractor.stream.VideoStream
 
 @Composable
@@ -53,7 +55,7 @@ fun DownloadQualityDialog(
                 modifier = Modifier.padding(24.dp)
             ) {
                 Text(
-                    text = "Download Video",
+                    text = stringResource(R.string.download_video),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -61,7 +63,7 @@ fun DownloadQualityDialog(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
-                    text = "Select your preferred quality",
+                    text = stringResource(R.string.select_quality),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -81,7 +83,7 @@ fun DownloadQualityDialog(
                     
                     if (distinctStreams.isEmpty()) {
                          item {
-                             Text("No download streams available", modifier = Modifier.padding(16.dp))
+                             Text(stringResource(R.string.no_download_streams), modifier = Modifier.padding(16.dp))
                          }
                     }
 
@@ -111,7 +113,7 @@ fun DownloadQualityDialog(
                                     }
                                     
                                     VideoPlayerUtils.startDownload(context, video, downloadUrl, qualityLabel, audioUrl)
-                                    Toast.makeText(context, "Downloading $qualityLabel...", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, context.getString(R.string.downloading_template, qualityLabel), Toast.LENGTH_SHORT).show()
                                 }
                             },
                             shape = RoundedCornerShape(16.dp),
@@ -181,7 +183,7 @@ fun DownloadQualityDialog(
                     onClick = onDismiss,
                     modifier = Modifier.align(Alignment.End)
                 ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         }
@@ -197,7 +199,7 @@ fun QualitySelectorDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Video Quality") },
+        title = { Text(stringResource(R.string.video_quality_title)) },
         text = {
             LazyColumn {
                 items(availableQualities.sortedByDescending { it.height }) { quality ->
@@ -238,7 +240,7 @@ fun QualitySelectorDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.close))
             }
         }
     )
@@ -253,7 +255,7 @@ fun AudioTrackSelectorDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Audio Track") },
+        title = { Text(stringResource(R.string.audio_track)) },
         text = {
             LazyColumn {
                 items(availableAudioTracks.size) { index ->
@@ -302,7 +304,7 @@ fun AudioTrackSelectorDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.close))
             }
         }
     )
@@ -319,7 +321,7 @@ fun SubtitleSelectorDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Subtitles") },
+        title = { Text(stringResource(R.string.filter_subtitles)) },
         text = {
             LazyColumn {
                 // Off option
@@ -343,7 +345,7 @@ fun SubtitleSelectorDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Off",
+                                text = stringResource(R.string.off),
                                 style = MaterialTheme.typography.bodyLarge
                             )
                             
@@ -405,7 +407,7 @@ fun SubtitleSelectorDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.close))
             }
         }
     )
@@ -427,7 +429,7 @@ fun SettingsMenuDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Player Settings") },
+        title = { Text(stringResource(R.string.player_settings)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 Surface(
@@ -438,7 +440,7 @@ fun SettingsMenuDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     ListItem(
-                        headlineContent = { Text("Quality") },
+                        headlineContent = { Text(stringResource(R.string.quality)) },
                         supportingContent = { Text("${playerState.currentQuality}p") },
                         leadingContent = {
                             Icon(Icons.Filled.HighQuality, contentDescription = null)
@@ -454,7 +456,7 @@ fun SettingsMenuDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     ListItem(
-                        headlineContent = { Text("Audio Track") },
+                        headlineContent = { Text(stringResource(R.string.audio_track)) },
                         supportingContent = { 
                             Text("Track ${playerState.currentAudioTrack + 1}") 
                         },
@@ -472,7 +474,7 @@ fun SettingsMenuDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     ListItem(
-                        headlineContent = { Text("Playback Speed") },
+                        headlineContent = { Text(stringResource(R.string.playback_speed)) },
                         supportingContent = { 
                             Text("${playerState.playbackSpeed}x") 
                         },
@@ -487,9 +489,9 @@ fun SettingsMenuDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     ListItem(
-                        headlineContent = { Text("Auto-play Next Video") },
+                        headlineContent = { Text(stringResource(R.string.autoplay_next)) },
                         supportingContent = { 
-                            Text(if (autoplayEnabled) "On" else "Off") 
+                            Text(if (autoplayEnabled) stringResource(R.string.on) else stringResource(R.string.off)) 
                         },
                         leadingContent = {
                             Icon(Icons.Filled.SkipNext, contentDescription = null)
@@ -511,9 +513,9 @@ fun SettingsMenuDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     ListItem(
-                        headlineContent = { Text("Subtitles") },
+                        headlineContent = { Text(stringResource(R.string.filter_subtitles)) },
                         supportingContent = { 
-                            Text(if (subtitlesEnabled) "On" else "Off") 
+                            Text(if (subtitlesEnabled) stringResource(R.string.on) else stringResource(R.string.off)) 
                         },
                         leadingContent = {
                             Icon(Icons.Filled.Subtitles, contentDescription = null)
@@ -538,9 +540,9 @@ fun SettingsMenuDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     ListItem(
-                        headlineContent = { Text("Skip Silence") },
+                        headlineContent = { Text(stringResource(R.string.player_settings_skip_silence)) },
                         supportingContent = { 
-                            Text(if (playerState.isSkipSilenceEnabled) "On" else "Off") 
+                            Text(if (playerState.isSkipSilenceEnabled) stringResource(R.string.on) else stringResource(R.string.off)) 
                         },
                         leadingContent = {
                             Icon(Icons.Rounded.GraphicEq, contentDescription = null)
@@ -557,7 +559,7 @@ fun SettingsMenuDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.close))
             }
         }
     )
@@ -572,7 +574,7 @@ fun PlaybackSpeedSelectorDialog(
     val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Playback Speed") },
+        title = { Text(stringResource(R.string.playback_speed)) },
         text = {
             LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
                 items(speeds) { speed ->
@@ -595,7 +597,7 @@ fun PlaybackSpeedSelectorDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = if (speed == 1.0f) "Normal" else "${speed}x",
+                                text = if (speed == 1.0f) stringResource(R.string.normal) else "${speed}x",
                                 style = MaterialTheme.typography.bodyLarge
                             )
                             
@@ -609,7 +611,7 @@ fun PlaybackSpeedSelectorDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.close))
             }
         }
     )
@@ -631,7 +633,7 @@ fun SubtitleStyleCustomizerDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Done")
+                Text(stringResource(R.string.done))
             }
         }
     )
