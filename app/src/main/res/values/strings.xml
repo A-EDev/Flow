@@ -612,6 +612,45 @@
     <string name="support_dev_subtitle">Support development</string>
     <string name="btn_ok">OK</string>
     <string name="btn_copy">Copy</string>
-    <string name="github_label">GitHub</string>
+    <string name="github_label">GitHub</string>    
+    <!-- Playlists & Playlist Details -->
+    <string name="new_playlist_button">New Playlist</string>
+    <string name="your_playlists_header">Your Playlists</string>
+    <string name="create_playlist_empty_desc">Create your first playlist to organize your favorite videos</string>
+    <string name="my_playlist_placeholder">My Playlist</string>
+    <string name="add_description_placeholder">Add a description...</string>
+    <string name="edit_playlist_action">Edit playlist</string>
+    <string name="delete_playlist_action">Delete playlist</string>
+    <string name="make_public_action">Make public</string>
+    <string name="make_private_action">Make private</string>
+    <string name="remove_from_playlist_action">Remove from playlist</string>
+    <string name="playlist_empty_title">This playlist is empty</string>
+    <string name="playlist_empty_desc">Add videos from the video player\nto build your playlist</string>
+    <string name="delete_playlist_dialog_title">Delete playlist?</string>
+    <string name="delete_playlist_dialog_text">This will permanently delete \'%1$s\' and all its videos.</string>
+    <string name="playlist_metadata_private_template">Playlist • Private • %1$d videos</string>
+    <string name="playlist_metadata_public_template">Playlist • Public • %1$d videos</string>
+
+    <!-- Onboarding -->
+    <string name="welcome_to_flow">Welcome to Flow</string>
+    <string name="onboarding_subtitle">Tell us what you\'re interested in</string>
+    <string name="onboarding_instructions">Select at least 3 topics to personalize your experience</string>
+    <string name="selected_with_more_needed_template">%1$d selected (%2$d more needed)</string>
+    <string name="btn_skip_for_now">Skip for now</string>
+    <string name="onboarding_btn_continue">Continue</string>
+    <string name="cd_collapse_category">Collapse</string>
+    <string name="cd_expand_category">Expand</string>
+
+    <!-- Categories -->
+    <string name="category_gaming">Gaming</string>
+    <string name="category_music">Music</string>
+    <string name="category_technology">Technology</string>
+    <string name="category_entertainment">Entertainment</string>
+    <string name="category_education">Education</string>
+    <string name="category_health_fitness">Health &amp; Fitness</string>
+    <string name="category_lifestyle">Lifestyle</string>
+    <string name="category_creative">Creative</string>
+    <string name="category_science_nature">Science &amp; Nature</string>
+    <string name="category_news_current_events">News &amp; Current Events</string>
 </resources>
 

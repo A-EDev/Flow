@@ -22,8 +22,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.flow.youtube.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -65,19 +67,19 @@ fun PlaylistDetailScreen(
                 title = { }, // Moved to header
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { showOptionsMenu = true }) {
-                        Icon(Icons.Default.MoreVert, "Options")
+                        Icon(Icons.Default.MoreVert, stringResource(R.string.more_options))
                     }
                     DropdownMenu(
                         expanded = showOptionsMenu,
                         onDismissRequest = { showOptionsMenu = false }
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Edit playlist") },
+                            text = { Text(stringResource(R.string.edit_playlist_action)) },
                             onClick = {
                                 showOptionsMenu = false
                                 showEditDialog = true
@@ -85,7 +87,7 @@ fun PlaylistDetailScreen(
                             leadingIcon = { Icon(Icons.Default.Edit, null) }
                         )
                         DropdownMenuItem(
-                            text = { Text("Delete playlist") },
+                            text = { Text(stringResource(R.string.delete_playlist_action)) },
                             onClick = {
                                 showOptionsMenu = false
                                 showDeleteDialog = true
@@ -93,7 +95,7 @@ fun PlaylistDetailScreen(
                             leadingIcon = { Icon(Icons.Default.Delete, null) }
                         )
                         DropdownMenuItem(
-                            text = { Text(if (uiState.isPrivate) "Make public" else "Make private") },
+                            text = { Text(if (uiState.isPrivate) stringResource(R.string.make_public_action) else stringResource(R.string.make_private_action)) },
                             onClick = {
                                 showOptionsMenu = false
                                 viewModel.togglePrivacy()
@@ -181,8 +183,8 @@ fun PlaylistDetailScreen(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             icon = { Icon(Icons.Default.Delete, null) },
-            title = { Text("Delete playlist?") },
-            text = { Text("This will permanently delete '${uiState.playlistName}' and all its videos.") },
+            title = { Text(stringResource(R.string.delete_playlist_dialog_title)) },
+            text = { Text(stringResource(R.string.delete_playlist_dialog_text, uiState.playlistName)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -194,12 +196,12 @@ fun PlaylistDetailScreen(
                         contentColor = MaterialTheme.colorScheme.error
                     )
                 ) {
-                    Text("Delete")
+                    Text(stringResource(R.string.action_delete))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -270,7 +272,10 @@ private fun PlaylistHeader(
             // Dynamic User Name Placeholder removed
             // Metadata Row
             Text(
-                text = "Playlist • ${if (isPrivate) "Private" else "Public"} • $videoCount videos",
+                text = stringResource(
+                    if (isPrivate) R.string.playlist_metadata_private_template else R.string.playlist_metadata_public_template,
+                    videoCount
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -304,7 +309,7 @@ private fun PlaylistHeader(
                 ) {
                     Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Play all", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.play_all), fontWeight = FontWeight.Bold)
                 }
 
                 // Random (Dice) Shuffle Action
@@ -315,7 +320,7 @@ private fun PlaylistHeader(
                     modifier = Modifier.size(48.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Shuffle, "Shuffle", modifier = Modifier.size(24.dp))
+                        Icon(Icons.Default.Shuffle, stringResource(R.string.shuffle), modifier = Modifier.size(24.dp))
                     }
                 }
 
@@ -435,7 +440,7 @@ private fun PlaylistVideoItem(
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Options",
+                    contentDescription = stringResource(R.string.more_options),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp)
                 )
@@ -446,7 +451,7 @@ private fun PlaylistVideoItem(
                 onDismissRequest = { showMenu = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("Remove from playlist") },
+                    text = { Text(stringResource(R.string.remove_from_playlist_action)) },
                     onClick = {
                         onRemove()
                         showMenu = false
@@ -479,13 +484,13 @@ private fun EmptyPlaylistState(modifier: Modifier = Modifier) {
         )
 
         Text(
-            text = "This playlist is empty",
+            text = stringResource(R.string.playlist_empty_title),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
         )
 
         Text(
-            text = "Add videos from the video player\nto build your playlist",
+            text = stringResource(R.string.playlist_empty_desc),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -506,13 +511,13 @@ private fun EditPlaylistDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         icon = { Icon(Icons.Default.Edit, null) },
-        title = { Text("Edit playlist") },
+        title = { Text(stringResource(R.string.edit_playlist_action)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = editedName,
                     onValueChange = { editedName = it },
-                    label = { Text("Name") },
+                    label = { Text(stringResource(R.string.playlist_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
@@ -521,7 +526,7 @@ private fun EditPlaylistDialog(
                 OutlinedTextField(
                     value = editedDescription,
                     onValueChange = { editedDescription = it },
-                    label = { Text("Description (optional)") },
+                    label = { Text(stringResource(R.string.playlist_description_optional)) },
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
@@ -533,12 +538,12 @@ private fun EditPlaylistDialog(
                 onClick = { onSave(editedName, editedDescription) },
                 enabled = editedName.isNotBlank()
             ) {
-                Text("Save")
+                Text(stringResource(R.string.action_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -558,9 +563,9 @@ private fun formatDuration(seconds: Int): String {
 
 private fun formatViewCount(count: Long): String {
     return when {
-        count >= 1_000_000_000 -> String.format("%.1fB views", count / 1_000_000_000.0)
-        count >= 1_000_000 -> String.format("%.1fM views", count / 1_000_000.0)
-        count >= 1_000 -> String.format("%.1fK views", count / 1_000.0)
+        count >= 1_000_000_000 -> String.format("%.1f%s views", count / 1_000_000_000.0, "B")
+        count >= 1_000_000 -> String.format("%.1f%s views", count / 1_000_000.0, "M")
+        count >= 1_000 -> String.format("%.1f%s views", count / 1_000.0, "K")
         else -> "$count views"
     }
 }

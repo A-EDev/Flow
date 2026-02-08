@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import coil.compose.AsyncImage
 import com.flow.youtube.data.local.PlaylistRepository
 import com.flow.youtube.data.model.Video
@@ -51,13 +53,13 @@ fun PlaylistsScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = "Playlists",
+                        text = stringResource(R.string.library_playlists_label),
                         style = MaterialTheme.typography.headlineMedium
                     ) 
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Filled.ArrowBack, "Back")
+                        Icon(Icons.Filled.ArrowBack, stringResource(R.string.btn_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -73,7 +75,7 @@ fun PlaylistsScreen(
             ) {
                 Icon(Icons.Default.Add, null)
                 Spacer(Modifier.width(8.dp))
-                Text("New Playlist")
+                Text(stringResource(R.string.new_playlist_button))
             }
         }
     ) { paddingValues ->
@@ -94,7 +96,7 @@ fun PlaylistsScreen(
                     // Special playlists section
                     item {
                         Text(
-                            text = "Your Library",
+                            text = stringResource(R.string.library),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(vertical = 8.dp)
@@ -105,7 +107,7 @@ fun PlaylistsScreen(
                     item {
                         SpecialPlaylistCard(
                             icon = Icons.Outlined.WatchLater,
-                            title = "Watch Later",
+                            title = stringResource(R.string.watch_later),
                             count = uiState.watchLaterCount,
                             onClick = onNavigateToWatchLater
                         )
@@ -115,7 +117,7 @@ fun PlaylistsScreen(
                     item {
                         SpecialPlaylistCard(
                             icon = Icons.Outlined.ThumbUp,
-                            title = "Liked Videos",
+                            title = stringResource(R.string.liked_videos),
                             count = uiState.likedVideosCount,
                             onClick = onNavigateToLikedVideos
                         )
@@ -125,7 +127,7 @@ fun PlaylistsScreen(
                     if (uiState.playlists.isNotEmpty()) {
                         item {
                             Text(
-                                text = "Your Playlists",
+                                text = stringResource(R.string.your_playlists_header),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
@@ -209,7 +211,7 @@ private fun SpecialPlaylistCard(
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = if (count > 0) "$count video${if (count != 1) "s" else ""}" else "No videos yet",
+                text = if (count > 0) stringResource(R.string.videos_count_template, count) else stringResource(R.string.no_videos_saved),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -330,7 +332,7 @@ private fun PlaylistCard(
                     modifier = Modifier.size(14.dp)
                 )
                 Text(
-                    text = if (playlist.isPrivate) "Private" else "Public",
+                    text = if (playlist.isPrivate) stringResource(R.string.playlist_private) else stringResource(R.string.playlist_public),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -357,13 +359,13 @@ private fun EmptyPlaylistsState(
         )
         Spacer(Modifier.height(16.dp))
         Text(
-            text = "No playlists yet",
+            text = stringResource(R.string.no_playlists_found),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Create your first playlist to organize your favorite videos",
+            text = stringResource(R.string.create_playlist_empty_desc),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -371,7 +373,7 @@ private fun EmptyPlaylistsState(
         Button(onClick = onCreateClick) {
             Icon(Icons.Default.Add, null)
             Spacer(Modifier.width(8.dp))
-            Text("Create Playlist")
+            Text(stringResource(R.string.create_new_playlist))
         }
     }
 }
@@ -391,15 +393,15 @@ private fun CreatePlaylistDialog(
             Icon(Icons.Default.PlaylistAdd, null, tint = MaterialTheme.colorScheme.primary)
         },
         title = {
-            Text("Create New Playlist", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.create_new_playlist), style = MaterialTheme.typography.titleLarge)
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name") },
-                    placeholder = { Text("My Playlist") },
+                    label = { Text(stringResource(R.string.playlist_name)) },
+                    placeholder = { Text(stringResource(R.string.my_playlist_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp)
@@ -408,8 +410,8 @@ private fun CreatePlaylistDialog(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Description (Optional)") },
-                    placeholder = { Text("Add a description...") },
+                    label = { Text(stringResource(R.string.playlist_description_optional)) },
+                    placeholder = { Text(stringResource(R.string.add_description_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 3,
                     shape = RoundedCornerShape(12.dp)
@@ -431,7 +433,7 @@ private fun CreatePlaylistDialog(
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = if (isPrivate) "Private" else "Public",
+                            text = if (isPrivate) stringResource(R.string.playlist_private) else stringResource(R.string.playlist_public),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -452,12 +454,12 @@ private fun CreatePlaylistDialog(
                 },
                 enabled = name.isNotBlank()
             ) {
-                Text("Create")
+                Text(stringResource(R.string.create))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

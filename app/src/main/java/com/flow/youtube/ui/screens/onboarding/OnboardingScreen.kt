@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
 import com.flow.youtube.R
 import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import kotlinx.coroutines.delay
@@ -103,7 +104,7 @@ fun OnboardingScreen(
                 Spacer(modifier = Modifier.height(20.dp))
                 
                 Text(
-                    text = "Welcome to Flow",
+                    text = stringResource(R.string.welcome_to_flow),
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
@@ -112,7 +113,7 @@ fun OnboardingScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 Text(
-                    text = "Tell us what you're interested in",
+                    text = stringResource(R.string.onboarding_subtitle),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -121,7 +122,7 @@ fun OnboardingScreen(
                 Spacer(modifier = Modifier.height(4.dp))
                 
                 Text(
-                    text = "Select at least 3 topics to personalize your experience",
+                    text = stringResource(R.string.onboarding_instructions),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center
@@ -151,7 +152,10 @@ fun OnboardingScreen(
                                 MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Text(
-                            text = "${selectedTopics.size} selected${if (!canContinue) " (${3 - selectedTopics.size} more needed)" else ""}",
+                            text = if (canContinue) 
+                                stringResource(R.string.selected_count_template, selectedTopics.size)
+                            else 
+                                stringResource(R.string.selected_with_more_needed_template, selectedTopics.size, 3 - selectedTopics.size),
                             style = MaterialTheme.typography.labelLarge,
                             color = if (canContinue) 
                                 MaterialTheme.colorScheme.primary 
@@ -218,7 +222,7 @@ fun OnboardingScreen(
                     }
                 ) {
                     Text(
-                        text = "Skip for now",
+                        text = stringResource(R.string.btn_skip_for_now),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -257,7 +261,7 @@ fun OnboardingScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = "Continue",
+                                text = stringResource(R.string.onboarding_btn_continue),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -309,13 +313,13 @@ private fun TopicCategoryCard(
                 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = category.name.replace(Regex("^[^a-zA-Z]+"), "").trim(),
+                        text = stringResource(getCategoryNameResId(category.name)),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     if (selectedCount > 0) {
                         Text(
-                            text = "$selectedCount selected",
+                            text = stringResource(R.string.selected_count_template, selectedCount),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
@@ -325,7 +329,9 @@ private fun TopicCategoryCard(
                 IconButton(onClick = { isExpanded = !isExpanded }) {
                     Icon(
                         if (isExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        contentDescription = stringResource(
+                            if (isExpanded) R.string.cd_collapse_category else R.string.cd_expand_category
+                        ),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -417,5 +423,20 @@ private fun TopicChip(
                 overflow = TextOverflow.Ellipsis
             )
         }
+    }
+}
+
+private fun getCategoryNameResId(categoryName: String): Int {
+    return when {
+        categoryName.contains("Gaming") -> R.string.category_gaming
+        categoryName.contains("Music") -> R.string.category_music
+        categoryName.contains("Technology") -> R.string.category_technology
+        categoryName.contains("Entertainment") -> R.string.category_entertainment
+        categoryName.contains("Education") -> R.string.category_education
+        categoryName.contains("Health & Fitness") -> R.string.category_health_fitness
+        categoryName.contains("Lifestyle") -> R.string.category_lifestyle
+        categoryName.contains("Creative") -> R.string.category_creative
+        categoryName.contains("Science & Nature") -> R.string.category_science_nature
+        else -> R.string.category_news_current_events
     }
 }
