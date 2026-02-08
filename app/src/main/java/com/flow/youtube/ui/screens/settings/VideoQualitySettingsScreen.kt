@@ -55,10 +55,10 @@ fun VideoQualitySettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.btn_back))
                     }
                     Text(
-                        text = "Video Quality",
+                        text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.video_quality_title),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 }
@@ -75,7 +75,7 @@ fun VideoQualitySettingsScreen(
         ) {
             item {
                 Text(
-                    text = "High definition uses more data",
+                    text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.video_quality_warning),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -84,7 +84,7 @@ fun VideoQualitySettingsScreen(
             
             // Wi-Fi Section
             item {
-                SectionHeader(text = "Wi-Fi Quality")
+                SectionHeader(text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.video_quality_wifi_header))
             }
             
             item {
@@ -104,7 +104,7 @@ fun VideoQualitySettingsScreen(
             
             // Cellular Section
             item {
-                SectionHeader(text = "Cellular Quality")
+                SectionHeader(text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.video_quality_cellular_header))
             }
             
             item {
@@ -147,23 +147,23 @@ fun QualitySelectionItem(
         Spacer(modifier = Modifier.width(16.dp))
         
         Text(
-            text = formatQualityName(quality),
+            text = androidx.compose.ui.res.stringResource(getQualityNameRes(quality)),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurface
         )
     }
 }
 
-private fun formatQualityName(quality: VideoQuality): String {
+private fun getQualityNameRes(quality: VideoQuality): Int {
     return when (quality) {
-        VideoQuality.AUTO -> "Auto"
-        VideoQuality.Q_144p -> "144p"
-        VideoQuality.Q_240p -> "240p"
-        VideoQuality.Q_360p -> "360p"
-        VideoQuality.Q_480p -> "480p"
-        VideoQuality.Q_720p -> "720p HD"
-        VideoQuality.Q_1080p -> "1080p Full HD"
-        VideoQuality.Q_1440p -> "1440p QHD"
-        VideoQuality.Q_2160p -> "2160p 4K"
+        VideoQuality.AUTO -> com.flow.youtube.R.string.quality_auto
+        VideoQuality.Q_144p -> com.flow.youtube.R.string.quality_144p
+        VideoQuality.Q_240p -> com.flow.youtube.R.string.quality_240p
+        VideoQuality.Q_360p -> com.flow.youtube.R.string.quality_360p
+        VideoQuality.Q_480p -> com.flow.youtube.R.string.quality_480p
+        VideoQuality.Q_720p -> com.flow.youtube.R.string.quality_720p_hd
+        VideoQuality.Q_1080p -> com.flow.youtube.R.string.quality_1080p_full_hd
+        VideoQuality.Q_1440p -> com.flow.youtube.R.string.quality_1440p_qhd
+        VideoQuality.Q_2160p -> com.flow.youtube.R.string.quality_2160p_4k
     }
 }

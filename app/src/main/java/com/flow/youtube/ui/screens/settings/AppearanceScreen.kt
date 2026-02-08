@@ -53,8 +53,8 @@ import kotlin.math.sin
 
 private data class ThemeInfo(
     val mode: ThemeMode,
-    val displayName: String,
-    val subtitle: String,
+    @androidx.annotation.StringRes val displayNameRes: Int,
+    @androidx.annotation.StringRes val subtitleRes: Int,
     val category: ThemeCategory,
     val primaryColor: Color,
     val backgroundColor: Color,
@@ -64,16 +64,16 @@ private data class ThemeInfo(
     val surfaceVariantColor: Color = Color.Unspecified
 )
 
-private enum class ThemeCategory(val label: String, val icon: @Composable () -> Unit) {
-    LIGHT("Light", { Icon(Icons.Outlined.LightMode, null, modifier = Modifier.size(18.dp)) }),
-    DARK("Dark", { Icon(Icons.Outlined.DarkMode, null, modifier = Modifier.size(18.dp)) }),
-    SPECIAL("Special", { Icon(Icons.Outlined.AutoAwesome, null, modifier = Modifier.size(18.dp)) })
+private enum class ThemeCategory(@androidx.annotation.StringRes val labelRes: Int, val icon: @Composable () -> Unit) {
+    LIGHT(com.flow.youtube.R.string.appearance_category_light, { Icon(Icons.Outlined.LightMode, null, modifier = Modifier.size(18.dp)) }),
+    DARK(com.flow.youtube.R.string.appearance_category_dark, { Icon(Icons.Outlined.DarkMode, null, modifier = Modifier.size(18.dp)) }),
+    SPECIAL(com.flow.youtube.R.string.appearance_category_special, { Icon(Icons.Outlined.AutoAwesome, null, modifier = Modifier.size(18.dp)) })
 }
 
 private val ALL_THEMES = listOf(
     // Light Themes
     ThemeInfo(
-        ThemeMode.LIGHT, "Pure Light", "Clean & minimal",
+        ThemeMode.LIGHT, com.flow.youtube.R.string.theme_name_pure_light, com.flow.youtube.R.string.theme_desc_pure_light,
         ThemeCategory.LIGHT,
         primaryColor = YouTubeRed,
         backgroundColor = White,
@@ -82,7 +82,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = LightSurfaceVariant
     ),
     ThemeInfo(
-        ThemeMode.MINT_LIGHT, "Mint Fresh", "Cool & refreshing",
+        ThemeMode.MINT_LIGHT, com.flow.youtube.R.string.theme_name_mint_fresh, com.flow.youtube.R.string.theme_desc_mint_fresh,
         ThemeCategory.LIGHT,
         primaryColor = MintLightThemeColors.Primary,
         backgroundColor = MintLightThemeColors.Background,
@@ -92,7 +92,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = MintLightThemeColors.Border
     ),
     ThemeInfo(
-        ThemeMode.ROSE_LIGHT, "Rose Petal", "Warm & gentle",
+        ThemeMode.ROSE_LIGHT, com.flow.youtube.R.string.theme_name_rose_petal, com.flow.youtube.R.string.theme_desc_rose_petal,
         ThemeCategory.LIGHT,
         primaryColor = RoseLightThemeColors.Primary,
         backgroundColor = RoseLightThemeColors.Background,
@@ -102,7 +102,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = RoseLightThemeColors.Border
     ),
     ThemeInfo(
-        ThemeMode.SKY_LIGHT, "Sky Blue", "Open & airy",
+        ThemeMode.SKY_LIGHT, com.flow.youtube.R.string.theme_name_sky_blue, com.flow.youtube.R.string.theme_desc_sky_blue,
         ThemeCategory.LIGHT,
         primaryColor = SkyLightThemeColors.Primary,
         backgroundColor = SkyLightThemeColors.Background,
@@ -112,7 +112,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = SkyLightThemeColors.Border
     ),
     ThemeInfo(
-        ThemeMode.CREAM_LIGHT, "Cream Paper", "Warm & cozy",
+        ThemeMode.CREAM_LIGHT, com.flow.youtube.R.string.theme_name_cream_paper, com.flow.youtube.R.string.theme_desc_cream_paper,
         ThemeCategory.LIGHT,
         primaryColor = CreamLightThemeColors.Primary,
         backgroundColor = CreamLightThemeColors.Background,
@@ -124,7 +124,7 @@ private val ALL_THEMES = listOf(
 
     // Dark Themes
     ThemeInfo(
-        ThemeMode.DARK, "Classic Dark", "Easy on the eyes",
+        ThemeMode.DARK, com.flow.youtube.R.string.theme_name_classic_dark, com.flow.youtube.R.string.theme_desc_classic_dark,
         ThemeCategory.DARK,
         primaryColor = YouTubeRed,
         backgroundColor = DarkBackground,
@@ -133,7 +133,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = DarkSurfaceVariant
     ),
     ThemeInfo(
-        ThemeMode.OLED, "True Black", "Pure OLED",
+        ThemeMode.OLED, com.flow.youtube.R.string.theme_name_true_black, com.flow.youtube.R.string.theme_desc_true_black,
         ThemeCategory.DARK,
         primaryColor = YouTubeRed,
         backgroundColor = Black,
@@ -142,7 +142,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = OLEDThemeColors.Border
     ),
     ThemeInfo(
-        ThemeMode.MIDNIGHT_BLACK, "Midnight", "Deep & focused",
+        ThemeMode.MIDNIGHT_BLACK, com.flow.youtube.R.string.theme_name_midnight, com.flow.youtube.R.string.theme_desc_midnight,
         ThemeCategory.DARK,
         primaryColor = MidnightBlackThemeColors.Primary,
         backgroundColor = MidnightBlackThemeColors.Background,
@@ -152,7 +152,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = MidnightBlackThemeColors.Border
     ),
     ThemeInfo(
-        ThemeMode.OCEAN_BLUE, "Deep Ocean", "Calm depths",
+        ThemeMode.OCEAN_BLUE, com.flow.youtube.R.string.theme_name_deep_ocean, com.flow.youtube.R.string.theme_desc_deep_ocean,
         ThemeCategory.DARK,
         primaryColor = OceanBlueThemeColors.Primary,
         backgroundColor = OceanBlueThemeColors.Background,
@@ -162,7 +162,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = OceanBlueThemeColors.Border
     ),
     ThemeInfo(
-        ThemeMode.FOREST_GREEN, "Forest", "Natural & grounding",
+        ThemeMode.FOREST_GREEN, com.flow.youtube.R.string.theme_name_forest, com.flow.youtube.R.string.theme_desc_forest,
         ThemeCategory.DARK,
         primaryColor = ForestGreenThemeColors.Primary,
         backgroundColor = ForestGreenThemeColors.Background,
@@ -172,7 +172,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = ForestGreenThemeColors.Border
     ),
     ThemeInfo(
-        ThemeMode.LAVENDER_MIST, "Lavender", "Soft & dreamy",
+        ThemeMode.LAVENDER_MIST, com.flow.youtube.R.string.theme_name_lavender, com.flow.youtube.R.string.theme_desc_lavender,
         ThemeCategory.DARK,
         primaryColor = Color(0xFFB39DDB),
         backgroundColor = Color(0xFF120F1A),
@@ -182,7 +182,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = Color(0xFF2A2235)
     ),
     ThemeInfo(
-        ThemeMode.SUNSET_ORANGE, "Sunset", "Warm & vibrant",
+        ThemeMode.SUNSET_ORANGE, com.flow.youtube.R.string.theme_name_sunset, com.flow.youtube.R.string.theme_desc_sunset,
         ThemeCategory.DARK,
         primaryColor = SunsetOrangeThemeColors.Primary,
         backgroundColor = SunsetOrangeThemeColors.Background,
@@ -192,7 +192,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = SunsetOrangeThemeColors.Border
     ),
     ThemeInfo(
-        ThemeMode.PURPLE_NEBULA, "Nebula", "Cosmic & bold",
+        ThemeMode.PURPLE_NEBULA, com.flow.youtube.R.string.theme_name_nebula, com.flow.youtube.R.string.theme_desc_nebula,
         ThemeCategory.DARK,
         primaryColor = PurpleNebulaThemeColors.Primary,
         backgroundColor = PurpleNebulaThemeColors.Background,
@@ -202,7 +202,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = PurpleNebulaThemeColors.Border
     ),
     ThemeInfo(
-        ThemeMode.ROSE_GOLD, "Rose Gold", "Elegant & luxe",
+        ThemeMode.ROSE_GOLD, com.flow.youtube.R.string.theme_name_rose_gold, com.flow.youtube.R.string.theme_desc_rose_gold,
         ThemeCategory.DARK,
         primaryColor = RoseGoldThemeColors.Primary,
         backgroundColor = RoseGoldThemeColors.Background,
@@ -212,7 +212,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = RoseGoldThemeColors.Border
     ),
     ThemeInfo(
-        ThemeMode.ARCTIC_ICE, "Arctic", "Frozen clarity",
+        ThemeMode.ARCTIC_ICE, com.flow.youtube.R.string.theme_name_arctic, com.flow.youtube.R.string.theme_desc_arctic,
         ThemeCategory.DARK,
         primaryColor = ArcticIceThemeColors.Primary,
         backgroundColor = ArcticIceThemeColors.Background,
@@ -222,7 +222,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = ArcticIceThemeColors.Border
     ),
     ThemeInfo(
-        ThemeMode.MINTY_FRESH, "Mint Night", "Cool serenity",
+        ThemeMode.MINTY_FRESH, com.flow.youtube.R.string.theme_name_mint_night, com.flow.youtube.R.string.theme_desc_mint_night,
         ThemeCategory.DARK,
         primaryColor = Color(0xFF80CBC4),
         backgroundColor = Color(0xFF0F1A18),
@@ -234,7 +234,7 @@ private val ALL_THEMES = listOf(
 
     // Special Themes
     ThemeInfo(
-        ThemeMode.CRIMSON_RED, "Crimson", "Bold & powerful",
+        ThemeMode.CRIMSON_RED, com.flow.youtube.R.string.theme_name_crimson, com.flow.youtube.R.string.theme_desc_crimson,
         ThemeCategory.SPECIAL,
         primaryColor = CrimsonRedThemeColors.Primary,
         backgroundColor = CrimsonRedThemeColors.Background,
@@ -244,7 +244,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = CrimsonRedThemeColors.Border
     ),
     ThemeInfo(
-        ThemeMode.COSMIC_VOID, "Cosmic Void", "Infinite darkness",
+        ThemeMode.COSMIC_VOID, com.flow.youtube.R.string.theme_name_cosmic_void, com.flow.youtube.R.string.theme_desc_cosmic_void,
         ThemeCategory.SPECIAL,
         primaryColor = Color(0xFF7C4DFF),
         backgroundColor = Color(0xFF050505),
@@ -254,7 +254,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = Color(0xFF1A1225)
     ),
     ThemeInfo(
-        ThemeMode.SOLAR_FLARE, "Solar Flare", "Blazing energy",
+        ThemeMode.SOLAR_FLARE, com.flow.youtube.R.string.theme_name_solar_flare, com.flow.youtube.R.string.theme_desc_solar_flare,
         ThemeCategory.SPECIAL,
         primaryColor = Color(0xFFFFD740),
         backgroundColor = Color(0xFF1A1500),
@@ -264,7 +264,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = Color(0xFF352A10)
     ),
     ThemeInfo(
-        ThemeMode.CYBERPUNK, "Cyberpunk", "Neon future",
+        ThemeMode.CYBERPUNK, com.flow.youtube.R.string.theme_name_cyberpunk, com.flow.youtube.R.string.theme_desc_cyberpunk,
         ThemeCategory.SPECIAL,
         primaryColor = Color(0xFFFF00FF),
         backgroundColor = Color(0xFF0D001A),
@@ -274,7 +274,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = Color(0xFF200F35)
     ),
     ThemeInfo(
-        ThemeMode.ROYAL_GOLD, "Royal Gold", "Prestigious & rich",
+        ThemeMode.ROYAL_GOLD, com.flow.youtube.R.string.theme_name_royal_gold, com.flow.youtube.R.string.theme_desc_royal_gold,
         ThemeCategory.SPECIAL,
         primaryColor = RoyalGoldThemeColors.Primary,
         backgroundColor = RoyalGoldThemeColors.Background,
@@ -284,7 +284,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = RoyalGoldThemeColors.Border
     ),
     ThemeInfo(
-        ThemeMode.NORDIC_HORIZON, "Nordic", "Scandinavian calm",
+        ThemeMode.NORDIC_HORIZON, com.flow.youtube.R.string.theme_name_nordic, com.flow.youtube.R.string.theme_desc_nordic,
         ThemeCategory.SPECIAL,
         primaryColor = NordicHorizonThemeColors.Primary,
         backgroundColor = NordicHorizonThemeColors.Background,
@@ -294,7 +294,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = NordicHorizonThemeColors.Border
     ),
     ThemeInfo(
-        ThemeMode.ESPRESSO, "Espresso", "Rich & warm",
+        ThemeMode.ESPRESSO, com.flow.youtube.R.string.theme_name_espresso, com.flow.youtube.R.string.theme_desc_espresso,
         ThemeCategory.SPECIAL,
         primaryColor = EspressoThemeColors.Primary,
         backgroundColor = EspressoThemeColors.Background,
@@ -304,7 +304,7 @@ private val ALL_THEMES = listOf(
         surfaceVariantColor = EspressoThemeColors.Border
     ),
     ThemeInfo(
-        ThemeMode.GUNMETAL, "Gunmetal", "Industrial edge",
+        ThemeMode.GUNMETAL, com.flow.youtube.R.string.theme_name_gunmetal, com.flow.youtube.R.string.theme_desc_gunmetal,
         ThemeCategory.SPECIAL,
         primaryColor = GunmetalThemeColors.Primary,
         backgroundColor = GunmetalThemeColors.Background,
@@ -328,6 +328,7 @@ fun AppearanceScreen(
     onNavigateBack: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     var selectedCategory by remember { mutableStateOf<ThemeCategory?>(null) }
     var showAppliedSnackbar by remember { mutableStateOf(false) }
     var lastAppliedTheme by remember { mutableStateOf("") }
@@ -346,7 +347,7 @@ fun AppearanceScreen(
     LaunchedEffect(showAppliedSnackbar) {
         if (showAppliedSnackbar) {
             snackbarHostState.showSnackbar(
-                message = "Applied: $lastAppliedTheme",
+                message = context.getString(com.flow.youtube.R.string.appearance_applied_toast, lastAppliedTheme),
                 duration = SnackbarDuration.Short
             )
             showAppliedSnackbar = false
@@ -375,12 +376,12 @@ fun AppearanceScreen(
                         }
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                "Appearance",
+                                androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.appearance_title),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                "Personalize your Flow experience",
+                                androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.appearance_subtitle),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -416,9 +417,9 @@ fun AppearanceScreen(
                 }
 
                 // ── Section Label ──
-                item(span = { GridItemSpan(2) }) {
-                    val countText = if (selectedCategory == null) "${ALL_THEMES.size} themes"
-                    else "${filteredThemes.size} ${selectedCategory!!.label.lowercase()} themes"
+item(span = { GridItemSpan(2) }) {
+                    val countText = if (selectedCategory == null) androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.appearance_themes_count_all, ALL_THEMES.size)
+                    else androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.appearance_themes_count_filtered, filteredThemes.size, androidx.compose.ui.res.stringResource(selectedCategory!!.labelRes).lowercase())
 
                     Text(
                         text = countText,
@@ -439,7 +440,7 @@ fun AppearanceScreen(
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             onThemeChange(themeInfo.mode)
-                            lastAppliedTheme = themeInfo.displayName
+                            lastAppliedTheme = context.getString(themeInfo.displayNameRes)
                             showAppliedSnackbar = true
                         }
                     )
@@ -577,7 +578,7 @@ private fun CurrentThemeHero(themeInfo: ThemeInfo) {
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
-                            "CURRENT THEME",
+                            androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.appearance_current_theme),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = themeInfo.primaryColor,
@@ -588,14 +589,14 @@ private fun CurrentThemeHero(themeInfo: ThemeInfo) {
                     Spacer(Modifier.height(8.dp))
 
                     Text(
-                        themeInfo.displayName,
+                        androidx.compose.ui.res.stringResource(themeInfo.displayNameRes),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = themeInfo.onSurfaceColor
                     )
 
                     Text(
-                        themeInfo.subtitle,
+                        androidx.compose.ui.res.stringResource(themeInfo.subtitleRes),
                         style = MaterialTheme.typography.bodySmall,
                         color = themeInfo.onSurfaceColor.copy(alpha = 0.6f)
                     )
@@ -787,7 +788,7 @@ private fun CategoryFilterRow(
         FilterChip(
             selected = selectedCategory == null,
             onClick = { onCategorySelected(null) },
-            label = { Text("All") },
+            label = { Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.appearance_category_all)) },
             leadingIcon = if (selectedCategory == null) {
                 { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
             } else {
@@ -802,7 +803,7 @@ private fun CategoryFilterRow(
                 onClick = {
                     onCategorySelected(if (selectedCategory == category) null else category)
                 },
-                label = { Text(category.label) },
+                label = { Text(androidx.compose.ui.res.stringResource(category.labelRes)) },
                 leadingIcon = if (selectedCategory == category) {
                     { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
                 } else {
@@ -915,7 +916,7 @@ private fun ThemeCard(
 
                 // Theme name
                 Text(
-                    themeInfo.displayName,
+                    androidx.compose.ui.res.stringResource(themeInfo.displayNameRes),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                     color = themeInfo.onSurfaceColor,
@@ -925,7 +926,7 @@ private fun ThemeCard(
 
                 // Subtitle
                 Text(
-                    themeInfo.subtitle,
+                    androidx.compose.ui.res.stringResource(themeInfo.subtitleRes),
                     style = MaterialTheme.typography.bodySmall,
                     color = themeInfo.onSurfaceColor.copy(alpha = 0.5f),
                     maxLines = 1,

@@ -83,9 +83,9 @@ fun SettingsScreen(
                 coroutineScope.launch {
                     val result = backupRepo.exportData(it)
                     if (result.isSuccess) {
-                        android.widget.Toast.makeText(context, "Data exported successfully", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, context.getString(com.flow.youtube.R.string.settings_export_success), android.widget.Toast.LENGTH_SHORT).show()
                     } else {
-                        android.widget.Toast.makeText(context, "Export failed: ${result.exceptionOrNull()?.message}", android.widget.Toast.LENGTH_SHORT).show()
+                        android.widget.Toast.makeText(context, context.getString(com.flow.youtube.R.string.settings_export_failed, result.exceptionOrNull()?.message), android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -120,10 +120,10 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.btn_back))
                     }
                     Text(
-                        text = "Settings",
+                        text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_title),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 }
@@ -144,7 +144,7 @@ fun SettingsScreen(
 // =================================================
 item {
     Text(
-        text = "Flow Engine",
+        text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_flow_engine_header),
         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(start = 16.dp, bottom = 8.dp, top = 16.dp)
@@ -224,7 +224,7 @@ item {
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
-                            text = "ACTIVE LEARNING",
+                            text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_active_learning),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onPrimary,
                             fontWeight = FontWeight.Bold,
@@ -241,7 +241,7 @@ item {
                     ) {
                         Icon(
                             Icons.Default.Refresh,
-                            contentDescription = "Reset",
+                            contentDescription = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_reset_everything),
                             tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(16.dp)
                         )
@@ -275,7 +275,7 @@ item {
                         )
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            text = "Analyzing your interactions...",
+                            text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_analyzing_interactions),
                             color = MaterialTheme.colorScheme.onPrimary
                         )
                     }
@@ -286,7 +286,7 @@ item {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "View Analytics",
+                        text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_view_analytics),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.Bold
@@ -307,13 +307,13 @@ item {
             // =================================================
             // APPEARANCE
             // =================================================
-            item { SectionHeader(text = "Appearance") }
+            item { SectionHeader(text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_header_appearance)) }
             item {
                 SettingsGroup { 
                     SettingsItem(
                         icon = Icons.Outlined.Palette,
-                        title = "Theme",
-                        subtitle = formatThemeName(currentTheme),
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_theme),
+                        subtitle = androidx.compose.ui.res.stringResource(getThemeNameRes(currentTheme)),
                         onClick = onNavigateToAppearance
                     )
                 }
@@ -322,55 +322,55 @@ item {
             // =================================================
             // CONTENT & PLAYBACK
             // =================================================
-            item { SectionHeader(text = "Content & Playback") }
+            item { SectionHeader(text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_header_content_playback)) }
             
             item {
                 SettingsGroup {
                     SettingsItem(
                         icon = Icons.Outlined.FilterAlt,
-                        title = "Content Preferences",
-                        subtitle = "Block topics you don't want to see",
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_content_prefs),
+                        subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_content_prefs_subtitle),
                         onClick = onNavigateToUserPreferences
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                          icon = Icons.Outlined.PlayCircle,
-                         title = "Player Settings",
-                         subtitle = "Autoplay, Background Play, SponsorBlock",
+                         title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_player),
+                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_player_subtitle),
                          onClick = onNavigateToPlayerSettings
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                          icon = Icons.Outlined.HighQuality,
-                         title = "Video Quality",
-                         subtitle = "Resolution for Wi-Fi and Mobile",
+                         title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_quality),
+                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_quality_subtitle),
                          onClick = onNavigateToVideoQuality
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                          icon = Icons.Outlined.GridView,
-                         title = "Content Display",
-                         subtitle = "Grid size, thumbnails, layout",
+                         title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_content_display),
+                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_content_display_subtitle),
                          onClick = onNavigateToContentSettings
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.Speed,
-                        title = "Buffer Settings",
-                        subtitle = "Configure video buffering behavior",
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_buffer),
+                        subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_buffer_subtitle),
                         onClick = onNavigateToBufferSettings
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.Download,
-                        title = "Download Settings",
-                        subtitle = "Performance, Storage, Threads",
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_downloads),
+                        subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_downloads_subtitle),
                         onClick = onNavigateToDownloads
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.TrendingUp,
-                        title = "Trending Region",
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_region),
                         subtitle = regionNames[currentRegion] ?: currentRegion,
                         onClick = { showRegionDialog = true }
                     )
@@ -380,35 +380,35 @@ item {
             // =================================================
             // DATA MANAGEMENT
             // =================================================
-            item { SectionHeader(text = "Data Management") }
+            item { SectionHeader(text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_header_data_management)) }
             
             item {
                 SettingsGroup {
                     SettingsItem(
                         icon = Icons.Outlined.History,
-                        title = "Search & History",
-                        subtitle = "Clear history, manage suggestions",
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_search_history),
+                        subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_search_history_subtitle),
                         onClick = onNavigateToSearchHistory
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.Schedule,
-                        title = "Time Management",
-                        subtitle = "Usage stats, Bedtime reminders",
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_time_management),
+                        subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_time_management_subtitle),
                         onClick = onNavigateToTimeManagement
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.FileUpload,
-                        title = "Export Data",
-                        subtitle = "Backup your data",
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_export_data),
+                        subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_export_data_subtitle),
                         onClick = { exportLauncher.launch("flow_backup_${System.currentTimeMillis()}.json") }
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.FileDownload,
-                        title = "Import Data",
-                        subtitle = "Restore from backup or import from other apps",
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_import_data),
+                        subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_import_data_subtitle),
                         onClick = onNavigateToImport
                     )
                 }
@@ -417,20 +417,20 @@ item {
             // =================================================
             // ABOUT
             // =================================================
-            item { SectionHeader(text = "About") }
+            item { SectionHeader(text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_header_about)) }
             item {
                 SettingsGroup {
                     SettingsItem(
                         icon = Icons.Outlined.Info,
-                        title = "About Flow",
-                        subtitle = "Version, License, Contributors",
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_about_flow),
+                        subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_about_flow_subtitle),
                         onClick = onNavigateToAbout
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.Favorite,
-                        title = "Support & Donations",
-                        subtitle = "Help support the development of Flow",
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_support),
+                        subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_support_subtitle),
                         onClick = onNavigateToDonations
                     )
                 }
@@ -443,14 +443,10 @@ item {
         AlertDialog(
             onDismissRequest = { showResetBrainDialog = false },
             icon = { Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error) },
-            title = { Text("Reset Flow Personality?") },
+            title = { Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_reset_brain_title)) },
             text = { 
                 Text(
-                    "This will completely wipe your 'Flow Brain' interest profile.\n\n" +
-                    "• All learned topics will be forgotten.\n" +
-                    "• Personality traits will reset to neutral.\n" +
-                    "• Recommendations will return to default.\n\n" +
-                    "This action cannot be undone.",
+                    androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_reset_brain_body),
                     style = MaterialTheme.typography.bodyMedium
                 ) 
             },
@@ -464,10 +460,10 @@ item {
                         }
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                ) { Text("Reset Everything") }
+                ) { Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_reset_everything)) }
             },
             dismissButton = {
-                TextButton(onClick = { showResetBrainDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showResetBrainDialog = false }) { Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.cancel)) }
             }
         )
     }
@@ -476,7 +472,7 @@ item {
     if (showRegionDialog) {
         AlertDialog(
             onDismissRequest = { showRegionDialog = false },
-            title = { Text("Select Region") },
+            title = { Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_region_dialog_title)) },
             text = {
                 LazyColumn(Modifier.heightIn(max = 300.dp)) {
                     items(regionNames.toList().size) { index ->
@@ -498,7 +494,7 @@ item {
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton(onClick = { showRegionDialog = false }) { Text("Cancel") } }
+            dismissButton = { TextButton(onClick = { showRegionDialog = false }) { Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.cancel)) } }
         )
     }
     
@@ -525,7 +521,31 @@ fun BrainTraitRow(label: String, value: Double, leftLabel: String, rightLabel: S
     }
 }
 
-private fun formatThemeName(theme: ThemeMode): String {
-    return theme.name.split("_")
-        .joinToString(" ") { it.lowercase().replaceFirstChar { char -> char.uppercase() } }
+private fun getThemeNameRes(theme: ThemeMode): Int {
+    return when (theme) {
+        ThemeMode.LIGHT -> com.flow.youtube.R.string.theme_name_pure_light
+        ThemeMode.MINT_LIGHT -> com.flow.youtube.R.string.theme_name_mint_fresh
+        ThemeMode.ROSE_LIGHT -> com.flow.youtube.R.string.theme_name_rose_petal
+        ThemeMode.SKY_LIGHT -> com.flow.youtube.R.string.theme_name_sky_blue
+        ThemeMode.CREAM_LIGHT -> com.flow.youtube.R.string.theme_name_cream_paper
+        ThemeMode.DARK -> com.flow.youtube.R.string.theme_name_classic_dark
+        ThemeMode.OLED -> com.flow.youtube.R.string.theme_name_true_black
+        ThemeMode.MIDNIGHT_BLACK -> com.flow.youtube.R.string.theme_name_midnight
+        ThemeMode.OCEAN_BLUE -> com.flow.youtube.R.string.theme_name_deep_ocean
+        ThemeMode.FOREST_GREEN -> com.flow.youtube.R.string.theme_name_forest
+        ThemeMode.LAVENDER_MIST -> com.flow.youtube.R.string.theme_name_lavender
+        ThemeMode.SUNSET_ORANGE -> com.flow.youtube.R.string.theme_name_sunset
+        ThemeMode.PURPLE_NEBULA -> com.flow.youtube.R.string.theme_name_nebula
+        ThemeMode.ROSE_GOLD -> com.flow.youtube.R.string.theme_name_rose_gold
+        ThemeMode.ARCTIC_ICE -> com.flow.youtube.R.string.theme_name_arctic
+        ThemeMode.MINTY_FRESH -> com.flow.youtube.R.string.theme_name_mint_night
+        ThemeMode.CRIMSON_RED -> com.flow.youtube.R.string.theme_name_crimson
+        ThemeMode.COSMIC_VOID -> com.flow.youtube.R.string.theme_name_cosmic_void
+        ThemeMode.SOLAR_FLARE -> com.flow.youtube.R.string.theme_name_solar_flare
+        ThemeMode.CYBERPUNK -> com.flow.youtube.R.string.theme_name_cyberpunk
+        ThemeMode.ROYAL_GOLD -> com.flow.youtube.R.string.theme_name_royal_gold
+        ThemeMode.NORDIC_HORIZON -> com.flow.youtube.R.string.theme_name_nordic
+        ThemeMode.ESPRESSO -> com.flow.youtube.R.string.theme_name_espresso
+        ThemeMode.GUNMETAL -> com.flow.youtube.R.string.theme_name_gunmetal
+    }
 }

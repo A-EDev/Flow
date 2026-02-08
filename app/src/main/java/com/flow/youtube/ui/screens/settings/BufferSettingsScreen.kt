@@ -69,10 +69,10 @@ fun BufferSettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.btn_back))
                     }
                     Text(
-                        text = "Buffer Settings",
+                        text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.buffer_settings_title),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 }
@@ -90,22 +90,22 @@ fun BufferSettingsScreen(
             
             item {
                 Text(
-                    text = "Configure video buffering behavior to optimize for your network connection.",
+                    text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.buffer_settings_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             
             // Profile Selection
-            item { SectionHeader(text = "Performance Profile") }
+            item { SectionHeader(text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.buffer_settings_header_profile)) }
             
             item {
                 SettingsGroup {
                     BufferProfile.values().filter { it != BufferProfile.CUSTOM }.forEachIndexed { index, profile ->
                         val isSelected = currentBufferProfile == profile
                         ProfileSelectionItem(
-                            title = formatProfileName(profile),
-                            subtitle = getProfileDescription(profile),
+                            title = androidx.compose.ui.res.stringResource(getProfileNameRes(profile)),
+                            subtitle = getProfileDescriptionRes(profile)?.let { androidx.compose.ui.res.stringResource(it) } ?: "",
                             isSelected = isSelected,
                             onClick = { 
                                 coroutineScope.launch { 
@@ -126,13 +126,13 @@ fun BufferSettingsScreen(
             }
             
             // Custom Profile
-             item { SectionHeader(text = "Manual Configuration") }
+             item { SectionHeader(text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.buffer_settings_header_custom)) }
              
              item {
                  SettingsGroup {
                      ProfileSelectionItem(
-                        title = "Custom",
-                        subtitle = "Manually configure buffer sizes",
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.buffer_profile_custom),
+                        subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.buffer_profile_custom_desc),
                         isSelected = currentBufferProfile == BufferProfile.CUSTOM,
                         onClick = { coroutineScope.launch { playerPreferences.setBufferProfile(BufferProfile.CUSTOM) } }
                     )
@@ -142,14 +142,17 @@ fun BufferSettingsScreen(
             if (currentBufferProfile == BufferProfile.CUSTOM) {
                 item {
                     SettingsGroup {
+
                         Column(Modifier.padding(16.dp)) {
-                            Text("Manually adjust buffer sizes. Higher values prevent stalling but may delay playback start.", 
+                            Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.buffer_custom_mode_desc), 
                                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             
                             Spacer(Modifier.height(16.dp))
                             
+
+                            
                             // Min Buffer
-                            Text("Min Buffer: ${tempMinBuffer.toInt()/1000}s", style = MaterialTheme.typography.bodyMedium)
+                            Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.buffer_label_min, tempMinBuffer.toInt()/1000), style = MaterialTheme.typography.bodyMedium)
                             Slider(
                                 value = tempMinBuffer,
                                 onValueChange = { tempMinBuffer = it },
@@ -162,8 +165,10 @@ fun BufferSettingsScreen(
                             
                             Spacer(Modifier.height(8.dp))
                             
+
+                            
                             // Max Buffer
-                            Text("Max Buffer: ${tempMaxBuffer.toInt()/1000}s", style = MaterialTheme.typography.bodyMedium)
+                            Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.buffer_label_max, tempMaxBuffer.toInt()/1000), style = MaterialTheme.typography.bodyMedium)
                             Slider(
                                 value = tempMaxBuffer,
                                 onValueChange = { tempMaxBuffer = it },
@@ -176,8 +181,10 @@ fun BufferSettingsScreen(
                             
                             Spacer(Modifier.height(8.dp))
 
+
+
                             // Playback Buffer
-                            Text("Start Playback: ${tempPlaybackBuffer.toInt()/1000}s", style = MaterialTheme.typography.bodyMedium)
+                            Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.buffer_label_playback, tempPlaybackBuffer.toInt()/1000), style = MaterialTheme.typography.bodyMedium)
                             Slider(
                                 value = tempPlaybackBuffer,
                                 onValueChange = { tempPlaybackBuffer = it },
@@ -190,8 +197,10 @@ fun BufferSettingsScreen(
                             
                             Spacer(Modifier.height(8.dp))
                             
+
+                            
                             // Rebuffer
-                            Text("Resume after Rebuffer: ${tempRebuffer.toInt()/1000}s", style = MaterialTheme.typography.bodyMedium)
+                            Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.buffer_label_rebuffer, tempRebuffer.toInt()/1000), style = MaterialTheme.typography.bodyMedium)
                             Slider(
                                 value = tempRebuffer,
                                 onValueChange = { tempRebuffer = it },
@@ -207,7 +216,7 @@ fun BufferSettingsScreen(
             } else {
                  item {
                      Text(
-                        text = "Switch to 'Custom' to enable sliders.",
+                        text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.buffer_switch_to_custom),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 16.dp)
@@ -249,21 +258,21 @@ fun ProfileSelectionItem(
 }
 
 
-private fun formatProfileName(profile: BufferProfile): String {
+private fun getProfileNameRes(profile: BufferProfile): Int {
     return when (profile) {
-        BufferProfile.STABLE -> "Stable (Default)"
-        BufferProfile.AGGRESSIVE -> "Fast Start / Aggressive"
-        BufferProfile.DATASAVER -> "Data Saver / Low Latency"
-        BufferProfile.CUSTOM -> "Custom"
-        else -> profile.label
+        BufferProfile.STABLE -> com.flow.youtube.R.string.buffer_profile_stable
+        BufferProfile.AGGRESSIVE -> com.flow.youtube.R.string.buffer_profile_aggressive
+        BufferProfile.DATASAVER -> com.flow.youtube.R.string.buffer_profile_datasaver
+        BufferProfile.CUSTOM -> com.flow.youtube.R.string.buffer_profile_custom
+        else -> com.flow.youtube.R.string.buffer_profile_stable // Default fallback
     }
 }
 
-private fun getProfileDescription(profile: BufferProfile): String {
+private fun getProfileDescriptionRes(profile: BufferProfile): Int? {
     return when (profile) {
-        BufferProfile.STABLE -> "Balanced start time and buffering (15s min, 50s max)"
-        BufferProfile.AGGRESSIVE -> "Prioritize quick playback start (10s min, 30s max)"
-        BufferProfile.DATASAVER -> "Minimize data usage with smaller buffers (12s min)"
-        else -> ""
+        BufferProfile.STABLE -> com.flow.youtube.R.string.buffer_desc_stable
+        BufferProfile.AGGRESSIVE -> com.flow.youtube.R.string.buffer_desc_aggressive
+        BufferProfile.DATASAVER -> com.flow.youtube.R.string.buffer_desc_datasaver
+        else -> null
     }
 }

@@ -253,7 +253,7 @@ fun ShortVideoPlayer(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "2x Speed",
+                        text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.speed_2x),
                         color = Color.White,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
@@ -278,7 +278,7 @@ fun ShortVideoPlayer(
         ) {
             Icon(
                 imageVector = Icons.Default.Favorite,
-                contentDescription = "Liked",
+                contentDescription = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.cd_liked),
                 tint = Color.Red,
                 modifier = Modifier.size(120.dp)
             )
@@ -321,10 +321,10 @@ fun ShortVideoPlayer(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, "Back", tint = Color.White)
+                    Icon(Icons.Default.ArrowBack, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.btn_back), tint = Color.White)
                 }
                 IconButton(onClick = { /* Search */ }) {
-                    Icon(Icons.Default.Search, "Search", tint = Color.White)
+                    Icon(Icons.Default.Search, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_search), tint = Color.White)
                 }
             }
         }
@@ -364,7 +364,7 @@ fun ShortVideoPlayer(
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                             modifier = Modifier.height(32.dp)
                         ) {
-                            Text("Subscribe", style = MaterialTheme.typography.labelSmall)
+                            Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_subscribe), style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
@@ -397,7 +397,7 @@ fun ShortVideoPlayer(
                     Icon(Icons.Default.MusicNote, null, tint = Color.White, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Original Sound - ${video.channelName}",
+                        text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.shorts_original_sound, video.channelName),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White,
                         maxLines = 1
@@ -409,17 +409,17 @@ fun ShortVideoPlayer(
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
                 ActionButton(
                     icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    text = "Like",
+                    text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_like),
                     tint = if (isLiked) Color.Red else Color.White,
                     onClick = { onLikeClick(); isLiked = !isLiked }
                 )
-                ActionButton(icon = Icons.Default.ThumbDown, text = "Dislike", onClick = {})
-                ActionButton(icon = Icons.Default.Comment, text = "Comments", onClick = onCommentsClick)
+                ActionButton(icon = Icons.Default.ThumbDown, text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_dislike), onClick = {})
+                ActionButton(icon = Icons.Default.Comment, text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_comments), onClick = onCommentsClick)
                 
                 // Save Button
                 ActionButton(
                     icon = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                    text = "Save",
+                    text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_save),
                     tint = if (isSaved) primaryColor else Color.White,
                     onClick = { 
                         isSaved = !isSaved
@@ -427,8 +427,8 @@ fun ShortVideoPlayer(
                     }
                 )
                 
-                ActionButton(icon = Icons.Default.Share, text = "Share", onClick = onShareClick)
-                ActionButton(icon = Icons.Default.Description, text = "Description", onClick = onDescriptionClick)
+                ActionButton(icon = Icons.Default.Share, text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_share), onClick = onShareClick)
+                ActionButton(icon = Icons.Default.Description, text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_description), onClick = onDescriptionClick)
                 
                 // Album Art / Sound Spinner
                 Box(
@@ -474,7 +474,7 @@ fun ShortVideoPlayer(
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    contentDescription = if (isPlaying) androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.cd_pause) else androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.cd_play),
                     tint = Color.White,
                     modifier = Modifier.size(48.dp)
                 )

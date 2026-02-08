@@ -23,6 +23,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,13 +39,13 @@ fun DonationsScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = "Support & Donations",
+                        text = stringResource(R.string.support_donations_title),
                         style = MaterialTheme.typography.headlineMedium
                     ) 
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -75,13 +77,13 @@ fun DonationsScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Support Flow Development",
+                        text = stringResource(R.string.support_flow_dev_title),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "If you find Flow useful and would like to support its development, you can donate via the following addresses. Your support helps keep the project alive!",
+                        text = stringResource(R.string.support_flow_dev_desc),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -128,7 +130,7 @@ fun DonationsScreen(
             item {
                 Spacer(modifier = Modifier.height(32.dp))
                 Text(
-                    text = "Thank you for your support! ❤️",
+                    text = stringResource(R.string.thank_you_support_message),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.fillMaxWidth(),
@@ -181,7 +183,7 @@ fun DonationItem(
             }
             Icon(
                 imageVector = icon,
-                contentDescription = "Copy",
+                contentDescription = stringResource(R.string.share),
                 tint = MaterialTheme.colorScheme.primary
             )
         }
@@ -190,7 +192,7 @@ fun DonationItem(
 
 private fun copyToClipboard(context: Context, text: String) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    val clip = ClipData.newPlainText("Donation Address", text)
+    val clip = ClipData.newPlainText(context.getString(R.string.donation_address_clip_label), text)
     clipboard.setPrimaryClip(clip)
-    Toast.makeText(context, "Address copied to clipboard", Toast.LENGTH_SHORT).show()
+    Toast.makeText(context, context.getString(R.string.address_copied_toast), Toast.LENGTH_SHORT).show()
 }

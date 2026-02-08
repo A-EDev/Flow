@@ -19,6 +19,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.flow.youtube.data.local.PlayerPreferences
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import kotlinx.coroutines.launch
 
 private val audioLanguageOptions = listOf(
@@ -73,10 +75,10 @@ fun PlayerSettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
                     }
                     Text(
-                        text = "Player Settings",
+                        text = stringResource(R.string.player_settings_title),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 }
@@ -95,40 +97,40 @@ fun PlayerSettingsScreen(
                 SettingsGroup {
                     SettingsSwitchItem(
                         icon = Icons.Outlined.PlayCircle,
-                        title = "Background Play",
-                        subtitle = "Continue playing when app is in background",
+                        title = stringResource(R.string.player_settings_background_play),
+                        subtitle = stringResource(R.string.player_settings_background_play_subtitle),
                         checked = backgroundPlayEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setBackgroundPlayEnabled(it) } }
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.SkipNext,
-                        title = "Autoplay",
-                        subtitle = "Automatically play the next video",
+                        title = stringResource(R.string.player_settings_autoplay),
+                        subtitle = stringResource(R.string.player_settings_autoplay_subtitle),
                         checked = autoplayEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setAutoplayEnabled(it) } }
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.GraphicEq,
-                        title = "Skip Silence",
-                        subtitle = "Skip parts with no audio",
+                        title = stringResource(R.string.player_settings_skip_silence),
+                        subtitle = stringResource(R.string.player_settings_skip_silence_subtitle),
                         checked = skipSilenceEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setSkipSilenceEnabled(it) } }
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.ContentCut,
-                        title = "SponsorBlock",
-                        subtitle = "Skip sponsored segments",
+                        title = stringResource(R.string.player_settings_sponsorblock),
+                        subtitle = stringResource(R.string.player_settings_sponsorblock_subtitle),
                         checked = sponsorBlockEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setSponsorBlockEnabled(it) } }
                     )
                     Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.PictureInPicture,
-                        title = "Show PiP Button",
-                        subtitle = "Show manual PiP button in player controls",
+                        title = stringResource(R.string.player_settings_show_pip),
+                        subtitle = stringResource(R.string.player_settings_show_pip_subtitle),
                         checked = manualPipButtonEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setManualPipButtonEnabled(it) } }
                     )
@@ -138,7 +140,7 @@ fun PlayerSettingsScreen(
             // Audio Settings Section
             item {
                 Text(
-                    text = "Audio",
+                    text = stringResource(R.string.player_settings_header_audio),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -146,9 +148,9 @@ fun PlayerSettingsScreen(
                 SettingsGroup {
                     SettingsClickItem(
                         icon = Icons.Outlined.VolumeUp,
-                        title = "Preferred Audio Language",
+                        title = stringResource(R.string.player_settings_audio_language),
                         subtitle = audioLanguageOptions.find { it.first == preferredAudioLanguage }?.second 
-                            ?: "Original (Native)",
+                            ?: stringResource(R.string.player_settings_audio_original),
                         onClick = { showAudioLanguageDialog = true }
                     )
                 }
@@ -162,7 +164,7 @@ fun PlayerSettingsScreen(
             onDismissRequest = { showAudioLanguageDialog = false },
             title = { 
                 Text(
-                    "Audio Language",
+                    stringResource(R.string.player_settings_audio_language_dialog_title),
                     style = MaterialTheme.typography.titleLarge
                 ) 
             },
@@ -174,7 +176,7 @@ fun PlayerSettingsScreen(
                         .verticalScroll(scrollState)
                 ) {
                     Text(
-                        "Select your preferred audio track language. If not available, the original language will be used.",
+                        stringResource(R.string.player_settings_audio_language_dialog_body),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 16.dp)
@@ -204,7 +206,7 @@ fun PlayerSettingsScreen(
                                 )
                                 if (code == "original") {
                                     Text(
-                                        text = "Uses the video's native audio track",
+                                        text = stringResource(R.string.player_settings_audio_original_desc),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -216,7 +218,7 @@ fun PlayerSettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showAudioLanguageDialog = false }) {
-                    Text("Close")
+                    Text(stringResource(R.string.btn_close))
                 }
             }
         )

@@ -31,6 +31,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import kotlinx.coroutines.launch
 
@@ -63,12 +65,12 @@ fun UserPreferencesScreen(
                 title = {
                     Column {
                         Text(
-                            text = "Content Preferences",
+                            text = stringResource(R.string.content_preferences_title),
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Customize what you see",
+                            text = stringResource(R.string.content_preferences_subtitle),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -76,7 +78,7 @@ fun UserPreferencesScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
                     }
                 },
                 colors = TopAppBarDefaults.largeTopAppBarColors(
@@ -102,16 +104,16 @@ fun UserPreferencesScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     SectionTab(
-                        title = "Interests",
-                        subtitle = "${preferredTopics.size} topics",
+                        title = stringResource(R.string.interests_tab),
+                        subtitle = stringResource(R.string.topics_count_template, preferredTopics.size),
                         icon = Icons.Outlined.Favorite,
                         isSelected = selectedSection == 0,
                         onClick = { selectedSection = 0 },
                         modifier = Modifier.weight(1f)
                     )
                     SectionTab(
-                        title = "Blocked",
-                        subtitle = "${blockedTopics.size} hidden",
+                        title = stringResource(R.string.blocked_tab),
+                        subtitle = stringResource(R.string.hidden_count_template, blockedTopics.size),
                         icon = Icons.Outlined.Block,
                         isSelected = selectedSection == 1,
                         onClick = { selectedSection = 1 },
@@ -131,8 +133,8 @@ fun UserPreferencesScreen(
                     item {
                         InfoCard(
                             icon = Icons.Outlined.TipsAndUpdates,
-                            title = "Your Interests",
-                            description = "Topics you've selected help Flow recommend better content. Tap topics below to add or remove them.",
+                            title = stringResource(R.string.your_interests_title),
+                            description = stringResource(R.string.your_interests_desc),
                             containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f),
                             iconTint = MaterialTheme.colorScheme.primary
                         )
@@ -141,8 +143,8 @@ fun UserPreferencesScreen(
                     if (preferredTopics.isNotEmpty()) {
                         item {
                             PreferencesSectionHeader(
-                                title = "Currently Following",
-                                subtitle = "Tap to remove"
+                                title = stringResource(R.string.currently_following),
+                                subtitle = stringResource(R.string.tap_to_remove)
                             )
                         }
                         
@@ -177,8 +179,8 @@ fun UserPreferencesScreen(
                     
                     item {
                         PreferencesSectionHeader(
-                            title = "Add Topics",
-                            subtitle = "Browse by category"
+                            title = stringResource(R.string.add_topics),
+                            subtitle = stringResource(R.string.browse_by_category)
                         )
                     }
                     
@@ -210,8 +212,8 @@ fun UserPreferencesScreen(
                     item {
                         InfoCard(
                             icon = Icons.Outlined.VisibilityOff,
-                            title = "Hidden Content",
-                            description = "Videos with these topics won't appear in your recommendations. You can also use the \"Not Interested\" button on videos.",
+                            title = stringResource(R.string.hidden_content_title),
+                            description = stringResource(R.string.hidden_content_desc),
                             containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f),
                             iconTint = MaterialTheme.colorScheme.error
                         )
@@ -219,8 +221,8 @@ fun UserPreferencesScreen(
                     
                     item {
                         PreferencesSectionHeader(
-                            title = "Block a Topic",
-                            subtitle = "Enter keywords to hide"
+                            title = stringResource(R.string.block_topic_title),
+                            subtitle = stringResource(R.string.enter_keywords_to_hide)
                         )
                     }
                     
@@ -242,7 +244,7 @@ fun UserPreferencesScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     placeholder = { 
                                         Text(
-                                            "e.g., makeup, fortnite, asmr",
+                                            stringResource(R.string.block_topic_placeholder),
                                             style = MaterialTheme.typography.bodyMedium
                                         ) 
                                     },
@@ -267,7 +269,7 @@ fun UserPreferencesScreen(
                                             ) {
                                                 Icon(
                                                     Icons.Default.Add,
-                                                    contentDescription = "Add topic",
+                                                    contentDescription = stringResource(R.string.desc_add_topic),
                                                     tint = MaterialTheme.colorScheme.primary
                                                 )
                                             }
@@ -295,8 +297,8 @@ fun UserPreferencesScreen(
                     
                     item {
                         PreferencesSectionHeader(
-                            title = "Quick Add",
-                            subtitle = "Common topics to block"
+                            title = stringResource(R.string.quick_add),
+                            subtitle = stringResource(R.string.common_topics_to_block)
                         )
                     }
                     
@@ -339,8 +341,8 @@ fun UserPreferencesScreen(
                     if (blockedTopics.isNotEmpty()) {
                         item {
                             PreferencesSectionHeader(
-                                title = "Currently Blocked",
-                                subtitle = "${blockedTopics.size} topic${if (blockedTopics.size > 1) "s" else ""}"
+                                title = stringResource(R.string.currently_blocked),
+                                subtitle = stringResource(R.string.topics_blocked_count_plural, blockedTopics.size, if (blockedTopics.size > 1) "s" else "")
                             )
                         }
                         
@@ -543,7 +545,7 @@ private fun TopicCategoryExpandableCard(
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = if (selectedCount > 0) "$selectedCount selected" else "${category.topics.size} topics",
+                        text = if (selectedCount > 0) stringResource(R.string.selected_count_template, selectedCount) else stringResource(R.string.topics_count_template, category.topics.size),
                         style = MaterialTheme.typography.labelSmall,
                         color = if (selectedCount > 0) 
                             MaterialTheme.colorScheme.primary 
@@ -660,7 +662,7 @@ private fun PreferredTopicChip(
             ) {
                 Icon(
                     Icons.Default.Close,
-                    contentDescription = "Remove $topic",
+                    contentDescription = stringResource(R.string.desc_remove_topic, topic),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onPrimaryContainer
                 )
@@ -702,7 +704,7 @@ private fun BlockedTopicChip(
             ) {
                 Icon(
                     Icons.Default.Close,
-                    contentDescription = "Unblock $topic",
+                    contentDescription = stringResource(R.string.desc_unblock_topic, topic),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onErrorContainer
                 )

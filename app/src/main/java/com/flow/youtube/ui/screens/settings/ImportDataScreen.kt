@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import com.flow.youtube.data.local.BackupRepository
 import kotlinx.coroutines.launch
 
@@ -38,9 +40,9 @@ fun ImportDataScreen(
                 scope.launch {
                     val result = backupRepo.importData(it)
                     if (result.isSuccess) {
-                        snackbarHostState.showSnackbar("Flow backup imported successfully")
+                        snackbarHostState.showSnackbar(context.getString(R.string.import_flow_backup_success))
                     } else {
-                        snackbarHostState.showSnackbar("Failed to import Flow backup: ${result.exceptionOrNull()?.message}")
+                        snackbarHostState.showSnackbar(context.getString(R.string.import_flow_backup_failed_template, result.exceptionOrNull()?.message))
                     }
                 }
             }
@@ -54,9 +56,9 @@ fun ImportDataScreen(
                 scope.launch {
                     val result = backupRepo.importNewPipe(it)
                     if (result.isSuccess) {
-                        snackbarHostState.showSnackbar("Imported ${result.getOrNull()} subscriptions from NewPipe")
+                        snackbarHostState.showSnackbar(context.getString(R.string.import_newpipe_success_template, result.getOrNull()))
                     } else {
-                        snackbarHostState.showSnackbar("Failed to import NewPipe backup: ${result.exceptionOrNull()?.message}")
+                        snackbarHostState.showSnackbar(context.getString(R.string.import_newpipe_failed_template, result.exceptionOrNull()?.message))
                     }
                 }
             }
@@ -70,9 +72,9 @@ fun ImportDataScreen(
                 scope.launch {
                     val result = backupRepo.importYouTube(it)
                     if (result.isSuccess) {
-                        snackbarHostState.showSnackbar("Imported ${result.getOrNull()} subscriptions from YouTube")
+                        snackbarHostState.showSnackbar(context.getString(R.string.import_youtube_success_template, result.getOrNull()))
                     } else {
-                        snackbarHostState.showSnackbar("Failed to import YouTube backup: ${result.exceptionOrNull()?.message}")
+                        snackbarHostState.showSnackbar(context.getString(R.string.import_youtube_failed_template, result.exceptionOrNull()?.message))
                     }
                 }
             }
@@ -82,10 +84,10 @@ fun ImportDataScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Import Data") },
+                title = { Text(stringResource(R.string.import_data_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.btn_back))
                     }
                 }
             )
@@ -101,8 +103,8 @@ fun ImportDataScreen(
         ) {
             item {
                 ImportOptionCard(
-                    title = "Import Flow Backup",
-                    description = "Restore your history, settings, and subscriptions from a Flow backup file.",
+                    title = stringResource(R.string.import_flow_backup_item_title),
+                    description = stringResource(R.string.import_flow_backup_desc),
                     icon = Icons.Default.Restore,
                     onClick = { flowImportLauncher.launch(arrayOf("application/json")) }
                 )
@@ -110,8 +112,8 @@ fun ImportDataScreen(
             
             item {
                 ImportOptionCard(
-                    title = "Import from NewPipe",
-                    description = "Import subscriptions from a NewPipe export file (JSON).",
+                    title = stringResource(R.string.import_from_newpipe),
+                    description = stringResource(R.string.import_from_newpipe_desc),
                     icon = Icons.Default.CloudDownload,
                     onClick = { newPipeImportLauncher.launch(arrayOf("application/json")) }
                 )
@@ -119,8 +121,8 @@ fun ImportDataScreen(
             
             item {
                 ImportOptionCard(
-                    title = "Import from LibreTube",
-                    description = "Import data from LibreTube. (Coming Soon)",
+                    title = stringResource(R.string.import_from_libretube),
+                    description = stringResource(R.string.import_from_libretube_desc),
                     icon = Icons.Default.VideoLibrary,
                     enabled = false,
                     onClick = { /* TODO */ }
@@ -129,8 +131,8 @@ fun ImportDataScreen(
             
             item {
                 ImportOptionCard(
-                    title = "Import from YouTube",
-                    description = "Import subscriptions from YouTube Takeout (CSV).",
+                    title = stringResource(R.string.import_from_youtube),
+                    description = stringResource(R.string.import_from_youtube_desc),
                     icon = Icons.Default.PlayArrow,
                     enabled = true,
                     onClick = { youtubeImportLauncher.launch(arrayOf("text/comma-separated-values", "text/csv", "text/plain")) }

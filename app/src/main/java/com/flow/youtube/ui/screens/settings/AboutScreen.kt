@@ -72,10 +72,10 @@ fun AboutScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
                     }
                     Text(
-                        text = "About",
+                        text = stringResource(R.string.about_title),
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 }
@@ -100,7 +100,7 @@ fun AboutScreen(
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_notification_logo),
-                        contentDescription = "App Logo",
+                        contentDescription = stringResource(R.string.app_logo_desc),
                         modifier = Modifier.size(160.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -124,7 +124,7 @@ fun AboutScreen(
                         modifier = Modifier.padding(vertical = 4.dp)
                     ) {
                         Text(
-                            text = "v$versionName ($versionCode)",
+                            text = stringResource(R.string.v_version_template, versionName, versionCode),
                             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
@@ -141,21 +141,21 @@ fun AboutScreen(
                     SettingsGroup {
                         SettingsItem(
                             icon = Icons.Outlined.Favorite,
-                            title = "Donate",
-                            subtitle = "Support development",
+                            title = stringResource(R.string.donate_item_title),
+                            subtitle = stringResource(R.string.support_dev_subtitle),
                             onClick = onNavigateToDonations
                         )
                         Divider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         SettingsItem(
                             icon = Icons.Outlined.Public, 
-                            title = "Website",
+                            title = stringResource(R.string.about_website),
                             subtitle = "flowapp-website.vercel.app",
                             onClick = { openUrl(context, "https://flowapp-website.vercel.app") } 
                         )
                         Divider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         SettingsItem(
                             icon = Icons.Outlined.Person,
-                            title = "Creator",
+                            title = stringResource(R.string.about_creator),
                             subtitle = "A-EDev",
                             onClick = { openUrl(context, "https://github.com/A-EDev") }
                         )
@@ -164,36 +164,36 @@ fun AboutScreen(
                         // GitHub Item with Custom Icon
                         CustomIconSettingsItem(
                             iconPainter = painterResource(id = R.drawable.ic_github),
-                            title = "GitHub",
-                            subtitle = "Source code & Issues",
+                            title = stringResource(R.string.github_label),
+                            subtitle = stringResource(R.string.github_subtitle),
                             onClick = { openUrl(context, "https://github.com/A-EDev/flow") }
                         )
 
                         Divider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         SettingsItem(
                             icon = Icons.Outlined.Extension,
-                            title = "NewPipe Extractor",
-                            subtitle = "Core extraction library",
+                            title = stringResource(R.string.newpipe_extractor_title),
+                            subtitle = stringResource(R.string.newpipe_extractor_subtitle),
                             onClick = { openUrl(context, "https://github.com/TeamNewPipe/NewPipeExtractor") }
                         )
                         Divider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         SettingsItem(
                             icon = Icons.Outlined.Description,
-                            title = "License",
+                            title = stringResource(R.string.about_license),
                             subtitle = "GNU GPL v3",
                             onClick = { showLicenseDialog = true }
                         )
                         Divider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         SettingsItem(
                             icon = Icons.Outlined.History,
-                            title = "Changelog",
-                            subtitle = "What's new in Flow",
+                            title = stringResource(R.string.about_changelog),
+                            subtitle = stringResource(R.string.whats_new_in_flow),
                             onClick = { showChangelogDialog = true }
                         )
                         Divider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         SettingsItem(
                             icon = Icons.Outlined.Smartphone,
-                            title = "Device Info",
+                            title = stringResource(R.string.about_device_info),
                             subtitle = "${Build.MANUFACTURER} ${Build.MODEL}",
                             onClick = { showDeviceInfoDialog = true }
                         )
@@ -219,7 +219,7 @@ fun AboutScreen(
 @Composable
 fun LicenseDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
-    var licenseText by remember { mutableStateOf("Loading...") }
+    var licenseText by remember { mutableStateOf(context.getString(R.string.loading_ellipsis)) }
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -228,7 +228,7 @@ fun LicenseDialog(onDismiss: () -> Unit) {
                     licenseText = it.readText()
                 }
             } catch (e: Exception) {
-                licenseText = "Could not load license file."
+                licenseText = context.getString(R.string.error_license_load)
                 e.printStackTrace()
             }
         }
@@ -236,7 +236,7 @@ fun LicenseDialog(onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("GNU General Public License") },
+        title = { Text(stringResource(R.string.gnu_license_full_title)) },
         text = {
             Box(Modifier.heightIn(max = 400.dp)) {
                 LazyColumn {
@@ -257,23 +257,24 @@ fun LicenseDialog(onDismiss: () -> Unit) {
 
 @Composable
 fun DeviceInfoDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     
     val deviceInfo = remember {
         buildString {
-            append("Manufacturer: ${Build.MANUFACTURER}\n")
-            append("Model: ${Build.MODEL}\n")
-            append("Board: ${Build.BOARD}\n")
-            append("Arch: ${Build.SUPPORTED_ABIS.joinToString(", ")}\n")
-            append("Android SDK: ${Build.VERSION.SDK_INT}\n")
-            append("OS: Android ${Build.VERSION.RELEASE}\n")
-            append("Density: ${android.content.res.Resources.getSystem().displayMetrics.density}\n")
+            append(context.getString(R.string.manufacturer_label, Build.MANUFACTURER) + "\n")
+            append(context.getString(R.string.model_label, Build.MODEL) + "\n")
+            append(context.getString(R.string.board_label, Build.BOARD) + "\n")
+            append(context.getString(R.string.arch_label, Build.SUPPORTED_ABIS.joinToString(", ")) + "\n")
+            append(context.getString(R.string.android_sdk_label, Build.VERSION.SDK_INT.toString()) + "\n")
+            append(context.getString(R.string.os_label, Build.VERSION.RELEASE) + "\n")
+            append(context.getString(R.string.density_label, android.content.res.Resources.getSystem().displayMetrics.density.toString()) + "\n")
         }
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Device Info") },
+        title = { Text(stringResource(R.string.about_device_info)) },
         text = {
             Text(
                 text = deviceInfo,
@@ -281,12 +282,12 @@ fun DeviceInfoDialog(onDismiss: () -> Unit) {
             )
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("OK") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.btn_ok)) }
         },
         dismissButton = {
             TextButton(onClick = {
                 clipboardManager.setText(AnnotatedString(deviceInfo))
-            }) { Text("Copy") }
+            }) { Text(stringResource(R.string.btn_copy)) }
         }
     )
 }
@@ -294,7 +295,7 @@ fun DeviceInfoDialog(onDismiss: () -> Unit) {
 @Composable
 fun ChangelogDialog(onDismiss: () -> Unit) {
     val context = LocalContext.current
-    var changelogText by remember { mutableStateOf("Loading...") }
+    var changelogText by remember { mutableStateOf(context.getString(R.string.loading_ellipsis)) }
 
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
@@ -310,10 +311,10 @@ fun ChangelogDialog(onDismiss: () -> Unit) {
                         changelogText = it.readText()
                     }
                 } else {
-                    changelogText = "No changelog found."
+                    changelogText = context.getString(R.string.no_changelog_found_message)
                 }
             } catch (e: Exception) {
-                changelogText = "Could not load changelog file."
+                changelogText = context.getString(R.string.error_changelog_load)
                 e.printStackTrace()
             }
         }
@@ -321,7 +322,7 @@ fun ChangelogDialog(onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Changelog") },
+        title = { Text(stringResource(R.string.about_changelog)) },
         text = {
             Box(Modifier.heightIn(max = 400.dp)) {
                 LazyColumn {

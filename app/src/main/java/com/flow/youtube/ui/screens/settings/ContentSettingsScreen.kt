@@ -42,13 +42,13 @@ fun ContentSettingsScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = "Content Settings",
+                        text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.content_settings_title),
                         fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.btn_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -66,7 +66,7 @@ fun ContentSettingsScreen(
         ) {
             item {
                 Text(
-                    text = "Display",
+                    text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.content_settings_header_display),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -85,13 +85,13 @@ fun ContentSettingsScreen(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Text(
-                            text = "Grid Item Size",
+                            text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.content_settings_grid_size_title),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Medium
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = "Controls the size of album art and content cards",
+                            text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.content_settings_grid_size_subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -102,8 +102,8 @@ fun ContentSettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             GridSizeOption(
-                                title = "Big",
-                                description = "Larger thumbnails",
+                                title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.content_settings_grid_big_title),
+                                description = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.content_settings_grid_big_desc),
                                 isSelected = currentGridSize == GridItemSize.BIG,
                                 onClick = {
                                     coroutineScope.launch {
@@ -113,8 +113,8 @@ fun ContentSettingsScreen(
                                 modifier = Modifier.weight(1f)
                             )
                             GridSizeOption(
-                                title = "Small",
-                                description = "Compact view",
+                                title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.content_settings_grid_small_title),
+                                description = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.content_settings_grid_small_desc),
                                 isSelected = currentGridSize == GridItemSize.SMALL,
                                 onClick = {
                                     coroutineScope.launch {
@@ -130,7 +130,7 @@ fun ContentSettingsScreen(
             
             item {
                 Text(
-                    text = "Preview",
+                    text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.content_settings_header_preview),
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
@@ -171,14 +171,14 @@ fun ContentSettingsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         
                         Text(
-                            text = "Album Art Preview",
+                            text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.content_settings_preview_album_art),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
                             text = when (currentGridSize) {
-                                GridItemSize.BIG -> "Big - 128dp thumbnails"
-                                GridItemSize.SMALL -> "Small - 104dp thumbnails"
+                                GridItemSize.BIG -> androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.content_settings_preview_big)
+                                GridItemSize.SMALL -> androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.content_settings_preview_small)
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant

@@ -631,7 +631,7 @@ private fun SearchFiltersRow(
                 ) {
                     com.flow.youtube.data.local.UploadDate.values().forEach { date ->
                         DropdownMenuItem(
-                            text = { Text(date.name.replace('_', ' ').lowercase().capitalize()) },
+                            text = { Text(stringResource(getUploadDateLabel(date))) },
                             onClick = {
                                 onFiltersChange(currentFilters.copy(uploadDate = date))
                                 showDateMenu = false
@@ -669,7 +669,7 @@ private fun SearchFiltersRow(
                 ) {
                     com.flow.youtube.data.local.Duration.values().forEach { duration ->
                         DropdownMenuItem(
-                            text = { Text(duration.name.replace('_', ' ').lowercase().capitalize()) },
+                            text = { Text(stringResource(getDurationLabel(duration))) },
                             onClick = {
                                 onFiltersChange(currentFilters.copy(duration = duration))
                                 showDurationMenu = false
@@ -707,7 +707,7 @@ private fun SearchFiltersRow(
                 ) {
                     com.flow.youtube.data.local.SortBy.values().forEach { sort ->
                         DropdownMenuItem(
-                            text = { Text(sort.name.replace('_', ' ').lowercase().capitalize()) },
+                            text = { Text(stringResource(getSortByLabel(sort))) },
                             onClick = {
                                 onFiltersChange(currentFilters.copy(sortBy = sort))
                                 showSortMenu = false
@@ -730,7 +730,7 @@ private fun SearchFiltersRow(
                     }
                     onFiltersChange(currentFilters.copy(features = newFeatures))
                 },
-                label = { Text("HD") },
+                label = { Text(stringResource(R.string.filter_hd)) },
                 leadingIcon = {
                     Icon(Icons.Outlined.HighQuality, null, modifier = Modifier.size(16.dp))
                 }
@@ -749,7 +749,7 @@ private fun SearchFiltersRow(
                     }
                     onFiltersChange(currentFilters.copy(features = newFeatures))
                 },
-                label = { Text("4K") },
+                label = { Text(stringResource(R.string.filter_4k)) },
                 leadingIcon = {
                     Icon(Icons.Outlined.HighQuality, null, modifier = Modifier.size(16.dp))
                 }
@@ -768,7 +768,7 @@ private fun SearchFiltersRow(
                     }
                     onFiltersChange(currentFilters.copy(features = newFeatures))
                 },
-                label = { Text("Subtitles") },
+                label = { Text(stringResource(R.string.filter_subtitles)) },
                 leadingIcon = {
                     Icon(Icons.Outlined.Subtitles, null, modifier = Modifier.size(16.dp))
                 }
@@ -1086,5 +1086,34 @@ private fun formatSubscriberCount(count: Long): String {
         count >= 1_000 -> String.format("%.1fK subscribers", count / 1_000.0)
         count > 0 -> "$count subscribers"
         else -> ""
+    }
+}
+
+private fun getUploadDateLabel(date: com.flow.youtube.data.local.UploadDate): Int {
+    return when (date) {
+        com.flow.youtube.data.local.UploadDate.ANY -> com.flow.youtube.R.string.filter_upload_date
+        com.flow.youtube.data.local.UploadDate.LAST_HOUR -> com.flow.youtube.R.string.date_last_hour
+        com.flow.youtube.data.local.UploadDate.TODAY -> com.flow.youtube.R.string.date_today
+        com.flow.youtube.data.local.UploadDate.THIS_WEEK -> com.flow.youtube.R.string.date_this_week
+        com.flow.youtube.data.local.UploadDate.THIS_MONTH -> com.flow.youtube.R.string.date_this_month
+        com.flow.youtube.data.local.UploadDate.THIS_YEAR -> com.flow.youtube.R.string.date_this_year
+    }
+}
+
+private fun getDurationLabel(duration: com.flow.youtube.data.local.Duration): Int {
+    return when (duration) {
+        com.flow.youtube.data.local.Duration.ANY -> com.flow.youtube.R.string.filter_duration
+        com.flow.youtube.data.local.Duration.UNDER_4_MINUTES -> com.flow.youtube.R.string.duration_under_4
+        com.flow.youtube.data.local.Duration.FOUR_TO_20_MINUTES -> com.flow.youtube.R.string.duration_4_20
+        com.flow.youtube.data.local.Duration.OVER_20_MINUTES -> com.flow.youtube.R.string.duration_over_20
+    }
+}
+
+private fun getSortByLabel(sort: com.flow.youtube.data.local.SortBy): Int {
+    return when (sort) {
+        com.flow.youtube.data.local.SortBy.RELEVANCE -> com.flow.youtube.R.string.sort_relevance
+        com.flow.youtube.data.local.SortBy.UPLOAD_DATE -> com.flow.youtube.R.string.sort_upload_date
+        com.flow.youtube.data.local.SortBy.VIEW_COUNT -> com.flow.youtube.R.string.sort_view_count
+        com.flow.youtube.data.local.SortBy.RATING -> com.flow.youtube.R.string.sort_rating
     }
 }

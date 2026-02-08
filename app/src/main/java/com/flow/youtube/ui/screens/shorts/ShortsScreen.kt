@@ -16,6 +16,8 @@ import com.flow.youtube.data.model.Video
 import kotlinx.coroutines.launch
 import com.flow.youtube.ui.components.FlowCommentsBottomSheet
 import com.flow.youtube.ui.components.FlowDescriptionBottomSheet
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -78,13 +80,13 @@ fun ShortsScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = uiState.error ?: "An error occurred",
+                        text = uiState.error ?: androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.error_short_load),
                         color = Color.White,
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Button(onClick = { viewModel.loadShorts() }) {
-                        Text("Retry")
+                        Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.retry))
                     }
                 }
             }
@@ -121,7 +123,7 @@ fun ShortsScreen(
                     onShareClick = { video ->
                         val sendIntent = Intent().apply {
                             action = Intent.ACTION_SEND
-                            putExtra(Intent.EXTRA_TEXT, "Check out this short: https://youtu.be/${video.id}")
+                            putExtra(Intent.EXTRA_TEXT, context.getString(com.flow.youtube.R.string.share_short_template, video.id))
                             type = "text/plain"
                         }
                         val shareIntent = Intent.createChooser(sendIntent, null)

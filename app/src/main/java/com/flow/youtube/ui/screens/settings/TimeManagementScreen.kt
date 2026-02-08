@@ -29,6 +29,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import androidx.hilt.navigation.compose.hiltViewModel
 import java.util.Locale
 import android.Manifest
@@ -95,10 +97,10 @@ fun TimeManagementScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Time management") },
+                title = { Text(stringResource(R.string.time_management_title)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.btn_back))
                     }
                 }
             )
@@ -124,7 +126,7 @@ fun TimeManagementScreen(
             StatsBreakdownCard(uiState)
             
             Text(
-                text = "Stats are based on your watch history across this app. Actual usage may vary.",
+                text = stringResource(R.string.stats_disclaimer),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
@@ -133,7 +135,7 @@ fun TimeManagementScreen(
 
             // Reminders Section
             Text(
-                text = "Tools to manage your time",
+                text = stringResource(R.string.tools_to_manage_time),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.primary
@@ -182,7 +184,7 @@ fun TimeManagementScreen(
                         }
                         
                         Text(
-                            text = "A notification will be sent at start time.",
+                            text = stringResource(R.string.bedtime_notification_note),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 8.dp)
@@ -210,13 +212,13 @@ fun TimeManagementScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                "Reminder frequency", 
+                                stringResource(R.string.reminder_frequency), 
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    "Every ${uiState.breakFrequencyMinutes} min",
+                                    stringResource(R.string.every_min_template, uiState.breakFrequencyMinutes),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.Bold
@@ -239,7 +241,7 @@ fun TimeManagementScreen(
 fun StatsHeader(uiState: TimeManagementState) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = "Daily Average",
+            text = stringResource(R.string.daily_average_label),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.secondary
         )
@@ -278,7 +280,7 @@ fun StatsBreakdownCard(uiState: TimeManagementState) {
                   modifier = Modifier.fillMaxWidth(),
                   horizontalArrangement = Arrangement.SpaceBetween
               ) {
-                  Text("Today", style = MaterialTheme.typography.bodyLarge)
+                  Text(stringResource(R.string.stats_today), style = MaterialTheme.typography.bodyLarge)
                   Text(uiState.todayWatchTime, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
               }
               Divider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
@@ -286,7 +288,7 @@ fun StatsBreakdownCard(uiState: TimeManagementState) {
                   modifier = Modifier.fillMaxWidth(),
                   horizontalArrangement = Arrangement.SpaceBetween
               ) {
-                  Text("Last 7 days", style = MaterialTheme.typography.bodyLarge)
+                  Text(stringResource(R.string.stats_last_7_days), style = MaterialTheme.typography.bodyLarge)
                   Text(uiState.last7DaysWatchTime, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
               }
          }
@@ -373,7 +375,7 @@ fun FrequencyPickerDialog(
     
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Frequency") },
+        title = { Text(stringResource(R.string.frequency_dialog_title)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                 options.forEach { minutes ->
@@ -389,13 +391,13 @@ fun FrequencyPickerDialog(
                             onClick = { onConfirm(minutes) }
                         )
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text("Every $minutes minutes")
+                        Text(stringResource(R.string.every_minutes_template, minutes))
                     }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         }
     )
 }
