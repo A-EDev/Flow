@@ -2,6 +2,8 @@ package com.flow.youtube.ui.screens.music
 
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -40,7 +42,7 @@ fun MoodsAndGenresScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = "Moods & Genres", 
+                        text = stringResource(R.string.section_moods_and_genres), 
                         fontWeight = FontWeight.Bold
                     ) 
                 },
@@ -48,7 +50,7 @@ fun MoodsAndGenresScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack, 
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.btn_back)
                         )
                     }
                 },
@@ -104,13 +106,13 @@ fun MoodsAndGenresScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = error ?: "Unknown error",
+                            text = error ?: stringResource(R.string.unknown_error),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.error
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(onClick = { viewModel.retry() }) {
-                            Text("Retry")
+                            Text(stringResource(R.string.action_retry))
                         }
                     }
                 }
@@ -121,7 +123,7 @@ fun MoodsAndGenresScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No moods & genres available",
+                            text = stringResource(R.string.empty_moods_genres),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

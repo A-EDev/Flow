@@ -20,6 +20,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import coil.compose.AsyncImage
 
 @Composable
@@ -73,7 +75,7 @@ fun MusicTrackRow(
                 ) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow, 
-                        contentDescription = "Playing",
+                        contentDescription = stringResource(R.string.status_playing),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
                     )
@@ -98,14 +100,14 @@ fun MusicTrackRow(
                 if (track.isExplicit == true) {
                     Icon(
                         imageVector = Icons.Default.Explicit,
-                        contentDescription = "Explicit",
+                        contentDescription = stringResource(R.string.label_explicit),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                 }
                 
-                val durationText = if (track.duration > 0) " • ${formatDuration(track.duration)}" else ""
+                val durationText = if (track.duration > 0) stringResource(R.string.duration_with_dot_template, formatDuration(track.duration)) else ""
                 Text(
                     text = "${track.artist}$durationText",
                     style = MaterialTheme.typography.bodyMedium,
@@ -123,7 +125,7 @@ fun MusicTrackRow(
                 if (isDownloaded) {
                      Icon(
                         imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Downloaded",
+                        contentDescription = stringResource(R.string.status_downloaded),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp).padding(end = 12.dp)
                     )
@@ -132,7 +134,7 @@ fun MusicTrackRow(
                 IconButton(onClick = onMenuClick) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
-                        contentDescription = "Options",
+                        contentDescription = stringResource(R.string.more_options),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

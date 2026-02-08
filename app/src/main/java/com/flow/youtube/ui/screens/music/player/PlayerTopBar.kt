@@ -26,7 +26,7 @@ fun PlayerTopBar(
     CenterAlignedTopAppBar(
         title = {
             Text(
-                text = "NOW PLAYING",
+                text = stringResource(R.string.now_playing),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 2.sp,

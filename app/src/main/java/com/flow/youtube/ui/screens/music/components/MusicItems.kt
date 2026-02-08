@@ -23,6 +23,8 @@ import androidx.compose.animation.core.*
 import com.flow.youtube.ui.screens.music.MusicTrack
 import com.flow.youtube.ui.screens.music.formatViews
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import androidx.compose.foundation.background
 
 @Composable
@@ -81,7 +83,7 @@ fun TrackListItem(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "${track.artist} • ${formatViews(track.views)}",
+                text = stringResource(R.string.year_artist_template, track.artist, formatViews(track.views)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                 maxLines = 1,
@@ -93,7 +95,7 @@ fun TrackListItem(
             IconButton(onClick = onMenuClick) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Options",
+                    contentDescription = stringResource(R.string.more_options),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -269,7 +271,7 @@ fun TrendingTrackCard(
         IconButton(onClick = onMenuClick) {
             Icon(
                 imageVector = Icons.Default.MoreVert,
-                contentDescription = "Options",
+                contentDescription = stringResource(R.string.more_options),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }

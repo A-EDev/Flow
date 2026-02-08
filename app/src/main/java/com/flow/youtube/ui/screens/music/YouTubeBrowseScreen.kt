@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,7 +49,7 @@ fun YouTubeBrowseScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = uiState.title ?: "Browse",
+                        text = uiState.title ?: stringResource(R.string.title_browse),
                         fontWeight = FontWeight.Bold
                     ) 
                 },
@@ -55,7 +57,7 @@ fun YouTubeBrowseScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.btn_back)
                         )
                     }
                 },
@@ -107,13 +109,13 @@ fun YouTubeBrowseScreen(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = uiState.error ?: "Unknown error",
+                            text = uiState.error ?: stringResource(R.string.unknown_error),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.error
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(onClick = { viewModel.retry() }) {
-                            Text("Retry")
+                            Text(stringResource(R.string.action_retry))
                         }
                     }
                 }
@@ -124,7 +126,7 @@ fun YouTubeBrowseScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "No content available",
+                            text = stringResource(R.string.empty_browse_content),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

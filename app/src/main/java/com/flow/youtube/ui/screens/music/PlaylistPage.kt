@@ -36,6 +36,8 @@ import com.flow.youtube.ui.components.AddToPlaylistDialog
 import com.flow.youtube.data.model.Video
 import androidx.compose.ui.platform.LocalContext
 import android.content.Intent
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,9 +91,9 @@ fun PlaylistPage(
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
-                    putExtra(Intent.EXTRA_TEXT, "Check out this song: ${selectedTrack!!.title} by ${selectedTrack!!.artist}\nhttps://music.youtube.com/watch?v=${selectedTrack!!.videoId}")
+                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_message_template, selectedTrack!!.title, selectedTrack!!.artist, selectedTrack!!.videoId))
                 }
-                context.startActivity(Intent.createChooser(shareIntent, "Share song"))
+                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
             }
         )
     }
@@ -144,7 +146,7 @@ fun PlaylistPage(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.btn_back),
                             tint = Color.White
                         )
                     }
@@ -166,7 +168,7 @@ fun PlaylistPage(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
+                            contentDescription = stringResource(R.string.search_content_description),
                             tint = Color.White
                         )
                     }
@@ -206,7 +208,7 @@ fun PlaylistPage(
                         Spacer(modifier = Modifier.height(32.dp))
 
                         Text(
-                            text = if (playlistDetails.description != null) "Album • ${playlistDetails.description}" else "Playlist • ${playlistDetails.author}",
+                            text = if (playlistDetails.description != null) stringResource(R.string.subtitle_album_template, playlistDetails.description) else stringResource(R.string.subtitle_playlist_template, playlistDetails.author),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -270,7 +272,7 @@ fun PlaylistPage(
 
                         // Metadata
                         val metadata = buildString {
-                            playlistDetails.views?.let { append("${formatViews(it)} views • ") }
+                            playlistDetails.views?.let { append(context.getString(R.string.views_count_format, formatViews(it)) + " • ") }
                             playlistDetails.durationText?.let { append("$it • ") }
                             playlistDetails.dateText?.let { append(it) }
                         }.trim().removeSuffix("•").trim()
@@ -344,7 +346,7 @@ fun PlaylistPage(
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Default.PlayArrow,
-                                        contentDescription = "Play",
+                                        contentDescription = stringResource(R.string.play),
                                         tint = Color.Black,
                                         modifier = Modifier.size(40.dp)
                                     )
@@ -389,7 +391,7 @@ fun PlaylistPage(
                         }
                         
                         Text(
-                            text = "${playlistDetails.trackCount} tracks • ${playlistDetails.durationText ?: ""}",
+                            text = stringResource(R.string.playlist_footer_template, playlistDetails.trackCount, playlistDetails.durationText ?: ""),
                             style = MaterialTheme.typography.bodyMedium,
                             color = Color.White.copy(alpha = 0.4f)
                         )

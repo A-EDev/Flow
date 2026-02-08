@@ -2,6 +2,8 @@ package com.flow.youtube.ui.screens.music
 
 import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -69,9 +71,9 @@ fun EnhancedMusicScreen(
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
-                    putExtra(Intent.EXTRA_TEXT, "Check out this song: ${selectedTrack!!.title} by ${selectedTrack!!.artist}\nhttps://music.youtube.com/watch?v=${selectedTrack!!.videoId}")
+                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_message_template, selectedTrack!!.title, selectedTrack!!.artist, selectedTrack!!.videoId))
                 }
-                context.startActivity(Intent.createChooser(shareIntent, "Share song"))
+                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
             }
         )
     }
@@ -82,7 +84,7 @@ fun EnhancedMusicScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "MUSIC",
+                        text = stringResource(R.string.screen_title_music),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.onBackground,
@@ -91,15 +93,15 @@ fun EnhancedMusicScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Filled.ArrowBack, "Back")
+                        Icon(Icons.Filled.ArrowBack, stringResource(R.string.btn_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = onSearchClick) {
-                        Icon(Icons.Outlined.Search, "Search")
+                        Icon(Icons.Outlined.Search, stringResource(R.string.search))
                     }
                     IconButton(onClick = onSettingsClick) {
-                        Icon(Icons.Outlined.Settings, "Settings")
+                        Icon(Icons.Outlined.Settings, stringResource(R.string.settings))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -122,7 +124,7 @@ fun EnhancedMusicScreen(
                 
                 uiState.error != null && uiState.trendingSongs.isEmpty() -> {
                     ErrorContent(
-                        error = uiState.error ?: "An error occurred",
+                        error = uiState.error ?: stringResource(R.string.error_occurred),
                         onRetry = { viewModel.retry() }
                     )
                 }
@@ -141,7 +143,7 @@ fun EnhancedMusicScreen(
                         // Listen Again
                         if (uiState.listenAgain.isNotEmpty()) {
                             item {
-                                NavigationTitle(title = "Listen again")
+                                NavigationTitle(title = stringResource(R.string.section_listen_again))
                                 val listenThumbnailHeight = currentGridThumbnailHeight()
                                 LazyRow(
                                     contentPadding = PaddingValues(horizontal = 12.dp),
@@ -211,7 +213,7 @@ fun EnhancedMusicScreen(
                         } else {
                             if (uiState.forYouTracks.isNotEmpty()) {
                                 item {
-                                    SectionTitle(title = "Quick picks")
+                                    SectionTitle(title = stringResource(R.string.section_quick_picks))
                                     LazyHorizontalGrid(
                                         rows = GridCells.Fixed(4),
                                         state = rememberLazyGridState(),
@@ -243,7 +245,7 @@ fun EnhancedMusicScreen(
                             // Recommended for you
                             if (uiState.recommendedTracks.isNotEmpty()) {
                                 item {
-                                    SectionTitle(title = "Recommended")
+                                    SectionTitle(title = stringResource(R.string.section_recommended))
                                     val thumbnailHeight = currentGridThumbnailHeight()
                                     LazyRow(
                                         contentPadding = PaddingValues(horizontal = 12.dp),
@@ -265,7 +267,7 @@ fun EnhancedMusicScreen(
                             // History / Speed Dial
                             if (uiState.history.isNotEmpty()) {
                                 item {
-                                    SectionTitle(title = "Recently played")
+                                    SectionTitle(title = stringResource(R.string.section_recently_played))
                                     val historyThumbnailHeight = currentGridThumbnailHeight()
                                     LazyRow(
                                         contentPadding = PaddingValues(horizontal = 12.dp),
@@ -287,7 +289,7 @@ fun EnhancedMusicScreen(
                             // Music Videos
                             if (uiState.musicVideos.isNotEmpty()) {
                                 item {
-                                    SectionTitle(title = "Music videos")
+                                    SectionTitle(title = stringResource(R.string.section_music_videos))
                                     LazyRow(
                                         contentPadding = PaddingValues(horizontal = 12.dp),
                                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -309,7 +311,7 @@ fun EnhancedMusicScreen(
                             // Genre Sections
                             uiState.genreTracks.entries.take(3).forEach { (genre, tracks) ->
                                 item {
-                                    SectionTitle(title = "$genre mix")
+                                    SectionTitle(title = stringResource(R.string.genre_mix_template, genre))
                                     val genreThumbnailHeight = currentGridThumbnailHeight()
                                     LazyRow(
                                         contentPadding = PaddingValues(horizontal = 12.dp),
@@ -361,7 +363,7 @@ fun EnhancedMusicScreen(
                             // New Releases
                             if (uiState.newReleases.isNotEmpty()) {
                                 item {
-                                    SectionTitle(title = "New releases")
+                                    SectionTitle(title = stringResource(R.string.section_new_releases))
                                     val newReleaseThumbnailHeight = currentGridThumbnailHeight()
                                     LazyRow(
                                         contentPadding = PaddingValues(horizontal = 12.dp),
@@ -370,7 +372,7 @@ fun EnhancedMusicScreen(
                                         items(uiState.newReleases.take(10)) { track ->
                                             GridItem(
                                                 title = track.title,
-                                                subtitle = "Single · ${track.artist}",
+                                                subtitle = stringResource(R.string.subtitle_single_template, track.artist),
                                                 thumbnailUrl = track.thumbnailUrl,
                                                 thumbnailHeight = newReleaseThumbnailHeight,
                                                 onClick = { onSongClick(track, uiState.newReleases, "new_releases") }
@@ -383,7 +385,7 @@ fun EnhancedMusicScreen(
                             // Charts
                             if (uiState.trendingSongs.isNotEmpty()) {
                                 item {
-                                    SectionTitle(title = "Trending")
+                                    SectionTitle(title = stringResource(R.string.trending))
                                     LazyHorizontalGrid(
                                         rows = GridCells.Fixed(4),
                                         state = rememberLazyGridState(),
@@ -417,7 +419,7 @@ fun EnhancedMusicScreen(
                             // Popular Artists
                             if (popularArtists.isNotEmpty()) {
                                 item {
-                                    SectionTitle(title = "Popular artists")
+                                    SectionTitle(title = stringResource(R.string.section_popular_artists))
                                     LazyRow(
                                         contentPadding = PaddingValues(horizontal = 12.dp),
                                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -448,7 +450,7 @@ fun EnhancedMusicScreen(
                             // Mixed for you 
                             if (uiState.featuredPlaylists.isNotEmpty()) {
                                 item {
-                                    SectionTitle(title = "Mixed for you")
+                                    SectionTitle(title = stringResource(R.string.section_mixed_for_you))
                                     val playlistThumbnailHeight = currentGridThumbnailHeight()
                                     LazyRow(
                                         contentPadding = PaddingValues(horizontal = 12.dp),
@@ -470,7 +472,7 @@ fun EnhancedMusicScreen(
                             if (uiState.moodsAndGenres.isNotEmpty()) {
                                 item {
                                     NavigationTitle(
-                                        title = "Moods & Genres",
+                                        title = stringResource(R.string.section_moods_and_genres),
                                         onClick = { onMoodsClick(null) },
                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                                     )

@@ -652,5 +652,150 @@
     <string name="category_creative">Creative</string>
     <string name="category_science_nature">Science &amp; Nature</string>
     <string name="category_news_current_events">News &amp; Current Events</string>
+
+    <!-- Flow Personality Screen -->
+    <string name="flow_control_center">Flow Control Center</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="loading_neural_matrix">Loading Neural Matrix...</string>
+    <string name="neural_interest_map_subtitle">Your neural interest map</string>
+    <string name="cognitive_fingerprint">Cognitive Fingerprint</string>
+    <string name="content_dna_subtitle">Your content DNA</string>
+    <string name="topic_weights">Topic Weights</string>
+    <string name="topic_weights_subtitle">Full transparency on what drives your feed</string>
+    <string name="temporal_patterns">Temporal Patterns</string>
+    <string name="temporal_patterns_subtitle">How your interests shift by time of day</string>
+    <string name="channel_memory">Channel Memory</string>
+    <string name="channel_memory_subtitle">Implicit feedback from your viewing history</string>
+    <string name="algorithm_insights">Algorithm Insights</string>
+    <string name="algorithm_insights_subtitle">Under the hood</string>
+    <string name="filters_title">Filters</string>
+    <string name="blocked_topics_channels_subtitle">Blocked topics and channels</string>
+    <string name="reset_neural_profile_title">Reset Neural Profile?</string>
+    <string name="reset_neural_profile_body">This will permanently erase:\n\n• All learned preferences\n• Long-term personality vector\n• Time-context patterns\n• Channel affinity scores\n\nYour feed will return to a cold-start state.</string>
+    <string name="erase_everything">Erase Everything</string>
+    <string name="stats_interactions">Interactions</string>
+    <string name="stats_topics">Topics</string>
+    <string name="empty_bubble_cloud_message">Watch some videos to populate your interest nebula!</string>
+    <string name="interactions_level_template">%1$d interactions • Level %2$d</string>
+    <string name="export_profile_data">Export Profile Data</string>
+    <string name="flow_neural_profile_export_subject">Flow Neural Profile Export</string>
+
+    <!-- Music Playlists Screen -->
+    <string name="screen_title_music_library">Music Library</string>
+    <string name="header_your_collection">Your Collection</string>
+    <string name="subtitle_liked_music">Your liked songs</string>
+    <string name="subtitle_history">Songs you listened to</string>
+    <string name="empty_music_playlists">No music playlists yet</string>
+    <string name="rename_playlist_title">Rename Playlist</string>
+    <string name="action_rename">Rename</string>
+
+    <string name="link_copied">Link copied</string>
+    <string name="share_link_cd">Share Link</string>
+    <string name="section_singles">Singles</string>
+    <string name="section_featured_on">Featured on</string>
+    <string name="section_fans_also_like">Fans also like</string>
+    <string name="artist_views_template">%1$s • %2$s views</string>
+    <string name="action_view_all">View all</string>
+    <string name="search_content_description">Search</string>
+    <string name="views_count_format">%1$s views</string>
+    <string name="playlist_footer_template">%1$d tracks • %2$s</string>
+    <string name="unknown_error">Unknown error</string>
+    <string name="action_retry">Retry</string>
+    <string name="empty_moods_genres">No moods &amp; genres available</string>
+    <string name="title_browse">Browse</string>
+    <string name="empty_browse_content">No content available</string>
+    <string name="label_featured">FEATURED</string>
+    <string name="year_artist_template">%1$s • %2$s</string>
+    <string name="status_playing">Playing</string>
+    <string name="label_explicit">Explicit</string>
+    <string name="duration_with_dot_template"> • %1$s</string>
+    <string name="status_downloaded">Downloaded</string>
+    
+    <string name="title_create_playlist">Create Playlist</string>
+    <string name="label_playlist_name">Playlist Name</string>
+    <string name="placeholder_playlist_name">My Awesome Playlist</string>
+    <string name="label_description_optional">Description (Optional)</string>
+    <string name="placeholder_playlist_desc">My favorite tracks...</string>
+    <string name="action_create">Create</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="title_add_to_playlist">Add to Playlist</string>
+    <string name="action_create_new_playlist">Create New Playlist</string>
+    <string name="empty_playlists_dialog">No playlists yet. Create one to get started!</string>
+    <string name="action_remove_from_favorites">Remove from Favorites</string>
+    <string name="action_add_to_favorites">Add to Favorites</string>
+    <string name="action_listen_now">Listen Now</string>
+    <string name="action_play_all">Play all</string>
+    <string name="loading_music">Loading music...</string>
+
+    <!-- Enhanced Music Screen -->
+    <string name="screen_title_music">MUSIC</string>
+    <string name="section_listen_again">Listen again</string>
+    <string name="section_quick_picks">Quick picks</string>
+    <string name="section_recommended">Recommended</string>
+    <string name="section_recently_played">Recently played</string>
+    <string name="section_music_videos">Music videos</string>
+    <string name="section_new_releases">New releases</string>
+    <string name="subtitle_single_template">Single · %1$s</string>
+    <string name="section_popular_artists">Popular artists</string>
+    <string name="section_mixed_for_you">Mixed for you</string>
+    <string name="section_moods_and_genres">Moods &amp; Genres</string>
+    <string name="genre_mix_template">%1$s mix</string>
+
+    <!-- Music Player Screen -->
+    <string name="radio">Radio</string>
+    
+    <!-- Audio Settings -->
+    <string name="audio_settings_title">Audio Settings</string>
+    <string name="label_preset">Preset</string>
+    <string name="template_bass_boost">Bass Boost: %1$ddB</string>
+    <string name="label_tempo_pitch">Tempo &amp; Pitch</string>
+    <string name="action_reset">Reset</string>
+    <string name="template_speed">Speed: %1$d%%</string>
+    <string name="template_pitch">Pitch: %1$d Semitones</string>
+    <string name="label_parametric_equalizer">Parametric Equalizer</string>
+    <string name="action_add_band">Add Band</string>
+    <string name="template_preamp">Preamp: %1$.1fdB</string>
+    <string name="template_freq">%1$dHz</string>
+    <string name="template_gain">%1$.1fdB</string>
+    <string name="template_q">%1$.1f</string>
+    
+    <!-- Player -->
+    <string name="now_playing">NOW PLAYING</string>
+    
+    <!-- Music Search Screen -->
+    <string name="voice_search_prompt">Speak to search music</string>
+    <string name="search_music_placeholder">Search music</string>
+    <string name="voice_search_cd">Voice Search</string>
+    <string name="filter_albums">Albums</string>
+    <string name="filter_songs">Songs</string>
+    <string name="filter_community_playlists">Community playlists</string>
+    <string name="section_top_result">Top result</string>
+    <string name="subtitle_song_prefix">Song • %1$s</string>
+    <string name="subtitle_artist">Artist</string>
+    <string name="subtitle_album_template">Album • %1$s</string>
+    <string name="subtitle_playlist_template">Playlist • %1$s</string>
+    <string name="plays_count_template">• %1$s plays</string>
+    <string name="album_year_template">Album • %1$s • %2$s</string>
+    <string name="artist_audience_template">Artist • %1$s monthly audience</string>
+    <string name="search_source_template">Search: %1$s</string>
+    <string name="artist_source_template">Artist: %1$s</string>
+    <string name="top_picks_for_you">Top Picks for You</string>
+    <string name="no_results_found">No results found</string>
+    <string name="no_tracks_available">No tracks available</string>
+
+    <!-- Library Screen -->
+    <string name="tab_favorites">Favorites</string>
+    <string name="create_playlist_subtitle">Organize your music</string>
+    <string name="empty_playlists_title">No Playlists Yet</string>
+    <string name="empty_playlists_subtitle">Create your first playlist to organize your favorite tracks</string>
+    <string name="empty_favorites_title">No Favorites Yet</string>
+    <string name="empty_favorites_subtitle">Tap the heart icon on any track to add it to your favorites</string>
+    <string name="favorites_count_template">%1$d favorite tracks</string>
+    <string name="empty_history_title">No History Yet</string>
+    <string name="empty_history_subtitle">Start listening to music to see your history here</string>
+    <string name="empty_downloads_title">No Downloads Yet</string>
+    <string name="empty_downloads_subtitle">Download tracks for offline playback</string>
+    <string name="total_size">Total Size</string>
+    <string name="tracks_count_template">%1$s tracks</string>
 </resources>
 

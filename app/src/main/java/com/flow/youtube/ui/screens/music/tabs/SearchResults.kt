@@ -11,6 +11,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import androidx.compose.ui.unit.dp
 import com.flow.youtube.ui.screens.music.MusicTrack
 import com.flow.youtube.ui.screens.music.components.CompactTrackCard
@@ -40,7 +42,7 @@ fun SearchResults(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "No results found",
+                        text = stringResource(R.string.no_results_found),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

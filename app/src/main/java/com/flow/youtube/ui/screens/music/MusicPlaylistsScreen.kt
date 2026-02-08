@@ -1,6 +1,8 @@
 package com.flow.youtube.ui.screens.music
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -42,13 +44,13 @@ fun MusicPlaylistsScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = "Music Library",
+                        text = stringResource(R.string.screen_title_music_library),
                         style = MaterialTheme.typography.headlineMedium
                     ) 
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Filled.ArrowBack, "Back")
+                        Icon(Icons.Filled.ArrowBack, stringResource(R.string.btn_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -64,7 +66,7 @@ fun MusicPlaylistsScreen(
             ) {
                 Icon(Icons.Default.Add, null)
                 Spacer(Modifier.width(8.dp))
-                Text("New Playlist")
+                Text(stringResource(R.string.new_playlist_button))
             }
         }
     ) { paddingValues ->
@@ -83,14 +85,14 @@ fun MusicPlaylistsScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     item {
-                        MusicLibrarySectionHeader("Your Collection")
+                        MusicLibrarySectionHeader(stringResource(R.string.header_your_collection))
                     }
                     
                     item {
                         MusicLibraryCard(
                             icon = Icons.Default.Favorite,
-                            title = "Liked Music",
-                            subtitle = "Your liked songs",
+                            title = stringResource(R.string.liked_music),
+                            subtitle = stringResource(R.string.subtitle_liked_music),
                             onClick = onNavigateToLikedMusic
                         )
                     }
@@ -98,14 +100,14 @@ fun MusicPlaylistsScreen(
                     item {
                         MusicLibraryCard(
                             icon = Icons.Default.History,
-                            title = "History",
-                            subtitle = "Songs you listened to",
+                            title = stringResource(R.string.library_history_label),
+                            subtitle = stringResource(R.string.subtitle_history),
                             onClick = onNavigateToMusicHistory
                         )
                     }
                     
                     item {
-                        MusicLibrarySectionHeader("Playlists")
+                        MusicLibrarySectionHeader(stringResource(R.string.library_playlists_label))
                     }
 
                     if (uiState.playlists.isEmpty()) {
@@ -115,7 +117,7 @@ fun MusicPlaylistsScreen(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "No music playlists yet",
+                                    text = stringResource(R.string.empty_music_playlists),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -161,8 +163,8 @@ fun MusicPlaylistsScreen(
     if (playlistToDelete != null) {
         AlertDialog(
             onDismissRequest = { playlistToDelete = null },
-            title = { Text("Delete Playlist") },
-            text = { Text("Are you sure you want to delete '${playlistToDelete!!.name}'?") },
+            title = { Text(stringResource(R.string.delete_playlist_dialog_title)) },
+            text = { Text(stringResource(R.string.delete_playlist_dialog_text, playlistToDelete!!.name)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -170,12 +172,12 @@ fun MusicPlaylistsScreen(
                         playlistToDelete = null
                     }
                 ) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { playlistToDelete = null }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -192,12 +194,12 @@ fun RenamePlaylistDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Rename Playlist") },
+        title = { Text(stringResource(R.string.rename_playlist_title)) },
         text = {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Name") },
+                label = { Text(stringResource(R.string.playlist_name)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -211,12 +213,12 @@ fun RenamePlaylistDialog(
                 },
                 enabled = name.isNotBlank()
             ) {
-                Text("Rename")
+                Text(stringResource(R.string.action_rename))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -358,7 +360,7 @@ fun MusicPlaylistCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "${playlist.videoCount} tracks",
+                    text = stringResource(R.string.tracks_count_template, playlist.videoCount),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -368,7 +370,7 @@ fun MusicPlaylistCard(
                 IconButton(onClick = { showMenu = true }) {
                     Icon(
                         Icons.Default.MoreVert,
-                        contentDescription = "Options",
+                        contentDescription = stringResource(R.string.more_options),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -378,7 +380,7 @@ fun MusicPlaylistCard(
                     onDismissRequest = { showMenu = false }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Download") },
+                        text = { Text(stringResource(R.string.download)) },
                         onClick = {
                             showMenu = false
                             onDownload()
@@ -388,7 +390,7 @@ fun MusicPlaylistCard(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Rename") },
+                        text = { Text(stringResource(R.string.action_rename)) },
                         onClick = {
                             showMenu = false
                             onRename()
@@ -398,7 +400,7 @@ fun MusicPlaylistCard(
                         }
                     )
                     DropdownMenuItem(
-                        text = { Text("Delete") },
+                        text = { Text(stringResource(R.string.action_delete)) },
                         onClick = {
                             showMenu = false
                             onDelete()
@@ -423,13 +425,13 @@ fun CreateMusicPlaylistDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New Music Playlist") },
+        title = { Text(stringResource(R.string.new_playlist_button)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name") },
+                    label = { Text(stringResource(R.string.playlist_name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -437,7 +439,7 @@ fun CreateMusicPlaylistDialog(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("Description (Optional)") },
+                    label = { Text(stringResource(R.string.playlist_description_optional)) },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -451,12 +453,12 @@ fun CreateMusicPlaylistDialog(
                 },
                 enabled = name.isNotBlank()
             ) {
-                Text("Create")
+                Text(stringResource(R.string.create))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

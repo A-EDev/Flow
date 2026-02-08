@@ -27,6 +27,8 @@ import com.flow.youtube.innertube.models.AlbumItem
 import com.flow.youtube.innertube.models.ArtistItem
 import com.flow.youtube.innertube.models.PlaylistItem
 import com.flow.youtube.innertube.models.SongItem
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import com.flow.youtube.ui.components.YouTubeListItem
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,7 +80,7 @@ fun ArtistItemsScreen(
                 title = { Text(text = artistItemsPage?.title ?: "") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.btn_back))
                     }
                 },
                 windowInsets = WindowInsets(0, 0, 0, 0),
@@ -162,17 +164,18 @@ fun ArtistGridItem(item: com.flow.youtube.innertube.models.YTItem, onClick: () -
     when (item) {
         is AlbumItem -> {
             title = item.title
-            subtitle = "${item.year ?: ""} • ${item.artists?.firstOrNull()?.name ?: "Album"}"
+            val artistOrAlbum = item.artists?.firstOrNull()?.name ?: stringResource(R.string.album_label)
+            subtitle = stringResource(R.string.year_artist_template, item.year ?: "", artistOrAlbum)
             thumbnailUrl = item.thumbnail
         }
         is ArtistItem -> {
             title = item.title
-            subtitle = "Artist"
+            subtitle = stringResource(R.string.subtitle_artist)
             thumbnailUrl = item.thumbnail
         }
         is PlaylistItem -> {
             title = item.title
-            subtitle = "Playlist • ${item.author?.name ?: ""}"
+            subtitle = stringResource(R.string.subtitle_playlist_template, item.author?.name ?: "")
             thumbnailUrl = item.thumbnail
         }
         is SongItem -> {

@@ -32,6 +32,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.ClipboardManager
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
@@ -91,9 +93,9 @@ fun ArtistPage(
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
-                    putExtra(Intent.EXTRA_TEXT, "Check out this song: ${selectedTrack!!.title} by ${selectedTrack!!.artist}\nhttps://music.youtube.com/watch?v=${selectedTrack!!.videoId}")
+                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_message_template, selectedTrack!!.title, selectedTrack!!.artist, selectedTrack!!.videoId))
                 }
-                context.startActivity(Intent.createChooser(shareIntent, "Share song"))
+                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
             }
         )
     }
@@ -118,7 +120,7 @@ fun ArtistPage(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.btn_back),
                             tint = if (transparentAppBar) Color.White else MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -127,11 +129,11 @@ fun ArtistPage(
                     IconButton(onClick = {
                         val shareText = "https://music.youtube.com/channel/${artistDetails.channelId}"
                         clipboardManager.setText(AnnotatedString(shareText))
-                        Toast.makeText(context, "Link copied", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.link_copied), Toast.LENGTH_SHORT).show()
                     }) {
                         Icon(
                             imageVector = Icons.Default.Link,
-                            contentDescription = "Share Link",
+                            contentDescription = stringResource(R.string.share_link_cd),
                             tint = if (transparentAppBar) Color.White else MaterialTheme.colorScheme.onSurface
                         )
                     }
@@ -252,7 +254,7 @@ fun ArtistPage(
                                 modifier = Modifier.height(44.dp)
                             ) {
                                 Text(
-                                    text = if (artistDetails.isSubscribed) "Subscribed" else "Subscribe",
+                                    text = if (artistDetails.isSubscribed) stringResource(R.string.subscribed) else stringResource(R.string.subscribe),
                                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                                 )
                             }
@@ -271,7 +273,7 @@ fun ArtistPage(
                                     containerColor = MaterialTheme.colorScheme.surfaceVariant
                                 )
                             ) {
-                                Icon(Icons.Default.Shuffle, "Shuffle")
+                                Icon(Icons.Default.Shuffle, stringResource(R.string.shuffle))
                             }
 
                             // Play Button
@@ -287,7 +289,7 @@ fun ArtistPage(
                                     contentColor = MaterialTheme.colorScheme.onPrimary
                                 )
                             ) {
-                                Icon(Icons.Default.PlayArrow, "Play")
+                                Icon(Icons.Default.PlayArrow, stringResource(R.string.play))
                             }
                         }
                     }
@@ -304,7 +306,7 @@ fun ArtistPage(
                     ) {
                          if (artistDetails.subscriberCount > 0) {
                             Text(
-                                text = "${formatViews(artistDetails.subscriberCount)} Subscribers",
+                                text = stringResource(R.string.subscribers_count_template, formatViews(artistDetails.subscriberCount)),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -335,14 +337,14 @@ fun ArtistPage(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Popular",
+                                text = stringResource(R.string.filter_popular),
                                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
                             )
                             if (artistDetails.topTracks.size > 5 || artistDetails.topTracksBrowseId != null) {
                                 TextButton(onClick = { 
                                     artistDetails.topTracksBrowseId?.let { onSeeAllClick(it, artistDetails.topTracksParams) }
                                 }) {
-                                    Text("View all")
+                                    Text(stringResource(R.string.action_view_all))
                                 }
                             }
                         }
@@ -365,7 +367,7 @@ fun ArtistPage(
                 if (artistDetails.singles.isNotEmpty()) {
                     item { 
                         SectionHeader(
-                            title = "Singles",
+                            title = stringResource(R.string.section_singles),
                             onSeeAllClick = { artistDetails.singlesBrowseId?.let { onSeeAllClick(it, artistDetails.singlesParams) } }
                         )
                     }
@@ -385,7 +387,7 @@ fun ArtistPage(
                 if (artistDetails.albums.isNotEmpty()) {
                     item { 
                         SectionHeader(
-                            title = "Albums",
+                            title = stringResource(R.string.filter_albums),
                             onSeeAllClick = { artistDetails.albumsBrowseId?.let { onSeeAllClick(it, artistDetails.albumsParams) } }
                         )
                     }
@@ -403,7 +405,7 @@ fun ArtistPage(
                 
                 // Videos
                 if (artistDetails.videos.isNotEmpty()) {
-                    item { SectionHeader(title = "Videos") }
+                    item { SectionHeader(title = stringResource(R.string.tab_videos)) }
                     item {
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 24.dp),
@@ -418,7 +420,7 @@ fun ArtistPage(
 
                 // Featured On
                 if (artistDetails.featuredOn.isNotEmpty()) {
-                    item { SectionHeader(title = "Featured on") }
+                    item { SectionHeader(title = stringResource(R.string.section_featured_on)) }
                     item {
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 24.dp),
@@ -433,7 +435,7 @@ fun ArtistPage(
                 
                 // Related Artists
                 if (artistDetails.relatedArtists.isNotEmpty()) {
-                    item { SectionHeader(title = "Fans also like") }
+                    item { SectionHeader(title = stringResource(R.string.section_fans_also_like)) }
                     item {
                         LazyRow(
                             contentPadding = PaddingValues(horizontal = 24.dp),
@@ -474,7 +476,7 @@ fun SectionHeader(title: String, onSeeAllClick: (() -> Unit)? = null) {
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
             ) {
                 Text(
-                    "View all",
+                    stringResource(R.string.action_view_all),
                     style = MaterialTheme.typography.labelLarge
                 )
             }
@@ -506,7 +508,7 @@ fun AlbumCard(album: MusicPlaylist, onClick: () -> Unit, showAuthor: Boolean = f
             overflow = TextOverflow.Ellipsis
         )
         Text(
-            text = if (showAuthor) "Playlist • ${album.author}" else if (album.trackCount > 0) "${album.trackCount} tracks" else "Album",
+            text = if (showAuthor) stringResource(R.string.subtitle_playlist_template, album.author) else if (album.trackCount > 0) stringResource(R.string.tracks_count_template, album.trackCount) else stringResource(R.string.album_label),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
@@ -541,9 +543,14 @@ fun VideoCard(video: MusicTrack, onClick: () -> Unit) {
             overflow = TextOverflow.Ellipsis
         )
         
-        val viewsText = if (video.views > 0) "• ${formatViews(video.views)} views" else ""
+        val viewsText = if (video.views > 0) formatViews(video.views) else null
+        val subtitle = if (viewsText != null) {
+            stringResource(R.string.artist_views_template, video.artist, viewsText)
+        } else {
+            video.artist
+        }
         Text(
-            text = "${video.artist} $viewsText",
+            text = subtitle,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

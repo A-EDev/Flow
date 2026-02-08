@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import com.flow.youtube.ui.screens.music.MusicTrack
 
 @Composable
@@ -70,7 +72,7 @@ fun SectionHeader(
                             modifier = Modifier.size(18.dp)
                         )
                         Text(
-                            "Play all", 
+                            stringResource(R.string.action_play_all), 
                             color = MaterialTheme.colorScheme.onBackground, 
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.SemiBold
@@ -130,7 +132,7 @@ fun GenreSection(
                 fontWeight = FontWeight.Bold
             )
             TextButton(onClick = onSeeAllClick) {
-                Text("See All")
+                Text(stringResource(R.string.action_view_all))
                 Icon(
                     imageVector = Icons.Filled.ChevronRight,
                     contentDescription = null,

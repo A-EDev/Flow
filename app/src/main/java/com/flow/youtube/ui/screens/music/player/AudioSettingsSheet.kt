@@ -19,8 +19,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.flow.youtube.R
 import com.flow.youtube.data.model.EqPresets
 import com.flow.youtube.data.model.FilterType
 import com.flow.youtube.data.model.ParametricEQ
@@ -61,7 +63,7 @@ fun AudioSettingsSheet(
                 .padding(bottom = 24.dp)
         ) {
             Text(
-                "Audio Settings",
+                stringResource(R.string.audio_settings_title),
                 style = MaterialTheme.typography.titleLarge,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
@@ -74,7 +76,7 @@ fun AudioSettingsSheet(
                      Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.4f))) {
                          Column(Modifier.padding(16.dp)) {
                              Row(verticalAlignment = Alignment.CenterVertically) {
-                                  Text("Preset", style = MaterialTheme.typography.titleMedium)
+                                  Text(stringResource(R.string.label_preset), style = MaterialTheme.typography.titleMedium)
                                   Spacer(Modifier.weight(1f))
                                   
                                   var expanded by remember { mutableStateOf(false) }
@@ -98,7 +100,7 @@ fun AudioSettingsSheet(
                              }
                              
                              Spacer(Modifier.height(8.dp))
-                             Text("Bass Boost: ${bassBoost.roundToInt()}dB", style = MaterialTheme.typography.labelMedium)
+                             Text(stringResource(R.string.template_bass_boost, bassBoost.roundToInt()), style = MaterialTheme.typography.labelMedium)
                              Slider(
                                  value = bassBoost,
                                  onValueChange = { EnhancedMusicPlayerManager.setBassBoost(it) },
@@ -118,22 +120,22 @@ fun AudioSettingsSheet(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.Speed, null, tint = MaterialTheme.colorScheme.primary)
                                 Spacer(Modifier.width(8.dp))
-                                Text("Tempo & Pitch", style = MaterialTheme.typography.titleMedium)
+                                Text(stringResource(R.string.label_tempo_pitch), style = MaterialTheme.typography.titleMedium)
                                 Spacer(Modifier.weight(1f))
                                 TextButton(onClick = { 
                                     EnhancedMusicPlayerManager.setPlaybackSpeed(1f)
                                     EnhancedMusicPlayerManager.setPlaybackPitch(0f)
                                 }) {
-                                    Icon(Icons.Default.Refresh, "Reset", modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Default.Refresh, stringResource(R.string.action_reset), modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(4.dp))
-                                    Text("Reset")
+                                    Text(stringResource(R.string.action_reset))
                                 }
                             }
 
                             Spacer(Modifier.height(8.dp))
                             
                             // Speed
-                            Text("Speed: ${(speed * 100).roundToInt()}%", style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.template_speed, (speed * 100).roundToInt()), style = MaterialTheme.typography.labelMedium)
                             Slider(
                                 value = speed,
                                 onValueChange = { EnhancedMusicPlayerManager.setPlaybackSpeed(it) },
@@ -142,7 +144,7 @@ fun AudioSettingsSheet(
                             )
 
                             // Pitch
-                            Text("Pitch: ${pitch.roundToInt()} Semitones", style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.template_pitch, pitch.roundToInt()), style = MaterialTheme.typography.labelMedium)
                             Slider(
                                 value = pitch,
                                 onValueChange = { EnhancedMusicPlayerManager.setPlaybackPitch(it) },
@@ -156,19 +158,19 @@ fun AudioSettingsSheet(
                 // --- Equalizer ---
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Parametric Equalizer", style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.label_parametric_equalizer), style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.weight(1f))
                         IconButton(onClick = { 
                             bands = bands + ParametricEQBand(1000.0, 0.0, 1.41, FilterType.PK, true) 
                         }) {
-                            Icon(Icons.Default.Add, "Add Band")
+                            Icon(Icons.Default.Add, stringResource(R.string.action_add_band))
                         }
                     }
                 }
                 
                 item {
                      Column {
-                        Text("Preamp: ${preamp}dB", style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.template_preamp, preamp), style = MaterialTheme.typography.labelSmall)
                         Slider(
                             value = preamp,
                             onValueChange = { preamp = it },
@@ -215,7 +217,7 @@ fun BandControl(
                 
                 Switch(checked = band.enabled, onCheckedChange = { onUpdate(band.copy(enabled = it)) }, modifier = Modifier.scale(0.8f))
                 IconButton(onClick = onRemove, modifier = Modifier.size(24.dp)) {
-                    Icon(Icons.Default.Close, "Remove", modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Close, stringResource(R.string.remove), modifier = Modifier.size(16.dp))
                 }
             }
             
@@ -229,7 +231,7 @@ fun BandControl(
                        valueRange = 0f..1f, 
                        modifier = Modifier.weight(1f)
                    )
-                   Text("${band.frequency.roundToInt()}Hz", modifier = Modifier.width(50.dp), fontSize = 12.sp)
+                   Text(stringResource(R.string.template_freq, band.frequency.roundToInt()), modifier = Modifier.width(50.dp), fontSize = 12.sp)
                 }
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -240,7 +242,7 @@ fun BandControl(
                        valueRange = -15f..15f,
                        modifier = Modifier.weight(1f)
                    )
-                   Text("${"%.1f".format(band.gain)}dB", modifier = Modifier.width(50.dp), fontSize = 12.sp)
+                   Text(stringResource(R.string.template_gain, band.gain), modifier = Modifier.width(50.dp), fontSize = 12.sp)
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -251,7 +253,7 @@ fun BandControl(
                        valueRange = 0.1f..10f,
                        modifier = Modifier.weight(1f)
                    )
-                   Text("${"%.1f".format(band.q)}", modifier = Modifier.width(50.dp), fontSize = 12.sp)
+                   Text(stringResource(R.string.template_q, band.q), modifier = Modifier.width(50.dp), fontSize = 12.sp)
                 }
             }
         }

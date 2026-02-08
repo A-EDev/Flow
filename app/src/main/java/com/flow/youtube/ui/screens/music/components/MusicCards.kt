@@ -26,6 +26,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.flow.youtube.ui.screens.music.MusicTrack
 import com.flow.youtube.ui.screens.music.formatViews
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 
 @Composable
 fun AlbumCard(
@@ -175,7 +177,7 @@ fun FeaturedTrackCard(
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    text = "FEATURED",
+                    text = stringResource(R.string.label_featured),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary,
                     fontWeight = FontWeight.Bold,
@@ -216,7 +218,7 @@ fun FeaturedTrackCard(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Listen Now")
+                    Text(stringResource(R.string.action_listen_now))
                 }
             }
         }

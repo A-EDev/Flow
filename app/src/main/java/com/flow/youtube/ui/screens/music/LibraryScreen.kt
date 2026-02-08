@@ -1,5 +1,7 @@
 package com.flow.youtube.ui.screens.music
 
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -42,21 +44,26 @@ fun LibraryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Playlists", "Favorites", "History", "Downloads")
+    val tabs = listOf(
+        stringResource(R.string.library_playlists_label),
+        stringResource(R.string.tab_favorites),
+        stringResource(R.string.library_history_label),
+        stringResource(R.string.library_downloads_label)
+    )
     
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        "Library",
+                        stringResource(R.string.library),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -178,13 +185,13 @@ private fun PlaylistsTab(
                     
                     Column {
                         Text(
-                            "Create New Playlist",
+                            stringResource(R.string.create_new_playlist),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            "Organize your music",
+                            stringResource(R.string.create_playlist_subtitle),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                         )
@@ -197,8 +204,8 @@ private fun PlaylistsTab(
             item {
                 EmptyState(
                     icon = Icons.Outlined.QueueMusic,
-                    title = "No Playlists Yet",
-                    subtitle = "Create your first playlist to organize your favorite tracks"
+                    title = stringResource(R.string.empty_playlists_title),
+                    subtitle = stringResource(R.string.empty_playlists_subtitle)
                 )
             }
         } else {
@@ -221,8 +228,8 @@ private fun FavoritesTab(
     if (favorites.isEmpty()) {
         EmptyState(
             icon = Icons.Outlined.FavoriteBorder,
-            title = "No Favorites Yet",
-            subtitle = "Tap the heart icon on any track to add it to your favorites"
+            title = stringResource(R.string.empty_favorites_title),
+            subtitle = stringResource(R.string.empty_favorites_subtitle)
         )
     } else {
         LazyColumn(
@@ -244,7 +251,7 @@ private fun FavoritesTab(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        "${favorites.size} favorite tracks",
+                        stringResource(R.string.favorites_count_template, favorites.size),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -271,8 +278,8 @@ private fun HistoryTab(
     if (history.isEmpty()) {
         EmptyState(
             icon = Icons.Outlined.History,
-            title = "No History Yet",
-            subtitle = "Start listening to music to see your history here"
+            title = stringResource(R.string.empty_history_title),
+            subtitle = stringResource(R.string.empty_history_subtitle)
         )
     } else {
         LazyColumn(
@@ -296,14 +303,14 @@ private fun HistoryTab(
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            "Recently Played",
+                            stringResource(R.string.section_recently_played),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                     
                     TextButton(onClick = onClearHistory) {
-                        Text("Clear All")
+                        Text(stringResource(R.string.clear_all))
                     }
                 }
             }
@@ -330,8 +337,8 @@ private fun DownloadsTab(
     if (downloads.isEmpty()) {
         EmptyState(
             icon = Icons.Outlined.Download,
-            title = "No Downloads Yet",
-            subtitle = "Download tracks for offline playback"
+            title = stringResource(R.string.empty_downloads_title),
+            subtitle = stringResource(R.string.empty_downloads_subtitle)
         )
     } else {
         LazyColumn(
@@ -411,7 +418,7 @@ private fun PlaylistCard(
                 Spacer(Modifier.height(4.dp))
                 
                 Text(
-                    "${playlist.trackCount} tracks",
+                    stringResource(R.string.tracks_count_template, playlist.trackCount),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -506,7 +513,7 @@ private fun DownloadedTrackCard(
             IconButton(onClick = onDelete) {
                 Icon(
                     Icons.Default.Delete,
-                    contentDescription = "Delete",
+                    contentDescription = stringResource(R.string.action_delete),
                     tint = MaterialTheme.colorScheme.error
                 )
             }
@@ -535,7 +542,7 @@ private fun DownloadStatsCard(downloads: List<com.flow.youtube.data.music.Downlo
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
-                    "Downloads",
+                    stringResource(R.string.downloads_title),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                 )
@@ -549,7 +556,7 @@ private fun DownloadStatsCard(downloads: List<com.flow.youtube.data.music.Downlo
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Text(
-                    "Total Size",
+                    stringResource(R.string.total_size),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                 )

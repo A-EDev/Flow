@@ -13,6 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -27,7 +29,7 @@ fun LoadingContent() {
         ) {
             CircularProgressIndicator(color = Color.Red)
             Text(
-                text = "Loading music...",
+                text = stringResource(R.string.loading_music),
                 style = MaterialTheme.typography.bodyLarge,
                 color = Color.White.copy(alpha = 0.6f)
             )
@@ -65,7 +67,7 @@ fun ErrorContent(
                 onClick = onRetry,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
             ) {
-                Text("Retry")
+                Text(stringResource(R.string.action_retry))
             }
         }
     }

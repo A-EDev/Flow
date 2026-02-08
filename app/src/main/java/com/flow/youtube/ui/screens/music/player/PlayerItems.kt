@@ -62,7 +62,7 @@ fun UpNextTrackItem(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "${track.artist} • ${track.duration}",
+                text = stringResource(R.string.year_artist_template, track.artist, track.duration),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 maxLines = 1,

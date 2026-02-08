@@ -19,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 /**
@@ -37,7 +39,7 @@ fun CreatePlaylistDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                "Create Playlist",
+                stringResource(R.string.title_create_playlist),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -49,8 +51,8 @@ fun CreatePlaylistDialog(
                 OutlinedTextField(
                     value = playlistName,
                     onValueChange = { playlistName = it },
-                    label = { Text("Playlist Name") },
-                    placeholder = { Text("My Awesome Playlist") },
+                    label = { Text(stringResource(R.string.label_playlist_name)) },
+                    placeholder = { Text(stringResource(R.string.placeholder_playlist_name)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -58,8 +60,8 @@ fun CreatePlaylistDialog(
                 OutlinedTextField(
                     value = playlistDescription,
                     onValueChange = { playlistDescription = it },
-                    label = { Text("Description (Optional)") },
-                    placeholder = { Text("My favorite tracks...") },
+                    label = { Text(stringResource(R.string.label_description_optional)) },
+                    placeholder = { Text(stringResource(R.string.placeholder_playlist_desc)) },
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 3
                 )
@@ -77,12 +79,12 @@ fun CreatePlaylistDialog(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
-                Text("Create")
+                Text(stringResource(R.string.action_create))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -103,7 +105,7 @@ fun AddToPlaylistDialog(
         onDismissRequest = onDismiss,
         title = {
             Text(
-                "Add to Playlist",
+                stringResource(R.string.title_add_to_playlist),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
@@ -134,7 +136,7 @@ fun AddToPlaylistDialog(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                             Text(
-                                "Create New Playlist",
+                                stringResource(R.string.action_create_new_playlist),
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.primary
@@ -146,7 +148,7 @@ fun AddToPlaylistDialog(
                 if (playlists.isEmpty()) {
                     item {
                         Text(
-                            "No playlists yet. Create one to get started!",
+                            stringResource(R.string.empty_playlists_dialog),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                             modifier = Modifier.padding(16.dp)
@@ -168,7 +170,7 @@ fun AddToPlaylistDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.action_cancel))
             }
         }
     )
@@ -215,7 +217,7 @@ private fun PlaylistItem(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    "${playlist.trackCount} tracks",
+                    stringResource(R.string.tracks_count_template, playlist.trackCount),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -293,7 +295,7 @@ fun TrackOptionsBottomSheet(
             // Options
             OptionItem(
                 icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                text = if (isFavorite) "Remove from Favorites" else "Add to Favorites",
+                text = if (isFavorite) stringResource(R.string.action_remove_from_favorites) else stringResource(R.string.action_add_to_favorites),
                 onClick = {
                     onFavoriteToggle()
                     onDismiss()
@@ -302,7 +304,7 @@ fun TrackOptionsBottomSheet(
             
             OptionItem(
                 icon = Icons.Default.PlaylistAdd,
-                text = "Add to Playlist",
+                text = stringResource(R.string.title_add_to_playlist),
                 onClick = {
                     onDismiss()
                     onAddToPlaylist()
@@ -311,7 +313,7 @@ fun TrackOptionsBottomSheet(
             
             OptionItem(
                 icon = Icons.Default.Share,
-                text = "Share",
+                text = stringResource(R.string.action_share),
                 onClick = {
                     onShareClick()
                     onDismiss()

@@ -2,6 +2,8 @@ package com.flow.youtube.ui.screens.music
 
 import android.app.Activity
 import android.content.Intent
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import android.speech.RecognizerIntent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -55,6 +57,7 @@ fun MusicSearchScreen(
 ) {
     val query by viewModel.query.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -75,9 +78,9 @@ fun MusicSearchScreen(
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
-                    putExtra(Intent.EXTRA_TEXT, "Check out this song: ${selectedTrack!!.title} by ${selectedTrack!!.artist}\nhttps://music.youtube.com/watch?v=${selectedTrack!!.videoId}")
+                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_message_template, selectedTrack!!.title, selectedTrack!!.artist, selectedTrack!!.videoId))
                 }
-                context.startActivity(Intent.createChooser(shareIntent, "Share song"))
+                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
             }
         )
     }
@@ -110,7 +113,7 @@ fun MusicSearchScreen(
                 onVoiceSearchClick = {
                     val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                         putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                        putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak to search music")
+                        putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.voice_search_prompt))
                     }
                     voiceSearchLauncher.launch(intent)
                 }
@@ -163,6 +166,10 @@ fun MusicSearchScreen(
                         onFilterClick = viewModel::applyFilter
                     )
 
+                    val topResultTarget = stringResource(R.string.section_top_result)
+                    val searchSourceTemplate = stringResource(R.string.search_source_template)
+                    val artistSourceTemplate = stringResource(R.string.artist_source_template)
+
                     if (uiState.isLoading) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
@@ -184,14 +191,14 @@ fun MusicSearchScreen(
                                         )
                                     }
                                     
-                                    if (summary.title == "Top result" || summary.title == "Top Result") {
+                                    if (summary.title == topResultTarget) {
                                         item {
                                             TopResultCard(
                                                 item = summary.items.first(),
                                                 onClick = {
                                                     val item = summary.items.first()
                                                     when (item) {
-                                                        is SongItem -> onTrackClick(convertSongToMusicTrack(item), summary.items.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, "Search: $query")
+                                                        is SongItem -> onTrackClick(convertSongToMusicTrack(item), summary.items.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
                                                         is ArtistItem -> onArtistClick(item.id)
                                                         is AlbumItem -> onAlbumClick(item.id)
                                                         is PlaylistItem -> onPlaylistClick(item.id)
@@ -203,7 +210,7 @@ fun MusicSearchScreen(
                                                         viewModel.getArtistTracks(item.id) { tracks ->
                                                             val musicTracks = tracks.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }
                                                             if (musicTracks.isNotEmpty()) {
-                                                                onTrackClick(musicTracks.shuffled().first(), musicTracks.shuffled(), "Artist: ${item.title}")
+                                                                onTrackClick(musicTracks.shuffled().first(), musicTracks.shuffled(), artistSourceTemplate.format(item.title))
                                                             }
                                                         }
                                                     }
@@ -215,7 +222,7 @@ fun MusicSearchScreen(
                                                         viewModel.getArtistTracks(item.id) { tracks ->
                                                             val musicTracks = tracks.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }
                                                             if (musicTracks.isNotEmpty()) {
-                                                                onTrackClick(musicTracks.first(), musicTracks, "Artist: ${item.title}")
+                                                                onTrackClick(musicTracks.first(), musicTracks, artistSourceTemplate.format(item.title))
                                                             }
                                                         }
                                                     }
@@ -228,7 +235,7 @@ fun MusicSearchScreen(
                                                 item = item,
                                                 onClick = {
                                                     when (item) {
-                                                        is SongItem -> onTrackClick(convertSongToMusicTrack(item), summary.items.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, "Search: $query")
+                                                        is SongItem -> onTrackClick(convertSongToMusicTrack(item), summary.items.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
                                                         is ArtistItem -> onArtistClick(item.id)
                                                         is AlbumItem -> onAlbumClick(item.id)
                                                         is PlaylistItem -> onPlaylistClick(item.id)
@@ -248,7 +255,7 @@ fun MusicSearchScreen(
                                                 item = item,
                                                 onClick = {
                                                     when (item) {
-                                                        is SongItem -> onTrackClick(convertSongToMusicTrack(item), summary.items.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, "Search: $query")
+                                                        is SongItem -> onTrackClick(convertSongToMusicTrack(item), summary.items.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
                                                         is ArtistItem -> onArtistClick(item.id)
                                                         is AlbumItem -> onAlbumClick(item.id)
                                                         is PlaylistItem -> onPlaylistClick(item.id)
@@ -271,7 +278,7 @@ fun MusicSearchScreen(
                                         item = item,
                                         onClick = {
                                             when (item) {
-                                                is SongItem -> onTrackClick(convertSongToMusicTrack(item), uiState.filteredResults.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, "Search: $query")
+                                                is SongItem -> onTrackClick(convertSongToMusicTrack(item), uiState.filteredResults.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
                                                 is ArtistItem -> onArtistClick(item.id)
                                                 is AlbumItem -> onAlbumClick(item.id)
                                                 is PlaylistItem -> onPlaylistClick(item.id)
@@ -335,7 +342,7 @@ fun MusicSearchBar(
         IconButton(onClick = onBackClick) {
             Icon(
                 imageVector = Icons.Default.ArrowBack,
-                contentDescription = "Back",
+                contentDescription = stringResource(R.string.btn_back),
                 tint = MaterialTheme.colorScheme.onBackground
             )
         }
@@ -363,7 +370,7 @@ fun MusicSearchBar(
                 singleLine = true,
                 decorationBox = { innerTextField ->
                     if (query.isEmpty()) {
-                        Text("Search music", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 18.sp)
+                        Text(stringResource(R.string.search_music_placeholder), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 18.sp)
                     }
                     innerTextField()
                 }
@@ -376,7 +383,7 @@ fun MusicSearchBar(
                 ) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = "Clear",
+                        contentDescription = stringResource(R.string.clear),
                         tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(20.dp)
                     )
@@ -389,7 +396,7 @@ fun MusicSearchBar(
         IconButton(onClick = onVoiceSearchClick) {
             Icon(
                 Icons.Default.Mic,
-                contentDescription = "Voice Search",
+                contentDescription = stringResource(R.string.voice_search_cd),
                 tint = MaterialTheme.colorScheme.onBackground
             )
         }
@@ -402,10 +409,10 @@ fun SearchFilterChips(
     onFilterClick: (SearchFilter?) -> Unit
 ) {
     val filters = listOf(
-        "Albums" to SearchFilter.FILTER_ALBUM,
-        "Videos" to SearchFilter.FILTER_VIDEO,
-        "Songs" to SearchFilter.FILTER_SONG,
-        "Community playlists" to SearchFilter.FILTER_COMMUNITY_PLAYLIST
+        stringResource(R.string.filter_albums) to SearchFilter.FILTER_ALBUM,
+        stringResource(R.string.tab_videos) to SearchFilter.FILTER_VIDEO,
+        stringResource(R.string.filter_songs) to SearchFilter.FILTER_SONG,
+        stringResource(R.string.filter_community_playlists) to SearchFilter.FILTER_COMMUNITY_PLAYLIST
     )
 
     LazyRow(
@@ -497,10 +504,10 @@ fun RecommendedItemRow(
                 overflow = TextOverflow.Ellipsis
             )
             val subtitle = when (item) {
-                is SongItem -> "Song • ${item.artists.joinToString { it.name }}"
-                is ArtistItem -> "Artist"
-                is AlbumItem -> "Album • ${item.artists?.joinToString { it.name } ?: ""}"
-                is PlaylistItem -> "Playlist • ${item.author?.name ?: ""}"
+                is SongItem -> stringResource(R.string.subtitle_song_prefix, item.artists.joinToString { it.name })
+                is ArtistItem -> stringResource(R.string.subtitle_artist)
+                is AlbumItem -> stringResource(R.string.subtitle_album_template, item.artists?.joinToString { it.name } ?: "")
+                is PlaylistItem -> stringResource(R.string.subtitle_playlist_template, item.author?.name ?: "")
             }
             Text(
                 text = subtitle,
@@ -554,12 +561,12 @@ fun YTItemRow(
             )
             val subtitle = when (item) {
                 is SongItem -> {
-                    val plays = item.viewCountText?.let { " • $it plays" } ?: ""
-                    "Song • ${item.artists.joinToString { it.name }}$plays"
+                    val plays = item.viewCountText?.let { stringResource(R.string.plays_count_template, it) } ?: ""
+                    stringResource(R.string.subtitle_song_prefix, item.artists.joinToString { it.name }) + plays
                 }
-                is ArtistItem -> "Artist"
-                is AlbumItem -> "Album • ${item.artists?.joinToString { it.name } ?: ""} • ${item.year ?: ""}"
-                is PlaylistItem -> "Playlist • ${item.author?.name ?: ""}"
+                is ArtistItem -> stringResource(R.string.subtitle_artist)
+                is AlbumItem -> stringResource(R.string.album_year_template, item.artists?.joinToString { it.name } ?: "", item.year ?: "")
+                is PlaylistItem -> stringResource(R.string.subtitle_playlist_template, item.author?.name ?: "")
             }
             Text(
                 text = subtitle,
@@ -620,10 +627,10 @@ fun TopResultCard(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     val subtitle = when (item) {
-                        is ArtistItem -> "Artist • 442M monthly audience"
-                        is SongItem -> "Song • ${item.artists.joinToString { it.name }}"
-                        is AlbumItem -> "Album • ${item.artists?.joinToString { it.name } ?: ""}"
-                        is PlaylistItem -> "Playlist • ${item.author?.name ?: ""}"
+                        is ArtistItem -> stringResource(R.string.subtitle_artist)
+                        is SongItem -> stringResource(R.string.subtitle_song_prefix, item.artists.joinToString { it.name })
+                        is AlbumItem -> stringResource(R.string.subtitle_album_template, item.artists?.joinToString { it.name } ?: "")
+                        is PlaylistItem -> stringResource(R.string.subtitle_playlist_template, item.author?.name ?: "")
                     }
                     Text(
                         text = subtitle,
@@ -656,7 +663,7 @@ fun TopResultCard(
                     ) {
                         Icon(Icons.Default.Shuffle, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Shuffle", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.shuffle), fontWeight = FontWeight.Bold)
                     }
                     Button(
                         onClick = onRadioClick,
@@ -670,7 +677,7 @@ fun TopResultCard(
                     ) {
                         Icon(Icons.Default.Radio, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Radio", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.radio), fontWeight = FontWeight.Bold)
                     }
                 }
             }

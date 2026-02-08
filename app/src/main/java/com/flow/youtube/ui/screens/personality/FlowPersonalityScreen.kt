@@ -29,6 +29,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -97,10 +99,10 @@ fun FlowPersonalityScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(onClick = onNavigateBack) {
-                            Icon(Icons.Default.ArrowBack, "Back")
+                            Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
                         }
                         Text(
-                            "Flow Control Center",
+                            stringResource(R.string.flow_control_center),
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold
                             )
@@ -111,7 +113,7 @@ fun FlowPersonalityScreen(
                                 userBrain?.let { persona = FlowNeuroEngine.getPersona(it) }
                             }
                         }) {
-                            Icon(Icons.Default.Refresh, "Refresh")
+                            Icon(Icons.Default.Refresh, stringResource(R.string.action_refresh))
                         }
                     }
                 }
@@ -126,7 +128,7 @@ fun FlowPersonalityScreen(
                             strokeWidth = 3.dp
                         )
                         Spacer(Modifier.height(16.dp))
-                        Text("Loading Neural Matrix...", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.loading_neural_matrix), style = MaterialTheme.typography.bodyMedium)
                     }
                 }
             } else {
@@ -153,48 +155,48 @@ fun FlowPersonalityScreen(
                         // 3. NEURAL BUBBLE CLOUD (Animated Canvas)
                         SectionHeader(
                             icon = Icons.Outlined.AutoAwesome,
-                            title = "Interests",
-                            subtitle = "Your neural interest map"
+                            title = stringResource(R.string.interests_tab),
+                            subtitle = stringResource(R.string.neural_interest_map_subtitle)
                         )
                         NeuralBubbleCloud(brain = userBrain!!)
 
                         // 4. SPIDER/RADAR CHART
                         SectionHeader(
                             icon = Icons.Outlined.TrackChanges,
-                            title = "Cognitive Fingerprint",
-                            subtitle = "Your content DNA"
+                            title = stringResource(R.string.cognitive_fingerprint),
+                            subtitle = stringResource(R.string.content_dna_subtitle)
                         )
                         AdvancedRadarChart(brain = userBrain!!)
 
                         // 5. TOPIC STRENGTH BARS
                         SectionHeader(
                             icon = Icons.Outlined.Equalizer,
-                            title = "Topic Weights",
-                            subtitle = "Full transparency on what drives your feed"
+                            title = stringResource(R.string.topic_weights),
+                            subtitle = stringResource(R.string.topic_weights_subtitle)
                         )
                         TopicStrengthChart(brain = userBrain!!)
 
                         // 6. TIME CONTEXT CARDS
                         SectionHeader(
                             icon = Icons.Outlined.Schedule,
-                            title = "Temporal Patterns",
-                            subtitle = "How your interests shift by time of day"
+                            title = stringResource(R.string.temporal_patterns),
+                            subtitle = stringResource(R.string.temporal_patterns_subtitle)
                         )
                         TimeContextCards(brain = userBrain!!)
 
                         // 7. CHANNEL AFFINITY
                         SectionHeader(
                             icon = Icons.Outlined.Subscriptions,
-                            title = "Channel Memory",
-                            subtitle = "Implicit feedback from your viewing history"
+                            title = stringResource(R.string.channel_memory),
+                            subtitle = stringResource(R.string.channel_memory_subtitle)
                         )
                         ChannelAffinitySection(brain = userBrain!!)
 
                         // 8. ALGORITHM TRANSPARENCY
                         SectionHeader(
                             icon = Icons.Outlined.Code,
-                            title = "Algorithm Insights",
-                            subtitle = "Under the hood"
+                            title = stringResource(R.string.algorithm_insights),
+                            subtitle = stringResource(R.string.algorithm_insights_subtitle)
                         )
                         AlgorithmInsightsCard(brain = userBrain!!)
                         
@@ -205,8 +207,8 @@ fun FlowPersonalityScreen(
                         if (userBrain!!.blockedTopics.isNotEmpty() || userBrain!!.blockedChannels.isNotEmpty()) {
                             SectionHeader(
                                 icon = Icons.Outlined.Block,
-                                title = "Filters",
-                                subtitle = "Blocked topics and channels"
+                                title = stringResource(R.string.filters_title),
+                                subtitle = stringResource(R.string.blocked_topics_channels_subtitle)
                             )
                             BlockedContentSection(
                                 brain = userBrain!!,
@@ -254,9 +256,9 @@ fun FlowPersonalityScreen(
                                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                         type = "application/json"
                                         putExtra(Intent.EXTRA_TEXT, jsonData)
-                                        putExtra(Intent.EXTRA_SUBJECT, "Flow Neural Profile Export")
+                                        putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.flow_neural_profile_export_subject))
                                     }
-                                    context.startActivity(Intent.createChooser(shareIntent, "Export Profile Data"))
+                                    context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.export_profile_data)))
                                 }
                             }
                         )
@@ -290,15 +292,10 @@ fun FlowPersonalityScreen(
                     )
                 }
             },
-            title = { Text("Reset Neural Profile?", fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.reset_neural_profile_title), fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    "This will permanently erase:\n\n" +
-                    "• All learned preferences\n" +
-                    "• Long-term personality vector\n" +
-                    "• Time-context patterns\n" +
-                    "• Channel affinity scores\n\n" +
-                    "Your feed will return to a cold-start state.",
+                    stringResource(R.string.reset_neural_profile_body),
                     style = MaterialTheme.typography.bodyMedium
                 )
             },
@@ -318,12 +315,12 @@ fun FlowPersonalityScreen(
                 ) {
                     Icon(Icons.Default.DeleteForever, null, Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Erase Everything")
+                    Text(stringResource(R.string.erase_everything))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showResetDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -498,7 +495,7 @@ private fun PersonaHeroCard(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        text = "ACTIVE LEARNING",
+                        text = stringResource(R.string.settings_active_learning),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimary,
                         fontWeight = FontWeight.Bold,
@@ -542,7 +539,7 @@ private fun PersonaHeroCard(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "${brain.totalInteractions} interactions • Level ${(brain.totalInteractions / 100) + 1}",
+                        stringResource(R.string.interactions_level_template, brain.totalInteractions, (brain.totalInteractions / 100) + 1),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
                         fontWeight = FontWeight.Medium
@@ -568,21 +565,21 @@ private fun QuickStatsRow(brain: FlowNeuroEngine.UserBrain) {
         QuickStatCard(
             modifier = Modifier.weight(1f),
             value = brain.totalInteractions.toString(),
-            label = "Interactions",
+            label = stringResource(R.string.stats_interactions),
             icon = Icons.Outlined.TouchApp,
             color = MaterialTheme.colorScheme.primary
         )
         QuickStatCard(
             modifier = Modifier.weight(1f),
             value = brain.globalVector.topics.size.toString(),
-            label = "Topics",
+            label = stringResource(R.string.stats_topics),
             icon = Icons.Outlined.Category,
             color = MaterialTheme.colorScheme.secondary
         )
         QuickStatCard(
             modifier = Modifier.weight(1f),
             value = brain.channelScores.size.toString(),
-            label = "Channels",
+            label = stringResource(R.string.channels_header),
             icon = Icons.Outlined.VideoLibrary,
             color = MaterialTheme.colorScheme.tertiary
         )
@@ -656,7 +653,7 @@ private fun NeuralBubbleCloud(brain: FlowNeuroEngine.UserBrain) {
         .take(12)
     
     if (topics.isEmpty()) {
-        EmptyStateCard("Watch some videos to populate your interest nebula!")
+        EmptyStateCard(stringResource(R.string.empty_bubble_cloud_message))
         return
     }
     

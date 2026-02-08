@@ -19,6 +19,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.res.stringResource
+import com.flow.youtube.R
 import coil.compose.AsyncImage
 
 /**
@@ -119,7 +121,7 @@ fun SleekMusicCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
-                        contentDescription = "More",
+                        contentDescription = stringResource(R.string.more_options),
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
@@ -242,7 +244,7 @@ fun CompactSleekCard(
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "More",
+                    contentDescription = stringResource(R.string.more_options),
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
@@ -302,7 +304,7 @@ fun HeroMusicCard(
                 shape = RoundedCornerShape(20.dp)
             ) {
                 Text(
-                    text = "FEATURED",
+                    text = stringResource(R.string.label_featured),
                     style = MaterialTheme.typography.labelSmall.copy(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.5.sp
@@ -350,7 +352,7 @@ fun HeroMusicCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
-                        contentDescription = "Play",
+                        contentDescription = stringResource(R.string.play),
                         modifier = Modifier.size(28.dp)
                     )
                 }
