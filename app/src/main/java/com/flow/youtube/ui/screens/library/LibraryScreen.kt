@@ -88,7 +88,7 @@ fun LibraryScreen(
                 LibraryCard(
                     icon = Icons.Outlined.History,
                     title = context.getString(R.string.library_history_label),
-                    subtitle = "${uiState.watchHistoryCount} videos",
+                    subtitle = stringResource(R.string.videos_count_template, uiState.watchHistoryCount),
                     onClick = onNavigateToHistory
                 )
             }
@@ -97,7 +97,7 @@ fun LibraryScreen(
                 LibraryCard(
                     icon = Icons.Outlined.PlaylistPlay,
                     title = context.getString(R.string.library_playlists_label),
-                    subtitle = "${uiState.playlistsCount} playlists",
+                    subtitle = stringResource(R.string.playlists_count_template, uiState.playlistsCount),
                     onClick = onNavigateToPlaylists
                 )
             }
@@ -115,7 +115,7 @@ fun LibraryScreen(
                 LibraryCard(
                     icon = Icons.Outlined.ThumbUp,
                     title = context.getString(R.string.library_liked_videos_label),
-                    subtitle = "${uiState.likedVideosCount} videos",
+                    subtitle = stringResource(R.string.videos_count_template, uiState.likedVideosCount),
                     onClick = onNavigateToLikedVideos
                 )
             }
@@ -124,7 +124,7 @@ fun LibraryScreen(
                 LibraryCard(
                     icon = ImageVector.vectorResource(id = R.drawable.ic_shorts),
                     title = context.getString(R.string.library_saved_shorts_label),
-                    subtitle = "${uiState.savedShortsCount} shorts",
+                    subtitle = stringResource(R.string.shorts_count_template, uiState.savedShortsCount),
                     onClick = onNavigateToSavedShorts
                 )
             }
@@ -133,7 +133,7 @@ fun LibraryScreen(
                 LibraryCard(
                     icon = Icons.Outlined.WatchLater,
                     title = context.getString(R.string.library_watch_later_label),
-                    subtitle = "${uiState.watchLaterCount} videos",
+                    subtitle = stringResource(R.string.videos_count_template, uiState.watchLaterCount),
                     onClick = onNavigateToWatchLater
                 )
             }
@@ -142,7 +142,7 @@ fun LibraryScreen(
                 LibraryCard(
                     icon = Icons.Outlined.Download,
                     title = context.getString(R.string.library_downloads_label),
-                    subtitle = "0 videos", // Placeholder
+                    subtitle = stringResource(R.string.videos_count_template, 0), // Placeholder
                     onClick = onNavigateToDownloads
                 )
             }

@@ -20,12 +20,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.flow.youtube.R
 import com.flow.youtube.data.local.PlaylistRepository
 import com.flow.youtube.data.model.Video
 import kotlinx.coroutines.launch
@@ -59,12 +61,12 @@ fun WatchLaterScreen(
                 title = { }, // Title moved to header section below image
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, "Back")
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.close))
                     }
                 },
                 actions = {
                     IconButton(onClick = { /* More options */ }) {
-                        Icon(Icons.Default.MoreVert, "Options")
+                        Icon(Icons.Default.MoreVert, stringResource(R.string.more_options))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -187,7 +189,7 @@ private fun WatchLaterHeader(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = "Watch later",
+                text = stringResource(R.string.watch_later),
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.5).sp
@@ -198,7 +200,7 @@ private fun WatchLaterHeader(
             // Dynamic User Name Placeholder removed as per request if not found
             // Metadata Row
             Text(
-                text = "Playlist • Private • $videoCount videos",
+                text = stringResource(R.string.playlist_metadata_template, videoCount),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -222,7 +224,7 @@ private fun WatchLaterHeader(
                 ) {
                     Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Play all", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.play_all), fontWeight = FontWeight.Bold)
                 }
 
                 // Random (Dice) Shuffle Action
@@ -233,7 +235,7 @@ private fun WatchLaterHeader(
                     modifier = Modifier.size(48.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Shuffle, "Shuffle", modifier = Modifier.size(24.dp))
+                        Icon(Icons.Default.Shuffle, stringResource(R.string.shuffle), modifier = Modifier.size(24.dp))
                     }
                 }
 
@@ -352,7 +354,7 @@ private fun WatchLaterVideoItem(
             ) {
                 Icon(
                     imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Options",
+                    contentDescription = stringResource(R.string.more_options),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp)
                 )
@@ -363,7 +365,7 @@ private fun WatchLaterVideoItem(
                 onDismissRequest = { showMenu = false }
             ) {
                 DropdownMenuItem(
-                    text = { Text("Remove from Watch Later") },
+                    text = { Text(stringResource(R.string.remove_from_watch_later)) },
                     onClick = {
                         onRemove()
                         showMenu = false
@@ -396,13 +398,13 @@ private fun EmptyWatchLaterState(modifier: Modifier = Modifier) {
         )
 
         Text(
-            text = "No videos saved",
+            text = stringResource(R.string.no_videos_saved),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
         )
 
         Text(
-            text = "Videos you save to watch later will appear here",
+            text = stringResource(R.string.no_videos_saved_body),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center

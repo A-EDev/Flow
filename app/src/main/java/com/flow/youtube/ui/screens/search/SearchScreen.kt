@@ -44,6 +44,8 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import com.flow.youtube.data.search.SearchSuggestionsService
+import com.flow.youtube.R
+import androidx.compose.ui.res.stringResource
 
 @OptIn(FlowPreview::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -235,7 +237,7 @@ fun SearchScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Recent Searches",
+                                text = stringResource(R.string.recent_searches),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onBackground
@@ -247,7 +249,7 @@ fun SearchScreen(
                                     }
                                 }
                             ) {
-                                Text("Clear all")
+                                Text(stringResource(R.string.clear_all))
                             }
                         }
                     }
@@ -271,7 +273,7 @@ fun SearchScreen(
                 item {
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(
-                        text = "Trending",
+                        text = stringResource(R.string.trending),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
@@ -313,12 +315,12 @@ fun SearchScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = uiState.error ?: "An error occurred",
+                                text = uiState.error ?: stringResource(R.string.error_occurred),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             TextButton(onClick = { viewModel.search(searchQuery) }) {
-                                Text("Retry")
+                                Text(stringResource(R.string.retry))
                             }
                         }
                     }
@@ -335,7 +337,7 @@ fun SearchScreen(
                         if (uiState.channels.isNotEmpty()) {
                             item {
                                 Text(
-                                    text = "Channels",
+                                    text = stringResource(R.string.channels_header),
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onBackground,
@@ -361,7 +363,7 @@ fun SearchScreen(
                                         color = MaterialTheme.colorScheme.outlineVariant
                                     )
                                     Text(
-                                        text = "Videos",
+                                        text = stringResource(R.string.videos_header),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold,
                                         color = MaterialTheme.colorScheme.onBackground,
@@ -406,7 +408,7 @@ fun SearchScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "End of results",
+                                        text = stringResource(R.string.end_of_results),
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -449,14 +451,14 @@ private fun EnhancedSearchBar(
                 .onFocusChanged { onFocusChange(it.isFocused) },
             placeholder = {
                 Text(
-                    text = "Search videos, channels...",
+                    text = stringResource(R.string.search_videos_channels_placeholder),
                     style = MaterialTheme.typography.bodyMedium
                 )
             },
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Outlined.Search,
-                    contentDescription = "Search",
+                    contentDescription = stringResource(R.string.search),
                     tint = if (isSearchFocused) 
                         MaterialTheme.colorScheme.primary 
                     else 
@@ -469,7 +471,7 @@ private fun EnhancedSearchBar(
                         IconButton(onClick = onClear) {
                             Icon(
                                 imageVector = Icons.Filled.Close,
-                                contentDescription = "Clear",
+                                contentDescription = stringResource(R.string.clear),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -508,7 +510,7 @@ private fun EnhancedSearchBar(
         ) {
             Icon(
                 imageVector = Icons.Filled.FilterList,
-                contentDescription = "Filters",
+                contentDescription = stringResource(R.string.more_options),
                 tint = if (hasActiveFilters) 
                     MaterialTheme.colorScheme.onPrimaryContainer 
                 else 
@@ -610,12 +612,12 @@ private fun SearchFiltersRow(
                     label = {
                         Text(
                             when (currentFilters.uploadDate) {
-                                com.flow.youtube.data.local.UploadDate.ANY -> "Upload date"
-                                com.flow.youtube.data.local.UploadDate.LAST_HOUR -> "Last hour"
-                                com.flow.youtube.data.local.UploadDate.TODAY -> "Today"
-                                com.flow.youtube.data.local.UploadDate.THIS_WEEK -> "This week"
-                                com.flow.youtube.data.local.UploadDate.THIS_MONTH -> "This month"
-                                com.flow.youtube.data.local.UploadDate.THIS_YEAR -> "This year"
+                                com.flow.youtube.data.local.UploadDate.ANY -> stringResource(R.string.filter_upload_date)
+                                com.flow.youtube.data.local.UploadDate.LAST_HOUR -> stringResource(R.string.date_last_hour)
+                                com.flow.youtube.data.local.UploadDate.TODAY -> stringResource(R.string.date_today)
+                                com.flow.youtube.data.local.UploadDate.THIS_WEEK -> stringResource(R.string.date_this_week)
+                                com.flow.youtube.data.local.UploadDate.THIS_MONTH -> stringResource(R.string.date_this_month)
+                                com.flow.youtube.data.local.UploadDate.THIS_YEAR -> stringResource(R.string.date_this_year)
                             }
                         )
                     },
@@ -650,10 +652,10 @@ private fun SearchFiltersRow(
                     label = {
                         Text(
                             when (currentFilters.duration) {
-                                com.flow.youtube.data.local.Duration.ANY -> "Duration"
-                                com.flow.youtube.data.local.Duration.UNDER_4_MINUTES -> "Under 4 min"
-                                com.flow.youtube.data.local.Duration.FOUR_TO_20_MINUTES -> "4-20 min"
-                                com.flow.youtube.data.local.Duration.OVER_20_MINUTES -> "Over 20 min"
+                                com.flow.youtube.data.local.Duration.ANY -> stringResource(R.string.filter_duration)
+                                com.flow.youtube.data.local.Duration.UNDER_4_MINUTES -> stringResource(R.string.duration_under_4)
+                                com.flow.youtube.data.local.Duration.FOUR_TO_20_MINUTES -> stringResource(R.string.duration_4_20)
+                                com.flow.youtube.data.local.Duration.OVER_20_MINUTES -> stringResource(R.string.duration_over_20)
                             }
                         )
                     },
@@ -688,10 +690,10 @@ private fun SearchFiltersRow(
                     label = {
                         Text(
                             when (currentFilters.sortBy) {
-                                com.flow.youtube.data.local.SortBy.RELEVANCE -> "Sort by"
-                                com.flow.youtube.data.local.SortBy.UPLOAD_DATE -> "Upload date"
-                                com.flow.youtube.data.local.SortBy.VIEW_COUNT -> "View count"
-                                com.flow.youtube.data.local.SortBy.RATING -> "Rating"
+                                com.flow.youtube.data.local.SortBy.RELEVANCE -> stringResource(R.string.filter_sort_by)
+                                com.flow.youtube.data.local.SortBy.UPLOAD_DATE -> stringResource(R.string.sort_upload_date)
+                                com.flow.youtube.data.local.SortBy.VIEW_COUNT -> stringResource(R.string.sort_view_count)
+                                com.flow.youtube.data.local.SortBy.RATING -> stringResource(R.string.sort_rating)
                             }
                         )
                     },

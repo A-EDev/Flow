@@ -83,7 +83,7 @@ fun ChannelScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = uiState.channelInfo?.name ?: "Channel",
+                        text = uiState.channelInfo?.name ?: stringResource(R.string.channel_default_title),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
@@ -93,7 +93,7 @@ fun ChannelScreen(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.close)
                         )
                     }
                 },
@@ -184,7 +184,7 @@ private fun ChannelContent(
                 if (!bannerUrl.isNullOrEmpty()) {
                     AsyncImage(
                         model = bannerUrl,
-                        contentDescription = "Banner",
+                        contentDescription = stringResource(R.string.channel_banner),
                         modifier = Modifier
                             .fillMaxWidth()
                             .aspectRatio(3f)
@@ -235,7 +235,7 @@ private fun ChannelContent(
                     ) {
                         AsyncImage(
                             model = avatarUrl,
-                            contentDescription = "Avatar",
+                            contentDescription = stringResource(R.string.channel_avatar),
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(CircleShape)
@@ -258,7 +258,7 @@ private fun ChannelContent(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = formatSubscriberCount(channelInfo.subscriberCount),
+                        text = formatSubscriberCount(channelInfo.subscriberCount, LocalContext.current),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.extendedColors.textSecondary
                     )
@@ -272,7 +272,7 @@ private fun ChannelContent(
                     )
                     
                     Text(
-                        text = "${videosLazyPagingItems?.itemCount ?: 0} videos", // Approximate
+                        text = stringResource(R.string.videos_count_template, videosLazyPagingItems?.itemCount ?: 0),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.extendedColors.textSecondary
                     )
@@ -306,7 +306,13 @@ private fun ChannelContent(
                     Divider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 }
             ) {
-                listOf("Videos", "Shorts", "Playlists", "About").forEachIndexed { index, title ->
+                val tabTitles = listOf(
+                    stringResource(R.string.tab_videos),
+                    stringResource(R.string.tab_shorts),
+                    stringResource(R.string.tab_playlists),
+                    stringResource(R.string.tab_about)
+                )
+                tabTitles.forEachIndexed { index, title ->
                     Tab(
                         selected = uiState.selectedTab == index,
                         onClick = { onTabSelected(index) },
@@ -330,7 +336,7 @@ private fun ChannelContent(
                 if (videosLazyPagingItems != null) {
                     if (videosLazyPagingItems.loadState.refresh is LoadState.NotLoading && videosLazyPagingItems.itemCount == 0) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
-                            EmptyStateMessage("No videos found")
+                            EmptyStateMessage(stringResource(R.string.no_videos_found))
                         }
                     } else {
                         items(
@@ -352,7 +358,7 @@ private fun ChannelContent(
                 if (shortsLazyPagingItems != null) {
                     if (shortsLazyPagingItems.loadState.refresh is LoadState.NotLoading && shortsLazyPagingItems.itemCount == 0) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
-                            EmptyStateMessage("No shorts found")
+                            EmptyStateMessage(stringResource(R.string.no_shorts_found))
                         }
                     } else {
                         items(
@@ -374,7 +380,7 @@ private fun ChannelContent(
                 if (playlistsLazyPagingItems != null) {
                     if (playlistsLazyPagingItems.loadState.refresh is LoadState.NotLoading && playlistsLazyPagingItems.itemCount == 0) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
-                            EmptyStateMessage("No playlists found")
+                            EmptyStateMessage(stringResource(R.string.no_playlists_found))
                         }
                     } else {
                         items(
@@ -439,7 +445,7 @@ fun AnimatedSubscribeButton(
                 )
             }
             Text(
-                text = if (isSubscribed) "Subscribed" else "Subscribe",
+                text = if (isSubscribed) stringResource(R.string.subscribed) else stringResource(R.string.subscribe),
                 fontWeight = FontWeight.Bold
             )
         }
@@ -489,7 +495,7 @@ private fun ShortsCard(
             
             // View count overlay at bottom
             Text(
-                text = "${formatViewCount(video.viewCount)} views",
+                text = stringResource(R.string.views_count_short_template, formatViewCount(video.viewCount)),
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(8.dp)
@@ -571,7 +577,7 @@ private fun PlaylistCard(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "${playlist.videoCount} videos",
+                text = stringResource(R.string.videos_count_template, playlist.videoCount),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.extendedColors.textSecondary
             )
@@ -634,7 +640,7 @@ private fun AboutSection(
                     color = MaterialTheme.extendedColors.textSecondary
                 )
                 Text(
-                    text = formatSubscriberCount(channelInfo.subscriberCount),
+                    text = formatSubscriberCount(channelInfo.subscriberCount, context),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -643,11 +649,11 @@ private fun AboutSection(
     }
 }
 
-private fun formatSubscriberCount(count: Long): String {
+private fun formatSubscriberCount(count: Long, context: android.content.Context): String {
     return when {
-        count >= 1_000_000 -> String.format("%.1fM subscribers", count / 1_000_000.0)
-        count >= 1_000 -> String.format("%.1fK subscribers", count / 1_000.0)
-        else -> "$count subscribers"
+        count >= 1_000_000 -> context.getString(R.string.subscribers_count_template, String.format("%.1fM", count / 1_000_000.0))
+        count >= 1_000 -> context.getString(R.string.subscribers_count_template, String.format("%.1fK", count / 1_000.0))
+        else -> context.getString(R.string.subscribers_count_template, count.toString())
     }
 }
 

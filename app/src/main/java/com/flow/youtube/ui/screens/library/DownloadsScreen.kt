@@ -523,7 +523,7 @@ fun MusicTrackCard(
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Text(
-                            text = "E",
+                            text = stringResource(R.string.explicit),
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant

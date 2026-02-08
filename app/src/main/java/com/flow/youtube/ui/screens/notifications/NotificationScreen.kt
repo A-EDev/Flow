@@ -36,6 +36,8 @@ import androidx.constraintlayout.compose.ConstraintLayout
 import androidx.constraintlayout.compose.Dimension
 import coil.compose.AsyncImage
 import com.flow.youtube.data.local.entity.NotificationEntity
+import com.flow.youtube.R
+import androidx.compose.ui.res.stringResource
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -54,7 +56,8 @@ fun NotificationScreen(
         viewModel.markAllAsRead()
     }
 
-    val groupedNotifications = remember(notifications) {
+    val context = LocalContext.current
+    val groupedNotifications = remember(notifications, context) {
         notifications.groupBy { entity ->
             val calendar = Calendar.getInstance()
             val now = calendar.timeInMillis
@@ -64,9 +67,9 @@ fun NotificationScreen(
             val days = (diff / (1000 * 60 * 60 * 24)).toInt()
             
             when {
-                days == 0 -> "Today"
-                days == 1 -> "Yesterday"
-                else -> "Earlier"
+                days == 0 -> context.getString(R.string.time_today)
+                days == 1 -> context.getString(R.string.time_yesterday)
+                else -> context.getString(R.string.time_earlier)
             }
         }
     }
@@ -77,19 +80,19 @@ fun NotificationScreen(
             MediumTopAppBar(
                 title = { 
                     Text(
-                        "Notifications",
+                        stringResource(R.string.notifications),
                         fontWeight = FontWeight.Bold
                     ) 
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.close))
                     }
                 },
                 actions = {
                     if (notifications.isNotEmpty()) {
                         IconButton(onClick = { viewModel.clearAll() }) {
-                            Icon(Icons.Default.DeleteSweep, contentDescription = "Clear all", tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.DeleteSweep, contentDescription = stringResource(R.string.clear_all_notifications), tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 },
@@ -110,7 +113,8 @@ fun NotificationScreen(
                     .padding(padding),
                 contentPadding = PaddingValues(bottom = 32.dp)
             ) {
-                groupedNotifications.forEach { (header, items) ->
+                groupedNotifications.keys.forEach { header ->
+                    val items = groupedNotifications[header] ?: emptyList()
                     stickyHeader {
                         NotificationHeader(header)
                     }
@@ -180,7 +184,7 @@ fun SwipeToDismissNotification(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Delete,
-                    contentDescription = "Delete",
+                    contentDescription = stringResource(R.string.delete),
                     tint = MaterialTheme.colorScheme.onErrorContainer
                 )
             }
@@ -256,7 +260,7 @@ fun NotificationItem(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Close,
-                    contentDescription = "Dismiss",
+                    contentDescription = stringResource(R.string.dismiss),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(18.dp)
                 )
@@ -338,7 +342,7 @@ fun EmptyNotificationsState(modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.height(24.dp))
             
             Text(
-                "Peace and quiet",
+                stringResource(R.string.peace_and_quiet),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -347,7 +351,7 @@ fun EmptyNotificationsState(modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.height(8.dp))
             
             Text(
-                "You're all caught up! New updates from your subscriptions will appear here.",
+                stringResource(R.string.notifications_empty_body),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

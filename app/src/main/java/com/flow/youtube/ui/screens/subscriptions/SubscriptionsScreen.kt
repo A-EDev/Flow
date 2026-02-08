@@ -66,7 +66,7 @@ fun SubscriptionsScreen(
         uri?.let {
             viewModel.importNewPipeBackup(it, context)
             scope.launch {
-                snackbarHostState.showSnackbar("Importing subscriptions from NewPipe backup...")
+                snackbarHostState.showSnackbar(context.getString(R.string.importing_from_backup))
             }
         }
     }
@@ -103,12 +103,12 @@ fun SubscriptionsScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = { isManagingSubs = false; searchQuery = "" }) {
-                            Icon(Icons.Default.ArrowBack, "Back")
+                            Icon(Icons.Default.ArrowBack, stringResource(R.string.close))
                         }
                     },
                     actions = {
                         IconButton(onClick = { launcher.launch("application/json") }) {
-                            Icon(Icons.Default.Upload, "Import NewPipe Backup")
+                            Icon(Icons.Default.Upload, stringResource(R.string.import_newpipe_backup))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
@@ -139,7 +139,7 @@ fun SubscriptionsScreen(
                             ) {
                                 Icon(
                                     imageVector = if (uiState.isFullWidthView) Icons.Default.ViewList else Icons.Default.GridView,
-                                    contentDescription = "Toggle View Mode",
+                                    contentDescription = stringResource(R.string.toggle_view_mode),
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -149,7 +149,7 @@ fun SubscriptionsScreen(
                             ) {
                                 Icon(
                                     Icons.Outlined.Search,
-                                    "Search Subscriptions",
+                                    stringResource(R.string.search_subscriptions),
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -203,8 +203,8 @@ fun SubscriptionsScreen(
                                         val sub = viewModel.getSubscriptionOnce(channel.id)
                                         viewModel.unsubscribe(channel.id)
                                         val result = snackbarHostState.showSnackbar(
-                                            "Unsubscribed from ${channel.name}",
-                                            actionLabel = "Undo",
+                                            context.getString(R.string.unsubscribed_from_template, channel.name),
+                                            actionLabel = context.getString(R.string.undo),
                                             duration = SnackbarDuration.Short
                                         )
                                         if (result == SnackbarResult.ActionPerformed) {

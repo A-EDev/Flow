@@ -26,14 +26,14 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.flow.youtube.data.local.LikedVideoInfo
 import com.flow.youtube.data.model.Video
+import com.flow.youtube.R
+import androidx.compose.ui.res.stringResource
 import com.flow.youtube.ui.components.AddToPlaylistDialog
 import com.flow.youtube.ui.components.MusicQuickActionsSheet
 import com.flow.youtube.ui.screens.music.MusicTrack
 import com.flow.youtube.ui.screens.music.MusicTrackRow
 import com.flow.youtube.ui.theme.extendedColors
 import android.content.Intent
-import com.flow.youtube.R
-import androidx.compose.ui.res.stringResource
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,7 +71,10 @@ fun LikedVideosScreen(
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
-                    putExtra(Intent.EXTRA_TEXT, "Check out this song: ${selectedTrack!!.title} by ${selectedTrack!!.artist}\nhttps://music.youtube.com/watch?v=${selectedTrack!!.videoId}")
+                    putExtra(
+                        Intent.EXTRA_TEXT, 
+                        context.getString(R.string.share_message_template, selectedTrack!!.title, selectedTrack!!.artist, selectedTrack!!.videoId)
+                    )
                 }
                 context.startActivity(Intent.createChooser(shareIntent,
                     context.getString(R.string.share_song)))
@@ -92,7 +95,7 @@ fun LikedVideosScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.close))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -157,7 +160,7 @@ fun LikedVideosScreen(
                                         IconButton(onClick = { viewModel.removeLike(video.videoId) }) {
                                             Icon(
                                                 imageVector = Icons.Default.Favorite,
-                                                contentDescription = "Unlike",
+                                                contentDescription = stringResource(R.string.unlike),
                                                 tint = MaterialTheme.colorScheme.primary
                                             )
                                         }
@@ -245,7 +248,7 @@ private fun LikedVideoCard(
                 ) {
                     Icon(
                         imageVector = Icons.Filled.ThumbUp,
-                        contentDescription = "Unlike",
+                        contentDescription = stringResource(R.string.unlike),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
@@ -265,7 +268,7 @@ private fun LikedVideoCard(
             Spacer(modifier = Modifier.height(2.dp))
 
             Text(
-                text = context.getString(R.string.liked) + formatTimestamp(video.likedAt),
+                text = stringResource(R.string.liked) + formatTimestamp(video.likedAt),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )

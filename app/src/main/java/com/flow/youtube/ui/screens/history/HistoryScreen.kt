@@ -73,9 +73,12 @@ fun HistoryScreen(
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                     type = "text/plain"
                     putExtra(Intent.EXTRA_SUBJECT, selectedTrack!!.title)
-                    putExtra(Intent.EXTRA_TEXT, "Check out this song: ${selectedTrack!!.title} by ${selectedTrack!!.artist}\nhttps://music.youtube.com/watch?v=${selectedTrack!!.videoId}")
+                    putExtra(
+                        Intent.EXTRA_TEXT, 
+                        context.getString(R.string.share_message_template, selectedTrack!!.title, selectedTrack!!.artist, selectedTrack!!.videoId)
+                    )
                 }
-                context.startActivity(Intent.createChooser(shareIntent, "Share song"))
+                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song_chooser)))
             }
         )
     }
@@ -85,13 +88,13 @@ fun HistoryScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = if (isMusic) "Music History" else "History",
+                        text = if (isMusic) stringResource(R.string.music_history) else stringResource(R.string.library_history_label),
                         style = MaterialTheme.typography.headlineMedium
                     ) 
                 },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.Filled.ArrowBack, contentDescription = stringResource(R.string.close))
                     }
                 },
                 actions = {
@@ -163,7 +166,7 @@ fun HistoryScreen(
                                         IconButton(onClick = { viewModel.removeFromHistory(entry.videoId) }) {
                                             Icon(
                                                 imageVector = Icons.Default.Delete,
-                                                contentDescription = "Remove from history",
+                                                contentDescription = stringResource(R.string.remove_from_history),
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         }
@@ -305,7 +308,7 @@ private fun HistoryVideoCard(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Remove",
+                        contentDescription = stringResource(R.string.remove),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )

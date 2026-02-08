@@ -107,7 +107,7 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "FLOW",
+                        stringResource(R.string.app_name_uppercase),
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 1.sp
@@ -123,7 +123,7 @@ fun HomeScreen(
                         ) {
                             Icon(
                                 Icons.Outlined.Search,
-                                contentDescription = "Search",
+                                contentDescription = stringResource(R.string.search),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -134,7 +134,7 @@ fun HomeScreen(
                             Box(contentAlignment = Alignment.TopEnd) {
                                 Icon(
                                     imageVector = Icons.Outlined.Notifications,
-                                    contentDescription = "Notifications",
+                                    contentDescription = stringResource(R.string.notifications),
                                     modifier = Modifier.size(24.dp)
                                 )
                                 if (unreadNotifications > 0) {
@@ -146,7 +146,7 @@ fun HomeScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = if (unreadNotifications > 9) "9+" else unreadNotifications.toString(),
+                                            text = if (unreadNotifications > 9) stringResource(R.string.notification_badge_9_plus) else unreadNotifications.toString(),
                                             color = MaterialTheme.colorScheme.onPrimary,
                                             style = MaterialTheme.typography.labelSmall.copy(
                                                 fontSize = 9.sp,
@@ -164,7 +164,7 @@ fun HomeScreen(
                         ) {
                             Icon(
                                 Icons.Outlined.Settings,
-                                contentDescription = "Settings",
+                                contentDescription = stringResource(R.string.settings),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -198,7 +198,7 @@ fun HomeScreen(
                 
                 uiState.error != null && uiState.videos.isEmpty() -> {
                     ErrorState(
-                        message = uiState.error ?: "An error occurred",
+                        message = uiState.error ?: stringResource(R.string.error_occurred),
                         onRetry = { viewModel.retry() }
                     )
                 }
@@ -317,12 +317,12 @@ private fun FlowFeedFooter(
             modifier = Modifier.size(32.dp)
         )
         Text(
-            text = "Your personalized feed",
+            text = stringResource(R.string.personalized_feed),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.onSurface
         )
         Text(
-            text = "$videoCount videos curated just for you",
+            text = stringResource(R.string.videos_curated_template, videoCount),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

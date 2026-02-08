@@ -191,5 +191,84 @@
     <string name="chapters">Chapters</string>
     <string name="artist">Artist</string>
     <string name="playlist">Playlist</string>
+    <string name="app_name_uppercase">FLOW</string>
+    <string name="notification_badge_9_plus">9+</string>
+    <string name="personalized_feed">Your personalized feed</string>
+    <string name="videos_curated_template">%1$d videos curated just for you</string>
+    <string name="import_newpipe_backup">Import NewPipe Backup</string>
+    <string name="importing_from_backup">Importing subscriptions from NewPipe backup...</string>
+    <string name="search_subscriptions">Search Subscriptions</string>
+    <string name="toggle_view_mode">Toggle View Mode</string>
+    <string name="unsubscribed_from_template">Unsubscribed from %1$s</string>
+    <string name="videos_count_template">%1$d videos</string>
+    <string name="playlists_count_template">%1$d playlists</string>
+    <string name="shorts_count_template">%1$d shorts</string>
+    <string name="play_all">Play all</string>
+    <string name="remove_from_watch_later">Remove from Watch Later</string>
+    <string name="playlist_metadata_template">Playlist • Private • %1$d videos</string>
+    <string name="explicit">E</string>
+    <string name="no_videos_saved">No videos saved</string>
+    <string name="no_videos_saved_body">Videos you save to watch later will appear here</string>
+
+    <!-- Search Screen -->
+    <string name="search_videos_channels_placeholder">Search videos, channels...</string>
+    <string name="recent_searches">Recent Searches</string>
+    <string name="trending">Trending</string>
+    <string name="channels_header">Channels</string>
+    <string name="videos_header">Videos</string>
+    <string name="end_of_results">End of results</string>
+    <string name="clear_search_history">Clear search history</string>
+    
+    <!-- Search Filters -->
+    <string name="filter_upload_date">Upload date</string>
+    <string name="filter_duration">Duration</string>
+    <string name="filter_sort_by">Sort by</string>
+    <string name="filter_hd">HD</string>
+    <string name="filter_4k">4K</string>
+    <string name="filter_subtitles">Subtitles</string>
+    <string name="date_any">Any time</string>
+    <string name="date_last_hour">Last hour</string>
+    <string name="date_today">Today</string>
+    <string name="date_this_week">This week</string>
+    <string name="date_this_month">This month</string>
+    <string name="date_this_year">This year</string>
+    <string name="duration_any">Any duration</string>
+    <string name="duration_under_4">Under 4 min</string>
+    <string name="duration_4_20">4-20 min</string>
+    <string name="duration_over_20">Over 20 min</string>
+    <string name="sort_relevance">Relevance</string>
+    <string name="sort_upload_date">Upload date</string>
+    <string name="sort_view_count">View count</string>
+    <string name="sort_rating">Rating</string>
+
+    <!-- Channel Screen -->
+    <string name="channel_default_title">Channel</string>
+    <string name="channel_banner">Channel banner</string>
+    <string name="channel_avatar">Channel avatar</string>
+    <string name="subscribe">Subscribe</string>
+    <string name="unlike">Unlike</string>
+    <string name="tab_shorts">Shorts</string>
+    <string name="tab_playlists">Playlists</string>
+    <string name="tab_about">About</string>
+    <string name="no_videos_found">No videos found</string>
+    <string name="no_shorts_found">No shorts found</string>
+    <string name="no_playlists_found">No playlists found</string>
+    <string name="subscribers_count_template">%1$s subscribers</string>
+    <string name="views_count_short_template">%1$s views</string>
+
+    <!-- History Screen -->
+    <string name="music_history">Music History</string>
+    <string name="remove_from_history">Remove from history</string>
+    <string name="share_song_chooser">Share song</string>
+    <string name="time_today">Today</string>
+    <string name="time_yesterday">Yesterday</string>
+    <string name="time_earlier">Earlier</string>
+
+    <!-- Notifications Screen -->
+    <string name="clear_all_notifications">Clear all notifications</string>
+    <string name="delete">Delete</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="peace_and_quiet">Peace and quiet</string>
+    <string name="notifications_empty_body">You\'re all caught up! New updates from your subscriptions will appear here.</string>
 </resources>
 
