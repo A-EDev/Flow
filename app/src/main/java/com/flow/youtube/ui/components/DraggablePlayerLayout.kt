@@ -141,8 +141,10 @@ fun DraggablePlayerLayout(
         val fraction = state.fraction
         
         // Target Dimensions for Mini Player
-        val miniScale = 0.55f
-        val miniWidth = fullScreenWidth * miniScale
+        val maxMiniWidth = with(density) { 320.dp.toPx() } // Maximum width for mini player (e.g. tablet)
+        val targetMiniWidth = (fullScreenWidth * 0.55f).coerceAtMost(maxMiniWidth)
+        val miniScale = targetMiniWidth / fullScreenWidth
+        val miniWidth = targetMiniWidth
         val miniHeight = miniWidth * (9f / 16f)
         val margin = with(density) { 12.dp.toPx() }
         

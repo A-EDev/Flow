@@ -77,9 +77,11 @@ fun FlowApp(
         
         val bottomNavHeightPx = bottomNavContentHeightPx + navBarBottomInset
         
-        // Mini Player Floating Dimensions (55% width, 16:9 aspect)
+        // Mini Player Floating Dimensions (Capped at 320dp, otherwise 55% width)
         val screenWidthPx = constraints.maxWidth.toFloat()
-        val miniPlayerWidthPx = screenWidthPx * 0.55f
+        val maxMiniWidthPx = with(density) { 320.dp.toPx() }
+        val miniPlayerWidthPx = (screenWidthPx * 0.55f).coerceAtMost(maxMiniWidthPx)
+        
         // Used float division for aspect ratio calculation
         val miniPlayerHeightPx = miniPlayerWidthPx * (9f / 16f)
         val marginPx = with(density) { 12.dp.toPx() }
