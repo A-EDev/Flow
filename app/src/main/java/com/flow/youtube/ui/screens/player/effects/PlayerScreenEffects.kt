@@ -91,11 +91,12 @@ fun AutoHideControlsEffect(
 fun AutoPlayNextEffect(
     hasEnded: Boolean,
     autoplayEnabled: Boolean,
+    hasNextInQueue: Boolean,
     relatedVideos: List<Video>,
     onVideoClick: (Video) -> Unit
 ) {
-    LaunchedEffect(hasEnded, autoplayEnabled) {
-        if (hasEnded && autoplayEnabled) {
+    LaunchedEffect(hasEnded, autoplayEnabled, hasNextInQueue) {
+        if (hasEnded && autoplayEnabled && !hasNextInQueue) {
             relatedVideos.firstOrNull()?.let { nextVideo ->
                 onVideoClick(nextVideo)
             }

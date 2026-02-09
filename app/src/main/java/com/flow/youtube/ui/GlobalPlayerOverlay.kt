@@ -172,6 +172,7 @@ fun GlobalPlayerOverlay(
     AutoPlayNextEffect(
         hasEnded = playerState.hasEnded,
         autoplayEnabled = playerUiState.autoplayEnabled,
+        hasNextInQueue = playerState.hasNext,
         relatedVideos = playerUiState.relatedVideos,
         onVideoClick = { nextVideo ->
             playerViewModel.playVideo(nextVideo)
@@ -400,27 +401,39 @@ fun GlobalPlayerOverlay(
                             autoplayEnabled = playerUiState.autoplayEnabled,
                             onAutoplayToggle = { playerViewModel.toggleAutoplay(it) },
                             onPrevious = {
-                                playerViewModel.getPreviousVideoId()?.let { prevId ->
-                                    GlobalPlayerState.setCurrentVideo(Video(
-                                        id = prevId, 
-                                        title = "", 
-                                        channelName = "", 
-                                        channelId = "", 
-                                        thumbnailUrl = "", 
-                                        duration = 0, 
-                                        viewCount = 0, 
-                                        uploadDate = ""
-                                    ))
+                                if (playerState.hasPrevious) {
+                                    // Queue is active — use queue-based previous
+                                    playerViewModel.playPrevious()
+                                } else {
+                                    // No queue — fall back to navigation history
+                                    playerViewModel.getPreviousVideoId()?.let { prevId ->
+                                        GlobalPlayerState.setCurrentVideo(Video(
+                                            id = prevId, 
+                                            title = "", 
+                                            channelName = "", 
+                                            channelId = "", 
+                                            thumbnailUrl = "", 
+                                            duration = 0, 
+                                            viewCount = 0, 
+                                            uploadDate = ""
+                                        ))
+                                    }
                                 }
                             },
                             onNext = {
-                                playerUiState.relatedVideos.firstOrNull()?.let { nextVideo ->
-                                    playerViewModel.playVideo(nextVideo)
-                                    GlobalPlayerState.setCurrentVideo(nextVideo)
+                                if (playerState.hasNext) {
+                                    // Queue is active — advance to next queue item
+                                    playerViewModel.playNext()
+                                } else {
+                                    // No queue — fall back to first related video
+                                    playerUiState.relatedVideos.firstOrNull()?.let { nextVideo ->
+                                        playerViewModel.playVideo(nextVideo)
+                                        GlobalPlayerState.setCurrentVideo(nextVideo)
+                                    }
                                 }
                             },
-                            hasPrevious = canGoPrevious,
-                            hasNext = playerUiState.relatedVideos.isNotEmpty(),
+                            hasPrevious = playerState.hasPrevious || canGoPrevious,
+                            hasNext = playerState.hasNext || playerUiState.relatedVideos.isNotEmpty(),
                             bufferedPercentage = playerState.bufferedPercentage,
                             windowInsets = WindowInsets(0, 0, 0, 0)
                         )

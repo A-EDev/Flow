@@ -823,5 +823,7 @@
     <string name="subtitle_style">Subtitle Style</string>
     <string name="normal">Normal</string>
     <string name="done">Done</string>
+    <string name="playlist_queue">Playlist queue</string>
+    <string name="next_up">Next</string>
 </resources>
 

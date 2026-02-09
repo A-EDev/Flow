@@ -101,6 +101,13 @@ class EnhancedPlayerManager private constructor() {
     private var audioFeaturesManager: AudioFeaturesManager? = null
     private var mediaLoader: MediaLoader? = null
     
+    // Public Queue State
+    private val _queueVideos = MutableStateFlow<List<Video>>(emptyList())
+    val queueVideos: StateFlow<List<Video>> = _queueVideos.asStateFlow()
+    
+    private val _currentQueueIndex = MutableStateFlow<Int>(-1)
+    val currentQueueIndexState: StateFlow<Int> = _currentQueueIndex.asStateFlow()
+
     // Public surface ready state
     val isSurfaceReady: Boolean
         get() = surfaceManager?.isSurfaceReady ?: false
@@ -386,6 +393,10 @@ class EnhancedPlayerManager private constructor() {
         playbackQueue = videos
         currentQueueIndex = startIndex.coerceIn(0, videos.size - 1)
         queueTitle = title
+        
+        _queueVideos.value = videos
+        _currentQueueIndex.value = currentQueueIndex
+        
         updateQueueState()
         
         if (videos.isNotEmpty()) {
@@ -397,6 +408,7 @@ class EnhancedPlayerManager private constructor() {
     fun playNext() {
         if (currentQueueIndex < playbackQueue.size - 1) {
             currentQueueIndex++
+            _currentQueueIndex.value = currentQueueIndex
             startPlaybackFromQueue(playbackQueue[currentQueueIndex])
             updateQueueState()
         }
@@ -411,6 +423,7 @@ class EnhancedPlayerManager private constructor() {
 
         if (currentQueueIndex > 0) {
             currentQueueIndex--
+            _currentQueueIndex.value = currentQueueIndex
             startPlaybackFromQueue(playbackQueue[currentQueueIndex])
             updateQueueState()
         }
@@ -419,6 +432,15 @@ class EnhancedPlayerManager private constructor() {
     fun hasNext(): Boolean = currentQueueIndex < playbackQueue.size - 1
 
     fun hasPrevious(): Boolean = currentQueueIndex > 0 || (player?.currentPosition ?: 0) > 3000
+    
+    fun playVideoAtIndex(index: Int) {
+        if (index in playbackQueue.indices && index != currentQueueIndex) {
+            currentQueueIndex = index
+            _currentQueueIndex.value = currentQueueIndex
+            startPlaybackFromQueue(playbackQueue[currentQueueIndex])
+            updateQueueState()
+        }
+    }
 
     private fun startPlaybackFromQueue(video: Video) {
         // Reset player state for new video
@@ -429,13 +451,16 @@ class EnhancedPlayerManager private constructor() {
             isPlaying = true,
             isBuffering = true
         )
+        
+        GlobalPlayerState.setCurrentVideo(video)
     }
 
     private fun updateQueueState() {
         _playerState.value = _playerState.value.copy(
             hasNext = hasNext(),
             hasPrevious = hasPrevious(),
-            queueTitle = queueTitle
+            queueTitle = queueTitle,
+            queueSize = playbackQueue.size
         )
     }
 
@@ -547,7 +572,7 @@ class EnhancedPlayerManager private constructor() {
     }
 
     // ===== Clear & Release =====
-    
+
     fun clearCurrentVideo() {
         player?.stop()
         player?.clearMediaItems()
@@ -557,14 +582,23 @@ class EnhancedPlayerManager private constructor() {
         currentAudioStream = null
         _playerState.value = _playerState.value.copy(
             isPlaying = false, currentVideoId = null, currentQuality = 0,
-            bufferedPercentage = 0f, isBuffering = false, isPrepared = false, hasEnded = false,
-            hasNext = false, hasPrevious = false, queueTitle = null
+            bufferedPercentage = 0f, isBuffering = false, isPrepared = false, hasEnded = false
         )
-        // Also clear queue
+    }
+
+    fun clearAll() {
+        clearCurrentVideo()
         playbackQueue = emptyList()
         currentQueueIndex = -1
+        _queueVideos.value = emptyList()
+        _currentQueueIndex.value = -1
         queueTitle = null
+        _playerState.value = _playerState.value.copy(
+            hasNext = false, hasPrevious = false, queueTitle = null, queueSize = 0
+        )
     }
+
+    fun isQueueActive(): Boolean = playbackQueue.isNotEmpty()
 
     fun release() {
         Log.d(TAG, "release() called")

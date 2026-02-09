@@ -97,9 +97,9 @@ class VideoPlayerViewModel @Inject constructor(
      * This ensures the UI shows video info immediately while streams are fetched.
      */
     fun playVideo(video: Video) {
-        // Stop current playback
+        // Stop current playback and clear everything (including any active queue)
         EnhancedPlayerManager.getInstance().pause()
-        EnhancedPlayerManager.getInstance().clearCurrentVideo()
+        EnhancedPlayerManager.getInstance().clearAll()
         
         // Ensure music player is stopped and hidden
         EnhancedMusicPlayerManager.stop()

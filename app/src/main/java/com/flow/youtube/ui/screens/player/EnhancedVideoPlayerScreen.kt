@@ -23,6 +23,8 @@ import com.flow.youtube.ui.screens.player.content.VideoInfoContent
 import com.flow.youtube.ui.screens.player.content.relatedVideosContent
 import com.flow.youtube.ui.screens.player.state.PlayerScreenState
 import com.flow.youtube.ui.screens.player.state.rememberPlayerScreenState
+import com.flow.youtube.player.EnhancedPlayerManager
+import com.flow.youtube.ui.components.PlaylistQueueDock
 
 /**
  * EnhancedVideoPlayerScreen - Simplified version for DraggablePlayerLayout
@@ -130,10 +132,38 @@ fun EnhancedVideoPlayerScreen(
                 }
             }
             
+            // Playlist Queue Dock
+            val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
+            val queueVideos by EnhancedPlayerManager.getInstance().queueVideos.collectAsStateWithLifecycle(initialValue = emptyList())
+            val currentQueueIndex by EnhancedPlayerManager.getInstance().currentQueueIndexState.collectAsStateWithLifecycle(initialValue = -1)
+
+            if (playerState.queueTitle != null && queueVideos.isNotEmpty()) {
+                val nextVideoTitle = if (currentQueueIndex < queueVideos.size - 1) {
+                    queueVideos[currentQueueIndex + 1].title
+                } else {
+                    null
+                }
+
+                PlaylistQueueDock(
+                    nextVideoTitle = nextVideoTitle,
+                    playlistName = playerState.queueTitle ?: "",
+                    currentIndex = currentQueueIndex,
+                    queueSize = queueVideos.size,
+                    onClick = { screenState.showPlaylistQueueSheet = true },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = if (isWideLayout) 24.dp else 16.dp)
+                        .widthIn(max = 600.dp)
+                )
+            }
+
             // Snackbar host
             SnackbarHost(
                 hostState = snackbarHostState, 
-                modifier = Modifier.align(Alignment.BottomCenter)
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    // Move snackbar up if dock is visible
+                    .padding(bottom = if (playerState.queueTitle != null && queueVideos.isNotEmpty()) 80.dp else 0.dp)
             )
         }
     }

@@ -31,6 +31,7 @@ class PlayerScreenState {
     var showCommentsSheet by mutableStateOf(false)
     var showDescriptionSheet by mutableStateOf(false)
     var showChaptersSheet by mutableStateOf(false)
+    var showPlaylistQueueSheet by mutableStateOf(false)
     
     // Comment Sorting
     var isTopComments by mutableStateOf(true)
@@ -79,6 +80,7 @@ class PlayerScreenState {
         showSeekForwardAnimation = false
         hasShownShortsPrompt = false
         showShortsPrompt = false
+        showPlaylistQueueSheet = false
     }
     
     fun cycleResizeMode() {

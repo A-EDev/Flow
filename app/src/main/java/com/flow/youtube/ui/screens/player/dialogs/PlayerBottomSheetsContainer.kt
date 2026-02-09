@@ -15,9 +15,11 @@ import com.flow.youtube.player.EnhancedPlayerManager
 import com.flow.youtube.ui.components.FlowChaptersBottomSheet
 import com.flow.youtube.ui.components.FlowCommentsBottomSheet
 import com.flow.youtube.ui.components.FlowDescriptionBottomSheet
+import com.flow.youtube.ui.components.FlowPlaylistQueueBottomSheet
 import com.flow.youtube.ui.components.VideoQuickActionsBottomSheet
 import com.flow.youtube.ui.screens.music.MusicPlayerViewModel
 import com.flow.youtube.ui.screens.player.VideoPlayerUiState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flow.youtube.data.model.Comment
 import com.flow.youtube.ui.screens.player.state.PlayerScreenState
 
@@ -131,6 +133,23 @@ fun PlayerBottomSheetsContainer(
                 EnhancedPlayerManager.getInstance().seekTo(newPosition)
             },
             onDismiss = { screenState.showChaptersSheet = false }
+        )
+    }
+
+    // Playlist Queue Bottom Sheet
+    if (screenState.showPlaylistQueueSheet) {
+        val queueVideos by EnhancedPlayerManager.getInstance().queueVideos.collectAsStateWithLifecycle(initialValue = emptyList())
+        val currentQueueIndex by EnhancedPlayerManager.getInstance().currentQueueIndexState.collectAsStateWithLifecycle(initialValue = -1)
+        val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
+
+        FlowPlaylistQueueBottomSheet(
+            queueVideos = queueVideos,
+            currentQueueIndex = currentQueueIndex,
+            playlistTitle = playerState.queueTitle,
+            onPlayVideoAtIndex = { index ->
+                EnhancedPlayerManager.getInstance().playVideoAtIndex(index)
+            },
+            onDismiss = { screenState.showPlaylistQueueSheet = false }
         )
     }
 
