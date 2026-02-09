@@ -33,7 +33,7 @@ fun VideoPlayerSurface(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+            setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
             // Set background to black to avoid white flash during transitions
             setBackgroundColor(android.graphics.Color.BLACK)
         }

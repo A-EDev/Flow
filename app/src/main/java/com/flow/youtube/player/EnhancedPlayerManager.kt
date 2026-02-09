@@ -246,6 +246,7 @@ class EnhancedPlayerManager private constructor() {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 _playerState.value = _playerState.value.copy(
                     isBuffering = playbackState == Player.STATE_BUFFERING,
+                    playWhenReady = player?.playWhenReady ?: false,
                     hasEnded = playbackState == Player.STATE_ENDED
                 )
                 
@@ -273,9 +274,9 @@ class EnhancedPlayerManager private constructor() {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 _playerState.value = _playerState.value.copy(isPlaying = isPlaying)
             }
-
+            
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-                _playerState.value = _playerState.value.copy(isPlaying = playWhenReady)
+                _playerState.value = _playerState.value.copy(playWhenReady = playWhenReady)
             }
 
             override fun onPlayerError(error: PlaybackException) {
@@ -364,7 +365,8 @@ class EnhancedPlayerManager private constructor() {
         
         _playerState.value = _playerState.value.copy(
             currentVideoId = videoId, isBuffering = true, error = null,
-            hasEnded = false, isPrepared = false, recoveryAttempted = false, currentQuality = 0
+            hasEnded = false, isPrepared = false, recoveryAttempted = false, currentQuality = 0,
+            playWhenReady = player?.playWhenReady ?: true
         )
     }
 
@@ -452,6 +454,7 @@ class EnhancedPlayerManager private constructor() {
         _playerState.value = _playerState.value.copy(
             currentVideoId = video.id,
             isPlaying = true,
+            playWhenReady = true,
             isBuffering = true
         )
         

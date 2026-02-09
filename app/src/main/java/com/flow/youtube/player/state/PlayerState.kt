@@ -3,6 +3,7 @@ package com.flow.youtube.player.state
 data class EnhancedPlayerState(
     val currentVideoId: String? = null,
     val isPlaying: Boolean = false,
+    val playWhenReady: Boolean = false,
     val isBuffering: Boolean = false,
     val isPrepared: Boolean = false,
     val hasEnded: Boolean = false,

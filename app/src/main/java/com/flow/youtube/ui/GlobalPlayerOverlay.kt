@@ -128,13 +128,13 @@ fun GlobalPlayerOverlay(
     }
     
     PositionTrackingEffect(
-        isPlaying = playerState.isPlaying,
+        isPlaying = playerState.playWhenReady,
         screenState = screenState
     )
     
     AutoHideControlsEffect(
         showControls = screenState.showControls,
-        isPlaying = playerState.isPlaying,
+        isPlaying = playerState.playWhenReady,
         onHideControls = { screenState.showControls = false }
     )
     
@@ -144,7 +144,7 @@ fun GlobalPlayerOverlay(
         context = context,
         activity = activity,
         lifecycleOwner = lifecycleOwner,
-        isPlaying = playerState.isPlaying,
+        isPlaying = playerState.playWhenReady,
         pipPreferences = pipPreferences,
         onPipModeChanged = { inPipMode -> 
             localIsInPipMode = inPipMode
@@ -162,7 +162,7 @@ fun GlobalPlayerOverlay(
     WatchProgressSaveEffect(
         videoId = video.id,
         video = video,
-        isPlaying = playerState.isPlaying,
+        isPlaying = playerState.playWhenReady,
         currentPosition = screenState.currentPosition,
         duration = screenState.duration,
         uiState = playerUiState,
@@ -360,7 +360,7 @@ fun GlobalPlayerOverlay(
                     if (!isMinimized && screenState.showControls) {
                         PremiumControlsOverlay(
                             isVisible = true,
-                            isPlaying = playerState.isPlaying,
+                            isPlaying = playerState.playWhenReady,
                             isBuffering = playerState.isBuffering,
                             currentPosition = screenState.currentPosition,
                             duration = screenState.duration,
@@ -371,7 +371,7 @@ fun GlobalPlayerOverlay(
                             resizeMode = screenState.resizeMode,
                             onResizeClick = { screenState.cycleResizeMode() },
                             onPlayPause = {
-                                if (playerState.isPlaying) {
+                                if (playerState.playWhenReady) {
                                     EnhancedPlayerManager.getInstance().pause()
                                 } else {
                                     EnhancedPlayerManager.getInstance().play()
@@ -518,7 +518,7 @@ private fun MiniPlayerControls(
         // Play/Pause - Top Left
         IconButton(
             onClick = { 
-                if (playerState.isPlaying) {
+                if (playerState.playWhenReady) {
                     EnhancedPlayerManager.getInstance().pause()
                 } else {
                     EnhancedPlayerManager.getInstance().play()
@@ -538,8 +538,8 @@ private fun MiniPlayerControls(
                 )
             } else {
                 Icon(
-                    imageVector = if (playerState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (playerState.isPlaying) "Pause" else "Play",
+                    imageVector = if (playerState.playWhenReady) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (playerState.playWhenReady) "Pause" else "Play",
                     tint = Color.White,
                     modifier = Modifier.size(32.dp)
                 )
