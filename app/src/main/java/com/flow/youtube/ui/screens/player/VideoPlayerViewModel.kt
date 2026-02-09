@@ -667,6 +667,10 @@ class VideoPlayerViewModel @Inject constructor(
         }
     }
 
+    fun toggleLoop(enabled: Boolean) {
+        EnhancedPlayerManager.getInstance().toggleLoop(enabled)
+    }
+
     fun loadComments(videoId: String) {
         viewModelScope.launch {
             _isLoadingComments.value = true

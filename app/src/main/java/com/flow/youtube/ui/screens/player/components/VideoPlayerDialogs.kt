@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.GraphicEq
+import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -425,7 +426,8 @@ fun SettingsMenuDialog(
     onShowSubtitles: () -> Unit,
     onAutoplayToggle: (Boolean) -> Unit,
     onSkipSilenceToggle: (Boolean) -> Unit,
-    onShowSubtitleStyle: () -> Unit
+    onShowSubtitleStyle: () -> Unit,
+    onLoopToggle: (Boolean) -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -480,6 +482,30 @@ fun SettingsMenuDialog(
                         },
                         leadingContent = {
                             Icon(Icons.Filled.Speed, contentDescription = null)
+                        }
+                    )
+                }
+
+                // Loop Toggle
+                Surface(
+                    onClick = {
+                        onLoopToggle(!playerState.isLooping)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.loop_video)) },
+                        supportingContent = { 
+                            Text(if (playerState.isLooping) stringResource(R.string.on) else stringResource(R.string.off)) 
+                        },
+                        leadingContent = {
+                            Icon(Icons.Rounded.Repeat, contentDescription = null)
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = playerState.isLooping,
+                                onCheckedChange = onLoopToggle
+                            )
                         }
                     )
                 }

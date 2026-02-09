@@ -250,7 +250,10 @@ class EnhancedPlayerManager private constructor() {
                 )
                 
                 if (playbackState == Player.STATE_ENDED) {
-                    if (hasNext()) {
+                    if (_playerState.value.isLooping) {
+                        player?.seekTo(0)
+                        player?.play()
+                    } else if (hasNext()) {
                         playNext()
                     }
                 }
@@ -469,6 +472,10 @@ class EnhancedPlayerManager private constructor() {
     fun play() = player?.play()
     fun pause() = player?.pause()
     fun seekTo(position: Long) = player?.seekTo(position)
+    
+    fun toggleLoop(enabled: Boolean) {
+        _playerState.value = _playerState.value.copy(isLooping = enabled)
+    }
     
     fun stop() {
         playbackTracker?.stop()

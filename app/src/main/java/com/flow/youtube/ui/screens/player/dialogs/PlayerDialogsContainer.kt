@@ -81,7 +81,8 @@ fun PlayerDialogsContainer(
             onShowSubtitles = { screenState.showSubtitleSelector = true },
             onAutoplayToggle = { viewModel.toggleAutoplay(it) },
             onSkipSilenceToggle = { viewModel.toggleSkipSilence(it) },
-            onShowSubtitleStyle = { screenState.showSubtitleStyleCustomizer = true }
+            onShowSubtitleStyle = { screenState.showSubtitleStyleCustomizer = true },
+            onLoopToggle = { viewModel.toggleLoop(it) }
         )
     }
 

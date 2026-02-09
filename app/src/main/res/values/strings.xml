@@ -400,6 +400,7 @@
     <string name="player_settings_autoplay_subtitle">Automatically play the next video</string>
     <string name="player_settings_skip_silence">Skip Silence</string>
     <string name="player_settings_skip_silence_subtitle">Skip parts with no audio</string>
+    <string name="loop_video">Loop video</string>
     <string name="player_settings_sponsorblock">SponsorBlock</string>
     <string name="player_settings_sponsorblock_subtitle">Skip sponsored segments</string>
     <string name="player_settings_show_pip">Show PiP Button</string>
