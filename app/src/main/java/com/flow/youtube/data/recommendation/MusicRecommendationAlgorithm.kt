@@ -14,6 +14,7 @@ import com.flow.youtube.innertube.models.WatchEndpoint
 import com.flow.youtube.innertube.pages.HomePage
 import com.flow.youtube.data.local.entity.MusicHomeChipEntity
 import com.flow.youtube.ui.screens.music.MusicTrack
+import com.flow.youtube.ui.screens.music.MusicItemType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -325,7 +326,8 @@ class MusicRecommendationAlgorithm @Inject constructor(
                 channelId = "",
                 views = 0L,
                 album = "Album",
-                isExplicit = item.explicit
+                isExplicit = item.explicit,
+                itemType = MusicItemType.ALBUM
             )
             is PlaylistItem -> MusicTrack(
                 videoId = item.id, // Playlist ID
@@ -335,7 +337,8 @@ class MusicRecommendationAlgorithm @Inject constructor(
                 duration = 0,
                 channelId = "",
                 views = 0L,
-                album = "Playlist"
+                album = "Playlist",
+                itemType = MusicItemType.PLAYLIST
             )
             else -> null
         }

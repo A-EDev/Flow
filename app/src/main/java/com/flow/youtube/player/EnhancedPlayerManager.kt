@@ -34,9 +34,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import com.flow.youtube.data.model.SponsorBlockSegment
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
@@ -528,6 +532,12 @@ class EnhancedPlayerManager private constructor() {
             scope.launch { PlayerPreferences(ctx).setSponsorBlockEnabled(isEnabled) }
         }
     }
+    
+    val sponsorSegments: StateFlow<List<SponsorBlockSegment>>
+        get() = sponsorBlockHandler?.sponsorSegments ?: MutableStateFlow(emptyList())
+
+    val skipEvent: SharedFlow<SponsorBlockSegment>
+        get() = sponsorBlockHandler?.skipEvent ?: MutableSharedFlow()
 
     // ===== Surface Management =====
     

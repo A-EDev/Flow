@@ -12,6 +12,7 @@ class PlayerScreenState {
     var showControls by mutableStateOf(true)
     var isFullscreen by mutableStateOf(false)
     var isInPipMode by mutableStateOf(false)
+    var lastInteractionTimestamp by mutableLongStateOf(System.currentTimeMillis())
     
     // Playback Position
     var currentPosition by mutableLongStateOf(0L)
@@ -67,6 +68,7 @@ class PlayerScreenState {
     var seekbarPreviewHelper by mutableStateOf<SeekbarPreviewThumbnailHelper?>(null)
    
     fun resetForNewVideo() {
+        lastInteractionTimestamp = System.currentTimeMillis()
         showControls = true
         currentPosition = 0L
         duration = 0L
@@ -101,6 +103,10 @@ class PlayerScreenState {
         subtitlesEnabled = false
         selectedSubtitleUrl = null
         currentSubtitles = emptyList()
+    }
+
+    fun onInteraction() {
+        lastInteractionTimestamp = System.currentTimeMillis()
     }
 }
 

@@ -352,7 +352,12 @@ fun EnhancedMusicScreen(
                                                     subtitle = track.artist,
                                                     thumbnailUrl = track.thumbnailUrl,
                                                     thumbnailHeight = sectionThumbnailHeight,
-                                                    onClick = { onSongClick(track, section.tracks, section.title) }
+                                                    onClick = { 
+                                                    when (track.itemType) {
+                                                        MusicItemType.ALBUM, MusicItemType.PLAYLIST -> onAlbumClick(track.videoId)
+                                                        else -> onSongClick(track, section.tracks, section.title)
+                                                    }
+                                                }
                                                 )
                                             }
                                         }
@@ -375,7 +380,12 @@ fun EnhancedMusicScreen(
                                                 subtitle = stringResource(R.string.subtitle_single_template, track.artist),
                                                 thumbnailUrl = track.thumbnailUrl,
                                                 thumbnailHeight = newReleaseThumbnailHeight,
-                                                onClick = { onSongClick(track, uiState.newReleases, "new_releases") }
+                                                onClick = { 
+                                                    when (track.itemType) {
+                                                        MusicItemType.ALBUM, MusicItemType.PLAYLIST -> onAlbumClick(track.videoId)
+                                                        else -> onSongClick(track, uiState.newReleases, "new_releases")
+                                                    }
+                                                }
                                             )
                                         }
                                     }

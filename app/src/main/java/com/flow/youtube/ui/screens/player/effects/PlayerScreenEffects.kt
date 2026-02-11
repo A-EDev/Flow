@@ -20,7 +20,12 @@ import com.flow.youtube.ui.screens.player.VideoPlayerUiState
 import com.flow.youtube.ui.screens.player.VideoPlayerViewModel
 import com.flow.youtube.ui.screens.player.state.PlayerScreenState
 import kotlinx.coroutines.delay
+import android.view.OrientationEventListener
+import android.widget.Toast
+import android.provider.Settings
+import androidx.media3.common.Player
 import kotlinx.coroutines.flow.take
+import com.flow.youtube.player.sponsorblock.SponsorBlockHandler
 
 private const val TAG = "PlayerEffects"
 
@@ -77,9 +82,10 @@ fun WatchProgressSaveEffect(
 fun AutoHideControlsEffect(
     showControls: Boolean,
     isPlaying: Boolean,
+    lastInteractionTimestamp: Long,
     onHideControls: () -> Unit
 ) {
-    LaunchedEffect(showControls, isPlaying) {
+    LaunchedEffect(showControls, isPlaying, lastInteractionTimestamp) {
         if (showControls && isPlaying) {
             delay(3000)
             onHideControls()
@@ -156,8 +162,9 @@ fun FullscreenEffect(
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
                 insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             } else {
-                // Return to portrait mode when exiting fullscreen
-                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                // Return to unspecified mode when exiting fullscreen
+                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 
                 WindowCompat.setDecorFitsSystemWindows(act.window, true)
                 val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
@@ -172,7 +179,7 @@ fun OrientationResetEffect(activity: Activity?) {
     DisposableEffect(Unit) {
         onDispose {
             if (activity?.isInPictureInPictureMode == false) {
-                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 WindowCompat.setDecorFitsSystemWindows(activity.window, true)
                 val insetsController = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
@@ -300,10 +307,11 @@ fun VideoCleanupEffect(
 @Composable
 fun ShortVideoPromptEffect(
     videoDuration: Int,
-    screenState: PlayerScreenState
+    screenState: PlayerScreenState,
+    isInQueue: Boolean
 ) {
-    LaunchedEffect(videoDuration, screenState.hasShownShortsPrompt) {
-        if (!screenState.hasShownShortsPrompt && videoDuration > 0 && videoDuration <= 120) {
+    LaunchedEffect(videoDuration, screenState.hasShownShortsPrompt, isInQueue) {
+        if (!isInQueue && !screenState.hasShownShortsPrompt && videoDuration > 0 && videoDuration <= 80) {
             delay(1000)
             screenState.showShortsPrompt = true
             screenState.hasShownShortsPrompt = true
@@ -332,6 +340,59 @@ fun SubscriptionAndLikeEffect(
             val channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: ""
             if (channelId.isNotEmpty()) {
                 viewModel.loadSubscriptionAndLikeState(channelId, videoId)
+            }
+        }
+    }
+}
+
+@Composable
+fun SponsorSkipEffect(context: Context) {
+    LaunchedEffect(Unit) {
+        EnhancedPlayerManager.getInstance().skipEvent.collect { segment ->
+            Toast.makeText(context, "Skipped ${segment.category}", Toast.LENGTH_SHORT).show()
+        }
+    }
+}
+
+@Composable
+fun OrientationListenerEffect(
+    context: Context,
+    isExpanded: Boolean,
+    isFullscreen: Boolean,
+    onEnterFullscreen: () -> Unit,
+    onExitFullscreen: () -> Unit
+) {
+    var targetOrientation by remember { mutableStateOf<Int?>(null) } // 0=Portrait, 1=Landscape
+
+    DisposableEffect(context) {
+        val listener = object : OrientationEventListener(context) {
+            override fun onOrientationChanged(orientation: Int) {
+                if (orientation == ORIENTATION_UNKNOWN) return
+                // Check setting
+                val autoRotateOn = try {
+                    Settings.System.getInt(context.contentResolver, Settings.System.ACCELEROMETER_ROTATION) == 1
+                } catch (e: Exception) { true }
+                if (!autoRotateOn) return
+
+                if ((orientation in 260..280) || (orientation in 80..100)) {
+                    targetOrientation = 1
+                } else if ((orientation in 350..360) || (orientation in 0..10) || (orientation in 170..190)) {
+                    targetOrientation = 0
+                }
+            }
+        }
+        listener.enable()
+        onDispose { listener.disable() }
+    }
+
+    LaunchedEffect(targetOrientation) {
+        targetOrientation?.let { target ->
+            // Use kotlinx.coroutines.delay
+            kotlinx.coroutines.delay(500)
+            if (target == 1 && isExpanded && !isFullscreen) {
+                onEnterFullscreen()
+            } else if (target == 0 && isFullscreen) {
+                onExitFullscreen()
             }
         }
     }

@@ -1,5 +1,7 @@
 package com.flow.youtube.ui.screens.music
 
+enum class MusicItemType { SONG, ALBUM, PLAYLIST, ARTIST }
+
 data class MusicTrack(
     val videoId: String,
     val title: String,
@@ -12,7 +14,8 @@ data class MusicTrack(
     val channelId: String = "",
     val isExplicit: Boolean? = false,
     val albumId: String? = null,
-    val artists: List<MusicArtist> = emptyList()
+    val artists: List<MusicArtist> = emptyList(),
+    val itemType: MusicItemType = MusicItemType.SONG
 )
 
 data class MusicArtist(

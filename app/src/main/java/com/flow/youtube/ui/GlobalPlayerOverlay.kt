@@ -135,6 +135,7 @@ fun GlobalPlayerOverlay(
     AutoHideControlsEffect(
         showControls = screenState.showControls,
         isPlaying = playerState.playWhenReady,
+        lastInteractionTimestamp = screenState.lastInteractionTimestamp,
         onHideControls = { screenState.showControls = false }
     )
     
@@ -217,12 +218,18 @@ fun GlobalPlayerOverlay(
     // Short video prompt
     ShortVideoPromptEffect(
         videoDuration = completeVideo.duration,
-        screenState = screenState
+        screenState = screenState,
+        isInQueue = playerState.queueSize > 1
     )
+
+    SponsorSkipEffect(context)
     
-    FullscreenEffect(
+    OrientationListenerEffect(
+        context = context,
+        isExpanded = playerSheetState.fraction > 0.9f,
         isFullscreen = screenState.isFullscreen,
-        activity = activity
+        onEnterFullscreen = { screenState.isFullscreen = true },
+        onExitFullscreen = { screenState.isFullscreen = false }
     )
     
     // Video cleanup on dispose
@@ -369,8 +376,12 @@ fun GlobalPlayerOverlay(
                             else 
                                 playerState.currentQuality.toString(),
                             resizeMode = screenState.resizeMode,
-                            onResizeClick = { screenState.cycleResizeMode() },
+                            onResizeClick = { 
+                                screenState.onInteraction()
+                                screenState.cycleResizeMode() 
+                            },
                             onPlayPause = {
+                                screenState.onInteraction()
                                 if (playerState.playWhenReady) {
                                     EnhancedPlayerManager.getInstance().pause()
                                 } else {
@@ -378,6 +389,7 @@ fun GlobalPlayerOverlay(
                                 }
                             },
                             onSeek = { newPosition ->
+                                screenState.onInteraction()
                                 EnhancedPlayerManager.getInstance().seekTo(newPosition)
                             },
                             onBack = { playerSheetState.collapse() },

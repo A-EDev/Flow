@@ -50,6 +50,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import com.flow.youtube.data.model.SponsorBlockSegment
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -77,6 +78,7 @@ fun SeekbarWithPreview(
     interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
     seekbarPreviewHelper: SeekbarPreviewThumbnailHelper? = null,
     chapters: List<StreamSegment> = emptyList(),
+    sponsorSegments: List<SponsorBlockSegment> = emptyList(),
     duration: Long = 0L,
     bufferedValue: Float = 0f
 ) {
@@ -177,6 +179,37 @@ fun SeekbarWithPreview(
                     size = Size(bufferWidth, height),
                     cornerRadius = CornerRadius(height / 2)
                 )
+            }
+            
+            // Draw Sponsor Segments
+            if (duration > 0) {
+                sponsorSegments.forEach { segment ->
+                     val startRatio = (segment.startTime.toFloat() * 1000f / duration.toFloat()).coerceIn(0f, 1f)
+                     val endRatio = (segment.endTime.toFloat() * 1000f / duration.toFloat()).coerceIn(0f, 1f)
+                     
+                     if (endRatio > startRatio) {
+                         val startX = startRatio * width
+                         val endX = endRatio * width
+                         val segWidth = endX - startX
+                         
+                         val segmentColor = when (segment.category) {
+                             "sponsor" -> Color(0xFF00D100) // Green
+                             "selfpromo" -> Color(0xFFFFFF00) // Yellow
+                             "interaction" -> Color(0xFFFF00FF) // Magenta
+                             "intro" -> Color(0xFF00FFFF) // Cyan
+                             "outro" -> Color(0xFF00FFFF) // Cyan
+                             "music_offtopic" -> Color(0xFFFF8000) // Orange
+                             else -> Color(0xFF00D100)
+                         }.copy(alpha = 0.5f)
+                         
+                         drawRoundRect(
+                             color = segmentColor,
+                             topLeft = Offset(startX, 0f),
+                             size = Size(segWidth, height),
+                             cornerRadius = CornerRadius(height / 2)
+                         )
+                     }
+                }
             }
             
             // Draw active track (progress)

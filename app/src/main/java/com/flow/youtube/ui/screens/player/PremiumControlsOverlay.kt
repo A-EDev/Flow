@@ -83,6 +83,8 @@ fun PremiumControlsOverlay(
         val positionSeconds = currentPosition / 1000
         chapters.lastOrNull { it.startTimeSeconds <= positionSeconds }
     }
+    
+    val sponsorSegments by EnhancedPlayerManager.getInstance().sponsorSegments.collectAsState()
 
     AnimatedVisibility(
         visible = isVisible,
@@ -350,6 +352,7 @@ fun PremiumControlsOverlay(
                             },
                             seekbarPreviewHelper = seekbarPreviewHelper,
                             chapters = chapters,
+                            sponsorSegments = sponsorSegments,
                             duration = duration,
                             bufferedValue = bufferedPercentage,
                             modifier = Modifier.fillMaxWidth()
