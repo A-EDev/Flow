@@ -46,6 +46,7 @@ class PlayerPreferences(private val context: Context) {
         
         // UI preferences
         val GRID_ITEM_SIZE = stringPreferencesKey("grid_item_size")
+        val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
     }
     
     // Grid item size preference
@@ -57,6 +58,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setGridItemSize(size: String) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.GRID_ITEM_SIZE] = size
+        }
+    }
+
+    // Shorts shelf enabled preference
+    val shortsShelfEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SHORTS_SHELF_ENABLED] ?: true
+        }
+
+    suspend fun setShortsShelfEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHORTS_SHELF_ENABLED] = enabled
         }
     }
     

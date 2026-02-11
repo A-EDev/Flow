@@ -11,6 +11,7 @@ import com.flow.youtube.data.model.Channel
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.repository.YouTubeRepository
 import com.flow.youtube.utils.PerformanceDispatcher
+import com.flow.youtube.data.local.PlayerPreferences
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
@@ -27,11 +28,19 @@ class SubscriptionsViewModel : ViewModel() {
 
     private val ytRepository: YouTubeRepository = YouTubeRepository.getInstance()
     private lateinit var cacheDao: com.flow.youtube.data.local.dao.CacheDao
+    private lateinit var playerPreferences: PlayerPreferences
     
     fun initialize(context: Context) {
         subscriptionRepository = SubscriptionRepository.getInstance(context)
+        playerPreferences = PlayerPreferences(context)
         viewHistory = ViewHistory.getInstance(context)
         cacheDao = com.flow.youtube.data.local.AppDatabase.getDatabase(context).cacheDao()
+        
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            playerPreferences.shortsShelfEnabled.collect { enabled ->
+                _uiState.update { it.copy(isShortsShelfEnabled = enabled) }
+            }
+        }
         
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             cacheDao.getSubscriptionFeed().collect { cachedFeed ->
@@ -291,6 +300,7 @@ data class SubscriptionsUiState(
     val shorts: List<Video> = emptyList(),
     val selectedChannelId: String? = null,
     val isLoading: Boolean = false,
-    val isFullWidthView: Boolean = false
+    val isFullWidthView: Boolean = false,
+    val isShortsShelfEnabled: Boolean = true
 )
 

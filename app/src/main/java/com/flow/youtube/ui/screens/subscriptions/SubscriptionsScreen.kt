@@ -268,7 +268,7 @@ fun SubscriptionsScreen(
                                 }
                             }
 
-                            if (uiState.shorts.isNotEmpty()) {
+                            if (uiState.isShortsShelfEnabled && uiState.shorts.isNotEmpty()) {
                                 item(span = { GridItemSpan(maxLineSpan) }) {
                                     Column {
                                         
