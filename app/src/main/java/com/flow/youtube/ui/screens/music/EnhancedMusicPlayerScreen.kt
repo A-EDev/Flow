@@ -217,7 +217,7 @@ fun EnhancedMusicPlayerScreen(
                     )
                 )
         )
-        
+       
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -299,7 +299,7 @@ fun EnhancedMusicPlayerScreen(
                         artworkContent(Modifier.fillMaxSize())
                     }
                     
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
                     
                     // Title and Artist Row
                     Row(
@@ -308,14 +308,27 @@ fun EnhancedMusicPlayerScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = uiState.currentTrack?.title ?: track.title,
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = uiState.currentTrack?.title ?: track.title,
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                
+                                if (uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId)) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        imageVector = Icons.Rounded.CheckCircle,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                             Text(
                                 text = uiState.currentTrack?.artist ?: track.artist,
                                 style = MaterialTheme.typography.titleMedium,
@@ -326,24 +339,23 @@ fun EnhancedMusicPlayerScreen(
                                     .clickable {
                                         uiState.currentTrack?.channelId?.takeIf { it.isNotEmpty() }?.let { onArtistClick(it) }
                                     }
-                                    
                             )
                         }
                         
                         IconButton(
                             onClick = { viewModel.toggleLike() },
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(56.dp)
                         ) {
                             Icon(
                                 imageVector = if (uiState.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                 contentDescription = stringResource(R.string.like),
                                 tint = if (uiState.isLiked) Color.Red else Color.White,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(32.dp)
                             )
                         }
                     }
         
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(32.dp))
 
                     // Seekbar
                     PlayerProgressSlider(
@@ -352,7 +364,7 @@ fun EnhancedMusicPlayerScreen(
                         onSeekTo = { viewModel.seekTo(it) }
                     )
                 
-                    Spacer(modifier = Modifier.height(16.dp)) 
+                    Spacer(modifier = Modifier.height(24.dp)) 
 
                     // Playback Controls
                     PlayerPlaybackControls(
@@ -367,28 +379,7 @@ fun EnhancedMusicPlayerScreen(
                         onRepeatToggle = { viewModel.toggleRepeat() }
                     )
 
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Action Buttons
-                    PlayerActionButtons(
-                        isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId),
-                        onShare = {
-                             val sendIntent: Intent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_message_template, uiState.currentTrack?.title, uiState.currentTrack?.artist, uiState.currentTrack?.videoId))
-                                type = "text/plain"
-                            }
-                            val shareIntent = Intent.createChooser(sendIntent, null)
-                            context.startActivity(shareIntent)
-                        },
-                        onDownload = {
-                            val isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId)
-                            if (!isDownloaded) viewModel.downloadTrack()
-                        },
-                        onAddToPlaylist = { viewModel.showAddToPlaylistDialog(true) }
-                    )
-                     
-                    Spacer(modifier = Modifier.height(16.dp)) 
+                    Spacer(modifier = Modifier.height(48.dp))
                 }
             }
         }
