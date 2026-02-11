@@ -232,6 +232,11 @@ fun GlobalPlayerOverlay(
         onExitFullscreen = { screenState.isFullscreen = false }
     )
     
+    KeepScreenOnEffect(
+        isPlaying = playerState.playWhenReady,
+        activity = activity
+    )
+    
     // Video cleanup on dispose
     DisposableEffect(video.id) {
         onDispose {
@@ -255,8 +260,9 @@ fun GlobalPlayerOverlay(
     }
     
     // ===== UI =====
+    // ===== UI =====
     val isMinimized = playerSheetState.fraction > 0.5f
-    
+
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val fullScreenHeight = constraints.maxHeight.toFloat()
 
@@ -277,186 +283,188 @@ fun GlobalPlayerOverlay(
             DraggablePlayerLayout(
                 state = playerSheetState,
                 progress = progress,
+                isFullscreen = screenState.isFullscreen,
                 videoContent = { modifier ->
-                // ALWAYS use the same video surface
-                val gestureModifier = if (!isMinimized) {
-                    modifier.videoPlayerControls(
-                        isSpeedBoostActive = screenState.isSpeedBoostActive,
-                        onSpeedBoostChange = { screenState.isSpeedBoostActive = it },
-                        showControls = screenState.showControls,
-                        onShowControlsChange = { screenState.showControls = it },
-                        onShowSeekBackChange = { screenState.showSeekBackAnimation = it },
-                        onShowSeekForwardChange = { screenState.showSeekForwardAnimation = it },
-                        currentPosition = screenState.currentPosition,
-                        duration = screenState.duration,
-                        normalSpeed = screenState.normalSpeed,
-                        scope = scope,
-                        isFullscreen = screenState.isFullscreen,
-                        onBrightnessChange = { screenState.brightnessLevel = it },
-                        onShowBrightnessChange = { screenState.showBrightnessOverlay = it },
-                        onVolumeChange = { screenState.volumeLevel = it },
-                        onShowVolumeChange = { screenState.showVolumeOverlay = it },
-                        onBack = { 
-                            screenState.isFullscreen = false
-                            playerSheetState.collapse() 
-                        },
-                        brightnessLevel = screenState.brightnessLevel,
-                        volumeLevel = screenState.volumeLevel,
-                        maxVolume = audioSystemInfo.maxVolume,
-                        audioManager = audioSystemInfo.audioManager,
-                        activity = activity
-                    )
-                } else {
-                    modifier
-                }
-                
-                Box(modifier = gestureModifier) {
-                    VideoPlayerSurface(
-                        video = video,
-                        resizeMode = screenState.resizeMode,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    
-                    // Show subtitles only when expanded
-                    if (!isMinimized) {
-                        SubtitleOverlay(
-                            currentPosition = screenState.currentPosition,
-                            subtitles = screenState.currentSubtitles,
-                            enabled = screenState.subtitlesEnabled,
-                            style = screenState.subtitleStyle,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .align(Alignment.BottomCenter)
-                        )
-                        
-                        // Seek animations
-                        SeekAnimationOverlay(
-                            showSeekBack = screenState.showSeekBackAnimation,
-                            showSeekForward = screenState.showSeekForwardAnimation,
-                            modifier = Modifier.align(Alignment.Center)
-                        )
-                        
-                        // Brightness overlay
-                        BrightnessOverlay(
-                            isVisible = screenState.showBrightnessOverlay,
-                            brightnessLevel = screenState.brightnessLevel,
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .padding(start = 32.dp)
-                        )
-                        
-                        // Volume overlay
-                        VolumeOverlay(
-                            isVisible = screenState.showVolumeOverlay,
-                            volumeLevel = screenState.volumeLevel,
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .padding(end = 32.dp)
-                        )
-                        
-                           // 2x Speed overlay  
-                        SpeedBoostOverlay(
-                            isVisible = screenState.isSpeedBoostActive,
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(top = 0.dp)
-                        )
-                    }
-                    
-                    // Controls overlay - fully expanded only
-                    if (!isMinimized && screenState.showControls) {
-                        PremiumControlsOverlay(
-                            isVisible = true,
-                            isPlaying = playerState.playWhenReady,
-                            isBuffering = playerState.isBuffering,
+                    // ALWAYS use the same video surface
+                    val gestureModifier = if (!isMinimized) {
+                        modifier.videoPlayerControls(
+                            isSpeedBoostActive = screenState.isSpeedBoostActive,
+                            onSpeedBoostChange = { screenState.isSpeedBoostActive = it },
+                            showControls = screenState.showControls,
+                            onShowControlsChange = { screenState.showControls = it },
+                            onShowSeekBackChange = { screenState.showSeekBackAnimation = it },
+                            onShowSeekForwardChange = { screenState.showSeekForwardAnimation = it },
                             currentPosition = screenState.currentPosition,
                             duration = screenState.duration,
-                            qualityLabel = if (playerState.currentQuality == 0) 
-                                context.getString(R.string.quality_auto_template, playerState.effectiveQuality) 
-                            else 
-                                playerState.currentQuality.toString(),
-                            resizeMode = screenState.resizeMode,
-                            onResizeClick = { 
-                                screenState.onInteraction()
-                                screenState.cycleResizeMode() 
-                            },
-                            onPlayPause = {
-                                screenState.onInteraction()
-                                if (playerState.playWhenReady) {
-                                    EnhancedPlayerManager.getInstance().pause()
-                                } else {
-                                    EnhancedPlayerManager.getInstance().play()
-                                }
-                            },
-                            onSeek = { newPosition ->
-                                screenState.onInteraction()
-                                EnhancedPlayerManager.getInstance().seekTo(newPosition)
-                            },
-                            onBack = { playerSheetState.collapse() },
-                            onSettingsClick = { screenState.showSettingsMenu = true },
-                            onFullscreenClick = { screenState.toggleFullscreen() },
+                            normalSpeed = screenState.normalSpeed,
+                            scope = scope,
                             isFullscreen = screenState.isFullscreen,
-                            isPipSupported = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && 
-                                com.flow.youtube.player.PictureInPictureHelper.isPipSupported(context) &&
-                                pipPreferences.manualPipButtonEnabled,
-                            onPipClick = {
-                                PictureInPictureHelper.enterPipMode(
-                                    activity = activity,
-                                    isPlaying = playerState.isPlaying
-                                )
+                            onBrightnessChange = { screenState.brightnessLevel = it },
+                            onShowBrightnessChange = { screenState.showBrightnessOverlay = it },
+                            onVolumeChange = { screenState.volumeLevel = it },
+                            onShowVolumeChange = { screenState.showVolumeOverlay = it },
+                            onBack = { 
+                                screenState.isFullscreen = false
+                                playerSheetState.collapse() 
                             },
-                            seekbarPreviewHelper = screenState.seekbarPreviewHelper,
-                            chapters = playerUiState.chapters,
-                            onChapterClick = { screenState.showChaptersSheet = true },
-                            onSubtitleClick = { screenState.subtitlesEnabled = !screenState.subtitlesEnabled },
-                            isSubtitlesEnabled = screenState.subtitlesEnabled,
-                            autoplayEnabled = playerUiState.autoplayEnabled,
-                            onAutoplayToggle = { playerViewModel.toggleAutoplay(it) },
-                            onPrevious = {
-                                if (playerState.hasPrevious) {
-                                    // Queue is active — use queue-based previous
-                                    playerViewModel.playPrevious()
-                                } else {
-                                    // No queue — fall back to navigation history
-                                    playerViewModel.getPreviousVideoId()?.let { prevId ->
-                                        GlobalPlayerState.setCurrentVideo(Video(
-                                            id = prevId, 
-                                            title = "", 
-                                            channelName = "", 
-                                            channelId = "", 
-                                            thumbnailUrl = "", 
-                                            duration = 0, 
-                                            viewCount = 0, 
-                                            uploadDate = ""
-                                        ))
-                                    }
-                                }
-                            },
-                            onNext = {
-                                if (playerState.hasNext) {
-                                    // Queue is active — advance to next queue item
-                                    playerViewModel.playNext()
-                                } else {
-                                    // No queue — fall back to first related video
-                                    playerUiState.relatedVideos.firstOrNull()?.let { nextVideo ->
-                                        playerViewModel.playVideo(nextVideo)
-                                        GlobalPlayerState.setCurrentVideo(nextVideo)
-                                    }
-                                }
-                            },
-                            hasPrevious = playerState.hasPrevious || canGoPrevious,
-                            hasNext = playerState.hasNext || playerUiState.relatedVideos.isNotEmpty(),
-                            bufferedPercentage = playerState.bufferedPercentage,
-                            windowInsets = WindowInsets(0, 0, 0, 0)
+                            brightnessLevel = screenState.brightnessLevel,
+                            volumeLevel = screenState.volumeLevel,
+                            maxVolume = audioSystemInfo.maxVolume,
+                            audioManager = audioSystemInfo.audioManager,
+                            activity = activity
                         )
+                    } else {
+                        modifier
                     }
-                }
-            },
-            bodyContent = { alpha ->
+                    
+                    Box(modifier = gestureModifier) {
+                        VideoPlayerSurface(
+                            video = video,
+                            resizeMode = screenState.resizeMode,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        
+                        // Show subtitles only when expanded
+                        if (!isMinimized) {
+                            SubtitleOverlay(
+                                currentPosition = screenState.currentPosition,
+                                subtitles = screenState.currentSubtitles,
+                                enabled = screenState.subtitlesEnabled,
+                                style = screenState.subtitleStyle,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .align(Alignment.BottomCenter)
+                            )
+                            
+                            // Seek animations
+                            SeekAnimationOverlay(
+                                showSeekBack = screenState.showSeekBackAnimation,
+                                showSeekForward = screenState.showSeekForwardAnimation,
+                                modifier = Modifier.align(Alignment.Center)
+                            )
+                            
+                            // Brightness overlay
+                            BrightnessOverlay(
+                                isVisible = screenState.showBrightnessOverlay,
+                                brightnessLevel = screenState.brightnessLevel,
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .padding(start = 32.dp)
+                            )
+                            
+                            // Volume overlay
+                            VolumeOverlay(
+                                isVisible = screenState.showVolumeOverlay,
+                                volumeLevel = screenState.volumeLevel,
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .padding(end = 32.dp)
+                            )
+                            
+                               // 2x Speed overlay  
+                            SpeedBoostOverlay(
+                                isVisible = screenState.isSpeedBoostActive,
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = 0.dp)
+                            )
+                        }
+                        
+                        // Controls overlay - fully expanded only
+                        if (!isMinimized && screenState.showControls) {
+                            PremiumControlsOverlay(
+                                isVisible = true,
+                                isPlaying = playerState.playWhenReady,
+                                isBuffering = playerState.isBuffering,
+                                currentPosition = screenState.currentPosition,
+                                duration = screenState.duration,
+                                qualityLabel = if (playerState.currentQuality == 0) 
+                                    context.getString(R.string.quality_auto_template, playerState.effectiveQuality) 
+                                else 
+                                    playerState.currentQuality.toString(),
+                                resizeMode = screenState.resizeMode,
+                                onResizeClick = { 
+                                    screenState.onInteraction()
+                                    screenState.cycleResizeMode() 
+                                },
+                                onPlayPause = {
+                                    screenState.onInteraction()
+                                    if (playerState.playWhenReady) {
+                                        EnhancedPlayerManager.getInstance().pause()
+                                    } else {
+                                        EnhancedPlayerManager.getInstance().play()
+                                    }
+                                },
+                                onSeek = { newPosition ->
+                                    screenState.onInteraction()
+                                    EnhancedPlayerManager.getInstance().seekTo(newPosition)
+                                },
+                                onBack = { playerSheetState.collapse() },
+                                onSettingsClick = { screenState.showSettingsMenu = true },
+                                onFullscreenClick = { screenState.toggleFullscreen() },
+                                isFullscreen = screenState.isFullscreen,
+                                isPipSupported = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && 
+                                    com.flow.youtube.player.PictureInPictureHelper.isPipSupported(context) &&
+                                    pipPreferences.manualPipButtonEnabled,
+                                onPipClick = {
+                                    PictureInPictureHelper.enterPipMode(
+                                        activity = activity,
+                                        isPlaying = playerState.isPlaying
+                                    )
+                                },
+                                seekbarPreviewHelper = screenState.seekbarPreviewHelper,
+                                chapters = playerUiState.chapters,
+                                onChapterClick = { screenState.showChaptersSheet = true },
+                                onSubtitleClick = { screenState.subtitlesEnabled = !screenState.subtitlesEnabled },
+                                isSubtitlesEnabled = screenState.subtitlesEnabled,
+                                autoplayEnabled = playerUiState.autoplayEnabled,
+                                onAutoplayToggle = { playerViewModel.toggleAutoplay(it) },
+                                onPrevious = {
+                                    if (playerState.hasPrevious) {
+                                        // Queue is active — use queue-based previous
+                                        playerViewModel.playPrevious()
+                                    } else {
+                                        // No queue — fall back to navigation history
+                                        playerViewModel.getPreviousVideoId()?.let { prevId ->
+                                            GlobalPlayerState.setCurrentVideo(Video(
+                                                id = prevId, 
+                                                title = "", 
+                                                channelName = "", 
+                                                channelId = "", 
+                                                thumbnailUrl = "", 
+                                                duration = 0, 
+                                                viewCount = 0, 
+                                                uploadDate = ""
+                                            ))
+                                        }
+                                    }
+                                },
+                                onNext = {
+                                    if (playerState.hasNext) {
+                                        // Queue is active — advance to next queue item
+                                        playerViewModel.playNext()
+                                    } else {
+                                        // No queue — fall back to first related video
+                                        playerUiState.relatedVideos.firstOrNull()?.let { nextVideo ->
+                                            playerViewModel.playVideo(nextVideo)
+                                            GlobalPlayerState.setCurrentVideo(nextVideo)
+                                        }
+                                    }
+                                },
+                                hasPrevious = playerState.hasPrevious || canGoPrevious,
+                                hasNext = playerState.hasNext || playerUiState.relatedVideos.isNotEmpty(),
+                                bufferedPercentage = (if (screenState.duration > 0) screenState.bufferedPosition.toFloat() / screenState.duration.toFloat() else 0f).coerceIn(0f, 1f),
+                                windowInsets = WindowInsets(0, 0, 0, 0)
+                            )
+                        }
+                    }
+                },
+            bodyContent = { alpha, videoHeight ->
                 EnhancedVideoPlayerScreen(
                     viewModel = playerViewModel,
                     video = video,
                     alpha = alpha,
+                    videoPlayerHeight = videoHeight,
                     screenState = screenState,
                     onVideoClick = { clickedVideo ->
                         if (clickedVideo.duration <= 80) {

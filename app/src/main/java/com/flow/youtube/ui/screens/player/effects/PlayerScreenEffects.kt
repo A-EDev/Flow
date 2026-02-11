@@ -38,6 +38,7 @@ fun PositionTrackingEffect(
         while (isPlaying) {
             EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
                 screenState.currentPosition = player.currentPosition
+                screenState.bufferedPosition = player.bufferedPosition
                 screenState.duration = player.duration.coerceAtLeast(0)
             }
             delay(50)
@@ -155,6 +156,7 @@ fun FullscreenEffect(
         activity?.let { act ->
             if (isFullscreen) {
                 act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                // We handle KEEP_SCREEN_ON generally now, but ensure it's here for fullscreen forced
                 act.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 
                 WindowCompat.setDecorFitsSystemWindows(act.window, false)
@@ -164,12 +166,27 @@ fun FullscreenEffect(
             } else {
                 // Return to unspecified mode when exiting fullscreen
                 act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                act.window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                // We don't clear KEEP_SCREEN_ON here because the generic effect handles it based on playing state
                 
                 WindowCompat.setDecorFitsSystemWindows(act.window, true)
                 val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
             }
+        }
+    }
+}
+
+@Composable
+fun KeepScreenOnEffect(
+    isPlaying: Boolean,
+    activity: Activity?
+) {
+    DisposableEffect(isPlaying) {
+        if (isPlaying) {
+            activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 }

@@ -16,6 +16,7 @@ class PlayerScreenState {
     
     // Playback Position
     var currentPosition by mutableLongStateOf(0L)
+    var bufferedPosition by mutableLongStateOf(0L)
     var duration by mutableLongStateOf(0L)
     
     // Dialog States

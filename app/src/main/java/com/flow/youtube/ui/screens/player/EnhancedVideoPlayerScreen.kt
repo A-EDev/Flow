@@ -39,6 +39,7 @@ fun EnhancedVideoPlayerScreen(
     viewModel: VideoPlayerViewModel,
     video: Video,
     alpha: Float,
+    videoPlayerHeight: androidx.compose.ui.unit.Dp = 0.dp,
     screenState: PlayerScreenState, // Shared screenState from FlowApp
     onVideoClick: (Video) -> Unit,
     onChannelClick: (String) -> Unit
@@ -79,6 +80,10 @@ fun EnhancedVideoPlayerScreen(
                             .fillMaxHeight()
                             .verticalScroll(rememberScrollState())
                     ) {
+                        if (videoPlayerHeight > 0.dp) {
+                            Spacer(Modifier.height(videoPlayerHeight))
+                        }
+                        
                         VideoInfoContent(
                             video = video,
                             uiState = uiState,

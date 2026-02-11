@@ -103,13 +103,15 @@ fun rememberPlayerDraggableState(maxOffset: Float): PlayerDraggableState {
 fun DraggablePlayerLayout(
     state: PlayerDraggableState,
     videoContent: @Composable (Modifier) -> Unit,
-    bodyContent: @Composable (Float) -> Unit,
+    bodyContent: @Composable (Float, androidx.compose.ui.unit.Dp) -> Unit,
     miniControls: @Composable (Float) -> Unit,
-    progress: Float
+    progress: Float,
+    isFullscreen: Boolean
 ) {
     val density = LocalDensity.current
     val config = LocalConfiguration.current
     val isLandscape = config.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isTablet = config.screenWidthDp >= 600
     
     // Get Status Bar Height
     val statusBarHeight = WindowInsets.statusBars.getTop(density).toFloat()
@@ -120,11 +122,11 @@ fun DraggablePlayerLayout(
         val fullScreenWidth = constraints.maxWidth.toFloat()
         val fullScreenHeight = constraints.maxHeight.toFloat()
         
-        // --- 1. LANDSCAPE MODE ---
-        // Only show fullscreen landscape IF the player is actually expanded.
-        // If it's collapsed (mini player), we want it to behave like portrait mode (floating)
-        if (isLandscape && state.currentValue == PlayerSheetValue.Expanded) {
-            
+        // --- 1. IMMERSIVE FULLSCREEN MODE ---
+        val showImmersiveFullscreen = state.currentValue == PlayerSheetValue.Expanded && 
+                (isFullscreen || (isLandscape && !isTablet))
+        
+        if (showImmersiveFullscreen) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -132,30 +134,30 @@ fun DraggablePlayerLayout(
             ) {
                 videoContent(Modifier.fillMaxSize())
             }  
-                
             return@BoxWithConstraints
         }
 
-        // --- 2. PORTRAIT MODE ---
-        
+        // --- 2. STANDARD / SPLIT MODE ---
+        val isSplitLayout = isLandscape && isTablet
+
         val fraction = state.fraction
         
         // Target Dimensions for Mini Player
-        val maxMiniWidth = with(density) { 320.dp.toPx() } // Maximum width for mini player (e.g. tablet)
+        val maxMiniWidth = with(density) { 320.dp.toPx() } 
         val targetMiniWidth = (fullScreenWidth * 0.55f).coerceAtMost(maxMiniWidth)
         val miniScale = targetMiniWidth / fullScreenWidth
         val miniWidth = targetMiniWidth
+        // Mini player aspect ratio
         val miniHeight = miniWidth * (9f / 16f)
         val margin = with(density) { 12.dp.toPx() }
         
-        // Portrait Video Height (16:9)
-        val expandedVideoHeight = fullScreenWidth * (9f / 16f)
+        val expandedVideoWidth = if (isSplitLayout) fullScreenWidth * 0.65f else fullScreenWidth
+        val expandedVideoHeight = expandedVideoWidth * (9f / 16f)
         
         // Calculate Positions
         val currentTopPadding = lerpFloat(statusBarHeight, 0f, fraction)
         
-        // Target X (Right align)
-        val targetX = fullScreenWidth - miniWidth - margin
+        val targetMiniX = fullScreenWidth - miniWidth - margin
         
         // Main Background (Scrim)
         if (fraction < 1f) {
@@ -171,11 +173,9 @@ fun DraggablePlayerLayout(
                         .height(with(density) { statusBarHeight.toDp() })
                         .background(Color.Black)
                 )
-                // Bottom Content Background
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight()
+                        .fillMaxSize()
                         .padding(top = with(density) { statusBarHeight.toDp() })
                         .background(MaterialTheme.colorScheme.background)
                 )
@@ -183,37 +183,44 @@ fun DraggablePlayerLayout(
         }
 
         // Body Content (Scrollable info)
-        if (fraction < 0.8f) {
-            Box(
-                modifier = Modifier
+        if (fraction < 0.8f) {            
+            val videoHeightPlaceholder = if (isSplitLayout) with(density) { expandedVideoHeight.toDp() } else 0.dp
+            
+            val bodyModifier = if (isSplitLayout) {
+                Modifier
                     .fillMaxSize()
-                    // Push content down below the Video + Status Bar
+                    .padding(top = with(density) { statusBarHeight.toDp() })
+            } else {
+                Modifier
+                    .fillMaxSize()
                     .padding(top = with(density) { (expandedVideoHeight + statusBarHeight).toDp() })
+            }
+
+            Box(
+                modifier = bodyModifier
                     .alpha(1f - fraction)
                     .graphicsLayer { translationY = fraction * 100f }
             ) {
-                bodyContent(1f - fraction)
+                bodyContent(1f - fraction, videoHeightPlaceholder)
             }
         }
 
         // THE DRAGGABLE VIDEO PLAYER
+        
+        val currentWidth = lerpFloat(expandedVideoWidth, miniWidth, fraction)
+        val currentHeight = lerpFloat(expandedVideoHeight, miniHeight, fraction)
+        
+        val currentX = lerpFloat(0f, targetMiniX, fraction)
+        
+        val currentY = state.offsetY.value + currentTopPadding
+
         Box(
             modifier = Modifier
-                .width(with(density) { fullScreenWidth.toDp() })
-                .height(with(density) { expandedVideoHeight.toDp() })
+                .width(with(density) { currentWidth.toDp() })
+                .height(with(density) { currentHeight.toDp() })
                 .graphicsLayer(
-                    // Y Translation: The drag offset + the dynamic top padding
-                    translationY = state.offsetY.value + currentTopPadding,
-                    
-                    // X Translation: Move to right
-                    translationX = targetX * fraction,
-                    
-                    // Scale: Shrink
-                    scaleX = lerpFloat(1f, miniScale, fraction),
-                    scaleY = lerpFloat(1f, miniScale, fraction),
-                    transformOrigin = TransformOrigin(0f, 0f),
-                    
-                    // Visuals
+                    translationX = currentX,
+                    translationY = currentY,
                     shadowElevation = with(density) { if (fraction > 0f) 16.dp.toPx() else 0f },
                     shape = RoundedCornerShape(if (fraction > 0.1f) 12.dp else 0.dp),
                     clip = true
