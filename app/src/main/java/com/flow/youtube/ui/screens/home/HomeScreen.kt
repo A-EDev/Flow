@@ -43,6 +43,58 @@ import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
+import androidx.compose.ui.unit.Dp
+
+private data class HomeLayoutConfig(
+    val columns: Int,
+    val contentPadding: Dp,
+    val cardSpacing: Dp,
+    val shortsShelfAfterIndex: Int,
+    val shimmerColumns: Int
+)
+
+@Composable
+private fun rememberHomeLayoutConfig(maxWidth: Dp): HomeLayoutConfig {
+    return remember(maxWidth) {
+        when {
+            maxWidth < 480.dp -> HomeLayoutConfig(
+                columns = 1,
+                contentPadding = 0.dp,
+                cardSpacing = 12.dp,
+                shortsShelfAfterIndex = 1,
+                shimmerColumns = 1
+            )
+            maxWidth < 700.dp -> HomeLayoutConfig(
+                columns = 1,
+                contentPadding = 12.dp,
+                cardSpacing = 14.dp,
+                shortsShelfAfterIndex = 2,
+                shimmerColumns = 1
+            )
+            maxWidth < 900.dp -> HomeLayoutConfig(
+                columns = 2,
+                contentPadding = 16.dp,
+                cardSpacing = 12.dp,
+                shortsShelfAfterIndex = 2,
+                shimmerColumns = 2
+            )
+            maxWidth < 1200.dp -> HomeLayoutConfig(
+                columns = 3,
+                contentPadding = 20.dp,
+                cardSpacing = 14.dp,
+                shortsShelfAfterIndex = 3,
+                shimmerColumns = 3
+            )
+            else -> HomeLayoutConfig(
+                columns = 4,
+                contentPadding = 24.dp,
+                cardSpacing = 16.dp,
+                shortsShelfAfterIndex = 4,
+                shimmerColumns = 4
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterialApi::class)
 @Composable
@@ -180,18 +232,31 @@ fun HomeScreen(
                 .pullRefresh(pullRefreshState)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            val isPortrait = maxWidth < 600.dp
-            val gridCells = if (isPortrait) GridCells.Fixed(1) else GridCells.Adaptive(300.dp)
+            val layoutConfig = rememberHomeLayoutConfig(maxWidth)
+            val gridCells = GridCells.Fixed(layoutConfig.columns)
 
             when {
                 uiState.isLoading && uiState.videos.isEmpty() -> {
-                    // Initial loading state
-                    LazyColumn(
+                    // Initial loading state — matches grid layout
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(layoutConfig.shimmerColumns),
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp)
+                        contentPadding = PaddingValues(
+                            start = layoutConfig.contentPadding,
+                            end = layoutConfig.contentPadding,
+                            top = 8.dp,
+                            bottom = 80.dp
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing),
+                        verticalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing),
+                        userScrollEnabled = false
                     ) {
-                        items(10) {
-                            ShimmerVideoCardFullWidth()
+                        items(12) {
+                            if (layoutConfig.shimmerColumns == 1) {
+                                ShimmerVideoCardFullWidth()
+                            } else {
+                                ShimmerGridVideoCard()
+                            }
                         }
                     }
                 }
@@ -208,25 +273,33 @@ fun HomeScreen(
                         columns = gridCells,
                         modifier = Modifier.fillMaxSize(),
                         state = gridState,
-                        contentPadding = PaddingValues(top = 4.dp, bottom = 80.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        contentPadding = PaddingValues(
+                            start = layoutConfig.contentPadding,
+                            end = layoutConfig.contentPadding,
+                            top = 4.dp, 
+                            bottom = 80.dp
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing),
+                        verticalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing)
                     ) {
                         val videos = uiState.videos
                         if (videos.isNotEmpty()) {
-                            // First video
-                            item(
-                                key = videos[0].id,
-                                span = { GridItemSpan(1) }
-                            ) {
+                            val insertShortsAfter = layoutConfig.shortsShelfAfterIndex.coerceAtMost(videos.size)
+                            
+                            // ── Videos before shorts shelf ──
+                            val videosBeforeShorts = videos.take(insertShortsAfter)
+                            items(
+                                items = videosBeforeShorts,
+                                key = { it.id }
+                            ) { video ->
                                 VideoCardFullWidth(
-                                    video = videos[0],
-                                    onClick = { onVideoClick(videos[0]) },
+                                    video = video,
+                                    onClick = { onVideoClick(video) },
                                     useInternalPadding = false
                                 )
                             }
                             
-                            // Shorts Shelf
+                            // ── Shorts Shelf ──
                             if (uiState.shorts.isNotEmpty()) {
                                 item(
                                     span = { GridItemSpan(maxLineSpan) }, 
@@ -239,10 +312,11 @@ fun HomeScreen(
                                 }
                             }
                             
-                            // Remaining videos
+                            // ── Remaining Videos ──
+                            val videosAfterShorts = videos.drop(insertShortsAfter)
                             items(
-                                items = videos.drop(1),
-                                key = { video -> video.id }
+                                items = videosAfterShorts,
+                                key = { it.id }
                             ) { video ->
                                 VideoCardFullWidth(
                                     video = video,

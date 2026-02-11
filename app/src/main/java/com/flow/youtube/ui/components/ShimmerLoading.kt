@@ -155,7 +155,69 @@ fun ShimmerVideoCardFullWidth(
         }
     }
 }
+/**
+ * Grid-style shimmer card matching original video card structure.
+ */
+@Composable
+fun ShimmerGridVideoCard(
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Thumbnail
+        ShimmerBone(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f),
+            shape = RoundedCornerShape(12.dp)
+        )
 
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Channel avatar
+            ShimmerBone(
+                modifier = Modifier.size(32.dp),
+                shape = CircleShape,
+                delayMillis = 40
+            )
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Title
+                ShimmerBone(
+                    modifier = Modifier.fillMaxWidth(0.95f).height(12.dp),
+                    delayMillis = 80
+                )
+                ShimmerBone(
+                    modifier = Modifier.fillMaxWidth(0.7f).height(12.dp),
+                    delayMillis = 120
+                )
+                
+                Spacer(modifier = Modifier.height(2.dp))
+                
+                // Metadata
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    ShimmerBone(
+                        modifier = Modifier.width(60.dp).height(10.dp),
+                        delayMillis = 160
+                    )
+                    ShimmerBone(
+                        modifier = Modifier.width(40.dp).height(10.dp),
+                        delayMillis = 200
+                    )
+                }
+            }
+        }
+    }
+}
 @Composable
 fun ShimmerVideoCardHorizontal(
     modifier: Modifier = Modifier
