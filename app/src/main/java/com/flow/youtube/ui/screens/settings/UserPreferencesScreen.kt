@@ -51,8 +51,6 @@ fun UserPreferencesScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
-    val playerPreferences = remember { PlayerPreferences(context) }
-    val isShortsShelfEnabled by playerPreferences.shortsShelfEnabled.collectAsState(initial = true)
     
     // State
     var preferredTopics by remember { mutableStateOf<Set<String>>(emptySet()) }
@@ -60,7 +58,7 @@ fun UserPreferencesScreen(
     var newBlockedTopic by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
     
-    val pagerState = rememberPagerState(pageCount = { 3 })
+    val pagerState = rememberPagerState(pageCount = { 2 })
     
     // Load data on first composition
     LaunchedEffect(Unit) {
@@ -108,8 +106,7 @@ fun UserPreferencesScreen(
                 ) {
                     val tabs = listOf(
                         Triple(stringResource(R.string.interests_tab), Icons.Outlined.Favorite, 0),
-                        Triple(stringResource(R.string.blocked_tab), Icons.Outlined.Block, 1),
-                        Triple("Display", Icons.Outlined.ViewQuilt, 2)
+                        Triple(stringResource(R.string.blocked_tab), Icons.Outlined.Block, 1)
                     )
                     
                     for ((title, icon, index) in tabs) {
@@ -381,51 +378,6 @@ fun UserPreferencesScreen(
                                             )
                                         }
                                     }
-                                }
-                            }
-                        }
-                    }
-                    
-                    2 -> {
-                        // =============================================
-                        // DISPLAY PAGE
-                        // =============================================
-                         item {
-                            InfoCard(
-                                icon = Icons.Outlined.ViewQuilt,
-                                title = "Display Settings",
-                                description = "Fine-tune how your subscription feed looks and feels.",
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                iconTint = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
-                        }
-
-                         item {
-                            PreferencesSectionHeader(
-                                title = "Layout & Visualization"
-                            )
-                        }
-
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
-                                ),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                            ) {
-                                Column {
-                                    SettingsSwitchItem(
-                                         title = "Show Shorts shelf in Grid",
-                                         subtitle = "Display the horizontal Shorts shelf in your subscription feed.",
-                                         checked = isShortsShelfEnabled,
-                                         onCheckedChange = { 
-                                             coroutineScope.launch {
-                                                 playerPreferences.setShortsShelfEnabled(it)
-                                             }
-                                         }
-                                    )
                                 }
                             }
                         }
@@ -795,50 +747,3 @@ private fun SuggestionChip(
     }
 }
 
-@Composable
-private fun SettingsSwitchItem(
-    title: String,
-    subtitle: String? = null,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
-            .padding(20.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            if (subtitle != null) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 16.sp
-                )
-            }
-        }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            thumbContent = if (checked) {
-                {
-                    Icon(
-                        imageVector = Icons.Filled.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(SwitchDefaults.IconSize),
-                    )
-                }
-            } else null
-        )
-    }
-}
