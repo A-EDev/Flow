@@ -7,6 +7,7 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -478,7 +479,15 @@ fun EnhancedMusicPlayerScreen(
                 .offset { IntOffset(0, sheetOffset.roundToInt()) }
                 .fillMaxWidth()
                 .height(with(density) { (maxHeight - expandedY).toDp() })
-                .shadow(elevation = 16.dp)  
+                .shadow(
+                    elevation = 20.dp,
+                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+                    clip = false
+                )
+                .background(
+                    color = Color.Transparent,
+                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+                )
                 .draggable(
                     orientation = Orientation.Vertical,
                     state = draggableState,
