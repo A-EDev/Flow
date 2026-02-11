@@ -79,7 +79,7 @@ object GlobalPlayerState {
     /**
      * Set the current video being played.
      */
-    fun setCurrentVideo(video: Video) {
+    fun setCurrentVideo(video: Video?) {
         _currentVideo.value = video
     }
     

@@ -127,7 +127,15 @@ fun FlowApp(
     }
     
     // Observe music player state
-    val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
+    val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsStateWithLifecycle()
+
+    // When music starts, clear video state to avoid conflicts
+    LaunchedEffect(currentMusicTrack) {
+        if (currentMusicTrack != null) {
+            playerViewModel.clearVideo()
+            playerVisible = false
+        }
+    }
 
     LaunchedEffect(isInPipMode) {
         if (isInPipMode && !currentRoute.value.startsWith("player") && currentVideo != null) {
@@ -256,7 +264,10 @@ fun FlowApp(
         video = activeVideo,
         isVisible = playerVisible,
         playerSheetState = playerSheetState,
-        onClose = { playerVisible = false },
+        onClose = { 
+            playerVisible = false 
+            playerViewModel.clearVideo()
+        },
         onNavigateToChannel = { channelId ->
             val channelUrl = "https://www.youtube.com/channel/$channelId"
             val encodedUrl = java.net.URLEncoder.encode(channelUrl, "UTF-8")

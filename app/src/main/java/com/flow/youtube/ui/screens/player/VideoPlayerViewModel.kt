@@ -12,6 +12,7 @@ import com.flow.youtube.data.recommendation.FlowNeuroEngine.InteractionType
 import com.flow.youtube.data.repository.YouTubeRepository
 import com.flow.youtube.player.EnhancedPlayerManager
 import com.flow.youtube.player.EnhancedMusicPlayerManager
+import com.flow.youtube.player.GlobalPlayerState
 import com.flow.youtube.innertube.YouTube
 import com.flow.youtube.innertube.models.YouTubeClient
 import com.flow.youtube.utils.PerformanceDispatcher
@@ -123,6 +124,33 @@ class VideoPlayerViewModel @Inject constructor(
         loadVideoInfo(video.id, forceRefresh = true)
     
 
+    }
+
+    /**
+     * Clears all video player state, stops playback and resets UI.
+     * This should be called when the video player is dismissed.
+     */
+    fun clearVideo() {
+        EnhancedPlayerManager.getInstance().stop()
+        EnhancedPlayerManager.getInstance().clearAll()
+        GlobalPlayerState.setCurrentVideo(null)
+        GlobalPlayerState.hideMiniPlayer()
+        
+        _uiState.update { 
+            VideoPlayerUiState(
+                autoplayEnabled = it.autoplayEnabled,
+                isAdaptiveMode = it.isAdaptiveMode
+            ) 
+        }
+        
+        // Reset history
+        navigationHistory.clear()
+        currentHistoryIndex = -1
+        _canGoPrevious.value = false
+        
+        // Clear related content
+        _commentsState.value = emptyList()
+        _isLoadingComments.value = false
     }
 
     fun playPlaylist(videos: List<Video>, startIndex: Int, title: String? = null) {
