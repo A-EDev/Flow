@@ -88,11 +88,12 @@ class MusicPlayerViewModel @Inject constructor(
             EnhancedMusicPlayerManager.currentTrack.collect { track ->
                 _uiState.update { it.copy(
                     currentTrack = track,
-                    lyrics = null 
+                    lyrics = null,
+                    syncedLyrics = emptyList()
                 ) }
                 track?.let { 
                     checkIfFavorite(it.videoId)
-                    fetchLyrics(it.videoId, it.artist, it.title)
+                    fetchLyrics(it.videoId, it.artist, it.title, it.duration)
                     fetchRelatedContent(it.videoId)
                 }
             }
@@ -497,7 +498,17 @@ class MusicPlayerViewModel @Inject constructor(
 
     private var lyricsJob: kotlinx.coroutines.Job? = null
 
-    fun fetchLyrics(videoId: String, artist: String, title: String) {
+    private fun cleanName(name: String): String {
+        return name
+            .replace(Regex("(?i)\\s*-\\s*topic$", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("(?i)\\s*[(\\[]official (audio|video|music video|lyric video)[)\\]]", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("(?i)\\s*[(\\[]lyrics?[)\\]]", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("(?i)\\s*[(]feat\\.? .*?[)]", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("(?i)\\s*[\\[]feat\\.? .*?[\\]]", RegexOption.IGNORE_CASE), "")
+            .trim()
+    }
+
+    fun fetchLyrics(videoId: String, artist: String, title: String, duration: Int? = null) {
         lyricsJob?.cancel()
         lyricsJob = viewModelScope.launch {
             _uiState.update { it.copy(
@@ -506,7 +517,41 @@ class MusicPlayerViewModel @Inject constructor(
                 syncedLyrics = emptyList()
             ) }
             
-            // Priority 1: Innertube (Official)
+            val cleanArtist = cleanName(artist)
+            val cleanTitle = cleanName(title)
+            val targetDuration = duration ?: (_uiState.value.duration.toInt() / 1000)
+
+            // Step 1: Try LRCLib for Synced Lyrics (Priority 1)
+            try {
+                val response = com.flow.youtube.data.music.LyricsService.getLyrics(
+                    cleanArtist, 
+                    cleanTitle, 
+                    targetDuration
+                )
+                
+                if (response?.syncedLyrics != null) {
+                    val parsedSynced = parseLyrics(response.syncedLyrics)
+                    if (parsedSynced.isNotEmpty()) {
+                        _uiState.update { it.copy(
+                            isLyricsLoading = false,
+                            lyrics = response.plainLyrics,
+                            syncedLyrics = parsedSynced
+                        ) }
+                        return@launch // Got synced lyrics!
+                    }
+                }
+                
+                if (response?.plainLyrics != null) {
+                    _uiState.update { it.copy(
+                        lyrics = response.plainLyrics,
+                        isLyricsLoading = false
+                    ) }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MusicPlayerViewModel", "LRCLib first attempt failed", e)
+            }
+
+            // Step 2: Fallback to Innertube (Priority 2)
             try {
                 val officialLyrics = com.flow.youtube.data.newmusic.InnertubeMusicService.fetchLyrics(videoId)
                 if (officialLyrics != null) {
@@ -514,37 +559,36 @@ class MusicPlayerViewModel @Inject constructor(
                         lyrics = officialLyrics,
                         isLyricsLoading = false
                     ) }
-                    // We don't return here because we might want to still try LRCLib for synced lyrics if available
                 }
             } catch (e: Exception) {
                 android.util.Log.e("MusicPlayerViewModel", "Innertube lyrics fetch failed", e)
             }
 
-            // Priority 2: LRCLib (for Synced Lyrics)
-            try {
-                val cleanArtist = artist.trim()
-                val cleanTitle = title.trim()
-                
-                val response = com.flow.youtube.data.music.LyricsService.getLyrics(
-                    cleanArtist, 
-                    cleanTitle, 
-                    _uiState.value.duration.toInt() / 1000
-                )
-                
-                if (response != null) {
-                    val parsedSynced = response.syncedLyrics?.let { parseLyrics(it) } ?: emptyList()
-                    _uiState.update { it.copy(
-                        isLyricsLoading = false,
-                        // Only overwrite plain lyrics if we don't have Innertube ones yet or if LRCLib has better ones
-                        lyrics = if (it.lyrics == null) response.plainLyrics else it.lyrics,
-                        syncedLyrics = parsedSynced
-                    ) }
-                } else {
+            // Step 3: Last ditch effort - LRCLib search with fuzzy artist only if we don't have synced yet
+            if (_uiState.value.syncedLyrics.isEmpty()) {
+                try {
+                    val response = com.flow.youtube.data.music.LyricsService.getLyrics(
+                        cleanArtist,
+                        cleanTitle,
+                        targetDuration
+                    )
+                    
+                    if (response?.syncedLyrics != null) {
+                        val parsedSynced = parseLyrics(response.syncedLyrics)
+                        if (parsedSynced.isNotEmpty()) {
+                            _uiState.update { it.copy(
+                                syncedLyrics = parsedSynced,
+                                lyrics = it.lyrics ?: response.plainLyrics,
+                                isLyricsLoading = false
+                            ) }
+                        }
+                    }
+                } catch (e: Exception) {
                     _uiState.update { it.copy(isLyricsLoading = false) }
                 }
-            } catch (e: Exception) {
-                _uiState.update { it.copy(isLyricsLoading = false) }
             }
+            
+            _uiState.update { it.copy(isLyricsLoading = false) }
         }
     }
 
