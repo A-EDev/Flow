@@ -3,11 +3,11 @@
     <string name="app_name">Flow</string>
     <string name="subscriptions_search_placeholder">Rechercher des abonnements...</string>
     <string name="top_bar_subscriptions_title">Abonnements</string>
-    <string name="view_all_button_label">Tout</string>
+    <string name="view_all_button_label">Tout voir</string>
     <string name="subscribed">Abonné</string>
-    <string name="no_subscriptions_yet">Aucun Abonnement Pour l\'Instant</string>
+    <string name="no_subscriptions_yet">Aucun abonnement pour l\'instant</string>
     <string name="empty_subscriptions_body">Abonnez-vous aux chaînes pour voir leurs\n dernières vidéos ici</string>
-    <string name="home_refresh_feed">Rafraîchir le Fil</string>
+    <string name="home_refresh_feed">Actualiser le flux</string>
     <string name="retry">Réessayer</string>
     <string name="shorts">Shorts</string>
     <string name="failed_to_load_channel">Échec du chargement de la chaîne</string>
@@ -17,26 +17,26 @@
     <string name="library_section_header">Votre Contenu</string>
     <string name="library_history_label">Historique</string>
     <string name="library_playlists_label">Playlists</string>
-    <string name="library_music_playlists_label">Playlists Musicales</string>
+    <string name="library_music_playlists_label">Playlists musicales</string>
     <string name="library_music_playlists_subtitle">Vos collections musicales</string>
-    <string name="library_liked_videos_label">Vidéos Aimées</string>
-    <string name="library_saved_shorts_label">Shorts Enregistrés</string>
-    <string name="library_watch_later_label">À Regarder Plus Tard</string>
+    <string name="library_liked_videos_label">Vidéos « J\'aime »</string>
+    <string name="library_saved_shorts_label">Shorts enregistrés</string>
+    <string name="library_watch_later_label">À regarder plus tard</string>
     <string name="library_downloads_label">Téléchargements</string>
     <string name="library_settings_data_header"><![CDATA[Paramètres &amp; Données]]></string>
-    <string name="library_manage_data_label">Gérer les Données</string>
+    <string name="library_manage_data_label">Gérer les données</string>
     <string name="library_manage_data_subtitle">Effacer le cache et l\'historique</string>
     <string name="about">À Propos</string>
     <string name="empty_description">Aucune description disponible</string>
-    <string name="clear_all">Tout Effacer</string>
+    <string name="clear_all">Tout effacer</string>
     <string name="clear_watch_history_alert_title">Effacer l\'historique de visionnage ?</string>
     <string name="clear_watch_history_alert_body">Cela supprimera toutes les vidéos de votre historique de visionnage. Cette action ne peut pas être annulée.</string>
     <string name="clear">Effacer</string>
     <string name="cancel">Annuler</string>
-    <string name="empty_watch_history">Aucun Historique de Visionnage</string>
+    <string name="empty_watch_history">Aucun historique</string>
     <string name="empty_watch_history_body">Les vidéos que vous regardez apparaîtront ici</string>
     <string name="liked">"Aimé "</string>
-    <string name="liked_music">Musique Aimée</string>
+    <string name="liked_music">Musique « J\'aime »</string>
     <string name="liked_videos">Vidéos Aimées</string>
     <string name="share_song">Partager la chanson</string>
     <string name="empty_liked">Aucune Vidéo Aimée</string>
@@ -47,28 +47,28 @@
     <string name="downloaded">Téléchargé</string>
     <string name="download">Télécharger</string>
     <string name="save">Enregistrer</string>
-    <string name="up_next">SUIVANT</string>
+    <string name="up_next">À SUIVRE</string>
     <string name="lyrics">PAROLES</string>
-    <string name="related">LIÉS</string>
+    <string name="related">SIMILAIRES</string>
     <string name="close">Fermer</string>
     <string name="more_options">Plus d\'options</string>
     <string name="like">Aimer</string>
-    <string name="shuffle">Mélanger</string>
+    <string name="shuffle">Aléatoire</string>
     <string name="previous">Précédent</string>
     <string name="pause">Pause</string>
     <string name="play">Jouer</string>
     <string name="next">Suivant</string>
     <string name="repeat">Répéter</string>
-    <string name="loading_track">Chargement de la piste...</string>
+    <string name="loading_track">Chargement...</string>
     <string name="error_occurred">Une erreur est survenue</string>
     <string name="playing_from">Lecture depuis</string>
-    <string name="autoplay">Lecture Automatique</string>
+    <string name="autoplay">Lecture auto.</string>
     <string name="move_up">Monter</string>
     <string name="move_down">Descendre</string>
     <string name="lyrics_not_available">Paroles non disponibles</string>
     <string name="playing">Lecture en cours</string>
     <string name="remove">Retirer</string>
-    <string name="related_content">Contenu Connexe</string>
+    <string name="related_content">Contenu similaire</string>
     <string name="no_related_content">Aucun contenu connexe trouvé</string>
     <string name="share_message_template">Découvrez cette chanson : %1$s par %2$s\nhttps://music.youtube.com/watch?v=%3$s</string>
     <string name="hz">Hz</string>
@@ -77,7 +77,7 @@
     <string name="filter_popular">Populaire</string>
     <string name="filter_deep_cuts">Pépites</string>
     <string name="filter_workout">Entraînement</string>
-    <string name="track_details">Détails de la Piste</string>
+    <string name="track_details">Détails de la piste</string>
     <string name="title_label">Titre</string>
     <string name="artist_label">Artiste</string>
     <string name="album_label">Album</string>
@@ -92,14 +92,14 @@
     <string name="unsubscribed_from">Désabonné de %s</string>
     <string name="share_video">Partager la vidéo</string>
     <string name="check_out_video_template">Découvrez cette vidéo : %1$s\nhttps://youtube.com/watch?v=%2$s</string>
-    <string name="related_videos">Vidéos Connexes</string>
+    <string name="related_videos">Vidéos similaires</string>
     <string name="quality_auto">Auto</string>
     <string name="quality_auto_template">Auto (%1$dp)</string>
-    <string name="video_marked_not_interested">Vidéo marquée comme non intéressée</string>
-    <string name="play_mode_suggestion_title">Suggestion de Mode de Lecture</string>
+    <string name="video_marked_not_interested">Marquée comme « Pas intéressé »</string>
+    <string name="play_mode_suggestion_title">Suggestion de mode de lecture</string>
     <string name="play_mode_suggestion_body">Cette vidéo dure moins de 2 minutes. Souhaitez-vous passer à un lecteur spécialisé ?</string>
-    <string name="shorts_player">Lecteur de Shorts</string>
-    <string name="music_player">Lecteur de Musique</string>
+    <string name="shorts_player">Lecteur Shorts</string>
+    <string name="music_player">Lecteur audio</string>
     <plurals name="channels_count">
         <item quantity="one">%d chaîne</item>
         <item quantity="other">%d chaînes</item>
@@ -116,20 +116,20 @@
     <string name="save_to">Enregistrer dans...</string>
     <string name="watch_later">À regarder plus tard</string>
     <string name="watch_later_unsave">Retirer de "À regarder plus tard"</string>
-    <string name="playlist_private">Privé</string>
-    <string name="playlist_public">Public</string>
-    <string name="create_new_playlist">Créer une nouvelle playlist</string>
+    <string name="playlist_private">Privée</string>
+    <string name="playlist_public">Publique</string>
+    <string name="create_new_playlist">Créer une playlist</string>
     <string name="playlist_name">Nom</string>
     <string name="playlist_description_optional">Description (optionnelle)</string>
     <string name="create">Créer</string>
 
     <!-- Actions Rapides Vidéo -->
-    <string name="save_to_playlist">Enregistrer dans la playlist</string>
+    <string name="save_to_playlist">Enregistrer dans une playlist</string>
     <string name="not_interested">Non intéressé</string>
-    <string name="details_metadata">Détails &amp; Métadonnées</string>
+    <string name="details_metadata">Détails et métadonnées</string>
 
     <!-- Dialogue d'Informations Médias -->
-    <string name="track_info">Informations sur la Piste</string>
+    <string name="track_info">Infos de la piste</string>
     <string name="track_info_subtitle">Métriques techniques et sociales détaillées</string>
     <string name="views">Vues</string>
     <string name="likes">J\'aime</string>
@@ -146,7 +146,7 @@
 
     <!-- Commentaires -->
     <string name="comments">Commentaires</string>
-    <string name="filter_top">Top</string>
+    <string name="filter_top">Meilleurs</string>
     <string name="filter_newest">Les plus récents</string>
     <string name="no_comments_yet">Aucun commentaire pour l\'instant</string>
     <string name="read_more">Lire la suite</string>
@@ -155,7 +155,7 @@
     <string name="view_replies_template">Voir %1$d réponses</string>
 
     <!-- Dialogue de Mise à Jour -->
-    <string name="new_update_available">Nouvelle Mise à Jour Disponible</string>
+    <string name="new_update_available">Mise à jour disponible</string>
     <string name="update_available_template">%1$s est maintenant disponible</string>
     <string name="release_notes">NOTES DE VERSION</string>
     <string name="update_flow">Mettre à jour Flow</string>
@@ -171,7 +171,7 @@
     <string name="search">Rechercher</string>
     <string name="settings">Paramètres</string>
 
-    <string name="select_artist">Sélectionner un Artiste</string>
+    <string name="select_artist">Sélectionner un artiste</string>
     <string name="description">Description</string>
     <string name="ago">Ago</string>
     <string name="since">Depuis</string>
@@ -195,7 +195,7 @@
     <string name="notification_badge_9_plus">9+</string>
     <string name="personalized_feed">Votre fil personnalisé</string>
     <string name="videos_curated_template">%1$d vidéos sélectionnées rien que pour vous</string>
-    <string name="import_newpipe_backup">Importer la Sauvegarde NewPipe</string>
+    <string name="import_newpipe_backup">Importer la sauvegarde NewPipe</string>
     <string name="importing_from_backup">Importation des abonnements depuis la sauvegarde NewPipe...</string>
     <string name="search_subscriptions">Rechercher des Abonnements</string>
     <string name="toggle_view_mode">Basculer le Mode d\'Affichage</string>
@@ -205,14 +205,14 @@
     <string name="shorts_count_template">%1$d shorts</string>
     <string name="play_all">Tout lire</string>
     <string name="remove_from_watch_later">Retirer de "À regarder plus tard"</string>
-    <string name="playlist_metadata_template">Playlist • Privé • %1$d vidéos</string>
+    <string name="playlist_metadata_template">Playlist • Privée • %1$d vidéos</string>
     <string name="explicit">E</string>
     <string name="no_videos_saved">Aucune vidéo enregistrée</string>
     <string name="no_videos_saved_body">Les vidéos que vous enregistrez pour les regarder plus tard apparaîtront ici</string>
 
     <!-- Écran de Recherche -->
     <string name="search_videos_channels_placeholder">Rechercher des vidéos, des chaînes...</string>
-    <string name="recent_searches">Recherches Récentes</string>
+    <string name="recent_searches">Recherches récentes</string>
     <string name="trending">Tendances</string>
     <string name="channels_header">Chaînes</string>
     <string name="videos_header">Vidéos</string>
@@ -257,7 +257,7 @@
     <string name="views_count_short_template">%1$s vues</string>
 
     <!-- Écran d'Historique -->
-    <string name="music_history">Historique Musical</string>
+    <string name="music_history">Historique musical</string>
     <string name="remove_from_history">Retirer de l\'historique</string>
     <string name="share_song_chooser">Partager la chanson</string>
     <string name="time_today">Aujourd\'hui</string>
@@ -275,7 +275,7 @@
     <string name="settings_title">Paramètres</string>
     <string name="settings_flow_engine_header">Moteur Flow</string>
     <string name="settings_active_learning">APPRENTISSAGE ACTIF</string>
-    <string name="settings_reset_brain_title">Réinitialiser la Personnalité de Flow ?</string>
+    <string name="settings_reset_brain_title">Réinitialiser la personnalité ?</string>
     <string name="settings_reset_brain_body">Cela effacera complètement votre profil d\'intérêt \'Flow Brain\'.\n\n• Tous les sujets appris seront oubliés.\n• Les traits de personnalité reviendront à neutre.\n• Les recommandations reviendront aux valeurs par défaut.\n\nCette action ne peut pas être annulée.</string>
     <string name="settings_reset_everything">Tout Réinitialiser</string>
     <string name="settings_analyzing_interactions">Analyse de vos interactions...</string>
@@ -318,7 +318,7 @@
 
     <!-- Écran d'Apparence -->
     <string name="appearance_title">Apparence</string>
-    <string name="appearance_subtitle">Personnalisez votre expérience Flow</string>
+    <string name="appearance_subtitle">Personnalisez votre expérience</string>
     <string name="appearance_current_theme">THÈME ACTUEL</string>
     <string name="appearance_category_all">Tous</string>
     <string name="appearance_category_light">Clair</string>
@@ -333,7 +333,7 @@
     <string name="theme_desc_pure_light">Propre &amp; minimal</string>
     <string name="theme_name_mint_fresh">Fraîcheur Menthe</string>
     <string name="theme_desc_mint_fresh">Frais &amp; rafraîchissant</string>
-    <string name="theme_name_rose_petal">Pétale de Rose</string>
+    <string name="theme_name_rose_petal">Pétale de rose</string>
     <string name="theme_desc_rose_petal">Chaud &amp; doux</string>
     <string name="theme_name_sky_blue">Bleu Ciel</string>
     <string name="theme_desc_sky_blue">Ouvert &amp; aérien</string>
@@ -341,7 +341,7 @@
     <string name="theme_desc_cream_paper">Chaud &amp; confortable</string>
     <string name="theme_name_classic_dark">Sombre Classique</string>
     <string name="theme_desc_classic_dark">Reposant pour les yeux</string>
-    <string name="theme_name_true_black">Noir Vrai</string>
+    <string name="theme_name_true_black">Noir absolu</string>
     <string name="theme_desc_true_black">OLED pur</string>
     <string name="theme_name_midnight">Minuit</string>
     <string name="theme_desc_midnight">Profond &amp; apaisant</string>
@@ -359,13 +359,13 @@
     <string name="theme_desc_rose_gold">Élégant &amp; luxe</string>
     <string name="theme_name_arctic">Arctique</string>
     <string name="theme_desc_arctic">Clarté glacée</string>
-    <string name="theme_name_mint_night">Nuit Menthe</string>
+    <string name="theme_name_mint_night">Nuit mentholée</string>
     <string name="theme_desc_mint_night">Sérénité fraîche</string>
     <string name="theme_name_crimson">Cramoisi</string>
     <string name="theme_desc_crimson">Intense &amp; puissant</string>
     <string name="theme_name_cosmic_void">Vide Cosmique</string>
     <string name="theme_desc_cosmic_void">Obscurité infinie</string>
-    <string name="theme_name_solar_flare">Flamme Solaire</string>
+    <string name="theme_name_solar_flare">Éruption solaire</string>
     <string name="theme_desc_solar_flare">Énergie flamboyante</string>
     <string name="theme_name_cyberpunk">Cyberpunk</string>
     <string name="theme_desc_cyberpunk">Futur néon</string>
@@ -375,8 +375,8 @@
     <string name="theme_desc_nordic">Calme scandinave</string>
     <string name="theme_name_espresso">Espresso</string>
     <string name="theme_desc_espresso">Riche &amp; chaud</string>
-    <string name="theme_name_gunmetal">Métal de Guerre</string>
-    <string name="theme_desc_gunmetal">Bord industriel</string>
+    <string name="theme_name_gunmetal">Gris acier</string>
+    <string name="theme_desc_gunmetal">Style industriel</string>
 
     <!-- Paramètres de Contenu -->
     <string name="content_settings_title">Paramètres de Contenu</string>
@@ -398,8 +398,9 @@
     <string name="player_settings_background_play_subtitle">Continuer à jouer lorsque l\'application est en arrière-plan</string>
     <string name="player_settings_autoplay">Lecture Automatique</string>
     <string name="player_settings_autoplay_subtitle">Jouer automatiquement la vidéo suivante</string>
-    <string name="player_settings_skip_silence">Sauter les Silences</string>
+    <string name="player_settings_skip_silence">Passer les silences</string>
     <string name="player_settings_skip_silence_subtitle">Sauter les parties sans audio</string>
+    <string name="loop_video">Vidéo en boucle</string>
     <string name="player_settings_sponsorblock">SponsorBlock</string>
     <string name="player_settings_sponsorblock_subtitle">Sauter les segments sponsorisés</string>
     <string name="player_settings_show_pip">Afficher le Bouton PiP</string>
@@ -485,7 +486,7 @@
     <string name="enter_keywords_to_hide">Entrez des mots-clés à masquer</string>
     <string name="block_topic_placeholder">ex., maquillage, fortnite, asmr</string>
     <string name="desc_add_topic">Ajouter un sujet</string>
-    <string name="quick_add">Ajout Rapide</string>
+    <string name="quick_add">Ajout rapide</string>
     <string name="common_topics_to_block">Sujets courants à bloquer</string>
     <string name="currently_blocked">Actuellement Bloqués</string>
     <string name="topics_blocked_count_plural">%1$d sujet%2$s</string>
@@ -512,18 +513,18 @@
 
     <!-- Écran des Paramètres d'Historique de Recherche -->
     <string name="search_history_title">Recherche &amp; Historique</string>
-    <string name="save_search_history_title">Enregistrer l\'Historique de Recherche</string>
+    <string name="save_search_history_title">Enregistrer l\'historique de recherche</string>
     <string name="save_searches_subtitle">Enregistrez vos recherches pour un accès rapide</string>
-    <string name="search_suggestions_title">Suggestions de Recherche</string>
+    <string name="search_suggestions_title">Suggestions de recherche</string>
     <string name="show_suggestions_subtitle">Afficher les suggestions pendant la saisie</string>
     <string name="max_history_size_title">Taille Max de l\'Historique</string>
     <string name="currently_searches_template">Actuellement : %1$d recherches</string>
-    <string name="auto_delete_history_title">Suppression Auto de l\'Historique</string>
+    <string name="auto_delete_history_title">Suppression auto. de l\'historique</string>
     <string name="delete_after_days_template">Supprimer après %1$d jours</string>
     <string name="never_delete_automatically">Ne jamais supprimer automatiquement</string>
-    <string name="retention_period_title">Période de Conservation</string>
+    <string name="retention_period_title">Période de conservation</string>
     <string name="delete_older_than_template">Supprimer les recherches plus anciennes que %1$d jours</string>
-    <string name="clear_history_item_title">Effacer l\'Historique de Recherche</string>
+    <string name="clear_history_item_title">Effacer l\'historique de recherche</string>
     <string name="remove_all_queries">Supprimer toutes les requêtes de recherche</string>
     <string name="clear_history_dialog_title">Effacer l\'Historique de Recherche ?</string>
     <string name="clear_history_dialog_text">Supprimer définitivement tout l\'historique de recherche.</string>
@@ -538,7 +539,7 @@
     <string name="days_count_template">%1$d jours</string>
 
     <!-- Écran d'Importation de Données -->
-    <string name="import_data_title">Importation de Données</string>
+    <string name="import_data_title">Importation de données</string>
     <string name="import_flow_backup_success">Sauvegarde Flow importée avec succès</string>
     <string name="import_flow_backup_failed_template">Échec de l\'importation de la sauvegarde Flow : %1$s</string>
     <string name="import_newpipe_success_template">%1$d abonnements importés depuis NewPipe</string>
@@ -555,7 +556,7 @@
     <string name="import_from_youtube_desc">Importer les abonnements depuis YouTube Takeout (CSV).</string>
 
     <!-- Écran des Paramètres de Téléchargement -->
-    <string name="download_settings_title">Paramètres de Téléchargement</string>
+    <string name="download_settings_title">Paramètres de téléchargement</string>
     <string name="storage_header">Stockage</string>
     <string name="internal_storage_label">Stockage Interne</string>
     <string name="free_space_template">%1$s libre</string>
@@ -563,21 +564,21 @@
     <string name="location_label">Emplacement</string>
     <string name="internal_app_storage_label">Stockage Interne de l\'Application</string>
     <string name="preferences_header">Préférences</string>
-    <string name="default_video_quality_label">Qualité Vidéo par Défaut</string>
+    <string name="default_video_quality_label">Qualité vidéo par défaut</string>
     <string name="download_over_wifi_only">Télécharger uniquement via Wi-Fi</string>
     <string name="reduce_data_usage_subtitle">Réduire l\'utilisation des données</string>
     <string name="performance_header">Performance</string>
-    <string name="parallel_downloading_title">Téléchargement Parallèle</string>
+    <string name="parallel_downloading_title">Téléchargement parallèle</string>
     <string name="parallel_downloading_subtitle">Télécharger les fichiers en plusieurs parties pour une vitesse maximale.</string>
-    <string name="concurrent_threads_title">Threads Concurrentiels</string>
+    <string name="concurrent_threads_title">Threads concurrentiels</string>
     <string name="threads_per_download_template">%1$d threads par téléchargement</string>
     <string name="performance_optimization_note">Utiliser plus de threads peut augmenter la vitesse mais peut utiliser plus de batterie et chauffer l\'appareil.</string>
     <string name="select_threads_count_desc">Sélectionnez le nombre de threads (1-8) :</string>
     <string name="threads_count_label">%1$d threads</string>
 
     <!-- Écran des Dons -->
-    <string name="support_donations_title">Soutien &amp; Dons</string>
-    <string name="support_flow_dev_title">Soutenir le Développement de Flow</string>
+    <string name="support_donations_title">Soutien et dons</string>
+    <string name="support_flow_dev_title">Soutenir le développement de Flow</string>
     <string name="support_flow_dev_desc">Si vous trouvez Flow utile et souhaitez soutenir son développement, vous pouvez faire un don via les adresses suivantes. Votre soutien aide à maintenir le projet en vie !</string>
     <string name="thank_you_support_message">Merci pour votre soutien ! ❤️</string>
     <string name="address_copied_toast">Adresse copiée dans le presse-papiers</string>
@@ -590,15 +591,15 @@
     <string name="newpipe_extractor_title">NewPipe Extractor</string>
     <string name="newpipe_extractor_subtitle">Bibliothèque d\'extraction principale</string>
     <string name="about_license">Licence</string>
-    <string name="about_changelog">Journal des Modifications</string>
+    <string name="about_changelog">Journal des modifications</string>
     <string name="whats_new_in_flow">Quoi de neuf dans Flow</string>
-    <string name="about_device_info">Informations sur l\'Appareil</string>
+    <string name="about_device_info">Informations sur l\'appareil</string>
     <string name="gnu_license_full_title">Licence Publique Générale GNU</string>
     <string name="loading_ellipsis">Chargement...</string>
     <string name="error_license_load">Impossible de charger le fichier de licence.</string>
     <string name="no_changelog_found_message">Aucun journal des modifications trouvé.</string>
     <string name="error_changelog_load">Impossible de charger le fichier du journal des modifications.</string>
-    <string name="app_logo_desc">Logo de l\'Application</string>
+    <string name="app_logo_desc">Logo de l\'application</string>
     <string name="v_version_template">v%1$s (%2$s)</string>
     <string name="manufacturer_label">Fabricant : %1$s</string>
     <string name="model_label">Modèle : %1$s</string>
@@ -615,8 +616,8 @@
     <string name="github_label">GitHub</string>
     
     <!-- Playlists &amp; Détails de la Playlist -->
-    <string name="new_playlist_button">Nouvelle Playlist</string>
-    <string name="your_playlists_header">Vos Playlists</string>
+    <string name="new_playlist_button">Nouvelle playlist</string>
+    <string name="your_playlists_header">Vos playlists</string>
     <string name="create_playlist_empty_desc">Créez votre première playlist pour organiser vos vidéos préférées</string>
     <string name="my_playlist_placeholder">Ma Playlist</string>
     <string name="add_description_placeholder">Ajouter une description...</string>
@@ -629,8 +630,8 @@
     <string name="playlist_empty_desc">Ajoutez des vidéos depuis le lecteur vidéo\npour construire votre playlist</string>
     <string name="delete_playlist_dialog_title">Supprimer la playlist ?</string>
     <string name="delete_playlist_dialog_text">Cela supprimera définitivement \'%1$s\' et toutes ses vidéos.</string>
-    <string name="playlist_metadata_private_template">Playlist • Privé • %1$d vidéos</string>
-    <string name="playlist_metadata_public_template">Playlist • Public • %1$d vidéos</string>
+    <string name="playlist_metadata_private_template">Playlist • Privée • %1$d vidéos</string>
+    <string name="playlist_metadata_public_template">Playlist • Publique • %1$d vidéos</string>
 
     <!-- Accueil -->
     <string name="welcome_to_flow">Bienvenue dans Flow</string>
@@ -655,23 +656,23 @@
     <string name="category_news_current_events">Actualités &amp; Événements</string>
 
     <!-- Écran de Contrôle de Flow -->
-    <string name="flow_control_center">Centre de Contrôle de Flow</string>
+    <string name="flow_control_center">Centre de contrôle de Flow</string>
     <string name="action_refresh">Rafraîchir</string>
-    <string name="loading_neural_matrix">Chargement de la Matrice Neurale...</string>
+    <string name="loading_neural_matrix">Chargement de la matrice neurale...</string>
     <string name="neural_interest_map_subtitle">Votre carte d\'intérêt neurale</string>
-    <string name="cognitive_fingerprint">Empreinte Cognitive</string>
+    <string name="cognitive_fingerprint">Empreinte cognitive</string>
     <string name="content_dna_subtitle">Votre ADN de contenu</string>
-    <string name="topic_weights">Poids des Sujets</string>
+    <string name="topic_weights">Poids des sujets</string>
     <string name="topic_weights_subtitle">Transparence totale sur ce qui alimente votre fil</string>
-    <string name="temporal_patterns">Modèles Temporels</string>
+    <string name="temporal_patterns">Modèles temporels</string>
     <string name="temporal_patterns_subtitle">Comment vos centres d’intérêt évoluent dans la journée</string>
-    <string name="channel_memory">Mémoire des Chaînes</string>
+    <string name="channel_memory">Mémoire des chaînes</string>
     <string name="channel_memory_subtitle">Retour implicite de votre historique de visionnage</string>
     <string name="algorithm_insights">Insights de l\'Algorithme</string>
     <string name="algorithm_insights_subtitle">Sous le capot</string>
     <string name="filters_title">Filtres</string>
     <string name="blocked_topics_channels_subtitle">Sujets et chaînes bloqués</string>
-    <string name="reset_neural_profile_title">Réinitialiser le Profil Neural ?</string>
+    <string name="reset_neural_profile_title">Réinitialiser le profil neural ?</string>
     <string name="reset_neural_profile_body">Cela effacera définitivement :\n\n• Toutes les préférences apprises\n• Le vecteur de personnalité à long terme\n• Les modèles de contexte temporel\n• Les scores d\'affinité des chaînes\n\nVotre fil reviendra à un état de départ à froid.</string>
     <string name="erase_everything">Tout Effacer</string>
     <string name="stats_interactions">Interactions</string>
@@ -741,6 +742,14 @@
     <string name="section_mixed_for_you">Mix pour vous</string>
     <string name="section_moods_and_genres">Humeurs &amp; Genres</string>
     <string name="genre_mix_template">Mix %1$s</string>
+    <string name="section_top_albums">Meilleurs albums</string>
+    <string name="similar_to">Similaire à</string>
+    <string name="section_similar_to">Similaire à %1$s</string>
+    <string name="subtitle_similar_to">Basé sur votre historique d\'écoute</string>
+    <string name="section_vibe_vibes">Vibes %1$s</string>
+    <string name="subtitle_community_playlists">Playlists de la communauté</string>
+    <string name="playlist_author_community">Playlist de la communauté</string>
+    <string name="playlist_description_community">Playlist de musique %1$s sélectionnée par notre communauté</string>
 
     <!-- Écran du Lecteur Musical -->
     <string name="radio">Radio</string>
@@ -749,10 +758,10 @@
     <string name="audio_settings_title">Paramètres Audio</string>
     <string name="label_preset">Préréglage</string>
     <string name="template_bass_boost">Boost des Basses : %1$ddB</string>
-    <string name="label_tempo_pitch">Tempo &amp; Ton</string>
+    <string name="label_tempo_pitch">Tempo &amp; Hauteur</string>
     <string name="action_reset">Réinitialiser</string>
     <string name="template_speed">Vitesse : %1$d%%</string>
-    <string name="template_pitch">Ton : %1$d Demi-tons</string>
+    <string name="template_pitch">Hauteur : %1$d demi-tons</string>
     <string name="label_parametric_equalizer">Égaliseur Paramétrique</string>
     <string name="action_add_band">Ajouter une Bande</string>
     <string name="template_preamp">Préampli : %1$.1fdB</string>
@@ -802,26 +811,28 @@
     <string name="btn_minimize">Minimiser</string>
     <string name="captions">Sous-titres</string>
     <string name="pip_mode">Picture-in-Picture</string>
-    <string name="previous_video">Vidéo Précédente</string>
-    <string name="next_video">Vidéo Suivante</string>
-    <string name="fullscreen">Plein Écran</string>
+    <string name="previous_video">Vidéo précédente</string>
+    <string name="next_video">Vidéo suivante</string>
+    <string name="fullscreen">Plein écran</string>
     <string name="resize_to">Redimensionner : %1$s</string>
     <string name="resize_fit">Ajuster</string>
     <string name="resize_fill">Remplir</string>
     <string name="resize_zoom">Zoomer</string>
 
     <!-- Dialogues du Lecteur -->
-    <string name="download_video">Télécharger la Vidéo</string>
+    <string name="download_video">Télécharger la vidéo</string>
     <string name="select_quality">Sélectionnez votre qualité préférée</string>
     <string name="no_download_streams">Aucun flux de téléchargement disponible</string>
     <string name="downloading_template">Téléchargement de %1$s...</string>
     <string name="audio_track">Piste Audio</string>
     <string name="off">Désactivé</string>
     <string name="on">Activé</string>
-    <string name="player_settings">Paramètres du Lecteur</string>
-    <string name="playback_speed">Vitesse de Lecture</string>
-    <string name="autoplay_next">Lecture Automatique de la Vidéo Suivante</string>
-    <string name="subtitle_style">Style des Sous-titres</string>
+    <string name="player_settings">Paramètres du lecteur</string>
+    <string name="playback_speed">Vitesse de lecture</string>
+    <string name="autoplay_next">Lecture automatique de la vidéo suivante</string>
+    <string name="subtitle_style">Style des sous-titres</string>
     <string name="normal">Normal</string>
     <string name="done">Terminé</string>
+    <string name="playlist_queue">File d\'attente</string>
+    <string name="next_up">À suivre</string>
 </resources>
