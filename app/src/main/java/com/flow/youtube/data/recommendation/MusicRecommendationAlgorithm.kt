@@ -27,6 +27,10 @@ import javax.inject.Singleton
 data class MusicSection(
     val title: String,
     val subtitle: String? = null,
+    val label: String? = null,
+    val thumbnailUrl: String? = null,
+    val seedId: String? = null,
+    val isArtistSeed: Boolean = false,
     val tracks: List<MusicTrack>
 )
 

@@ -741,6 +741,14 @@
     <string name="section_mixed_for_you">Mixed for you</string>
     <string name="section_moods_and_genres">Moods &amp; Genres</string>
     <string name="genre_mix_template">%1$s mix</string>
+    <string name="section_top_albums">Top Albums</string>
+    <string name="similar_to">Similar to</string>
+    <string name="section_similar_to">Similar to %1$s</string>
+    <string name="subtitle_similar_to">Based on your listening history</string>
+    <string name="section_vibe_vibes">%1$s Vibes</string>
+    <string name="subtitle_community_playlists">Community Playlists</string>
+    <string name="playlist_author_community">Community Playlist</string>
+    <string name="playlist_description_community">Curated playlist of %1$s music from our community</string>
 
     <!-- Music Player Screen -->
     <string name="radio">Radio</string>

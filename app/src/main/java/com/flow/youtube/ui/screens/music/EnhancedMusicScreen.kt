@@ -32,6 +32,9 @@ import com.flow.youtube.ui.components.*
 import com.flow.youtube.ui.screens.music.components.*
 import com.flow.youtube.ui.screens.music.tabs.*
 import com.flow.youtube.ui.theme.Dimensions
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -286,6 +289,68 @@ fun EnhancedMusicScreen(
                                 }
                             }
 
+                            // Similar To & Vibes (New Sections)
+                            uiState.similarToSections.forEach { section ->
+                                item {
+                                    if (section.label != null) {
+                                        NavigationTitle(
+                                            title = section.title,
+                                            label = section.label,
+                                            thumbnail = {
+                                                if (section.thumbnailUrl != null) {
+                                                    if (section.isArtistSeed) {
+                                                        ArtistThumbnail(
+                                                            thumbnailUrl = section.thumbnailUrl,
+                                                            size = 40.dp
+                                                        )
+                                                    } else {
+                                                        ItemThumbnail(
+                                                            thumbnailUrl = section.thumbnailUrl,
+                                                            size = 40.dp,
+                                                            shape = RoundedCornerShape(8.dp)
+                                                        )
+                                                    }
+                                                }
+                                            },
+                                            onClick = if (!section.seedId.isNullOrBlank()) {
+                                                {
+                                                    if (section.isArtistSeed) {
+                                                        onArtistClick(section.seedId)
+                                                    } else {
+                                                        // For non-artist seeds, we could navigate to details/album
+                                                        // For now we only enable navigation for artists specifically 
+                                                        // if that's what's supported reliably
+                                                    }
+                                                }
+                                            } else null
+                                        )
+                                    } else {
+                                        SectionTitle(title = section.title, subtitle = section.subtitle)
+                                    }
+
+                                    val sectionThumbnailHeight = currentGridThumbnailHeight()
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        items(section.tracks) { track ->
+                                            GridItem(
+                                                title = track.title,
+                                                subtitle = track.artist,
+                                                thumbnailUrl = track.thumbnailUrl,
+                                                thumbnailHeight = sectionThumbnailHeight,
+                                                onClick = { 
+                                                    when (track.itemType) {
+                                                        MusicItemType.ALBUM, MusicItemType.PLAYLIST -> onAlbumClick(track.videoId)
+                                                        else -> onSongClick(track, section.tracks, section.title)
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
                             // Music Videos
                             if (uiState.musicVideos.isNotEmpty()) {
                                 item {
@@ -360,6 +425,28 @@ fun EnhancedMusicScreen(
                                                 }
                                                 )
                                             }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Top Albums (New Section)
+                            if (uiState.topAlbums.isNotEmpty()) {
+                                item {
+                                    SectionTitle(title = stringResource(R.string.section_top_albums)) // Ensure string resource exists or use literal for now "Top Albums"
+                                    val albumThumbnailHeight = currentGridThumbnailHeight()
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        items(uiState.topAlbums) { album ->
+                                            GridItem(
+                                                title = album.title,
+                                                subtitle = album.author,
+                                                thumbnailUrl = album.thumbnailUrl,
+                                                thumbnailHeight = albumThumbnailHeight,
+                                                onClick = { onAlbumClick(album.id) }
+                                            )
                                         }
                                     }
                                 }
