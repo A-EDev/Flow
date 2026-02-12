@@ -18,7 +18,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.ui.res.stringResource
-import androidx.compose.material.ripple.rememberRipple
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -119,7 +119,7 @@ private fun BottomNavItem(
             .clip(RoundedCornerShape(8.dp))
             .clickable(
                 interactionSource = interactionSource,
-                indication = rememberRipple(bounded = true, radius = 28.dp),
+                indication = ripple(bounded = true, radius = 28.dp),
                 onClick = onClick
             )
             .padding(horizontal = 12.dp, vertical = 2.dp)

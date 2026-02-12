@@ -157,21 +157,22 @@ fun SwipeToDismissNotification(
     onDismiss: () -> Unit,
     onClick: () -> Unit
 ) {
-    val dismissState = rememberDismissState(
+    val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = {
-            if (it == DismissValue.DismissedToStart) {
+            if (it == SwipeToDismissBoxValue.EndToStart) {
                 onDismiss()
                 true
             } else false
         }
     )
 
-    SwipeToDismiss(
+    SwipeToDismissBox(
         state = dismissState,
-        directions = setOf(DismissDirection.EndToStart),
-        background = {
+        enableDismissFromEndToStart = true,
+        enableDismissFromStartToEnd = false,
+        backgroundContent = {
             val color = when (dismissState.targetValue) {
-                DismissValue.DismissedToStart -> MaterialTheme.colorScheme.errorContainer
+                SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
                 else -> Color.Transparent
             }
             Box(
@@ -189,7 +190,7 @@ fun SwipeToDismissNotification(
                 )
             }
         },
-        dismissContent = {
+        content = {
             NotificationItem(
                 notification = notification,
                 onClick = onClick,

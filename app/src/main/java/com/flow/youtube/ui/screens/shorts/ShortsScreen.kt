@@ -181,7 +181,7 @@ fun ShortsScreen(
                 VerticalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),
-                    beyondBoundsPageCount = 1, 
+                    beyondViewportPageCount = 1, 
                     key = { uiState.shorts[it].id }
                 ) { page ->
                     val short = uiState.shorts[page]

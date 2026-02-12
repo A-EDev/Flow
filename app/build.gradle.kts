@@ -3,7 +3,7 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-    id("kotlin-kapt")
+    id("com.google.devtools.ksp")
     id("com.google.dagger.hilt.android")
     id("org.jetbrains.kotlin.plugin.serialization")
 }
@@ -105,7 +105,7 @@ android {
     }
 
     composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.3"
+        kotlinCompilerExtensionVersion = "1.5.10"
     }
 
     packaging {
@@ -121,144 +121,117 @@ android {
 }
 
 dependencies {
-    // Core Android
-    implementation("androidx.core:core-ktx:1.12.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
-    implementation("androidx.activity:activity-compose:1.8.0")
+    // --- Core Android ---
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.activity.compose)
     
-    // APK Updater for GitHub releases
-    implementation("com.github.supersu-man:apkupdater-library:v2.1.0")
+    // --- Compose (Using BOM is best practice) ---
+    implementation(platform(libs.androidx.compose.bom)) 
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.androidx.ui.tooling.preview)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.material) 
+    implementation(libs.androidx.material.icons.extended)
+
+    // --- Navigation ---
+    implementation(libs.androidx.navigation.compose) 
+
+    // --- Lifecycle & Architecture ---
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+
+    // --- Layouts ---
+    implementation(libs.androidx.constraintlayout.compose)
+
+    // --- Image Loading ---
+    implementation(libs.coil.compose) 
+    implementation(libs.picasso)
+
+    // --- Dependency Injection ---
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.android.compiler)
+    implementation(libs.hilt.navigation.compose)
+
+    // --- Data & Network ---
+    implementation(libs.newpipe.extractor) 
     
-    // Multidex support for older devices
-    implementation("androidx.multidex:multidex:2.0.1")
-
-    // Compose BOM
-    implementation(platform("androidx.compose:compose-bom:2023.10.01"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material") // Add Material 2 for Swipeable
-    implementation("androidx.compose.material:material-icons-extended")
-
-    // Navigation
-    implementation("androidx.navigation:navigation-compose:2.7.5")
-
-    // ConstraintLayout Compose (MotionLayout)
-    implementation("androidx.constraintlayout:constraintlayout-compose:1.0.1")
-
-    // ViewModel
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.6.2")
-
-    // Coil for image loading
-    implementation("io.coil-kt:coil-compose:2.5.0")
-
-    // NewPipeExtractor - Official JitPack dependency 
-    implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.25.2")
+    // Networking
+    implementation(libs.okhttp)
     
-    // ViewModel
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.2")
+    // Ktor (Managed in libs.versions.toml)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.ktor.client.encoding)
 
-    // Coroutines
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    // Serialization & JSON
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.gson)
 
-    // DataStore
-    implementation("androidx.datastore:datastore-preferences:1.0.0")
-    implementation("androidx.datastore:datastore:1.0.0")
+    // --- Media Playback ---
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
+    implementation(libs.androidx.media3.common)
+    implementation(libs.androidx.media3.session)
+    implementation(libs.androidx.media3.exoplayer.hls)
+    implementation(libs.androidx.media3.exoplayer.dash)
+    implementation(libs.androidx.media3.datasource)
+    implementation(libs.androidx.media3.datasource.okhttp)
+    implementation(libs.androidx.media)
+
+    // --- Database & Storage ---
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
     
-    // Paging 3 for infinite scroll
-    implementation("androidx.paging:paging-runtime-ktx:3.2.1")
-    implementation("androidx.paging:paging-compose:3.2.1")
+    implementation(libs.androidx.datastore.preferences)
+    // implementation(libs.androidx.datastore) // In TOML if needed
 
-    // Gson for JSON serialization
-    implementation("com.google.code.gson:gson:2.10.1")
-
-    // Picasso for image loading (used for seekbar preview thumbnails)
-    implementation("com.squareup.picasso:picasso:2.8")
-
-    // HTML compatibility library
-    implementation("androidx.core:core:1.12.0")
-
-    // RxJava3 for reactive state management
-    implementation("io.reactivex.rxjava3:rxjava:3.1.8")
-    implementation("io.reactivex.rxjava3:rxandroid:3.0.2")
-
-    // Media3 (latest stable) for video playback - corresponds to ExoPlayer 2.19.1 improvements
-    implementation("androidx.media3:media3-exoplayer:1.4.1")
-    implementation("androidx.media3:media3-ui:1.4.1")
-    implementation("androidx.media3:media3-common:1.4.1")
-    implementation("androidx.media3:media3-session:1.4.1")
-    implementation("androidx.media3:media3-exoplayer-hls:1.4.1")
-    implementation("androidx.media3:media3-exoplayer-dash:1.4.1")
-    implementation("androidx.media3:media3-datasource:1.4.1")
-    implementation("androidx.media3:media3-datasource-okhttp:1.4.1")
+    // --- Async & Utils ---
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.paging.runtime.ktx)
+    implementation(libs.androidx.paging.compose)
     
-    // Media Session support for notifications
-    implementation("androidx.media:media:1.7.0")
-    
-    // WorkManager for background tasks (subscription checks, etc.)
-    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    // RxJava (Required for NewPipeExtractor)
+    implementation(libs.rxjava)
+    implementation(libs.rxandroid)
 
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.apkupdater)
+    implementation(libs.androidx.multidex)
+    implementation(libs.brotli) 
+    implementation(libs.re2j)
+
+    // Desugaring for older Android versions
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.0.4")
-    
-    // Hilt
-    implementation("com.google.dagger:hilt-android:2.50")
-    kapt("com.google.dagger:hilt-android-compiler:2.50")
-    implementation("androidx.hilt:hilt-navigation-compose:1.0.0")
 
-    // Room
-    implementation("androidx.room:room-runtime:2.6.0")
-    implementation("androidx.room:room-ktx:2.6.0")
-    kapt("androidx.room:room-compiler:2.6.0")
-
-    // Testing
-    testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
-    testImplementation("io.mockk:mockk:1.13.8")
+    // --- Testing ---
+    testImplementation(libs.junit)
+    // Add missing test libs to TOML or keep hardcoded for now if not in catalog
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    testImplementation("io.mockk:mockk:1.13.12")
     testImplementation("com.google.truth:truth:1.1.5")
-    testImplementation("app.cash.turbine:turbine:1.0.0")
-    testImplementation("com.google.dagger:hilt-android-testing:2.50")
-    kaptTest("com.google.dagger:hilt-android-compiler:2.50")
+    testImplementation("app.cash.turbine:turbine:1.1.0")
+    testImplementation("com.google.dagger:hilt-android-testing:2.51.1")
+    kspTest("com.google.dagger:hilt-android-compiler:2.51.1")
 
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-    androidTestImplementation(platform("androidx.compose:compose-bom:2023.10.01"))
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.6.1")
+    androidTestImplementation(platform("androidx.compose:compose-bom:2024.09.00"))
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("com.google.dagger:hilt-android-testing:2.50")
-    kaptAndroidTest("com.google.dagger:hilt-android-compiler:2.50")
+    androidTestImplementation("com.google.dagger:hilt-android-testing:2.51.1")
+    kspAndroidTest("com.google.dagger:hilt-android-compiler:2.51.1")
     
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-
-    // YouTubeDL-Android
-    // implementation("com.github.yausername.youtubedl-android:library:0.14.0") // Dependency failing resolution
-    // implementation("com.github.yausername.youtubedl-android:ffmpeg:v0.17.1") // Disabled
-    
-    // OkHttp
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-
-    // Ktor Client for Innertube
-    val ktorVersion = "2.3.12"
-    implementation("io.ktor:ktor-client-core:$ktorVersion")
-    implementation("io.ktor:ktor-client-okhttp:$ktorVersion")
-    implementation("io.ktor:ktor-client-content-negotiation:$ktorVersion")
-    implementation("io.ktor:ktor-serialization-kotlinx-json:$ktorVersion")
-    implementation("io.ktor:ktor-client-encoding:$ktorVersion")
-    
-    // Brotli for compression
-    implementation("org.brotli:dec:0.1.2") 
-
-    // Kotlin Serialization
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-
-    // Re2j (Required by Jsoup/NewPipeExtractor for regex)
-    implementation("com.google.re2j:re2j:1.7")
 }
 
 // Allow references to generated code
-kapt {
-    correctErrorTypes = true
+ksp {
+    arg("dagger.fastInit", "enabled")
 }
 
 hilt {

@@ -217,8 +217,8 @@ fun PlayerProgressSlider(
                             .background(Color.White, CircleShape)
                     )
                 },
-                track = { sliderPositions ->
-                    val fraction = sliderPositions.activeRange.endInclusive
+                track = {
+                    val fraction = if (duration > 0) currentPosition.toFloat() / duration.toFloat().coerceAtLeast(1f) else 0f
 
                     Box(
                         modifier = Modifier

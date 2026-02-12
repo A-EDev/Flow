@@ -3,6 +3,7 @@ package com.flow.youtube.ui.screens.player.components
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -434,153 +435,143 @@ fun SettingsMenuDialog(
         title = { Text(stringResource(R.string.player_settings)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                Surface(
-                    onClick = {
-                        onDismiss()
-                        onShowQuality()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.quality)) },
+                    supportingContent = { Text("${playerState.currentQuality}p") },
+                    leadingContent = {
+                        Icon(Icons.Filled.HighQuality, contentDescription = null)
                     },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.quality)) },
-                        supportingContent = { Text("${playerState.currentQuality}p") },
-                        leadingContent = {
-                            Icon(Icons.Filled.HighQuality, contentDescription = null)
-                        }
-                    )
-                }
-                
-                Surface(
-                    onClick = {
-                        onDismiss()
-                        onShowAudio()
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.audio_track)) },
-                        supportingContent = { 
-                            Text("Track ${playerState.currentAudioTrack + 1}") 
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onDismiss()
+                            onShowQuality()
                         },
-                        leadingContent = {
-                            Icon(Icons.Filled.AudioFile, contentDescription = null)
-                        }
-                    )
-                }
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
                 
-                Surface(
-                    onClick = {
-                        onDismiss()
-                        onShowSpeed()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.audio_track)) },
+                    supportingContent = { 
+                        Text("Track ${playerState.currentAudioTrack + 1}") 
                     },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.playback_speed)) },
-                        supportingContent = { 
-                            Text("${playerState.playbackSpeed}x") 
+                    leadingContent = {
+                        Icon(Icons.Filled.AudioFile, contentDescription = null)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onDismiss()
+                            onShowAudio()
                         },
-                        leadingContent = {
-                            Icon(Icons.Filled.Speed, contentDescription = null)
-                        }
-                    )
-                }
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
+                
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.playback_speed)) },
+                    supportingContent = { 
+                        Text("${playerState.playbackSpeed}x") 
+                    },
+                    leadingContent = {
+                        Icon(Icons.Filled.Speed, contentDescription = null)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onDismiss()
+                            onShowSpeed()
+                        },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
 
-                // Loop Toggle
-                Surface(
-                    onClick = {
-                        onLoopToggle(!playerState.isLooping)
+                // Loop Video Toggle
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.loop_video)) },
+                    supportingContent = { 
+                        Text(if (playerState.isLooping) stringResource(R.string.on) else stringResource(R.string.off)) 
                     },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.loop_video)) },
-                        supportingContent = { 
-                            Text(if (playerState.isLooping) stringResource(R.string.on) else stringResource(R.string.off)) 
-                        },
-                        leadingContent = {
-                            Icon(Icons.Rounded.Repeat, contentDescription = null)
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = playerState.isLooping,
-                                onCheckedChange = onLoopToggle
-                            )
-                        }
-                    )
-                }
+                    leadingContent = {
+                        Icon(Icons.Rounded.Repeat, contentDescription = null)
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = playerState.isLooping,
+                            onCheckedChange = null // Handled by ListItem clickable
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onLoopToggle(!playerState.isLooping) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
 
                 // Auto-play Toggle
-                Surface(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.autoplay_next)) },
-                        supportingContent = { 
-                            Text(if (autoplayEnabled) stringResource(R.string.on) else stringResource(R.string.off)) 
-                        },
-                        leadingContent = {
-                            Icon(Icons.Filled.SkipNext, contentDescription = null)
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = autoplayEnabled,
-                                onCheckedChange = onAutoplayToggle
-                            )
-                        }
-                    )
-                }
-
-                Surface(
-                    onClick = {
-                        onDismiss()
-                        onShowSubtitles()
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.autoplay_next)) },
+                    supportingContent = { 
+                        Text(if (autoplayEnabled) stringResource(R.string.on) else stringResource(R.string.off)) 
                     },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.filter_subtitles)) },
-                        supportingContent = { 
-                            Text(if (subtitlesEnabled) stringResource(R.string.on) else stringResource(R.string.off)) 
-                        },
-                        leadingContent = {
-                            Icon(Icons.Filled.Subtitles, contentDescription = null)
-                        },
-                        trailingContent = {
-                            if (subtitlesEnabled) {
-                                IconButton(onClick = { 
-                                    onDismiss()
-                                    onShowSubtitleStyle()
-                                }) {
-                                    Icon(Icons.Filled.Settings, contentDescription = "Subtitle Style")
-                                }
+                    leadingContent = {
+                        Icon(Icons.Filled.SkipNext, contentDescription = null)
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = autoplayEnabled,
+                            onCheckedChange = null // Handled by ListItem clickable
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onAutoplayToggle(!autoplayEnabled) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
+
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.filter_subtitles)) },
+                    supportingContent = { 
+                        Text(if (subtitlesEnabled) stringResource(R.string.on) else stringResource(R.string.off)) 
+                    },
+                    leadingContent = {
+                        Icon(Icons.Filled.Subtitles, contentDescription = null)
+                    },
+                    trailingContent = {
+                        if (subtitlesEnabled) {
+                            IconButton(onClick = { 
+                                onDismiss()
+                                onShowSubtitleStyle()
+                            }) {
+                                Icon(Icons.Filled.Settings, contentDescription = "Subtitle Style")
                             }
                         }
-                    )
-                }
-
-                Surface(
-                    onClick = {
-                        onSkipSilenceToggle(!playerState.isSkipSilenceEnabled)
                     },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.player_settings_skip_silence)) },
-                        supportingContent = { 
-                            Text(if (playerState.isSkipSilenceEnabled) stringResource(R.string.on) else stringResource(R.string.off)) 
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onDismiss()
+                            onShowSubtitles()
                         },
-                        leadingContent = {
-                            Icon(Icons.Rounded.GraphicEq, contentDescription = null)
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = playerState.isSkipSilenceEnabled,
-                                onCheckedChange = onSkipSilenceToggle
-                            )
-                        }
-                    )
-                }
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
+
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.player_settings_skip_silence)) },
+                    supportingContent = { 
+                        Text(if (playerState.isSkipSilenceEnabled) stringResource(R.string.on) else stringResource(R.string.off)) 
+                    },
+                    leadingContent = {
+                        Icon(Icons.Rounded.GraphicEq, contentDescription = null)
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = playerState.isSkipSilenceEnabled,
+                            onCheckedChange = null // Handled by ListItem clickable
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSkipSilenceToggle(!playerState.isSkipSilenceEnabled) },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
             }
         },
         confirmButton = {

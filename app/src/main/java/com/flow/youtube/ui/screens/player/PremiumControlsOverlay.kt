@@ -241,7 +241,7 @@ fun PremiumControlsOverlay(
                             .background(Color.Black.copy(alpha = 0.4f))
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = androidx.compose.material.ripple.rememberRipple(color = Color.White)
+                                indication = ripple(color = Color.White)
                             ) { onPlayPause() }
                     ) {
                         if (isBuffering) {
