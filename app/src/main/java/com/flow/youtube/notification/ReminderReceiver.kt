@@ -22,6 +22,12 @@ class ReminderReceiver : BroadcastReceiver() {
                     "Take a break! ☕",
                     "You've been watching for a while."
                 )
+                
+                // Reschedule if it's a repeating break reminder
+                val frequency = intent.getIntExtra("frequency", -1)
+                if (frequency > 0) {
+                    ReminderManager.scheduleBreakReminder(context, frequency)
+                }
             }
         }
     }

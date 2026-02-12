@@ -610,12 +610,22 @@ class YouTubeRepository @Inject constructor() {
         if (isLiveStream) {
             durationSecs = 0 
         }
+
+        // Logic to detect if it's a music video
+        val nameLower = name?.lowercase() ?: ""
+        val uploaderLower = uploaderName?.lowercase() ?: ""
+        val isMusicCandidate = uploaderLower.contains("vevo") || 
+                             uploaderLower.contains(" - topic") ||
+                             nameLower.contains("official music video") ||
+                             nameLower.contains("official video") ||
+                             nameLower.contains("official audio") ||
+                             nameLower.contains("(official)")
         
         return Video(
             id = videoId,
             title = name ?: "Unknown Title",
             channelName = uploaderName ?: "Unknown Channel",
-            channelId = uploaderUrl?.split("/")?.last() ?: "",
+            channelId = uploaderUrl?.substringAfterLast("/") ?: "",
             thumbnailUrl = bestThumbnail,
             duration = durationSecs,
             viewCount = viewCount,
@@ -635,7 +645,8 @@ class YouTubeRepository @Inject constructor() {
             },
             channelThumbnailUrl = bestAvatar,
             isLive = isLiveStream,
-            isShort = isShortUrl
+            isShort = isShortUrl,
+            isMusic = isMusicCandidate
         )
     }
     

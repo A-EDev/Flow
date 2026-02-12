@@ -121,7 +121,9 @@ class SubscriptionsViewModel : ViewModel() {
     private fun updateVideos(videos: List<Video>) {
         val sortedVideos = videos.sortedByDescending { parseRelativeTime(it.uploadDate) }
 
-        val (shorts, regular) = sortedVideos.partition { it.duration > 0 && it.duration <= 80 }
+        val (shorts, regular) = sortedVideos.partition { 
+            it.isShort || (it.duration in 1..180 && !it.isMusic) 
+        }
         _uiState.update { it.copy(recentVideos = regular, shorts = shorts) }
     }
     

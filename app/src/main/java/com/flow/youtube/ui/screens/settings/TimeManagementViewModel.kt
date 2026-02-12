@@ -168,12 +168,29 @@ class TimeManagementViewModel @Inject constructor(
     fun toggleBreakReminder(enabled: Boolean) {
         viewModelScope.launch {
             localDataManager.setBreakReminder(enabled)
+            updateBreakAlarm(enabled)
         }
     }
     
     fun updateBreakFrequency(minutes: Int) {
         viewModelScope.launch {
             localDataManager.setBreakFrequency(minutes)
+            if (uiState.value.breakReminderEnabled) {
+                updateBreakAlarm(true, minutes)
+            }
+        }
+    }
+
+    private fun updateBreakAlarm(enabled: Boolean, frequency: Int? = null) {
+        try {
+            if (enabled) {
+                val f = frequency ?: uiState.value.breakFrequencyMinutes
+                ReminderManager.scheduleBreakReminder(applicationContext, f)
+            } else {
+                ReminderManager.cancelBreakReminder(applicationContext)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }

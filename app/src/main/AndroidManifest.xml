@@ -131,6 +131,13 @@
                 <action android:name="com.flow.youtube.action.DISMISS_NOTIFICATION" />
             </intent-filter>
         </receiver>
+
+        <!-- Time Management Reminder Receiver -->
+        <receiver
+            android:name=".notification.ReminderReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
     </application>
 
 </manifest>

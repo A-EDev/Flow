@@ -11,15 +11,12 @@ import java.util.Calendar
 object ReminderManager {
 
     private const val ALARM_ID_BEDTIME = 101
+    private const val ALARM_ID_BREAK = 102
 
     fun scheduleBedtimeReminder(context: Context, hour: Int, minute: Int) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-            if (!alarmManager.canScheduleExactAlarms()) {
-                // Should request permission, but for now just log or skip exact
-                // In a real app, guide user to settings: Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                return 
-            }
+        if (!canScheduleExactAlarms(context)) {
+            // If we can't schedule exact alarms, we can try to schedule inexact ones or just return.
+            // For now, we'll try to schedule, and if it fails, we catch the exception.
         }
 
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
@@ -46,20 +43,14 @@ object ReminderManager {
             calendar.add(Calendar.DAY_OF_YEAR, 1)
         }
 
-        try {
-            alarmManager.setExactAndAllowWhileIdle(
-                AlarmManager.RTC_WAKEUP,
-                calendar.timeInMillis,
-                pendingIntent
-            )
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        scheduleAlarmSafe(context, alarmManager, calendar.timeInMillis, pendingIntent)
     }
 
     fun cancelBedtimeReminder(context: Context) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val intent = Intent(context, ReminderReceiver::class.java)
+        val intent = Intent(context, ReminderReceiver::class.java).apply {
+             putExtra("type", "bedtime") // Extras identify the pending intent filter equality in some cases, good practice to match
+        }
         val pendingIntent = PendingIntent.getBroadcast(
             context,
             ALARM_ID_BEDTIME,
@@ -67,5 +58,74 @@ object ReminderManager {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         alarmManager.cancel(pendingIntent)
+    }
+
+    fun scheduleBreakReminder(context: Context, frequencyMinutes: Int) {
+         if (!canScheduleExactAlarms(context)) {
+             // Handle appropriately
+         }
+
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(context, ReminderReceiver::class.java).apply {
+            putExtra("type", "break")
+            putExtra("frequency", frequencyMinutes)
+        }
+        
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            ALARM_ID_BREAK,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val triggerTime = System.currentTimeMillis() + (frequencyMinutes * 60 * 1000L)
+
+        scheduleAlarmSafe(context, alarmManager, triggerTime, pendingIntent)
+    }
+
+    fun cancelBreakReminder(context: Context) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        val intent = Intent(context, ReminderReceiver::class.java).apply {
+            putExtra("type", "break")
+        }
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            ALARM_ID_BREAK,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        alarmManager.cancel(pendingIntent)
+    }
+
+    private fun canScheduleExactAlarms(context: Context): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            alarmManager.canScheduleExactAlarms()
+        } else {
+            true
+        }
+    }
+
+    private fun scheduleAlarmSafe(context: Context, alarmManager: AlarmManager, triggerTime: Long, pendingIntent: PendingIntent) {
+        try {
+            if (canScheduleExactAlarms(context)) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime,
+                    pendingIntent
+                )
+            } else {
+                alarmManager.setAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    triggerTime,
+                    pendingIntent
+                )
+            }
+        } catch (e: SecurityException) {
+            e.printStackTrace()
+            // Fallback for when permission is revoked in bg
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 }
