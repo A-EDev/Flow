@@ -139,12 +139,24 @@ class Media3MusicService : MediaLibraryService() {
             }
         }.setExtensionRendererMode(androidx.media3.exoplayer.DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
 
+        // OPTIMIZED: Aggressive buffering for faster music startup
+        val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                2500,  // Min buffer (2.5s)
+                30000, // Max buffer (30s)
+                1000,  // Buffer for playback (1s) - faster start
+                1500   // Buffer for rebuffer (1.5s)
+            )
+            .setPrioritizeTimeOverSizeThresholds(true)
+            .build()
+            
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(mediaSourceFactory)
             .setRenderersFactory(renderersFactory)
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
+            .setLoadControl(loadControl)
             .setSeekBackIncrementMs(5000)
             .setSeekForwardIncrementMs(5000)
             .build()

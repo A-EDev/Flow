@@ -109,6 +109,55 @@ object EnhancedMusicPlayerManager {
     private val _isLiked = MutableStateFlow(false)
     val isLiked: StateFlow<Boolean> = _isLiked.asStateFlow()
 
+    // OPTIMIZED: LRU Cache for resolved stream URLs to avoid re-fetching
+    private val urlCache = android.util.LruCache<String, String>(50)
+
+    // OPTIMIZED: Pre-fetch next track to reduce gap
+    private fun prefetchNextTrack() {
+        val queue = _queue.value
+        val currentId = _currentTrack.value?.videoId ?: return
+        val idx = queue.indexOfFirst { it.videoId == currentId }
+        
+        if (idx != -1 && idx < queue.size - 1) {
+            val nextTrack = queue[idx + 1]
+            if (urlCache.get(nextTrack.videoId) == null) {
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        resolveStreamUrl(nextTrack.videoId)
+                        Log.d("EnhancedMusicPlayer", "Pre-fetched URL for next track: ${nextTrack.title}")
+                    } catch (e: Exception) {
+                        Log.e("EnhancedMusicPlayer", "Failed to pre-fetch next track", e)
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Resolves stream URL with caching
+     */
+    suspend fun resolveStreamUrl(videoId: String): String? {
+        // 1. Check cache
+        urlCache.get(videoId)?.let { 
+             Log.d("EnhancedMusicPlayer", "Cache hit for $videoId")
+             return it 
+        }
+        
+        // 2. Resolve (using MusicPlayerUtils)
+        return try {
+             val playbackData = com.flow.youtube.utils.MusicPlayerUtils.playerResponseForPlayback(videoId).getOrNull()
+             val url = playbackData?.streamUrl
+             
+             if (url != null) {
+                 urlCache.put(videoId, url)
+             }
+             url
+        } catch (e: Exception) {
+             Log.e("EnhancedMusicPlayer", "Error resolving URL for $videoId", e)
+             null
+        }
+    }
+
     fun initialize(context: Context) {
         if (isInitialized) return
         isInitialized = true
@@ -206,10 +255,10 @@ object EnhancedMusicPlayerManager {
                     retryCount++
                     Log.i("EnhancedMusicPlayer", "Retrying... Attempt $retryCount/$MAX_RETRIES")
                     scope.launch {
-                        kotlinx.coroutines.delay(1000)
+                        kotlinx.coroutines.delay(500)
                         if (error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED || 
                             error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT) {
-                             kotlinx.coroutines.delay(2000) 
+                             kotlinx.coroutines.delay(1000) 
                         }
                         player?.prepare()
                         player?.play()
@@ -247,7 +296,7 @@ object EnhancedMusicPlayerManager {
                         _playerState.value = _playerState.value.copy(position = p.currentPosition)
                     }
                 }
-                kotlinx.coroutines.delay(500)
+                kotlinx.coroutines.delay(1000)
             }
         }
     }
@@ -316,6 +365,8 @@ object EnhancedMusicPlayerManager {
         player?.setMediaItems(mediaItems, startIdx, 0)
         player?.prepare()
         player?.play()
+        
+        prefetchNextTrack()
     }
     
     fun updateQueue(newQueue: List<MusicTrack>) {

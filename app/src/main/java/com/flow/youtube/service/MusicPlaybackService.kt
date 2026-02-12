@@ -197,7 +197,7 @@ class MusicPlaybackService : Service() {
                         updatePlaybackState()
                     }
                 }
-                delay(500) 
+                delay(1000) 
             }
         }
     }

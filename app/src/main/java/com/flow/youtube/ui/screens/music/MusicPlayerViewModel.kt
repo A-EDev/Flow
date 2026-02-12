@@ -217,13 +217,14 @@ class MusicPlayerViewModel @Inject constructor(
                     android.util.Log.d("MusicPlayerViewModel", "Track ${track.videoId} found in cache - playing offline")
                     "music://${track.videoId}"
                 } else {
-                    val playbackData = com.flow.youtube.utils.MusicPlayerUtils.playerResponseForPlayback(track.videoId).getOrNull()
+                    // OPTIMIZED: Use centralized resolution with caching
+                    val url = EnhancedMusicPlayerManager.resolveStreamUrl(track.videoId)
                     
-                    if (playbackData != null) {
-                        android.util.Log.d("MusicPlayerViewModel", "Resolved stream URL: ${playbackData.streamUrl}")
-                        playbackData.streamUrl
+                    if (url != null) {
+                        android.util.Log.d("MusicPlayerViewModel", "Resolved stream URL: $url")
+                        url
                     } else {
-                        android.util.Log.w("MusicPlayerViewModel", "MusicPlayerUtils failed, falling back to ResolvingDataSource")
+                        android.util.Log.w("MusicPlayerViewModel", "Resolution failed, falling back to ResolvingDataSource")
                         "music://${track.videoId}"
                     }
                 }

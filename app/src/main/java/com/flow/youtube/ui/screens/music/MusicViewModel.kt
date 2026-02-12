@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.flow.youtube.innertube.pages.HomePage
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -290,13 +291,14 @@ class MusicViewModel @Inject constructor(
                     .shuffled()
                     .take(2)
                 
-                topArtists.forEach { (artistName, _) ->
-                    val artistTrack = history.find { it.artist == artistName }
-                    if (artistTrack != null && !artistTrack.channelId.isNullOrBlank()) {
-                        try {
-                            val related = InnertubeMusicService.getRelatedMusic(artistTrack.videoId)
-                            if (related.isNotEmpty()) {
-                                similarSections.add(
+                // OPTIMIZED: Parallel fetch for similar artists
+                val similarArtistSections = topArtists.map { (artistName, _) ->
+                    async(PerformanceDispatcher.networkIO) {
+                        val artistTrack = history.find { it.artist == artistName }
+                        if (artistTrack != null && !artistTrack.channelId.isNullOrBlank()) {
+                            try {
+                                val related = InnertubeMusicService.getRelatedMusic(artistTrack.videoId)
+                                if (related.isNotEmpty()) {
                                     MusicSection(
                                         title = artistName,
                                         label = context.getString(R.string.similar_to), 
@@ -305,13 +307,16 @@ class MusicViewModel @Inject constructor(
                                         isArtistSeed = true,
                                         tracks = related.take(10)
                                     )
-                                )
+                                } else null
+                            } catch (e: Exception) {
+                                Log.e("MusicViewModel", "Error loading similar to artist $artistName", e)
+                                null
                             }
-                        } catch (e: Exception) {
-                            Log.e("MusicViewModel", "Error loading similar to artist $artistName", e)
-                        }
+                        } else null
                     }
-                }
+                }.awaitAll().filterNotNull()
+                
+                similarSections.addAll(similarArtistSections)
 
                 // 2. Similar to most recent song (if not already picked)
                 val recentTrack = history.firstOrNull()
