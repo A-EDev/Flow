@@ -1,38 +1,53 @@
 package com.flow.youtube.ui.screens.shorts
 
-import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.local.LikedVideosRepository
+import com.flow.youtube.data.local.PlaylistRepository
 import com.flow.youtube.data.local.SubscriptionRepository
-import com.flow.youtube.data.model.Video
+import com.flow.youtube.data.model.ShortVideo
+import com.flow.youtube.data.model.toShortVideo
+import com.flow.youtube.data.model.toVideo
 import com.flow.youtube.data.repository.YouTubeRepository
 import com.flow.youtube.data.shorts.ShortsRepository
 import com.flow.youtube.utils.PerformanceDispatcher
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.async
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlin.random.Random
+import javax.inject.Inject
 
-import com.flow.youtube.data.local.PlaylistRepository
-
-class ShortsViewModel(
-    private val repository: YouTubeRepository = YouTubeRepository.getInstance()
+/**
+ * ShortsViewModel — Hilt-injected, InnerTube-first Shorts engine.
+ *
+ * Architecture:
+ * - Uses [ShortsRepository] for InnerTube reel API (primary) + NewPipe (fallback)
+ * - [ShortVideo] as the domain model (not generic [Video])
+ * - Continuation-based infinite scroll (InnerTube pagination)
+ * - Pre-resolves streams for adjacent shorts
+ * - Reactive state via StateFlow for like/subscribe/save
+ */
+@HiltViewModel
+class ShortsViewModel @Inject constructor(
+    private val repository: YouTubeRepository,
+    private val shortsRepository: ShortsRepository,
+    private val likedVideosRepository: LikedVideosRepository,
+    private val subscriptionRepository: SubscriptionRepository,
+    private val playlistRepository: PlaylistRepository
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(ShortsUiState())
     val uiState: StateFlow<ShortsUiState> = _uiState.asStateFlow()
     
-    private var likedVideosRepository: LikedVideosRepository? = null
-    private var subscriptionRepository: SubscriptionRepository? = null
-    private var shortsRepository: ShortsRepository? = null
-    private var playlistRepository: PlaylistRepository? = null
     private var isLoadingMore = false
     
     private val _commentsState = MutableStateFlow<List<com.flow.youtube.data.model.Comment>>(emptyList())
@@ -40,17 +55,78 @@ class ShortsViewModel(
     
     private val _isLoadingComments = MutableStateFlow(false)
     val isLoadingComments: StateFlow<Boolean> = _isLoadingComments.asStateFlow()
-    
-    fun initialize(context: Context) {
-        likedVideosRepository = LikedVideosRepository.getInstance(context)
-        subscriptionRepository = SubscriptionRepository.getInstance(context)
-        shortsRepository = ShortsRepository.getInstance(context)
-        playlistRepository = PlaylistRepository(context)
+
+    private val _savedShortIds = MutableStateFlow<Set<String>>(emptySet())
+
+    init {
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            playlistRepository.getSavedShortsFlow().collect { savedVideos ->
+                _savedShortIds.value = savedVideos.map { it.id }.toSet()
+            }
+        }
+
+        viewModelScope.launch {
+            shortsRepository.enrichmentUpdates.collect { enrichedShorts ->
+                val current = _uiState.value.shorts
+                if (current.isNotEmpty() && enrichedShorts.isNotEmpty()) {
+                    val enrichedMap = enrichedShorts.associateBy { it.id }
+                    val updated = current.map { existing ->
+                        enrichedMap[existing.id]?.let { enriched ->
+                            if (enriched.title != "Short" || enriched.channelName != "Unknown") enriched
+                            else existing
+                        } ?: existing
+                    }
+                    _uiState.value = _uiState.value.copy(shorts = updated)
+                }
+            }
+        }
+    }
+
+    // REACTIVE STATE — Single Source of Truth
+
+    /**
+     * Returns a StateFlow<Boolean> for whether a video is liked.
+     * UI should collectAsState() from this directly.
+     */
+    fun isVideoLikedState(videoId: String): StateFlow<Boolean> {
+        val flow = MutableStateFlow(false)
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            likedVideosRepository.getLikeState(videoId).collect { likeState ->
+                flow.value = likeState == "LIKED"
+            }
+        }
+        return flow.asStateFlow()
+    }
+
+    /**
+     * Returns a StateFlow<Boolean> for whether a channel is subscribed.
+     */
+    fun isChannelSubscribedState(channelId: String): StateFlow<Boolean> {
+        val flow = MutableStateFlow(false)
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            subscriptionRepository.isSubscribed(channelId).collect { subscribed ->
+                flow.value = subscribed
+            }
+        }
+        return flow.asStateFlow()
+    }
+
+    /**
+     * Returns a StateFlow<Boolean> for whether a short is saved.
+     */
+    fun isShortSavedState(videoId: String): StateFlow<Boolean> {
+        return _savedShortIds.map { it.contains(videoId) }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = _savedShortIds.value.contains(videoId)
+            )
     }
     
+    // FEED LOADING — InnerTube Primary    
     /**
-     *  PERFORMANCE OPTIMIZED: Load shorts with parallel fetching
-     * Uses SupervisorScope for error isolation and timeout protection
+     * Load the initial Shorts feed from InnerTube reel API.
+     * If [startVideoId] is provided, seeds the reel sequence from that video.
      */
     fun loadShorts(startVideoId: String? = null) {
         if (_uiState.value.isLoading) return
@@ -59,65 +135,42 @@ class ShortsViewModel(
         
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
-                //  PARALLEL FETCH: Try multiple sources simultaneously
-                val shorts = supervisorScope {
-                    val repoShortsDeferred = async(PerformanceDispatcher.networkIO) {
-                        withTimeoutOrNull(12_000L) {
-                            shortsRepository?.getHomeFeedShorts() ?: emptyList()
-                        } ?: emptyList()
-                    }
-                    
-                    val fallbackShortsDeferred = async(PerformanceDispatcher.networkIO) {
-                        withTimeoutOrNull(10_000L) {
-                            repository.getShorts().first
-                        } ?: emptyList()
-                    }
-                    
-                    val repoShorts = repoShortsDeferred.await()
-                    
-                    // If ShortsRepository has content, use it; otherwise fallback
-                    if (repoShorts.isNotEmpty()) {
-                        // Apply session-based shuffling for variety
-                        val sessionSeed = System.currentTimeMillis() / (15 * 60 * 1000L) // 15 min sessions
-                        repoShorts.shuffled(Random(sessionSeed))
-                    } else {
-                        // Use fallback result
-                        val basicShorts = fallbackShortsDeferred.await()
-                        val (_, nextPage) = repository.getShorts()
-                        _uiState.value = _uiState.value.copy(nextPage = nextPage)
-                        basicShorts
-                    }
-                }
+                val result = shortsRepository.getShortsFeed(seedVideoId = startVideoId)
+                var shorts = result.shorts
                 
-                var finalShorts = shorts
-                // Find start index if startVideoId is provided
-                var startIndex = if (startVideoId != null) {
-                    shorts.indexOfFirst { it.id == startVideoId }
-                } else {
-                    0
-                }
-
-                // If startVideoId is provided but not in the list, fetch it and add it
-                if (startVideoId != null && startIndex == -1) {
-                    val startVideo = withTimeoutOrNull(5_000L) { 
-                        repository.getVideo(startVideoId) 
-                    }
-                    if (startVideo != null) {
-                        finalShorts = listOf(startVideo) + shorts
-                        startIndex = 0
+                // If startVideoId provided but not in results, fetch it separately
+                var startIndex = 0
+                if (startVideoId != null) {
+                    val idx = shorts.indexOfFirst { it.id == startVideoId }
+                    if (idx >= 0) {
+                        startIndex = idx
                     } else {
-                        startIndex = 0
+                        val startVideo = withTimeoutOrNull(5_000L) {
+                            repository.getVideo(startVideoId)
+                        }?.toShortVideo()
+                        if (startVideo != null) {
+                            shorts = listOf(startVideo) + shorts
+                            startIndex = 0
+                        }
                     }
                 }
                 
                 _uiState.value = _uiState.value.copy(
-                    shorts = finalShorts,
-                    currentIndex = startIndex.coerceAtLeast(0),
+                    shorts = shorts,
+                    currentIndex = startIndex,
                     isLoading = false,
-                    hasMorePages = finalShorts.size >= 8
+                    hasMorePages = result.continuation != null || shorts.size >= 5,
+                    continuation = result.continuation
                 )
+                
+                // Pre-resolve streams for the first few shorts
+                if (shorts.isNotEmpty()) {
+                    val idsToPreload = shorts.take(3).map { it.id }
+                    preResolveStreams(idsToPreload)
+                }
+                
             } catch (e: Exception) {
-                Log.e("ShortsViewModel", "Error loading shorts", e)
+                Log.e(TAG, "Error loading shorts", e)
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     error = e.message ?: "Failed to load shorts"
@@ -127,7 +180,7 @@ class ShortsViewModel(
     }
     
     /**
-     *  PERFORMANCE OPTIMIZED: Load more shorts with timeout
+     * Load more shorts using continuation token.
      */
     fun loadMoreShorts() {
         if (isLoadingMore || !_uiState.value.hasMorePages) return
@@ -138,28 +191,49 @@ class ShortsViewModel(
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
                 val result = withTimeoutOrNull(15_000L) {
-                    repository.getShorts(_uiState.value.nextPage)
+                    shortsRepository.loadMore(_uiState.value.continuation)
                 }
                 
-                if (result != null) {
-                    val (newShorts, nextPage) = result
+                if (result != null && result.shorts.isNotEmpty()) {
                     val currentShorts = _uiState.value.shorts
-                    val updatedShorts = (currentShorts + newShorts).distinctBy { it.id }
+                    val updatedShorts = (currentShorts + result.shorts).distinctBy { it.id }
                     
                     _uiState.value = _uiState.value.copy(
                         shorts = updatedShorts,
-                        nextPage = nextPage,
+                        continuation = result.continuation,
                         isLoadingMore = false,
-                        hasMorePages = nextPage != null
+                        hasMorePages = result.continuation != null || result.shorts.isNotEmpty()
                     )
                 } else {
-                    _uiState.value = _uiState.value.copy(
-                        isLoadingMore = false,
-                        hasMorePages = false
-                    )
+                    // Try NewPipe fallback for more content — clear stale continuation
+                    val fallback = withTimeoutOrNull(10_000L) {
+                        repository.getShorts(_uiState.value.newPipePage)
+                    }
+                    
+                    if (fallback != null) {
+                        val (newVideos, nextPage) = fallback
+                        val newShorts = newVideos
+                            .filter { it.duration in 1..60 }
+                            .map { it.toShortVideo() }
+                        val currentShorts = _uiState.value.shorts
+                        val updatedShorts = (currentShorts + newShorts).distinctBy { it.id }
+                        
+                        _uiState.value = _uiState.value.copy(
+                            shorts = updatedShorts,
+                            newPipePage = nextPage,
+                            continuation = null, 
+                            isLoadingMore = false,
+                            hasMorePages = nextPage != null
+                        )
+                    } else {
+                        _uiState.value = _uiState.value.copy(
+                            isLoadingMore = false,
+                            hasMorePages = false
+                        )
+                    }
                 }
             } catch (e: Exception) {
-                Log.e("ShortsViewModel", "Error loading more shorts", e)
+                Log.e(TAG, "Error loading more shorts", e)
                 _uiState.value = _uiState.value.copy(
                     isLoadingMore = false,
                     error = e.message ?: "Failed to load more shorts"
@@ -170,26 +244,59 @@ class ShortsViewModel(
         }
     }
     
-    suspend fun isVideoLiked(videoId: String): Boolean {
-        val repo = likedVideosRepository ?: return false
-        var isLiked = false
-        repo.getLikeState(videoId).collect { likeState ->
-            isLiked = likeState == "LIKED"
+    // SAVED SHORTS    
+    fun loadSavedShorts(startVideoId: String? = null) {
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+            playlistRepository.getSavedShortsFlow().collect { savedVideos ->
+                val shorts = savedVideos.map { it.toShortVideo() }
+                var startIndex = if (startVideoId != null) {
+                    shorts.indexOfFirst { it.id == startVideoId }.coerceAtLeast(0)
+                } else 0
+                
+                _uiState.value = _uiState.value.copy(
+                    shorts = shorts,
+                    currentIndex = startIndex,
+                    isLoading = false,
+                    hasMorePages = false
+                )
+            }
         }
-        return isLiked
     }
     
-    suspend fun toggleLike(video: Video) {
-        val repo = likedVideosRepository ?: return
-        var isLiked = false
-        repo.getLikeState(video.id).collect { likeState ->
-            isLiked = likeState == "LIKED"
+    // PAGE TRACKING & PRE-LOADING 
+    fun updateCurrentIndex(index: Int) {
+        _uiState.value = _uiState.value.copy(currentIndex = index)
+        
+        if (index >= _uiState.value.shorts.size - 5) {
+            loadMoreShorts()
         }
+    }
+    
+    /**
+     * Pre-resolve stream URLs for adjacent shorts to enable instant transitions.
+     */
+    fun preResolveStreams(videoIds: List<String>) {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            shortsRepository.preResolveStreams(videoIds)
+        }
+    }
+    
+    // STREAM RESOLUTION 
+    /**
+     * Get stream info for a specific video. Used by the player.
+     */
+    suspend fun getVideoStreamInfo(videoId: String) = shortsRepository.resolveStreamInfo(videoId)
+    
+    // USER ACTIONS
+    suspend fun toggleLike(short: ShortVideo) {
+        val video = short.toVideo()
+        val isLiked = likedVideosRepository.getLikeState(video.id).first() == "LIKED"
         
         if (isLiked) {
-            repo.removeLikeState(video.id)
+            likedVideosRepository.removeLikeState(video.id)
         } else {
-            repo.likeVideo(
+            likedVideosRepository.likeVideo(
                 com.flow.youtube.data.local.LikedVideoInfo(
                     videoId = video.id,
                     title = video.title,
@@ -200,19 +307,13 @@ class ShortsViewModel(
         }
     }
     
-    suspend fun isChannelSubscribed(channelId: String): Boolean {
-        val repo = subscriptionRepository ?: return false
-        return repo.isSubscribed(channelId).first()
-    }
-    
     suspend fun toggleSubscription(channelId: String, channelName: String, channelThumbnail: String) {
-        val repo = subscriptionRepository ?: return
-        val isSubscribed = repo.isSubscribed(channelId).first()
+        val isSubscribed = subscriptionRepository.isSubscribed(channelId).first()
         
         if (isSubscribed) {
-            repo.unsubscribe(channelId)
+            subscriptionRepository.unsubscribe(channelId)
         } else {
-            repo.subscribe(
+            subscriptionRepository.subscribe(
                 com.flow.youtube.data.local.ChannelSubscription(
                     channelId = channelId,
                     channelName = channelName,
@@ -222,68 +323,18 @@ class ShortsViewModel(
         }
     }
     
-    fun updateCurrentIndex(index: Int) {
-        _uiState.value = _uiState.value.copy(currentIndex = index)
-        
-        // Load more when reaching near the end (5 items from end)
-        if (index >= _uiState.value.shorts.size - 5) {
-            loadMoreShorts()
-        }
-    }
-
-    fun loadSavedShorts(startVideoId: String? = null) {
+    fun toggleSaveShort(short: ShortVideo) {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
-            _uiState.value = _uiState.value.copy(isLoading = true)
-            playlistRepository?.getSavedShortsFlow()?.collect { savedShorts ->
-                var finalShorts = savedShorts
-                var startIndex = if (startVideoId != null) {
-                    savedShorts.indexOfFirst { it.id == startVideoId }
-                } else {
-                    0
-                }
-
-                if (startVideoId != null && startIndex == -1) {
-                    val startVideo = withTimeoutOrNull(5_000L) {
-                        repository.getVideo(startVideoId)
-                    }
-                    if (startVideo != null) {
-                        finalShorts = listOf(startVideo) + savedShorts
-                        startIndex = 0
-                    } else {
-                        startIndex = 0
-                    }
-                }
-                
-                _uiState.value = _uiState.value.copy(
-                    shorts = finalShorts,
-                    currentIndex = startIndex.coerceAtLeast(0),
-                    isLoading = false,
-                    hasMorePages = false // Saved shorts are all loaded at once usually
-                )
-            }
-        }
-    }
-
-    suspend fun getVideoStreamInfo(videoId: String) = repository.getVideoStreamInfo(videoId)
-    
-    fun toggleSaveShort(video: Video) {
-        viewModelScope.launch(PerformanceDispatcher.diskIO) {
-            val repo = playlistRepository ?: return@launch
-            if (repo.isInSavedShorts(video.id)) {
-                repo.removeFromSavedShorts(video.id)
+            val video = short.toVideo()
+            if (playlistRepository.isInSavedShorts(video.id)) {
+                playlistRepository.removeFromSavedShorts(video.id)
             } else {
-                repo.addToSavedShorts(video)
+                playlistRepository.addToSavedShorts(video)
             }
         }
     }
-
-    suspend fun isShortSaved(videoId: String): Boolean {
-        return playlistRepository?.isInSavedShorts(videoId) ?: false
-    }
-
-    /**
-     *  PERFORMANCE OPTIMIZED: Load comments with timeout
-     */
+    
+    // COMMENTS
     fun loadComments(videoId: String) {
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             _isLoadingComments.value = true
@@ -294,7 +345,7 @@ class ShortsViewModel(
                 } ?: emptyList()
                 _commentsState.value = comments
             } catch (e: Exception) {
-                Log.e("ShortsViewModel", "Error loading comments", e)
+                Log.e(TAG, "Error loading comments", e)
             } finally {
                 _isLoadingComments.value = false
             }
@@ -302,12 +353,12 @@ class ShortsViewModel(
     }
 
     fun loadCommentReplies(comment: com.flow.youtube.data.model.Comment) {
-        val currentVideo = _uiState.value.shorts.getOrNull(_uiState.value.currentIndex) ?: return
+        val currentShort = _uiState.value.shorts.getOrNull(_uiState.value.currentIndex) ?: return
         val repliesPage = comment.repliesPage ?: return
         
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
-                val url = "https://www.youtube.com/watch?v=${currentVideo.id}"
+                val url = "https://www.youtube.com/watch?v=${currentShort.id}"
                 val (replies, nextPage) = repository.getCommentReplies(url, repliesPage)
                 
                 _commentsState.value = _commentsState.value.map { c ->
@@ -319,19 +370,27 @@ class ShortsViewModel(
                     } else c
                 }
             } catch (e: Exception) {
-                Log.e("ShortsViewModel", "Error loading replies", e)
+                Log.e(TAG, "Error loading replies", e)
             }
         }
     }
+    
+    companion object {
+        private const val TAG = "ShortsViewModel"
+    }
 }
 
+/**
+ * UI state for the Shorts screen.
+ * Uses [ShortVideo] instead of generic [Video] for Shorts-specific data.
+ */
 data class ShortsUiState(
-    val shorts: List<Video> = emptyList(),
+    val shorts: List<ShortVideo> = emptyList(),
     val currentIndex: Int = 0,
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val hasMorePages: Boolean = true,
-    val nextPage: org.schabi.newpipe.extractor.Page? = null,
+    val continuation: String? = null, 
+    val newPipePage: org.schabi.newpipe.extractor.Page? = null,
     val error: String? = null
 )
-

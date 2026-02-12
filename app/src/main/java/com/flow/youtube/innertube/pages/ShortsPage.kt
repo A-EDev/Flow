@@ -13,7 +13,9 @@ data class ShortsItem(
     val thumbnail: String,
     val channelName: String,
     val channelId: String?,
+    val channelThumbnailUrl: String?,
     val viewCountText: String?,
+    val likeCountText: String?,
     val params: String?,
     val playerParams: String?,
     val sequenceParams: String?
@@ -24,21 +26,48 @@ fun ReelWatchSequenceResponse.toShortsPage(): ShortsPage {
         val endpoint = entry.command?.reelWatchEndpoint ?: return@mapNotNull null
         val overlay = endpoint.overlay?.reelPlayerOverlayRenderer
         val metadata = overlay?.reelMetadata?.reelMetadataRenderer
+        val header = overlay?.reelPlayerHeaderSupportedRenderers?.reelPlayerHeaderRenderer
+        val videoId = endpoint.videoId ?: return@mapNotNull null
+        
+        val title = header?.reelTitleOnExpandedStateRenderer?.dynamicTextContent?.text?.takeIf { it.isNotBlank() }
+            ?: header?.reelTitleOnExpandedStateRenderer?.simpleTitleText?.text?.takeIf { it.isNotBlank() }
+            ?: overlay?.reelTitleText?.text?.takeIf { it.isNotBlank() }
+        
+        val channelName = header?.channelTitleText?.text?.takeIf { it.isNotBlank() }
+            ?: metadata?.channelTitle?.text?.takeIf { it.isNotBlank() }
+        
+        val channelId = header?.channelNavigationEndpoint?.browseEndpoint?.browseId
+            ?: metadata?.channelNavigationEndpoint?.browseEndpoint?.browseId
+            ?: endpoint.navigationEndpoint?.browseEndpoint?.browseId
+            ?: header?.channelTitleText?.runs?.firstOrNull()?.navigationEndpoint?.browseEndpoint?.browseId
+            ?: metadata?.channelTitle?.runs?.firstOrNull()?.navigationEndpoint?.browseEndpoint?.browseId
+        
+        val thumbnail = "https://i.ytimg.com/vi/$videoId/oar2.jpg"
+        
+        val channelThumbnail = header?.channelThumbnail?.thumbnails?.firstOrNull()?.url
+            ?: metadata?.channelThumbnail?.thumbnails?.firstOrNull()?.url
+        
+        val likeCountText = overlay?.likeButton?.toggleButtonRenderer?.defaultText?.text
+        
+        val viewCountText = overlay?.viewCountText?.text
+            ?: metadata?.viewCountText?.text
         
         ShortsItem(
-            id = endpoint.videoId ?: return@mapNotNull null,
-            title = overlay?.reelTitleText?.text ?: "Short",
-            thumbnail = "", // Thumbnails are usually fetched via other means or constructed strings, or sometimes not in this response overlay
-            channelName = metadata?.channelTitle?.text ?: "Unknown",
-            channelId = null, // Might need to extract from runs command
-            viewCountText = metadata?.viewCountText?.text,
+            id = videoId,
+            title = title ?: "Short",
+            thumbnail = thumbnail,
+            channelName = channelName ?: "Unknown",
+            channelId = channelId,
+            channelThumbnailUrl = channelThumbnail,
+            viewCountText = viewCountText,
+            likeCountText = likeCountText,
             params = endpoint.params,
             playerParams = endpoint.playerParams,
             sequenceParams = endpoint.sequenceParams
         )
     } ?: emptyList()
     
-    // Extract continuation if needed (often encoded in the response differently)
-    // For now we might just reuse sequenceParams from the last item or specific continuation
-    return ShortsPage(items, null) // Needs proper continuation logic
+    val continuation = extractContinuation()
+    
+    return ShortsPage(items, continuation)
 }

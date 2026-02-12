@@ -1164,11 +1164,45 @@ object YouTube {
 
     const val MAX_GET_QUEUE_SIZE = 1000
 
-    suspend fun shorts(sequenceParams: String? = null): ShortsPage? {
-        return innerTube.reel(
+    suspend fun shorts(sequenceParams: String? = null): Result<ShortsPage> = runCatching {
+        innerTube.reel(
             client = YouTubeClient.ANDROID,
             sequenceParams = sequenceParams ?: "CA8%3D"
-        )?.toShortsPage()
+        ).toShortsPage()
+    }
+
+    /**
+     * Fetch a Shorts reel sequence starting from a specific video.
+     * Uses 'params' to seed the sequence from a particular video ID.
+     */
+    suspend fun shortsFromVideo(videoId: String): Result<ShortsPage> = runCatching {
+        val seedParams = buildShortsParams(videoId)
+        innerTube.reel(
+            client = YouTubeClient.ANDROID,
+            params = seedParams,
+            sequenceParams = null
+        ).toShortsPage()
+    }
+
+    /**
+     * Resolve stream URLs for a Short using the ANDROID client.
+     * The ANDROID client is required for Shorts-compatible stream formats.
+     */
+    suspend fun shortsPlayer(videoId: String): Result<PlayerResponse> = runCatching {
+        innerTube.player(
+            client = YouTubeClient.ANDROID,
+            videoId = videoId,
+            playlistId = null,
+            signatureTimestamp = null
+        ).body<PlayerResponse>()
+    }
+
+    /**
+     * Build InnerTube params string for seeding a reel sequence from a video ID.
+     */
+    private fun buildShortsParams(videoId: String): String {
+        val bytes = byteArrayOf(0x12) + videoId.length.toByte() + videoId.toByteArray(Charsets.UTF_8)
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     }
     
     fun getNewPipeStreamUrls(videoId: String): List<Pair<Int, String>> {

@@ -448,6 +448,7 @@
     <string name="btn_back">Back</string>
     <string name="btn_close">Close</string>
     <!-- Shorts Screen -->
+    <string name="loading_shorts">Loading shorts…</string>
     <string name="error_short_load">An error occurred</string>
     <string name="share_short_template">Check out this short: https://youtu.be/%1$s</string>
     <string name="speed_2x">2x Speed</string>

@@ -448,6 +448,7 @@
     <string name="btn_back">Retour</string>
     <string name="btn_close">Fermer</string>
     <!-- Écran des Shorts -->
+    <string name="loading_shorts">Chargement des shorts…</string>
     <string name="error_short_load">Une erreur est survenue</string>
     <string name="share_short_template">Découvrez ce short : https://youtu.be/%1$s</string>
     <string name="speed_2x">Vitesse 2x</string>

@@ -843,12 +843,20 @@ object FlowNeuroEngine {
     suspend fun onVideoInteraction(context: Context, video: Video, interactionType: InteractionType, percentWatched: Float = 0f) {
         val videoVector = extractFeatures(video)
         
-        val learningRate = when (interactionType) {
+        var learningRate = when (interactionType) {
             InteractionType.CLICK -> 0.10
             InteractionType.LIKED -> 0.30
             InteractionType.WATCHED -> 0.15 * percentWatched
             InteractionType.SKIPPED -> -0.15
             InteractionType.DISLIKED -> -0.40
+        }
+
+        // --- SHORTS PENALTY ---
+        // Reduce the learning impact of shorts to 1% of normal.
+        // Shorts are consumed rapidly and often impulsively (dopamine loop), 
+        // so they shouldn't skew the user's "deep" usage personality too much.
+        if (video.isShort) {
+            learningRate *= 0.01
         }
 
         brainMutex.withLock {

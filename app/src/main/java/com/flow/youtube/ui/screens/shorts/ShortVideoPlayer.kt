@@ -6,8 +6,10 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -24,64 +26,73 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
+import com.flow.youtube.R
 import com.flow.youtube.data.model.Video
+import com.flow.youtube.data.model.toShortVideo
 import com.flow.youtube.player.EnhancedMusicPlayerManager
-import com.flow.youtube.player.EnhancedPlayerManager
-import com.flow.youtube.player.RepeatMode
+import com.flow.youtube.player.shorts.ShortsPlayerPool
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun ShortVideoPlayer(
+fun ShortVideoPage(
     video: Video,
-    isVisible: Boolean,
-    onBack: () -> Unit,
-    onChannelClick: (String) -> Unit,
-    onLikeClick: () -> Unit,
-    onSubscribeClick: () -> Unit,
-    onCommentsClick: () -> Unit,
-    onShareClick: () -> Unit,
-    onDescriptionClick: () -> Unit,
+    isActive: Boolean,
+    pageIndex: Int,
     viewModel: ShortsViewModel,
+    onBack: () -> Unit,
+    onChannelClick: () -> Unit,
+    onCommentsClick: () -> Unit,
+    onDescriptionClick: () -> Unit,
+    onShareClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val playerManager = remember { EnhancedPlayerManager.getInstance() }
-    
+    val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    val playerPool = remember { ShortsPlayerPool.getInstance() }
+
+    // Dynamic colors
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
+
+    // ── State from ViewModel (single source of truth) ──
+    val isLikedState = remember(video.id) { viewModel.isVideoLikedState(video.id) }
+    val isLiked by isLikedState.collectAsState()
+
+    val isSubscribedState = remember(video.channelId) { viewModel.isChannelSubscribedState(video.channelId) }
+    val isSubscribed by isSubscribedState.collectAsState()
+
+    val isSavedState = remember(video.id) { viewModel.isShortSavedState(video.id) }
+    val isSaved by isSavedState.collectAsState()
+
+    // ── Local UI-only state ──
     var isPlaying by remember { mutableStateOf(false) }
-    var showControls by remember { mutableStateOf(true) }
-    var isLiked by remember { mutableStateOf(false) }
-    var isSubscribed by remember { mutableStateOf(false) }
-    var isSaved by remember { mutableStateOf(false) }
-    var showLikeAnimation by remember { mutableStateOf(false) }
     var currentPosition by remember { mutableStateOf(0L) }
     var duration by remember { mutableStateOf(0L) }
     var isBuffering by remember { mutableStateOf(false) }
-    var showDescription by remember { mutableStateOf(false) }
+    var showPauseIndicator by remember { mutableStateOf(false) }
+    var showLikeAnimation by remember { mutableStateOf(false) }
     var isFastForwarding by remember { mutableStateOf(false) }
-    
-    // Dynamic Colors from Theme
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
-    
-    // Load like, subscribe and saved states
-    LaunchedEffect(video.id) {
-        isLiked = viewModel.isVideoLiked(video.id)
-        isSubscribed = viewModel.isChannelSubscribed(video.channelId)
-        isSaved = viewModel.isShortSaved(video.id)
-    }
-    
-    // Video player instance
+    var hasStartedPlaying by remember { mutableStateOf(false) }
+    var isDragging by remember { mutableStateOf(false) }
+    var dragProgress by remember { mutableStateOf(0f) }
+
+    // ── PlayerView instance ──
     val playerView = remember(video.id) {
         PlayerView(context).apply {
             useController = false
@@ -89,89 +100,62 @@ fun ShortVideoPlayer(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
-            setShowBuffering(PlayerView.SHOW_BUFFERING_ALWAYS)
+            setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
+            setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
+            keepScreenOn = true
         }
     }
 
-    // Initialize player and handle playback when visibility changes
-    LaunchedEffect(isVisible) {
-        if (isVisible) {
-            playerManager.initialize(context)
+    // ── Initialize player pool and handle playback when visibility changes ──
+    LaunchedEffect(isActive, video.id) {
+        if (isActive) {
+            playerPool.initialize(context)
             EnhancedMusicPlayerManager.pause()
-            
-            playerView.player = playerManager.getPlayer()
-            (playerView.videoSurfaceView as? android.view.SurfaceView)?.holder?.let { holder ->
-                if (holder.surface?.isValid == true) {
-                    playerManager.attachVideoSurface(holder)
-                }
-            }
-            
-            // Fetch streams for the short
-            try {
-                val streamInfo = viewModel.getVideoStreamInfo(video.id)
-                if (streamInfo != null && isVisible) {
-                    val videoStream = streamInfo.videoStreams?.firstOrNull { it.height >= 720 } 
-                                     ?: streamInfo.videoStreams?.firstOrNull()
-                                     ?: streamInfo.videoOnlyStreams?.firstOrNull()
-                    
-                    val audioStream = streamInfo.audioStreams?.maxByOrNull { it.averageBitrate }
-                    
-                    if (audioStream != null) {
-                        playerManager.setStreams(
-                            videoId = video.id,
-                            videoStream = videoStream,
-                            audioStream = audioStream,
-                            videoStreams = (streamInfo.videoStreams ?: emptyList()) + (streamInfo.videoOnlyStreams ?: emptyList()),
-                            audioStreams = streamInfo.audioStreams ?: emptyList(),
-                            subtitles = streamInfo.subtitles ?: emptyList(),
-                            durationSeconds = streamInfo.duration
-                        )
-                        if (isVisible) {
-                            playerManager.play()
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("ShortVideoPlayer", "Error loading short streams", e)
-            }
-            
-            // Progress tracker
-            while(true) {
-                currentPosition = playerManager.getCurrentPosition()
-                duration = playerManager.getDuration()
-                isBuffering = playerManager.getPlayer()?.playbackState == androidx.media3.common.Player.STATE_BUFFERING
-                
-                // Sync isPlaying state with actual player state
-                if (isVisible) {
-                    val playerIsPlaying = playerManager.isPlaying()
-                    if (isPlaying != playerIsPlaying) {
-                        isPlaying = playerIsPlaying
-                    }
-                }
-                
-                // Ensure looping is enabled
-                if (playerManager.getPlayer()?.repeatMode != androidx.media3.common.Player.REPEAT_MODE_ONE) {
-                    playerManager.getPlayer()?.repeatMode = androidx.media3.common.Player.REPEAT_MODE_ONE
-                }
-                
-                delay(100)
+
+            val player = playerPool.getPlayerForIndex(pageIndex)
+            playerView.player = player
+
+            if (player != null && player.isPlaying) {
+                hasStartedPlaying = true
             }
         } else {
-            if (playerManager.playerState.value.currentVideoId == video.id) {
-                playerManager.pause()
-            }
             playerView.player = null
         }
     }
-    
-    // Auto-hide controls after showing them
-    LaunchedEffect(showControls) {
-        if (showControls) {
-            delay(2500) // Show controls for 2.5 seconds
-            showControls = false
+
+    // ── Efficient progress tracker: 250ms interval, only while active ──
+    LaunchedEffect(isActive) {
+        if (isActive) {
+            while (true) {
+                val p = playerPool.getPlayerForIndex(pageIndex)
+                if (p != null) {
+                    currentPosition = p.currentPosition
+                    duration = p.duration.coerceAtLeast(0)
+                    isBuffering = p.playbackState == androidx.media3.common.Player.STATE_BUFFERING
+                    
+                    val playerIsPlaying = p.isPlaying
+                    if (isPlaying != playerIsPlaying) {
+                        isPlaying = playerIsPlaying
+                    }
+                    
+                    if (playerIsPlaying && !hasStartedPlaying) {
+                        hasStartedPlaying = true
+                    }
+                }
+                delay(250)
+            }
         }
     }
-    
+
+    // ── Pause indicator auto-hide ──
+    LaunchedEffect(showPauseIndicator) {
+        if (showPauseIndicator) {
+            delay(600)
+            showPauseIndicator = false
+        }
+    }
+
+    // ── Main Layout ──
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -179,20 +163,15 @@ fun ShortVideoPlayer(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onTap = {
-                        // Toggle play/pause on tap
-                        if (isPlaying) {
-                            playerManager.pause()
-                        } else {
-                            playerManager.play()
-                        }
-                        // Show controls briefly to indicate the action
-                        showControls = true
+                        playerPool.togglePlayPause()
+                        showPauseIndicator = true
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     },
                     onDoubleTap = {
                         if (!isLiked) {
-                            onLikeClick()
-                            isLiked = true
+                            scope.launch { viewModel.toggleLike(video.toShortVideo()) }
                             showLikeAnimation = true
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         }
                     },
                     onPress = {
@@ -201,47 +180,49 @@ fun ShortVideoPlayer(
                         } finally {
                             if (isFastForwarding) {
                                 isFastForwarding = false
-                                playerManager.setPlaybackSpeed(1.0f)
+                                playerPool.resetPlaybackSpeed()
                             }
                         }
                     },
                     onLongPress = {
                         isFastForwarding = true
-                        playerManager.setPlaybackSpeed(2.0f)
+                        playerPool.setPlaybackSpeed(2.0f)
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
                 )
             }
     ) {
-        DisposableEffect(playerView, isVisible) {
-            val surfaceView = playerView.videoSurfaceView as? android.view.SurfaceView
-            val callback = object : SurfaceHolder.Callback {
-                override fun surfaceCreated(holder: SurfaceHolder) {
-                    if (isVisible) {
-                        playerManager.attachVideoSurface(holder)
-                    }
-                }
-                override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
-                override fun surfaceDestroyed(holder: SurfaceHolder) {}
-            }
-            surfaceView?.holder?.addCallback(callback)
-            onDispose {
-                surfaceView?.holder?.removeCallback(callback)
-                if (isVisible) playerView.player = null
-            }
-        }
-        
         AndroidView(
             factory = { playerView },
             modifier = Modifier.fillMaxSize()
         )
 
-        // 2x Speed Indicator
-        if (isFastForwarding) {
+        // ── Thumbnail placeholder until video starts ──
+        AnimatedVisibility(
+            visible = !hasStartedPlaying && !isBuffering,
+            enter = fadeIn(),
+            exit = fadeOut(animationSpec = tween(300))
+        ) {
+            AsyncImage(
+                model = video.thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        // ── 2x Speed Indicator ──
+        AnimatedVisibility(
+            visible = isFastForwarding,
+            enter = slideInVertically { -it } + fadeIn(),
+            exit = slideOutVertically { -it } + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 80.dp)
+        ) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 80.dp)
-                    .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                    .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(20.dp))
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -253,7 +234,7 @@ fun ShortVideoPlayer(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.speed_2x),
+                        text = stringResource(R.string.speed_2x),
                         color = Color.White,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
@@ -261,24 +242,53 @@ fun ShortVideoPlayer(
                 }
             }
         }
-        
+
+        // ── Buffering Indicator ──
         if (isBuffering) {
             CircularProgressIndicator(
-                modifier = Modifier.align(Alignment.Center),
-                color = primaryColor
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(44.dp),
+                color = primaryColor,
+                strokeWidth = 3.dp
             )
         }
-        
-        // Like Animation
+
+        // ── Center Pause/Play Indicator (appears briefly on tap) ──
+        AnimatedVisibility(
+            visible = showPauseIndicator && !isBuffering,
+            enter = scaleIn(initialScale = 0.6f, animationSpec = tween(150)) + fadeIn(animationSpec = tween(100)),
+            exit = scaleOut(targetScale = 1.2f, animationSpec = tween(300)) + fadeOut(animationSpec = tween(300)),
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .background(Color.Black.copy(alpha = 0.45f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.PlayArrow else Icons.Default.Pause,
+                    contentDescription = if (isPlaying) stringResource(R.string.cd_play) else stringResource(R.string.cd_pause),
+                    tint = Color.White,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+        }
+
+        // ── Like Animation (double-tap heart) ──
         AnimatedVisibility(
             visible = showLikeAnimation,
-            enter = scaleIn(initialScale = 0.5f, animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)) + fadeIn(),
-            exit = scaleOut() + fadeOut(),
+            enter = scaleIn(
+                initialScale = 0.3f,
+                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy)
+            ) + fadeIn(),
+            exit = scaleOut(targetScale = 1.4f, animationSpec = tween(400)) + fadeOut(animationSpec = tween(400)),
             modifier = Modifier.align(Alignment.Center)
         ) {
             Icon(
                 imageVector = Icons.Default.Favorite,
-                contentDescription = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.cd_liked),
+                contentDescription = stringResource(R.string.cd_liked),
                 tint = Color.Red,
                 modifier = Modifier.size(120.dp)
             )
@@ -287,49 +297,38 @@ fun ShortVideoPlayer(
                 showLikeAnimation = false
             }
         }
-        
-        // Overlays
+
+        // ── Gradient Overlays ──
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(160.dp)
+                .height(120.dp)
                 .align(Alignment.TopCenter)
-                .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.6f), Color.Transparent)))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.Black.copy(alpha = 0.5f),
+                            Color.Transparent
+                        )
+                    )
+                )
         )
-        
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(320.dp)
+                .height(350.dp)
                 .align(Alignment.BottomCenter)
-                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.9f))))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.85f)
+                        )
+                    )
+                )
         )
-        
-        // Top Controls
-        AnimatedVisibility(
-            visible = showControls,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier.align(Alignment.TopCenter)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                    .statusBarsPadding(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Default.ArrowBack, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.btn_back), tint = Color.White)
-                }
-                IconButton(onClick = { /* Search */ }) {
-                    Icon(Icons.Default.Search, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_search), tint = Color.White)
-                }
-            }
-        }
-        
-        // Bottom Info & Actions
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -338,14 +337,22 @@ fun ShortVideoPlayer(
                 .navigationBarsPadding(),
             verticalAlignment = Alignment.Bottom
         ) {
-            // Left Side: Info
-            Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
-                // Channel Info
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { onChannelClick(video.channelId) }) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable(onClick = onChannelClick)
+                ) {
                     AsyncImage(
                         model = video.channelThumbnailUrl,
                         contentDescription = null,
-                        modifier = Modifier.size(36.dp).clip(CircleShape).background(Color.Gray),
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(Color.Gray),
                         contentScale = ContentScale.Crop
                     )
                     Spacer(modifier = Modifier.width(8.dp))
@@ -353,133 +360,296 @@ fun ShortVideoPlayer(
                         text = video.channelName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    
+
                     if (!isSubscribed) {
                         Button(
-                            onClick = { onSubscribeClick(); isSubscribed = true },
-                            colors = ButtonDefaults.buttonColors(containerColor = primaryColor, contentColor = onPrimaryColor),
+                            onClick = {
+                                scope.launch {
+                                    viewModel.toggleSubscription(
+                                        video.channelId,
+                                        video.channelName,
+                                        video.channelThumbnailUrl
+                                    )
+                                }
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = primaryColor,
+                                contentColor = onPrimaryColor
+                            ),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
                             modifier = Modifier.height(32.dp)
                         ) {
-                            Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_subscribe), style = MaterialTheme.typography.labelSmall)
+                            Text(
+                                stringResource(R.string.action_subscribe),
+                                style = MaterialTheme.typography.labelSmall
+                            )
                         }
                     }
                 }
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
-                
-                // Description
+
                 Text(
                     text = video.title,
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color.White,
-                    maxLines = if (showDescription) Int.MAX_VALUE else 2,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.clickable { showDescription = !showDescription }
+                    modifier = Modifier.clickable(onClick = onDescriptionClick)
                 )
-                
-                if (showDescription) {
-                    Spacer(modifier = Modifier.height(8.dp))
+
+                if (video.viewCount > 0) {
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${formatViewCount(video.viewCount)} views • ${video.uploadDate}",
+                        text = "${formatViewCount(video.viewCount)} views",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.7f)
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
-                
-                // Music/Sound Info
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.MusicNote, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                    val infiniteTransition = rememberInfiniteTransition(label = "disc_spin")
+                    val rotation by infiniteTransition.animateFloat(
+                        initialValue = 0f,
+                        targetValue = 360f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(3000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
+                        ),
+                        label = "disc_rotation"
+                    )
+
+                    Icon(
+                        Icons.Default.MusicNote,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.shorts_original_sound, video.channelName),
+                        text = stringResource(R.string.shorts_original_sound, video.channelName),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
-            
-            // Right Side: Actions
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                ActionButton(
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                ShortsActionButton(
                     icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_like),
+                    text = video.toShortVideo().likeCountText.takeIf { it.isNotBlank() } ?: stringResource(R.string.action_like),
                     tint = if (isLiked) Color.Red else Color.White,
-                    onClick = { onLikeClick(); isLiked = !isLiked }
-                )
-                ActionButton(icon = Icons.Default.ThumbDown, text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_dislike), onClick = {})
-                ActionButton(icon = Icons.Default.Comment, text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_comments), onClick = onCommentsClick)
-                
-                // Save Button
-                ActionButton(
-                    icon = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                    text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_save),
-                    tint = if (isSaved) primaryColor else Color.White,
-                    onClick = { 
-                        isSaved = !isSaved
-                        viewModel.toggleSaveShort(video)
+                    onClick = {
+                        scope.launch { viewModel.toggleLike(video.toShortVideo()) }
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     }
                 )
-                
-                ActionButton(icon = Icons.Default.Share, text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_share), onClick = onShareClick)
-                ActionButton(icon = Icons.Default.Description, text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.action_description), onClick = onDescriptionClick)
-                
-                // Album Art / Sound Spinner
+
+                ShortsActionButton(
+                    icon = Icons.Default.ThumbDown,
+                    text = stringResource(R.string.action_dislike),
+                    onClick = {}
+                )
+
+                ShortsActionButton(
+                    icon = Icons.Default.Comment,
+                    text = stringResource(R.string.action_comments),
+                    onClick = onCommentsClick
+                )
+
+                ShortsActionButton(
+                    icon = if (isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                    text = stringResource(R.string.action_save),
+                    tint = if (isSaved) primaryColor else Color.White,
+                    onClick = {
+                        viewModel.toggleSaveShort(video.toShortVideo())
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
+                )
+
+                ShortsActionButton(
+                    icon = Icons.Default.Share,
+                    text = stringResource(R.string.action_share),
+                    onClick = onShareClick
+                )
+
+                val infiniteTransition = rememberInfiniteTransition(label = "album_spin")
+                val albumRotation by infiniteTransition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = 360f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(4000, easing = LinearEasing),
+                        repeatMode = RepeatMode.Restart
+                    ),
+                    label = "album_rotation"
+                )
+
                 Box(
                     modifier = Modifier
                         .size(40.dp)
                         .background(Color.DarkGray, CircleShape)
-                        .padding(6.dp)
+                        .padding(4.dp)
                 ) {
                     AsyncImage(
                         model = video.channelThumbnailUrl,
                         contentDescription = null,
-                        modifier = Modifier.fillMaxSize().clip(CircleShape)
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .then(
+                                if (isPlaying) Modifier.graphicsLayer { rotationZ = albumRotation }
+                                else Modifier
+                            ),
+                        contentScale = ContentScale.Crop
                     )
                 }
             }
         }
-        
-        // Progress Bar
+
+        // ── Scrubbable Progress Bar ──
         if (duration > 0) {
-            LinearProgressIndicator(
-                progress = (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f),
-                modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).height(2.dp),
-                color = primaryColor,
-                trackColor = Color.White.copy(alpha = 0.3f),
-            )
-        }
-        
-        // Center play/pause button
-        AnimatedVisibility(
-            visible = showControls && !isBuffering,
-            enter = scaleIn() + fadeIn(),
-            exit = scaleOut() + fadeOut(),
-            modifier = Modifier.align(Alignment.Center)
-        ) {
-            IconButton(
-                onClick = {
-                    // Keep controls visible when button is tapped
-                    showControls = true
-                },
+            val progress = if (isDragging) dragProgress else (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+            
+            BoxWithConstraints(
                 modifier = Modifier
-                    .size(80.dp)
-                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .height(20.dp) 
+                    .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { /* Consumes clicks to prevent pausing */ }
             ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = if (isPlaying) androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.cd_pause) else androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.cd_play),
-                    tint = Color.White,
-                    modifier = Modifier.size(48.dp)
-                )
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(Unit) {
+                            detectHorizontalDragGestures(
+                                onDragStart = { offset ->
+                                    isDragging = true
+                                    dragProgress = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                                },
+                                onDragEnd = {
+                                    isDragging = false
+                                    playerPool.seekTo((dragProgress * duration).toLong())
+                                },
+                                onDragCancel = { isDragging = false },
+                                onHorizontalDrag = { change, _ ->
+                                    dragProgress = (change.position.x / size.width.toFloat()).coerceIn(0f, 1f)
+                                }
+                            )
+                        }
+                        .pointerInput(Unit) {
+                            detectTapGestures { offset ->
+                                val newProgress = (offset.x / size.width.toFloat()).coerceIn(0f, 1f)
+                                playerPool.seekTo((newProgress * duration).toLong())
+                            }
+                        }
+                ) {
+                    val barHeight = 2.dp.toPx()
+                    val activeHeight = if (isDragging) 4.dp.toPx() else 2.dp.toPx()
+                    val y = size.height - barHeight
+                    
+                    drawRect(
+                        color = Color.White.copy(alpha = 0.3f),
+                        topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - barHeight),
+                        size = androidx.compose.ui.geometry.Size(size.width, barHeight)
+                    )
+                    
+                    drawRect(
+                        color = primaryColor,
+                        topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - activeHeight),
+                        size = androidx.compose.ui.geometry.Size(size.width * progress, activeHeight)
+                    )
+                    
+                    if (isDragging) {
+                        drawCircle(
+                            color = primaryColor,
+                            radius = 6.dp.toPx(),
+                            center = androidx.compose.ui.geometry.Offset(size.width * progress, size.height - activeHeight / 2)
+                        )
+                    }
+                }
             }
         }
+    }
+}
+
+@Composable
+fun ShortVideoPlayer(
+    video: Video,
+    isVisible: Boolean,
+    pageIndex: Int = 0,
+    onBack: () -> Unit,
+    onChannelClick: (String) -> Unit,
+    onLikeClick: () -> Unit,
+    onSubscribeClick: () -> Unit,
+    onCommentsClick: () -> Unit,
+    onShareClick: () -> Unit,
+    onDescriptionClick: () -> Unit,
+    viewModel: ShortsViewModel,
+    modifier: Modifier = Modifier
+) {
+    ShortVideoPage(
+        video = video,
+        isActive = isVisible,
+        pageIndex = pageIndex,
+        viewModel = viewModel,
+        onBack = onBack,
+        onChannelClick = { onChannelClick(video.channelId) },
+        onCommentsClick = onCommentsClick,
+        onDescriptionClick = onDescriptionClick,
+        onShareClick = onShareClick,
+        modifier = modifier
+    )
+}
+
+// Reusable Components
+@Composable
+fun ShortsActionButton(
+    icon: ImageVector,
+    text: String,
+    tint: Color = Color.White,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.clickable(
+            interactionSource = remember { MutableInteractionSource() },
+            indication = null, 
+            onClick = onClick
+        )
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = text,
+            tint = tint,
+            modifier = Modifier.size(26.dp)
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall.copy(
+                shadow = androidx.compose.ui.graphics.Shadow(
+                    color = Color.Black,
+                    blurRadius = 4f
+                )
+            ),
+            color = Color.White,
+            fontWeight = FontWeight.Medium
+        )
     }
 }
 
@@ -491,23 +661,7 @@ fun ActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier.clickable(onClick = onClick)) {
-        Icon(
-            imageVector = icon,
-            contentDescription = text,
-            tint = tint,
-            modifier = Modifier.size(32.dp)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall.copy(
-                shadow = androidx.compose.ui.graphics.Shadow(color = Color.Black, blurRadius = 4f)
-            ),
-            color = Color.White,
-            fontWeight = FontWeight.Medium
-        )
-    }
+    ShortsActionButton(icon = icon, text = text, tint = tint, onClick = onClick, modifier = modifier)
 }
 
 fun formatViewCount(count: Long): String {

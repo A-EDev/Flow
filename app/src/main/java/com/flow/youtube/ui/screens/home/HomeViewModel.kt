@@ -7,6 +7,7 @@ import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import com.flow.youtube.data.local.SubscriptionRepository
 import com.flow.youtube.data.local.ViewHistory
 import com.flow.youtube.data.model.Video
+import com.flow.youtube.data.model.toVideo
 import com.flow.youtube.data.repository.YouTubeRepository
 import com.flow.youtube.data.shorts.ShortsRepository
 import com.flow.youtube.utils.PerformanceDispatcher
@@ -69,7 +70,7 @@ class HomeViewModel @Inject constructor(
     private fun loadHomeShorts() {
         viewModelScope.launch {
             try {
-                val shorts = shortsRepository.getHomeFeedShorts()
+                val shorts = shortsRepository.getHomeFeedShorts().map { it.toVideo() }
                 if (shorts.isNotEmpty()) {
                     _uiState.update { it.copy(shorts = shorts) }
                 }
@@ -113,7 +114,6 @@ class HomeViewModel @Inject constructor(
                         if (userSubs.isNotEmpty()) {
                             runCatching { 
                                 repository.getSubscriptionFeed(userSubs.toList())
-                                    .filterValid()
                             }.getOrElse { emptyList() }
                         } else emptyList()
                     }
@@ -123,7 +123,7 @@ class HomeViewModel @Inject constructor(
                         queries.map { query ->
                             async { 
                                 runCatching { 
-                                    repository.searchVideos(query).first.filterValid()
+                                    repository.searchVideos(query).first
                                 }.getOrElse { emptyList() }
                             }
                         }.awaitAll().flatten()
@@ -131,7 +131,7 @@ class HomeViewModel @Inject constructor(
                     
                     val deferredViral = async {
                         runCatching {
-                             repository.getTrendingVideos(region).first.filterValid()
+                             repository.getTrendingVideos(region).first
                         }.getOrElse { emptyList() }
                     }
 
@@ -140,7 +140,21 @@ class HomeViewModel @Inject constructor(
                 
                 currentQueryIndex = 3
                 
-                val (subsPool, discoveryPool, viralPool) = results
+                val (rawSubs, rawDiscovery, rawViral) = results
+                
+                // Extract shorts from all sources for the shelf
+                val feedShorts = (rawSubs.extractShorts() + rawDiscovery.extractShorts() + rawViral.extractShorts())
+                    .distinctBy { it.id }
+                if (feedShorts.isNotEmpty()) {
+                    _uiState.update { state ->
+                        state.copy(shorts = (state.shorts + feedShorts).distinctBy { it.id })
+                    }
+                }
+                
+                // Filter to regular videos for the main feed
+                val subsPool = rawSubs.filterValid()
+                val discoveryPool = rawDiscovery.filterValid()
+                val viralPool = rawViral.filterValid()
                 
                 val bestSubs = FlowNeuroEngine.rank(subsPool, userSubs).take(10)
                 val bestDiscovery = FlowNeuroEngine.rank(discoveryPool, userSubs)
@@ -214,13 +228,23 @@ class HomeViewModel @Inject constructor(
                 
                 val finalQueries = if (searchQueries.isEmpty()) listOf("Viral") else searchQueries
 
-                val newVideos = finalQueries.map { q ->
+                val rawVideos = finalQueries.map { q ->
                    async { 
                        runCatching {
-                           repository.searchVideos(q).first.filterValid()
+                           repository.searchVideos(q).first
                        }.getOrElse { emptyList() }
                    }
                 }.awaitAll().flatten()
+                
+                // Extract shorts for shelf
+                val moreShorts = rawVideos.extractShorts()
+                if (moreShorts.isNotEmpty()) {
+                    _uiState.update { state ->
+                        state.copy(shorts = (state.shorts + moreShorts).distinctBy { it.id })
+                    }
+                }
+                
+                val newVideos = rawVideos.filterValid()
 
                 
                 if (newVideos.isNotEmpty()) {
@@ -315,8 +339,20 @@ class HomeViewModel @Inject constructor(
     
     private fun List<Video>.filterValid(): List<Video> {
         return this.filter { 
+            // Keep regular videos (>80s or live streams)
+            // Shorts are handled separately by loadHomeShorts()
             !it.isShort && 
             ((it.duration > 80) || (it.duration == 0 && it.isLive)) 
+        }
+    }
+    
+    /**
+     * Filter that extracts shorts from a video list for the shelf.
+     * Complements filterValid() by capturing what it discards.
+     */
+    private fun List<Video>.extractShorts(): List<Video> {
+        return this.filter { 
+            it.isShort || (it.duration in 1..80 && !it.isLive)
         }
     }
 }

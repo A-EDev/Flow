@@ -299,20 +299,22 @@ class InnerTube {
         params: String? = null,
         sequenceParams: String? = "CA8%3D", // Default for initial fetch
         setLogin: Boolean = false,
-    ) = httpClient.post("reel/reel_watch_sequence") {
-        ytClient(client, setLogin = setLogin)
-        setBody(
-            ReelBody(
-                context = client.toContext(
-                    locale,
-                    visitorData,
-                    if (setLogin) dataSyncId else null
-                ),
-                params = params,
-                sequenceParams = sequenceParams
+    ) = withRetry {
+        httpClient.post("reel/reel_watch_sequence") {
+            ytClient(client, setLogin = setLogin)
+            setBody(
+                ReelBody(
+                    context = client.toContext(
+                        locale,
+                        visitorData,
+                        if (setLogin) dataSyncId else null
+                    ),
+                    params = params,
+                    sequenceParams = sequenceParams
+                )
             )
-        )
-    }.body<ReelWatchSequenceResponse>()
+        }.body<ReelWatchSequenceResponse>()
+    }
 
     suspend fun next(
         client: YouTubeClient,
