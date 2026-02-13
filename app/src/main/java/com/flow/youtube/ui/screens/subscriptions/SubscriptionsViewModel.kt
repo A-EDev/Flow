@@ -64,7 +64,7 @@ class SubscriptionsViewModel : ViewModel() {
         }
         
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
-            subscriptionRepository.getAllSubscriptions().collect { subscriptions ->
+            subscriptionRepository.getAllSubscriptions().collectLatest { subscriptions ->
                 val channels = subscriptions.map { sub ->
                     Channel(
                         id = sub.channelId,
@@ -77,19 +77,14 @@ class SubscriptionsViewModel : ViewModel() {
                 _uiState.update { it.copy(subscribedChannels = channels) }
 
                 if (channels.isNotEmpty()) {
-                    
-                    supervisorScope {
-                        val targetChannels = channels.map { it.id }
-                        
-                        if (_uiState.value.recentVideos.isEmpty()) {
-                             _uiState.update { it.copy(isLoading = true) }
-                        }
-                        
-                        val videos = withTimeoutOrNull(60_000L) {
-                            ytRepository.getVideosForChannels(targetChannels, perChannelLimit = 3, totalLimit = 100)
-                        } ?: emptyList()
-                        
-                        // Cache the results
+                    if (_uiState.value.recentVideos.isEmpty()) {
+                        _uiState.update { it.copy(isLoading = true) }
+                    }
+
+                    com.flow.youtube.data.innertube.InnertubeSubscriptionService.fetchSubscriptionVideos(
+                        channelIds = channels.map { it.id },
+                        maxTotal = 200
+                    ).collect { videos ->
                         if (videos.isNotEmpty()) {
                             val entities = videos.map { video ->
                                 com.flow.youtube.data.local.entity.SubscriptionFeedEntity(
@@ -111,6 +106,8 @@ class SubscriptionsViewModel : ViewModel() {
                         }
                         _uiState.update { it.copy(isLoading = false) }
                     }
+                } else {
+                    _uiState.update { it.copy(isLoading = false) }
                 }
             }
         }
@@ -217,33 +214,33 @@ class SubscriptionsViewModel : ViewModel() {
             _uiState.update { it.copy(isLoading = true) }
             
             supervisorScope {
-                val targetChannels = channels.shuffled().take(30).map { it.id }
+                val targetChannels = channels.shuffled().take(40).map { it.id }
                 
-                val videos = withTimeoutOrNull(45_000L) {
-                    ytRepository.getVideosForChannels(targetChannels, perChannelLimit = 4, totalLimit = 80)
-                } ?: emptyList()
-                
-                if (videos.isNotEmpty()) {
-                    val entities = videos.map { video ->
-                        com.flow.youtube.data.local.entity.SubscriptionFeedEntity(
-                            videoId = video.id,
-                            title = video.title,
-                            channelName = video.channelName,
-                            channelId = video.channelId,
-                            thumbnailUrl = video.thumbnailUrl,
-                            duration = video.duration,
-                            viewCount = video.viewCount,
-                            uploadDate = video.uploadDate,
-                            channelThumbnailUrl = video.channelThumbnailUrl,
-                            cachedAt = System.currentTimeMillis()
-                        )
+                com.flow.youtube.data.innertube.InnertubeSubscriptionService.fetchSubscriptionVideos(
+                    channelIds = targetChannels, 
+                    maxTotal = 100
+                ).collect { videos ->
+                    if (videos.isNotEmpty()) {
+                        val entities = videos.map { video ->
+                            com.flow.youtube.data.local.entity.SubscriptionFeedEntity(
+                                videoId = video.id,
+                                title = video.title,
+                                channelName = video.channelName,
+                                channelId = video.channelId,
+                                thumbnailUrl = video.thumbnailUrl,
+                                duration = video.duration,
+                                viewCount = video.viewCount,
+                                uploadDate = video.uploadDate,
+                                channelThumbnailUrl = video.channelThumbnailUrl,
+                                cachedAt = System.currentTimeMillis()
+                            )
+                        }
+                        launch(PerformanceDispatcher.diskIO) {
+                            cacheDao.insertSubscriptionFeed(entities)
+                        }
                     }
-                    launch(PerformanceDispatcher.diskIO) {
-                        cacheDao.insertSubscriptionFeed(entities)
-                    }
+                    _uiState.update { it.copy(isLoading = false) }
                 }
-                
-                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }
