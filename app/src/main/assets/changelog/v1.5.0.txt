@@ -1,0 +1,28 @@
+FLOW CHANGE LOG
+VERSION: 1.5.0
+DATE: 2026-02-07
+
+NEW FEATURES
+- Flow Neuro Engine V6 Upgrade: Migrated to Jetpack DataStore for crash-safe storage, introduced lemma dictionary for word normalization, implemented cold-start popularity boost, added persona hysteresis for stable evaluations, enhanced cosine similarity with scalar features, improved diversity logic to prevent visual spam, added debounced disk writes, and updated schema for backward compatibility.
+- Parametric Equalizer: Added audio settings with playback speed, pitch, bass boost controls, EQ presets for music genres, BiquadFilter and CustomEqualizerAudioProcessor integration, and persistent user preferences.
+- Auto Brightness Support: Implemented gesture-based auto brightness adjustment for video player.
+- GitHub Actions CI/CD: Automated Android build pipeline and updated README with release/nightly download badges.
+- Music Playback Enhancements: Improved error handling with retry logic, enhanced download management, switched to InnerTube API from NewPipe, added PlayerExtensions, and developed MusicPlayerUtils for better data fetching.
+
+FIXES AND STABILITY
+- Video Player Minimization: Resolved issue preventing proper minimization.
+- Background Playback: Fixed playback issues and added queue support for video player and playlists.
+- Landscape Mode: Enabled landscape orientation support in video player.
+- Music Search Gap: Removed empty gaps in music search screen.
+- Music Queue: Resolved queue issues and fixed playback notification actions.
+
+PERFORMANCE AND REFACTORING
+- Neuro Engine Migration: Complete DataStore integration with enhanced features for better performance and reliability.
+- Music Screen Modularization: Refactored music screen for easier maintenance.
+- Music Utilities Refactor: Improved MusicPlayerUtils with caching, added QueuePersistence, DownloadedSongDao/Entity, FlowCrashHandler, and NetworkConnectivityObserver.
+- API Switch: Migrated music extraction from NewPipe to InnerTube API library.
+
+UI AND STYLE ENHANCEMENTS
+- Shimmer Effects: Enhanced shimmer implementation with new components for improved loading UI.
+- Appearance Screen: Complete redesign for better consistency.
+- Music Screens Redesign: Updated artist and music player screens, quick actions, media menus, and moods/genre UI for a cleaner look.

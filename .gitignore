@@ -15,7 +15,6 @@ newpipe-dev
 release.keystore
 generate_key.ps1
 generate_key.bat
-*.txt
 flow-website
 svglogo
 metro*

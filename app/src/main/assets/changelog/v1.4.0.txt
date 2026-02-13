@@ -1,0 +1,34 @@
+FLOW CHANGE LOG
+VERSION: 1.4.0
+DATE: 2026-02-02
+
+NEW FEATURES
+- FlowNeuroEngine Overhaul: Implemented full onboarding flow, dynamic time-decay, boredom detection, and smart-feed mixing for a non-repetitive user experience.
+- Comment Threads: Added support for comment replies and nested threads.
+- Floating Mini Video Player: Implemented a floating player for seamless multitasking.
+- Subscription Import: Added functionality to import YouTube subscriptions from CSV and support for Flow/NewPipe backups.
+- Advanced Settings: Introduced dedicated settings screens for About, Buffer configuration, Search History management, and Video Quality preferences.
+- Audio Track Preferences: Added priority selection for native stream languages and new audio track settings.
+- Enhanced Metadata: Added like counts to video info sections and improved YouTube dislike count integration.
+- YouTube Integration: Optimized subscription logic to fetch latest videos and improved sorting.
+
+FIXES AND STABILITY
+- Playback Stability: Resolved issue where music tracks became stuck during switching and improved notification synchronization.
+- Crash Fixes: Fixed a critical crash occurring during music downloads.
+- Library Management: Corrected separation between Music and Video counts in the library screen.
+- Avatar Handling: Fixed faulty channel avatar fetching when importing from YouTube Takeout or NewPipe.
+- PiP Management: Disabled auto PiP feature to resolve app-wide Picture-in-Picture bugs.
+- UI Spacing: Fixed safe area spacing and padding issues for player controls.
+- Audio Tracks: Resolved a bug causing audio track duplication.
+
+PERFORMANCE AND REFACTORING
+- Performance Boost: Implemented app-wide async fetching using network Dispatchers.IO and SupervisorScope for parallel parsing.
+- Modularization: Refactored the EnhancedVideoPlayerScreen and Video Player Manager into modular standalone files for better maintenance.
+- Codebase Maintenance: Conducted general codebase cleanup and moved deprecated files to legacy storage.
+- Navigation: Refactored navigation and hooks within the main FlowApp structure.
+- Localization: Migrated core screens and components to use Strings.xml for easier translation support.
+
+UI AND STYLE ENHANCEMENTS
+- Foldable and Tablet Support: Redesigned the music player and video layouts to properly handle Foldable and large-screen devices.
+- Screen Optimization: Updated the download screen, reduced video title maxLines for a cleaner look, and removed unnecessary window insets.
+- Layout Consistency: Refactored UI components and the bottom navbar to reduce empty gaps and ensure a consistent visual experience.

@@ -1,0 +1,32 @@
+FLOW CHANGE LOG
+VERSION: 1.6.0
+DATE: 2026-02-12
+
+NEW FEATURES
+- Time Management: Implemented watch time statistics and user-configurable bedtime and break reminders.
+- Synced Lyrics: Added improved support for synced lyrics in the music player.
+- Video Looping: Introduced native video looping support.
+- Playlist Queue: Developed full playlist queue functionality with dedicated UI components.
+- Shorts Customization: Added user settings for shorts shelf preference and updated shorts navigation for better viewport loading.
+- Music Data Model: Introduced a separate music album model for more precise metadata handling.
+
+FIXES AND STABILITY
+- Player Conflict: Resolved state conflicts between the video and music mini players.
+- Video Player: Fixed auto-full screen issues and added logic to keep the screen awake during playback.
+- Mini Player: Improved size handling and layout consistency for the mini video player across different screen sizes.
+- SponsorBlock: Resolved issues with SponsorBlock segments and highlights.
+- Localization: Fixed XML syntax errors and improved French localization strings.
+- UI Consistency: Corrected track calculations in PlayerProgressSlider and updated SwipeToDismiss to the latest Android APIs.
+- Media Loading: Removed redundant ExoPlayer built-in loading animations and fixed shorts popup prompts.
+
+PERFORMANCE AND REFACTORING
+- Shorts Feature Overhaul: Re-implemented the Shorts feature using a dedicated ViewModel and ShortsPlayerPool for optimized ExoPlayer performance.
+- Music Performance: Significantly improved music player loading times and overall screen responsiveness.
+- Dependency Management: Migrated to Gradle Version Catalog and updated Kotlin, Hilt, and KSP to the latest versions.
+- Modernization: Refactored BottomNavItem and PremiumControlsOverlay to use ripple indications.
+- Internationalization: Completed a massive string extraction project across all major screens (Video, Music, Search, Settings, Onboarding) to support better localization.
+
+UI AND STYLE ENHANCEMENTS
+- Home Screen: Added grid-style shimmer cards and dynamic layout configurations for a better first-load experience.
+- Music UI: Redesigned the unified bottom sheet and enhanced spacing/UI elements in the EnhancedMusicPlayerScreen.
+- Settings Design: Redesigned the Import and Content settings screens for improved clarity.
