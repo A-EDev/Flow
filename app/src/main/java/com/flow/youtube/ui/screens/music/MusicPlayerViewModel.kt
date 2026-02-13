@@ -428,6 +428,7 @@ class MusicPlayerViewModel @Inject constructor(
                 duration = trackToAdd.duration,
                 viewCount = 0,
                 uploadDate = "",
+                timestamp = System.currentTimeMillis(),
                 description = trackToAdd.album,
                 isMusic = true
             )

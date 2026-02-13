@@ -593,6 +593,10 @@ class MusicViewModel @Inject constructor(
     fun retry() {
         loadMusicContent()
     }
+
+    fun refresh() {
+        loadMusicContent()
+    }
     
     /**
      *  PERFORMANCE OPTIMIZED: Fetch artist details with timeout

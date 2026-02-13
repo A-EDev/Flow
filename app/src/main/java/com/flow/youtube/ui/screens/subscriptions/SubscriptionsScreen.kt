@@ -1,6 +1,8 @@
 package com.flow.youtube.ui.screens.subscriptions
 
+
 import androidx.compose.animation.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -216,88 +218,93 @@ fun SubscriptionsScreen(
                         }
                     }
                 } else {
+
+
                     // FEED MODE
-                    if (subscribedChannels.isEmpty()) {
-                        EmptySubscriptionsState(modifier = Modifier.fillMaxSize())
-                    } else {
-                        LazyVerticalGrid(
-                            columns = if (uiState.isFullWidthView) GridCells.Adaptive(320.dp) else GridCells.Fixed(1),
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            // Channel Chips Row
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                Column {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        LazyRow(
-                                            modifier = Modifier.weight(1f),
-                                            contentPadding = PaddingValues(start = 16.dp, end = 8.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    PullToRefreshBox(
+                        isRefreshing = uiState.isLoading,
+                        onRefresh = { viewModel.refreshFeed() },
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        if (subscribedChannels.isEmpty()) {
+                            EmptySubscriptionsState(modifier = Modifier.fillMaxSize())
+                        } else {
+                            LazyVerticalGrid(
+                                columns = if (uiState.isFullWidthView) GridCells.Adaptive(320.dp) else GridCells.Fixed(1),
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                // Channel Chips Row
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    Column {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            items(subscribedChannels.take(10)) { channel ->
-                                                ChannelAvatarItem(
-                                                    channel = channel,
-                                                    isSelected = false,
-                                                    onClick = {
-                                                        onChannelClick("https://youtube.com/channel/${channel.id}")
-                                                    }
-                                                )
+                                            LazyRow(
+                                                modifier = Modifier.weight(1f),
+                                                contentPadding = PaddingValues(start = 16.dp, end = 8.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                            ) {
+                                                items(subscribedChannels.take(10)) { channel ->
+                                                    ChannelAvatarItem(
+                                                        channel = channel,
+                                                        isSelected = false,
+                                                        onClick = {
+                                                            onChannelClick("https://youtube.com/channel/${channel.id}")
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                            
+                                            // View All Button
+                                            TextButton(
+                                                onClick = { isManagingSubs = true },
+                                                modifier = Modifier.padding(end = 8.dp)
+                                            ) {
+                                                Text(androidx.compose.ui.res.stringResource(R.string.view_all_button_label), fontWeight = FontWeight.Bold)
                                             }
                                         }
                                         
-                                        // View All Button
-                                        TextButton(
-                                            onClick = { isManagingSubs = true },
-                                            modifier = Modifier.padding(end = 8.dp)
-                                        ) {
-                                            Text(androidx.compose.ui.res.stringResource(R.string.view_all_button_label), fontWeight = FontWeight.Bold)
+                                        Divider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    }
+                                }
+    
+                                if (uiState.isShortsShelfEnabled && uiState.shorts.isNotEmpty()) {
+                                    item(span = { GridItemSpan(maxLineSpan) }) {
+                                        Column {
+                                            
+                                            ShortsShelf(
+                                                shorts = uiState.shorts,
+                                                onShortClick = { short -> onShortClick(short.id) }
+                                            )
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Divider(thickness = 4.dp, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                                         }
                                     }
-                                    
-                                    if (uiState.isLoading) {
-                                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth().height(2.dp))
-                                    }
-                                    Divider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                 }
-                            }
-
-                            if (uiState.isShortsShelfEnabled && uiState.shorts.isNotEmpty()) {
-                                item(span = { GridItemSpan(maxLineSpan) }) {
-                                    Column {
-                                        
-                                        ShortsShelf(
-                                            shorts = uiState.shorts,
-                                            onShortClick = { short -> onShortClick(short.id) }
+    
+                                items(videos) { video ->
+                                    if (uiState.isFullWidthView) {
+                                        VideoCardFullWidth(
+                                            video = video,
+                                            onClick = { onVideoClick(video) }
                                         )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Divider(thickness = 4.dp, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                                    } else {
+                                        VideoCardHorizontal(
+                                            video = video,
+                                            onClick = { onVideoClick(video) }
+                                        )
                                     }
                                 }
-                            }
-
-                            items(videos) { video ->
-                                if (uiState.isFullWidthView) {
-                                    VideoCardFullWidth(
-                                        video = video,
-                                        onClick = { onVideoClick(video) }
-                                    )
-                                } else {
-                                    VideoCardHorizontal(
-                                        video = video,
-                                        onClick = { onVideoClick(video) }
-                                    )
+                                
+                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                    Spacer(modifier = Modifier.height(80.dp))
                                 }
-                            }
-                            
-                            item(span = { GridItemSpan(maxLineSpan) }) {
-                                Spacer(modifier = Modifier.height(80.dp))
                             }
                         }
                     }

@@ -1,7 +1,9 @@
 package com.flow.youtube.ui.screens.music
 
+
 import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.ui.res.stringResource
 import com.flow.youtube.R
 import androidx.compose.foundation.clickable
@@ -82,6 +84,8 @@ fun EnhancedMusicScreen(
     }
     
 
+
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -120,8 +124,10 @@ fun EnhancedMusicScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            val isInitialLoading = uiState.isLoading && uiState.trendingSongs.isEmpty() && uiState.dynamicSections.isEmpty()
+
             when {
-                uiState.isLoading -> {
+                isInitialLoading -> {
                     HomeShimmerLoading()
                 }
                 
@@ -139,12 +145,17 @@ fun EnhancedMusicScreen(
                             .take(10)
                     }
 
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 16.dp)
+                    PullToRefreshBox(
+                        isRefreshing = uiState.isLoading,
+                        onRefresh = { viewModel.refresh() },
+                        modifier = Modifier.fillMaxSize()
                     ) {
-                        // Listen Again
-                        if (uiState.listenAgain.isNotEmpty()) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 16.dp)
+                        ) {
+                            // Listen Again
+                            if (uiState.listenAgain.isNotEmpty()) {
                             item {
                                 NavigationTitle(title = stringResource(R.string.section_listen_again))
                                 val listenThumbnailHeight = currentGridThumbnailHeight()
@@ -634,4 +645,5 @@ fun EnhancedMusicScreen(
             }
         }
     }
+}
 }

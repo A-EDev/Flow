@@ -21,6 +21,6 @@ metro*
 release.ps1
 release.bat
 build_result.md
-
+LibreTube-master
 # Secrets and Local configuration
 local.properties

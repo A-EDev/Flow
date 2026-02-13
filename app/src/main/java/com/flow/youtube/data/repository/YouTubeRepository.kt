@@ -252,6 +252,7 @@ class YouTubeRepository @Inject constructor() {
                 duration = info.duration.toInt(),
                 viewCount = info.viewCount,
                 uploadDate = info.textualUploadDate ?: "Unknown",
+                timestamp = System.currentTimeMillis(), // Best effort for single video fetch
                 channelThumbnailUrl = bestAvatar
             )
         } catch (e: Exception) {
@@ -643,6 +644,7 @@ class YouTubeRepository @Inject constructor() {
                     else -> "Unknown"
                 }
             },
+            timestamp = System.currentTimeMillis(), // Best effort, refined by parser if needed
             channelThumbnailUrl = bestAvatar,
             isLive = isLiveStream,
             isShort = isShortUrl,

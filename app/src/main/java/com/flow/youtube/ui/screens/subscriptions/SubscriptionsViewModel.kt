@@ -55,7 +55,9 @@ class SubscriptionsViewModel : ViewModel() {
                             duration = entity.duration,
                             viewCount = entity.viewCount,
                             uploadDate = entity.uploadDate,
-                            channelThumbnailUrl = entity.channelThumbnailUrl
+                            timestamp = entity.timestamp,
+                            channelThumbnailUrl = entity.channelThumbnailUrl,
+                            isShort = entity.isShort
                         )
                     }
                     updateVideos(videos)
@@ -81,7 +83,7 @@ class SubscriptionsViewModel : ViewModel() {
                         _uiState.update { it.copy(isLoading = true) }
                     }
 
-                    com.flow.youtube.data.innertube.InnertubeSubscriptionService.fetchSubscriptionVideos(
+                    com.flow.youtube.data.innertube.RssSubscriptionService.fetchSubscriptionVideos(
                         channelIds = channels.map { it.id },
                         maxTotal = 200
                     ).collect { videos ->
@@ -96,7 +98,9 @@ class SubscriptionsViewModel : ViewModel() {
                                     duration = video.duration,
                                     viewCount = video.viewCount,
                                     uploadDate = video.uploadDate,
+                                    timestamp = video.timestamp,
                                     channelThumbnailUrl = video.channelThumbnailUrl,
+                                    isShort = video.isShort,
                                     cachedAt = System.currentTimeMillis()
                                 )
                             }
@@ -116,11 +120,9 @@ class SubscriptionsViewModel : ViewModel() {
     }
 
     private fun updateVideos(videos: List<Video>) {
-        val sortedVideos = videos.sortedByDescending { parseRelativeTime(it.uploadDate) }
+        val sortedVideos = videos.sortedByDescending { it.timestamp }
 
-        val (shorts, regular) = sortedVideos.partition { 
-            it.isShort || (it.duration in 1..180 && !it.isMusic) 
-        }
+        val (shorts, regular) = sortedVideos.partition { it.isShort }
         _uiState.update { it.copy(recentVideos = regular, shorts = shorts) }
     }
     
@@ -214,11 +216,9 @@ class SubscriptionsViewModel : ViewModel() {
             _uiState.update { it.copy(isLoading = true) }
             
             supervisorScope {
-                val targetChannels = channels.shuffled().take(40).map { it.id }
-                
-                com.flow.youtube.data.innertube.InnertubeSubscriptionService.fetchSubscriptionVideos(
-                    channelIds = targetChannels, 
-                    maxTotal = 100
+                com.flow.youtube.data.innertube.RssSubscriptionService.fetchSubscriptionVideos(
+                    channelIds = channels.map { it.id },
+                    maxTotal = 200
                 ).collect { videos ->
                     if (videos.isNotEmpty()) {
                         val entities = videos.map { video ->
@@ -231,7 +231,9 @@ class SubscriptionsViewModel : ViewModel() {
                                 duration = video.duration,
                                 viewCount = video.viewCount,
                                 uploadDate = video.uploadDate,
+                                timestamp = video.timestamp,
                                 channelThumbnailUrl = video.channelThumbnailUrl,
+                                isShort = video.isShort,
                                 cachedAt = System.currentTimeMillis()
                             )
                         }

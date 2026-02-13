@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface CacheDao {
     // Subscriptions
-    @Query("SELECT * FROM subscription_feed_cache ORDER BY uploadDate DESC LIMIT 100")
+    @Query("SELECT * FROM subscription_feed_cache ORDER BY timestamp DESC LIMIT 200")
     fun getSubscriptionFeed(): Flow<List<SubscriptionFeedEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

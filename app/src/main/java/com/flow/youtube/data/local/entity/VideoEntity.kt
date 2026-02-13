@@ -16,6 +16,7 @@ data class VideoEntity(
     val uploadDate: String,
     val description: String,
     val channelThumbnailUrl: String,
+    val timestamp: Long = System.currentTimeMillis(),
     val savedAt: Long = System.currentTimeMillis(), // For ordering in generic lists
     val isMusic: Boolean = false
 ) {
@@ -31,6 +32,7 @@ data class VideoEntity(
             uploadDate = uploadDate,
             description = description,
             channelThumbnailUrl = channelThumbnailUrl,
+            timestamp = timestamp,
             isMusic = isMusic
         )
     }
@@ -48,6 +50,7 @@ data class VideoEntity(
                 uploadDate = video.uploadDate,
                 description = video.description,
                 channelThumbnailUrl = video.channelThumbnailUrl,
+                timestamp = video.timestamp,
                 isMusic = video.isMusic
             )
         }

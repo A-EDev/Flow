@@ -13,7 +13,9 @@ data class SubscriptionFeedEntity(
     val duration: Int,
     val viewCount: Long,
     val uploadDate: String,
+    val timestamp: Long = System.currentTimeMillis(),
     val channelThumbnailUrl: String,
+    val isShort: Boolean = false,
     val cachedAt: Long = System.currentTimeMillis()
 )
 

@@ -39,8 +39,11 @@ fun formatTimeAgo(dateString: String?): String {
     if (dateString.contains(" ago") || dateString.contains("前")) return dateString
 
     val formats = listOf(
+        "yyyy-MM-dd'T'HH:mm:ssXXX",
+        "yyyy-MM-dd'T'HH:mm:ssX",
         "yyyy-MM-dd'T'HH:mm:ss",
         "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
         "yyyy-MM-dd"
     )
     

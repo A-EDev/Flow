@@ -27,7 +27,7 @@ import com.flow.youtube.data.local.entity.VideoEntity
         MusicHomeChipEntity::class,
         DownloadedSongEntity::class
     ],
-    version = 7,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

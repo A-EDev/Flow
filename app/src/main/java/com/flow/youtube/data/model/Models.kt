@@ -12,6 +12,7 @@ data class Video(
     val viewCount: Long,
     val likeCount: Long = 0,
     val uploadDate: String,
+    val timestamp: Long = System.currentTimeMillis(),
     val description: String = "",
     val channelThumbnailUrl: String = "",
     val isMusic: Boolean = false,

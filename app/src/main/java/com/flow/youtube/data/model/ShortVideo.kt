@@ -92,6 +92,7 @@ fun ShortVideo.toVideo(): Video = Video(
     viewCount = parseViewCount(viewCountText),
     likeCount = parseMetric(likeCountText),
     uploadDate = "",
+    timestamp = System.currentTimeMillis(),
     description = description,
     channelThumbnailUrl = channelThumbnailUrl,
     isShort = true
