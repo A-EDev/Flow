@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.flow.youtube.R
@@ -20,18 +22,32 @@ import com.flow.youtube.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerTopBar(
+    playingFrom: String,
     onBackClick: () -> Unit,
     onMoreOptionsClick: () -> Unit
 ) {
     CenterAlignedTopAppBar(
         title = {
-            Text(
-                text = stringResource(R.string.now_playing),
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.sp,
-                color = Color.White.copy(alpha = 0.7f)
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = stringResource(R.string.now_playing),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.sp,
+                    color = Color.White.copy(alpha = 0.9f)
+                )
+                Text(
+                    text = playingFrom,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.7f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+            }
         },
         navigationIcon = {
             IconButton(onClick = onBackClick) {

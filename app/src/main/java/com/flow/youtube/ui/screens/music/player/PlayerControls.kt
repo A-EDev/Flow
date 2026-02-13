@@ -1,14 +1,19 @@
 package com.flow.youtube.ui.screens.music.player
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
@@ -29,6 +34,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -76,10 +83,18 @@ fun PlayerPlaybackControls(
         )
 
         // Play/Pause
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+        val scale by animateFloatAsState(targetValue = if (isPressed) 0.9f else 1f, label = "scale")
+        
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .size(72.dp)
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                }
                 .shadow(12.dp, CircleShape)
                 .clip(CircleShape)
                 .background(
@@ -91,7 +106,7 @@ fun PlayerPlaybackControls(
                     )
                 )
                 .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
+                    interactionSource = interactionSource,
                     indication = null
                 ) { onPlayPauseToggle() }
         ) {
@@ -198,9 +213,15 @@ fun PlayerProgressSlider(
         modifier = modifier.fillMaxWidth()
     ) {
         Box(contentAlignment = Alignment.Center) {
+            val haptic = LocalHapticFeedback.current
             Slider(
                 value = currentPosition.toFloat(),
-                onValueChange = { onSeekTo(it.toLong()) },
+                onValueChange = { 
+                    if (isInteracting) {
+                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
+                    onSeekTo(it.toLong()) 
+                },
                 valueRange = 0f..duration.toFloat().coerceAtPositive(1f),
                 interactionSource = interactionSource,
                 colors = SliderDefaults.colors(
@@ -219,23 +240,24 @@ fun PlayerProgressSlider(
                 },
                 track = {
                     val fraction = if (duration > 0) currentPosition.toFloat() / duration.toFloat().coerceAtLeast(1f) else 0f
-
+                    
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(animatedTrackHeight)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.1f))
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color.White.copy(alpha = 0.15f))
                     ) {
                         // Active Track
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth(fraction)
                                 .fillMaxHeight()
+                                .clip(RoundedCornerShape(4.dp))
                                 .background(
                                     Brush.horizontalGradient(
                                         listOf(
-                                            Color.White.copy(alpha = 0.6f),
+                                            Color.White.copy(alpha = 0.8f),
                                             Color.White
                                         )
                                     )
@@ -275,36 +297,87 @@ private fun Float.coerceAtPositive(minimumValue: Float): Float {
     return if (this < minimumValue) minimumValue else this
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun PlayerActionButtons(
+fun PlayerMainActionButtons(
+    isLiked: Boolean,
     isDownloaded: Boolean,
-    onShare: () -> Unit,
-    onDownload: () -> Unit,
+    onLikeClick: () -> Unit,
+    onDownloadClick: () -> Unit,
     onAddToPlaylist: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly
+        modifier = modifier
+            .clip(RoundedCornerShape(32.dp))
+            .background(Color.White.copy(alpha = 0.08f))
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(32.dp)
+            )
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        MinimalActionButton(
-            icon = Icons.Outlined.Share,
-            text = stringResource(R.string.share),
-            onClick = onShare
+        // Download Button
+        IconButton(
+            onClick = onDownloadClick,
+            modifier = Modifier.size(40.dp)
+        ) {
+            Icon(
+                imageVector = if (isDownloaded) Icons.Rounded.OfflinePin else Icons.Outlined.Download,
+                contentDescription = stringResource(R.string.download),
+                tint = if (isDownloaded) MaterialTheme.colorScheme.primary else Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        
+        Spacer(modifier = Modifier.width(2.dp))
+        
+        // Divider
+        Box(
+            modifier = Modifier
+                .width(1.dp)
+                .height(16.dp)
+                .background(Color.White.copy(alpha = 0.2f))
         )
         
-        MinimalActionButton(
-            icon = if (isDownloaded) Icons.Rounded.CheckCircle else Icons.Outlined.Download,
-            text = if (isDownloaded) stringResource(R.string.downloaded) else stringResource(R.string.download),
-            onClick = onDownload,
-            isActive = isDownloaded
-        )
+        Spacer(modifier = Modifier.width(2.dp))
         
-        MinimalActionButton(
-            icon = Icons.Filled.PlaylistAdd, 
-            text = stringResource(R.string.save),
-            onClick = onAddToPlaylist
+        // Like Button
+        val likeInteractionSource = remember { MutableInteractionSource() }
+        val isLikePressed by likeInteractionSource.collectIsPressedAsState()
+        val likeScale by animateFloatAsState(
+            targetValue = if (isLikePressed) 0.8f else if (isLiked) 1.2f else 1f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+            label = "likeScale"
         )
+        // Reset the bounce effect
+        val finalLikeScale = if (likeScale > 1f) 1f else likeScale
+
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .graphicsLayer {
+                    scaleX = likeScale
+                    scaleY = likeScale
+                }
+                .clip(CircleShape)
+                .combinedClickable(
+                    interactionSource = likeInteractionSource,
+                    indication = LocalIndication.current,
+                    onClick = onLikeClick,
+                    onLongClick = onAddToPlaylist
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                contentDescription = stringResource(R.string.like),
+                tint = if (isLiked) MaterialTheme.colorScheme.primary else Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
 

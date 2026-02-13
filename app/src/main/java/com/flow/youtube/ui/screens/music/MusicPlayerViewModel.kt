@@ -89,7 +89,10 @@ class MusicPlayerViewModel @Inject constructor(
                 _uiState.update { it.copy(
                     currentTrack = track,
                     lyrics = null,
-                    syncedLyrics = emptyList()
+                    syncedLyrics = emptyList(),
+                    // Fix: Reset duration and position to prevent showing previous track's info
+                    duration = if (track != null) track.duration * 1000L else 0L,
+                    currentPosition = 0L
                 ) }
                 track?.let { 
                     checkIfFavorite(it.videoId)

@@ -1,5 +1,7 @@
 package com.flow.youtube.ui.screens.music
 
+
+import androidx.compose.ui.draw.alpha
 import android.content.Intent
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -210,9 +212,11 @@ fun EnhancedMusicPlayerScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.3f),
+                            Color.Black.copy(alpha = 0.4f),
+                            Color.Black.copy(alpha = 0.2f),
                             Color.Black.copy(alpha = 0.6f),
-                            MaterialTheme.colorScheme.background.copy(alpha = 0.95f)
+                            Color.Black.copy(alpha = 0.9f),
+                            Color.Black
                         )
                     )
                 )
@@ -229,6 +233,7 @@ fun EnhancedMusicPlayerScreen(
                     .graphicsLayer { alpha = mainContentAlpha }
             ) {
                 PlayerTopBar(
+                    playingFrom = uiState.playingFrom,
                     onBackClick = onBackClick,
                     onMoreOptionsClick = { showMoreOptions = true }
                 )
@@ -311,7 +316,7 @@ fun EnhancedMusicPlayerScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = uiState.currentTrack?.title ?: track.title,
-                                    style = MaterialTheme.typography.headlineMedium,
+                                    style = MaterialTheme.typography.titleLarge,
                                     color = Color.White,
                                     fontWeight = FontWeight.Bold,
                                     maxLines = 1,
@@ -319,19 +324,10 @@ fun EnhancedMusicPlayerScreen(
                                     modifier = Modifier.weight(1f, fill = false)
                                 )
                                 
-                                if (uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId)) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(
-                                        imageVector = Icons.Rounded.CheckCircle,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
-                                }
                             }
                             Text(
                                 text = uiState.currentTrack?.artist ?: track.artist,
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.bodyMedium,
                                 color = Color.White.copy(alpha = 0.7f),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -342,17 +338,13 @@ fun EnhancedMusicPlayerScreen(
                             )
                         }
                         
-                        IconButton(
-                            onClick = { viewModel.toggleLike() },
-                            modifier = Modifier.size(56.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (uiState.isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                contentDescription = stringResource(R.string.like),
-                                tint = if (uiState.isLiked) Color.Red else Color.White,
-                                modifier = Modifier.size(32.dp)
-                            )
-                        }
+                        PlayerMainActionButtons(
+                            isLiked = uiState.isLiked,
+                            isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId),
+                            onLikeClick = { viewModel.toggleLike() },
+                            onDownloadClick = { viewModel.downloadTrack() },
+                            onAddToPlaylist = { viewModel.showAddToPlaylistDialog(true) }
+                        )
                     }
         
                     Spacer(modifier = Modifier.height(32.dp))
