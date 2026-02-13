@@ -33,6 +33,8 @@ class SponsorBlockHandler(
 
     private var loadJob: Job? = null
     private var lastSkippedSegmentUuid: String? = null
+    private var currentVideoId: String? = null
+    
     var isEnabled: Boolean = false
         private set
     
@@ -40,9 +42,16 @@ class SponsorBlockHandler(
      * Set whether SponsorBlock is enabled.
      */
     fun setEnabled(enabled: Boolean) {
-        isEnabled = enabled
-        if (!enabled) {
-            reset()
+        if (isEnabled != enabled) {
+            isEnabled = enabled
+            if (enabled) {
+                currentVideoId?.let { loadSegments(it) }
+            } else {
+                // components.reset() // Removed reset() call to keep currentVideoId
+                loadJob?.cancel()
+                _sponsorSegments.value = emptyList()
+                lastSkippedSegmentUuid = null
+            }
         }
     }
     
@@ -50,6 +59,8 @@ class SponsorBlockHandler(
      * Load SponsorBlock segments for a video.
      */
     fun loadSegments(videoId: String) {
+        currentVideoId = videoId
+        
         if (!isEnabled) return
         
         // Cancel previous load and clear state
@@ -62,6 +73,9 @@ class SponsorBlockHandler(
                 val segments = sponsorBlockRepository.getSegments(videoId)
                 _sponsorSegments.value = segments
                 Log.d(TAG, "Loaded ${segments.size} segments for video $videoId")
+                segments.forEach { 
+                    Log.d(TAG, "Segment: ${it.category} [${it.startTime} - ${it.endTime}] (Current ID: $currentVideoId)")
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load segments for video $videoId", e)
             }
@@ -75,8 +89,8 @@ class SponsorBlockHandler(
         loadJob?.cancel()
         _sponsorSegments.value = emptyList()
         lastSkippedSegmentUuid = null
+        currentVideoId = null
     }
-    
     /**
      * Check if we need to skip a segment at the given position.
      * Returns the seek position in milliseconds if a skip is needed, null otherwise.
@@ -87,12 +101,23 @@ class SponsorBlockHandler(
         if (segments.isEmpty()) return null
         
         val posSec = currentPositionMs / 1000f
+        
+        // Find a segment that overlaps with current position
         val segment = segments.find { 
             posSec >= it.startTime && posSec < it.endTime 
         }
         
-        if (segment != null && segment.uuid != lastSkippedSegmentUuid) {
-            Log.d(TAG, "Skipping ${segment.category} from ${segment.startTime} to ${segment.endTime}")
+        // If we are before the start of the last skipped segment, reset it so we can skip it again (seek back support)
+        if (lastSkippedSegmentUuid != null) {
+            val lastSegment = segments.find { it.uuid == lastSkippedSegmentUuid }
+            if (lastSegment != null && posSec < lastSegment.startTime) {
+                Log.d(TAG, "Seek back detected, resetting last skipped segment: ${lastSegment.category}")
+                lastSkippedSegmentUuid = null
+            }
+        }
+        
+        if (segment != null && segment.uuid != lastSkippedSegmentUuid) {            
+            Log.d(TAG, "Skipping ${segment.category} from ${segment.startTime} to ${segment.endTime} (action: ${segment.actionType})")
             lastSkippedSegmentUuid = segment.uuid
             _skipEvent.tryEmit(segment)
             return (segment.endTime * 1000).toLong()

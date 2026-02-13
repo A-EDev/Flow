@@ -322,6 +322,9 @@ class EnhancedPlayerManager private constructor() {
         availableAudioStreams = StreamProcessor.processAudioStreams(audioStreams)
         availableSubtitles = subtitles
         
+        // Ensure playback tracker is running
+        startPlaybackTracker()
+        
         // Update quality manager with available streams
         qualityManager?.setAvailableStreams(availableVideoStreams)
         

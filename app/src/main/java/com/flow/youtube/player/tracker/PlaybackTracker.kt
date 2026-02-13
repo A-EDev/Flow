@@ -37,8 +37,10 @@ class PlaybackTracker(
      * Start position tracking.
      */
     fun start(player: ExoPlayer) {
+        Log.d(TAG, "start() called")
         stop()
         positionTrackerJob = scope.launch {
+            Log.d(TAG, "Position tracker coroutine started")
             lastCheckedPosition = 0L
             stuckCount = 0
             lastSaveTime = 0L
@@ -64,6 +66,12 @@ class PlaybackTracker(
         if (player.isPlaying || player.playbackState == Player.STATE_BUFFERING) {
             val bufferedPos = player.bufferedPosition
             val currentPos = player.currentPosition
+            
+            // Debug log every 5 seconds (approx 10 ticks)
+            if (System.currentTimeMillis() % 5000 < PlayerConfig.POSITION_TRACKER_INTERVAL_MS * 2) {
+                 Log.d(TAG, "Tracking position: $currentPos ms")
+            }
+            
             val duration = player.duration.coerceAtLeast(1)
             val bufferedPct = (bufferedPos.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
             
@@ -81,6 +89,7 @@ class PlaybackTracker(
             // SponsorBlock Skip Logic
             val skipPosition = onSponsorBlockCheck(currentPos)
             if (skipPosition != null) {
+                Log.d(TAG, "Skipping to $skipPosition ms")
                 player.seekTo(skipPosition)
             }
             
