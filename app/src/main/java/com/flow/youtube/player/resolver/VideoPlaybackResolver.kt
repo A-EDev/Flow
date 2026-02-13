@@ -67,8 +67,8 @@ class VideoPlaybackResolver(
         
         return when {
             videoSource != null && audioSource != null -> {
-                Log.d(TAG, "Created MergingMediaSource with video + audio")
-                MergingMediaSource(true, videoSource, audioSource)
+                Log.d(TAG, "Created MergingMediaSource with video + audio (sync adjusted)")
+                MergingMediaSource(true, true, videoSource, audioSource)
             }
             videoSource != null -> {
                 Log.d(TAG, "Using video source only (no separate audio)")

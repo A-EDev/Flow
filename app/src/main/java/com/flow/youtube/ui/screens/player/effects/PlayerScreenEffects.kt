@@ -216,9 +216,6 @@ fun VideoLoadEffect(
         // Reset UI state for new video
         screenState.resetForNewVideo()
 
-        // Stop any existing playback and clear player before loading new video
-        EnhancedPlayerManager.getInstance().pause()
-        EnhancedPlayerManager.getInstance().clearCurrentVideo()
 
         // Detect if on Wifi for preferred quality
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager

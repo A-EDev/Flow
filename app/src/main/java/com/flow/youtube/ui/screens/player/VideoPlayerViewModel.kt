@@ -102,6 +102,8 @@ class VideoPlayerViewModel @Inject constructor(
         EnhancedPlayerManager.getInstance().pause()
         EnhancedPlayerManager.getInstance().clearAll()
         
+        GlobalPlayerState.setCurrentVideo(video)
+        
         // Ensure music player is stopped and hidden
         EnhancedMusicPlayerManager.stop()
         EnhancedMusicPlayerManager.clearCurrentTrack()
