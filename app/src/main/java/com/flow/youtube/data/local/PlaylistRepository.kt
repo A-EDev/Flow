@@ -78,37 +78,42 @@ class PlaylistRepository @Inject constructor(
     }
 
     suspend fun addToWatchLater(video: Video) {
-        // Ensure watch later playlist exists (metadata)
-        val watchLater = playlistDao.getPlaylist(WATCH_LATER_ID)
-        if (watchLater == null) {
-            playlistDao.insertPlaylist(
-                PlaylistEntity(
-                    id = WATCH_LATER_ID,
-                    name = "Watch Later",
-                    description = "Your watch later list",
-                    thumbnailUrl = "",
-                    isPrivate = true,
-                    createdAt = System.currentTimeMillis()
+        try {
+            android.util.Log.d("PlaylistRepository", "Adding video to Watch Later: ${video.id}")
+            val watchLater = playlistDao.getPlaylist(WATCH_LATER_ID)
+            if (watchLater == null) {
+                android.util.Log.d("PlaylistRepository", "Creating Watch Later playlist")
+                playlistDao.insertPlaylist(
+                    PlaylistEntity(
+                        id = WATCH_LATER_ID,
+                        name = "Watch Later",
+                        description = "Your watch later list",
+                        thumbnailUrl = "",
+                        isPrivate = true,
+                        createdAt = System.currentTimeMillis()
+                    )
+                )
+            }
+            
+            // Save video
+            android.util.Log.d("PlaylistRepository", "Inserting video metadata")
+            videoDao.insertVideo(VideoEntity.fromDomain(video))
+            
+            // Add relationship
+            val position = System.currentTimeMillis()
+            android.util.Log.d("PlaylistRepository", "Inserting cross-ref")
+            playlistDao.insertPlaylistVideoCrossRef(
+                PlaylistVideoCrossRef(
+                    playlistId = WATCH_LATER_ID,
+                    videoId = video.id,
+                    position = -position
                 )
             )
+            android.util.Log.d("PlaylistRepository", "Successfully added to Watch Later")
+        } catch (e: Exception) {
+            android.util.Log.e("PlaylistRepository", "Failed to add to Watch Later", e)
+            throw e
         }
-        
-        // Save video
-        videoDao.insertVideo(VideoEntity.fromDomain(video))
-        
-        // Add relationship
-        // Logic to put at top: get current count and maybe use negative position or just time?
-        // Simplifying: use current time as position for chronological ordering order
-        val position = System.currentTimeMillis()
-        playlistDao.insertPlaylistVideoCrossRef(
-            PlaylistVideoCrossRef(
-                playlistId = WATCH_LATER_ID,
-                videoId = video.id,
-                position = -position // Negative so that sorting by position ASC gives newest first (if larger abs value is newer)
-                // Actually ASC means smallest first. If we want newest first, we want smallest position.
-                // -System.currentTimeMillis() gets smaller as time goes on.
-            )
-        )
     }
 
     suspend fun removeFromWatchLater(videoId: String) {
@@ -136,8 +141,21 @@ class PlaylistRepository @Inject constructor(
         }
 
     suspend fun isInWatchLater(videoId: String): Boolean {
-        val videos = playlistDao.getVideosForPlaylist(WATCH_LATER_ID).firstOrNull() ?: emptyList()
-        return videos.any { it.id == videoId }
+        return try {
+            playlistDao.isVideoInPlaylist(WATCH_LATER_ID, videoId) > 0
+        } catch (e: Exception) {
+            android.util.Log.e("PlaylistRepository", "Error checking watch later status", e)
+            false
+        }
+    }
+
+    suspend fun isVideoInPlaylist(playlistId: String, videoId: String): Boolean {
+        return try {
+            playlistDao.isVideoInPlaylist(playlistId, videoId) > 0
+        } catch (e: Exception) {
+            android.util.Log.e("PlaylistRepository", "Error checking playlist status", e)
+            false
+        }
     }
 
     // Playlist Management
@@ -163,26 +181,31 @@ class PlaylistRepository @Inject constructor(
     }
 
     suspend fun addVideoToPlaylist(playlistId: String, video: Video) {
-        // Save video first
-        videoDao.insertVideo(VideoEntity.fromDomain(video))
-        
-        // Add to playlist
-        // Update thumbnail if it's the first one?
-        // Room doesn't update fields automatically. We might want to update the playlist entity manually.
-        val playlist = playlistDao.getPlaylist(playlistId)
-        if (playlist != null && playlist.thumbnailUrl.isEmpty()) {
-             playlistDao.insertPlaylist(playlist.copy(thumbnailUrl = video.thumbnailUrl))
-        }
-        
-        // Add relation
-        val position = -System.currentTimeMillis()
-        playlistDao.insertPlaylistVideoCrossRef(
-            PlaylistVideoCrossRef(
-                playlistId = playlistId,
-                videoId = video.id,
-                position = position
+        try {
+            android.util.Log.d("PlaylistRepository", "Adding video ${video.id} to playlist $playlistId")
+            // Save video first
+            videoDao.insertVideo(VideoEntity.fromDomain(video))
+            
+            // Add to playlist
+            val playlist = playlistDao.getPlaylist(playlistId)
+            if (playlist != null && playlist.thumbnailUrl.isEmpty()) {
+                 playlistDao.insertPlaylist(playlist.copy(thumbnailUrl = video.thumbnailUrl))
+            }
+            
+            // Add relation
+            val position = -System.currentTimeMillis()
+            playlistDao.insertPlaylistVideoCrossRef(
+                PlaylistVideoCrossRef(
+                    playlistId = playlistId,
+                    videoId = video.id,
+                    position = position
+                )
             )
-        )
+            android.util.Log.d("PlaylistRepository", "Successfully added to playlist $playlistId")
+        } catch (e: Exception) {
+            android.util.Log.e("PlaylistRepository", "Failed to add to playlist $playlistId", e)
+            throw e
+        }
     }
 
     suspend fun removeVideoFromPlaylist(playlistId: String, videoId: String) {

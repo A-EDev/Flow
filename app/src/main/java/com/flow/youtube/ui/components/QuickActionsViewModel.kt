@@ -30,15 +30,21 @@ class QuickActionsViewModel @Inject constructor(
     fun toggleWatchLater(video: Video) {
         viewModelScope.launch {
             try {
+                android.util.Log.d("QuickActionsViewModel", "Toggling Watch Later for video: ${video.id}")
                 val isInWatchLater = playlistRepository.isInWatchLater(video.id)
+                android.util.Log.d("QuickActionsViewModel", "Is currently in Watch Later: $isInWatchLater")
+                
                 if (isInWatchLater) {
                     playlistRepository.removeFromWatchLater(video.id)
+                    android.util.Log.d("QuickActionsViewModel", "Removed from Watch Later")
                     Toast.makeText(context, "Removed from Watch Later", Toast.LENGTH_SHORT).show()
                 } else {
                     playlistRepository.addToWatchLater(video)
+                    android.util.Log.d("QuickActionsViewModel", "Added to Watch Later")
                     Toast.makeText(context, "Added to Watch Later", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
+                android.util.Log.e("QuickActionsViewModel", "Error toggling Watch Later", e)
                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }

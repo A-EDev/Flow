@@ -123,10 +123,10 @@ fun VideoQuickActionsBottomSheet(
                             onClick = {
                                 if (onWatchLater != null) {
                                     onWatchLater()
+                                    onDismiss()
                                 } else {
                                     viewModel.toggleWatchLater(video)
                                 }
-                                onDismiss()
                             }
                         ),
                         FlowAction(
