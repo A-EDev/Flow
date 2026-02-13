@@ -29,7 +29,7 @@ data class SubtitleCue(
 )
 
 data class SubtitleStyle(
-    val fontSize: Float = 18f,
+    val fontSize: Float = 14f,
     val textColor: Color = Color.White,
     val backgroundColor: Color = Color.Black.copy(alpha = 0.6f),
     val isBold: Boolean = true
@@ -45,21 +45,24 @@ fun SubtitleOverlay(
 ) {
     if (!enabled || subtitles.isEmpty()) return
     
-    // Find ALL active subtitles for the current position (fixes the "partial sentence" issue)
+    // Find active subtitles
     val activeCues = remember(currentPosition, subtitles) {
         if (subtitles.isEmpty()) return@remember emptyList<SubtitleCue>()
         
         // Find all cues that contain the current position
-        // Since cues are usually ordered by startTime, we can optimize slightly, 
-        // but simple filter is safest for overlapping YouTube formats.
-        subtitles.filter { currentPosition in it.startTime..it.endTime }
+        val currentCues = subtitles.filter { currentPosition in it.startTime..it.endTime }        
+        val bestCue = currentCues
+            .filter { (it.endTime - it.startTime) > 50 }
+            .sortedWith(compareByDescending<SubtitleCue> { it.startTime }.thenByDescending { it.text.length })
+            .firstOrNull()
+            
+        if (bestCue != null) listOf(bestCue) else emptyList()
     }
     
     // Merge texts of active cues, removing duplicates/overlaps
     val displayState = remember(activeCues) {
         if (activeCues.isEmpty()) null
         else {
-            // Deduplicate and join lines
             activeCues.map { it.text.trim() }
                 .distinct()
                 .joinToString("\n")
