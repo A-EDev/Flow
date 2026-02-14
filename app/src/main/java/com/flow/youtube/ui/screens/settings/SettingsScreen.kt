@@ -49,6 +49,7 @@ fun SettingsScreen(
     currentTheme: ThemeMode,
     onNavigateBack: () -> Unit,
     onNavigateToAppearance: () -> Unit,
+    onNavigateToPlayerAppearance: () -> Unit,
     onNavigateToDonations: () -> Unit,
     onNavigateToPersonality: () -> Unit,
     onNavigateToDownloads: () -> Unit,
@@ -315,6 +316,13 @@ item {
                         title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_theme),
                         subtitle = androidx.compose.ui.res.stringResource(getThemeNameRes(currentTheme)),
                         onClick = onNavigateToAppearance
+                    )
+                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.Tune,
+                        title = "Player Appearance",
+                        subtitle = "Customize progress bar style",
+                        onClick = onNavigateToPlayerAppearance
                     )
                 }
             }

@@ -328,6 +328,17 @@
     <string name="appearance_themes_count_filtered">%1$d %2$s themes</string>
     <string name="appearance_applied_toast">Applied: %1$s</string>
 
+    <!-- Player Appearance -->
+    <string name="player_appearance_title">Player Appearance</string>
+    <string name="player_appearance_header">Customize Player Controls</string>
+    <string name="player_appearance_style_title">Progress Bar Style</string>
+    <string name="player_appearance_style_subtitle">Select the visual style of the seek bar</string>
+    <string name="style_default">Default (Flow)</string>
+    <string name="style_metrolist">Metrolist (Thick)</string>
+    <string name="style_metrolist_slim">Metrolist (Slim)</string>
+    <string name="style_squiggly">Squiggly</string>
+    <string name="style_slim">Ultra Slim</string>
+
     <!-- Theme Names & Descriptions -->
     <string name="theme_name_pure_light">Pure Light</string>
     <string name="theme_desc_pure_light">Clean &amp; minimal</string>

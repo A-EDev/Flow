@@ -353,7 +353,8 @@ fun EnhancedMusicPlayerScreen(
                     PlayerProgressSlider(
                         currentPosition = uiState.currentPosition,
                         duration = uiState.duration,
-                        onSeekTo = { viewModel.seekTo(it) }
+                        onSeekTo = { viewModel.seekTo(it) },
+                        isPlaying = uiState.isPlaying
                     )
                 
                     Spacer(modifier = Modifier.height(24.dp)) 

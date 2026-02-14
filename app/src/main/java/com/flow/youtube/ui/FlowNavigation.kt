@@ -227,6 +227,7 @@ fun NavGraphBuilder.flowAppGraph(
 
             onNavigateBack = { navController.popBackStack() },
             onNavigateToAppearance = { navController.navigate("settings/appearance") },
+            onNavigateToPlayerAppearance = { navController.navigate("settings/player_appearance") },
             onNavigateToDonations = { navController.navigate("donations") },
             onNavigateToPersonality = { navController.navigate("personality") },
             onNavigateToDownloads = { navController.navigate("settings/downloads") },
@@ -320,6 +321,14 @@ fun NavGraphBuilder.flowAppGraph(
         com.flow.youtube.ui.screens.settings.AppearanceScreen(
             currentTheme = currentTheme,
             onThemeChange = onThemeChange,
+            onNavigateBack = { navController.popBackStack() }
+        )
+    }
+
+    composable("settings/player_appearance") {
+        currentRoute.value = "settings/player_appearance"
+        showBottomNav.value = false
+        com.flow.youtube.ui.screens.settings.PlayerAppearanceScreen(
             onNavigateBack = { navController.popBackStack() }
         )
     }

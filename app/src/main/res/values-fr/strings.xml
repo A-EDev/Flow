@@ -328,6 +328,17 @@
     <string name="appearance_themes_count_filtered">%1$d thèmes %2$s</string>
     <string name="appearance_applied_toast">Appliqué : %1$s</string>
 
+    <!-- Apparence du Lecteur -->
+    <string name="player_appearance_title">Apparence du Lecteur</string>
+    <string name="player_appearance_header">Personnaliser les Contrôles</string>
+    <string name="player_appearance_style_title">Style de la Barre de Progression</string>
+    <string name="player_appearance_style_subtitle">Sélectionner le style de la barre de lecture</string>
+    <string name="style_default">Défaut (Flow)</string>
+    <string name="style_metrolist">Metrolist (Épais)</string>
+    <string name="style_metrolist_slim">Metrolist (Fin)</string>
+    <string name="style_squiggly">Vague (Squiggly)</string>
+    <string name="style_slim">Ultra Fin</string>
+
     <!-- Noms &amp; Descriptions des Thèmes -->
     <string name="theme_name_pure_light">Lumière Pure</string>
     <string name="theme_desc_pure_light">Propre &amp; minimal</string>

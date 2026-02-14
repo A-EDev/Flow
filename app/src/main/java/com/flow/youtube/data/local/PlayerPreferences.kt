@@ -46,6 +46,8 @@ class PlayerPreferences(private val context: Context) {
         
         // UI preferences
         val GRID_ITEM_SIZE = stringPreferencesKey("grid_item_size")
+        val SLIDER_STYLE = stringPreferencesKey("slider_style")
+        val SQUIGGLY_SLIDER_ENABLED = booleanPreferencesKey("squiggly_slider_enabled")
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
     }
     
@@ -58,6 +60,29 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setGridItemSize(size: String) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.GRID_ITEM_SIZE] = size
+        }
+    }
+
+    // Slider Style preference
+    val sliderStyle: Flow<SliderStyle> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            SliderStyle.valueOf(preferences[Keys.SLIDER_STYLE] ?: SliderStyle.DEFAULT.name)
+        }
+
+    suspend fun setSliderStyle(style: SliderStyle) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SLIDER_STYLE] = style.name
+        }
+    }
+
+    val squigglySliderEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SQUIGGLY_SLIDER_ENABLED] ?: false
+        }
+
+    suspend fun setSquigglySliderEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SQUIGGLY_SLIDER_ENABLED] = enabled
         }
     }
 
@@ -395,3 +420,13 @@ enum class VideoQuality(val label: String, val height: Int) {
         }
     }
 }
+
+enum class SliderStyle {
+    DEFAULT,
+    METROLIST,      
+    METROLIST_SLIM, 
+    SQUIGGLY,
+    SLIM         
+}
+
+

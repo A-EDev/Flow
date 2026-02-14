@@ -43,6 +43,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.flow.youtube.R
 import com.flow.youtube.player.RepeatMode
+import com.flow.youtube.data.local.PlayerPreferences
+import com.flow.youtube.data.local.SliderStyle
+import com.flow.youtube.ui.screens.music.player.components.PlayerSliderTrack
+import com.flow.youtube.ui.screens.music.player.components.SquigglySlider
 
 
 @Composable
@@ -191,6 +195,7 @@ fun PlayerProgressSlider(
     currentPosition: Long,
     duration: Long,
     onSeekTo: (Long) -> Unit,
+    isPlaying: Boolean,
     modifier: Modifier = Modifier
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -209,66 +214,158 @@ fun PlayerProgressSlider(
         label = "thumbAlpha"
     )
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val preferences = remember { PlayerPreferences(context) }
+    val sliderStyle by preferences.sliderStyle.collectAsState(initial = SliderStyle.DEFAULT)
+    val squigglyEnabled by preferences.squigglySliderEnabled.collectAsState(initial = false)
+
     Column(
         modifier = modifier.fillMaxWidth()
     ) {
         Box(contentAlignment = Alignment.Center) {
             val haptic = LocalHapticFeedback.current
-            Slider(
-                value = currentPosition.toFloat(),
-                onValueChange = { 
-                    if (isInteracting) {
-                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    }
-                    onSeekTo(it.toLong()) 
-                },
-                valueRange = 0f..duration.toFloat().coerceAtPositive(1f),
-                interactionSource = interactionSource,
-                colors = SliderDefaults.colors(
-                    thumbColor = Color.Transparent,
-                    activeTrackColor = Color.Transparent,
-                    inactiveTrackColor = Color.Transparent
-                ),
-                thumb = {
-                    Box(
-                        modifier = Modifier
-                            .size(24.dp)
-                            .graphicsLayer { alpha = thumbAlpha }
-                            .shadow(8.dp, CircleShape)
-                            .background(Color.White, CircleShape)
-                    )
-                },
-                track = {
-                    val fraction = if (duration > 0) currentPosition.toFloat() / duration.toFloat().coerceAtLeast(1f) else 0f
-                    
-                    Box(
+            
+            when (sliderStyle) {
+                SliderStyle.METROLIST -> {
+                    // Metrolist Thick Style 
+                    Slider(
+                        value = currentPosition.toFloat(),
+                        onValueChange = { 
+                            if (isInteracting) {
+                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                            onSeekTo(it.toLong()) 
+                        },
+                        valueRange = 0f..duration.toFloat().coerceAtPositive(1f),
+                        interactionSource = interactionSource,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color.White,
+                            activeTrackColor = Color.White,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(animatedTrackHeight)
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Color.White.copy(alpha = 0.15f))
-                    ) {
-                        // Active Track
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth(fraction)
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(
-                                    Brush.horizontalGradient(
-                                        listOf(
-                                            Color.White.copy(alpha = 0.8f),
-                                            Color.White
+                            .height(48.dp) 
+                    )
+                }
+                SliderStyle.METROLIST_SLIM -> {
+                    // Metrolist Slim Style
+                     Slider(
+                        value = currentPosition.toFloat(),
+                        onValueChange = { 
+                            if (isInteracting) {
+                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                            onSeekTo(it.toLong()) 
+                        },
+                        valueRange = 0f..duration.toFloat().coerceAtPositive(1f),
+                        interactionSource = interactionSource,
+                         colors = SliderDefaults.colors(
+                            thumbColor = Color.White,
+                            activeTrackColor = Color.White,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(24.dp)
+                    )
+                }
+                SliderStyle.SQUIGGLY -> {
+                     SquigglySlider(
+                        value = currentPosition.toFloat(),
+                        onValueChange = { onSeekTo(it.toLong()) },
+                        valueRange = 0f..duration.toFloat().coerceAtPositive(1f),
+                        colors = SliderDefaults.colors(
+                            activeTrackColor = Color.White,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.3f),
+                            thumbColor = Color.White
+                        ),
+                        isPlaying = isPlaying 
+                    )
+                }
+                SliderStyle.SLIM -> {
+                     Slider(
+                        value = currentPosition.toFloat(),
+                        onValueChange = { 
+                             if (isInteracting) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                             onSeekTo(it.toLong()) 
+                        },
+                        valueRange = 0f..duration.toFloat().coerceAtPositive(1f),
+                        interactionSource = interactionSource,
+                        thumb = { Spacer(modifier = Modifier.size(0.dp)) },
+                        track = { sliderState ->
+                            PlayerSliderTrack(
+                                sliderState = sliderState,
+                                colors = SliderDefaults.colors(
+                                    activeTrackColor = Color.White,
+                                    inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                                ),
+                                trackHeight = 4.dp
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(12.dp)
+                    )
+                }
+                SliderStyle.DEFAULT -> {
+                    Slider(
+                        value = currentPosition.toFloat(),
+                        onValueChange = { 
+                            if (isInteracting) {
+                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            }
+                            onSeekTo(it.toLong()) 
+                        },
+                        valueRange = 0f..duration.toFloat().coerceAtPositive(1f),
+                        interactionSource = interactionSource,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color.Transparent,
+                            activeTrackColor = Color.Transparent,
+                            inactiveTrackColor = Color.Transparent
+                        ),
+                        thumb = {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .graphicsLayer { alpha = thumbAlpha }
+                                    .shadow(8.dp, CircleShape)
+                                    .background(Color.White, CircleShape)
+                            )
+                        },
+                        track = {
+                            val fraction = if (duration > 0) currentPosition.toFloat() / duration.toFloat().coerceAtLeast(1f) else 0f
+                            
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(animatedTrackHeight)
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(Color.White.copy(alpha = 0.15f))
+                            ) {
+                                // Active Track
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth(fraction)
+                                        .fillMaxHeight()
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(
+                                            Brush.horizontalGradient(
+                                                listOf(
+                                                    Color.White.copy(alpha = 0.8f),
+                                                    Color.White
+                                                )
+                                            )
                                         )
-                                    )
                                 )
-                        )
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(24.dp)
-            )
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(24.dp)
+                    )
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(2.dp))
