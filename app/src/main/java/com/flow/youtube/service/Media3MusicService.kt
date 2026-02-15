@@ -41,6 +41,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
+import android.os.PowerManager
+import android.net.wifi.WifiManager
+import android.content.Context
 import kotlin.math.min
 
 @AndroidEntryPoint
@@ -79,6 +82,9 @@ class Media3MusicService : MediaLibraryService() {
     private val customEqualizer = CustomEqualizerAudioProcessor()
     private lateinit var connectivityObserver: NetworkConnectivityObserver
     
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var wifiLock: WifiManager.WifiLock? = null
+    
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
     private val retryCountMap = mutableMapOf<String, Int>()
@@ -98,6 +104,18 @@ class Media3MusicService : MediaLibraryService() {
         
         connectivityObserver = NetworkConnectivityObserver(this)
         connectivityObserver.startObserving()
+        
+        try {
+            val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Flow:MusicServiceWakeLock")
+            wakeLock?.setReferenceCounted(false)
+            
+            val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
+            wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "Flow:MusicServiceWifiLock")
+            wifiLock?.setReferenceCounted(false)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to acquire locks", e)
+        }
         
         serviceScope.launch {
             connectivityObserver.isConnected.collectLatest { isConnected ->
@@ -192,6 +210,13 @@ class Media3MusicService : MediaLibraryService() {
                         retryCountMap.remove(mediaId)
                         recentlyFailedSongs.remove(mediaId)
                     }
+                }
+            }
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying) {
+                     acquireLocks()
+                } else {
+                     releaseLocks()
                 }
             }
         })
@@ -433,7 +458,26 @@ class Media3MusicService : MediaLibraryService() {
         if (::player.isInitialized) {
             player.release()
         }
+        releaseLocks()
         super.onDestroy()
+    }
+    
+    private fun acquireLocks() {
+        if (wakeLock?.isHeld != true) {
+            wakeLock?.acquire()
+        }
+        if (wifiLock?.isHeld != true) {
+            wifiLock?.acquire()
+        }
+    }
+    
+    private fun releaseLocks() {
+        if (wakeLock?.isHeld == true) {
+            wakeLock?.release()
+        }
+        if (wifiLock?.isHeld == true) {
+            wifiLock?.release()
+        }
     }
 
     private fun updateNotification() {

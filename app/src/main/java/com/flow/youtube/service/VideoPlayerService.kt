@@ -364,7 +364,7 @@ class VideoPlayerService : Service() {
     
     private fun acquireLocks() {
         if (wakeLock?.isHeld != true) {
-            wakeLock?.acquire(10 * 60 * 1000L /*10 minutes*/)
+            wakeLock?.acquire()
         }
         if (wifiLock?.isHeld != true) {
             wifiLock?.acquire()
