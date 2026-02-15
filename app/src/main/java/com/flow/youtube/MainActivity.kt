@@ -42,6 +42,9 @@ class MainActivity : ComponentActivity() {
     private val _isDeeplinkShort = mutableStateOf(false)
     val isDeeplinkShort: State<Boolean> = _isDeeplinkShort
 
+    private val _pendingUpdateInfo = mutableStateOf<UpdateInfo?>(null)
+    val pendingUpdateInfo: State<UpdateInfo?> = _pendingUpdateInfo
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -104,6 +107,14 @@ class MainActivity : ComponentActivity() {
                             updateInfo = null
                         }
                     )
+                }
+
+                // Handle update from notification
+                val pendingUpdate by this@MainActivity.pendingUpdateInfo
+                LaunchedEffect(pendingUpdate) {
+                    if (pendingUpdate != null) {
+                        updateInfo = pendingUpdate
+                    }
                 }
 
                 // Request notification permission for Android 13+
@@ -201,6 +212,14 @@ class MainActivity : ComponentActivity() {
         if (videoId != null) {
             _deeplinkVideoId.value = videoId
             intent.putExtra("deeplink_video_id", videoId)
+        }
+
+        // Check for Update Notification extras
+        if (intent.hasExtra("EXTRA_UPDATE_VERSION")) {
+            val version = intent.getStringExtra("EXTRA_UPDATE_VERSION") ?: ""
+            val changelog = intent.getStringExtra("EXTRA_UPDATE_CHANGELOG") ?: ""
+            val url = intent.getStringExtra("EXTRA_UPDATE_URL") ?: ""
+            _pendingUpdateInfo.value = UpdateInfo(version, changelog, url, true)
         }
     }
 

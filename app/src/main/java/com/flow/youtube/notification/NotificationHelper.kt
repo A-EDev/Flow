@@ -416,6 +416,46 @@ object NotificationHelper {
         
         NotificationManagerCompat.from(context).notify(NOTIFICATION_NEW_VIDEO, summaryNotification)
     }
+
+    // ========== UPDATE NOTIFICATIONS ==========
+
+    /**
+     * Show notification for new app update
+     */
+    fun showUpdateNotification(
+        context: Context,
+        version: String,
+        changelog: String,
+        downloadUrl: String
+    ) {
+        if (!hasNotificationPermission(context)) return
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("EXTRA_UPDATE_VERSION", version)
+            putExtra("EXTRA_UPDATE_CHANGELOG", changelog)
+            putExtra("EXTRA_UPDATE_URL", downloadUrl)
+        }
+        
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(context, CHANNEL_UPDATES)
+            .setSmallIcon(R.drawable.ic_notification_logo)
+            .setContentTitle("Update Available: $version")
+            .setContentText("Tap to update to the latest version.")
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .build()
+
+        NotificationManagerCompat.from(context).notify(9999, notification)
+    }
     
     // ========== GENERAL NOTIFICATIONS ==========
     

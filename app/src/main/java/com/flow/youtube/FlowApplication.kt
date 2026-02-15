@@ -69,7 +69,11 @@ class FlowApplication : Application(), ImageLoaderFactory {
         // Schedule periodic subscription checks for new videos
         // This will check subscribed channels every 30 minutes
         SubscriptionCheckWorker.schedulePeriodicCheck(this, intervalMinutes = 30)
-        Log.d(TAG, "Subscription check worker scheduled")
+        
+        // Schedule periodic update checks (every 12 hours)
+        com.flow.youtube.notification.UpdateCheckWorker.schedulePeriodicCheck(this)
+        
+        Log.d(TAG, "Workers scheduled successfully")
     }
     
     /**
