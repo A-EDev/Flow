@@ -1,44 +1,50 @@
 package com.flow.youtube.ui.screens.settings
 
-import android.app.TimePickerDialog
+import android.Manifest
 import android.content.Context
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.res.stringResource
-import com.flow.youtube.R
-import androidx.hilt.navigation.compose.hiltViewModel
-import java.util.Locale
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.flow.youtube.R
+import java.util.Locale
+
+// ============================================================================
+// Main Screen
+// ============================================================================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,40 +54,164 @@ fun TimeManagementScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
-    
-    // Permission Launcher
+
+    // Permission launcher
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            // If granted, we could auto-enable, but for now we rely on user clicking again or simple flow
-        }
+        onResult = { /* Permission result handled by next toggle attempt */ }
     )
 
-    // Helper to check and request permission
     val checkPermissionAndToggle: (Boolean, (Boolean) -> Unit) -> Unit = { checked, toggleFunc ->
         if (checked && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val hasPermission = ContextCompat.checkSelfPermission(
-                context, 
-                Manifest.permission.POST_NOTIFICATIONS
+                context, Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
-            
+
             if (hasPermission) {
                 toggleFunc(true)
             } else {
                 permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                // We don't toggle yet, user must grant first. 
-                // Or we toggle and let system deny notification? Better to ask.
-                // For better UX, we could toggle it anyway so the UI updates, 
-                // but the notification won't show without permission.
-                toggleFunc(true) 
+                toggleFunc(true)
             }
         } else {
             toggleFunc(checked)
         }
     }
-    
-    // Dialog state for Break Frequency
+
+    // Dialog states
     var showBreakFrequencyDialog by remember { mutableStateOf(false) }
+    var showBedtimeStartPicker by remember { mutableStateOf(false) }
+    var showBedtimeEndPicker by remember { mutableStateOf(false) }
+
+    Scaffold(
+        topBar = {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
+                    }
+                    Column {
+                        Text(
+                            stringResource(R.string.time_management_title),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            stringResource(R.string.time_management_subtitle),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Spacer(Modifier.height(4.dp))
+
+            // ── Stats Hero ──
+            StatsHeroCard(uiState)
+
+            // ── Weekly Chart ──
+            WeeklyChartCard(data = uiState.chartData)
+
+            // ── Stats Breakdown ──
+            StatsBreakdownCard(uiState)
+
+            // ── Disclaimer ──
+            Text(
+                stringResource(R.string.stats_disclaimer),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+
+            // ── Tools Section ──
+            ToolsSectionHeader()
+
+            // Bedtime Reminder
+            ReminderCard(
+                icon = Icons.Outlined.Bedtime,
+                iconTint = Color(0xFF5C6BC0),
+                title = stringResource(R.string.bedtime_reminder_title),
+                subtitle = stringResource(R.string.bedtime_reminder_subtitle),
+                enabled = uiState.bedtimeReminderEnabled,
+                onToggle = { checkPermissionAndToggle(it, viewModel::toggleBedtimeReminder) }
+            ) {
+                // Bedtime schedule
+                TimeSlotRow(
+                    label = stringResource(R.string.start_time),
+                    hour = uiState.bedtimeStartHour,
+                    minute = uiState.bedtimeStartMinute,
+                    onClick = { showBedtimeStartPicker = true }
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+
+                TimeSlotRow(
+                    label = stringResource(R.string.end_time),
+                    hour = uiState.bedtimeEndHour,
+                    minute = uiState.bedtimeEndMinute,
+                    onClick = { showBedtimeEndPicker = true }
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                BedtimeScheduleIndicator(
+                    startHour = uiState.bedtimeStartHour,
+                    startMinute = uiState.bedtimeStartMinute,
+                    endHour = uiState.bedtimeEndHour,
+                    endMinute = uiState.bedtimeEndMinute
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    stringResource(R.string.bedtime_notification_note),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
+
+            // Break Reminder
+            ReminderCard(
+                icon = Icons.Outlined.FreeBreakfast,
+                iconTint = Color(0xFFE57373),
+                title = stringResource(R.string.break_reminder_title),
+                subtitle = stringResource(R.string.break_reminder_subtitle),
+                enabled = uiState.breakReminderEnabled,
+                onToggle = { checkPermissionAndToggle(it, viewModel::toggleBreakReminder) }
+            ) {
+                FrequencySelector(
+                    currentMinutes = uiState.breakFrequencyMinutes,
+                    onClick = { showBreakFrequencyDialog = true }
+                )
+            }
+
+            Spacer(Modifier.height(32.dp))
+        }
+    }
+
+    // ── Dialogs ──
 
     if (showBreakFrequencyDialog) {
         FrequencyPickerDialog(
@@ -94,139 +224,264 @@ fun TimeManagementScreen(
         )
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.time_management_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = stringResource(R.string.btn_back))
-                    }
-                }
-            )
-        }
-    ) { padding ->
+    // Material 3 Time Pickers
+    if (showBedtimeStartPicker) {
+        Material3TimePicker(
+            initialHour = uiState.bedtimeStartHour,
+            initialMinute = uiState.bedtimeStartMinute,
+            title = stringResource(R.string.bedtime_start_title),
+            onConfirm = { h, m ->
+                viewModel.updateBedtimeSchedule(
+                    startHour = h, startMinute = m,
+                    endHour = uiState.bedtimeEndHour, endMinute = uiState.bedtimeEndMinute
+                )
+                showBedtimeStartPicker = false
+            },
+            onDismiss = { showBedtimeStartPicker = false }
+        )
+    }
+
+    if (showBedtimeEndPicker) {
+        Material3TimePicker(
+            initialHour = uiState.bedtimeEndHour,
+            initialMinute = uiState.bedtimeEndMinute,
+            title = stringResource(R.string.bedtime_end_title),
+            onConfirm = { h, m ->
+                viewModel.updateBedtimeSchedule(
+                    startHour = uiState.bedtimeStartHour, startMinute = uiState.bedtimeStartMinute,
+                    endHour = h, endMinute = m
+                )
+                showBedtimeEndPicker = false
+            },
+            onDismiss = { showBedtimeEndPicker = false }
+        )
+    }
+}
+
+// ============================================================================
+// Stats Hero Card
+// ============================================================================
+
+@Composable
+private fun StatsHeroCard(uiState: TimeManagementState) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+        )
+    ) {
         Column(
             modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                .fillMaxWidth()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Enhanced Stats Header
-            StatsHeader(uiState)
-
-            // Bar Chart
-            if (uiState.chartData.isNotEmpty()) {
-                 ChartSection(data = uiState.chartData)
+            // Icon
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Outlined.Timer,
+                    null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(28.dp)
+                )
             }
 
-            // Stats Breakdown Card
-            StatsBreakdownCard(uiState)
-            
+            Spacer(Modifier.height(16.dp))
+
             Text(
-                text = stringResource(R.string.stats_disclaimer),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                stringResource(R.string.daily_average_label),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                letterSpacing = 1.sp
             )
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(Modifier.height(4.dp))
 
-            // Reminders Section
+            // Main stat
             Text(
-                text = stringResource(R.string.tools_to_manage_time),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary
+                text = uiState.dailyAverageFormatted,
+                style = MaterialTheme.typography.displaySmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
             )
-            
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // Bedtime Reminder
-                ExpandableSettingsCard(
-                    title = "Remind me when it's bedtime",
-                    checked = uiState.bedtimeReminderEnabled,
-                    onCheckedChange = { checkPermissionAndToggle(it, viewModel::toggleBedtimeReminder) }
+
+            // Trend badge
+            if (uiState.trend.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+
+                val isPositiveTrend = uiState.trend.contains("↓") || uiState.trend.contains("less")
+                val trendColor = if (isPositiveTrend)
+                    Color(0xFF4CAF50) else Color(0xFFFF9800)
+
+                Surface(
+                    color = trendColor.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(20.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp)
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        TimePickerRow(
-                            label = "Start time",
-                            hour = uiState.bedtimeStartHour,
-                            minute = uiState.bedtimeStartMinute,
-                            context = context
-                        ) { h, m -> 
-                            viewModel.updateBedtimeSchedule(
-                                startHour = h, 
-                                startMinute = m, 
-                                endHour = uiState.bedtimeEndHour, 
-                                endMinute = uiState.bedtimeEndMinute
-                            )
-                        }
-                        
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha=0.5f))
-                        
-                        TimePickerRow(
-                            label = "End time",
-                            hour = uiState.bedtimeEndHour,
-                            minute = uiState.bedtimeEndMinute,
-                            context = context
-                        ) { h, m -> 
-                             viewModel.updateBedtimeSchedule(
-                                startHour = uiState.bedtimeStartHour, 
-                                startMinute = uiState.bedtimeStartMinute, 
-                                endHour = h, 
-                                endMinute = m
-                            )
-                        }
-                        
+                        Icon(
+                            if (isPositiveTrend) Icons.Filled.TrendingDown
+                            else Icons.Filled.TrendingUp,
+                            null,
+                            tint = trendColor,
+                            modifier = Modifier.size(16.dp)
+                        )
                         Text(
-                            text = stringResource(R.string.bedtime_notification_note),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 8.dp)
+                            uiState.trend,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = trendColor,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
+            }
+        }
+    }
+}
 
-                // Break Reminder
-                ExpandableSettingsCard(
-                    title = "Remind me to take a break",
-                    checked = uiState.breakReminderEnabled,
-                    onCheckedChange = { checkPermissionAndToggle(it, viewModel::toggleBreakReminder) }
+// ============================================================================
+// Weekly Chart Card
+// ============================================================================
+
+@Composable
+private fun WeeklyChartCard(data: List<DailyStat>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    stringResource(R.string.this_week),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+
+                if (data.isNotEmpty()) {
+                    val totalHours = data.sumOf { it.durationH.toDouble() }
+                    Text(
+                        stringResource(R.string.total_hours_template, String.format("%.1f", totalHours)),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(20.dp))
+
+            if (data.isEmpty() || data.all { it.durationH == 0f }) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp),
+                    contentAlignment = Alignment.Center
                 ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Outlined.BarChart,
+                            null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                            modifier = Modifier.size(40.dp)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            stringResource(R.string.no_watch_data),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+            } else {
+                // Chart
+                val maxVal = data.maxOf { it.durationH }.coerceAtLeast(0.5f)
+                val yMax = maxVal * 1.2f
+                val primaryColor = MaterialTheme.colorScheme.primary
+                val containerColor = MaterialTheme.colorScheme.primaryContainer
+                val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                val textColor = MaterialTheme.colorScheme.onSurfaceVariant
+
+                Row(modifier = Modifier.fillMaxWidth().height(180.dp)) {
+                    // Y-axis labels
                     Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp)
+                            .fillMaxHeight()
+                            .width(30.dp)
+                            .padding(end = 4.dp),
+                        verticalArrangement = Arrangement.SpaceBetween,
+                        horizontalAlignment = Alignment.End
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { showBreakFrequencyDialog = true }
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        val gridStep = when {
+                            yMax > 8 -> 4
+                            yMax > 4 -> 2
+                            else -> 1
+                        }
+                        val labels = (yMax.toInt() downTo 0 step gridStep).toList()
+                        labels.forEach { value ->
                             Text(
-                                stringResource(R.string.reminder_frequency), 
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface
+                                "${value}h",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = textColor,
+                                fontSize = 10.sp
                             )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    stringResource(R.string.every_min_template, uiState.breakFrequencyMinutes),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold
+                        }
+                    }
+
+                    // Chart area
+                    Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                        // Grid lines
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val gridStep = when {
+                                yMax > 8 -> 4
+                                yMax > 4 -> 2
+                                else -> 1
+                            }
+                            for (value in gridStep..yMax.toInt() step gridStep) {
+                                val y = size.height - (size.height * (value / yMax))
+                                drawLine(
+                                    color = gridColor,
+                                    start = Offset(0f, y),
+                                    end = Offset(size.width, y),
+                                    strokeWidth = 1f,
+                                    pathEffect = PathEffect.dashPathEffect(
+                                        floatArrayOf(8f, 8f), 0f
+                                    )
                                 )
-                                Icon(
-                                    Icons.Default.ArrowDropDown, 
-                                    contentDescription = null, 
-                                    tint = MaterialTheme.colorScheme.primary
+                            }
+                        }
+
+                        // Bars
+                        Row(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            data.forEach { stat ->
+                                ChartBar(
+                                    stat = stat,
+                                    yMax = yMax,
+                                    primaryColor = primaryColor,
+                                    containerColor = containerColor,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxHeight()
                                 )
                             }
                         }
@@ -238,245 +493,535 @@ fun TimeManagementScreen(
 }
 
 @Composable
-fun StatsHeader(uiState: TimeManagementState) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = stringResource(R.string.daily_average_label),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.secondary
+private fun ChartBar(
+    stat: DailyStat,
+    yMax: Float,
+    primaryColor: Color,
+    containerColor: Color,
+    modifier: Modifier = Modifier
+) {
+    val barFraction = (stat.durationH / yMax).coerceIn(0f, 1f)
+
+    // Animate bar height on first appearance
+    val animatedFraction by animateFloatAsState(
+        targetValue = barFraction,
+        animationSpec = tween(600, easing = FastOutSlowInEasing),
+        label = "bar_height"
+    )
+
+    Column(
+        modifier = modifier.padding(horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Bottom
+    ) {
+        // Value label above bar
+        if (stat.isToday && stat.durationH > 0) {
+            Text(
+                String.format("%.1fh", stat.durationH),
+                style = MaterialTheme.typography.labelSmall,
+                color = primaryColor,
+                fontWeight = FontWeight.Bold,
+                fontSize = 9.sp
+            )
+            Spacer(Modifier.height(2.dp))
+        }
+
+        // Bar
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.6f)
+                .fillMaxHeight(animatedFraction.coerceAtLeast(0.01f))
+                .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                .background(
+                    if (stat.isToday)
+                        Brush.verticalGradient(
+                            listOf(primaryColor, primaryColor.copy(alpha = 0.7f))
+                        )
+                    else
+                        Brush.verticalGradient(
+                            listOf(containerColor, containerColor.copy(alpha = 0.5f))
+                        )
+                )
         )
-        Spacer(modifier = Modifier.height(4.dp))
+
+        Spacer(Modifier.height(6.dp))
+
+        // Day label
         Text(
-            text = uiState.dailyAverage.replace(" daily average", ""),
-            style = MaterialTheme.typography.displayMedium,
+            stat.dayName.take(3),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (stat.isToday) primaryColor
+            else MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = if (stat.isToday) FontWeight.Bold else FontWeight.Normal,
+            fontSize = 11.sp
+        )
+    }
+}
+
+// ============================================================================
+// Stats Breakdown
+// ============================================================================
+
+@Composable
+private fun StatsBreakdownCard(uiState: TimeManagementState) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
+        )
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            StatRow(
+                icon = Icons.Outlined.Today,
+                label = stringResource(R.string.stats_today),
+                value = uiState.todayWatchTime,
+                tint = MaterialTheme.colorScheme.primary
+            )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+            )
+
+            StatRow(
+                icon = Icons.Outlined.DateRange,
+                label = stringResource(R.string.stats_last_7_days),
+                value = uiState.last7DaysWatchTime,
+                tint = MaterialTheme.colorScheme.secondary
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+    tint: Color
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(tint.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = tint, modifier = Modifier.size(18.dp))
+            }
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+        }
+        Text(
+            value,
+            style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface
         )
-        if (uiState.trend.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Surface(
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                shape = RoundedCornerShape(16.dp)
+    }
+}
+
+// ============================================================================
+// Tools Section Header
+// ============================================================================
+
+@Composable
+private fun ToolsSectionHeader() {
+    Row(
+        modifier = Modifier.padding(top = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .width(3.dp)
+                .height(20.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(MaterialTheme.colorScheme.primary)
+        )
+        Column {
+            Text(
+                stringResource(R.string.tools_to_manage_time),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                stringResource(R.string.tools_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+// ============================================================================
+// Reminder Card — Redesigned expandable card with icon
+// ============================================================================
+
+@Composable
+private fun ReminderCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    iconTint: Color,
+    title: String,
+    subtitle: String,
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+    expandedContent: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (enabled) 2.dp else 0.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Icon
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(iconTint.copy(alpha = if (enabled) 0.15f else 0.08f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        icon, null,
+                        tint = if (enabled) iconTint else iconTint.copy(alpha = 0.5f),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Spacer(Modifier.width(14.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp
+                    )
+                }
+
+                Spacer(Modifier.width(8.dp))
+
+                Switch(
+                    checked = enabled,
+                    onCheckedChange = onToggle
+                )
+            }
+
+            AnimatedVisibility(
+                visible = enabled,
+                enter = expandVertically(animationSpec = spring(dampingRatio = 0.8f)) + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier.padding(top = 16.dp, start = 4.dp, end = 4.dp)
+                ) {
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    expandedContent()
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================
+// Time Slot Row (replaces TimePickerRow)
+// ============================================================================
+
+@Composable
+private fun TimeSlotRow(
+    label: String,
+    hour: Int,
+    minute: Int,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp, horizontal = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+
+        Surface(
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+            shape = RoundedCornerShape(10.dp),
+            onClick = onClick
+        ) {
+            Text(
+                String.format(Locale.getDefault(), "%02d:%02d", hour, minute),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+            )
+        }
+    }
+}
+
+// ============================================================================
+// Bedtime Schedule Visual Indicator
+// ============================================================================
+
+@Composable
+private fun BedtimeScheduleIndicator(
+    startHour: Int,
+    startMinute: Int,
+    endHour: Int,
+    endMinute: Int
+) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val containerColor = MaterialTheme.colorScheme.primaryContainer
+
+    val startTotal = startHour * 60 + startMinute
+    val endTotal = endHour * 60 + endMinute
+    val sleepDuration = if (endTotal > startTotal) endTotal - startTotal
+    else (24 * 60 - startTotal) + endTotal
+
+    val hours = sleepDuration / 60
+    val minutes = sleepDuration % 60
+
+    Surface(
+        color = containerColor.copy(alpha = 0.3f),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Outlined.NightsStay,
+                null,
+                tint = primaryColor,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                buildString {
+                    append(stringResource(R.string.sleep_window))
+                    append(" ")
+                    if (hours > 0) append("${hours}h ")
+                    if (minutes > 0) append("${minutes}m")
+                },
+                style = MaterialTheme.typography.labelMedium,
+                color = primaryColor,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+// ============================================================================
+// Frequency Selector
+// ============================================================================
+
+@Composable
+private fun FrequencySelector(
+    currentMinutes: Int,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text(
+                stringResource(R.string.reminder_frequency),
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                stringResource(R.string.frequency_description),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp
+            )
+        }
+
+        Surface(
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+            shape = RoundedCornerShape(10.dp),
+            onClick = onClick
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = uiState.trend,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    stringResource(R.string.every_min_template, currentMinutes),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Icon(
+                    Icons.Default.ArrowDropDown,
+                    null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
     }
 }
 
-@Composable
-fun StatsBreakdownCard(uiState: TimeManagementState) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-         Column(modifier = Modifier.padding(16.dp)) {
-              Row(
-                  modifier = Modifier.fillMaxWidth(),
-                  horizontalArrangement = Arrangement.SpaceBetween
-              ) {
-                  Text(stringResource(R.string.stats_today), style = MaterialTheme.typography.bodyLarge)
-                  Text(uiState.todayWatchTime, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-              }
-              HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
-              Row(
-                  modifier = Modifier.fillMaxWidth(),
-                  horizontalArrangement = Arrangement.SpaceBetween
-              ) {
-                  Text(stringResource(R.string.stats_last_7_days), style = MaterialTheme.typography.bodyLarge)
-                  Text(uiState.last7DaysWatchTime, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
-              }
-         }
-    }
-}
+// ============================================================================
+// Material 3 Time Picker Dialog
+// ============================================================================
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ExpandableSettingsCard(
+private fun Material3TimePicker(
+    initialHour: Int,
+    initialMinute: Int,
     title: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    content: @Composable () -> Unit
+    onConfirm: (Int, Int) -> Unit,
+    onDismiss: () -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
+    val timePickerState = rememberTimePickerState(
+        initialHour = initialHour,
+        initialMinute = initialMinute,
+        is24Hour = true
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(title, fontWeight = FontWeight.Bold)
+        },
+        text = {
+            Box(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                contentAlignment = Alignment.Center
             ) {
-                Text(title, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Medium)
-                Switch(checked = checked, onCheckedChange = onCheckedChange)
+                TimePicker(state = timePickerState)
             }
-            
-            AnimatedVisibility(
-                visible = checked,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(timePickerState.hour, timePickerState.minute) }
             ) {
-                content()
+                Text(stringResource(R.string.confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
             }
         }
-    }
+    )
 }
 
-@Composable
-fun TimePickerRow(
-    label: String,
-    hour: Int,
-    minute: Int,
-    context: Context,
-    onTimeSelected: (Int, Int) -> Unit
-) {
-    val timeString = String.format(Locale.getDefault(), "%02d:%02d", hour, minute)
-    
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable {
-                TimePickerDialog(
-                    context,
-                    { _, h, m -> onTimeSelected(h, m) },
-                    hour,
-                    minute,
-                    true // is24HourView
-                ).show()
-            }
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-        Text(
-            timeString, 
-            style = MaterialTheme.typography.bodyLarge, 
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary
-        )
-    }
-}
+// ============================================================================
+// Frequency Picker Dialog — Polished
+// ============================================================================
 
 @Composable
-fun FrequencyPickerDialog(
+private fun FrequencyPickerDialog(
     currentFrequency: Int,
     onDismiss: () -> Unit,
     onConfirm: (Int) -> Unit
 ) {
     val options = listOf(5, 10, 15, 20, 30, 45, 60, 90, 120)
-    
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.frequency_dialog_title)) },
+        title = {
+            Text(
+                stringResource(R.string.frequency_dialog_title),
+                fontWeight = FontWeight.Bold
+            )
+        },
         text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
                 options.forEach { minutes ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onConfirm(minutes) }
-                            .padding(vertical = 12.dp, horizontal = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    val isSelected = minutes == currentFrequency
+
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = if (isSelected)
+                            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        else Color.Transparent,
+                        shape = RoundedCornerShape(12.dp),
+                        onClick = { onConfirm(minutes) }
                     ) {
-                        RadioButton(
-                            selected = minutes == currentFrequency,
-                            onClick = { onConfirm(minutes) }
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(stringResource(R.string.every_minutes_template, minutes))
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = { onConfirm(minutes) }
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    stringResource(R.string.every_minutes_template, minutes),
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                                if (minutes >= 60) {
+                                    Text(
+                                        "${minutes / 60}h${if (minutes % 60 > 0) " ${minutes % 60}m" else ""}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
         },
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
         }
     )
 }
-
-@Composable
-fun ChartSection(data: List<DailyStat>) {
-    val maxVal = data.maxOfOrNull { it.durationH } ?: 1f
-    val yMax = if (maxVal == 0f) 1f else maxVal * 1.2f 
-    
-    // Determine grid lines
-    val gridStep = if (yMax > 4) 2 else 1
-    val gridLines = (gridStep..yMax.toInt() step gridStep).toList()
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp)
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Chart Area
-        Box(
-            modifier = Modifier.weight(1f).fillMaxHeight()
-        ) {
-            // Grid Lines (Canvas)
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                gridLines.forEach { hr ->
-                     val y = size.height - (size.height * (hr / yMax))
-                     drawLine(
-                         color = Color.Gray.copy(alpha = 0.3f),
-                         start = Offset(0f, y),
-                         end = Offset(size.width, y),
-                         strokeWidth = 2f,
-                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
-                     )
-                }
-            }
-
-            // Bars
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                data.forEach { stat ->
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Bottom,
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .weight(1f)
-                    ) {
-                        val barHeightFraction = (stat.durationH / yMax).coerceIn(0.0f, 1f)
-                        
-                        // Bar
-                        Box(
-                            modifier = Modifier
-                                .weight(1f, fill = false) // Don't fill, use height fraction
-                                .fillMaxHeight(barHeightFraction)
-                                .width(12.dp) 
-                                .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                .background(
-                                    if (stat.isToday) MaterialTheme.colorScheme.primary 
-                                    else MaterialTheme.colorScheme.primaryContainer
-                                )
-                        )
-                        
-                        Spacer(modifier = Modifier.height(4.dp))
-                        
-                        // Day Label
-                        Text(
-                            text = stat.dayName.take(1),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (stat.isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-

@@ -518,6 +518,7 @@
 
     <!-- Time Management Screen -->
     <string name="time_management_title">Time management</string>
+    <string name="time_management_subtitle">Track and control your screen time</string>
     <string name="stats_disclaimer">Stats are based on your watch history across this app. Actual usage may vary.</string>
     <string name="tools_to_manage_time">Tools to manage your time</string>
     <string name="remind_bedtime">Remind me when it\'s bedtime</string>
@@ -532,6 +533,19 @@
     <string name="stats_last_7_days">Last 7 days</string>
     <string name="frequency_dialog_title">Frequency</string>
     <string name="every_minutes_template">Every %1$d minutes</string>
+    <string name="this_week">This Week</string>
+    <string name="total_hours_template">Total: %s hours</string>
+    <string name="no_watch_data">No watch data yet</string>
+    <string name="bedtime_reminder_title">Bedtime Reminder</string>
+    <string name="bedtime_reminder_subtitle">Get notified when it\'s time to sleep</string>
+    <string name="break_reminder_title">Break Reminder</string>
+    <string name="break_reminder_subtitle">Take regular breaks while watching</string>
+    <string name="sleep_window">Sleep window:</string>
+    <string name="frequency_description">How often to remind you</string>
+    <string name="tools_subtitle">Set reminders to balance your viewing habits</string>
+    <string name="bedtime_start_title">Bedtime Start</string>
+    <string name="bedtime_end_title">Wake Up Time</string>
+    <string name="confirm">Confirm</string>
 
     <!-- Search History Settings Screen -->
     <string name="search_history_title">Search &amp; History</string>

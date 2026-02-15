@@ -123,7 +123,7 @@ class TimeManagementViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             todayWatchTime = formatDuration(todayDuration),
             last7DaysWatchTime = formatDuration(totalLast7Days),
-            dailyAverage = formatDuration(avgDaily) + " daily average",
+            dailyAverageFormatted = formatDuration(avgDaily),
             chartData = chartData
         )
     }
@@ -196,7 +196,7 @@ class TimeManagementViewModel @Inject constructor(
 }
 
 data class TimeManagementState(
-    val dailyAverage: String = "0 min daily average",
+    val dailyAverageFormatted: String = "0 min",
     val todayWatchTime: String = "0 min",
     val last7DaysWatchTime: String = "0 min",
     val trend: String = "",
