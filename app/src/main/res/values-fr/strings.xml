@@ -339,6 +339,14 @@
     <string name="style_squiggly">Vague (Squiggly)</string>
     <string name="style_slim">Ultra Fin</string>
 
+    <!-- Fournisseur de paroles -->
+    <string name="lyrics_provider_title">Fournisseur de paroles</string>
+    <string name="lyrics_provider_subtitle">Choisissez votre source préférée pour les paroles</string>
+    <string name="lyrics_provider_lrclib">LrcLib</string>
+    <string name="lyrics_provider_better_lyrics">Better Lyrics</string>
+    <string name="lyrics_provider_simpmusic">SimpMusic</string>
+
+
     <!-- Noms &amp; Descriptions des Thèmes -->
     <string name="theme_name_pure_light">Lumière Pure</string>
     <string name="theme_desc_pure_light">Propre &amp; minimal</string>

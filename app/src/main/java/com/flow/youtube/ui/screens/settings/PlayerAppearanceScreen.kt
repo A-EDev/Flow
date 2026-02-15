@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import com.flow.youtube.R
 import com.flow.youtube.data.local.PlayerPreferences
 import com.flow.youtube.data.local.SliderStyle
+import com.flow.youtube.data.lyrics.PreferredLyricsProvider
 import com.flow.youtube.ui.screens.music.player.components.PlayerSliderTrack
 import com.flow.youtube.ui.screens.music.player.components.SquigglySlider
 import kotlinx.coroutines.launch
@@ -46,8 +47,10 @@ fun PlayerAppearanceScreen(
     val playerPreferences = remember { PlayerPreferences(context) }
     
     val currentSliderStyle by playerPreferences.sliderStyle.collectAsState(initial = SliderStyle.DEFAULT)
+    val currentLyricsProvider by playerPreferences.preferredLyricsProvider.collectAsState(initial = "LRCLIB")
     
     var showStyleSheet by remember { mutableStateOf(false) }
+    var showLyricsProviderSheet by remember { mutableStateOf(false) }
 
     if (showStyleSheet) {
         ModalBottomSheet(
@@ -126,6 +129,66 @@ fun PlayerAppearanceScreen(
         }
     }
 
+    if (showLyricsProviderSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showLyricsProviderSheet = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 32.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.lyrics_provider_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+                )
+
+                PreferredLyricsProvider.values().forEach { provider ->
+                    val isSelected = currentLyricsProvider == provider.name
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                coroutineScope.launch {
+                                    playerPreferences.setPreferredLyricsProvider(provider.name)
+                                }
+                            }
+                            .padding(horizontal = 24.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = getLyricsProviderLabel(provider),
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                        
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    
+                    if (provider != PreferredLyricsProvider.values().last()) {
+                        Divider(
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             Surface(
@@ -181,9 +244,44 @@ fun PlayerAppearanceScreen(
                     modifier = Modifier.padding(horizontal = 8.dp)
                 )
             }
+
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                SectionHeader(text = stringResource(R.string.lyrics_provider_title))
+            }
+
+            item {
+                SettingsGroup {
+                    SettingsItem(
+                        icon = painterResource(R.drawable.ic_lyrics),
+                        title = stringResource(R.string.lyrics_provider_title),
+                        subtitle = getLyricsProviderLabel(PreferredLyricsProvider.fromString(currentLyricsProvider)),
+                        onClick = { showLyricsProviderSheet = true }
+                    )
+                }
+            }
+
+            item {
+                Text(
+                    text = stringResource(R.string.lyrics_provider_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+            }
         }
     }
 }
+
+@Composable
+private fun getLyricsProviderLabel(provider: PreferredLyricsProvider): String {
+    return when (provider) {
+        PreferredLyricsProvider.LRCLIB -> stringResource(R.string.lyrics_provider_lrclib)
+        PreferredLyricsProvider.BETTER_LYRICS -> stringResource(R.string.lyrics_provider_better_lyrics)
+        PreferredLyricsProvider.SIMPMUSIC -> stringResource(R.string.lyrics_provider_simpmusic)
+    }
+}
+
 
 @Composable
 fun SettingsItem(

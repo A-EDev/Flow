@@ -20,7 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.flow.youtube.R
-import com.flow.youtube.ui.screens.music.LyricLine
+import com.flow.youtube.data.lyrics.LyricsEntry
 import com.flow.youtube.ui.screens.music.MusicTrack
 
 enum class PlayerTab {
@@ -45,7 +45,7 @@ fun UnifiedPlayerSheet(
     onMoveTrack: (Int, Int) -> Unit,
     // Lyrics Params
     lyrics: String?,
-    syncedLyrics: List<LyricLine>,
+    syncedLyrics: List<LyricsEntry>,
     currentPosition: Long,
     isLyricsLoading: Boolean,
     onSeekTo: (Long) -> Unit,

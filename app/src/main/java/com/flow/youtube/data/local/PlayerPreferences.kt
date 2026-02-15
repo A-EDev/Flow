@@ -49,6 +49,7 @@ class PlayerPreferences(private val context: Context) {
         val SLIDER_STYLE = stringPreferencesKey("slider_style")
         val SQUIGGLY_SLIDER_ENABLED = booleanPreferencesKey("squiggly_slider_enabled")
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
+        val PREFERRED_LYRICS_PROVIDER = stringPreferencesKey("preferred_lyrics_provider")
     }
     
     // Grid item size preference
@@ -372,6 +373,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setSurfaceReadyTimeoutMs(timeoutMs: Long) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SURFACE_READY_TIMEOUT_MS] = timeoutMs
+        }
+    }
+
+    // Lyrics Provider preference
+    val preferredLyricsProvider: Flow<String> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.PREFERRED_LYRICS_PROVIDER] ?: "LRCLIB"
+        }
+
+    suspend fun setPreferredLyricsProvider(provider: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PREFERRED_LYRICS_PROVIDER] = provider
         }
     }
 }

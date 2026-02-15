@@ -596,7 +596,17 @@ object EnhancedMusicPlayerManager {
         }
     }
     
-    fun getCurrentPosition(): Long = _currentPosition.value // Use state flow value
+    fun getCurrentPosition(): Long {
+        return try {
+            if (player?.isPlaying == true) {
+                player?.currentPosition ?: _currentPosition.value
+            } else {
+                _currentPosition.value
+            }
+        } catch (e: Exception) {
+            _currentPosition.value
+        }
+    }
     fun getDuration(): Long = _playerState.value.duration
     
     fun toggleLike() {

@@ -339,6 +339,14 @@
     <string name="style_squiggly">Squiggly</string>
     <string name="style_slim">Ultra Slim</string>
 
+    <!-- Lyrics Provider -->
+    <string name="lyrics_provider_title">Lyrics Provider</string>
+    <string name="lyrics_provider_subtitle">Choose your preferred source for song lyrics</string>
+    <string name="lyrics_provider_lrclib">LrcLib</string>
+    <string name="lyrics_provider_better_lyrics">Better Lyrics</string>
+    <string name="lyrics_provider_simpmusic">SimpMusic</string>
+
+
     <!-- Theme Names & Descriptions -->
     <string name="theme_name_pure_light">Pure Light</string>
     <string name="theme_desc_pure_light">Clean &amp; minimal</string>

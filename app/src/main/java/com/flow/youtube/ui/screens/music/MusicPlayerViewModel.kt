@@ -25,6 +25,11 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import com.flow.youtube.data.lyrics.LyricsEntry
+import com.flow.youtube.data.lyrics.LyricsHelper
+import com.flow.youtube.data.lyrics.PreferredLyricsProvider
+import com.flow.youtube.data.local.PlayerPreferences
+import kotlinx.coroutines.flow.first
 
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -41,6 +46,9 @@ class MusicPlayerViewModel @Inject constructor(
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MusicPlayerUiState())
     val uiState: StateFlow<MusicPlayerUiState> = _uiState.asStateFlow()
+    
+    private val playerPreferences = PlayerPreferences(context)
+    private val lyricsHelper = LyricsHelper() 
     
     private var isInitialized = false
     private var loadTrackJob: kotlinx.coroutines.Job? = null
@@ -526,99 +534,43 @@ class MusicPlayerViewModel @Inject constructor(
             val cleanTitle = cleanName(title)
             val targetDuration = duration ?: (_uiState.value.duration.toInt() / 1000)
 
-            // Step 1: Try LRCLib for Synced Lyrics (Priority 1)
             try {
-                val response = com.flow.youtube.data.music.LyricsService.getLyrics(
-                    cleanArtist, 
-                    cleanTitle, 
-                    targetDuration
-                )
+                val preferredProviderName = playerPreferences.preferredLyricsProvider.first()
+                val helper = LyricsHelper(PreferredLyricsProvider.fromString(preferredProviderName))
                 
-                if (response?.syncedLyrics != null) {
-                    val parsedSynced = parseLyrics(response.syncedLyrics)
-                    if (parsedSynced.isNotEmpty()) {
+                val result = helper.getLyrics(videoId, cleanTitle, cleanArtist, targetDuration)
+                
+                if (result != null) {
+                    val (entries, providerName) = result
+                    val hasWords = entries.any { it.words != null }
+                    android.util.Log.d("MusicPlayerViewModel", "Got ${entries.size} lyrics lines from $providerName (word-sync=$hasWords)")
+                    
+                    if (entries.size > 1 || (entries.size == 1 && entries[0].time > 0)) {
+                        val plainText = entries.joinToString("\n") { it.text }
                         _uiState.update { it.copy(
                             isLyricsLoading = false,
-                            lyrics = response.plainLyrics,
-                            syncedLyrics = parsedSynced
+                            lyrics = plainText,
+                            syncedLyrics = entries
                         ) }
-                        return@launch // Got synced lyrics!
+                    } else if (entries.size == 1) {
+                        _uiState.update { it.copy(
+                            isLyricsLoading = false,
+                            lyrics = entries[0].text,
+                            syncedLyrics = emptyList()
+                        ) }
+                    } else {
+                        _uiState.update { it.copy(isLyricsLoading = false) }
                     }
-                }
-                
-                if (response?.plainLyrics != null) {
-                    _uiState.update { it.copy(
-                        lyrics = response.plainLyrics,
-                        isLyricsLoading = false
-                    ) }
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("MusicPlayerViewModel", "LRCLib first attempt failed", e)
-            }
-
-            // Step 2: Fallback to Innertube (Priority 2)
-            try {
-                val officialLyrics = com.flow.youtube.data.newmusic.InnertubeMusicService.fetchLyrics(videoId)
-                if (officialLyrics != null) {
-                    _uiState.update { it.copy(
-                        lyrics = officialLyrics,
-                        isLyricsLoading = false
-                    ) }
-                }
-            } catch (e: Exception) {
-                android.util.Log.e("MusicPlayerViewModel", "Innertube lyrics fetch failed", e)
-            }
-
-            // Step 3: Last ditch effort - LRCLib search with fuzzy artist only if we don't have synced yet
-            if (_uiState.value.syncedLyrics.isEmpty()) {
-                try {
-                    val response = com.flow.youtube.data.music.LyricsService.getLyrics(
-                        cleanArtist,
-                        cleanTitle,
-                        targetDuration
-                    )
-                    
-                    if (response?.syncedLyrics != null) {
-                        val parsedSynced = parseLyrics(response.syncedLyrics)
-                        if (parsedSynced.isNotEmpty()) {
-                            _uiState.update { it.copy(
-                                syncedLyrics = parsedSynced,
-                                lyrics = it.lyrics ?: response.plainLyrics,
-                                isLyricsLoading = false
-                            ) }
-                        }
-                    }
-                } catch (e: Exception) {
+                } else {
                     _uiState.update { it.copy(isLyricsLoading = false) }
                 }
+            } catch (e: Exception) {
+                android.util.Log.e("MusicPlayerViewModel", "Lyrics fetch failed", e)
+                _uiState.update { it.copy(isLyricsLoading = false) }
             }
-            
-            _uiState.update { it.copy(isLyricsLoading = false) }
         }
     }
 
-    private fun parseLyrics(lrc: String): List<LyricLine> {
-        val lines = mutableListOf<LyricLine>()
-        val timeRegex = Regex("\\[(\\d{1,2}):(\\d{2})[.:](\\d{2,3})\\]")
-        
-        lrc.lines().forEach { line ->
-            val timeMatches = timeRegex.findAll(line).toList()
-            if (timeMatches.isNotEmpty()) {
-                val content = line.replace(timeRegex, "").trim()
-                if (content.isNotEmpty()) {
-                    timeMatches.forEach { match ->
-                        val min = match.groupValues[1].toLong()
-                        val sec = match.groupValues[2].toLong()
-                        val msStr = match.groupValues[3]
-                        val ms = if (msStr.length == 2) msStr.toLong() * 10 else msStr.toLong()
-                        val time = (min * 60 * 1000) + (sec * 1000) + ms
-                        lines.add(LyricLine(time, content))
-                    }
-                }
-            }
-        }
-        return lines.sortedBy { it.time }
-    }
 
     fun updateProgress() {
         val position = EnhancedMusicPlayerManager.getCurrentPosition()
@@ -653,7 +605,7 @@ data class MusicPlayerUiState(
     val showAddToPlaylistDialog: Boolean = false,
     val showCreatePlaylistDialog: Boolean = false,
     val lyrics: String? = null,
-    val syncedLyrics: List<LyricLine> = emptyList(),
+    val syncedLyrics: List<LyricsEntry> = emptyList(),
     val isLyricsLoading: Boolean = false,
     val playingFrom: String = "Unknown Source",
     val autoplayEnabled: Boolean = true,
@@ -663,7 +615,3 @@ data class MusicPlayerUiState(
     val downloadedTrackIds: Set<String> = emptySet()
 )
 
-data class LyricLine(
-    val time: Long,
-    val content: String
-)

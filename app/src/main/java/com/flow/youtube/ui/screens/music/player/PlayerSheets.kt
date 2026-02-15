@@ -30,8 +30,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.flow.youtube.R
-import com.flow.youtube.ui.screens.music.LyricLine
+import com.flow.youtube.data.lyrics.LyricsEntry
 import com.flow.youtube.ui.screens.music.MusicTrack
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
+import com.flow.youtube.player.EnhancedMusicPlayerManager
+import kotlinx.coroutines.delay
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -175,23 +181,41 @@ fun UpNextContent(
 @Composable
 fun LyricsContent(
     lyrics: String?,
-    syncedLyrics: List<LyricLine>,
+    syncedLyrics: List<LyricsEntry>,
     currentPosition: Long,
     isLoading: Boolean,
     onSeekTo: (Long) -> Unit
 ) {
     val listState = rememberLazyListState()
     val textColor = MaterialTheme.colorScheme.onSurface
+    val primaryColor = MaterialTheme.colorScheme.primary
     val dimmedTextColor = textColor.copy(alpha = 0.4f)
     val loaderColor = MaterialTheme.colorScheme.primary
+
+    var activePosition by remember { mutableLongStateOf(currentPosition) }
+
+    LaunchedEffect(currentPosition) {
+        if (abs(currentPosition - activePosition) > 500) {
+            activePosition = currentPosition
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            if (EnhancedMusicPlayerManager.isPlaying()) {
+                activePosition = EnhancedMusicPlayerManager.getCurrentPosition()
+            }
+            delay(8)
+        }
+    }
     
-    val currentLineIndex = remember(currentPosition, syncedLyrics) {
-        val index = syncedLyrics.indexOfLast { it.time <= currentPosition }
+    val currentLineIndex = remember(activePosition, syncedLyrics) {
+        val index = syncedLyrics.indexOfLast { it.time <= activePosition }
         if (index == -1) 0 else index
     }
     
     LaunchedEffect(currentLineIndex) {
-        if (syncedLyrics.isNotEmpty() && currentLineIndex > 0) {
+        if (syncedLyrics.isNotEmpty() && currentLineIndex >= 0) {
             listState.animateScrollToItem(currentLineIndex, scrollOffset = -400)
         }
     }
@@ -208,38 +232,98 @@ fun LyricsContent(
                 verticalArrangement = Arrangement.spacedBy(32.dp),
                 contentPadding = PaddingValues(top = 24.dp, bottom = 200.dp, start = 24.dp, end = 24.dp)
             ) {
-                itemsIndexed(syncedLyrics) { index, line ->
+                itemsIndexed(syncedLyrics) { index, entry ->
                     val isCurrent = index == currentLineIndex
+                    val isPast = index < currentLineIndex
+                    
                     val alpha by animateFloatAsState(
-                        targetValue = if (isCurrent) 1f else 0.4f,
-                        animationSpec = tween(durationMillis = 600),
+                        targetValue = if (isCurrent) 1f else if (isPast) 0.5f else 0.25f,
+                        animationSpec = tween(durationMillis = 400),
                         label = "lyric_alpha"
                     )
                     val scale by animateFloatAsState(
-                        targetValue = if (isCurrent) 1.08f else 1f,
+                        targetValue = if (isCurrent) 1.05f else 1f,
                         animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy),
                         label = "lyric_scale"
                     )
                     
-                    Text(
-                        text = line.content,
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Bold,
-                            fontSize = 28.sp,
-                            lineHeight = 38.sp,
-                            letterSpacing = (-0.5).sp
-                        ),
-                        color = textColor,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .graphicsLayer {
-                                this.alpha = alpha
-                                this.scaleX = scale
-                                this.scaleY = scale
+                    if (isCurrent && entry.words != null && entry.words.size > 1) {
+                        val annotatedString = buildAnnotatedString {
+                            entry.words.forEachIndexed { wordIndex, word ->
+                                val wordDuration = (word.endTime - word.startTime).coerceAtLeast(1)
+                                val isWordActive = activePosition >= word.startTime && activePosition <= word.endTime
+                                val hasWordPassed = activePosition > word.endTime
+
+                                val transitionProgress = when {
+                                    hasWordPassed -> 1f
+                                    isWordActive -> {
+                                        val elapsed = activePosition - word.startTime
+                                        val linear = (elapsed.toFloat() / wordDuration).coerceIn(0f, 1f)
+                                        linear * linear * (3f - 2f * linear)
+                                    }
+                                    else -> 0f
+                                }
+
+                                val wordAlpha = when {
+                                    hasWordPassed -> 1f
+                                    isWordActive -> 0.5f + (0.5f * transitionProgress)
+                                    else -> 0.35f
+                                }
+
+                                val wordColor = textColor.copy(alpha = wordAlpha)
+                                val wordWeight = when {
+                                    hasWordPassed -> FontWeight.Bold
+                                    isWordActive -> FontWeight.ExtraBold
+                                    else -> FontWeight.Medium
+                                }
+
+                                withStyle(style = SpanStyle(color = wordColor, fontWeight = wordWeight)) {
+                                    append(word.text)
+                                }
+                                if (wordIndex < entry.words.size - 1) {
+                                    append(" ")
+                                }
                             }
-                            .clickable { onSeekTo(line.time) },
-                        textAlign = TextAlign.Start
-                    )
+                        }
+                        
+                        Text(
+                            text = annotatedString,
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 28.sp,
+                                lineHeight = 38.sp,
+                                letterSpacing = (-0.5).sp
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .graphicsLayer {
+                                    this.scaleX = scale
+                                    this.scaleY = scale
+                                }
+                                .clickable { onSeekTo(entry.time) },
+                            textAlign = TextAlign.Start
+                        )
+                    } else {
+                        Text(
+                            text = entry.text,
+                            style = MaterialTheme.typography.headlineMedium.copy(
+                                fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Bold,
+                                fontSize = 28.sp,
+                                lineHeight = 38.sp,
+                                letterSpacing = (-0.5).sp
+                            ),
+                            color = textColor,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .graphicsLayer {
+                                    this.alpha = alpha
+                                    this.scaleX = scale
+                                    this.scaleY = scale
+                                }
+                                .clickable { onSeekTo(entry.time) },
+                            textAlign = TextAlign.Start
+                        )
+                    }
                 }
             }
         } else if (lyrics != null) {
