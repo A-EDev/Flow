@@ -111,6 +111,11 @@
     <string name="action_go_to_home">Go to Home</string>
     <string name="action_delete">Delete</string>
     <string name="downloads_title">Downloads</string>
+    <string name="download_deleted">Download deleted</string>
+    <string name="action_undo">Undo</string>
+    <string name="cd_delete_download">Delete %1$s</string>
+    <string name="cd_video_thumbnail">Video thumbnail for %1$s</string>
+    <string name="cd_track_artwork">Track artwork for %1$s</string>
 
     <!-- Save to Playlist Dialog -->
     <string name="save_to">Save to...</string>

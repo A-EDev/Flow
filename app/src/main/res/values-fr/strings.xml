@@ -111,6 +111,11 @@
     <string name="action_go_to_home">Aller à l\'Accueil</string>
     <string name="action_delete">Supprimer</string>
     <string name="downloads_title">Téléchargements</string>
+    <string name="download_deleted">Téléchargement supprimé</string>
+    <string name="action_undo">Annuler</string>
+    <string name="cd_delete_download">Supprimer %1$s</string>
+    <string name="cd_video_thumbnail">Miniature de la vidéo %1$s</string>
+    <string name="cd_track_artwork">Pochette de la piste %1$s</string>
 
     <!-- Enregistrer dans la Playlist Dialog -->
     <string name="save_to">Enregistrer dans...</string>
