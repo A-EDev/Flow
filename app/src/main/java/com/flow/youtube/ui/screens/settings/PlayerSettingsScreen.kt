@@ -8,6 +8,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,13 +16,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.flow.youtube.data.local.PlayerPreferences
 import androidx.compose.ui.res.stringResource
 import com.flow.youtube.R
+import com.flow.youtube.data.lyrics.PreferredLyricsProvider
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.painterResource
 
 private val audioLanguageOptions = listOf(
     "original" to "Original (Native)",
@@ -45,6 +49,7 @@ private val audioLanguageOptions = listOf(
     "id" to "Indonesian"
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerSettingsScreen(
     onNavigateBack: () -> Unit
@@ -59,8 +64,10 @@ fun PlayerSettingsScreen(
     val manualPipButtonEnabled by playerPreferences.manualPipButtonEnabled.collectAsState(initial = true)
     val backgroundPlayEnabled by playerPreferences.backgroundPlayEnabled.collectAsState(initial = false)
     val preferredAudioLanguage by playerPreferences.preferredAudioLanguage.collectAsState(initial = "original")
+    val currentLyricsProvider by playerPreferences.preferredLyricsProvider.collectAsState(initial = "LRCLIB")
     
     var showAudioLanguageDialog by remember { mutableStateOf(false) }
+    var showLyricsProviderSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -155,6 +162,25 @@ fun PlayerSettingsScreen(
                     )
                 }
             }
+
+            // Lyrics Settings Section
+            item {
+                SectionHeader(text = stringResource(R.string.lyrics_provider_title))
+                SettingsGroup {
+                    SettingsClickItem(
+                        icon =painterResource(R.drawable.ic_lyrics),
+                        title = stringResource(R.string.lyrics_provider_title),
+                        subtitle = getLyricsProviderLabel(PreferredLyricsProvider.fromString(currentLyricsProvider)),
+                        onClick = { showLyricsProviderSheet = true }
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.lyrics_provider_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                )
+            }
         }
     }
     
@@ -223,11 +249,82 @@ fun PlayerSettingsScreen(
             }
         )
     }
+
+    // Lyrics Provider Selection Sheet
+    if (showLyricsProviderSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showLyricsProviderSheet = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 32.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.lyrics_provider_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+                )
+
+                PreferredLyricsProvider.values().forEach { provider ->
+                    val isSelected = currentLyricsProvider == provider.name
+                    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                coroutineScope.launch {
+                                    playerPreferences.setPreferredLyricsProvider(provider.name)
+                                }
+                                showLyricsProviderSheet = false
+                            }
+                            .padding(horizontal = 24.dp, vertical = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = getLyricsProviderLabel(provider),
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                        )
+                        
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    
+                    if (provider != PreferredLyricsProvider.values().last()) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun getLyricsProviderLabel(provider: PreferredLyricsProvider): String {
+    return when (provider) {
+        PreferredLyricsProvider.LRCLIB -> stringResource(R.string.lyrics_provider_lrclib)
+        PreferredLyricsProvider.BETTER_LYRICS -> stringResource(R.string.lyrics_provider_better_lyrics)
+        PreferredLyricsProvider.SIMPMUSIC -> stringResource(R.string.lyrics_provider_simpmusic)
+    }
 }
 
 @Composable
 private fun SettingsClickItem(
-    icon: ImageVector,
+    icon: Any,
     title: String,
     subtitle: String,
     onClick: () -> Unit
@@ -239,12 +336,24 @@ private fun SettingsClickItem(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(24.dp)
-        )
+        when (icon) {
+            is ImageVector -> {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            is Painter -> {
+                Icon(
+                    painter = icon,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
