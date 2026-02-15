@@ -290,7 +290,7 @@ fun TrackOptionsBottomSheet(
                 }
             }
             
-            Divider(modifier = Modifier.padding(vertical = 8.dp))
+            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             
             // Options
             OptionItem(

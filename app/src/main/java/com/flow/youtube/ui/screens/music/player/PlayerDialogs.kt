@@ -33,7 +33,7 @@ fun TrackInfoDialog(
                 }
                 InfoRow(stringResource(R.string.video_id_label), track.videoId)
                 
-                Divider()
+                HorizontalDivider()
                 
                 // Audio format info not directly available in standard Player interface
                 // Simplified for Media3 migration

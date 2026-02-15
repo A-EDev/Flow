@@ -333,6 +333,8 @@
     <string name="player_appearance_header">Personnaliser les Contrôles</string>
     <string name="player_appearance_style_title">Style de la Barre de Progression</string>
     <string name="player_appearance_style_subtitle">Sélectionner le style de la barre de lecture</string>
+    <string name="settings_item_player_appearance">Apparence du lecteur</string>
+    <string name="settings_item_player_appearance_subtitle">Personnaliser le style de la barre de progression</string>
     <string name="style_default">Défaut (Flow)</string>
     <string name="style_metrolist">Metrolist (Épais)</string>
     <string name="style_metrolist_slim">Metrolist (Fin)</string>

@@ -67,7 +67,7 @@ fun AddToPlaylistDialog(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
             )
             
-            Divider()
+            HorizontalDivider()
             
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
@@ -92,9 +92,9 @@ fun AddToPlaylistDialog(
                     )
                 }
                 
-                // Divider
+                // HorizontalDivider
                 item {
-                    Divider(
+                    HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
                     )
                 }

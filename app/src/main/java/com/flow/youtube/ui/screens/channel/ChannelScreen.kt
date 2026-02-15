@@ -303,7 +303,7 @@ private fun ChannelContent(
                     )
                 },
                 divider = {
-                    Divider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 }
             ) {
                 val tabTitles = listOf(
@@ -617,7 +617,7 @@ private fun AboutSection(
             )
         }
         
-        Divider()
+        HorizontalDivider()
         
         // Stats
         Column(

@@ -333,6 +333,8 @@
     <string name="player_appearance_header">Customize Player Controls</string>
     <string name="player_appearance_style_title">Progress Bar Style</string>
     <string name="player_appearance_style_subtitle">Select the visual style of the seek bar</string>
+    <string name="settings_item_player_appearance">Player Appearance</string>
+    <string name="settings_item_player_appearance_subtitle">Customize progress bar style</string>
     <string name="style_default">Default (Flow)</string>
     <string name="style_metrolist">Metrolist (Thick)</string>
     <string name="style_metrolist_slim">Metrolist (Slim)</string>

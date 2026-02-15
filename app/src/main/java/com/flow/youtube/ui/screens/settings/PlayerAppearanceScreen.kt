@@ -118,7 +118,7 @@ fun PlayerAppearanceScreen(
                         }
                         
                         if (style != SliderStyle.values().last()) {
-                            Divider(
+                            HorizontalDivider(
                                 modifier = Modifier.padding(horizontal = 24.dp),
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                             )
@@ -179,7 +179,7 @@ fun PlayerAppearanceScreen(
                     }
                     
                     if (provider != PreferredLyricsProvider.values().last()) {
-                        Divider(
+                        HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 24.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         )

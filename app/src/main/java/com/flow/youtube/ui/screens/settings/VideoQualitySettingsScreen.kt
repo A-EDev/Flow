@@ -96,7 +96,7 @@ fun VideoQualitySettingsScreen(
                             onClick = { coroutineScope.launch { playerPreferences.setDefaultQualityWifi(quality) } }
                         )
                         if (index < qualities.size - 1) {
-                            Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         }
                     }
                 }
@@ -116,7 +116,7 @@ fun VideoQualitySettingsScreen(
                             onClick = { coroutineScope.launch { playerPreferences.setDefaultQualityCellular(quality) } }
                         )
                          if (index < qualities.size - 1) {
-                            Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         }
                     }
                 }

@@ -80,7 +80,7 @@ fun SearchHistorySettingsScreen(
                         checked = searchHistoryEnabled,
                         onCheckedChange = { coroutineScope.launch { searchHistoryRepo.setSearchHistoryEnabled(it) } }
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.TrendingUp,
                         title = stringResource(R.string.search_suggestions_title),
@@ -88,14 +88,14 @@ fun SearchHistorySettingsScreen(
                         checked = searchSuggestionsEnabled,
                         onCheckedChange = { coroutineScope.launch { searchHistoryRepo.setSearchSuggestionsEnabled(it) } }
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.Storage,
                         title = stringResource(R.string.max_history_size_title),
                         subtitle = stringResource(R.string.currently_searches_template, maxHistorySize),
                         onClick = { showHistorySizeDialog = true }
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.AutoDelete,
                         title = stringResource(R.string.auto_delete_history_title),
@@ -105,7 +105,7 @@ fun SearchHistorySettingsScreen(
                     )
                     
                     if (autoDeleteHistory) {
-                        Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         SettingsItem(
                             icon = Icons.Outlined.Schedule,
                             title = stringResource(R.string.retention_period_title),
@@ -114,7 +114,7 @@ fun SearchHistorySettingsScreen(
                         )
                     }
                     
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.ManageSearch,
                         title = stringResource(R.string.clear_history_item_title),

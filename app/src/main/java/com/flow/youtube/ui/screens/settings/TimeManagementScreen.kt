@@ -131,7 +131,7 @@ fun TimeManagementScreen(
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
 
-            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
             // Reminders Section
             Text(
@@ -167,7 +167,7 @@ fun TimeManagementScreen(
                             )
                         }
                         
-                        Divider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha=0.5f))
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha=0.5f))
                         
                         TimePickerRow(
                             label = "End time",
@@ -283,7 +283,7 @@ fun StatsBreakdownCard(uiState: TimeManagementState) {
                   Text(stringResource(R.string.stats_today), style = MaterialTheme.typography.bodyLarge)
                   Text(uiState.todayWatchTime, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
               }
-              Divider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
+              HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f))
               Row(
                   modifier = Modifier.fillMaxWidth(),
                   horizontalArrangement = Arrangement.SpaceBetween

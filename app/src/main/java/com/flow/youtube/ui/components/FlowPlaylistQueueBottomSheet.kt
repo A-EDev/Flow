@@ -86,7 +86,7 @@ fun FlowPlaylistQueueBottomSheet(
                 }
             }
             
-            Divider(modifier = Modifier.padding(bottom = 8.dp))
+            HorizontalDivider(modifier = Modifier.padding(bottom = 8.dp))
 
             LazyColumn(
                 state = listState,

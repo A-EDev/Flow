@@ -145,21 +145,21 @@ fun AboutScreen(
                             subtitle = stringResource(R.string.support_dev_subtitle),
                             onClick = onNavigateToDonations
                         )
-                        Divider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         SettingsItem(
                             icon = Icons.Outlined.Public, 
                             title = stringResource(R.string.about_website),
                             subtitle = "flowapp-website.vercel.app",
                             onClick = { openUrl(context, "https://flowapp-website.vercel.app") } 
                         )
-                        Divider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         SettingsItem(
                             icon = Icons.Outlined.Person,
                             title = stringResource(R.string.about_creator),
                             subtitle = "A-EDev",
                             onClick = { openUrl(context, "https://github.com/A-EDev") }
                         )
-                        Divider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         
                         // GitHub Item with Custom Icon
                         CustomIconSettingsItem(
@@ -169,28 +169,28 @@ fun AboutScreen(
                             onClick = { openUrl(context, "https://github.com/A-EDev/flow") }
                         )
 
-                        Divider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         SettingsItem(
                             icon = Icons.Outlined.Extension,
                             title = stringResource(R.string.newpipe_extractor_title),
                             subtitle = stringResource(R.string.newpipe_extractor_subtitle),
                             onClick = { openUrl(context, "https://github.com/TeamNewPipe/NewPipeExtractor") }
                         )
-                        Divider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         SettingsItem(
                             icon = Icons.Outlined.Description,
                             title = stringResource(R.string.about_license),
                             subtitle = "GNU GPL v3",
                             onClick = { showLicenseDialog = true }
                         )
-                        Divider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         SettingsItem(
                             icon = Icons.Outlined.History,
                             title = stringResource(R.string.about_changelog),
                             subtitle = stringResource(R.string.whats_new_in_flow),
                             onClick = { showChangelogDialog = true }
                         )
-                        Divider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(modifier = Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         SettingsItem(
                             icon = Icons.Outlined.Smartphone,
                             title = stringResource(R.string.about_device_info),

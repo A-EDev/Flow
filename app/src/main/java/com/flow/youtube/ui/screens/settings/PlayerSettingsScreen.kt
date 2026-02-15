@@ -102,7 +102,7 @@ fun PlayerSettingsScreen(
                         checked = backgroundPlayEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setBackgroundPlayEnabled(it) } }
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.SkipNext,
                         title = stringResource(R.string.player_settings_autoplay),
@@ -110,7 +110,7 @@ fun PlayerSettingsScreen(
                         checked = autoplayEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setAutoplayEnabled(it) } }
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.GraphicEq,
                         title = stringResource(R.string.player_settings_skip_silence),
@@ -118,7 +118,7 @@ fun PlayerSettingsScreen(
                         checked = skipSilenceEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setSkipSilenceEnabled(it) } }
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.ContentCut,
                         title = stringResource(R.string.player_settings_sponsorblock),
@@ -126,7 +126,7 @@ fun PlayerSettingsScreen(
                         checked = sponsorBlockEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setSponsorBlockEnabled(it) } }
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.PictureInPicture,
                         title = stringResource(R.string.player_settings_show_pip),

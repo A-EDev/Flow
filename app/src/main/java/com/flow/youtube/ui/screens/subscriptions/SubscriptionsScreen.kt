@@ -270,7 +270,7 @@ fun SubscriptionsScreen(
                                             }
                                         }
                                         
-                                        Divider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                     }
                                 }
     
@@ -283,7 +283,7 @@ fun SubscriptionsScreen(
                                                 onShortClick = { short -> onShortClick(short.id) }
                                             )
                                             Spacer(modifier = Modifier.height(8.dp))
-                                            Divider(thickness = 4.dp, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                                            HorizontalDivider(thickness = 4.dp, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
                                         }
                                     }
                                 }

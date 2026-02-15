@@ -152,19 +152,19 @@ fun FlowDescriptionBottomSheet(
                         value = formatLikeCount(video.likeCount.toInt()),
                         label = stringResource(R.string.likes)
                     )
-                    VerticalDivider()
+                    VerticalHorizontalDivider()
                     StatItem(
                         value = formatViewCount(video.viewCount).replace(" views", ""),
                         label = stringResource(R.string.views)
                     )
-                    VerticalDivider()
+                    VerticalHorizontalDivider()
                     StatItem(
                         value = formatTimeAgo(video.uploadDate).replace(" ago", ""), // "5d" instead of "5d ago"
                         label = formatTimeAgo(video.uploadDate).let { if(it.contains("mo") || it.contains("yr")) stringResource(R.string.ago) else stringResource(R.string.since) }
                     )
                 }
 
-                Divider(
+                HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), 
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f)
                 )
@@ -239,7 +239,7 @@ fun StatItem(value: String, label: String) {
 }
 
 @Composable
-fun VerticalDivider() {
+fun VerticalHorizontalDivider() {
     Box(
         modifier = Modifier
             .height(24.dp)

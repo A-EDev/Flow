@@ -119,7 +119,7 @@ fun BufferSettingsScreen(
                             }
                         )
                          if (index < BufferProfile.values().filter { it != BufferProfile.CUSTOM }.lastIndex) {
-                            Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                            HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         }
                     }
                 }

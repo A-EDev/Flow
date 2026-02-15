@@ -144,7 +144,7 @@ fun DownloadSettingsScreen(
                         )
                     }
                     
-                    Divider(Modifier.padding(horizontal = 16.dp))
+                    HorizontalDivider(Modifier.padding(horizontal = 16.dp))
                     
                     SettingsItem(
                         icon = Icons.Outlined.Download,
@@ -174,7 +174,7 @@ fun DownloadSettingsScreen(
                         subtitle = defaultQuality.label,
                         onClick = { showQualityDialog = true }
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.Wifi,
                         title = stringResource(R.string.download_over_wifi_only),
@@ -207,7 +207,7 @@ fun DownloadSettingsScreen(
                     )
                     
                     if (parallelEnabled) {
-                        Divider(
+                        HorizontalDivider(
                             modifier = Modifier.padding(start = 56.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         )

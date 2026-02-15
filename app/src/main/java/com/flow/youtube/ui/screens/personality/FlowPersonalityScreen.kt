@@ -1420,7 +1420,7 @@ private fun ChannelAffinitySection(
                 }
                 
                 if (index < channels.lastIndex) {
-                    Divider(
+                    HorizontalDivider(
                         modifier = Modifier.padding(vertical = 4.dp),
                         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                     )
@@ -1484,7 +1484,7 @@ private fun AlgorithmInsightsCard(brain: FlowNeuroEngine.UserBrain) {
             }
             
             Spacer(Modifier.height(20.dp))
-            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
             Spacer(Modifier.height(20.dp))
             
             // Algorithm stats
@@ -1687,7 +1687,7 @@ private fun BlockedContentSection(
             if (blockedChannels.isNotEmpty()) {
                 if (blockedTopics.isNotEmpty()) {
                     Spacer(Modifier.height(16.dp))
-                    Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                     Spacer(Modifier.height(16.dp))
                 }
                 Text(

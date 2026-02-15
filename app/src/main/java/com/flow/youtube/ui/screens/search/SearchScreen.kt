@@ -358,7 +358,7 @@ fun SearchScreen(
                             // Divider between channels and videos
                             if (uiState.videos.isNotEmpty()) {
                                 item {
-                                    Divider(
+                                    HorizontalDivider(
                                         modifier = Modifier.padding(vertical = 16.dp, horizontal = 16.dp),
                                         color = MaterialTheme.colorScheme.outlineVariant
                                     )

@@ -107,7 +107,7 @@ fun FlowCommentsBottomSheet(
                 }
             }
 
-            Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
 
             // 2. Content
             if (isLoading) {

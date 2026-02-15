@@ -347,11 +347,11 @@ item {
                         subtitle = androidx.compose.ui.res.stringResource(getThemeNameRes(currentTheme)),
                         onClick = onNavigateToAppearance
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.Tune,
-                        title = "Player Appearance",
-                        subtitle = "Customize progress bar style",
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_player_appearance),
+                        subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_player_appearance_subtitle),
                         onClick = onNavigateToPlayerAppearance
                     )
                 }
@@ -370,42 +370,42 @@ item {
                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_content_prefs_subtitle),
                         onClick = onNavigateToUserPreferences
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                          icon = Icons.Outlined.PlayCircle,
                          title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_player),
                          subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_player_subtitle),
                          onClick = onNavigateToPlayerSettings
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                          icon = Icons.Outlined.HighQuality,
                          title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_quality),
                          subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_quality_subtitle),
                          onClick = onNavigateToVideoQuality
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                          icon = Icons.Outlined.GridView,
                          title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_content_display),
                          subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_content_display_subtitle),
                          onClick = onNavigateToContentSettings
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.Speed,
                         title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_buffer),
                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_buffer_subtitle),
                         onClick = onNavigateToBufferSettings
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.Download,
                         title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_downloads),
                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_downloads_subtitle),
                         onClick = onNavigateToDownloads
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.TrendingUp,
                         title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_region),
@@ -428,21 +428,21 @@ item {
                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_search_history_subtitle),
                         onClick = onNavigateToSearchHistory
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.Schedule,
                         title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_time_management),
                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_time_management_subtitle),
                         onClick = onNavigateToTimeManagement
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.FileUpload,
                         title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_export_data),
                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_export_data_subtitle),
                         onClick = { exportLauncher.launch("flow_backup_${System.currentTimeMillis()}.json") }
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.FileDownload,
                         title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_import_data),
@@ -464,7 +464,7 @@ item {
                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_about_flow_subtitle),
                         onClick = onNavigateToAbout
                     )
-                    Divider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
                         icon = Icons.Outlined.Favorite,
                         title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_support),
