@@ -417,6 +417,13 @@
     <string name="content_settings_preview_album_art">Aperçu de la Pochette d\'Album</string>
     <string name="content_settings_preview_big">Grand - Miniatures de 128dp</string>
     <string name="content_settings_preview_small">Petit - Miniatures de 104dp</string>
+    <string name="content_settings_dynamic_components">Composants dynamiques</string>
+    <string name="settings_subs_shorts_shelf_title">Étagère Shorts des abonnements</string>
+    <string name="settings_subs_shorts_shelf_subtitle">Afficher l\'étagère horizontale des Shorts dans la grille du flux d\'abonnements.</string>
+    <string name="settings_home_shorts_shelf_title">Étagère Shorts de l\'écran d\'accueil</string>
+    <string name="settings_home_shorts_shelf_subtitle">Afficher l\'étagère horizontale des Shorts sur l\'écran d\'accueil.</string>
+    <string name="settings_shorts_nav_tab_title">Onglet Shorts dans la navigation</string>
+    <string name="settings_shorts_nav_tab_subtitle">Afficher l\'onglet Shorts dans la barre de navigation inférieure.</string>
 
     <!-- Paramètres du Lecteur -->
     <string name="player_settings_title">Paramètres du Lecteur</string>

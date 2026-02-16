@@ -45,6 +45,9 @@ fun FlowApp(
     val playerUiState by playerUiStateResult
     val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
     
+    val preferences = remember { com.flow.youtube.data.local.PlayerPreferences(context) }
+    val isShortsNavigationEnabled by preferences.shortsNavigationEnabled.collectAsState(initial = true)
+    
     // Offline Monitoring
     val currentRoute = remember { mutableStateOf("home") }
     
@@ -172,6 +175,7 @@ fun FlowApp(
                         // Bottom nav bar
                         FloatingBottomNavBar(
                             selectedIndex = selectedBottomNavIndex.intValue,
+                            isShortsEnabled = isShortsNavigationEnabled,
                             onItemSelected = { index ->
                             when (index) {
                                 0 -> {

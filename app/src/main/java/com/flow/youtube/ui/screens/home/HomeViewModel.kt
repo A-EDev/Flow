@@ -64,11 +64,22 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             FlowNeuroEngine.initialize(context)
         }
+
+        viewModelScope.launch {
+            playerPreferences.homeShortsShelfEnabled.collect { enabled ->
+                if (!enabled) {
+                    _uiState.update { it.copy(shorts = emptyList()) }
+                } else if (_uiState.value.shorts.isEmpty()) {
+                    loadHomeShorts()
+                }
+            }
+        }
     }
     
 
     private fun loadHomeShorts() {
         viewModelScope.launch {
+            if (!playerPreferences.homeShortsShelfEnabled.first()) return@launch
             try {
                 val shorts = shortsRepository.getHomeFeedShorts().map { it.toVideo() }
                 if (shorts.isNotEmpty()) {
@@ -145,7 +156,7 @@ class HomeViewModel @Inject constructor(
                 // Extract shorts from all sources for the shelf
                 val feedShorts = (rawSubs.extractShorts() + rawDiscovery.extractShorts() + rawViral.extractShorts())
                     .distinctBy { it.id }
-                if (feedShorts.isNotEmpty()) {
+                if (feedShorts.isNotEmpty() && playerPreferences.homeShortsShelfEnabled.first()) {
                     _uiState.update { state ->
                         state.copy(shorts = (state.shorts + feedShorts).distinctBy { it.id })
                     }
@@ -238,7 +249,7 @@ class HomeViewModel @Inject constructor(
                 
                 // Extract shorts for shelf
                 val moreShorts = rawVideos.extractShorts()
-                if (moreShorts.isNotEmpty()) {
+                if (moreShorts.isNotEmpty() && playerPreferences.homeShortsShelfEnabled.first()) {
                     _uiState.update { state ->
                         state.copy(shorts = (state.shorts + moreShorts).distinctBy { it.id })
                     }

@@ -417,6 +417,13 @@
     <string name="content_settings_preview_album_art">Album Art Preview</string>
     <string name="content_settings_preview_big">Big - 128dp thumbnails</string>
     <string name="content_settings_preview_small">Small - 104dp thumbnails</string>
+    <string name="content_settings_dynamic_components">Dynamic Components</string>
+    <string name="settings_subs_shorts_shelf_title">Subscriptions shorts shelf</string>
+    <string name="settings_subs_shorts_shelf_subtitle">Show the horizontal shorts shelf in the subscription feed grid.</string>
+    <string name="settings_home_shorts_shelf_title">Home screen shorts shelf</string>
+    <string name="settings_home_shorts_shelf_subtitle">Show the horizontal shorts shelf on the home screen.</string>
+    <string name="settings_shorts_nav_tab_title">Shorts tab in navigation</string>
+    <string name="settings_shorts_nav_tab_subtitle">Show the Shorts tab in the bottom navigation bar.</string>
 
     <!-- Player Settings -->
     <string name="player_settings_title">Player Settings</string>

@@ -38,7 +38,8 @@ import com.flow.youtube.R
 fun FloatingBottomNavBar(
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isShortsEnabled: Boolean = true
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -60,12 +61,14 @@ fun FloatingBottomNavBar(
                 selected = selectedIndex == 0,
                 onClick = { onItemSelected(0) }
             )
-            BottomNavItem(
-                icon = ImageVector.vectorResource(id = R.drawable.ic_shorts),
-                label = stringResource(R.string.nav_shorts),
-                selected = selectedIndex == 1,
-                onClick = { onItemSelected(1) }
-            )
+            if (isShortsEnabled) {
+                BottomNavItem(
+                    icon = ImageVector.vectorResource(id = R.drawable.ic_shorts),
+                    label = stringResource(R.string.nav_shorts),
+                    selected = selectedIndex == 1,
+                    onClick = { onItemSelected(1) }
+                )
+            }
             BottomNavItem(
                 icon = if (selectedIndex == 2) Icons.Filled.MusicNote else Icons.Outlined.MusicNote,
                 label = stringResource(R.string.nav_music),

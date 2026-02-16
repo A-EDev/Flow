@@ -50,6 +50,8 @@ class PlayerPreferences(private val context: Context) {
         val SLIDER_STYLE = stringPreferencesKey("slider_style")
         val SQUIGGLY_SLIDER_ENABLED = booleanPreferencesKey("squiggly_slider_enabled")
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
+        val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
+        val SHORTS_NAVIGATION_ENABLED = booleanPreferencesKey("shorts_navigation_enabled")
         val PREFERRED_LYRICS_PROVIDER = stringPreferencesKey("preferred_lyrics_provider")
     }
     
@@ -97,6 +99,30 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setShortsShelfEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHORTS_SHELF_ENABLED] = enabled
+        }
+    }
+
+    // Home Shorts shelf enabled preference
+    val homeShortsShelfEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.HOME_SHORTS_SHELF_ENABLED] ?: true
+        }
+
+    suspend fun setHomeShortsShelfEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.HOME_SHORTS_SHELF_ENABLED] = enabled
+        }
+    }
+
+    // Shorts navigation enabled preference
+    val shortsNavigationEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SHORTS_NAVIGATION_ENABLED] ?: true
+        }
+
+    suspend fun setShortsNavigationEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHORTS_NAVIGATION_ENABLED] = enabled
         }
     }
     

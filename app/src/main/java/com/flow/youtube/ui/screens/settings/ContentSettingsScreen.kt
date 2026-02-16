@@ -21,7 +21,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,6 +49,8 @@ fun ContentSettingsScreen(
     }
     
     val isShortsShelfEnabled by preferences.shortsShelfEnabled.collectAsState(initial = true)
+    val isHomeShortsShelfEnabled by preferences.homeShortsShelfEnabled.collectAsState(initial = true)
+    val isShortsNavigationEnabled by preferences.shortsNavigationEnabled.collectAsState(initial = true)
     
     Scaffold(
         topBar = {
@@ -140,16 +144,40 @@ fun ContentSettingsScreen(
             
             // Dynamic Components Section
             item {
-                SectionHeader(text = "Dynamic Components")
+                SectionHeader(text = stringResource(R.string.content_settings_dynamic_components))
                 SettingsGroup {
                     SettingsSwitchItem(
                         icon = Icons.Outlined.ViewQuilt,
-                        title = "Shorts shelf",
-                        subtitle = "Show the horizontal shorts shelf in the subscription feed grid.",
+                        title = stringResource(R.string.settings_subs_shorts_shelf_title),
+                        subtitle = stringResource(R.string.settings_subs_shorts_shelf_subtitle),
                         checked = isShortsShelfEnabled,
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setShortsShelfEnabled(enabled)
+                            }
+                        }
+                    )
+                    
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.DesktopWindows,
+                        title = stringResource(R.string.settings_home_shorts_shelf_title),
+                        subtitle = stringResource(R.string.settings_home_shorts_shelf_subtitle),
+                        checked = isHomeShortsShelfEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setHomeShortsShelfEnabled(enabled)
+                            }
+                        }
+                    )
+                    
+                    SettingsSwitchItem(
+                        icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
+                        title = stringResource(R.string.settings_shorts_nav_tab_title),
+                        subtitle = stringResource(R.string.settings_shorts_nav_tab_subtitle),
+                        checked = isShortsNavigationEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setShortsNavigationEnabled(enabled)
                             }
                         }
                     )
