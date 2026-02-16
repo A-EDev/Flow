@@ -20,12 +20,14 @@ import com.flow.youtube.R
 import com.flow.youtube.data.model.ShortVideo
 import com.flow.youtube.data.model.toVideo
 import com.flow.youtube.player.shorts.ShortsPlayerPool
+import com.flow.youtube.data.local.PlayerPreferences
 import com.flow.youtube.ui.components.FlowCommentsBottomSheet
 import com.flow.youtube.ui.components.FlowDescriptionBottomSheet
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -38,6 +40,7 @@ fun ShortsScreen(
     viewModel: ShortsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val audioLangPref = remember(context) { PlayerPreferences(context) }
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
@@ -124,13 +127,35 @@ fun ShortsScreen(
                     val settled = pagerState.settledPage
                     val playerPool = ShortsPlayerPool.getInstance()
                     
-                    // Helper to get stream URL
+                    // Helper to get stream URL with audio language preference
                     suspend fun getStreams(id: String): Pair<String?, String?>? {
                          val streamInfo = viewModel.getVideoStreamInfo(id) ?: return null
                          val videoStream = streamInfo.videoStreams?.firstOrNull { it.height >= 720 }
                                             ?: streamInfo.videoStreams?.firstOrNull()
                                             ?: streamInfo.videoOnlyStreams?.firstOrNull()
-                         val audioStream = streamInfo.audioStreams?.maxByOrNull { it.averageBitrate }
+                         
+                         val preferredLang = audioLangPref.preferredAudioLanguage.first()
+                         val audioCandidates = streamInfo.audioStreams
+                             ?.sortedByDescending { it.averageBitrate } ?: emptyList()
+                         
+                         val audioStream = when (preferredLang) {
+                             "original" -> {
+                                 audioCandidates.firstOrNull { stream ->
+                                     stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
+                                 } ?: audioCandidates.firstOrNull { stream ->
+                                     stream.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED
+                                 } ?: audioCandidates.firstOrNull()
+                             }
+                             else -> {
+                                 audioCandidates.firstOrNull { a ->
+                                     val lang = a.audioLocale?.language ?: ""
+                                     lang.startsWith(preferredLang, true)
+                                 } ?: audioCandidates.firstOrNull { stream ->
+                                     stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
+                                 } ?: audioCandidates.firstOrNull()
+                             }
+                         }
+                         
                          return (videoStream?.content ?: videoStream?.url) to (audioStream?.content ?: audioStream?.url)
                     }
 

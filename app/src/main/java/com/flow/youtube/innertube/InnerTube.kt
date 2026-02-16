@@ -42,7 +42,7 @@ class InnerTube {
 
     var locale = YouTubeLocale(
         gl = Locale.getDefault().country,
-        hl = Locale.getDefault().toLanguageTag()
+        hl = "en" 
     )
     var visitorData: String? = null
     var dataSyncId: String? = null

@@ -50,11 +50,7 @@ object RepositoryModule {
     }
 
 
-    @Provides
-    @Singleton
-    fun provideVideoDownloadManager(@ApplicationContext context: Context): com.flow.youtube.data.video.VideoDownloadManager {
-        return com.flow.youtube.data.video.VideoDownloadManager.getInstance(context)
-    }
+    // VideoDownloadManager is now @Singleton @Inject — Hilt provides it automatically
     @Provides
     @Singleton
     fun providePlayerPreferences(@ApplicationContext context: Context): com.flow.youtube.data.local.PlayerPreferences {

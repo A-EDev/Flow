@@ -20,6 +20,9 @@ data class FlowDownloadMission(
     val savePath: String,
     val fileName: String,
     
+    // User-Agent (important for YouTube streams)
+    val userAgent: String = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
+    
     // Progress tracking
     var totalBytes: Long = 0,
     var audioTotalBytes: Long = 0,

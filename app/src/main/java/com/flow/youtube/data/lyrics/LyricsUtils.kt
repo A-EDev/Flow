@@ -59,7 +59,7 @@ object LyricsUtils {
 
                 val content = matchResult.groupValues[4].trimStart()
 
-                val wordTimings = parseRichSyncWords(content, index, lines)
+                val wordTimings = parseRichSyncWords(content, lineTimeMs, index, lines)
 
                 val plainText = content.replace(Regex("<\\d{1,2}:\\d{2}\\.\\d{2,3}>\\s*"), "").trim()
 
@@ -75,39 +75,61 @@ object LyricsUtils {
     /**
      * Parse word timestamps from rich sync content.
      */
-    private fun parseRichSyncWords(content: String, currentIndex: Int, allLines: List<String>): List<WordTimestamp>? {
-        val wordMatches = RICH_SYNC_WORD_REGEX.findAll(content).toList()
-        if (wordMatches.isEmpty()) return null
+    /**
+     * Parse word timestamps from rich sync content.
+     */
+    private fun parseRichSyncWords(
+        content: String, 
+        lineStartTime: Long,
+        currentIndex: Int, 
+        allLines: List<String>
+    ): List<WordTimestamp>? {
+        val tagRegex = "<(\\d{1,2}):(\\d{2})\\.(\\d{2,3})>".toRegex()
+        val matches = tagRegex.findAll(content).toList()
+        
+        if (matches.isEmpty()) return null
 
         val wordTimings = mutableListOf<WordTimestamp>()
+        var lastEndTime = lineStartTime
 
-        wordMatches.forEachIndexed { index, match ->
-            val minutes = match.groupValues[1].toLongOrNull() ?: 0L
-            val seconds = match.groupValues[2].toLongOrNull() ?: 0L
-            val fraction = match.groupValues[3].toLongOrNull() ?: 0L
-
-            val millisPart = if (match.groupValues[3].length == 3) fraction else fraction * 10
-            val startTimeMs = minutes * 60000 + seconds * 1000 + millisPart
-
-            val wordText = match.groupValues[4].trim()
-
-            val endTimeMs = if (index < wordMatches.size - 1) {
-                val next = wordMatches[index + 1]
-                val nMin = next.groupValues[1].toLongOrNull() ?: 0L
-                val nSec = next.groupValues[2].toLongOrNull() ?: 0L
-                val nFrac = next.groupValues[3].toLongOrNull() ?: 0L
-                val nMillisPart = if (next.groupValues[3].length == 3) nFrac else nFrac * 10
-                nMin * 60000 + nSec * 1000 + nMillisPart
-            } else {
-                getNextLineStartTimeMs(currentIndex, allLines) ?: (startTimeMs + 500)
+        if (matches.isNotEmpty() && matches[0].range.first > 0) {
+            val textBefore = content.substring(0, matches[0].range.first).trim()
+            if (textBefore.isNotEmpty()) {
+                val firstTagTime = parseTimestamp(matches[0].groupValues)
+                wordTimings.add(WordTimestamp(textBefore, lineStartTime, firstTagTime))
+                lastEndTime = firstTagTime
             }
+        }
 
-            if (wordText.isNotBlank()) {
-                wordTimings.add(WordTimestamp(wordText, startTimeMs, endTimeMs))
+        matches.forEachIndexed { index, match ->
+            val startTime = parseTimestamp(match.groupValues)
+            
+            val startTextIndex = match.range.last + 1
+            val endTextIndex = if (index < matches.size - 1) matches[index + 1].range.first else content.length
+            
+            if (startTextIndex < endTextIndex) {
+                 val text = content.substring(startTextIndex, endTextIndex).trim()
+                 if (text.isNotEmpty()) {
+                     val endTime = if (index < matches.size - 1) {
+                         parseTimestamp(matches[index + 1].groupValues)
+                     } else {
+                         val nextLineStart = getNextLineStartTimeMs(currentIndex, allLines)
+                         if (nextLineStart != null && nextLineStart > startTime) nextLineStart else startTime + 500
+                     }
+                     wordTimings.add(WordTimestamp(text, startTime, endTime))
+                 }
             }
         }
 
         return wordTimings.takeIf { it.isNotEmpty() }
+    }
+
+    private fun parseTimestamp(parts: List<String>): Long {
+        val min = parts[1].toLongOrNull() ?: 0L
+        val sec = parts[2].toLongOrNull() ?: 0L
+        val frac = parts[3].toLongOrNull() ?: 0L
+        val millis = if (parts[3].length == 3) frac else frac * 10
+        return min * 60000 + sec * 1000 + millis
     }
 
     private fun getNextLineStartTimeMs(currentIndex: Int, allLines: List<String>): Long? {

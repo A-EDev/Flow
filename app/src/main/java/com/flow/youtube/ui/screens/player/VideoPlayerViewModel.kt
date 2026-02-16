@@ -244,6 +244,8 @@ class VideoPlayerViewModel @Inject constructor(
         
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             Log.d("VideoPlayerViewModel", "Starting loadVideoInfo for $videoId")
+            var isOfflineAvailable = false
+            
             try {
                 // PARALLEL FETCH: Fetch dislikes, preferences, and downloaded status simultaneously
                 val parallelData = supervisorScope {
@@ -262,9 +264,11 @@ class VideoPlayerViewModel @Inject constructor(
                     }
                     
                     val downloadedDeferred = async(PerformanceDispatcher.diskIO) {
-                        videoDownloadManager.downloadedVideos.map { list -> 
-                            list.find { it.video.id == videoId } 
-                        }.first()
+                        try {
+                            videoDownloadManager.downloadedVideos.map { list -> 
+                                list.find { it.video.id == videoId } 
+                            }.first()
+                        } catch (e: Exception) { null }
                     }
                     
                     Triple(
@@ -283,14 +287,33 @@ class VideoPlayerViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(dislikeCount = it)
                 }
 
+                // Check for offline video immediately
+                val localFile = if (downloadedVideo != null) java.io.File(downloadedVideo.filePath) else null
+                isOfflineAvailable = localFile?.exists() == true
+                
+                if (isOfflineAvailable) {
+                    Log.d("VideoPlayerViewModel", "Found offline video at ${localFile?.absolutePath}")
+                    _uiState.update { 
+                        it.copy(
+                            localFilePath = localFile?.absolutePath,
+                            error = null,
+                            // Don't set isLoading=false yet if we want to try fetching metadata/comments
+                            // But usually users want instant playback.
+                            // Let's set it false so player starts, metadata can load in background
+                            isLoading = false
+                        )
+                    }
+                }
+
                 kotlinx.coroutines.withTimeout(30_000) {
                     Log.d("VideoPlayerViewModel", "Loading video $videoId with preferred quality: ${preferredQuality.label} (isWifi=$isWifi)")
 
                     // OPTIMIZED: Fetch stream info with retry and timeout
+                    // Run logic even if offline video exists, to get fresh metadata/comments and related videos
                     val streamInfoDeferred = async(PerformanceDispatcher.networkIO) { 
                         var info: StreamInfo? = null
                         var attempt = 0
-                        val maxAttempts = 3
+                        val maxAttempts = if (isOfflineAvailable) 1 else 3 // Don't retry much if we have offline video
                         while (info == null && attempt < maxAttempts) {
                             try {
                                 attempt++
@@ -471,49 +494,70 @@ class VideoPlayerViewModel @Inject constructor(
                         }
                     } else {
                         // Offline fallback
-                        if (downloadedVideo != null && java.io.File(downloadedVideo.filePath).exists()) {
-                            Log.d("VideoPlayerViewModel", "Using offline video for $videoId")
-                            _uiState.value = _uiState.value.copy(
-                                isLoading = false,
-                                error = null,
-                                relatedVideos = relatedVideos,
-                                localFilePath = downloadedVideo.filePath
-                            )
+                        if (isOfflineAvailable) {
+                            Log.d("VideoPlayerViewModel", "Using offline video for $videoId (Network fetch failed)")
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = null,
+                                    relatedVideos = relatedVideos,
+                                    localFilePath = localFile?.absolutePath
+                                )
+                            }
                         } else {
                             Log.e("VideoPlayerViewModel", "Stream info is null for $videoId and no offline copy found.")
-                            _uiState.value = _uiState.value.copy(
-                                isLoading = false,
-                                relatedVideos = relatedVideos,
-                                error = "Failed to load video"
-                            )
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    relatedVideos = relatedVideos,
+                                    error = "Failed to load video"
+                                )
+                            }
                         }
                     }
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 Log.e("VideoPlayerViewModel", "Video info load timed out for $videoId after 30s")
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = "Load timed out. Please check your connection."
-                )
+                if (isOfflineAvailable) {
+                     Log.d("VideoPlayerViewModel", "Ignoring timeout, playing offline video")
+                     _uiState.update { it.copy(isLoading = false, error = null) }
+                } else {
+                    _uiState.update { 
+                        it.copy(
+                            isLoading = false,
+                            error = "Load timed out. Please check your connection."
+                        )
+                    }
+                }
             } catch (e: Exception) {
                 Log.e("VideoPlayerViewModel", "Exception loading video $videoId", e)
-                // Final fallback if everything fails
-                val downloadedVideo = videoDownloadManager.downloadedVideos.map { list -> 
-                    list.find { it.video.id == videoId } 
-                }.first()
-
-                if (downloadedVideo != null && java.io.File(downloadedVideo.filePath).exists()) {
-                    _uiState.value = _uiState.value.copy(
-                        streamInfo = null,
-                        isLoading = false,
-                        error = null,
-                        localFilePath = downloadedVideo.filePath
-                    )
+                
+                if (isOfflineAvailable) {
+                     Log.d("VideoPlayerViewModel", "Ignoring exception, playing offline video")
+                     _uiState.update { it.copy(isLoading = false, error = null) }
                 } else {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = e.message ?: "An error occurred"
-                    )
+                    // Final fallback if everything fails
+                    val downloadedVideo = videoDownloadManager.downloadedVideos.map { list -> 
+                        list.find { it.video.id == videoId } 
+                    }.first()
+
+                    if (downloadedVideo != null && java.io.File(downloadedVideo.filePath).exists()) {
+                        _uiState.update { 
+                            it.copy(
+                                streamInfo = null,
+                                isLoading = false,
+                                error = null,
+                                localFilePath = downloadedVideo.filePath
+                            )
+                        }
+                    } else {
+                        _uiState.update { 
+                            it.copy(
+                                isLoading = false,
+                                error = e.message ?: "An error occurred"
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -521,14 +565,18 @@ class VideoPlayerViewModel @Inject constructor(
     
     fun switchQuality(quality: VideoQuality) {
         val streamInfo = _uiState.value.streamInfo ?: return
-        val streams = selectStreams(streamInfo, quality)
-        
-        _uiState.value = _uiState.value.copy(
-            videoStream = streams.first,
-            audioStream = streams.second,
-            selectedQuality = streams.third,
-            isAdaptiveMode = quality == VideoQuality.AUTO
-        )
+        // Read the user's audio language preference to preserve it during quality switches
+        viewModelScope.launch {
+            val audioLangPref = playerPreferences.preferredAudioLanguage.first()
+            val streams = selectStreams(streamInfo, quality, audioLangPref)
+            
+            _uiState.value = _uiState.value.copy(
+                videoStream = streams.first,
+                audioStream = streams.second,
+                selectedQuality = streams.third,
+                isAdaptiveMode = quality == VideoQuality.AUTO
+            )
+        }
     }
 
     fun getPreviousVideoId(): String? {

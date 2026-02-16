@@ -1,12 +1,14 @@
 package com.flow.youtube.ui.screens.player.util
 
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.Settings
 import android.widget.Toast
 import com.flow.youtube.data.model.Video
-import com.flow.youtube.data.video.DownloadedVideo
-import com.flow.youtube.data.video.VideoDownloadManager
-import kotlinx.coroutines.launch
-import java.io.File
 
 object VideoPlayerUtils {
     fun formatTime(timeMs: Long): String {
@@ -22,11 +24,45 @@ object VideoPlayerUtils {
         }
     }
 
+    /**
+     * Check whether MANAGE_EXTERNAL_STORAGE permission has been granted (Android 11+).
+     * If not, prompt the user to grant it via Settings — but downloads still work
+     * because VideoDownloadManager falls back to app-private storage.
+     */
+    fun promptStoragePermissionIfNeeded(context: Context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+            val prefs = context.getSharedPreferences("flow_storage_prefs", Context.MODE_PRIVATE)
+            val alreadyAsked = prefs.getBoolean("storage_permission_asked", false)
+            if (!alreadyAsked) {
+                prefs.edit().putBoolean("storage_permission_asked", true).apply()
+                Toast.makeText(
+                    context,
+                    "Grant storage access to save downloads in public folders (optional)",
+                    Toast.LENGTH_LONG
+                ).show()
+                try {
+                    val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                    }
+                    if (context is Activity) {
+                        context.startActivity(intent)
+                    }
+                } catch (e: Exception) {
+                    try {
+                        val intent = Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)
+                        if (context is Activity) {
+                            context.startActivity(intent)
+                        }
+                    } catch (_: Exception) { }
+                }
+            }
+        }
+    }
+
     fun startDownload(context: Context, video: Video, url: String, qualityLabel: String, audioUrl: String? = null) {
         try {
-            val extension = "mp4"
-            val fileName = "${video.title}_$qualityLabel.$extension".replace(Regex("[^a-zA-Z0-9\\s.-]"), "_")
-            
+            promptStoragePermissionIfNeeded(context)
+
             // Start the optimized parallel download service
             com.flow.youtube.data.video.downloader.FlowDownloadService.startDownload(
                 context, 
@@ -36,9 +72,9 @@ object VideoPlayerUtils {
                 audioUrl
             )
             
-            Toast.makeText(context, "Started high-speed download: ${video.title}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Started download: ${video.title}", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Toast.makeText(context, "Download failedTo start: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Download failed to start: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 }

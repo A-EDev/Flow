@@ -47,4 +47,9 @@ object DatabaseModule {
     fun provideCacheDao(database: AppDatabase): com.flow.youtube.data.local.dao.CacheDao {
         return database.cacheDao()
     }
+
+    @Provides
+    fun provideDownloadDao(database: AppDatabase): com.flow.youtube.data.local.dao.DownloadDao {
+        return database.downloadDao()
+    }
 }

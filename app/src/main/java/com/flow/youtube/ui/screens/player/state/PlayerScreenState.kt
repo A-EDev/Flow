@@ -84,6 +84,19 @@ class PlayerScreenState {
         hasShownShortsPrompt = false
         showShortsPrompt = false
         showPlaylistQueueSheet = false
+        // Reset dialogs
+        showDownloadDialog = false
+        showQualitySelector = false
+        showAudioTrackSelector = false
+        showSubtitleSelector = false
+        showSettingsMenu = false
+        showPlaybackSpeedSelector = false
+        showSubtitleStyleCustomizer = false
+        // Reset bottom sheets
+        showQuickActions = false
+        showCommentsSheet = false
+        showDescriptionSheet = false
+        showChaptersSheet = false
     }
     
     fun cycleResizeMode() {

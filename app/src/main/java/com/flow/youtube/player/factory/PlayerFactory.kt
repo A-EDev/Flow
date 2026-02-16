@@ -46,20 +46,31 @@ class PlayerFactory {
     
     /**
      * Create a configured track selector.
+     * Reads the user's preferred audio language from PlayerPreferences.
      */
     fun createTrackSelector(context: Context): DefaultTrackSelector {
         val trackSelectionFactory = AdaptiveTrackSelection.Factory()
+        
+        val prefs = PlayerPreferences(context)
+        val audioLangPref = runBlocking { prefs.preferredAudioLanguage.first() }
+        
         return DefaultTrackSelector(context, trackSelectionFactory).apply {
-            setParameters(
-                buildUponParameters()
-                    .setAllowVideoMixedMimeTypeAdaptiveness(true)
-                    .setAllowMultipleAdaptiveSelections(true)
-                    .setForceHighestSupportedBitrate(false)
-                    .setViewportSizeToPhysicalDisplaySize(context, true)
-                    .setMaxVideoSize(PlayerConfig.MAX_VIDEO_WIDTH, PlayerConfig.MAX_VIDEO_HEIGHT)
-                    .setPreferredAudioLanguage("original")
-                    .build()
-            )
+            val builder = buildUponParameters()
+                .setAllowVideoMixedMimeTypeAdaptiveness(true)
+                .setAllowMultipleAdaptiveSelections(true)
+                .setForceHighestSupportedBitrate(false)
+                .setViewportSizeToPhysicalDisplaySize(context, true)
+                .setMaxVideoSize(PlayerConfig.MAX_VIDEO_WIDTH, PlayerConfig.MAX_VIDEO_HEIGHT)
+            
+            when (audioLangPref) {
+                "original", "" -> {
+                }
+                else -> {
+                    builder.setPreferredAudioLanguage(audioLangPref)
+                }
+            }
+            
+            setParameters(builder.build())
         }
     }
     

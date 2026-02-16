@@ -155,7 +155,7 @@ fun VideoQuickActionsBottomSheet(
                                 if (onDownload != null) {
                                     onDownload()
                                 } else {
-                                    viewModel.downloadVideo(video.id, video.title)
+                                    viewModel.downloadVideo(video)
                                 }
                                 onDismiss()
                             }

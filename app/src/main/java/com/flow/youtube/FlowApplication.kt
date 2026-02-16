@@ -11,7 +11,6 @@ import org.schabi.newpipe.extractor.NewPipe
 // Import Localization and ContentCountry
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
-import java.util.Locale
 import kotlinx.coroutines.launch
 
 import dagger.hilt.android.HiltAndroidApp
@@ -38,11 +37,10 @@ class FlowApplication : Application(), ImageLoaderFactory {
         FlowCrashHandler.install(this)
         
         try {
-            // Initialize NewPipeExtractor with proper Localization and Country
             val country = ContentCountry("US")
-            val localization = Localization.fromLocale(Locale.getDefault())
+            val localization = Localization("en", "US")
             NewPipe.init(NewPipeDownloader.getInstance(this), localization, country)
-            Log.d(TAG, "NewPipe initialized successfully with US/Local settings")
+            Log.d(TAG, "NewPipe initialized successfully with en-US settings")
         } catch (e: Exception) {
             // Log error but don't crash the app
             Log.e(TAG, "Failed to initialize NewPipe", e)

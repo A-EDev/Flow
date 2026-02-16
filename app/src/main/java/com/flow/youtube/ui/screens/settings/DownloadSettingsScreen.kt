@@ -1,5 +1,6 @@
 package com.flow.youtube.ui.screens.settings
 
+import android.os.Environment
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,6 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.HighQuality
 import androidx.compose.material.icons.outlined.RocketLaunch
 import androidx.compose.material.icons.outlined.SignalWifi4Bar
@@ -43,19 +45,35 @@ fun DownloadSettingsScreen(
     val threadCount by preferences.downloadThreads.collectAsState(initial = 3)
     val wifiOnly by preferences.downloadOverWifiOnly.collectAsState(initial = false)
     val defaultQuality by preferences.defaultDownloadQuality.collectAsState(initial = VideoQuality.Q_720p)
+    val downloadLocation by preferences.downloadLocation.collectAsState(initial = null)
     
     // Dialog states
     var showThreadDialog by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
+    var showLocationDialog by remember { mutableStateOf(false) }
+    
+    val defaultVideoPath = remember {
+        try {
+            File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES),
+                "Flow"
+            ).absolutePath
+        } catch (e: Exception) {
+            "Internal App Storage"
+        }
+    }
+    val displayPath = downloadLocation ?: defaultVideoPath
     
     // Storage Info
     var freeSpace by remember { mutableStateOf(context.getString(R.string.loading_ellipsis)) }
     var totalSpace by remember { mutableStateOf("") }
     var usedSpacePercentage by remember { mutableFloatStateOf(0f) }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(downloadLocation) {
         try {
-            val file = File(context.filesDir, "downloads")
+            val statsPath = downloadLocation 
+                ?: Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).path
+            val file = File(statsPath)
             if (!file.exists()) file.mkdirs()
             
             val stat = android.os.StatFs(file.path)
@@ -149,8 +167,8 @@ fun DownloadSettingsScreen(
                     SettingsItem(
                         icon = Icons.Outlined.Download,
                         title = stringResource(R.string.location_label),
-                        subtitle = stringResource(R.string.internal_app_storage_label),
-                        onClick = { }
+                        subtitle = displayPath,
+                        onClick = { showLocationDialog = true }
                     )
                 }
             }
@@ -298,6 +316,83 @@ fun DownloadSettingsScreen(
                 }
             },
             confirmButton = { TextButton(onClick = { showQualityDialog = false }) { Text(stringResource(R.string.cancel)) } }
+        )
+    }
+
+    // Location Picker Dialog
+    if (showLocationDialog) {
+        val moviesPath = remember {
+            try {
+                File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "Flow").absolutePath
+            } catch (_: Exception) { null }
+        }
+        val downloadsPath = remember {
+            try {
+                File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Flow").absolutePath
+            } catch (_: Exception) { null }
+        }
+        val internalPath = remember {
+            File(context.filesDir, "downloads").absolutePath
+        }
+
+        data class LocationOption(val label: String, val path: String?, val description: String)
+        val options = remember {
+            listOfNotNull(
+                moviesPath?.let { LocationOption("Movies/Flow", null, it) },
+                downloadsPath?.let { LocationOption("Downloads/Flow", it, it) },
+                LocationOption("Internal Storage", internalPath, internalPath)
+            )
+        }
+
+        AlertDialog(
+            onDismissRequest = { showLocationDialog = false },
+            icon = { Icon(Icons.Outlined.FolderOpen, null) },
+            title = { Text(stringResource(R.string.location_label)) },
+            text = {
+                Column {
+                    Text(
+                        "Choose where to save downloaded files",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    options.forEach { option ->
+                        Surface(
+                            onClick = {
+                                coroutineScope.launch {
+                                    preferences.setDownloadLocation(option.path)
+                                    showLocationDialog = false
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color.Transparent
+                        ) {
+                            Row(
+                                Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                val isSelected = (option.path == null && downloadLocation == null) ||
+                                    (option.path != null && option.path == downloadLocation)
+                                RadioButton(selected = isSelected, onClick = null)
+                                Spacer(Modifier.width(8.dp))
+                                Column {
+                                    Text(option.label, style = MaterialTheme.typography.bodyLarge)
+                                    Text(
+                                        option.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLocationDialog = false }) {
+                    Text(stringResource(R.string.close))
+                }
+            }
         )
     }
 }

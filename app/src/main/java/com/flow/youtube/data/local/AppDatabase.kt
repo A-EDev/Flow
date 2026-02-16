@@ -3,10 +3,13 @@ package com.flow.youtube.data.local
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.flow.youtube.data.local.dao.CacheDao
+import com.flow.youtube.data.local.dao.DownloadDao
 import com.flow.youtube.data.local.dao.DownloadedSongDao
 import com.flow.youtube.data.local.dao.NotificationDao
 import com.flow.youtube.data.local.dao.PlaylistDao
 import com.flow.youtube.data.local.dao.VideoDao
+import com.flow.youtube.data.local.entity.DownloadEntity
+import com.flow.youtube.data.local.entity.DownloadItemEntity
 import com.flow.youtube.data.local.entity.DownloadedSongEntity
 import com.flow.youtube.data.local.entity.MusicHomeCacheEntity
 import com.flow.youtube.data.local.entity.NotificationEntity
@@ -25,9 +28,11 @@ import com.flow.youtube.data.local.entity.VideoEntity
         SubscriptionFeedEntity::class,
         MusicHomeCacheEntity::class,
         MusicHomeChipEntity::class,
-        DownloadedSongEntity::class
+        DownloadedSongEntity::class,
+        DownloadEntity::class,
+        DownloadItemEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -36,6 +41,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun notificationDao(): NotificationDao
     abstract fun cacheDao(): CacheDao
     abstract fun downloadedSongDao(): DownloadedSongDao
+    abstract fun downloadDao(): DownloadDao
 
     companion object {
         @Volatile

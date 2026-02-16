@@ -43,6 +43,8 @@ fun DownloadQualityDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val audioLangPref = remember(context) { com.flow.youtube.data.local.PlayerPreferences(context) }
+    val preferredLang by audioLangPref.preferredAudioLanguage.collectAsState(initial = "")
     
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -108,10 +110,64 @@ fun DownloadQualityDialog(
                                 onDismiss()
                                 val downloadUrl = stream.url
                                 if (downloadUrl != null) {
-                                    // Find best audio stream if DASH
+                                    // Find best COMPATIBLE audio stream if DASH
                                     var audioUrl: String? = null
                                     if (isVideoOnly) {
-                                        audioUrl = uiState.streamInfo?.audioStreams?.maxByOrNull { it.bitrate }?.url
+                                        val isMp4Video = stream.format?.name?.contains("mp4", ignoreCase = true) == true ||
+                                            stream.format?.mimeType?.contains("mp4", ignoreCase = true) == true
+                                        val allAudio = uiState.streamInfo?.audioStreams ?: emptyList()
+                                        
+                                        // Filter by Language Preference first
+                                        val langFilteredAudio = if (!preferredLang.isNullOrEmpty() && preferredLang != "original") {
+                                            // Prefer exact language match
+                                            val langMatches = allAudio.filter { 
+                                                // Check locale code (e.g. "en") or full tag (e.g. "en-US")
+                                                it.audioLocale?.language.equals(preferredLang, ignoreCase = true) || 
+                                                it.audioLocale?.toLanguageTag().equals(preferredLang, ignoreCase = true)
+                                            }
+                                            if (langMatches.isNotEmpty()) langMatches else allAudio
+                                        } else {
+                                            // Prefer ORIGINAL track type, then NON-DUBBED
+                                            val originals = allAudio.filter { it.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL }
+                                            if (originals.isNotEmpty()) originals else {
+                                                val nonDubbed = allAudio.filter { it.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED }
+                                                if (nonDubbed.isNotEmpty()) nonDubbed else allAudio
+                                            }
+                                        }
+
+                                        var compatibleAudio = if (isMp4Video) {
+                                            // MP4 video needs AAC/M4A audio (not Opus/WebM)
+                                            langFilteredAudio.filter { a ->
+                                                val fmt = a.format?.name ?: ""
+                                                val mime = a.format?.mimeType ?: ""
+                                                fmt.contains("m4a", true) || fmt.contains("mp4", true) ||
+                                                    mime.contains("audio/mp4", true)
+                                            }.maxByOrNull { it.bitrate }
+                                        } else {
+                                            // WebM video prefers WebM/Opus audio
+                                            langFilteredAudio.filter { a ->
+                                                val fmt = a.format?.name ?: ""
+                                                val mime = a.format?.mimeType ?: ""
+                                                fmt.contains("webm", true) || mime.contains("audio/webm", true)
+                                            }.maxByOrNull { it.bitrate }
+                                        }
+
+                                        // Fallback: search across ALL audio streams if filtered list yielded nothing
+                                        if (compatibleAudio == null) {
+                                            compatibleAudio = if (isMp4Video) {
+                                                allAudio.filter { a ->
+                                                    val fmt = a.format?.name ?: ""
+                                                    val mime = a.format?.mimeType ?: ""
+                                                    fmt.contains("m4a", true) || fmt.contains("mp4", true) ||
+                                                        mime.contains("audio/mp4", true)
+                                                }.maxByOrNull { it.bitrate }
+                                            } else {
+                                                allAudio.maxByOrNull { it.bitrate }
+                                            }
+                                        }
+                                        
+                                        // Final fallback to any audio if still null
+                                        audioUrl = (compatibleAudio ?: allAudio.maxByOrNull { it.bitrate })?.url
                                     }
                                     
                                     VideoPlayerUtils.startDownload(context, video, downloadUrl, qualityLabel, audioUrl)
@@ -171,6 +227,89 @@ fun DownloadQualityDialog(
                                             style = MaterialTheme.typography.labelSmall,
                                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                                             fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // ===== Audio-Only Section =====
+                    val audioStreams = uiState.streamInfo?.audioStreams?.sortedByDescending { it.averageBitrate } ?: emptyList()
+                    if (audioStreams.isNotEmpty()) {
+                        item {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Audio Only (MP3/M4A)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(vertical = 4.dp)
+                            )
+                        }
+                        
+                        // Show best audio stream
+                        val bestAudio = audioStreams.first()
+                        item {
+                            val bitrate = bestAudio.averageBitrate / 1000
+                            val audioFormat = bestAudio.format?.name ?: "M4A"
+                            val audioUrl = bestAudio.url
+
+                            Surface(
+                                onClick = {
+                                    onDismiss()
+                                    if (audioUrl != null) {
+                                        com.flow.youtube.data.video.downloader.FlowDownloadService.startDownload(
+                                            context = context,
+                                            video = video,
+                                            url = audioUrl,
+                                            quality = "${bitrate}kbps",
+                                            audioOnly = true
+                                        )
+                                        Toast.makeText(context, "Downloading audio: ${bitrate}kbps", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .background(
+                                                MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f),
+                                                CircleShape
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.GraphicEq,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.tertiary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(16.dp))
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Audio ${bitrate}kbps",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Text(
+                                            text = "$audioFormat • Audio only",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }

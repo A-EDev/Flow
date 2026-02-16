@@ -39,6 +39,7 @@ class PlayerPreferences(private val context: Context) {
         val PARALLEL_DOWNLOAD_ENABLED = booleanPreferencesKey("parallel_download_enabled")
         val DOWNLOAD_OVER_WIFI_ONLY = booleanPreferencesKey("download_over_wifi_only")
         val DEFAULT_DOWNLOAD_QUALITY = stringPreferencesKey("default_download_quality")
+        val DOWNLOAD_LOCATION = stringPreferencesKey("download_location")
         val SURFACE_READY_TIMEOUT_MS = longPreferencesKey("surface_ready_timeout_ms")
         
         // Audio track preference
@@ -361,6 +362,22 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setDefaultDownloadQuality(quality: VideoQuality) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DEFAULT_DOWNLOAD_QUALITY] = quality.label
+        }
+    }
+
+    /** Custom download directory path (null = default Movies/Flow or Music/Flow) */
+    val downloadLocation: Flow<String?> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.DOWNLOAD_LOCATION]
+        }
+
+    suspend fun setDownloadLocation(path: String?) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            if (path != null) {
+                preferences[Keys.DOWNLOAD_LOCATION] = path
+            } else {
+                preferences.remove(Keys.DOWNLOAD_LOCATION)
+            }
         }
     }
 

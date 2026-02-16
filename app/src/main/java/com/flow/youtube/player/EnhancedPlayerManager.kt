@@ -392,7 +392,7 @@ class EnhancedPlayerManager private constructor() {
             availableVideoStreams = availableVideoStreams,
             currentVideoStream = currentVideoStream,
             dashManifestUrl = currentDashManifestUrl,
-            durationSeconds = -1,
+            durationSeconds = currentDurationSeconds,
             currentDurationSeconds = currentDurationSeconds,
             preservePosition = preservePosition,
             localFilePath = localFilePath

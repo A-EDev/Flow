@@ -69,19 +69,88 @@ class QuickActionsViewModel @Inject constructor(
         }
     }
 
-    fun downloadVideo(videoId: String, title: String) {
+    fun downloadVideo(video: Video) {
         viewModelScope.launch {
             try {
+                com.flow.youtube.ui.screens.player.util.VideoPlayerUtils.promptStoragePermissionIfNeeded(context)
+
                 Toast.makeText(context, "Fetching download links...", Toast.LENGTH_SHORT).show()
                 val streamInfo = withContext(Dispatchers.IO) {
-                    repository.getVideoStreamInfo(videoId)
+                    repository.getVideoStreamInfo(video.id)
                 }
 
                 if (streamInfo != null) {
-                    val stream = streamInfo.videoStreams.maxByOrNull { it.height }
-                    if (stream != null && stream.url != null) {
-                        startDownload(context, title, stream.url!!, "mp4")
-                        Toast.makeText(context, "Downloading started...", Toast.LENGTH_SHORT).show()
+                    val combinedStreams = streamInfo.videoStreams
+                        ?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
+                        ?: emptyList()
+                    val videoOnlyStreams = streamInfo.videoOnlyStreams
+                        ?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
+                        ?: emptyList()
+
+                    val bestCombined = combinedStreams.maxByOrNull { it.height }
+                    val bestVideoOnly = videoOnlyStreams.maxByOrNull { it.height }
+                    
+                    val selectedStream: org.schabi.newpipe.extractor.stream.VideoStream?
+                    val audioUrl: String?
+
+                    if (bestVideoOnly != null && bestCombined != null && bestVideoOnly.height > bestCombined.height) {
+                        selectedStream = bestVideoOnly
+                        
+                        val isMp4Video = selectedStream.format?.name?.contains("mp4", ignoreCase = true) == true
+                        
+                        val compatibleAudio = if (isMp4Video) {
+                            streamInfo.audioStreams?.filter { 
+                                it.format?.name?.contains("m4a", ignoreCase = true) == true 
+                            }?.maxByOrNull { it.averageBitrate }
+                        } else {
+                            streamInfo.audioStreams?.filter { 
+                                it.format?.name?.contains("webm", ignoreCase = true) == true 
+                            }?.maxByOrNull { it.averageBitrate }
+                        }
+                        
+                        audioUrl = (compatibleAudio ?: streamInfo.audioStreams?.maxByOrNull { it.averageBitrate })?.url
+                    } else if (bestCombined != null) {
+                        selectedStream = bestCombined
+                        audioUrl = null
+                    } else if (bestVideoOnly != null) {
+                        selectedStream = bestVideoOnly
+                        val isMp4Video = selectedStream.format?.name?.contains("mp4", ignoreCase = true) == true
+                        val compatibleAudio = if (isMp4Video) {
+                            streamInfo.audioStreams?.filter { 
+                                it.format?.name?.contains("m4a", ignoreCase = true) == true 
+                            }?.maxByOrNull { it.averageBitrate }
+                        } else {
+                            streamInfo.audioStreams?.filter { 
+                                it.format?.name?.contains("webm", ignoreCase = true) == true 
+                            }?.maxByOrNull { it.averageBitrate }
+                        }
+                        audioUrl = (compatibleAudio ?: streamInfo.audioStreams?.maxByOrNull { it.averageBitrate })?.url
+                    } else {
+                        selectedStream = null
+                        audioUrl = null
+                    }
+
+                    if (selectedStream != null && selectedStream.url != null) {
+                        val fullVideo = Video(
+                            id = video.id,
+                            title = video.title.ifBlank { streamInfo.name ?: "Unknown" },
+                            channelName = video.channelName.ifBlank { streamInfo.uploaderName ?: "" },
+                            channelId = video.channelId.ifBlank { streamInfo.uploaderUrl?.substringAfterLast("/") ?: "local" },
+                            thumbnailUrl = video.thumbnailUrl.ifBlank { streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "" },
+                            duration = if (video.duration > 0) video.duration else streamInfo.duration.toInt(),
+                            viewCount = video.viewCount,
+                            uploadDate = video.uploadDate,
+                            description = video.description.ifBlank { streamInfo.description?.content ?: "" }
+                        )
+
+                        com.flow.youtube.data.video.downloader.FlowDownloadService.startDownload(
+                            context = context,
+                            video = fullVideo,
+                            url = selectedStream.url!!,
+                            quality = "${selectedStream.height}p",
+                            audioUrl = audioUrl
+                        )
+                        Toast.makeText(context, "Download started: ${fullVideo.title}", Toast.LENGTH_SHORT).show()
                     } else {
                         Toast.makeText(context, "No suitable stream found", Toast.LENGTH_SHORT).show()
                     }
@@ -91,23 +160,6 @@ class QuickActionsViewModel @Inject constructor(
             } catch (e: Exception) {
                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
-        }
-    }
-
-    private fun startDownload(context: Context, title: String, url: String, extension: String) {
-        try {
-            val request = android.app.DownloadManager.Request(android.net.Uri.parse(url))
-                .setTitle(title)
-                .setDescription("Downloading video...")
-                .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_MOVIES, "$title.$extension")
-                .setAllowedOverMetered(true)
-                .setAllowedOverRoaming(true)
-            
-            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
-            downloadManager.enqueue(request)
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
     }
 }

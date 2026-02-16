@@ -48,7 +48,7 @@ class MusicPlayerViewModel @Inject constructor(
     val uiState: StateFlow<MusicPlayerUiState> = _uiState.asStateFlow()
     
     private val playerPreferences = PlayerPreferences(context)
-    private val lyricsHelper = LyricsHelper() 
+    private var lyricsHelper = LyricsHelper() 
     
     private var isInitialized = false
     private var loadTrackJob: kotlinx.coroutines.Job? = null
@@ -536,9 +536,13 @@ class MusicPlayerViewModel @Inject constructor(
 
             try {
                 val preferredProviderName = playerPreferences.preferredLyricsProvider.first()
-                val helper = LyricsHelper(PreferredLyricsProvider.fromString(preferredProviderName))
+                val preferredProvider = PreferredLyricsProvider.fromString(preferredProviderName)
                 
-                val result = helper.getLyrics(videoId, cleanTitle, cleanArtist, targetDuration)
+                if (lyricsHelper.preferredProvider != preferredProvider) {
+                    lyricsHelper = LyricsHelper(preferredProvider)
+                }
+                
+                val result = lyricsHelper.getLyrics(videoId, cleanTitle, cleanArtist, targetDuration)
                 
                 if (result != null) {
                     val (entries, providerName) = result

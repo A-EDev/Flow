@@ -1,12 +1,12 @@
 package com.flow.youtube.data.video.downloader
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
 import java.io.Serializable
 
-@Entity(tableName = "download_parts")
+/**
+ * Represents a single chunk/part of a parallel download.
+ * Used in-memory only by ParallelDownloader.
+ */
 data class FlowDownloadPart(
-    @PrimaryKey
     val partName: String, // missionUrl + index
     val missionId: String,
     val startIndex: Long,

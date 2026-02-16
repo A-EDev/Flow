@@ -55,10 +55,10 @@ class ShortsPlayerPool private constructor() {
         private const val POOL_SIZE = 3
 
         // Tuned for Shorts: Faster start (1s min buffer), keep max buffer healthy
-        private const val MIN_BUFFER_MS = 1_000 
-        private const val MAX_BUFFER_MS = 15_000
-        private const val BUFFER_FOR_PLAYBACK_MS = 500
-        private const val BUFFER_FOR_REBUFFER_MS = 1_000
+        private const val MIN_BUFFER_MS = 5_000 
+        private const val MAX_BUFFER_MS = 25_000
+        private const val BUFFER_FOR_PLAYBACK_MS = 1_500
+        private const val BUFFER_FOR_REBUFFER_MS = 2_500
         private const val BACK_BUFFER_MS = 5_000
 
         @Volatile
@@ -116,10 +116,12 @@ class ShortsPlayerPool private constructor() {
             val trackSelector = player.trackSelector as? DefaultTrackSelector
             trackSelector?.let { selector ->
                 val builder = selector.buildUponParameters()
-                if (language != "original") {
-                    builder.setPreferredAudioLanguage(language)
-                } else {
-                    builder.setPreferredAudioLanguage(null)
+                when (language) {
+                    "original", "" -> {
+                    }
+                    else -> {
+                        builder.setPreferredAudioLanguage(language)
+                    }
                 }
                 selector.setParameters(builder)
             }
@@ -152,7 +154,7 @@ class ShortsPlayerPool private constructor() {
                 .setViewportSizeToPhysicalDisplaySize(context, true)
                 .setMaxVideoSize(1080, 1920)
             
-            if (preferredAudioLanguage != "original") {
+            if (preferredAudioLanguage != "original" && preferredAudioLanguage.isNotEmpty()) {
                 builder.setPreferredAudioLanguage(preferredAudioLanguage)
             }
             
@@ -313,7 +315,7 @@ class ShortsPlayerPool private constructor() {
                 .createMediaSource(MediaItem.fromUri(videoUrl))
             val audioSource = ProgressiveMediaSource.Factory(factory)
                 .createMediaSource(MediaItem.fromUri(audioUrl))
-            val mergingSource = MergingMediaSource(videoSource, audioSource)
+            val mergingSource = MergingMediaSource(true, true, videoSource, audioSource)
             player.setMediaSource(mergingSource)
         } else {
             player.setMediaItem(MediaItem.fromUri(videoUrl))

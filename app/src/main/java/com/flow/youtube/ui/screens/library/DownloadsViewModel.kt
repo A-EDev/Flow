@@ -1,6 +1,5 @@
 package com.flow.youtube.ui.screens.library
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.music.DownloadManager as MusicDownloadManager
@@ -8,18 +7,15 @@ import com.flow.youtube.data.music.DownloadedTrack
 import com.flow.youtube.data.video.VideoDownloadManager
 import com.flow.youtube.data.video.DownloadedVideo
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class DownloadsViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    private val videoDownloadManager: VideoDownloadManager,
     private val musicDownloadManager: MusicDownloadManager
 ) : ViewModel() {
-
-    private val videoDownloadManager = VideoDownloadManager.getInstance(context)
 
     private val _uiState = MutableStateFlow(DownloadsUiState())
     val uiState: StateFlow<DownloadsUiState> = _uiState.asStateFlow()
