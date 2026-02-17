@@ -200,6 +200,11 @@ class FlowDownloadService : Service() {
             val effectiveUrl = if (audioOnly && audioUrl != null) audioUrl else url
             val effectiveAudioUrl = if (audioOnly) null else audioUrl
 
+            val threadCount = kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                preferences.downloadThreads.firstOrNull() ?: 3
+            }
+            Log.d(TAG, "handleStartDownload: Using $threadCount download threads")
+
             val mission = if (userAgent != null) {
                 FlowDownloadMission(
                     video = video,
@@ -208,7 +213,7 @@ class FlowDownloadService : Service() {
                     quality = quality,
                     savePath = savePath,
                     fileName = fileName,
-                    threads = 3,
+                    threads = threadCount,
                     userAgent = userAgent
                 )
             } else {
@@ -219,7 +224,7 @@ class FlowDownloadService : Service() {
                     quality = quality,
                     savePath = savePath,
                     fileName = fileName,
-                    threads = 3
+                    threads = threadCount
                 )
             }
 
@@ -311,23 +316,27 @@ class FlowDownloadService : Service() {
             updateAllItemStatuses(videoId, DownloadItemStatus.DOWNLOADING)
             Log.d(TAG, "executeDownload: Status updated to DOWNLOADING")
 
-            val downloadSuccess = parallelDownloader.start(mission) { progress ->
-                val ids = itemIds[videoId]
-                if (!ids.isNullOrEmpty()) {
-                    downloadManager.emitProgress(
-                        DownloadProgressUpdate(
-                            videoId = videoId,
-                            itemId = ids.first(),
-                            downloadedBytes = (mission.downloadedBytes + mission.audioDownloadedBytes),
-                            totalBytes = (mission.totalBytes + mission.audioTotalBytes),
-                            status = DownloadItemStatus.DOWNLOADING
+            val progressJob = serviceScope.launch {
+                while (mission.status == MissionStatus.RUNNING) {
+                    val ids = itemIds[videoId]
+                    if (!ids.isNullOrEmpty()) {
+                        downloadManager.emitProgress(
+                            DownloadProgressUpdate(
+                                videoId = videoId,
+                                itemId = ids.first(),
+                                downloadedBytes = (mission.downloadedBytes + mission.audioDownloadedBytes),
+                                totalBytes = (mission.totalBytes + mission.audioTotalBytes),
+                                status = DownloadItemStatus.DOWNLOADING
+                            )
                         )
-                    )
-                }
-                if ((progress * 100).toInt() % 2 == 0) {
+                    }
                     updateNotification(mission, videoId)
+                    delay(250L)
                 }
             }
+
+            val downloadSuccess = parallelDownloader.start(mission) { /* no-op: progress polled above */ }
+            progressJob.cancel()
 
             Log.d(TAG, "executeDownload: parallelDownloader.start finished. Result=$downloadSuccess")
 
@@ -337,6 +346,11 @@ class FlowDownloadService : Service() {
                 // Mux if DASH (separate video + audio streams)
                 if (!audioOnly && mission.audioUrl != null) {
                     Log.d(TAG, "executeDownload: Starting Muxing...")
+                    
+                    // Update notification to show muxing phase
+                    mission.error = "Merging audio & video..."
+                    updateNotification(mission, videoId, isMuxing = true)
+                    
                     val videoTmp = "${mission.savePath}.video.tmp"
                     val audioTmp = "${mission.savePath}.audio.tmp"
                     
@@ -388,7 +402,7 @@ class FlowDownloadService : Service() {
                     
                     val ids = itemIds[videoId]
                     if (!ids.isNullOrEmpty()) {
-                        downloadManager.updateProgress(ids.first(), fileSize, DownloadItemStatus.COMPLETED)
+                        downloadManager.updateItemFull(ids.first(), fileSize, fileSize, DownloadItemStatus.COMPLETED)
                     }
                     
                     // Copy to public storage via MediaStore so the file is visible
@@ -580,11 +594,13 @@ class FlowDownloadService : Service() {
     private fun createNotification(
         mission: FlowDownloadMission,
         videoId: String,
-        isComplete: Boolean = false
+        isComplete: Boolean = false,
+        isMuxing: Boolean = false
     ): android.app.Notification {
         val progress = (mission.progress * 100).toInt()
         val contentText = when {
             isComplete -> "Download complete"
+            isMuxing -> "Merging audio & video..."
             mission.isFailed() -> mission.error ?: "Download failed"
             mission.status == MissionStatus.PAUSED -> "Paused — ${mission.error ?: "tap to resume"}"
             else -> "$progress% • ${formatBytes(mission.downloadedBytes + mission.audioDownloadedBytes)} / ${formatBytes(mission.totalBytes + mission.audioTotalBytes)}"
@@ -607,42 +623,46 @@ class FlowDownloadService : Service() {
             .setGroup(NOTIFICATION_GROUP)
 
         if (!isComplete && !mission.isFailed()) {
-            builder.setProgress(100, progress, false)
-
-            if (mission.status == MissionStatus.PAUSED) {
-                // Show Resume button
-                val resumeIntent = Intent(this, FlowDownloadService::class.java).apply {
-                    action = ACTION_RESUME_DOWNLOAD
-                    putExtra("video_id", videoId)
-                }
-                val resumePending = PendingIntent.getService(
-                    this, "resume_$videoId".hashCode(), resumeIntent,
-                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-                )
-                builder.addAction(android.R.drawable.ic_media_play, "Resume", resumePending)
+            if (isMuxing) {
+                builder.setProgress(100, 100, true)
             } else {
-                // Show Pause button
-                val pauseIntent = Intent(this, FlowDownloadService::class.java).apply {
-                    action = ACTION_PAUSE_DOWNLOAD
+                builder.setProgress(100, progress, false)
+
+                if (mission.status == MissionStatus.PAUSED) {
+                    // Show Resume button
+                    val resumeIntent = Intent(this, FlowDownloadService::class.java).apply {
+                        action = ACTION_RESUME_DOWNLOAD
+                        putExtra("video_id", videoId)
+                    }
+                    val resumePending = PendingIntent.getService(
+                        this, "resume_$videoId".hashCode(), resumeIntent,
+                        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                    )
+                    builder.addAction(android.R.drawable.ic_media_play, "Resume", resumePending)
+                } else {
+                    // Show Pause button
+                    val pauseIntent = Intent(this, FlowDownloadService::class.java).apply {
+                        action = ACTION_PAUSE_DOWNLOAD
+                        putExtra("video_id", videoId)
+                    }
+                    val pausePending = PendingIntent.getService(
+                        this, "pause_$videoId".hashCode(), pauseIntent,
+                        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                    )
+                    builder.addAction(android.R.drawable.ic_media_pause, "Pause", pausePending)
+                }
+
+                // Cancel button
+                val cancelIntent = Intent(this, FlowDownloadService::class.java).apply {
+                    action = ACTION_CANCEL_DOWNLOAD
                     putExtra("video_id", videoId)
                 }
-                val pausePending = PendingIntent.getService(
-                    this, "pause_$videoId".hashCode(), pauseIntent,
+                val cancelPending = PendingIntent.getService(
+                    this, "cancel_$videoId".hashCode(), cancelIntent,
                     PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
                 )
-                builder.addAction(android.R.drawable.ic_media_pause, "Pause", pausePending)
+                builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Cancel", cancelPending)
             }
-
-            // Cancel button
-            val cancelIntent = Intent(this, FlowDownloadService::class.java).apply {
-                action = ACTION_CANCEL_DOWNLOAD
-                putExtra("video_id", videoId)
-            }
-            val cancelPending = PendingIntent.getService(
-                this, "cancel_$videoId".hashCode(), cancelIntent,
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
-            )
-            builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Cancel", cancelPending)
         } else {
             builder.setProgress(0, 0, false)
             if (isComplete) {
@@ -657,10 +677,11 @@ class FlowDownloadService : Service() {
     private fun updateNotification(
         mission: FlowDownloadMission,
         videoId: String,
-        isComplete: Boolean = false
+        isComplete: Boolean = false,
+        isMuxing: Boolean = false
     ) {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        nm.notify(getNotificationId(videoId), createNotification(mission, videoId, isComplete))
+        nm.notify(getNotificationId(videoId), createNotification(mission, videoId, isComplete, isMuxing))
     }
 
     private fun createNotificationChannel() {

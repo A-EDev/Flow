@@ -212,9 +212,7 @@ class EnhancedPlayerManager private constructor() {
     
     private fun initializePlayer(context: Context) {
         val loadControl = playerFactory.createLoadControl(context)
-        val silenceProcessor = audioFeaturesManager?.silenceSkippingProcessor 
-            ?: throw IllegalStateException("AudioFeaturesManager not initialized")
-        val renderersFactory = playerFactory.createRenderersFactory(context, silenceProcessor)
+        val renderersFactory = playerFactory.createRenderersFactory(context)
         
         player = playerFactory.createPlayer(
             context = context,
@@ -223,6 +221,8 @@ class EnhancedPlayerManager private constructor() {
             renderersFactory = renderersFactory,
             dataSourceFactory = cacheManager?.getDataSourceFactory()
         )
+        
+        audioFeaturesManager?.setPlayer(player!!)
         
         surfaceManager?.reattachSurfaceIfValid(player)
     }
@@ -293,6 +293,24 @@ class EnhancedPlayerManager private constructor() {
         player?.let { playbackTracker?.start(it) }
     }
 
+    // ===== Offline / Local File Playback =====
+
+    /**
+     * Play a local (downloaded) file directly, bypassing all stream requirements.
+     * Muxed MP4 files are self-contained with both audio and video tracks.
+     */
+    fun playLocalFile(videoId: String, filePath: String) {
+        Log.d(TAG, "playLocalFile: videoId=$videoId, path=$filePath")
+        resetPlaybackStateForNewVideo(videoId)
+        currentVideoId = videoId
+        startPlaybackTracker()
+        loadMediaInternal(
+            videoStream = null,
+            audioStream = null,
+            localFilePath = filePath
+        )
+    }
+
     // ===== Stream Management =====
     
     suspend fun setStreams(
@@ -327,12 +345,21 @@ class EnhancedPlayerManager private constructor() {
         
         // Update quality manager with available streams
         qualityManager?.setAvailableStreams(availableVideoStreams)
+        qualityManager?.isDashSource = !currentDashManifestUrl.isNullOrEmpty()
         
-        // Smart initial quality selection
-        val smartStream = qualityManager?.selectSmartInitialQuality()
-        currentVideoStream = videoStream ?: smartStream ?: availableVideoStreams.firstOrNull()
-        qualityManager?.setCurrentStream(currentVideoStream)
+        // Quality selection: respect user preference
+        if (videoStream != null) {
+            currentVideoStream = videoStream
+            qualityManager?.setCurrentStream(currentVideoStream)
+            qualityManager?.setManualMode(videoStream.height)
+        } else {
+            val smartStream = qualityManager?.selectSmartInitialQuality()
+            currentVideoStream = smartStream ?: availableVideoStreams.firstOrNull()
+            qualityManager?.setCurrentStream(currentVideoStream)
+        }
         currentAudioStream = audioStream
+        
+        val isAutoMode = (videoStream == null)
         
         // Update state with available options
         _playerState.value = _playerState.value.copy(
@@ -341,7 +368,7 @@ class EnhancedPlayerManager private constructor() {
             availableQualities = qualityManager?.buildQualityOptions() ?: emptyList(),
             availableAudioTracks = StreamProcessor.toAudioTrackOptions(availableAudioStreams),
             availableSubtitles = StreamProcessor.toSubtitleOptions(subtitles),
-            currentQuality = 0,
+            currentQuality = if (isAutoMode) 0 else (currentVideoStream?.height ?: 0),
             currentAudioTrack = availableAudioStreams.indexOf(currentAudioStream).coerceAtLeast(0)
         )
 
@@ -383,6 +410,24 @@ class EnhancedPlayerManager private constructor() {
         preservePosition: Long? = null,
         localFilePath: String? = null
     ) {
+        if (localFilePath != null) {
+            Log.d(TAG, "loadMediaInternal: Playing local file: $localFilePath")
+            mediaLoader?.loadMedia(
+                player = player,
+                context = appContext,
+                videoStream = videoStream,
+                audioStream = audioStream ?: availableAudioStreams.firstOrNull(),
+                availableVideoStreams = availableVideoStreams,
+                currentVideoStream = currentVideoStream,
+                dashManifestUrl = null,
+                durationSeconds = currentDurationSeconds,
+                currentDurationSeconds = currentDurationSeconds,
+                preservePosition = preservePosition,
+                localFilePath = localFilePath
+            )
+            return
+        }
+
         val audio = audioStream ?: availableAudioStreams.firstOrNull() ?: return
         mediaLoader?.loadMedia(
             player = player,
@@ -626,6 +671,7 @@ class EnhancedPlayerManager private constructor() {
     fun release() {
         Log.d(TAG, "release() called")
         playbackTracker?.stop()
+        audioFeaturesManager?.clearPlayer()
         surfaceManager?.release(player)
         player?.release()
         player = null

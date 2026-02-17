@@ -233,7 +233,7 @@ fun GlobalPlayerOverlay(
     )
     
     KeepScreenOnEffect(
-        isPlaying = playerState.playWhenReady,
+        isPlaying = playerState.playWhenReady && !playerState.hasEnded,
         activity = activity
     )
     

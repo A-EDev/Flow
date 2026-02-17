@@ -10,9 +10,6 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.audio.AudioSink
-import androidx.media3.exoplayer.audio.DefaultAudioSink
-import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
@@ -84,8 +81,8 @@ class PlayerFactory {
         val prefs = PlayerPreferences(context)
         val minBufferMs = runBlocking { prefs.minBufferMs.first() }.coerceAtLeast(15000)
         val maxBufferMs = runBlocking { prefs.maxBufferMs.first() }.coerceAtLeast(50000)
-        val bufferForPlaybackMs = runBlocking { prefs.bufferForPlaybackMs.first() }.coerceAtLeast(3000)
-        val bufferRebufferMs = runBlocking { prefs.bufferForPlaybackAfterRebufferMs.first() }.coerceAtLeast(5000)
+        val bufferForPlaybackMs = runBlocking { prefs.bufferForPlaybackMs.first() }.coerceAtLeast(500)
+        val bufferRebufferMs = runBlocking { prefs.bufferForPlaybackAfterRebufferMs.first() }.coerceAtLeast(1500)
 
         Log.d(TAG, "Buffer config: min=${minBufferMs}ms, max=${maxBufferMs}ms, playback=${bufferForPlaybackMs}ms, rebuffer=${bufferRebufferMs}ms")
 
@@ -99,26 +96,13 @@ class PlayerFactory {
     }
     
     /**
-     * Create a custom renderers factory with silence skipping support.
+     * Create a renderers factory.
+     * Skip-silence is handled via ExoPlayer.skipSilenceEnabled
      */
-    fun createRenderersFactory(
-        context: Context,
-        silenceSkippingProcessor: SilenceSkippingAudioProcessor
-    ): DefaultRenderersFactory {
-        return object : CustomRenderersFactory(context) {
-            override fun buildAudioSink(
-                context: Context,
-                enableFloatOutput: Boolean,
-                enableAudioTrackPlaybackParams: Boolean
-            ): AudioSink? {
-                return DefaultAudioSink.Builder(context)
-                    .setAudioProcessors(arrayOf(silenceSkippingProcessor))
-                    .setEnableFloatOutput(enableFloatOutput)
-                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-                    .build()
-            }
-        }.setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
-         .setEnableDecoderFallback(true)
+    fun createRenderersFactory(context: Context): DefaultRenderersFactory {
+        return CustomRenderersFactory(context)
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+            .setEnableDecoderFallback(true)
     }
     
     /**

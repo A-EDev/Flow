@@ -187,6 +187,8 @@ object FlowStreamMuxer {
     ) {
         extractor.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
         while (true) {
+            if (Thread.interrupted()) throw InterruptedException("Mux cancelled")
+            
             bufferInfo.offset = 0
             bufferInfo.size = extractor.readSampleData(buffer, 0)
             if (bufferInfo.size < 0) break

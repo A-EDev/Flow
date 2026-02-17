@@ -97,11 +97,9 @@ object PlayerConfig {
     const val ERROR_RETRY_DELAY_MS = 1000L
     
     // ===== Video Size Constraints =====
-    /** Maximum video width for track selection */
-    const val MAX_VIDEO_WIDTH = 1920
+    const val MAX_VIDEO_WIDTH = 3840
     
-    /** Maximum video height for track selection */
-    const val MAX_VIDEO_HEIGHT = 1080
+    const val MAX_VIDEO_HEIGHT = 2160
     
     /**
      * Calculate target quality height based on bandwidth in bits per second.

@@ -35,6 +35,11 @@ class QualityManager(
     var consecutiveBufferingCount = 0
         private set
     
+    private var lastQualitySwitchTime = 0L
+    private val MIN_QUALITY_SWITCH_INTERVAL_MS = 10_000L
+    
+    var isDashSource = false
+    
     // Available streams
     private var availableVideoStreams: List<VideoStream> = emptyList()
     private var currentVideoStream: VideoStream? = null
@@ -66,6 +71,7 @@ class QualityManager(
     
     /**
      * Reset quality state for a new video.
+     * Defaults to adaptive mode; call setManualMode() after if user has non-AUTO preference.
      */
     fun resetForNewVideo() {
         failedStreamUrls.clear()
@@ -74,7 +80,18 @@ class QualityManager(
         isAdaptiveQualityEnabled = true
         manualQualityHeight = null
         consecutiveBufferingCount = 0
+        lastQualitySwitchTime = 0L
         applyAdaptiveTrackSelectorDefaults()
+    }
+    
+    /**
+     * Set manual (fixed) quality mode. Called when user has a non-AUTO quality preference.
+     * Disables adaptive quality switching.
+     */
+    fun setManualMode(height: Int) {
+        isAdaptiveQualityEnabled = false
+        manualQualityHeight = height
+        Log.d(TAG, "Manual quality mode set: ${height}p (adaptive disabled)")
     }
     
     /**
@@ -273,23 +290,51 @@ class QualityManager(
     
     /**
      * Perform the actual quality switch for adaptive mode.
+     * Includes time-based debounce to prevent rapid switching.
      */
     private fun performAdaptiveQualitySwitch(targetStream: VideoStream, currentPosition: Long) {
-        // Don't switch if we just switched recently (debounce)
+        // Don't switch if we just switched recently (same height debounce)
         if (targetStream.height == lastAdaptiveQualityHeight) {
             Log.d(TAG, "Adaptive: Skipping switch, already at ${targetStream.height}p")
             return
         }
         
+        val now = System.currentTimeMillis()
+        if (now - lastQualitySwitchTime < MIN_QUALITY_SWITCH_INTERVAL_MS) {
+            Log.d(TAG, "Adaptive: Debouncing quality switch (${now - lastQualitySwitchTime}ms since last switch, min=${MIN_QUALITY_SWITCH_INTERVAL_MS}ms)")
+            return
+        }
+        
         currentVideoStream = targetStream
         lastAdaptiveQualityHeight = targetStream.height
+        lastQualitySwitchTime = now
         
-        onQualitySwitch(targetStream, currentPosition)
+        if (isDashSource) {
+            switchDashQualitySeamlessly(targetStream.height)
+        } else {
+            onQualitySwitch(targetStream, currentPosition)
+        }
         
         stateFlow.value = stateFlow.value.copy(
             currentQuality = 0,
             effectiveQuality = targetStream.height
         )
+    }
+    
+    /**
+     * Switch quality seamlessly via TrackSelector when using a DASH source.
+     * This constrains the maximum video height, letting ExoPlayer
+     * do a smooth in-buffer quality switch without interrupting playback.
+     */
+    private fun switchDashQualitySeamlessly(maxHeight: Int) {
+        trackSelector?.let { selector ->
+            val params = selector.buildUponParameters()
+                .setMaxVideoSize(Int.MAX_VALUE, maxHeight)
+                .setForceHighestSupportedBitrate(false)
+                .build()
+            selector.setParameters(params)
+            Log.d(TAG, "DASH seamless quality switch: constrained max height to ${maxHeight}p")
+        }
     }
     
     /**

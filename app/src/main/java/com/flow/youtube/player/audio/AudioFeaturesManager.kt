@@ -5,7 +5,6 @@ import android.util.Log
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
 import com.flow.youtube.data.local.PlayerPreferences
 import com.flow.youtube.player.state.EnhancedPlayerState
 import com.flow.youtube.service.Media3MusicService
@@ -15,6 +14,11 @@ import kotlinx.coroutines.launch
 
 /**
  * Manages audio-related features like skip silence and playback speed.
+ * 
+ * Uses ExoPlayer's built-in [ExoPlayer.setSkipSilenceEnabled] instead of a manual
+ * [SilenceSkippingAudioProcessor] to avoid audio-video desync. The built-in API
+ * correctly adjusts the media clock when silence is removed, keeping audio and
+ * video in perfect sync.
  * 
  * **External Audio Processor Compatibility:**
  * This manager works with external audio processors like James DSP.
@@ -38,14 +42,42 @@ class AudioFeaturesManager(
         fun getAudioSessionId(): Int = Media3MusicService.currentAudioSessionId
     }
     
-    // Audio processor for skipping silence - needs to be created during player initialization
-    val silenceSkippingProcessor = SilenceSkippingAudioProcessor()
+    private var playerRef: ExoPlayer? = null
+    
+    private var pendingSkipSilence: Boolean? = null
+    
+    /**
+     * Set the player reference. Must be called after ExoPlayer is created.
+     * Applies any pending skip-silence state that was set before the player was ready.
+     */
+    fun setPlayer(player: ExoPlayer) {
+        this.playerRef = player
+        pendingSkipSilence?.let { pending ->
+            player.skipSilenceEnabled = pending
+            pendingSkipSilence = null
+            Log.d(TAG, "Applied pending skip silence: $pending")
+        }
+    }
+    
+    /**
+     * Clear the player reference (call on release).
+     */
+    fun clearPlayer() {
+        playerRef = null
+    }
     
     /**
      * Set skip silence state internally (without persisting).
+     * Uses ExoPlayer's built-in skipSilenceEnabled for correct A/V sync.
      */
     fun setSkipSilenceInternal(isEnabled: Boolean) {
-        silenceSkippingProcessor.setEnabled(isEnabled)
+        val player = playerRef
+        if (player != null) {
+            player.skipSilenceEnabled = isEnabled
+        } else {
+            pendingSkipSilence = isEnabled
+            Log.d(TAG, "Player not ready, queuing skip silence: $isEnabled")
+        }
         stateFlow.value = stateFlow.value.copy(isSkipSilenceEnabled = isEnabled)
     }
     

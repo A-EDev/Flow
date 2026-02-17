@@ -2,6 +2,8 @@ package com.flow.youtube.data.video.downloader
 
 import com.flow.youtube.data.model.Video
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 enum class MissionStatus {
     PENDING,
@@ -23,16 +25,11 @@ data class FlowDownloadMission(
     // User-Agent (important for YouTube streams)
     val userAgent: String = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:140.0) Gecko/20100101 Firefox/140.0",
     
-    // Progress tracking
+    // Progress tracking — AtomicLong for lock-free thread-safe updates
     var totalBytes: Long = 0,
     var audioTotalBytes: Long = 0,
-    var downloadedBytes: Long = 0,
-    var audioDownloadedBytes: Long = 0,
     var status: MissionStatus = MissionStatus.PENDING,
     var threads: Int = 3,
-    
-    // Parts management
-    val parts: MutableList<FlowDownloadPart> = mutableListOf(),
     
     // Timestamps
     val createdTime: Long = System.currentTimeMillis(),
@@ -41,18 +38,30 @@ data class FlowDownloadMission(
     // Error tracking
     var error: String? = null
 ) {
+    // Atomic counters — updated from multiple download threads without locks
+    @Transient val downloadedBytesAtomic = AtomicLong(0L)
+    @Transient val audioDownloadedBytesAtomic = AtomicLong(0L)
+    
+    @Transient val videoBlockCounter = AtomicInteger(0)
+    @Transient val audioBlockCounter = AtomicInteger(0)
+    
+    /** Convenience accessors for current downloaded bytes */
+    val downloadedBytes: Long get() = downloadedBytesAtomic.get()
+    val audioDownloadedBytes: Long get() = audioDownloadedBytesAtomic.get()
+    
     val progress: Float
         get() {
             val total = totalBytes + audioTotalBytes
-            val current = downloadedBytes + audioDownloadedBytes
+            val current = downloadedBytesAtomic.get() + audioDownloadedBytesAtomic.get()
             return if (total > 0) current.toFloat() / total.toFloat() else 0f
         }
         
+    /** Lock-free progress update — safe to call from any thread */
     fun updateProgress(bytesRead: Long, isAudio: Boolean = false) {
         if (isAudio) {
-            audioDownloadedBytes += bytesRead
+            audioDownloadedBytesAtomic.addAndGet(bytesRead)
         } else {
-            downloadedBytes += bytesRead
+            downloadedBytesAtomic.addAndGet(bytesRead)
         }
     }
     

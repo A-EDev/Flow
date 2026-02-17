@@ -156,8 +156,6 @@ fun FullscreenEffect(
         activity?.let { act ->
             if (isFullscreen) {
                 act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                // We handle KEEP_SCREEN_ON generally now, but ensure it's here for fullscreen forced
-                act.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
                 
                 WindowCompat.setDecorFitsSystemWindows(act.window, false)
                 val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
@@ -235,10 +233,24 @@ fun PlayerInitEffect(
     context: Context,
     screenState: PlayerScreenState
 ) {
-    LaunchedEffect(uiState.videoStream, uiState.audioStream, videoId) {
+    LaunchedEffect(uiState.videoStream, uiState.audioStream, uiState.localFilePath, videoId) {
         val videoStream = uiState.videoStream
         val audioStream = uiState.audioStream
-        
+        val localFilePath = uiState.localFilePath
+
+        if (localFilePath != null && videoStream == null && audioStream == null) {
+            val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
+            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) {
+                Log.d(TAG, "Player already prepared for $videoId (offline), skipping")
+                return@LaunchedEffect
+            }
+
+            Log.d(TAG, "Playing offline file for $videoId: $localFilePath")
+            EnhancedPlayerManager.getInstance().initialize(context)
+            EnhancedPlayerManager.getInstance().playLocalFile(videoId, localFilePath)
+            return@LaunchedEffect
+        }
+
         if (videoStream != null && audioStream != null) {
             val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
             

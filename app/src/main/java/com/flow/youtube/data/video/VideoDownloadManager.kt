@@ -370,6 +370,11 @@ class VideoDownloadManager @Inject constructor(
         downloadDao.updateProgress(itemId, downloadedBytes, status)
     }
 
+    /** Update download item with full info including totalBytes */
+    suspend fun updateItemFull(itemId: Int, downloadedBytes: Long, totalBytes: Long, status: DownloadItemStatus) {
+        downloadDao.updateItemFull(itemId, downloadedBytes, totalBytes, status)
+    }
+
     /** Update item status */
     suspend fun updateStatus(itemId: Int, status: DownloadItemStatus) {
         downloadDao.updateStatus(itemId, status)

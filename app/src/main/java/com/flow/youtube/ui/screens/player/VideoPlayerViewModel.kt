@@ -31,6 +31,8 @@ import kotlinx.coroutines.delay
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 
 import kotlinx.coroutines.flow.update
 
@@ -66,6 +68,20 @@ class VideoPlayerViewModel @Inject constructor(
         // Handled by Hilt
     }
     
+    /**
+     * Detect whether the device is currently on Wi-Fi.
+     * Used to select the correct quality preference (Wi-Fi vs cellular).
+     */
+    private fun detectIsWifi(): Boolean {
+        return try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return true
+            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+        } catch (e: Exception) {
+            true 
+        }
+    }
+    
     init {
         viewModelScope.launch {
             EnhancedPlayerManager.getInstance().playerState.collect { playerState ->
@@ -82,7 +98,7 @@ class VideoPlayerViewModel @Inject constructor(
                     if (videoId != _uiState.value.streamInfo?.id && 
                         videoId != _uiState.value.cachedVideo?.id &&
                         !_uiState.value.isLoading) {
-                         loadVideoInfo(videoId)
+                         loadVideoInfo(videoId, isWifi = detectIsWifi())
                     }
                 }
             }
@@ -123,7 +139,7 @@ class VideoPlayerViewModel @Inject constructor(
         )
         
         // Start loading streams
-        loadVideoInfo(video.id, forceRefresh = true)
+        loadVideoInfo(video.id, isWifi = detectIsWifi(), forceRefresh = true)
     
 
     }
@@ -184,7 +200,7 @@ class VideoPlayerViewModel @Inject constructor(
         }
         
         // Start loading the first video
-        loadVideoInfo(startVideo.id, forceRefresh = true)
+        loadVideoInfo(startVideo.id, isWifi = detectIsWifi(), forceRefresh = true)
     }
 
     fun playNext() {

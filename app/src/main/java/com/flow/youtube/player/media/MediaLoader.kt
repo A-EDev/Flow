@@ -51,7 +51,7 @@ class MediaLoader(
         player: ExoPlayer?,
         context: Context?,
         videoStream: VideoStream?,
-        audioStream: AudioStream,
+        audioStream: AudioStream?,
         availableVideoStreams: List<VideoStream>,
         currentVideoStream: VideoStream?,
         dashManifestUrl: String?,
@@ -134,7 +134,7 @@ class MediaLoader(
     private fun createMediaSource(
         dataSourceFactory: DataSource.Factory,
         videoStream: VideoStream?,
-        audioStream: AudioStream,
+        audioStream: AudioStream?,
         availableVideoStreams: List<VideoStream>,
         currentVideoStream: VideoStream?,
         dashManifestUrl: String?,
@@ -145,6 +145,7 @@ class MediaLoader(
             ProgressiveMediaSource.Factory(cacheManager?.getProgressiveDataSourceFactory() ?: dataSourceFactory)
                 .createMediaSource(MediaItem.fromUri(android.net.Uri.fromFile(File(localFilePath))))
         } else {
+            val audio = audioStream ?: return null
             val resolver = VideoPlaybackResolver(
                 cacheManager?.getDashDataSourceFactory() ?: dataSourceFactory,
                 cacheManager?.getProgressiveDataSourceFactory() ?: dataSourceFactory
@@ -152,11 +153,13 @@ class MediaLoader(
             
             val selectedStreams = if (videoStream != null) {
                 listOf(videoStream)
+            } else if (!dashManifestUrl.isNullOrEmpty() && availableVideoStreams.size > 1) {
+                availableVideoStreams
             } else {
                 listOfNotNull(currentVideoStream ?: availableVideoStreams.firstOrNull())
             }
             Log.d(TAG, "Passing ${selectedStreams.size} stream(s) to resolver: ${selectedStreams.map { "${it.height}p" }}")
-            resolver.resolve(selectedStreams, audioStream, dashManifestUrl, finalDuration)
+            resolver.resolve(selectedStreams, audio, dashManifestUrl, finalDuration)
         }
     }
 }

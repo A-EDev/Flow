@@ -166,8 +166,13 @@ fun DownloadQualityDialog(
                                             }
                                         }
                                         
-                                        // Final fallback to any audio if still null
-                                        audioUrl = (compatibleAudio ?: allAudio.maxByOrNull { it.bitrate })?.url
+                                        if (compatibleAudio == null && isMp4Video) {
+                                            compatibleAudio = allAudio.filter { a ->
+                                                val mime = a.format?.mimeType ?: ""
+                                                !mime.contains("opus", true) && !mime.contains("vorbis", true) && !mime.contains("webm", true)
+                                            }.maxByOrNull { it.bitrate }
+                                        }
+                                        audioUrl = (compatibleAudio ?: if (!isMp4Video) allAudio.maxByOrNull { it.bitrate } else null)?.url
                                     }
                                     
                                     VideoPlayerUtils.startDownload(context, video, downloadUrl, qualityLabel, audioUrl)
