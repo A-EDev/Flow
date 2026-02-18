@@ -1,6 +1,9 @@
 package com.flow.youtube.ui.screens.personality
 
-import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
@@ -48,9 +51,10 @@ import androidx.compose.ui.unit.sp
 import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
+import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import kotlin.math.*
 import kotlin.random.Random
 
@@ -69,6 +73,45 @@ fun FlowPersonalityScreen(
     var persona by remember { mutableStateOf<FlowNeuroEngine.FlowPersona?>(null) }
     var showResetDialog by remember { mutableStateOf(false) }
     var isLoaded by remember { mutableStateOf(false) }
+
+    // SAF launcher: create a file to export brain JSON into
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        uri ?: return@rememberLauncherForActivityResult
+        scope.launch {
+            val brain = userBrain ?: return@launch
+            val success = context.contentResolver.openOutputStream(uri)?.use { out ->
+                FlowNeuroEngine.exportBrainToStream(out)
+            } ?: false
+            Toast.makeText(
+                context,
+                if (success) "Profile exported successfully" else "Export failed",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    // SAF launcher: pick a JSON file to import brain from
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        uri ?: return@rememberLauncherForActivityResult
+        scope.launch {
+            val success = context.contentResolver.openInputStream(uri)?.use { inp ->
+                FlowNeuroEngine.importBrainFromStream(context, inp)
+            } ?: false
+            if (success) {
+                userBrain = FlowNeuroEngine.getBrainSnapshot()
+                userBrain?.let { persona = FlowNeuroEngine.getPersona(it) }
+            }
+            Toast.makeText(
+                context,
+                if (success) "Profile imported successfully" else "Import failed — invalid file",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
 
     // Load Brain
     LaunchedEffect(Unit) {
@@ -231,35 +274,11 @@ fun FlowPersonalityScreen(
                         MaintenanceSection(
                             onReset = { showResetDialog = true },
                             onExport = {
-                                // Export brain data as JSON via share sheet
-                                scope.launch {
-                                    val brain = userBrain ?: return@launch
-                                    val jsonData = buildString {
-                                        appendLine("{")
-                                        appendLine("  \"totalInteractions\": ${brain.totalInteractions},")
-                                        appendLine("  \"consecutiveSkips\": ${brain.consecutiveSkips},")
-                                        appendLine("  \"topicsCount\": ${brain.globalVector.topics.size},")
-                                        appendLine("  \"channelsCount\": ${brain.channelScores.size},")
-                                        appendLine("  \"blockedTopics\": [${brain.blockedTopics.joinToString { "\"$it\"" }}],")
-                                        appendLine("  \"blockedChannels\": [${brain.blockedChannels.joinToString { "\"$it\"" }}],")
-                                        appendLine("  \"preferredTopics\": [${brain.preferredTopics.joinToString { "\"$it\"" }}],")
-                                        appendLine("  \"globalVector\": {")
-                                        appendLine("    \"pacing\": ${brain.globalVector.pacing},")
-                                        appendLine("    \"complexity\": ${brain.globalVector.complexity},")
-                                        appendLine("    \"duration\": ${brain.globalVector.duration},")
-                                        appendLine("    \"isLive\": ${brain.globalVector.isLive},")
-                                        appendLine("    \"topics\": {${brain.globalVector.topics.entries.take(20).joinToString { "\"${it.key}\": ${it.value}" }}}")
-                                        appendLine("  },")
-                                        appendLine("  \"topChannels\": {${brain.channelScores.entries.sortedByDescending { it.value }.take(10).joinToString { "\"${it.key}\": ${it.value}" }}}")
-                                        appendLine("}")
-                                    }
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "application/json"
-                                        putExtra(Intent.EXTRA_TEXT, jsonData)
-                                        putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.flow_neural_profile_export_subject))
-                                    }
-                                    context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.export_profile_data)))
-                                }
+                                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                                exportLauncher.launch("flow_brain_$timestamp.json")
+                            },
+                            onImport = {
+                                importLauncher.launch(arrayOf("application/json", "text/plain"))
                             }
                         )
 
@@ -663,7 +682,11 @@ private fun NeuralBubbleCloud(brain: FlowNeuroEngine.UserBrain) {
     val density = LocalDensity.current
     
     // Initialize bubbles with random positions
-    val bubbles = remember(topics) {
+    // Radius is stored in pixels so Canvas drawing and physics stay in the same
+    // coordinate space. We convert the dp values to px here using the current
+    // display density, which ensures correct physical sizes on every resolution
+    // (including 1440p high-density displays).
+    val bubbles = remember(topics, density) {
         topics.mapIndexed { index, entry ->
             val colorIndex = index % 3
             val color = when (colorIndex) {
@@ -671,8 +694,9 @@ private fun NeuralBubbleCloud(brain: FlowNeuroEngine.UserBrain) {
                 1 -> secondaryColor
                 else -> tertiaryColor
             }
-            // More dynamic sizing: 40dp base + up to 80dp bonus based on score
-            val baseRadius = 40f + (entry.value.toFloat() * 80f)
+            // 40dp base + up to 80dp bonus based on score, converted to pixels
+            val baseRadiusDp = 40f + (entry.value.toFloat() * 80f)
+            val baseRadius = with(density) { baseRadiusDp.dp.toPx() }
             
             BubbleState(
                 topic = entry.key,
@@ -855,8 +879,9 @@ private fun NeuralBubbleCloud(brain: FlowNeuroEngine.UserBrain) {
                         val dy = b1.y - b2.y
                         val dist = sqrt(dx*dx + dy*dy)
                         
-                        if (dist < 200f) {
-                            val alpha = (1f - dist / 200f) * 0.15f
+                        val connectionThresholdPx = with(density) { 200.dp.toPx() }
+                        if (dist < connectionThresholdPx) {
+                            val alpha = (1f - dist / connectionThresholdPx) * 0.15f
                             drawLine(
                                 color = b1.color.copy(alpha = alpha),
                                 start = Offset(b1.x, b1.y),
@@ -882,7 +907,8 @@ private fun NeuralBubbleCloud(brain: FlowNeuroEngine.UserBrain) {
                         .size(with(density) { (bubble.radius * 2).toDp() }),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (bubble.radius > 40f) {
+                    val minRadiusPx = with(density) { 40.dp.toPx() }
+                if (bubble.radius > minRadiusPx) {
                         Text(
                             bubble.topic.replaceFirstChar { it.uppercase() },
                             style = MaterialTheme.typography.labelSmall.copy(
@@ -1525,7 +1551,8 @@ private fun AlgorithmStat(label: String, value: String) {
 @Composable
 private fun MaintenanceSection(
     onReset: () -> Unit,
-    onExport: () -> Unit
+    onExport: () -> Unit,
+    onImport: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Export Card
@@ -1567,7 +1594,7 @@ private fun MaintenanceSection(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "Download your neural profile as JSON",
+                        "Save your neural profile as a JSON file",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -1579,7 +1606,59 @@ private fun MaintenanceSection(
                 )
             }
         }
-        
+
+        // Import Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.1f)
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onImport() }
+                    .padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.FileUpload,
+                        null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Import Profile Data",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "Restore a neural profile from a JSON backup",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Icon(
+                    Icons.Default.ChevronRight,
+                    null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
         // Reset Card
         Card(
             modifier = Modifier.fillMaxWidth(),

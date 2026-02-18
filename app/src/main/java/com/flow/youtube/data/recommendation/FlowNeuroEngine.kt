@@ -1330,6 +1330,53 @@ object FlowNeuroEngine {
         }
     }
 
+    // =================================================
+    // EXPORT / IMPORT API (Brain Backup & Restore)
+    // =================================================
+
+    /**
+     * Serialise the current brain to JSON and write it to [output].
+     * The caller is responsible for opening and closing the stream.
+     * Returns true on success, false on failure.
+     */
+    suspend fun exportBrainToStream(output: OutputStream): Boolean = withContext(Dispatchers.IO) {
+        return@withContext try {
+            brainMutex.withLock {
+                val serializable = currentUserBrain.toSerializable()
+                val jsonBytes = Json { encodeDefaults = true }.encodeToString(serializable).toByteArray()
+                output.write(jsonBytes)
+                output.flush()
+            }
+            Log.i(TAG, "Brain exported successfully")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to export brain", e)
+            false
+        }
+    }
+
+    /**
+     * Read a JSON brain backup from [input] and replace the current brain with it.
+     * Persists to DataStore immediately afterwards.
+     * Returns true on success, false if the data is invalid or an error occurs.
+     */
+    suspend fun importBrainFromStream(context: Context, input: InputStream): Boolean =
+        withContext(Dispatchers.IO) {
+            return@withContext try {
+                val text = input.bufferedReader().readText()
+                val imported = Json { ignoreUnknownKeys = true }.decodeFromString<SerializableBrain>(text)
+                brainMutex.withLock {
+                    currentUserBrain = imported.toUserBrain()
+                    saveBrainToDataStore(context)
+                }
+                Log.i(TAG, "Brain imported successfully (v${imported.schemaVersion}, ${imported.interactions} interactions)")
+                true
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to import brain", e)
+                false
+            }
+        }
+
     /**
      * V6: Legacy JSON migration - loads old brain format and converts to new model.
      * This preserves all user data from V3/V4/V5 brain files.
