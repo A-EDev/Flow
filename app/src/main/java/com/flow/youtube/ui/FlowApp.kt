@@ -276,9 +276,11 @@ fun FlowApp(
         onNavigateToChannel = { channelId ->
             val channelUrl = "https://www.youtube.com/channel/$channelId"
             val encodedUrl = java.net.URLEncoder.encode(channelUrl, "UTF-8")
+            playerSheetState.collapse()
             navController.navigate("channel?url=$encodedUrl")
         },
         onNavigateToShorts = { videoId ->
+            playerSheetState.collapse()
             navController.navigate("shorts?startVideoId=$videoId")
         }
     )

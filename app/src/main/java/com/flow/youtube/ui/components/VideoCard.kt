@@ -249,6 +249,7 @@ fun VideoCardFullWidth(
     modifier: Modifier = Modifier,
     useInternalPadding: Boolean = true,
     onClick: () -> Unit,
+    onChannelClick: ((String) -> Unit)? = null,
     onMoreClick: () -> Unit = {}
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
@@ -307,7 +308,12 @@ fun VideoCardFullWidth(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface),
+                    .background(MaterialTheme.colorScheme.surface)
+                    .then(
+                        if (onChannelClick != null)
+                            Modifier.clickable { onChannelClick(video.channelId) }
+                        else Modifier
+                    ),
                 contentScale = ContentScale.Crop
             )
 
@@ -329,7 +335,10 @@ fun VideoCardFullWidth(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.extendedColors.textSecondary,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (onChannelClick != null)
+                        Modifier.clickable { onChannelClick(video.channelId) }
+                    else Modifier
                 )
             }
 

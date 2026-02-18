@@ -104,6 +104,7 @@ fun HomeScreen(
     onSearchClick: () -> Unit,
     onNotificationClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onChannelClick: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel(),
     notificationViewModel: NotificationViewModel = hiltViewModel()
@@ -295,6 +296,7 @@ fun HomeScreen(
                                 VideoCardFullWidth(
                                     video = video,
                                     onClick = { onVideoClick(video) },
+                                    onChannelClick = { channelId -> onChannelClick(channelId) },
                                     useInternalPadding = false
                                 )
                             }
@@ -321,6 +323,7 @@ fun HomeScreen(
                                 VideoCardFullWidth(
                                     video = video,
                                     onClick = { onVideoClick(video) },
+                                    onChannelClick = { channelId -> onChannelClick(channelId) },
                                     useInternalPadding = false
                                 )
                             }

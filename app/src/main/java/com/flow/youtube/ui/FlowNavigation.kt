@@ -100,6 +100,10 @@ fun NavGraphBuilder.flowAppGraph(
             },
             onSettingsClick = {
                 navController.navigate("settings")
+            },
+            onChannelClick = { channelId ->
+                val encodedUrl = java.net.URLEncoder.encode("https://www.youtube.com/channel/$channelId", "UTF-8")
+                navController.navigate("channel?url=$encodedUrl")
             }
         )
     }
