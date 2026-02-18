@@ -336,6 +336,7 @@ fun DownloadQualityDialog(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QualitySelectorDialog(
     availableQualities: List<QualityOption>,
@@ -343,36 +344,42 @@ fun QualitySelectorDialog(
     onDismiss: () -> Unit,
     onQualitySelected: (Int) -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.video_quality_title)) },
-        text = {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.video_quality_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+            )
+            HorizontalDivider()
             LazyColumn {
                 items(availableQualities.sortedByDescending { it.height }) { quality ->
+                    val isSelected = quality.height == currentQuality
                     Surface(
-                        onClick = {
-                            onQualitySelected(quality.height)
-                            onDismiss()
-                        },
-                        color = if (quality.height == currentQuality) 
-                            MaterialTheme.colorScheme.primaryContainer 
-                        else 
-                            Color.Transparent,
+                        onClick = { onQualitySelected(quality.height); onDismiss() },
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(horizontal = 20.dp, vertical = 16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = quality.label,
-                                style = MaterialTheme.typography.bodyLarge
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurface
                             )
-                            
-                            if (quality.height == currentQuality) {
+                            if (isSelected) {
                                 Icon(
                                     imageVector = Icons.Filled.Check,
                                     contentDescription = null,
@@ -383,15 +390,11 @@ fun QualitySelectorDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.close))
-            }
         }
-    )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AudioTrackSelectorDialog(
     availableAudioTracks: List<AudioTrackOption>,
@@ -399,44 +402,52 @@ fun AudioTrackSelectorDialog(
     onDismiss: () -> Unit,
     onTrackSelected: (Int) -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.audio_track)) },
-        text = {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.audio_track),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+            )
+            HorizontalDivider()
             LazyColumn {
                 items(availableAudioTracks.size) { index ->
                     val track = availableAudioTracks[index]
+                    val isSelected = index == currentAudioTrack
                     Surface(
-                        onClick = {
-                            onTrackSelected(index)
-                            onDismiss()
-                        },
-                        color = if (index == currentAudioTrack) 
-                            MaterialTheme.colorScheme.primaryContainer 
-                        else 
-                            Color.Transparent,
+                        onClick = { onTrackSelected(index); onDismiss() },
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(horizontal = 20.dp, vertical = 16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = track.label,
-                                    style = MaterialTheme.typography.bodyLarge
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.onSurface
                                 )
-                                Text(
-                                    text = track.language,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                if (track.language.isNotBlank()) {
+                                    Text(
+                                        text = track.language,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
-                            
-                            if (index == currentAudioTrack) {
+                            if (isSelected) {
                                 Icon(
                                     imageVector = Icons.Filled.Check,
                                     contentDescription = null,
@@ -447,15 +458,11 @@ fun AudioTrackSelectorDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.close))
-            }
         }
-    )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubtitleSelectorDialog(
     availableSubtitles: List<SubtitleOption>,
@@ -465,37 +472,43 @@ fun SubtitleSelectorDialog(
     onSubtitleSelected: (Int, String) -> Unit,
     onDisableSubtitles: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.filter_subtitles)) },
-        text = {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.filter_subtitles),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+            )
+            HorizontalDivider()
             LazyColumn {
                 // Off option
                 item {
+                    val isSelected = !subtitlesEnabled
                     Surface(
-                        onClick = {
-                            onDisableSubtitles()
-                            onDismiss()
-                        },
-                        color = if (!subtitlesEnabled) 
-                            MaterialTheme.colorScheme.primaryContainer 
-                        else 
-                            Color.Transparent,
+                        onClick = { onDisableSubtitles(); onDismiss() },
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(horizontal = 20.dp, vertical = 16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = stringResource(R.string.off),
-                                style = MaterialTheme.typography.bodyLarge
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurface
                             )
-                            
-                            if (!subtitlesEnabled) {
+                            if (isSelected) {
                                 Icon(
                                     imageVector = Icons.Filled.Check,
                                     contentDescription = null,
@@ -505,41 +518,38 @@ fun SubtitleSelectorDialog(
                         }
                     }
                 }
-                
                 // Available subtitles
                 items(availableSubtitles.size) { index ->
                     val subtitle = availableSubtitles[index]
+                    val isSelected = subtitle.url == selectedSubtitleUrl && subtitlesEnabled
                     Surface(
-                        onClick = {
-                            onSubtitleSelected(index, subtitle.url)
-                            onDismiss()
-                        },
-                        color = if (subtitle.url == selectedSubtitleUrl) 
-                            MaterialTheme.colorScheme.primaryContainer 
-                        else 
-                            Color.Transparent,
+                        onClick = { onSubtitleSelected(index, subtitle.url); onDismiss() },
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(horizontal = 20.dp, vertical = 16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     text = subtitle.label,
-                                    style = MaterialTheme.typography.bodyLarge
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.onSurface
                                 )
-                                Text(
-                                    text = subtitle.language,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                if (subtitle.language.isNotBlank()) {
+                                    Text(
+                                        text = subtitle.language,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
-                            
-                            if (subtitle.url == selectedSubtitleUrl) {
+                            if (isSelected) {
                                 Icon(
                                     imageVector = Icons.Filled.Check,
                                     contentDescription = null,
@@ -550,15 +560,11 @@ fun SubtitleSelectorDialog(
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.close))
-            }
         }
-    )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsMenuDialog(
     playerState: EnhancedPlayerState,
@@ -574,158 +580,171 @@ fun SettingsMenuDialog(
     onShowSubtitleStyle: () -> Unit,
     onLoopToggle: (Boolean) -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.player_settings)) },
-        text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.quality)) },
-                    supportingContent = { Text("${playerState.currentQuality}p") },
-                    leadingContent = {
-                        Icon(Icons.Filled.HighQuality, contentDescription = null)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            onDismiss()
-                            onShowQuality()
-                        },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                )
-                
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.audio_track)) },
-                    supportingContent = { 
-                        Text("Track ${playerState.currentAudioTrack + 1}") 
-                    },
-                    leadingContent = {
-                        Icon(Icons.Filled.AudioFile, contentDescription = null)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            onDismiss()
-                            onShowAudio()
-                        },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                )
-                
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.playback_speed)) },
-                    supportingContent = { 
-                        Text("${playerState.playbackSpeed}x") 
-                    },
-                    leadingContent = {
-                        Icon(Icons.Filled.Speed, contentDescription = null)
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            onDismiss()
-                            onShowSpeed()
-                        },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                )
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp)
+        ) {
+            // ── Sheet title ──
+            Text(
+                text = stringResource(R.string.player_settings),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+            )
+            HorizontalDivider()
 
-                // Loop Video Toggle
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.loop_video)) },
-                    supportingContent = { 
-                        Text(if (playerState.isLooping) stringResource(R.string.on) else stringResource(R.string.off)) 
-                    },
-                    leadingContent = {
-                        Icon(Icons.Rounded.Repeat, contentDescription = null)
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = playerState.isLooping,
-                            onCheckedChange = null // Handled by ListItem clickable
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onLoopToggle(!playerState.isLooping) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                )
+            // ── Quality ──
+            PlayerSettingsNavRow(
+                icon = Icons.Filled.HighQuality,
+                label = stringResource(R.string.quality),
+                value = if (playerState.currentQuality == 0) stringResource(R.string.quality_auto)
+                        else "${playerState.currentQuality}p",
+                onClick = { onDismiss(); onShowQuality() }
+            )
 
-                // Auto-play Toggle
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.autoplay_next)) },
-                    supportingContent = { 
-                        Text(if (autoplayEnabled) stringResource(R.string.on) else stringResource(R.string.off)) 
-                    },
-                    leadingContent = {
-                        Icon(Icons.Filled.SkipNext, contentDescription = null)
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = autoplayEnabled,
-                            onCheckedChange = null // Handled by ListItem clickable
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onAutoplayToggle(!autoplayEnabled) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                )
+            // ── Playback Speed ──
+            PlayerSettingsNavRow(
+                icon = Icons.Filled.Speed,
+                label = stringResource(R.string.playback_speed),
+                value = if (playerState.playbackSpeed == 1.0f) stringResource(R.string.normal)
+                        else "${playerState.playbackSpeed}x",
+                onClick = { onDismiss(); onShowSpeed() }
+            )
 
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.filter_subtitles)) },
-                    supportingContent = { 
-                        Text(if (subtitlesEnabled) stringResource(R.string.on) else stringResource(R.string.off)) 
-                    },
-                    leadingContent = {
-                        Icon(Icons.Filled.Subtitles, contentDescription = null)
-                    },
-                    trailingContent = {
-                        if (subtitlesEnabled) {
-                            IconButton(onClick = { 
-                                onDismiss()
-                                onShowSubtitleStyle()
-                            }) {
-                                Icon(Icons.Filled.Settings, contentDescription = "Subtitle Style")
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            onDismiss()
-                            onShowSubtitles()
-                        },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                )
+            // ── Audio Track ──
+            PlayerSettingsNavRow(
+                icon = Icons.Filled.AudioFile,
+                label = stringResource(R.string.audio_track),
+                value = "Track ${playerState.currentAudioTrack + 1}",
+                onClick = { onDismiss(); onShowAudio() }
+            )
 
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.player_settings_skip_silence)) },
-                    supportingContent = { 
-                        Text(if (playerState.isSkipSilenceEnabled) stringResource(R.string.on) else stringResource(R.string.off)) 
-                    },
-                    leadingContent = {
-                        Icon(Icons.Rounded.GraphicEq, contentDescription = null)
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = playerState.isSkipSilenceEnabled,
-                            onCheckedChange = null // Handled by ListItem clickable
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSkipSilenceToggle(!playerState.isSkipSilenceEnabled) },
-                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.close))
-            }
+            // ── Captions ──
+            PlayerSettingsNavRow(
+                icon = Icons.Filled.Subtitles,
+                label = stringResource(R.string.filter_subtitles),
+                value = if (subtitlesEnabled) stringResource(R.string.on) else stringResource(R.string.off),
+                onClick = { onDismiss(); onShowSubtitles() }
+            )
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
+
+            // ── Loop Video ──
+            PlayerSettingsToggleRow(
+                icon = Icons.Rounded.Repeat,
+                label = stringResource(R.string.loop_video),
+                checked = playerState.isLooping,
+                onToggle = onLoopToggle
+            )
+
+            // ── Autoplay ──
+            PlayerSettingsToggleRow(
+                icon = Icons.Filled.SkipNext,
+                label = stringResource(R.string.autoplay_next),
+                checked = autoplayEnabled,
+                onToggle = onAutoplayToggle
+            )
+
+            // ── Skip Silence ──
+            PlayerSettingsToggleRow(
+                icon = Icons.Rounded.GraphicEq,
+                label = stringResource(R.string.player_settings_skip_silence),
+                checked = playerState.isSkipSilenceEnabled,
+                onToggle = onSkipSilenceToggle
+            )
         }
-    )
+    }
 }
 
+@Composable
+private fun PlayerSettingsNavRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        color = Color.Transparent,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.width(16.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f)
+            )
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.width(2.dp))
+            Icon(
+                imageVector = Icons.Filled.ChevronRight,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerSettingsToggleRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    checked: Boolean,
+    onToggle: (Boolean) -> Unit
+) {
+    Surface(
+        onClick = { onToggle(!checked) },
+        color = Color.Transparent,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.width(16.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f)
+            )
+            Switch(
+                checked = checked,
+                onCheckedChange = null
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlaybackSpeedSelectorDialog(
     currentSpeed: Float,
@@ -733,69 +752,91 @@ fun PlaybackSpeedSelectorDialog(
     onSpeedSelected: (Float) -> Unit
 ) {
     val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.playback_speed)) },
-        text = {
-            LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.playback_speed),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+            )
+            HorizontalDivider()
+            LazyColumn {
                 items(speeds) { speed ->
+                    val isSelected = speed == currentSpeed
                     Surface(
-                        onClick = {
-                            onSpeedSelected(speed)
-                            onDismiss()
-                        },
-                        color = if (speed == currentSpeed) 
-                            MaterialTheme.colorScheme.primaryContainer 
-                        else 
-                            Color.Transparent,
+                        onClick = { onSpeedSelected(speed); onDismiss() },
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
+                                .padding(horizontal = 20.dp, vertical = 16.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = if (speed == 1.0f) stringResource(R.string.normal) else "${speed}x",
-                                style = MaterialTheme.typography.bodyLarge
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurface
                             )
-                            
-                            if (speed == currentSpeed) {
-                                Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
                             }
                         }
                     }
                 }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.close))
-            }
         }
-    )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubtitleStyleCustomizerDialog(
     subtitleStyle: SubtitleStyle,
     onStyleChange: (SubtitleStyle) -> Unit,
     onDismiss: () -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        text = {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.filter_subtitles),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
+            )
+            HorizontalDivider()
             SubtitleCustomizer(
                 currentStyle = subtitleStyle,
                 onStyleChange = onStyleChange
             )
-        },
-        confirmButton = {
-            TextButton(onClick = onDismiss) {
+            Spacer(Modifier.height(8.dp))
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(end = 16.dp)
+            ) {
                 Text(stringResource(R.string.done))
             }
         }
-    )
+    }
 }
