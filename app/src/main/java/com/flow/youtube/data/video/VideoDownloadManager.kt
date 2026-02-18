@@ -291,9 +291,7 @@ class VideoDownloadManager @Inject constructor(
     val downloadedVideos: Flow<List<DownloadedVideo>>
         get() = allDownloads.map { list ->
             list.filter { dwi ->
-                dwi.overallStatus == DownloadItemStatus.COMPLETED &&
-                    dwi.primaryFilePath != null &&
-                    File(dwi.primaryFilePath!!).exists()
+                dwi.overallStatus == DownloadItemStatus.COMPLETED
             }.map { toDownloadedVideo(it) }
         }
 

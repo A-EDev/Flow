@@ -314,7 +314,8 @@ class FlowDownloadService : Service() {
         
         try {
             updateAllItemStatuses(videoId, DownloadItemStatus.DOWNLOADING)
-            Log.d(TAG, "executeDownload: Status updated to DOWNLOADING")
+            mission.status = MissionStatus.RUNNING
+            Log.d(TAG, "executeDownload: Status updated to DOWNLOADING/RUNNING")
 
             val progressJob = serviceScope.launch {
                 while (mission.status == MissionStatus.RUNNING) {
@@ -451,6 +452,7 @@ class FlowDownloadService : Service() {
                 updateNotification(mission, videoId)
             }
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             Log.e(TAG, "executeDownload: Critical error", e)
             mission.status = MissionStatus.FAILED
             mission.error = e.message
@@ -513,7 +515,15 @@ class FlowDownloadService : Service() {
     private fun handleCancel(videoId: String) {
         val mission = activeMissions[videoId]
         mission?.status = MissionStatus.FAILED
+
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(getNotificationId(videoId))
+
         downloadJobs[videoId]?.cancel()
+
+        activeMissions.remove(videoId)
+        downloadJobs.remove(videoId)
+        itemIds.remove(videoId)
 
         serviceScope.launch {
             updateAllItemStatuses(videoId, DownloadItemStatus.CANCELLED)
@@ -529,14 +539,6 @@ class FlowDownloadService : Service() {
             }
             downloadManager.deleteDownload(videoId)
         }
-
-        activeMissions.remove(videoId)
-        downloadJobs.remove(videoId)
-        itemIds.remove(videoId)
-
-        // Cancel notification
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.cancel(getNotificationId(videoId))
 
         if (activeMissions.isEmpty()) {
             stopForeground(true)
