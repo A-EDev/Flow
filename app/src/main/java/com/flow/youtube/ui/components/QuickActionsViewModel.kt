@@ -4,15 +4,20 @@ import android.content.Context
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.flow.youtube.data.local.ChannelSubscription
 import com.flow.youtube.data.local.PlaylistRepository
+import com.flow.youtube.data.local.SubscriptionRepository
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import com.flow.youtube.data.repository.YouTubeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -24,8 +29,56 @@ class QuickActionsViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
+    private val subscriptionRepository = SubscriptionRepository.getInstance(context)
+
     val watchLaterIds = playlistRepository.getWatchLaterIdsFlow()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    /** In-memory set of video IDs manually marked as watched this session */
+    private val _watchedVideoIds = MutableStateFlow<Set<String>>(emptySet())
+    val watchedVideoIds = _watchedVideoIds.asStateFlow()
+
+    /** Per-video subscription state cache: channelId -> Boolean */
+    private val _subscribedChannelIds = MutableStateFlow<Set<String>>(emptySet())
+    val subscribedChannelIds = _subscribedChannelIds.asStateFlow()
+
+    fun loadSubscriptionState(channelId: String) {
+        viewModelScope.launch {
+            subscriptionRepository.isSubscribed(channelId).collect { subscribed ->
+                if (subscribed) {
+                    _subscribedChannelIds.update { it + channelId }
+                } else {
+                    _subscribedChannelIds.update { it - channelId }
+                }
+            }
+        }
+    }
+
+    fun toggleSubscription(channelId: String, channelName: String, channelThumbnail: String) {
+        viewModelScope.launch {
+            try {
+                val isCurrentlySubscribed = _subscribedChannelIds.value.contains(channelId)
+                if (isCurrentlySubscribed) {
+                    subscriptionRepository.unsubscribe(channelId)
+                    _subscribedChannelIds.update { it - channelId }
+                    Toast.makeText(context, "Unsubscribed from $channelName", Toast.LENGTH_SHORT).show()
+                } else {
+                    subscriptionRepository.subscribe(
+                        ChannelSubscription(
+                            channelId = channelId,
+                            channelName = channelName,
+                            channelThumbnail = channelThumbnail,
+                            subscribedAt = System.currentTimeMillis()
+                        )
+                    )
+                    _subscribedChannelIds.update { it + channelId }
+                    Toast.makeText(context, "Subscribed to $channelName", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     fun toggleWatchLater(video: Video) {
         viewModelScope.launch {
@@ -61,6 +114,57 @@ class QuickActionsViewModel @Inject constructor(
                 Toast.makeText(
                     context, 
                     "Got it! You'll see less content like this.", 
+                    Toast.LENGTH_SHORT
+                ).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    /**
+     * Mark a video as "Watched" - signals a positive WATCHED interaction to FlowNeuroEngine,
+     * boosting the video's topics and channel in recommendations. Useful for quick-starting
+     * the algorithm without replaying the whole video.
+     */
+    fun markAsWatched(video: Video) {
+        viewModelScope.launch {
+            try {
+                FlowNeuroEngine.onVideoInteraction(
+                    context,
+                    video,
+                    FlowNeuroEngine.InteractionType.WATCHED,
+                    percentWatched = 1.0f
+                )
+                _watchedVideoIds.update { it + video.id }
+                Toast.makeText(
+                    context,
+                    context.getString(com.flow.youtube.R.string.mark_as_watched_toast),
+                    Toast.LENGTH_SHORT
+                ).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    /**
+     * Mark a video as "I like this" - signals a positive LIKED interaction to FlowNeuroEngine,
+     * boosting the video's topics and channel. Helps users seed the algorithm with content
+     * they enjoy without watching the full video in Flow.
+     */
+    fun markAsInteresting(video: Video) {
+        viewModelScope.launch {
+            try {
+                FlowNeuroEngine.onVideoInteraction(
+                    context,
+                    video,
+                    FlowNeuroEngine.InteractionType.LIKED,
+                    percentWatched = 0f
+                )
+                Toast.makeText(
+                    context,
+                    context.getString(com.flow.youtube.R.string.i_like_this_toast),
                     Toast.LENGTH_SHORT
                 ).show()
             } catch (e: Exception) {

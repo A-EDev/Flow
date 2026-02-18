@@ -132,6 +132,11 @@
     <string name="save_to_playlist">Save to playlist</string>
     <string name="not_interested">Not interested</string>
     <string name="details_metadata">Details &amp; Metadata</string>
+    <string name="mark_as_watched">Mark as watched</string>
+    <string name="mark_as_watched_toast">Marked as watched — your recommendations will improve!</string>
+    <string name="i_like_this">I want more like this</string>
+    <string name="i_like_this_toast">Got it! You\'ll see more content like this.</string>
+    <string name="go_to_channel">Go to channel</string>
 
     <!-- Media Info Dialog -->
     <string name="track_info">Track Information</string>
@@ -178,6 +183,8 @@
 
     <string name="select_artist">Select Artist</string>
     <string name="description">Description</string>
+    <string name="copy_description">Copy description</string>
+    <string name="description_copied">Description copied to clipboard</string>
     <string name="ago">Ago</string>
     <string name="since">Since</string>
     <string name="add_to_playlist">Add to playlist</string>
@@ -345,6 +352,9 @@
     <string name="style_metrolist_slim">Metrolist (Slim)</string>
     <string name="style_squiggly">Squiggly</string>
     <string name="style_slim">Ultra Slim</string>
+    <string name="player_appearance_gestures_header">Gestures</string>
+    <string name="player_appearance_swipe_gestures_title">Brightness &amp; Volume Gestures</string>
+    <string name="player_appearance_swipe_gestures_subtitle">Swipe left/right edge to adjust brightness and volume in fullscreen</string>
 
     <!-- Lyrics Provider -->
     <string name="lyrics_provider_title">Lyrics Provider</string>
@@ -436,6 +446,48 @@
     <string name="loop_video">Loop video</string>
     <string name="player_settings_sponsorblock">SponsorBlock</string>
     <string name="player_settings_sponsorblock_subtitle">Skip sponsored segments</string>
+
+    <!-- SponsorBlock per-category segment actions (Player Appearance) -->
+    <string name="sb_segments_header">SponsorBlock Segment Actions</string>
+    <string name="sb_contribute_header">Contribute to SponsorBlock</string>
+    <string name="sb_contribute_toggle_title">Contribute to SponsorBlock</string>
+    <string name="sb_contribute_toggle_subtitle">Show a button in the player to submit new segments</string>
+    <string name="sb_user_id_title">SponsorBlock User ID</string>
+    <string name="sb_user_id_not_set">Tap to set or generate a user ID</string>
+    <string name="sb_user_id_dialog_title">SponsorBlock User ID</string>
+    <string name="sb_user_id_dialog_body">Enter a custom user ID or leave blank to auto-generate one. Your ID is used to track segment submissions.</string>
+    <string name="sb_user_id_hint">User ID (UUID)</string>
+    <string name="sb_color_picker_title">Segment Highlight Color</string>
+    <string name="sb_color_reset">Reset to default</string>
+    <string name="sb_category_sponsor">Sponsor</string>
+    <string name="sb_category_intro">Intro / Intermission</string>
+    <string name="sb_category_outro">Outro / Endcard</string>
+    <string name="sb_category_selfpromo">Self-promotion</string>
+    <string name="sb_category_interaction">Interaction reminder</string>
+    <string name="sb_category_music_offtopic">Non-music segment</string>
+    <string name="sb_category_filler">Filler / Tangent</string>
+    <string name="sb_category_preview">Preview / Recap</string>
+    <string name="sb_category_exclusive_access">Exclusive Access</string>
+    <string name="sb_action_skip">Skip</string>
+    <string name="sb_action_mute">Mute</string>
+    <string name="sb_action_show_toast">Notify only</string>
+    <string name="sb_action_ignore">Ignore</string>
+    <!-- SponsorBlock submit dialog -->
+    <string name="sb_submit_dialog_title">Submit Segment</string>
+    <string name="sb_submit_start_time">Start time</string>
+    <string name="sb_submit_end_time">End time</string>
+    <string name="sb_submit_category">Category</string>
+    <string name="sb_submit_swap">Swap timestamps</string>
+    <string name="sb_submit_create">Create Segment</string>
+    <string name="sb_submit_success">✓ Segment submitted successfully</string>
+    <string name="sb_submit_error">Failed to submit segment. Please try again.</string>
+    <!-- Bottom sheet section labels -->
+    <string name="section_channel">Channel</string>
+    <string name="section_algorithm">Algorithm</string>
+    <string name="section_options">Options</string>
+    <!-- Misc -->
+    <string name="btn_save">Save</string>
+    <string name="btn_cancel">Cancel</string>
     <string name="player_settings_show_pip">Show PiP Button</string>
     <string name="player_settings_show_pip_subtitle">Show manual PiP button in player controls</string>
     <string name="player_settings_header_audio">Audio</string>

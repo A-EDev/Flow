@@ -1,5 +1,8 @@
 package com.flow.youtube.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.text.style.URLSpan
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -7,9 +10,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -81,6 +86,7 @@ fun FlowDescriptionBottomSheet(
     modifier: Modifier = Modifier
 ) {
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
     
     // FIX: Use the HTML parser instead of manual Regex
     val descriptionText = remember(video.description) {
@@ -121,6 +127,19 @@ fun FlowDescriptionBottomSheet(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.weight(1f))
+                // Copy entire description button
+                IconButton(onClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clip = ClipData.newPlainText("description", descriptionText.text)
+                    clipboard.setPrimaryClip(clip)
+                    android.widget.Toast.makeText(
+                        context,
+                        context.getString(R.string.description_copied),
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }) {
+                    Icon(Icons.Outlined.ContentCopy, contentDescription = stringResource(R.string.copy_description))
+                }
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Default.Close, contentDescription = "Close")
                 }
@@ -197,21 +216,23 @@ fun FlowDescriptionBottomSheet(
                             }
                         }
 
-                        // Rich Text Description
-                        ClickableText(
-                            text = descriptionText,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurface,
-                                lineHeight = 24.sp, // Adds breathing room between lines
-                                fontSize = 15.sp
-                            ),
-                            onClick = { offset ->
-                                descriptionText.getStringAnnotations(tag = "URL", start = offset, end = offset)
-                                    .firstOrNull()?.let { annotation ->
-                                        uriHandler.openUri(annotation.item)
-                                    }
-                            }
-                        )
+                        // Rich Text Description — selectable text with clickable links
+                        SelectionContainer {
+                            ClickableText(
+                                text = descriptionText,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    lineHeight = 24.sp,
+                                    fontSize = 15.sp
+                                ),
+                                onClick = { offset ->
+                                    descriptionText.getStringAnnotations(tag = "URL", start = offset, end = offset)
+                                        .firstOrNull()?.let { annotation ->
+                                            uriHandler.openUri(annotation.item)
+                                        }
+                                }
+                            )
+                        }
                     }
                 }
                 

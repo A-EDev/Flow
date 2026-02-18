@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,19 +22,23 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.flow.youtube.R
 import com.flow.youtube.data.local.PlayerPreferences
 import com.flow.youtube.data.local.SliderStyle
+import com.flow.youtube.data.local.SponsorBlockAction
 import com.flow.youtube.ui.screens.music.player.components.PlayerSliderTrack
 import com.flow.youtube.ui.screens.music.player.components.SquigglySlider
 import kotlinx.coroutines.launch
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.ui.res.painterResource
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,8 +51,71 @@ fun PlayerAppearanceScreen(
     val playerPreferences = remember { PlayerPreferences(context) }
     
     val currentSliderStyle by playerPreferences.sliderStyle.collectAsState(initial = SliderStyle.DEFAULT)
-    
+    val swipeGesturesEnabled by playerPreferences.swipeGesturesEnabled.collectAsState(initial = true)
+    val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
+    val sbUserId by playerPreferences.sbUserId.collectAsState(initial = null)
+
+    var showUserIdDialog by remember { mutableStateOf(false) }
+
+    // SponsorBlock per-category actions
+    val sbCategoriesAndLabels = listOf(
+        "sponsor"          to R.string.sb_category_sponsor,
+        "intro"            to R.string.sb_category_intro,
+        "outro"            to R.string.sb_category_outro,
+        "selfpromo"        to R.string.sb_category_selfpromo,
+        "interaction"      to R.string.sb_category_interaction,
+        "music_offtopic"   to R.string.sb_category_music_offtopic,
+        "filler"           to R.string.sb_category_filler,
+        "preview"          to R.string.sb_category_preview,
+        "exclusive_access" to R.string.sb_category_exclusive_access
+    )
+    val sbActions = sbCategoriesAndLabels.associate { (category, _) ->
+        category to playerPreferences.sbActionForCategory(category).collectAsState(initial = SponsorBlockAction.SKIP).value
+    }
+    val sbColors = sbCategoriesAndLabels.associate { (category, _) ->
+        category to playerPreferences.sbColorForCategory(category).collectAsState(initial = null).value
+    }
+
     var showStyleSheet by remember { mutableStateOf(false) }
+
+    // User ID dialog
+    if (showUserIdDialog) {
+        var inputId by remember { mutableStateOf(sbUserId ?: "") }
+        AlertDialog(
+            onDismissRequest = { showUserIdDialog = false },
+            title = { Text(stringResource(R.string.sb_user_id_dialog_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.sb_user_id_dialog_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = inputId,
+                        onValueChange = { inputId = it },
+                        label = { Text(stringResource(R.string.sb_user_id_hint)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    coroutineScope.launch {
+                        val id = inputId.trim().ifBlank { playerPreferences.getOrCreateSbUserId() }
+                        playerPreferences.setSbUserId(id)
+                    }
+                    showUserIdDialog = false
+                }) { Text(stringResource(R.string.btn_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUserIdDialog = false }) {
+                    Text(stringResource(R.string.btn_cancel))
+                }
+            }
+        )
+    }
 
     if (showStyleSheet) {
         ModalBottomSheet(
@@ -183,6 +251,108 @@ fun PlayerAppearanceScreen(
                 )
             }
 
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                SectionHeader(text = stringResource(R.string.player_appearance_gestures_header))
+            }
+
+            item {
+                SettingsGroup {
+                    SettingsToggleItem(
+                        icon = painterResource(R.drawable.ic_swipe_gesture),
+                        title = stringResource(R.string.player_appearance_swipe_gestures_title),
+                        subtitle = stringResource(R.string.player_appearance_swipe_gestures_subtitle),
+                        checked = swipeGesturesEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                playerPreferences.setSwipeGesturesEnabled(enabled)
+                            }
+                        }
+                    )
+                }
+            }
+
+            // SponsorBlock Segment Actions section
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                SectionHeader(text = stringResource(R.string.sb_segments_header))
+            }
+
+            item {
+                SettingsGroup {
+                    sbCategoriesAndLabels.forEachIndexed { index, (category, labelRes) ->
+                        SponsorBlockCategoryRow(
+                            label = stringResource(labelRes),
+                            selectedAction = sbActions[category] ?: SponsorBlockAction.SKIP,
+                            customColorArgb = sbColors[category],
+                            onActionSelected = { action ->
+                                coroutineScope.launch {
+                                    playerPreferences.setSbActionForCategory(category, action)
+                                }
+                            },
+                            onColorChanged = { colorArgb ->
+                                coroutineScope.launch {
+                                    playerPreferences.setSbColorForCategory(category, colorArgb)
+                                }
+                            }
+                        )
+                        if (index < sbCategoriesAndLabels.lastIndex) {
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        }
+                    }
+                }
+            }
+
+            // Contribute to SponsorBlock section
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                SectionHeader(text = stringResource(R.string.sb_contribute_header))
+            }
+
+            item {
+                SettingsGroup {
+                    SettingsToggleItem(
+                        icon = painterResource(R.drawable.ic_block),
+                        title = stringResource(R.string.sb_contribute_toggle_title),
+                        subtitle = stringResource(R.string.sb_contribute_toggle_subtitle),
+                        checked = sbSubmitEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                playerPreferences.setSbSubmitEnabled(enabled)
+                            }
+                        }
+                    )
+                    if (sbSubmitEnabled) {
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showUserIdDialog = true }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.sb_user_id_title),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    text = sbUserId?.let { it.take(8) + "…" }
+                                        ?: stringResource(R.string.sb_user_id_not_set),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Outlined.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+
         }
     }
 }
@@ -227,6 +397,48 @@ fun SettingsItem(
             imageVector = Icons.Outlined.ChevronRight,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun SettingsToggleItem(
+    icon: androidx.compose.ui.graphics.painter.Painter,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            painter = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(24.dp)
+        )
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            if (subtitle.isNotEmpty()) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange
         )
     }
 }
@@ -356,8 +568,189 @@ fun PreviewPlayerSlider(style: SliderStyle) {
 }
 
 
-private fun getStyleLabelResInScreen(style: SliderStyle): Int {
-    return when (style) {
+/**
+ * A row showing a SponsorBlock category label with a dropdown to select the action
+ * and an optional color swatch the user can tap to change the segment highlight colour.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun SponsorBlockCategoryRow(
+    label: String,
+    selectedAction: SponsorBlockAction,
+    customColorArgb: Int?,
+    onActionSelected: (SponsorBlockAction) -> Unit,
+    onColorChanged: (Int?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    var showColorPicker by remember { mutableStateOf(false) }
+
+    // Preset colors for SB segments
+    val presetColors = remember {
+    listOf(
+        // Original basic colors
+        Color(0xFF00D400), // green
+        Color(0xFFFFFF00), // yellow
+        Color(0xFF0000FF), // blue
+        Color(0xFFFF0000), // red
+        Color(0xFFFF7700), // orange
+        Color(0xFFFF69B4), // pink
+        Color(0xFF7700FF), // purple
+        Color(0xFF00FFFF), // cyan
+        Color(0xFFFFFFFF), // white
+        Color(0xFF008080), // teal
+        Color(0xFF3F51B5), // indigo
+        Color(0xFFFFC107), // amber
+        Color(0xFFCDDC39), // lime
+        Color(0xFF673AB7), // deep purple
+        Color(0xFFFF5722), // deep orange
+        Color(0xFFE91E63), // magenta / rose
+        Color(0xFF006400), // dark green (Exclusive Access)
+        Color(0xFF8B4513), // brown
+        Color(0xFF808080), // gray
+        Color(0xFFC0C0C0), // silver
+        Color(0xFFFFD700), // gold
+        Color(0xFF40E0D0), // turquoise
+        Color(0xFF4B0082), // indigo / dark violet
+    )
+}
+
+    if (showColorPicker) {
+        Dialog(onDismissRequest = { showColorPicker = false }) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 4.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.sb_color_picker_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    androidx.compose.foundation.layout.FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        presetColors.forEach { color ->
+                            val isSelected = customColorArgb == color.toArgb()
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(color)
+                                    .clickable {
+                                        onColorChanged(color.toArgb())
+                                        showColorPicker = false
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = Color.Black.copy(alpha = 0.7f),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    // Reset to default
+                    TextButton(
+                        onClick = {
+                            onColorChanged(null)
+                            showColorPicker = false
+                        },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text(stringResource(R.string.sb_color_reset))
+                    }
+                }
+            }
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Color swatch
+        val swatchColor = customColorArgb?.let { Color(it) } ?: MaterialTheme.colorScheme.primary
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .clip(CircleShape)
+                .background(swatchColor)
+                .clickable { showColorPicker = true }
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f)
+        )
+
+        // Action dropdown
+        Box {
+            Row(
+                modifier = Modifier
+                    .clickable { expanded = true }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = actionLabel(selectedAction),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Icon(
+                    imageVector = Icons.Outlined.ArrowDropDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.widthIn(min = 180.dp)
+            ) {
+                SponsorBlockAction.values().forEach { action ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = actionLabel(action),
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        },
+                        onClick = {
+                            onActionSelected(action)
+                            expanded = false
+                        },
+                        trailingIcon = if (action == selectedAction) ({
+                            Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)
+                        }) else null
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun actionLabel(action: SponsorBlockAction): String = when (action) {
+    SponsorBlockAction.SKIP -> stringResource(R.string.sb_action_skip)
+    SponsorBlockAction.MUTE -> stringResource(R.string.sb_action_mute)
+    SponsorBlockAction.SHOW_TOAST -> stringResource(R.string.sb_action_show_toast)
+    SponsorBlockAction.IGNORE -> stringResource(R.string.sb_action_ignore)
+}
+
+private fun getStyleLabelResInScreen(style: SliderStyle): Int {    return when (style) {
         SliderStyle.DEFAULT -> R.string.style_default
         SliderStyle.METROLIST -> R.string.style_metrolist
         SliderStyle.METROLIST_SLIM -> R.string.style_metrolist_slim

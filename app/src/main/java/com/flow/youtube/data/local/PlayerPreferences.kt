@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.playerPreferencesDataStore: DataStore<Preferences> by preferencesDataStore(name = "player_preferences")
@@ -53,6 +54,33 @@ class PlayerPreferences(private val context: Context) {
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
         val SHORTS_NAVIGATION_ENABLED = booleanPreferencesKey("shorts_navigation_enabled")
         val PREFERRED_LYRICS_PROVIDER = stringPreferencesKey("preferred_lyrics_provider")
+        val SWIPE_GESTURES_ENABLED = booleanPreferencesKey("swipe_gestures_enabled")
+
+        // SponsorBlock per-category action keys
+        val SB_ACTION_SPONSOR = stringPreferencesKey("sb_action_sponsor")
+        val SB_ACTION_INTRO = stringPreferencesKey("sb_action_intro")
+        val SB_ACTION_OUTRO = stringPreferencesKey("sb_action_outro")
+        val SB_ACTION_SELFPROMO = stringPreferencesKey("sb_action_selfpromo")
+        val SB_ACTION_INTERACTION = stringPreferencesKey("sb_action_interaction")
+        val SB_ACTION_MUSIC_OFFTOPIC = stringPreferencesKey("sb_action_music_offtopic")
+        val SB_ACTION_FILLER = stringPreferencesKey("sb_action_filler")
+        val SB_ACTION_PREVIEW = stringPreferencesKey("sb_action_preview")
+        val SB_ACTION_EXCLUSIVE_ACCESS = stringPreferencesKey("sb_action_exclusive_access")
+
+        // SponsorBlock per-category color keys
+        val SB_COLOR_SPONSOR = intPreferencesKey("sb_color_sponsor")
+        val SB_COLOR_INTRO = intPreferencesKey("sb_color_intro")
+        val SB_COLOR_OUTRO = intPreferencesKey("sb_color_outro")
+        val SB_COLOR_SELFPROMO = intPreferencesKey("sb_color_selfpromo")
+        val SB_COLOR_INTERACTION = intPreferencesKey("sb_color_interaction")
+        val SB_COLOR_MUSIC_OFFTOPIC = intPreferencesKey("sb_color_music_offtopic")
+        val SB_COLOR_FILLER = intPreferencesKey("sb_color_filler")
+        val SB_COLOR_PREVIEW = intPreferencesKey("sb_color_preview")
+        val SB_COLOR_EXCLUSIVE_ACCESS = intPreferencesKey("sb_color_exclusive_access")
+
+        // SponsorBlock submit
+        val SB_SUBMIT_ENABLED = booleanPreferencesKey("sb_submit_enabled")
+        val SB_USER_ID = stringPreferencesKey("sb_user_id")
     }
     
     // Grid item size preference
@@ -65,6 +93,119 @@ class PlayerPreferences(private val context: Context) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.GRID_ITEM_SIZE] = size
         }
+    }
+
+    // Swipe gestures (brightness/volume) enabled preference
+    val swipeGesturesEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SWIPE_GESTURES_ENABLED] ?: true
+        }
+
+    suspend fun setSwipeGesturesEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SWIPE_GESTURES_ENABLED] = enabled
+        }
+    }
+
+    // SponsorBlock per-category action preferences
+    fun sbActionForCategory(category: String): Flow<SponsorBlockAction> {
+        val key = when (category) {
+            "sponsor" -> Keys.SB_ACTION_SPONSOR
+            "intro" -> Keys.SB_ACTION_INTRO
+            "outro" -> Keys.SB_ACTION_OUTRO
+            "selfpromo" -> Keys.SB_ACTION_SELFPROMO
+            "interaction" -> Keys.SB_ACTION_INTERACTION
+            "music_offtopic" -> Keys.SB_ACTION_MUSIC_OFFTOPIC
+            "filler" -> Keys.SB_ACTION_FILLER
+            "preview" -> Keys.SB_ACTION_PREVIEW
+            "exclusive_access" -> Keys.SB_ACTION_EXCLUSIVE_ACCESS
+            else -> Keys.SB_ACTION_SPONSOR
+        }
+        return context.playerPreferencesDataStore.data.map { preferences ->
+            SponsorBlockAction.fromString(preferences[key] ?: SponsorBlockAction.SKIP.name)
+        }
+    }
+
+    suspend fun setSbActionForCategory(category: String, action: SponsorBlockAction) {
+        val key = when (category) {
+            "sponsor" -> Keys.SB_ACTION_SPONSOR
+            "intro" -> Keys.SB_ACTION_INTRO
+            "outro" -> Keys.SB_ACTION_OUTRO
+            "selfpromo" -> Keys.SB_ACTION_SELFPROMO
+            "interaction" -> Keys.SB_ACTION_INTERACTION
+            "music_offtopic" -> Keys.SB_ACTION_MUSIC_OFFTOPIC
+            "filler" -> Keys.SB_ACTION_FILLER
+            "preview" -> Keys.SB_ACTION_PREVIEW
+            "exclusive_access" -> Keys.SB_ACTION_EXCLUSIVE_ACCESS
+            else -> Keys.SB_ACTION_SPONSOR
+        }
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[key] = action.name
+        }
+    }
+
+    // SponsorBlock per-category color preferences (stored as ARGB Int)
+    fun sbColorForCategory(category: String): Flow<Int?> {
+        val key = when (category) {
+            "sponsor" -> Keys.SB_COLOR_SPONSOR
+            "intro" -> Keys.SB_COLOR_INTRO
+            "outro" -> Keys.SB_COLOR_OUTRO
+            "selfpromo" -> Keys.SB_COLOR_SELFPROMO
+            "interaction" -> Keys.SB_COLOR_INTERACTION
+            "music_offtopic" -> Keys.SB_COLOR_MUSIC_OFFTOPIC
+            "filler" -> Keys.SB_COLOR_FILLER
+            "preview" -> Keys.SB_COLOR_PREVIEW
+            "exclusive_access" -> Keys.SB_COLOR_EXCLUSIVE_ACCESS
+            else -> Keys.SB_COLOR_SPONSOR
+        }
+        return context.playerPreferencesDataStore.data.map { prefs -> prefs[key] }
+    }
+
+    suspend fun setSbColorForCategory(category: String, colorArgb: Int?) {
+        val key = when (category) {
+            "sponsor" -> Keys.SB_COLOR_SPONSOR
+            "intro" -> Keys.SB_COLOR_INTRO
+            "outro" -> Keys.SB_COLOR_OUTRO
+            "selfpromo" -> Keys.SB_COLOR_SELFPROMO
+            "interaction" -> Keys.SB_COLOR_INTERACTION
+            "music_offtopic" -> Keys.SB_COLOR_MUSIC_OFFTOPIC
+            "filler" -> Keys.SB_COLOR_FILLER
+            "preview" -> Keys.SB_COLOR_PREVIEW
+            "exclusive_access" -> Keys.SB_COLOR_EXCLUSIVE_ACCESS
+            else -> Keys.SB_COLOR_SPONSOR
+        }
+        context.playerPreferencesDataStore.edit { prefs ->
+            if (colorArgb != null) prefs[key] = colorArgb else prefs.remove(key)
+        }
+    }
+
+    // Flow for reading the stored SB User ID (may be null)
+    val sbUserId: Flow<String?> = context.playerPreferencesDataStore.data
+        .map { prefs -> prefs[Keys.SB_USER_ID]?.takeIf { it.isNotBlank() } }
+
+    suspend fun setSbUserId(id: String) {
+        context.playerPreferencesDataStore.edit { prefs ->
+            prefs[Keys.SB_USER_ID] = id
+        }
+    }
+
+    val sbSubmitEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.SB_SUBMIT_ENABLED] ?: false }
+
+    suspend fun setSbSubmitEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SB_SUBMIT_ENABLED] = enabled
+        }
+    }
+
+    /** Returns the stored SponsorBlock user ID, generating a new UUID if not set. */
+    suspend fun getOrCreateSbUserId(): String {
+        val prefs = context.playerPreferencesDataStore.data.first()
+        val existing = prefs[Keys.SB_USER_ID]
+        if (!existing.isNullOrBlank()) return existing
+        val newId = java.util.UUID.randomUUID().toString().replace("-", "")
+        context.playerPreferencesDataStore.edit { it[Keys.SB_USER_ID] = newId }
+        return newId
     }
 
     // Slider Style preference
@@ -429,6 +570,19 @@ class PlayerPreferences(private val context: Context) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.PREFERRED_LYRICS_PROVIDER] = provider
         }
+    }
+}
+
+/** Action to take when a SponsorBlock segment is encountered. */
+enum class SponsorBlockAction(val displayName: String) {
+    SKIP("Skip"),
+    MUTE("Mute"),
+    SHOW_TOAST("Notify only"),
+    IGNORE("Ignore");
+
+    companion object {
+        fun fromString(name: String): SponsorBlockAction =
+            values().find { it.name == name } ?: SKIP
     }
 }
 

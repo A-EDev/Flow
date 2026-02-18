@@ -35,7 +35,8 @@ fun PlayerBottomSheetsContainer(
     musicVm: MusicPlayerViewModel,
     onPlayAsShort: (String) -> Unit,
     onPlayAsMusic: (String) -> Unit,
-    onLoadReplies: (Comment) -> Unit = {}
+    onLoadReplies: (Comment) -> Unit = {},
+    onNavigateToChannel: ((String) -> Unit)? = null
 ) {
     // Sorted comments based on filter
     val sortedComments = remember(comments, screenState.isTopComments) {
@@ -68,7 +69,7 @@ fun PlayerBottomSheetsContainer(
                 screenState.showQuickActions = false
                 Toast.makeText(context, context.getString(R.string.video_marked_not_interested), Toast.LENGTH_SHORT).show()
             },
-            
+            onChannelClick = onNavigateToChannel,
         )
     }
 

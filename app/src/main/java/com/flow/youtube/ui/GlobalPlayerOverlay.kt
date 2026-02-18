@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import androidx.media3.common.util.UnstableApi
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.player.EnhancedPlayerManager
@@ -50,6 +51,7 @@ import com.flow.youtube.ui.screens.player.components.VolumeOverlay
 import com.flow.youtube.ui.screens.player.components.SpeedBoostOverlay
 import com.flow.youtube.player.PictureInPictureHelper
 import com.flow.youtube.R
+import com.flow.youtube.data.local.PlayerPreferences
 import kotlinx.coroutines.launch
 
 /**
@@ -97,6 +99,12 @@ fun GlobalPlayerOverlay(
     val comments by playerViewModel.commentsState.collectAsStateWithLifecycle()
     val isLoadingComments by playerViewModel.isLoadingComments.collectAsStateWithLifecycle()
     val musicVm: MusicPlayerViewModel = hiltViewModel()
+
+    val playerPreferences = remember { PlayerPreferences(context) }
+    val swipeGesturesEnabled by playerPreferences.swipeGesturesEnabled.collectAsState(initial = true)
+    val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
+
+    var showSbSubmitDialog by remember { mutableStateOf(false) }
     
     var localIsInPipMode by remember { mutableStateOf(false) }
     
@@ -311,7 +319,8 @@ fun GlobalPlayerOverlay(
                             volumeLevel = screenState.volumeLevel,
                             maxVolume = audioSystemInfo.maxVolume,
                             audioManager = audioSystemInfo.audioManager,
-                            activity = activity
+                            activity = activity,
+                            swipeGesturesEnabled = swipeGesturesEnabled
                         )
                     } else {
                         modifier
@@ -454,7 +463,12 @@ fun GlobalPlayerOverlay(
                                 hasPrevious = playerState.hasPrevious || canGoPrevious,
                                 hasNext = playerState.hasNext || playerUiState.relatedVideos.isNotEmpty(),
                                 bufferedPercentage = (if (screenState.duration > 0) screenState.bufferedPosition.toFloat() / screenState.duration.toFloat() else 0f).coerceIn(0f, 1f),
-                                windowInsets = WindowInsets(0, 0, 0, 0)
+                                windowInsets = WindowInsets(0, 0, 0, 0),
+                                sbSubmitEnabled = sbSubmitEnabled,
+                                onSbSubmitClick = {
+                                    screenState.showControls = false
+                                    showSbSubmitDialog = true
+                                }
                             )
                         }
                     }
@@ -497,6 +511,15 @@ fun GlobalPlayerOverlay(
             video = completeVideo,
             viewModel = playerViewModel
         )
+
+        // SB Submit dialog
+        if (showSbSubmitDialog) {
+            com.flow.youtube.ui.screens.player.dialogs.SbSubmitSegmentDialog(
+                videoId = video.id,
+                currentPositionMs = screenState.currentPosition,
+                onDismiss = { showSbSubmitDialog = false }
+            )
+        }
         
         // Bottom Sheets
         PlayerBottomSheetsContainer(
@@ -517,6 +540,9 @@ fun GlobalPlayerOverlay(
             },
             onLoadReplies = { comment ->
                 playerViewModel.loadCommentReplies(comment)
+            },
+            onNavigateToChannel = { channelId ->
+                onNavigateToChannel(channelId)
             }
         )
     }

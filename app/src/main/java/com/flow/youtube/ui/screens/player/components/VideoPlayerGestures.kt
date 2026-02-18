@@ -44,7 +44,8 @@ fun Modifier.videoPlayerControls(
     volumeLevel: Float,
     maxVolume: Int,
     audioManager: AudioManager?,
-    activity: Activity?
+    activity: Activity?,
+    swipeGesturesEnabled: Boolean = true
 ): Modifier = composed {
     val currentIsSpeedBoostActive by rememberUpdatedState(isSpeedBoostActive)
     val currentOnSpeedBoostChange by rememberUpdatedState(onSpeedBoostChange)
@@ -66,6 +67,7 @@ fun Modifier.videoPlayerControls(
     val currentMaxVolume by rememberUpdatedState(maxVolume)
     val currentAudioManager by rememberUpdatedState(audioManager)
     val currentActivity by rememberUpdatedState(activity)
+    val currentSwipeGesturesEnabled by rememberUpdatedState(swipeGesturesEnabled)
 
     this
         .pointerInput(Unit) {
@@ -204,7 +206,7 @@ fun Modifier.videoPlayerControls(
                              val screenWidth = elementSize.width
                              val dragPosition = change.position.x
                              
-                             if (screenHeight > 0) {
+                             if (screenHeight > 0 && currentSwipeGesturesEnabled) {
                                  if (dragPosition < screenWidth / 2) {
                                      // Left side - brightness
                                      val sensitivity = 1.5f 

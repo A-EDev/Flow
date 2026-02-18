@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,6 +70,8 @@ fun PremiumControlsOverlay(
     hasNext: Boolean = false,
     bufferedPercentage: Float = 0f,
     windowInsets: WindowInsets = WindowInsets.systemBars,
+    sbSubmitEnabled: Boolean = false,
+    onSbSubmitClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -189,6 +192,21 @@ fun PremiumControlsOverlay(
                             Icon(
                                 imageVector = Icons.Rounded.PictureInPicture,
                                 contentDescription = stringResource(R.string.pip_mode),
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    // SponsorBlock Submit Button
+                    if (sbSubmitEnabled) {
+                        IconButton(
+                            onClick = onSbSubmitClick,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_upload_segment),
+                                contentDescription = stringResource(R.string.sb_submit_dialog_title),
                                 tint = Color.White,
                                 modifier = Modifier.size(24.dp)
                             )

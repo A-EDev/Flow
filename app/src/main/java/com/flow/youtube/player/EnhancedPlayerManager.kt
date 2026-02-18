@@ -12,6 +12,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import com.flow.youtube.data.local.PlayerPreferences
+import com.flow.youtube.data.local.SponsorBlockAction
 
 // Modular components
 import com.flow.youtube.player.audio.AudioFeaturesManager
@@ -230,9 +231,22 @@ class EnhancedPlayerManager private constructor() {
     private fun observePreferences(context: Context) {
         audioFeaturesManager?.observeSkipSilencePreference(context)
         
+        val prefs = PlayerPreferences(context)
         scope.launch {
-            PlayerPreferences(context).sponsorBlockEnabled.collect { isEnabled ->
+            prefs.sponsorBlockEnabled.collect { isEnabled ->
                 sponsorBlockHandler?.setEnabled(isEnabled)
+            }
+        }
+
+        // Collect per-category SponsorBlock actions and update handler
+        val sbCategories = listOf("sponsor", "intro", "outro", "selfpromo", "interaction", "music_offtopic")
+        sbCategories.forEach { category ->
+            scope.launch {
+                prefs.sbActionForCategory(category).collect { action ->
+                    val current = sponsorBlockHandler?.categoryActions?.toMutableMap() ?: mutableMapOf()
+                    current[category] = action
+                    sponsorBlockHandler?.categoryActions = current
+                }
             }
         }
     }
@@ -586,6 +600,12 @@ class EnhancedPlayerManager private constructor() {
 
     val skipEvent: SharedFlow<SponsorBlockSegment>
         get() = sponsorBlockHandler?.skipEvent ?: MutableSharedFlow()
+
+    val sbMuteEvent: SharedFlow<Boolean>
+        get() = sponsorBlockHandler?.muteEvent ?: MutableSharedFlow()
+
+    val sbToastEvent: SharedFlow<SponsorBlockSegment>
+        get() = sponsorBlockHandler?.toastEvent ?: MutableSharedFlow()
 
     // ===== Surface Management =====
     

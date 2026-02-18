@@ -127,7 +127,7 @@ fun PlayerSettingsScreen(
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
-                        icon = Icons.Outlined.ContentCut,
+                        icon = painterResource(R.drawable.ic_block),
                         title = stringResource(R.string.player_settings_sponsorblock),
                         subtitle = stringResource(R.string.player_settings_sponsorblock_subtitle),
                         checked = sponsorBlockEnabled,
