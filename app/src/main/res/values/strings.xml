@@ -542,6 +542,7 @@
     <string name="cd_liked">Liked</string>
     <string name="cd_pause">Pause</string>
     <string name="cd_play">Play</string>
+    <string name="cd_more_options">More Options</string>
     <string name="shorts_original_sound">Original Sound - %1$s</string>
     <string name="view_count_billion_suffix">B</string>
     <string name="view_count_million_suffix">M</string>
@@ -919,6 +920,29 @@
     <string name="resize_fit">Fit</string>
     <string name="resize_fill">Fill</string>
     <string name="resize_zoom">Zoom</string>
+
+    <!-- Shorts Player Features -->
+    <string name="shorts_audio_track">Audio Track</string>
+    <string name="shorts_quality">Quality</string>
+    <string name="shorts_no_audio_tracks">No audio tracks available</string>
+    <string name="shorts_audio_original">Original</string>
+    <string name="shorts_audio_dubbed">Dubbed</string>
+
+    <!-- Shorts Quality Settings -->
+    <string name="shorts_quality_settings_title">Shorts Video Quality</string>
+    <string name="shorts_quality_settings_subtitle">Quality when watching Shorts</string>
+    <string name="shorts_quality_warning">Higher quality uses more data. Shorts use vertical video streams.</string>
+    <string name="shorts_quality_wifi_header">Shorts Wi-Fi Quality</string>
+    <string name="shorts_quality_cellular_header">Shorts Cellular Quality</string>
+
+    <!-- Video Queue / Play Next -->
+    <string name="play_next_video">Play Next</string>
+    <string name="play_next_video_desc">Insert at start of video queue</string>
+    <string name="add_video_to_queue">Add to Queue</string>
+    <string name="add_video_to_queue_desc">Add to end of video queue</string>
+    <string name="added_to_queue_toast">Added to queue</string>
+    <string name="play_next_toast">Will play next</string>
+    <string name="no_active_queue_toast">No active video queue. Start playing a video first.</string>
 
     <!-- Player Dialogs -->
     <string name="download_video">Download Video</string>

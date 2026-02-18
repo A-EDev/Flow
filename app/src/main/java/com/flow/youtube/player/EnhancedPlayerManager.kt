@@ -503,6 +503,66 @@ class EnhancedPlayerManager private constructor() {
     fun hasNext(): Boolean = currentQueueIndex < playbackQueue.size - 1
 
     fun hasPrevious(): Boolean = currentQueueIndex > 0 || (player?.currentPosition ?: 0) > 3000
+
+    /**
+     * Returns true if there is an active queue with at least one video.
+     */
+    fun hasActiveQueue(): Boolean = playbackQueue.isNotEmpty()
+
+    /**
+     * Insert [video] immediately after the current position (Play Next).
+     * If no queue is active but a video is currently playing, silently build a
+     * [currentVideo, video] queue starting at index 0 — no playback interruption.
+     * If nothing is playing at all, start the video immediately.
+     */
+    fun addVideoToQueueNext(video: Video) {
+        if (playbackQueue.isEmpty()) {
+            val current = GlobalPlayerState.currentVideo.value
+            if (current != null) {
+                playbackQueue = listOf(current, video)
+                currentQueueIndex = 0
+                _queueVideos.value = playbackQueue
+                _currentQueueIndex.value = 0
+                updateQueueState()
+            } else {
+                setQueue(listOf(video), 0)
+            }
+            return
+        }
+        val insertAt = currentQueueIndex + 1
+        val mutableQueue = playbackQueue.toMutableList()
+        mutableQueue.add(insertAt, video)
+        playbackQueue = mutableQueue
+        _queueVideos.value = mutableQueue
+        updateQueueState()
+    }
+
+    /**
+     * Append [video] to the end of the current queue.
+     * If no queue is active but a video is currently playing, silently build a
+     * [currentVideo, video] queue starting at index 0 — no playback interruption.
+     * If nothing is playing at all, start the video immediately.
+     */
+    fun addVideoToQueue(video: Video) {
+        if (playbackQueue.isEmpty()) {
+            val current = GlobalPlayerState.currentVideo.value
+            if (current != null) {
+                playbackQueue = listOf(current, video)
+                currentQueueIndex = 0
+                _queueVideos.value = playbackQueue
+                _currentQueueIndex.value = 0
+                updateQueueState()
+            } else {
+                setQueue(listOf(video), 0)
+            }
+            return
+        }
+        val mutableQueue = playbackQueue.toMutableList()
+        mutableQueue.add(video)
+        playbackQueue = mutableQueue
+        _queueVideos.value = mutableQueue
+        updateQueueState()
+    }
     
     fun playVideoAtIndex(index: Int) {
         if (index in playbackQueue.indices && index != currentQueueIndex) {

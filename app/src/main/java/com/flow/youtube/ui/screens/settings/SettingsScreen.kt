@@ -57,6 +57,7 @@ fun SettingsScreen(
     onNavigateToImport: () -> Unit,
     onNavigateToPlayerSettings: () -> Unit,
     onNavigateToVideoQuality: () -> Unit,
+    onNavigateToShortsQuality: () -> Unit,
     onNavigateToContentSettings: () -> Unit,
     onNavigateToBufferSettings: () -> Unit,
     onNavigateToSearchHistory: () -> Unit,
@@ -321,6 +322,13 @@ item {
                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_player_appearance_subtitle),
                         onClick = onNavigateToPlayerAppearance
                     )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                         icon = Icons.Outlined.GridView,
+                         title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_content_display),
+                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_content_display_subtitle),
+                         onClick = onNavigateToContentSettings
+                    )
                 }
             }
 
@@ -353,10 +361,10 @@ item {
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
-                         icon = Icons.Outlined.GridView,
-                         title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_content_display),
-                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_content_display_subtitle),
-                         onClick = onNavigateToContentSettings
+                         icon = Icons.Outlined.Slideshow,
+                         title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.shorts_quality_settings_title),
+                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.shorts_quality_settings_subtitle),
+                         onClick = onNavigateToShortsQuality
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(

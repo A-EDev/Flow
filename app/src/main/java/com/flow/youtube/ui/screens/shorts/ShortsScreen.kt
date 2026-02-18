@@ -44,6 +44,17 @@ fun ShortsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
 
+    val isWifi = remember(context) {
+        val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val cap = cm.getNetworkCapabilities(cm.activeNetwork)
+        cap?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
+    }
+    val shortsQualityWifi by audioLangPref.shortsQualityWifi.collectAsState(initial = com.flow.youtube.data.local.VideoQuality.Q_720p)
+    val shortsQualityCellular by audioLangPref.shortsQualityCellular.collectAsState(initial = com.flow.youtube.data.local.VideoQuality.Q_480p)
+    val shortsTargetHeight by remember(isWifi, shortsQualityWifi, shortsQualityCellular) {
+        derivedStateOf { if (isWifi) shortsQualityWifi.height else shortsQualityCellular.height }
+    }
+
     // Bottom sheet states
     var showCommentsSheet by remember { mutableStateOf(false) }
     var showDescriptionSheet by remember { mutableStateOf(false) }
@@ -127,12 +138,22 @@ fun ShortsScreen(
                     val settled = pagerState.settledPage
                     val playerPool = ShortsPlayerPool.getInstance()
                     
-                    // Helper to get stream URL with audio language preference
-                    suspend fun getStreams(id: String): Pair<String?, String?>? {
+                    suspend fun getStreams(id: String, preferredAudioUrl: String? = null): Pair<String?, String?>? {
                          val streamInfo = viewModel.getVideoStreamInfo(id) ?: return null
-                         val videoStream = streamInfo.videoStreams?.firstOrNull { it.height >= 720 }
-                                            ?: streamInfo.videoStreams?.firstOrNull()
-                                            ?: streamInfo.videoOnlyStreams?.firstOrNull()
+                         val targetH = shortsTargetHeight
+                         val videoStream = if (targetH == 0) {
+                             streamInfo.videoStreams?.maxByOrNull { it.height }
+                                 ?: streamInfo.videoOnlyStreams?.maxByOrNull { it.height }
+                         } else {
+                             streamInfo.videoStreams
+                                 ?.filter { it.height <= targetH }
+                                 ?.maxByOrNull { it.height }
+                                 ?: streamInfo.videoStreams?.minByOrNull { it.height }
+                                 ?: streamInfo.videoOnlyStreams
+                                     ?.filter { it.height <= targetH }
+                                     ?.maxByOrNull { it.height }
+                                 ?: streamInfo.videoOnlyStreams?.firstOrNull()
+                         }
                          
                          val preferredLang = audioLangPref.preferredAudioLanguage.first()
                          val audioCandidates = streamInfo.audioStreams

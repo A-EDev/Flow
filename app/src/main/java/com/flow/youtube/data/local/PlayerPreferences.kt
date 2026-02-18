@@ -45,6 +45,10 @@ class PlayerPreferences(private val context: Context) {
         
         // Audio track preference
         val PREFERRED_AUDIO_LANGUAGE = stringPreferencesKey("preferred_audio_language")
+
+        // Shorts quality preferences
+        val SHORTS_QUALITY_WIFI = stringPreferencesKey("shorts_quality_wifi")
+        val SHORTS_QUALITY_CELLULAR = stringPreferencesKey("shorts_quality_cellular")
         
         // UI preferences
         val GRID_ITEM_SIZE = stringPreferencesKey("grid_item_size")
@@ -299,6 +303,29 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setDefaultQualityCellular(quality: VideoQuality) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DEFAULT_QUALITY_CELLULAR] = quality.label
+        }
+    }
+
+    // Shorts quality preferences (default to 720p WiFi, 480p Cellular)
+    val shortsQualityWifi: Flow<VideoQuality> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            VideoQuality.fromString(preferences[Keys.SHORTS_QUALITY_WIFI] ?: "720p")
+        }
+
+    val shortsQualityCellular: Flow<VideoQuality> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            VideoQuality.fromString(preferences[Keys.SHORTS_QUALITY_CELLULAR] ?: "480p")
+        }
+
+    suspend fun setShortsQualityWifi(quality: VideoQuality) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHORTS_QUALITY_WIFI] = quality.label
+        }
+    }
+
+    suspend fun setShortsQualityCellular(quality: VideoQuality) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHORTS_QUALITY_CELLULAR] = quality.label
         }
     }
     

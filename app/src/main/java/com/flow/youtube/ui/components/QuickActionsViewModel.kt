@@ -173,6 +173,20 @@ class QuickActionsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Insert [video] immediately after the current position (Play Next).
+     */
+    fun playVideoNext(video: Video) {
+        com.flow.youtube.player.EnhancedPlayerManager.getInstance().addVideoToQueueNext(video)
+    }
+
+    /**
+     * Append [video] to the end of the current queue.
+     */
+    fun addVideoToQueue(video: Video) {
+        com.flow.youtube.player.EnhancedPlayerManager.getInstance().addVideoToQueue(video)
+    }
+
     fun downloadVideo(video: Video) {
         viewModelScope.launch {
             try {

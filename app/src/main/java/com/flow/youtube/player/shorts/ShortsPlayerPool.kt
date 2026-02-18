@@ -77,6 +77,10 @@ class ShortsPlayerPool private constructor() {
     // Tracks which content index (absolute position in the list) currently owns this player slot
     private val playerOwnerIndices = arrayOfNulls<Int>(POOL_SIZE)
 
+    // Track the last video and audio URLs per slot so we can hot-swap audio/quality
+    private val playerVideoUrls = arrayOfNulls<String>(POOL_SIZE)
+    private val playerAudioUrls = arrayOfNulls<String?>(POOL_SIZE)
+
     private var isInitialized = false
     private var dataSourceFactory: DefaultDataSource.Factory? = null
     private var preferredAudioLanguage: String = "original"
@@ -232,6 +236,8 @@ class ShortsPlayerPool private constructor() {
         // Update ownership
         playerOwnerIndices[slot] = index
         playerVideoIds[slot] = videoId
+        playerVideoUrls[slot] = videoUrl
+        playerAudioUrls[slot] = audioUrl
         
         // Load media
         preparePlayerInternal(player, videoUrl, audioUrl)
@@ -303,8 +309,56 @@ class ShortsPlayerPool private constructor() {
                  players[i]?.clearMediaItems()
                  playerOwnerIndices[i] = null
                  playerVideoIds[i] = null
+                 playerVideoUrls[i] = null
+                 playerAudioUrls[i] = null
              }
          }
+    }
+
+    /**
+     * Hot-swap the audio track for an already-prepared player slot, keeping the same video URL.
+     * Used for the Shorts audio track selector.
+     */
+    fun reloadWithAudioUrl(index: Int, videoId: String, newAudioUrl: String?) {
+        if (!isInitialized || index < 0) return
+        val slot = index % POOL_SIZE
+        val player = players[slot] ?: return
+        if (playerOwnerIndices[slot] != index) return
+
+        val videoUrl = playerVideoUrls[slot] ?: return
+        val wasPlaying = player.isPlaying || player.playWhenReady
+
+        player.stop()
+        player.clearMediaItems()
+        playerAudioUrls[slot] = newAudioUrl
+
+        preparePlayerInternal(player, videoUrl, newAudioUrl)
+        player.playWhenReady = wasPlaying
+        player.repeatMode = Player.REPEAT_MODE_ONE
+    }
+
+    /**
+     * Hot-swap the video quality (URL) for an already-prepared player slot.
+     * Used for the Shorts quality selector.
+     */
+    fun reloadWithVideoUrl(index: Int, videoId: String, newVideoUrl: String) {
+        if (!isInitialized || index < 0) return
+        val slot = index % POOL_SIZE
+        val player = players[slot] ?: return
+        if (playerOwnerIndices[slot] != index) return
+
+        val wasPlaying = player.isPlaying || player.playWhenReady
+        val position = player.currentPosition
+
+        player.stop()
+        player.clearMediaItems()
+        playerVideoUrls[slot] = newVideoUrl
+
+        val audioUrl = playerAudioUrls[slot]
+        preparePlayerInternal(player, newVideoUrl, audioUrl)
+        player.playWhenReady = wasPlaying
+        player.seekTo(position)
+        player.repeatMode = Player.REPEAT_MODE_ONE
     }
 
     private fun preparePlayerInternal(player: ExoPlayer, videoUrl: String, audioUrl: String?) {
@@ -384,6 +438,8 @@ class ShortsPlayerPool private constructor() {
             players[i] = null
             playerVideoIds[i] = null
             playerOwnerIndices[i] = null
+            playerVideoUrls[i] = null
+            playerAudioUrls[i] = null
         }
         isInitialized = false
         _currentVideoId.value = null

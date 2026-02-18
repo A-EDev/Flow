@@ -17,6 +17,8 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.PlaylistAdd
+import androidx.compose.material.icons.outlined.PlaylistPlay
+import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
@@ -93,6 +95,8 @@ fun VideoQuickActionsBottomSheet(
             onDismiss = { showMediaInfo = false }
         )
     }
+
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         LazyColumn(
@@ -220,6 +224,52 @@ fun VideoQuickActionsBottomSheet(
 
                 item { Spacer(modifier = Modifier.height(4.dp)) }
             }
+
+            // Playback Queue Group — Play Next, Add to Queue
+            item {
+                Text(
+                    text = stringResource(R.string.playback_header),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
+                )
+                FlowMenuGroup(
+                    items = listOf(
+                        FlowMenuItemData(
+                            icon = { Icon(Icons.Outlined.QueueMusic, null) },
+                            title = { Text(stringResource(R.string.play_next_video)) },
+                            description = { Text(stringResource(R.string.play_next_video_desc)) },
+                            onClick = {
+                                viewModel.playVideoNext(video)
+                                android.widget.Toast.makeText(
+                                    context,
+                                    context.getString(R.string.play_next_toast),
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                                onDismiss()
+                            }
+                        ),
+                        FlowMenuItemData(
+                            icon = { Icon(Icons.Outlined.PlaylistPlay, null) },
+                            title = { Text(stringResource(R.string.add_video_to_queue)) },
+                            description = { Text(stringResource(R.string.add_video_to_queue_desc)) },
+                            onClick = {
+                                viewModel.addVideoToQueue(video)
+                                android.widget.Toast.makeText(
+                                    context,
+                                    context.getString(R.string.added_to_queue_toast),
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                                onDismiss()
+                            }
+                        )
+                    ),
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+
+            item { Spacer(modifier = Modifier.height(4.dp)) }
 
             // Algorithm Group — Mark as watched, I like this, Not interested
             item {

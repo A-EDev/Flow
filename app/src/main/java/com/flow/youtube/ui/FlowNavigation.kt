@@ -239,6 +239,7 @@ fun NavGraphBuilder.flowAppGraph(
             onNavigateToImport = { navController.navigate("settings/import") },
             onNavigateToPlayerSettings = { navController.navigate("settings/player") },
             onNavigateToVideoQuality = { navController.navigate("settings/video_quality") },
+            onNavigateToShortsQuality = { navController.navigate("settings/shorts_quality") },
             onNavigateToContentSettings = { navController.navigate("settings/content") },
             onNavigateToBufferSettings = { navController.navigate("settings/buffer") },
             onNavigateToSearchHistory = { navController.navigate("settings/search_history") },
@@ -283,6 +284,14 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "settings/video_quality"
         showBottomNav.value = false
         com.flow.youtube.ui.screens.settings.VideoQualitySettingsScreen(
+            onNavigateBack = { navController.popBackStack() }
+        )
+    }
+
+    composable("settings/shorts_quality") {
+        currentRoute.value = "settings/shorts_quality"
+        showBottomNav.value = false
+        com.flow.youtube.ui.screens.settings.ShortsVideoQualitySettingsScreen(
             onNavigateBack = { navController.popBackStack() }
         )
     }

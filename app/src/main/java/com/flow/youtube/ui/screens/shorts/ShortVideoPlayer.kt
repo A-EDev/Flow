@@ -13,10 +13,14 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.AudioFile
+import androidx.compose.material.icons.outlined.HighQuality
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -91,6 +95,16 @@ fun ShortVideoPage(
     var hasStartedPlaying by remember { mutableStateOf(false) }
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableStateOf(0f) }
+
+    // ── Audio Track & Quality Selection State ──
+    var showShortsOptionsSheet by remember { mutableStateOf(false) }
+    var showAudioTrackSheet by remember { mutableStateOf(false) }
+    var showQualitySheet by remember { mutableStateOf(false) }
+    var availableAudioStreams by remember { mutableStateOf<List<org.schabi.newpipe.extractor.stream.AudioStream>>(emptyList()) }
+    var availableVideoStreams by remember { mutableStateOf<List<org.schabi.newpipe.extractor.stream.VideoStream>>(emptyList()) }
+    var selectedAudioIndex by remember { mutableStateOf(0) }
+    var selectedQualityHeight by remember { mutableStateOf(-1) }
+    var isLoadingStreams by remember { mutableStateOf(false) }
 
     // ── PlayerView instance ──
     val playerView = remember(video.id) {
@@ -487,6 +501,13 @@ fun ShortVideoPage(
                     onClick = onShareClick
                 )
 
+                // Three-dot menu for Audio Track / Quality
+                ShortsActionButton(
+                    icon = Icons.Default.MoreVert,
+                    text = stringResource(R.string.cd_more_options),
+                    onClick = { showShortsOptionsSheet = true }
+                )
+
                 val infiniteTransition = rememberInfiniteTransition(label = "album_spin")
                 val albumRotation by infiniteTransition.animateFloat(
                     initialValue = 0f,
@@ -584,10 +605,308 @@ fun ShortVideoPage(
             }
         }
     }
+
+    // ── Three-dot Options Sheet ──
+    if (showShortsOptionsSheet) {
+        ShortsOptionsSheet(
+            isLoadingStreams = isLoadingStreams,
+            onAudioTrackClick = {
+                showShortsOptionsSheet = false
+                if (!isLoadingStreams) {
+                    isLoadingStreams = true
+                    scope.launch {
+                        val streamInfo = viewModel.getVideoStreamInfo(video.id)
+                        availableAudioStreams = streamInfo?.audioStreams
+                            ?.distinctBy { it.averageBitrate.toString() + (it.audioTrackId ?: "") }
+                            ?: emptyList()
+                        isLoadingStreams = false
+                        if (availableAudioStreams.isNotEmpty()) showAudioTrackSheet = true
+                    }
+                }
+            },
+            onQualityClick = {
+                showShortsOptionsSheet = false
+                if (!isLoadingStreams) {
+                    isLoadingStreams = true
+                    scope.launch {
+                        val streamInfo = viewModel.getVideoStreamInfo(video.id)
+                        availableVideoStreams = (
+                            (streamInfo?.videoStreams?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>() ?: emptyList()) +
+                            (streamInfo?.videoOnlyStreams?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>() ?: emptyList())
+                        ).distinctBy { it.height }.sortedByDescending { it.height }
+                        isLoadingStreams = false
+                        if (availableVideoStreams.isNotEmpty()) showQualitySheet = true
+                    }
+                }
+            },
+            onDismiss = { showShortsOptionsSheet = false }
+        )
+    }
+
+    // ── Audio Track Selection Sheet ──
+    if (showAudioTrackSheet && availableAudioStreams.isNotEmpty()) {
+        ShortsAudioTrackSheet(
+            audioStreams = availableAudioStreams,
+            selectedIndex = selectedAudioIndex,
+            onTrackSelected = { index ->
+                val stream = availableAudioStreams[index]
+                val audioUrl = stream.content ?: stream.url
+                playerPool.reloadWithAudioUrl(pageIndex, video.id, audioUrl)
+                selectedAudioIndex = index
+                showAudioTrackSheet = false
+            },
+            onDismiss = { showAudioTrackSheet = false }
+        )
+    }
+
+    // ── Quality Selection Sheet ──
+    if (showQualitySheet && availableVideoStreams.isNotEmpty()) {
+        ShortsQualitySheet(
+            videoStreams = availableVideoStreams,
+            selectedHeight = selectedQualityHeight.takeIf { it >= 0 },
+            onQualitySelected = { stream ->
+                val videoUrl = stream.content ?: stream.url
+                if (videoUrl != null) {
+                    playerPool.reloadWithVideoUrl(pageIndex, video.id, videoUrl)
+                    selectedQualityHeight = stream.height
+                }
+                showQualitySheet = false
+            },
+            onDismiss = { showQualitySheet = false }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ShortsOptionsSheet(
+    isLoadingStreams: Boolean,
+    onAudioTrackClick: () -> Unit,
+    onQualityClick: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.cd_more_options),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+            )
+            HorizontalDivider()
+            // Audio Track option
+            Surface(
+                onClick = onAudioTrackClick,
+                color = Color.Transparent,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoadingStreams
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AudioFile,
+                        contentDescription = null,
+                        tint = if (isLoadingStreams) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                               else MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.shorts_audio_track),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (isLoadingStreams) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                else MaterialTheme.colorScheme.onSurface
+                    )
+                    if (isLoadingStreams) {
+                        Spacer(Modifier.weight(1f))
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    }
+                }
+            }
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp))
+            // Quality option
+            Surface(
+                onClick = onQualityClick,
+                color = Color.Transparent,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoadingStreams
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.HighQuality,
+                        contentDescription = null,
+                        tint = if (isLoadingStreams) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                               else MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.shorts_quality),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (isLoadingStreams) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                else MaterialTheme.colorScheme.onSurface
+                    )
+                    if (isLoadingStreams) {
+                        Spacer(Modifier.weight(1f))
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ShortsAudioTrackSheet(
+    audioStreams: List<org.schabi.newpipe.extractor.stream.AudioStream>,
+    selectedIndex: Int,
+    onTrackSelected: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.shorts_audio_track),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+            )
+            HorizontalDivider()
+            LazyColumn {
+                items(audioStreams.size) { index ->
+                    val stream = audioStreams[index]
+                    // Always show "Track N" — streams rarely have meaningful locale names
+                    val displayName = "Track ${index + 1}"
+                    val bitrateLabel = if (stream.averageBitrate > 0) "${stream.averageBitrate / 1000} kbps" else ""
+                    val isSelected = index == selectedIndex
+                    Surface(
+                        onClick = { onTrackSelected(index) },
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = displayName,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.onSurface
+                                )
+                                if (bitrateLabel.isNotEmpty()) {
+                                    Text(
+                                        text = bitrateLabel,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ShortsQualitySheet(
+    videoStreams: List<org.schabi.newpipe.extractor.stream.VideoStream>,
+    selectedHeight: Int?,
+    onQualitySelected: (org.schabi.newpipe.extractor.stream.VideoStream) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.shorts_quality),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+            )
+            HorizontalDivider()
+            LazyColumn {
+                items(videoStreams) { stream ->
+                    val isSelected = stream.height == selectedHeight
+                    val label = "${stream.height}p"
+                    val formatLabel = stream.format?.name?.uppercase() ?: ""
+                    Surface(
+                        onClick = { onQualitySelected(stream) },
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.onSurface
+                                )
+                                if (formatLabel.isNotEmpty()) {
+                                    Text(
+                                        text = formatLabel,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
-fun ShortVideoPlayer(
+fun ShortVideoItem(
     video: Video,
     isVisible: Boolean,
     pageIndex: Int = 0,

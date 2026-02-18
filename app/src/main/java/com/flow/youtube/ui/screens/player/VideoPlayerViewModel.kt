@@ -210,6 +210,14 @@ class VideoPlayerViewModel @Inject constructor(
     fun playPrevious() {
         EnhancedPlayerManager.getInstance().playPrevious()
     }
+
+    fun addVideoToQueueNext(video: Video) {
+        EnhancedPlayerManager.getInstance().addVideoToQueueNext(video)
+    }
+
+    fun addVideoToQueue(video: Video) {
+        EnhancedPlayerManager.getInstance().addVideoToQueue(video)
+    }
     
     /**
      * PERFORMANCE OPTIMIZED: Load video info with aggressive parallel fetching
