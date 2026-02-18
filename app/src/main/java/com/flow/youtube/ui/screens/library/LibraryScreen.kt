@@ -21,7 +21,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.flow.youtube.ui.theme.extendedColors
 import androidx.compose.ui.res.vectorResource
 import com.flow.youtube.R
@@ -40,7 +40,7 @@ fun LibraryScreen(
     onNavigateToDownloads: () -> Unit,
     onManageData: () -> Unit,
     modifier: Modifier = Modifier,
-    viewModel: LibraryViewModel = viewModel()
+    viewModel: LibraryViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
@@ -142,7 +142,17 @@ fun LibraryScreen(
                 LibraryCard(
                     icon = Icons.Outlined.Download,
                     title = context.getString(R.string.library_downloads_label),
-                    subtitle = stringResource(R.string.videos_count_template, 0), // Placeholder
+                    subtitle = buildString {
+                        val v = uiState.downloadedVideosCount
+                        val s = uiState.downloadedSongsCount
+                        if (v == 0 && s == 0) {
+                            append(context.getString(R.string.empty_downloads))
+                        } else {
+                            if (v > 0) append(context.getString(R.string.videos_count_template, v))
+                            if (v > 0 && s > 0) append(" · ")
+                            if (s > 0) append(context.getString(R.string.songs_count_template, s))
+                        }
+                    },
                     onClick = onNavigateToDownloads
                 )
             }

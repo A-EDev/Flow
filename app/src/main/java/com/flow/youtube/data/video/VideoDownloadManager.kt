@@ -187,25 +187,39 @@ class VideoDownloadManager @Inject constructor(
 
     /**
      * Get the video download directory.
-     * Priority: custom path > public Movies/Flow (if permission granted) > app-private external
-     * On successful download, files are also copied to MediaStore for public visibility.
-     */
+*/
     fun getVideoDownloadDir(): File {
         customDownloadPath?.let { custom ->
             val dir = File(custom)
+            if (!dir.exists()) dir.mkdirs()
             if (dir.exists() && dir.canWrite()) return dir
+            Log.w(TAG, "Custom download path not writable: $custom, falling back to defaults")
         }
-        // Use public Movies dir if MANAGE_EXTERNAL_STORAGE is granted
-        if (hasAllFilesAccess()) {
-            val dir = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES),
+        // Downloads folder is always writable without extra permissions on all API levels
+        try {
+            val downloadsDir = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
                 VIDEO_DIR
             )
-            if (!dir.exists()) dir.mkdirs()
-            if (dir.canWrite()) return dir
+            if (!downloadsDir.exists()) downloadsDir.mkdirs()
+            if (downloadsDir.canWrite()) return downloadsDir
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not use Downloads dir", e)
         }
-        // Fallback: app-private external storage (no permissions needed)
-        // Files will be copied to MediaStore after successful download for public access
+        // Use public Movies dir if MANAGE_EXTERNAL_STORAGE is granted (Android 11+)
+        if (hasAllFilesAccess()) {
+            try {
+                val dir = File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES),
+                    VIDEO_DIR
+                )
+                if (!dir.exists()) dir.mkdirs()
+                if (dir.canWrite()) return dir
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not use Movies dir with MANAGE_EXTERNAL_STORAGE", e)
+            }
+        }
+        // Final fallback: app-private external storage (no permissions needed)
         val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_MOVIES), VIDEO_DIR)
         if (!dir.exists()) dir.mkdirs()
         return dir
@@ -213,20 +227,36 @@ class VideoDownloadManager @Inject constructor(
 
     /**
      * Get the audio download directory.
-     * Priority: custom path > public Music/Flow (if permission granted) > app-private external
+     * Priority: custom path > public Downloads/Flow > public Music/Flow (if permission granted)
      */
     fun getAudioDownloadDir(): File {
         customDownloadPath?.let { custom ->
             val dir = File(custom)
+            if (!dir.exists()) dir.mkdirs()
             if (dir.exists() && dir.canWrite()) return dir
+            Log.w(TAG, "Custom audio download path not writable: $custom, falling back to defaults")
         }
-        if (hasAllFilesAccess()) {
-            val dir = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+        try {
+            val downloadsDir = File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
                 AUDIO_DIR
             )
-            if (!dir.exists()) dir.mkdirs()
-            if (dir.canWrite()) return dir
+            if (!downloadsDir.exists()) downloadsDir.mkdirs()
+            if (downloadsDir.canWrite()) return downloadsDir
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not use Downloads dir for audio", e)
+        }
+        if (hasAllFilesAccess()) {
+            try {
+                val dir = File(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                    AUDIO_DIR
+                )
+                if (!dir.exists()) dir.mkdirs()
+                if (dir.canWrite()) return dir
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not use Music dir with MANAGE_EXTERNAL_STORAGE", e)
+            }
         }
         val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_MUSIC), AUDIO_DIR)
         if (!dir.exists()) dir.mkdirs()

@@ -6,10 +6,18 @@ import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.local.LikedVideosRepository
 import com.flow.youtube.data.local.ViewHistory
 import com.flow.youtube.data.local.PlaylistRepository
+import com.flow.youtube.data.music.DownloadManager as MusicDownloadManager
+import com.flow.youtube.data.video.VideoDownloadManager
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class LibraryViewModel : ViewModel() {
+@HiltViewModel
+class LibraryViewModel @Inject constructor(
+    private val videoDownloadManager: VideoDownloadManager,
+    private val musicDownloadManager: MusicDownloadManager
+) : ViewModel() {
     
     private lateinit var likedVideosRepository: LikedVideosRepository
     private lateinit var viewHistory: ViewHistory
@@ -57,6 +65,20 @@ class LibraryViewModel : ViewModel() {
                 }
             }
         }
+
+        // Observe downloaded video count (completed downloads only)
+        viewModelScope.launch {
+            videoDownloadManager.downloadedVideos.collect { videos ->
+                _uiState.update { it.copy(downloadedVideosCount = videos.size) }
+            }
+        }
+
+        // Observe downloaded music count
+        viewModelScope.launch {
+            musicDownloadManager.downloadedTracks.collect { tracks ->
+                _uiState.update { it.copy(downloadedSongsCount = tracks.size) }
+            }
+        }
     }
 }
 
@@ -66,5 +88,6 @@ data class LibraryUiState(
     val playlistsCount: Int = 0,
     val watchLaterCount: Int = 0,
     val savedShortsCount: Int = 0,
-    val downloadsCount: Int = 0
+    val downloadedVideosCount: Int = 0,
+    val downloadedSongsCount: Int = 0
 )

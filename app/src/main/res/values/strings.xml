@@ -215,6 +215,8 @@
     <string name="videos_count_template">%1$d videos</string>
     <string name="playlists_count_template">%1$d playlists</string>
     <string name="shorts_count_template">%1$d shorts</string>
+    <string name="songs_count_template">%1$d songs</string>
+    <string name="empty_downloads">No downloads yet</string>
     <string name="play_all">Play all</string>
     <string name="remove_from_watch_later">Remove from Watch Later</string>
     <string name="playlist_metadata_template">Playlist • Private • %1$d videos</string>

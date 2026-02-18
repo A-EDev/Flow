@@ -1,6 +1,12 @@
 package com.flow.youtube.ui.screens.settings
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Environment
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,6 +16,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.HighQuality
 import androidx.compose.material.icons.outlined.RocketLaunch
@@ -26,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import androidx.core.content.ContextCompat
 import com.flow.youtube.R
 import com.flow.youtube.data.local.PlayerPreferences
 import com.flow.youtube.data.local.VideoQuality
@@ -51,6 +59,31 @@ fun DownloadSettingsScreen(
     var showThreadDialog by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
     var showLocationDialog by remember { mutableStateOf(false) }
+
+    // Runtime permission launcher (needed for API < 29 to write to external storage)
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        val granted = results.values.all { it }
+        Log.d("DownloadSettings", "Storage permissions granted=$granted")
+    }
+
+    // Request storage permission on first composition for pre-Q devices
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            val writeGranted = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+            if (!writeGranted) {
+                permissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                        Manifest.permission.READ_EXTERNAL_STORAGE
+                    )
+                )
+            }
+        }
+    }
     
     val defaultVideoPath = remember {
         try {
@@ -321,78 +354,177 @@ fun DownloadSettingsScreen(
 
     // Location Picker Dialog
     if (showLocationDialog) {
-        val moviesPath = remember {
-            try {
-                File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "Flow").absolutePath
-            } catch (_: Exception) { null }
-        }
         val downloadsPath = remember {
             try {
                 File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Flow").absolutePath
+            } catch (_: Exception) { null }
+        }
+        val moviesPath = remember {
+            try {
+                File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "Flow").absolutePath
             } catch (_: Exception) { null }
         }
         val internalPath = remember {
             File(context.filesDir, "downloads").absolutePath
         }
 
-        data class LocationOption(val label: String, val path: String?, val description: String)
+        // Custom path option sentinel – null path means "use Downloads (default)"
+        data class LocationOption(val label: String, val path: String?, val description: String, val isCustom: Boolean = false)
+
         val options = remember {
             listOfNotNull(
-                moviesPath?.let { LocationOption("Movies/Flow", null, it) },
-                downloadsPath?.let { LocationOption("Downloads/Flow", it, it) },
-                LocationOption("Internal Storage", internalPath, internalPath)
+                downloadsPath?.let { LocationOption("Downloads/Flow", it, it) }, // default / recommended
+                moviesPath?.let { LocationOption("Movies/Flow", it, it) },
+                LocationOption("Internal App Storage", internalPath, internalPath),
+                LocationOption("Custom Path…", null, "Enter a folder path manually", isCustom = true)
             )
         }
 
-        AlertDialog(
-            onDismissRequest = { showLocationDialog = false },
-            icon = { Icon(Icons.Outlined.FolderOpen, null) },
-            title = { Text(stringResource(R.string.location_label)) },
-            text = {
-                Column {
-                    Text(
-                        "Choose where to save downloaded files",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    options.forEach { option ->
-                        Surface(
-                            onClick = {
-                                coroutineScope.launch {
-                                    preferences.setDownloadLocation(option.path)
-                                    showLocationDialog = false
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = Color.Transparent
-                        ) {
-                            Row(
-                                Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+        // Determine which preset is currently selected (if any)
+        val presetPaths = options.filter { !it.isCustom }.mapNotNull { it.path }
+        val isCustomSelected = downloadLocation != null && downloadLocation !in presetPaths
+
+        var showCustomPathDialog by remember { mutableStateOf(false) }
+        var customPathInput by remember {
+            mutableStateOf(if (isCustomSelected) downloadLocation ?: "" else "")
+        }
+
+        if (!showCustomPathDialog) {
+            AlertDialog(
+                onDismissRequest = { showLocationDialog = false },
+                icon = { Icon(Icons.Outlined.FolderOpen, null) },
+                title = { Text(stringResource(R.string.location_label)) },
+                text = {
+                    Column {
+                        Text(
+                            "Choose where to save downloaded files.\nDownloads/Flow is recommended — it works on all devices without extra permissions.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        options.forEach { option ->
+                            Surface(
+                                onClick = {
+                                    if (option.isCustom) {
+                                        showCustomPathDialog = true
+                                    } else {
+                                        coroutineScope.launch {
+                                            // Ensure the directory exists before saving the preference
+                                            option.path?.let { p ->
+                                                try { File(p).mkdirs() } catch (_: Exception) {}
+                                            }
+                                            preferences.setDownloadLocation(option.path)
+                                            showLocationDialog = false
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                color = Color.Transparent
                             ) {
-                                val isSelected = (option.path == null && downloadLocation == null) ||
-                                    (option.path != null && option.path == downloadLocation)
-                                RadioButton(selected = isSelected, onClick = null)
-                                Spacer(Modifier.width(8.dp))
-                                Column {
-                                    Text(option.label, style = MaterialTheme.typography.bodyLarge)
-                                    Text(
-                                        option.description,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                Row(
+                                    Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    val isSelected = if (option.isCustom) {
+                                        isCustomSelected
+                                    } else {
+                                        option.path != null && option.path == downloadLocation
+                                    }
+                                    RadioButton(selected = isSelected, onClick = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(option.label, style = MaterialTheme.typography.bodyLarge)
+                                            if (option.path == downloadsPath) {
+                                                Spacer(Modifier.width(6.dp))
+                                                Surface(
+                                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                                    shape = MaterialTheme.shapes.small
+                                                ) {
+                                                    Text(
+                                                        "Recommended",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        val desc = if (option.isCustom && isCustomSelected) downloadLocation ?: option.description
+                                                   else option.description
+                                        Text(
+                                            desc,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    if (option.isCustom) {
+                                        Icon(
+                                            Icons.Outlined.Edit,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showLocationDialog = false }) {
+                        Text(stringResource(R.string.close))
+                    }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { showLocationDialog = false }) {
-                    Text(stringResource(R.string.close))
+            )
+        } else {
+            // Custom path entry dialog
+            AlertDialog(
+                onDismissRequest = { showCustomPathDialog = false },
+                icon = { Icon(Icons.Outlined.Edit, null) },
+                title = { Text("Custom Download Path") },
+                text = {
+                    Column {
+                        Text(
+                            "Enter the absolute path of the folder where downloads should be saved. The folder will be created if it doesn't exist.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = customPathInput,
+                            onValueChange = { customPathInput = it },
+                            label = { Text("Folder path") },
+                            placeholder = { Text("/storage/emulated/0/MyDownloads") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val trimmed = customPathInput.trim()
+                            if (trimmed.isNotEmpty()) {
+                                coroutineScope.launch {
+                                    try { File(trimmed).mkdirs() } catch (_: Exception) {}
+                                    preferences.setDownloadLocation(trimmed)
+                                }
+                            }
+                            showCustomPathDialog = false
+                            showLocationDialog = false
+                        },
+                        enabled = customPathInput.trim().isNotEmpty()
+                    ) {
+                        Text("Save")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCustomPathDialog = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
                 }
-            }
-        )
+            )
+        }
     }
 }
