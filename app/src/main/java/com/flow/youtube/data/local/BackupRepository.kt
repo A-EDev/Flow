@@ -6,6 +6,7 @@ import com.flow.youtube.data.local.entity.PlaylistEntity
 import com.flow.youtube.data.local.entity.PlaylistVideoCrossRef
 import com.flow.youtube.data.local.entity.VideoEntity
 import com.google.gson.GsonBuilder
+import com.google.gson.Strictness
 import androidx.room.withTransaction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -34,7 +35,14 @@ data class BackupData(
 )
 
 class BackupRepository(private val context: Context) {
-    private val gson = GsonBuilder().setPrettyPrinting().create()
+    private val gson = GsonBuilder()
+        .setPrettyPrinting()
+        .disableHtmlEscaping()
+        .create()
+
+    private val lenientGson = GsonBuilder()
+        .setStrictness(Strictness.LENIENT)
+        .create()
     private val viewHistory = ViewHistory.getInstance(context)
     private val searchHistoryRepo = SearchHistoryRepository(context)
     private val subscriptionRepo = SubscriptionRepository.getInstance(context)
@@ -71,7 +79,8 @@ class BackupRepository(private val context: Context) {
                 }
             } ?: return@withContext Result.failure(Exception("Could not read file"))
 
-            val backupData = gson.fromJson(json, BackupData::class.java) ?: return@withContext Result.failure(Exception("Invalid backup file"))
+            val backupData = lenientGson.fromJson(json, BackupData::class.java)
+                ?: return@withContext Result.failure(Exception("Invalid backup file"))
 
             // Import View History
             backupData.viewHistory?.forEach { entry ->

@@ -111,8 +111,7 @@ class ShortsRepository private constructor(private val context: Context) {
         
         if (rawResult != null && rawResult.shorts.isNotEmpty()) {
             Log.d(TAG, "✓ InnerTube returned ${rawResult.shorts.size} shorts (pre-enrichment)")
-            // Re-rank with FlowNeuroEngine for personalization
-            val reRanked = reRankWithFlowNeuro(rawResult.shorts)
+            val reRanked = if (seedVideoId == null) reRankWithFlowNeuro(rawResult.shorts) else rawResult.shorts
             val result = rawResult.copy(shorts = reRanked)
             
             result.shorts.forEach { shortsCache.put(it.id, it) }

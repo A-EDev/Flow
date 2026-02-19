@@ -138,19 +138,25 @@ class ShortsViewModel @Inject constructor(
                 val result = shortsRepository.getShortsFeed(seedVideoId = startVideoId)
                 var shorts = result.shorts
                 
-                // If startVideoId provided but not in results, fetch it separately
                 var startIndex = 0
                 if (startVideoId != null) {
                     val idx = shorts.indexOfFirst { it.id == startVideoId }
-                    if (idx >= 0) {
-                        startIndex = idx
-                    } else {
-                        val startVideo = withTimeoutOrNull(5_000L) {
-                            repository.getVideo(startVideoId)
-                        }?.toShortVideo()
-                        if (startVideo != null) {
-                            shorts = listOf(startVideo) + shorts
-                            startIndex = 0
+                    when {
+                        idx == 0 -> {
+                            // Already at front — nothing to do
+                        }
+                        idx > 0 -> {
+                            // Found further down the list — move it to front
+                            shorts = listOf(shorts[idx]) + shorts.filterIndexed { i, _ -> i != idx }
+                        }
+                        else -> {
+                            // Not in the list at all — fetch separately and prepend
+                            val startVideo = withTimeoutOrNull(5_000L) {
+                                repository.getVideo(startVideoId)
+                            }?.toShortVideo()
+                            if (startVideo != null) {
+                                shorts = listOf(startVideo) + shorts
+                            }
                         }
                     }
                 }
