@@ -52,8 +52,10 @@ import kotlinx.coroutines.flow.collectLatest
 fun VideoCard(
     video: Video,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onChannelClick: ((String) -> Unit)? = null
 ) {
+    var showQuickActions by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val watchProgress by produceState<Float?>(initialValue = null, video.id) {
         ViewHistory.getInstance(context).getVideoHistory(video.id).collectLatest { entry ->
@@ -176,7 +178,7 @@ fun VideoCard(
             }
 
             IconButton(
-                onClick = { /* More actions */ },
+                onClick = { showQuickActions = true },
                 modifier = Modifier
                     .size(24.dp)
                     .offset(x = 4.dp, y = (-4).dp) // Adjust for better alignment
@@ -189,6 +191,14 @@ fun VideoCard(
                 )
             }
         }
+    }
+    
+    if (showQuickActions) {
+         VideoQuickActionsBottomSheet(
+            video = video,
+            onChannelClick = onChannelClick,
+            onDismiss = { showQuickActions = false }
+        )
     }
 }
 
@@ -408,6 +418,7 @@ fun VideoCardFullWidth(
     if (showQuickActions) {
         VideoQuickActionsBottomSheet(
             video = video,
+            onChannelClick = onChannelClick,
             onDismiss = { showQuickActions = false }
         )
     }
@@ -422,7 +433,8 @@ fun CompactVideoCard(
     video: Video,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
-    onMoreClick: () -> Unit = {}
+    onMoreClick: () -> Unit = {},
+    onChannelClick: ((String) -> Unit)? = null
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -541,6 +553,7 @@ fun CompactVideoCard(
     if (showQuickActions) {
          VideoQuickActionsBottomSheet(
             video = video,
+            onChannelClick = onChannelClick,
             onDismiss = { showQuickActions = false }
         )
     }
