@@ -74,6 +74,27 @@ fun parseHtmlDescription(rawHtml: String): AnnotatedString {
                 start = start,
                 end = end
             )
+            val timestampRegex = Regex("""\b(?:[0-9]{1,2}:)?[0-9]{1,2}:[0-9]{2}\b""")
+            timestampRegex.findAll(text).forEach { matchResult ->
+                val start = matchResult.range.first
+                val end = matchResult.range.last + 1
+                
+                addStyle(
+                    style = SpanStyle(
+                        color = Color(0xFF3EA6FF),
+                        fontWeight = FontWeight.SemiBold
+                    ),
+                    start = start,
+                    end = end
+                )
+                
+                addStringAnnotation(
+                    tag = "TIMESTAMP",
+                    annotation = matchResult.value,
+                    start = start,
+                    end = end
+                )
+            }
         }
     }
 }
@@ -83,12 +104,12 @@ fun parseHtmlDescription(rawHtml: String): AnnotatedString {
 fun FlowDescriptionBottomSheet(
     video: Video,
     onDismiss: () -> Unit,
+    onTimestampClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     
-    // FIX: Use the HTML parser instead of manual Regex
     val descriptionText = remember(video.description) {
         parseHtmlDescription(video.description)
     }
@@ -229,6 +250,10 @@ fun FlowDescriptionBottomSheet(
                                     descriptionText.getStringAnnotations(tag = "URL", start = offset, end = offset)
                                         .firstOrNull()?.let { annotation ->
                                             uriHandler.openUri(annotation.item)
+                                        }
+                                    descriptionText.getStringAnnotations(tag = "TIMESTAMP", start = offset, end = offset)
+                                        .firstOrNull()?.let { annotation ->
+                                            onTimestampClick(annotation.item)
                                         }
                                 }
                             )

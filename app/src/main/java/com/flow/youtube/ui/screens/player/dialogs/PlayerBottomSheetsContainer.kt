@@ -47,6 +47,22 @@ fun PlayerBottomSheetsContainer(
         }
     }
     
+    val handleTimestampClick: (String) -> Unit = remember {
+        { timestamp ->
+            val parts = timestamp.split(":").map { it.toLongOrNull() ?: 0L }
+            val seconds = when (parts.size) {
+                3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
+                2 -> parts[0] * 60 + parts[1]
+                else -> 0L
+            }
+            val ms = seconds * 1000L
+            EnhancedPlayerManager.getInstance().seekTo(ms)
+            
+            screenState.showCommentsSheet = false
+            screenState.showDescriptionSheet = false
+        }
+    }
+    
     // Quick actions sheet
     if (screenState.showQuickActions) {
         VideoQuickActionsBottomSheet(
@@ -84,6 +100,7 @@ fun PlayerBottomSheetsContainer(
                 screenState.isTopComments = isTop
             },
             onLoadReplies = onLoadReplies,
+            onTimestampClick = handleTimestampClick,
             onDismiss = { screenState.showCommentsSheet = false }
         )
     }
@@ -121,6 +138,7 @@ fun PlayerBottomSheetsContainer(
 
         FlowDescriptionBottomSheet(
             video = currentVideo,
+            onTimestampClick = handleTimestampClick,
             onDismiss = { screenState.showDescriptionSheet = false }
         )
     }
