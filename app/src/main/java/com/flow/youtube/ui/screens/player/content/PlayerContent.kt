@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -44,6 +45,7 @@ fun PlayerContent(
     onBack: () -> Unit,
     onVideoClick: (Video) -> Unit
 ) {
+    val context = LocalContext.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -195,7 +197,11 @@ fun PlayerContent(
             hasPrevious = canGoPrevious,
             hasNext = uiState.relatedVideos.isNotEmpty(),
             bufferedPercentage = playerState.bufferedPercentage,
-            windowInsets = WindowInsets(0, 0, 0, 0)
+            windowInsets = WindowInsets(0, 0, 0, 0),
+            onCastClick = {
+                com.flow.youtube.player.CastHelper.showCastPicker(context)
+            },
+            isCasting = com.flow.youtube.player.CastHelper.isCasting(context)
         )
     }
 }

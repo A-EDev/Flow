@@ -29,6 +29,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Flow"
         android:usesCleartextTraffic="true">
+
+        <!-- Cast SDK: tells the framework which app to load on the receiver device -->
+        <meta-data
+            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
+            android:value="com.flow.youtube.player.FlowCastOptionsProvider" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

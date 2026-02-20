@@ -468,7 +468,11 @@ fun GlobalPlayerOverlay(
                                 onSbSubmitClick = {
                                     screenState.showControls = false
                                     showSbSubmitDialog = true
-                                }
+                                },
+                                onCastClick = {
+                                    com.flow.youtube.player.CastHelper.showCastPicker(context)
+                                },
+                                isCasting = com.flow.youtube.player.CastHelper.isCasting(context)
                             )
                         }
                     }

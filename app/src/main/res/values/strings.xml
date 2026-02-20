@@ -960,5 +960,30 @@
     <string name="done">Done</string>
     <string name="playlist_queue">Playlist queue</string>
     <string name="next_up">Next</string>
+
+    <!-- Cast / Chromecast -->
+    <string name="cast_to_tv">Cast to TV</string>
+    <string name="cast_connecting">Connecting to cast device…</string>
+    <string name="cast_connected">Casting</string>
+    <string name="cast_disconnected">Cast disconnected</string>
+
+    <!-- Check for Updates -->
+    <string name="check_for_updates">Check for Updates</string>
+    <string name="check_for_updates_subtitle">Tap to check for the latest version</string>
+    <string name="checking_for_updates">Checking for updates…</string>
+    <string name="flow_is_up_to_date">Flow is up to date!</string>
+    <string name="update_check_failed">Couldn\'t check for updates. Check your connection.</string>
+
+    <!-- Export / Import Flow Engine data (Settings + ImportDataScreen) -->
+    <string name="export_engine_data">Export Engine Profile</string>
+    <string name="export_engine_data_subtitle">Back up your AI personality &amp; learning data</string>
+    <string name="export_engine_success">Engine profile exported successfully</string>
+    <string name="export_engine_failed">Failed to export engine profile</string>
+    <string name="import_engine_data">Import Flow Engine Data</string>
+    <string name="import_engine_data_desc">Restore your AI personality profile from a backup file</string>
+    <string name="import_engine_success">Engine profile restored successfully</string>
+    <string name="import_engine_failed">Failed to import engine profile</string>
+    <string name="import_engine_section_title">Flow Engine</string>
+    <string name="import_engine_section_subtitle">Restore your AI learning profile</string>
 </resources>
 

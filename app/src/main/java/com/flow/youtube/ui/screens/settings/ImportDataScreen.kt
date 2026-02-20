@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Psychology
+import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -84,6 +86,26 @@ fun ImportDataScreen(
                     } else {
                         snackbarHostState.showSnackbar(context.getString(R.string.import_youtube_failed_template, result.exceptionOrNull()?.message))
                     }
+                }
+            }
+        }
+    )
+
+    // Flow Engine / Neural profile import
+    val importEngineLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            uri?.let {
+                scope.launch {
+                    val success = context.contentResolver.openInputStream(it)?.use { inp ->
+                        FlowNeuroEngine.importBrainFromStream(context, inp)
+                    } ?: false
+                    snackbarHostState.showSnackbar(
+                        context.getString(
+                            if (success) R.string.import_engine_success
+                            else R.string.import_engine_failed
+                        )
+                    )
                 }
             }
         }
@@ -181,6 +203,23 @@ fun ImportDataScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     enabled = true,
                     onClick = { /* TODO */ }
+                )
+            }
+
+            item {
+                PreferencesSectionHeader(
+                    title = stringResource(R.string.import_engine_section_title),
+                    subtitle = stringResource(R.string.import_engine_section_subtitle)
+                )
+            }
+
+            item {
+                ImportOptionCard(
+                    title = stringResource(R.string.import_engine_data),
+                    description = stringResource(R.string.import_engine_data_desc),
+                    icon = Icons.Outlined.Psychology,
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    onClick = { importEngineLauncher.launch(arrayOf("application/json")) }
                 )
             }
 

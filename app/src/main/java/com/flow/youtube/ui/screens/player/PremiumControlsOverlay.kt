@@ -35,8 +35,10 @@ import com.flow.youtube.player.seekbarpreview.SeekbarPreviewThumbnailHelper
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.flow.youtube.R
+import com.flow.youtube.player.CastHelper
 import org.schabi.newpipe.extractor.stream.StreamSegment
 
 @Composable
@@ -72,6 +74,9 @@ fun PremiumControlsOverlay(
     windowInsets: WindowInsets = WindowInsets.systemBars,
     sbSubmitEnabled: Boolean = false,
     onSbSubmitClick: () -> Unit = {},
+    // Cast / Chromecast support
+    onCastClick: () -> Unit = {},
+    isCasting: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -211,6 +216,19 @@ fun PremiumControlsOverlay(
                                 modifier = Modifier.size(24.dp)
                             )
                         }
+                    }
+
+                    // Cast / Chromecast button
+                    IconButton(
+                        onClick = onCastClick,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isCasting) Icons.Rounded.Cast else Icons.Outlined.Cast,
+                            contentDescription = stringResource(R.string.cast_to_tv),
+                            tint = if (isCasting) primaryColor else Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
 
                     // Settings Icon

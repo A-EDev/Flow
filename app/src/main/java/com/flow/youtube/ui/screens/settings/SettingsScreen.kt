@@ -34,11 +34,17 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.flow.youtube.BuildConfig
 import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import com.flow.youtube.ui.theme.ThemeMode
 import com.flow.youtube.ui.theme.extendedColors
 import com.flow.youtube.data.local.PlayerPreferences
+import com.google.gson.JsonParser
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ChevronRight
@@ -94,8 +100,31 @@ fun SettingsScreen(
         }
     )
 
+    // Brain / engine export launcher
+    val exportBrainLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json"),
+        onResult = { uri ->
+            uri?.let {
+                coroutineScope.launch {
+                    val success = context.contentResolver.openOutputStream(it)?.use { out ->
+                        FlowNeuroEngine.exportBrainToStream(out)
+                    } ?: false
+                    android.widget.Toast.makeText(
+                        context,
+                        context.getString(if (success) com.flow.youtube.R.string.export_engine_success else com.flow.youtube.R.string.export_engine_failed),
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    )
+
     var showRegionDialog by remember { mutableStateOf(false) }
     var showResetBrainDialog by remember { mutableStateOf(false) }
+    // Update checker state
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    // null = no dialog; non-null = tag string of the available update
+    var updateAvailableTag by remember { mutableStateOf<String?>(null) }
     
     // Player preferences states
     val currentRegion by playerPreferences.trendingRegion.collectAsState(initial = "US")
@@ -424,6 +453,13 @@ item {
                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_import_data_subtitle),
                         onClick = onNavigateToImport
                     )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.Psychology,
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.export_engine_data),
+                        subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.export_engine_data_subtitle),
+                        onClick = { exportBrainLauncher.launch("flow_engine_${System.currentTimeMillis()}.json") }
+                    )
                 }
             }
             
@@ -438,6 +474,76 @@ item {
                         title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_about_flow),
                         subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_about_flow_subtitle),
                         onClick = onNavigateToAbout
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = if (isCheckingUpdate) Icons.Outlined.Sync else Icons.Outlined.Update,
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.check_for_updates),
+                        subtitle = if (isCheckingUpdate)
+                            androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.checking_for_updates)
+                        else
+                            androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.check_for_updates_subtitle),
+                        onClick = {
+                            if (!isCheckingUpdate) {
+                                isCheckingUpdate = true
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    try {
+                                        val client = OkHttpClient()
+                                        val request = Request.Builder()
+                                            .url("https://api.github.com/repos/A-EDev/Flow/releases/latest")
+                                            .header("Accept", "application/vnd.github.v3+json")
+                                            .build()
+                                        val response = client.newCall(request).execute()
+                                        withContext(Dispatchers.Main) {
+                                            isCheckingUpdate = false
+                                            if (response.isSuccessful) {
+                                                val body = response.body?.string()
+                                                if (body != null) {
+                                                    val json = JsonParser.parseString(body).asJsonObject
+                                                    val latestTag = json.get("tag_name").asString
+                                                    val cleanLatest = latestTag.removePrefix("v")
+                                                    val cleanCurrent = BuildConfig.VERSION_NAME.removePrefix("v")
+                                                    val latestParts = cleanLatest.split(".").mapNotNull { it.toIntOrNull() }
+                                                    val currentParts = cleanCurrent.split(".").mapNotNull { it.toIntOrNull() }
+                                                    var isNewer = false
+                                                    val size = maxOf(latestParts.size, currentParts.size)
+                                                    for (i in 0 until size) {
+                                                        val l = latestParts.getOrNull(i) ?: 0
+                                                        val c = currentParts.getOrNull(i) ?: 0
+                                                        if (l > c) { isNewer = true; break }
+                                                        if (l < c) break
+                                                    }
+                                                    if (isNewer) {
+                                                        updateAvailableTag = latestTag
+                                                    } else {
+                                                        android.widget.Toast.makeText(
+                                                            context,
+                                                            context.getString(com.flow.youtube.R.string.flow_is_up_to_date),
+                                                            android.widget.Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    }
+                                                }
+                                            } else {
+                                                android.widget.Toast.makeText(
+                                                    context,
+                                                    context.getString(com.flow.youtube.R.string.update_check_failed),
+                                                    android.widget.Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                        }
+                                    } catch (e: Exception) {
+                                        withContext(Dispatchers.Main) {
+                                            isCheckingUpdate = false
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                context.getString(com.flow.youtube.R.string.update_check_failed),
+                                                android.widget.Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
@@ -477,6 +583,36 @@ item {
             },
             dismissButton = {
                 TextButton(onClick = { showResetBrainDialog = false }) { Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.cancel)) }
+            }
+        )
+    }
+
+    // Update Available Dialog
+    val tag = updateAvailableTag
+    if (tag != null) {
+        AlertDialog(
+            onDismissRequest = { updateAvailableTag = null },
+            icon = { Icon(Icons.Outlined.Update, null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.new_update_available), fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.update_available_template, tag),
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    updateAvailableTag = null
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/A-EDev/Flow/releases/latest"))
+                    context.startActivity(intent)
+                }) {
+                    Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.download))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { updateAvailableTag = null }) {
+                    Text(androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.cancel))
+                }
             }
         )
     }

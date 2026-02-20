@@ -70,6 +70,21 @@ android {
             isMinifyEnabled = false
             isShrinkResources = false
         }
+        // Nightly: release-level performance + debug signing so it's easy to
+        // sideload. Fixes the laggy-nightly issue reported in #66.
+        create("nightly") {
+            initWith(getByName("release"))
+            applicationIdSuffix = ".nightly"
+            versionNameSuffix = "-nightly"
+            isDebuggable = false
+            isMinifyEnabled = true
+            isShrinkResources = false
+            proguardFiles(
+                getDefaultProguardFile("proguard-android.txt"),
+                "proguard-rules.pro"
+            )
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isDebuggable = false
             // Follow NewPipe approach: minify but don't shrink resources
@@ -204,6 +219,12 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.apkupdater)
     implementation(libs.androidx.multidex)
+
+    // --- Cast / Chromecast support (#62) ---
+    implementation("com.google.android.gms:play-services-cast-framework:21.5.0")
+    implementation("androidx.mediarouter:mediarouter:1.7.0")
+    // Required to resolve AppCompatDialog (supertype of MediaRouteChooserDialog)
+    implementation("androidx.appcompat:appcompat:1.7.0")
     implementation(libs.brotli) 
     implementation(libs.re2j)
 
