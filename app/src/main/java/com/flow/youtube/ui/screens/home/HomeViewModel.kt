@@ -74,6 +74,28 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+
+        viewModelScope.launch {
+            playerPreferences.continueWatchingEnabled.collect { enabled ->
+                if (!enabled) {
+                    _uiState.update { it.copy(continueWatchingVideos = emptyList()) }
+                } else {
+                    loadContinueWatching()
+                }
+            }
+        }
+    }
+
+    private fun loadContinueWatching() {
+        viewModelScope.launch {
+            viewHistory?.getVideoHistoryFlow()?.collect { history ->
+                val inProgress = history
+                    .filter { it.progressPercentage in 3f..90f }
+                    .sortedByDescending { it.timestamp }
+                    .take(20)
+                _uiState.update { it.copy(continueWatchingVideos = inProgress) }
+            }
+        }
     }
     
 
@@ -371,6 +393,7 @@ class HomeViewModel @Inject constructor(
 data class HomeUiState(
     val videos: List<Video> = emptyList(),
     val shorts: List<Video> = emptyList(),
+    val continueWatchingVideos: List<com.flow.youtube.data.local.VideoHistoryEntry> = emptyList(),
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
     val isRefreshing: Boolean = false,

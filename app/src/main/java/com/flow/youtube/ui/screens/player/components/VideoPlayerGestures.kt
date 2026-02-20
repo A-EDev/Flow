@@ -45,7 +45,8 @@ fun Modifier.videoPlayerControls(
     maxVolume: Int,
     audioManager: AudioManager?,
     activity: Activity?,
-    swipeGesturesEnabled: Boolean = true
+    swipeGesturesEnabled: Boolean = true,
+    doubleTapSeekMs: Long = 10_000L
 ): Modifier = composed {
     val currentIsSpeedBoostActive by rememberUpdatedState(isSpeedBoostActive)
     val currentOnSpeedBoostChange by rememberUpdatedState(onSpeedBoostChange)
@@ -68,6 +69,7 @@ fun Modifier.videoPlayerControls(
     val currentAudioManager by rememberUpdatedState(audioManager)
     val currentActivity by rememberUpdatedState(activity)
     val currentSwipeGesturesEnabled by rememberUpdatedState(swipeGesturesEnabled)
+    val currentDoubleTapSeekMs by rememberUpdatedState(doubleTapSeekMs)
 
     this
         .pointerInput(Unit) {
@@ -83,16 +85,16 @@ fun Modifier.videoPlayerControls(
                     val tapPosition = offset.x
                     
                     if (tapPosition < screenWidth * 0.4f) {
-                        // Seek backward 10s
+                        // Seek backward
                         currentOnShowSeekBackChange(true)
                         EnhancedPlayerManager.getInstance().seekTo(
-                            (currentPositionValue - 10000).coerceAtLeast(0)
+                            (currentPositionValue - currentDoubleTapSeekMs).coerceAtLeast(0)
                         )
                     } else if (tapPosition > screenWidth * 0.6f) {
-                        // Seek forward 10s
+                        // Seek forward
                         currentOnShowSeekForwardChange(true)
                         EnhancedPlayerManager.getInstance().seekTo(
-                            (currentPositionValue + 10000).coerceAtMost(currentDuration)
+                            (currentPositionValue + currentDoubleTapSeekMs).coerceAtMost(currentDuration)
                         )
                     } else {
                         // Center double tap - play/pause

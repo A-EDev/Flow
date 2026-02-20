@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 fun SeekAnimationOverlay(
     showSeekBack: Boolean,
     showSeekForward: Boolean,
+    seekSeconds: Int = 10,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -48,7 +49,7 @@ fun SeekAnimationOverlay(
                     modifier = Modifier.size(32.dp)
                 )
                 Text(
-                    text = "10s",
+                    text = "${seekSeconds}s",
                     color = Color.White,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold
@@ -77,7 +78,7 @@ fun SeekAnimationOverlay(
                     modifier = Modifier.size(32.dp)
                 )
                 Text(
-                    text = "10s",
+                    text = "${seekSeconds}s",
                     color = Color.White,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold

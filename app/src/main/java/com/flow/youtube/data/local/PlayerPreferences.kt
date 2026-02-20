@@ -59,6 +59,8 @@ class PlayerPreferences(private val context: Context) {
         val SHORTS_NAVIGATION_ENABLED = booleanPreferencesKey("shorts_navigation_enabled")
         val PREFERRED_LYRICS_PROVIDER = stringPreferencesKey("preferred_lyrics_provider")
         val SWIPE_GESTURES_ENABLED = booleanPreferencesKey("swipe_gestures_enabled")
+        val CONTINUE_WATCHING_ENABLED = booleanPreferencesKey("continue_watching_enabled")
+        val DOUBLE_TAP_SEEK_SECONDS = intPreferencesKey("double_tap_seek_seconds")
 
         // SponsorBlock per-category action keys
         val SB_ACTION_SPONSOR = stringPreferencesKey("sb_action_sponsor")
@@ -270,8 +272,30 @@ class PlayerPreferences(private val context: Context) {
             preferences[Keys.SHORTS_NAVIGATION_ENABLED] = enabled
         }
     }
-    
-    // Region preference
+
+    // Continue Watching shelf enabled preference
+    val continueWatchingEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.CONTINUE_WATCHING_ENABLED] ?: true
+        }
+
+    suspend fun setContinueWatchingEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.CONTINUE_WATCHING_ENABLED] = enabled
+        }
+    }
+
+    // Double-tap seek duration preference (default 10 seconds)
+    val doubleTapSeekSeconds: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.DOUBLE_TAP_SEEK_SECONDS] ?: 10
+        }
+
+    suspend fun setDoubleTapSeekSeconds(seconds: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DOUBLE_TAP_SEEK_SECONDS] = seconds
+        }
+    }
     val trendingRegion: Flow<String> = context.playerPreferencesDataStore.data
         .map { preferences ->
             preferences[Keys.TRENDING_REGION] ?: "US"

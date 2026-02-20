@@ -51,6 +51,7 @@ fun ContentSettingsScreen(
     val isShortsShelfEnabled by preferences.shortsShelfEnabled.collectAsState(initial = true)
     val isHomeShortsShelfEnabled by preferences.homeShortsShelfEnabled.collectAsState(initial = true)
     val isShortsNavigationEnabled by preferences.shortsNavigationEnabled.collectAsState(initial = true)
+    val isContinueWatchingEnabled by preferences.continueWatchingEnabled.collectAsState(initial = true)
     
     Scaffold(
         topBar = {
@@ -178,6 +179,17 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setShortsNavigationEnabled(enabled)
+                            }
+                        }
+                    )
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.ViewQuilt,
+                        title = stringResource(R.string.settings_continue_watching_title),
+                        subtitle = stringResource(R.string.settings_continue_watching_subtitle),
+                        checked = isContinueWatchingEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setContinueWatchingEnabled(enabled)
                             }
                         }
                     )

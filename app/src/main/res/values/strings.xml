@@ -436,6 +436,9 @@
     <string name="settings_home_shorts_shelf_subtitle">Show the horizontal shorts shelf on the home screen.</string>
     <string name="settings_shorts_nav_tab_title">Shorts tab in navigation</string>
     <string name="settings_shorts_nav_tab_subtitle">Show the Shorts tab in the bottom navigation bar.</string>
+    <string name="settings_continue_watching_title">Continue Watching shelf</string>
+    <string name="settings_continue_watching_subtitle">Show a shelf of in-progress videos on the home screen.</string>
+    <string name="continue_watching_title">Continue Watching</string>
 
     <!-- Player Settings -->
     <string name="player_settings_title">Player Settings</string>
@@ -498,6 +501,12 @@
     <string name="player_settings_audio_language_dialog_body">Select your preferred audio track language. If not available, the original language will be used.</string>
     <string name="player_settings_audio_original">Original (Native)</string>
     <string name="player_settings_audio_original_desc">Uses the video\'s native audio track</string>
+    <!-- Player Gestures -->
+    <string name="player_settings_header_gestures">Gestures</string>
+    <string name="player_settings_double_tap_seek">Double-Tap Seek Duration</string>
+    <string name="player_settings_double_tap_seek_subtitle_template">%ds per side double-tap</string>
+    <string name="player_settings_double_tap_seek_dialog_title">Double-Tap Seek Duration</string>
+    <string name="player_settings_double_tap_seek_dialog_body">Choose how many seconds to seek when double-tapping the left or right side of the player.</string>
 
     <!-- Video Quality Settings -->
     <string name="video_quality_title">Video Quality</string>

@@ -5,7 +5,10 @@ import android.content.pm.ActivityInfo
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -52,6 +55,8 @@ import com.flow.youtube.ui.screens.player.components.SpeedBoostOverlay
 import com.flow.youtube.player.PictureInPictureHelper
 import com.flow.youtube.R
 import com.flow.youtube.data.local.PlayerPreferences
+import com.flow.youtube.player.dlna.DlnaCastManager
+import com.flow.youtube.player.dlna.DlnaDevice
 import kotlinx.coroutines.launch
 
 /**
@@ -103,8 +108,12 @@ fun GlobalPlayerOverlay(
     val playerPreferences = remember { PlayerPreferences(context) }
     val swipeGesturesEnabled by playerPreferences.swipeGesturesEnabled.collectAsState(initial = true)
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
+    val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
 
     var showSbSubmitDialog by remember { mutableStateOf(false) }
+    var showDlnaDialog by remember { mutableStateOf(false) }
+    val dlnaDevices by DlnaCastManager.devices.collectAsState()
+    val isDlnaDiscovering by DlnaCastManager.isDiscovering.collectAsState()
     
     var localIsInPipMode by remember { mutableStateOf(false) }
     
@@ -320,7 +329,8 @@ fun GlobalPlayerOverlay(
                             maxVolume = audioSystemInfo.maxVolume,
                             audioManager = audioSystemInfo.audioManager,
                             activity = activity,
-                            swipeGesturesEnabled = swipeGesturesEnabled
+                            swipeGesturesEnabled = swipeGesturesEnabled,
+                            doubleTapSeekMs = doubleTapSeekSeconds * 1000L
                         )
                     } else {
                         modifier
@@ -349,6 +359,7 @@ fun GlobalPlayerOverlay(
                             SeekAnimationOverlay(
                                 showSeekBack = screenState.showSeekBackAnimation,
                                 showSeekForward = screenState.showSeekForwardAnimation,
+                                seekSeconds = doubleTapSeekSeconds,
                                 modifier = Modifier.align(Alignment.Center)
                             )
                             
@@ -470,9 +481,10 @@ fun GlobalPlayerOverlay(
                                     showSbSubmitDialog = true
                                 },
                                 onCastClick = {
-                                    com.flow.youtube.player.CastHelper.showCastPicker(context)
+                                    DlnaCastManager.startDiscovery(context)
+                                    showDlnaDialog = true
                                 },
-                                isCasting = com.flow.youtube.player.CastHelper.isCasting(context)
+                                isCasting = DlnaCastManager.isCasting
                             )
                         }
                     }
@@ -522,6 +534,32 @@ fun GlobalPlayerOverlay(
                 videoId = video.id,
                 currentPositionMs = screenState.currentPosition,
                 onDismiss = { showSbSubmitDialog = false }
+            )
+        }
+        
+        // DLNA device picker dialog
+        if (showDlnaDialog) {
+            DlnaDevicePickerDialog(
+                devices = dlnaDevices,
+                isDiscovering = isDlnaDiscovering,
+                isCasting = DlnaCastManager.isCasting,
+                videoTitle = video.title,
+                onDeviceSelected = { device ->
+                    val streamUrl = EnhancedPlayerManager.getInstance().getPlayer()
+                        ?.currentMediaItem?.localConfiguration?.uri?.toString() ?: ""
+                    if (streamUrl.isNotEmpty()) {
+                        DlnaCastManager.castTo(device, streamUrl, video.title)
+                    }
+                    showDlnaDialog = false
+                },
+                onStopCasting = {
+                    DlnaCastManager.stop()
+                    showDlnaDialog = false
+                },
+                onDismiss = {
+                    DlnaCastManager.stopDiscovery()
+                    showDlnaDialog = false
+                }
             )
         }
         
@@ -617,4 +655,84 @@ private fun MiniPlayerControls(
             )
         }
     }
+}
+
+/** DLNA / UPnP device-picker dialog shown when the cast button is pressed. */
+@Composable
+private fun DlnaDevicePickerDialog(
+    devices: List<DlnaDevice>,
+    isDiscovering: Boolean,
+    isCasting: Boolean,
+    videoTitle: String,
+    onDeviceSelected: (DlnaDevice) -> Unit,
+    onStopCasting: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(text = if (isCasting) "Casting to TV" else "Cast to Device")
+                if (isDiscovering) {
+                    Spacer(Modifier.width(8.dp))
+                    CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
+                }
+            }
+        },
+        text = {
+            Column {
+                if (!isCasting && devices.isEmpty() && !isDiscovering) {
+                    Text(
+                        text = "No DLNA/UPnP renderers found on this network.\n\n" +
+                            "Make sure your TV or media player (VLC, Kodi, etc.) is on the " +
+                            "same Wi-Fi network and has media renderer mode enabled.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                } else if (!isCasting && devices.isEmpty()) {
+                    Text(
+                        text = "Searching for DLNA devices…",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                } else if (isCasting) {
+                    Text(
+                        text = "Now casting: $videoTitle",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                } else {
+                    LazyColumn {
+                        items(devices) { device ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onDeviceSelected(device) }
+                                    .padding(vertical = 12.dp, horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    text = device.friendlyName,
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                            HorizontalDivider()
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (isCasting) {
+                TextButton(onClick = onStopCasting) { Text("Stop Casting") }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }

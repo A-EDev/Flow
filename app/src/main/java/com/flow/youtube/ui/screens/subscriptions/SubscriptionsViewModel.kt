@@ -249,10 +249,7 @@ class SubscriptionsViewModel : ViewModel() {
 
     fun unsubscribe(channelId: String) {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
-            subscriptionRepository.getSubscription(channelId).firstOrNull()?.let {
-                subscriptionRepository.unsubscribe(channelId)
-                refreshFeed()
-            }
+            subscriptionRepository.unsubscribe(channelId)
         }
     }
 

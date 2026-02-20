@@ -1,0 +1,16 @@
+package com.flow.youtube.player.dlna
+
+/**
+ * Represents a DLNA/UPnP AV renderer (e.g., a smart TV or media player) discovered
+ * via SSDP on the local network. No Google Play Services required.
+ */
+data class DlnaDevice(
+    val friendlyName: String,
+    val location: String,
+    val usn: String,
+    /**
+     * Absolute URL for the AVTransport SOAP service, filled in after the device
+     * description XML is fetched.  Empty until [DlnaCastManager.resolveDevice] succeeds.
+     */
+    val avTransportUrl: String = ""
+)

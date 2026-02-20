@@ -37,7 +37,6 @@ import com.flow.youtube.ui.screens.notifications.NotificationViewModel
 import androidx.compose.ui.res.stringResource
 import com.flow.youtube.R
 
-
 // Add this import for snapshotFlow
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -287,7 +286,7 @@ fun HomeScreen(
                         if (videos.isNotEmpty()) {
                             val insertShortsAfter = layoutConfig.shortsShelfAfterIndex.coerceAtMost(videos.size)
                             
-                            // ── Videos before shorts shelf ──
+                            // ── Videos before shelves ──
                             val videosBeforeShorts = videos.take(insertShortsAfter)
                             items(
                                 items = videosBeforeShorts,
@@ -299,6 +298,35 @@ fun HomeScreen(
                                     onChannelClick = { channelId -> onChannelClick(channelId) },
                                     useInternalPadding = false
                                 )
+                            }
+                            
+                            // ── Continue Watching Shelf (between first videos and shorts) ──
+                            if (uiState.continueWatchingVideos.isNotEmpty()) {
+                                item(
+                                    span = { GridItemSpan(maxLineSpan) },
+                                    key = "continue_watching_shelf"
+                                ) {
+                                    ContinueWatchingShelf(
+                                        entries = uiState.continueWatchingVideos,
+                                        onVideoClick = { videoId ->
+                                            val entry = uiState.continueWatchingVideos.find { it.videoId == videoId }
+                                            if (entry != null) {
+                                                onVideoClick(
+                                                    Video(
+                                                        id = entry.videoId,
+                                                        title = entry.title,
+                                                        channelName = entry.channelName,
+                                                        channelId = entry.channelId,
+                                                        thumbnailUrl = entry.thumbnailUrl,
+                                                        duration = (entry.duration / 1000).toInt(),
+                                                        viewCount = 0L,
+                                                        uploadDate = ""
+                                                    )
+                                                )
+                                            }
+                                        }
+                                    )
+                                }
                             }
                             
                             // ── Shorts Shelf ──

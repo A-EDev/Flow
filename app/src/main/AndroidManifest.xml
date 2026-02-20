@@ -19,6 +19,8 @@
         android:maxSdkVersion="32" />
     <!-- Optional: allows saving downloads to public Movies/Music folders (survives app uninstall) -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <!-- Required for DLNA/UPnP SSDP device discovery (FOSS casting, no Google services) -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
 
     <application
         android:name=".FlowApplication"
@@ -30,10 +32,6 @@
         android:theme="@style/Theme.Flow"
         android:usesCleartextTraffic="true">
 
-        <!-- Cast SDK: tells the framework which app to load on the receiver device -->
-        <meta-data
-            android:name="com.google.android.gms.cast.framework.OPTIONS_PROVIDER_CLASS_NAME"
-            android:value="com.flow.youtube.player.FlowCastOptionsProvider" />
         <activity
             android:name=".MainActivity"
             android:exported="true"

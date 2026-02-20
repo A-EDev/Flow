@@ -1,108 +1,46 @@
 package com.flow.youtube.player
 
 import android.content.Context
-import android.util.Log
-import android.widget.Toast
-import androidx.appcompat.view.ContextThemeWrapper
-import androidx.mediarouter.app.MediaRouteChooserDialog
-import androidx.mediarouter.media.MediaControlIntent
-import androidx.mediarouter.media.MediaRouteSelector
-import com.google.android.gms.cast.CastMediaControlIntent
-import com.google.android.gms.cast.framework.CastContext
-import com.google.android.gms.cast.framework.CastState
-import java.util.concurrent.Executors
+import com.flow.youtube.player.dlna.DlnaCastManager
+import com.flow.youtube.player.dlna.DlnaDevice
 
 /**
- * Utility helpers for Google Cast / Chromecast integration.
+ * Thin compatibility shim that redirects cast calls to the DLNA engine.
  *
- * uses [MediaRouteChooserDialog] directly – it works in any Activity/Context.
+ * Chromecast/Google Play Services have been removed in favour of the open
+ * DLNA/UPnP protocol ([DlnaCastManager]).  Any smart TV, Kodi, VLC, or
+ * media renderer on the same Wi-Fi network is automatically discovered
+ * without requiring Google services.
  *
- * CastContext is initialised lazily on a background executor the first time
- * any helper is called, so the main thread is never blocked.
+ * Interactive device-picker UI lives in GlobalPlayerOverlay (Compose dialog).
  */
 object CastHelper {
 
-    private const val TAG = "CastHelper"
-    private const val RECEIVER_APP_ID = "CC1AD845" // Default Media Receiver
+    /** True while a DLNA session is active. */
+    fun isCasting(@Suppress("UNUSED_PARAMETER") context: Context): Boolean =
+        DlnaCastManager.isCasting
 
-    /** Selector that matches Cast devices for the Flow receiver app. */
-    val routeSelector: MediaRouteSelector by lazy {
-        MediaRouteSelector.Builder()
-            .addControlCategory(CastMediaControlIntent.categoryForCast(RECEIVER_APP_ID))
-            .addControlCategory(MediaControlIntent.CATEGORY_REMOTE_PLAYBACK)
-            .build()
-    }
+    /** Not used with DLNA – kept for source-compatibility. Cast availability
+     *  is provided by [DlnaCastManager.devices] state flow instead. */
+    fun isCastAvailable(@Suppress("UNUSED_PARAMETER") context: Context): Boolean =
+        DlnaCastManager.devices.value.isNotEmpty()
 
     /**
-     * Initialise (or retrieve) the [CastContext] for [context].
-     * Uses a dedicated single-thread executor so the main thread is never
-     * blocked.  Safe to call multiple times – the SDK caches the instance.
+     * Legacy entry-point; discovery and the device-picker are now handled
+     * by the Compose dialog in GlobalPlayerOverlay.  This is a no-op so
+     * existing call-sites don't need to change.
      */
-    private fun getContext(context: Context): CastContext? {
-        return try {
-            CastContext.getSharedInstance(context, Executors.newSingleThreadExecutor())
-                .result  
-        } catch (e: Exception) {
-            Log.e(TAG, "CastContext unavailable: ${e.message}")
-            null
-        }
+    fun showCastPicker(@Suppress("UNUSED_PARAMETER") context: Context) {
+        // The caller (GlobalPlayerOverlay) switches to the Compose dialog directly.
     }
 
-    // ── State helpers ──────────────────────────────────────────────────────
-    fun isCastAvailable(context: Context): Boolean {
-        return try {
-            getContext(context)?.castState != CastState.NO_DEVICES_AVAILABLE
-        } catch (e: Exception) {
-            false
-        }
+    /** Send video to the selected DLNA device. */
+    fun castTo(device: DlnaDevice, videoUrl: String, title: String) {
+        DlnaCastManager.castTo(device, videoUrl, title)
     }
 
-    /**
-     * Returns `true` while an active Cast session is live (video playing on
-     * a TV / speaker).
-     */
-    fun isCasting(context: Context): Boolean {
-        return try {
-            getContext(context)?.castState == CastState.CONNECTED
-        } catch (e: Exception) {
-            false
-        }
-    }
-
-    // ── Actions ────────────────────────────────────────────────────────────
-
-    /**
-     * Opens a route-chooser dialog so the user can pick a Cast device.
-     *
-     * Uses [MediaRouteChooserDialog] (not the Fragment variant) so it works
-     * inside Compose activities without needing a FragmentManager.  Adds a
-     * network-scan callback so nearby devices populate as they are found.
-     */
-    fun showCastPicker(context: Context) {
-        try {
-            getContext(context)
-            val themedCtx = ContextThemeWrapper(
-                context,
-                androidx.appcompat.R.style.Theme_AppCompat_Light_Dialog_Alert
-            )
-            val dialog = MediaRouteChooserDialog(themedCtx)
-            dialog.routeSelector = routeSelector
-            dialog.show()
-        } catch (e: Exception) {
-            Log.e(TAG, "showCastPicker failed: ${e.message}", e)
-            Toast.makeText(context, "Cast unavailable – check Wi-Fi connection", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    /**
-     * Gracefully ends the current Cast session, returning playback to the
-     * phone.
-     */
-    fun stopCasting(context: Context) {
-        try {
-            getContext(context)?.sessionManager?.endCurrentSession(true)
-        } catch (e: Exception) {
-            Log.e(TAG, "stopCasting failed: ${e.message}")
-        }
+    /** Stop casting and return playback to the phone. */
+    fun stopCasting() {
+        DlnaCastManager.stop()
     }
 }

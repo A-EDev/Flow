@@ -65,9 +65,11 @@ fun PlayerSettingsScreen(
     val backgroundPlayEnabled by playerPreferences.backgroundPlayEnabled.collectAsState(initial = false)
     val preferredAudioLanguage by playerPreferences.preferredAudioLanguage.collectAsState(initial = "original")
     val currentLyricsProvider by playerPreferences.preferredLyricsProvider.collectAsState(initial = "LRCLIB")
+    val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
     
     var showAudioLanguageDialog by remember { mutableStateOf(false) }
     var showLyricsProviderSheet by remember { mutableStateOf(false) }
+    var showSeekDurationDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -159,6 +161,24 @@ fun PlayerSettingsScreen(
                         subtitle = audioLanguageOptions.find { it.first == preferredAudioLanguage }?.second 
                             ?: stringResource(R.string.player_settings_audio_original),
                         onClick = { showAudioLanguageDialog = true }
+                    )
+                }
+            }
+
+            // Gestures Settings Section
+            item {
+                Text(
+                    text = stringResource(R.string.player_settings_header_gestures),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                SettingsGroup {
+                    SettingsClickItem(
+                        icon = Icons.Outlined.TouchApp,
+                        title = stringResource(R.string.player_settings_double_tap_seek),
+                        subtitle = stringResource(R.string.player_settings_double_tap_seek_subtitle_template, doubleTapSeekSeconds),
+                        onClick = { showSeekDurationDialog = true }
                     )
                 }
             }
@@ -310,6 +330,59 @@ fun PlayerSettingsScreen(
                 }
             }
         }
+    }
+
+    // Seek Duration Selection Dialog
+    if (showSeekDurationDialog) {
+        val seekOptions = listOf(5, 10, 15, 20, 30)
+        AlertDialog(
+            onDismissRequest = { showSeekDurationDialog = false },
+            title = {
+                Text(
+                    stringResource(R.string.player_settings_double_tap_seek_dialog_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        stringResource(R.string.player_settings_double_tap_seek_dialog_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    seekOptions.forEach { seconds ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    coroutineScope.launch {
+                                        playerPreferences.setDoubleTapSeekSeconds(seconds)
+                                    }
+                                    showSeekDurationDialog = false
+                                }
+                                .padding(vertical = 10.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = doubleTapSeekSeconds == seconds,
+                                onClick = null
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "$seconds seconds",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSeekDurationDialog = false }) {
+                    Text(stringResource(R.string.btn_close))
+                }
+            }
+        )
     }
 }
 

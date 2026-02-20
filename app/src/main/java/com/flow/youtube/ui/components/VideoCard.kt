@@ -14,12 +14,14 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -38,10 +40,13 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.res.stringResource
 import com.flow.youtube.R
 import coil.compose.AsyncImage
+import com.flow.youtube.data.local.VideoHistoryEntry
+import com.flow.youtube.data.local.ViewHistory
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.ui.theme.extendedColors
 import com.flow.youtube.utils.formatDuration
 import com.flow.youtube.utils.formatViewCount
+import kotlinx.coroutines.flow.collectLatest
 
 @Composable
 fun VideoCard(
@@ -49,6 +54,15 @@ fun VideoCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val watchProgress by produceState<Float?>(initialValue = null, video.id) {
+        ViewHistory.getInstance(context).getVideoHistory(video.id).collectLatest { entry ->
+            value = if (entry != null && entry.duration > 0 && entry.progressPercentage in 3f..90f) {
+                entry.progressPercentage / 100f
+            } else null
+        }
+    }
+
     Column(
         modifier = modifier
             .width(180.dp)
@@ -86,6 +100,19 @@ fun VideoCard(
                     color = Color.White, // Consistent white for badges
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Watch progress bar
+            watchProgress?.let { progress ->
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(3.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = Color.Black.copy(alpha = 0.4f)
                 )
             }
         }
@@ -253,7 +280,15 @@ fun VideoCardFullWidth(
     onMoreClick: () -> Unit = {}
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
-    
+    val context = LocalContext.current
+    val watchProgress by produceState<Float?>(initialValue = null, video.id) {
+        ViewHistory.getInstance(context).getVideoHistory(video.id).collectLatest { entry ->
+            value = if (entry != null && entry.duration > 0 && entry.progressPercentage in 3f..90f) {
+                entry.progressPercentage / 100f
+            } else null
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -290,6 +325,19 @@ fun VideoCardFullWidth(
                     color = Color.White,
                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                     fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Watch progress bar
+            watchProgress?.let { progress ->
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(3.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = Color.Black.copy(alpha = 0.4f)
                 )
             }
         }
@@ -377,6 +425,14 @@ fun CompactVideoCard(
     onMoreClick: () -> Unit = {}
 ) {
     var showQuickActions by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val watchProgress by produceState<Float?>(initialValue = null, video.id) {
+        ViewHistory.getInstance(context).getVideoHistory(video.id).collectLatest { entry ->
+            value = if (entry != null && entry.duration > 0 && entry.progressPercentage in 3f..90f) {
+                entry.progressPercentage / 100f
+            } else null
+        }
+    }
 
     Row(
         modifier = modifier
@@ -414,6 +470,19 @@ fun CompactVideoCard(
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Watch progress bar
+            watchProgress?.let { progress ->
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(3.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = Color.Black.copy(alpha = 0.4f)
                 )
             }
         }
@@ -474,6 +543,131 @@ fun CompactVideoCard(
             video = video,
             onDismiss = { showQuickActions = false }
         )
+    }
+}
+
+@Composable
+fun ContinueWatchingShelf(
+    entries: List<VideoHistoryEntry>,
+    onVideoClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (entries.isEmpty()) return
+    val context = LocalContext.current
+    Column(modifier = modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Filled.PlayCircle,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = context.getString(R.string.continue_watching_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            items(entries, key = { it.videoId }) { entry ->
+                ContinueWatchingCard(
+                    entry = entry,
+                    onClick = { onVideoClick(entry.videoId) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContinueWatchingCard(
+    entry: VideoHistoryEntry,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .width(200.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            SafeAsyncImage(
+                model = entry.thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            // Remaining time badge
+            if (entry.duration > 0) {
+                val remainingMs = (entry.duration - entry.position).coerceAtLeast(0L)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(4.dp)
+                        .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = formatContinueWatchingTime(remainingMs),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            // Progress bar
+            LinearProgressIndicator(
+                progress = { (entry.progressPercentage / 100f).coerceIn(0f, 1f) },
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .height(3.dp),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = Color.Black.copy(alpha = 0.4f)
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = entry.title,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            lineHeight = 16.sp
+        )
+        if (entry.channelName.isNotEmpty()) {
+            Text(
+                text = entry.channelName,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+private fun formatContinueWatchingTime(ms: Long): String {
+    val totalSeconds = ms / 1000
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return if (hours > 0) {
+        String.format("%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%d:%02d", minutes, seconds)
     }
 }
 
