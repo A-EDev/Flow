@@ -136,6 +136,19 @@ class QuickActionsViewModel @Inject constructor(
                     FlowNeuroEngine.InteractionType.WATCHED,
                     percentWatched = 1.0f
                 )
+                
+                val durationMs = if (video.duration > 0) video.duration * 1000L else 1000L
+                com.flow.youtube.data.local.ViewHistory.getInstance(context).savePlaybackPosition(
+                    videoId = video.id,
+                    position = durationMs,
+                    duration = durationMs,
+                    title = video.title,
+                    thumbnailUrl = video.thumbnailUrl,
+                    channelName = video.channelName,
+                    channelId = video.channelId,
+                    isMusic = false
+                )
+
                 _watchedVideoIds.update { it + video.id }
                 Toast.makeText(
                     context,

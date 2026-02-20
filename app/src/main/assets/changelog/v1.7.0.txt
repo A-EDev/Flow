@@ -1,0 +1,33 @@
+FLOW CHANGE LOG
+VERSION: 1.7.0
+DATE: 2026-02-20
+
+NEW FEATURES
+- Continue Watching Shelf: Added a new "Continue Watching" section on the home screen, featuring a toggle to disable it in settings.
+- Algo Data Management: Introduced advanced import and export capabilities for the app's recommendation engine data.
+- Native Casting Support: Added full support for Cast/Chromecast integration, allowing you to easily stream content to your TV.
+- Multi-Provider Lyrics: Added support for multiple lyrics providers (Lrclib, Better Lyrics, SimpMusic, and YouTube) with significantly improved sync timing.
+- Queue Management: Enabled "Play Next" and "Add to Queue" actions directly from video cards for a more flexible viewing experience.
+- Shorts Player Upgrades: Added in-player audio track selection and video quality controls specifically for the Shorts player.
+- Gesture Controls: Added new options to disable brightness and volume gestures in the video player settings.
+- Quick Actions: Added "Mark as Watched" and "Recommend More" shortcuts to video quick action menus.
+- Interaction Updates: Enabled text selection and copying within video descriptions and expanded supported regions to over 137 countries.
+
+FIXES AND STABILITY
+- Subscription Reliability: Reverted to a combined RSS + NewPipeExtractor system for faster and more reliable subscription fetching.
+- Download Stability: Resolved issues with download failures, external storage permissions, and notification progress tracking.
+- Playback & Sync: Fixed AV sync problems, audio track selection crashes, and background playback issues on Android 12.
+- Content Tracking: Corrected "Save to Watch Later" issues and improved SponsorBlock segment integration.
+- UI Stability: Fixed unreadable elements on high-resolution displays and resolved player overlay navigation collapses.
+
+PERFORMANCE AND REFACTORING
+- Enhanced Casting: Migrated from Google SDK to a robust DLNA/UPnP casting architecture, providing better compatibility with a wider range of devices.
+- Download Engine 2.0: Completely refactored the download logic to support multi-location storage (internal vs. external).
+- Modern API Integration: Introduced InnerTube API for more efficient subscription caching and optimization.
+- Code Refactoring: Migrated deprecated UI components to modern Compose APIs and refactored the video subtitle engine for better performance.
+
+UI AND STYLE ENHANCEMENTS
+- Advanced Player UI: Designed a new multi-progress bar slider and added a dedicated Player Appearance settings screen for deeper visual customization.
+- Interactive Feeds: Implemented "Pull to Refresh" functionality for both the Subscriptions and Music screens.
+- Screen Overhauls: Refined and improved the UI design for the Downloads, Onboarding, and Time Management screens.
+- Modern Styling: Improved music player controls, gradients, and animations for a smoother feel.

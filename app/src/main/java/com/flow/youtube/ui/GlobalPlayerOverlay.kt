@@ -530,9 +530,10 @@ fun GlobalPlayerOverlay(
 
         // SB Submit dialog
         if (showSbSubmitDialog) {
+            val initialPosition = remember { screenState.currentPosition }
             com.flow.youtube.ui.screens.player.dialogs.SbSubmitSegmentDialog(
                 videoId = video.id,
-                currentPositionMs = screenState.currentPosition,
+                currentPositionMs = initialPosition,
                 onDismiss = { showSbSubmitDialog = false }
             )
         }
