@@ -24,18 +24,52 @@ object StreamProcessor {
             .also { Log.d(TAG, "Processed ${streams.size} video streams -> ${it.size} unique") }
     }
     
-    /**
-     * Process audio streams - deduplicate by track ID and sort alphabetically.
-     */
     fun processAudioStreams(streams: List<AudioStream>): List<AudioStream> {
         return streams
-            .sortedByDescending { it.averageBitrate } // Put highest quality first
-            .distinctBy { 
-                // Unique key for the TRACK 
-                "${it.audioTrackId ?: "none"}_${it.audioTrackName ?: "none"}_${it.audioLocale?.language ?: "none"}"
+            .sortedByDescending { it.averageBitrate }
+            .groupBy { stream ->
+                val trackIdLang = stream.audioTrackId
+                    ?.substringAfterLast(".")
+                    ?.takeIf { it.isNotBlank() && it != stream.audioTrackId }
+                val localeLang = stream.audioLocale?.language?.takeIf { it.isNotBlank() }
+                val trackName = stream.audioTrackName?.takeIf { it.isNotBlank() }
+                trackIdLang ?: localeLang ?: trackName ?: "default"
             }
-            .sortedBy { it.audioTrackName ?: "" } // Sort alphabetically for the menu
+            .map { (_, group) ->
+                group.first()
+            }
+            .sortedBy { stream -> languageDisplayName(stream, 0) }
             .also { Log.d(TAG, "Processed ${streams.size} audio streams -> ${it.size} unique tracks") }
+    }
+
+    /**
+     * Derive a human-readable language display name from an AudioStream.
+     * Priority: audioTrackName → audioLocale display language → parsed audioTrackId → fallback.
+     */
+    private fun languageDisplayName(stream: AudioStream, fallbackIndex: Int): String {
+        stream.audioTrackName?.takeIf { it.isNotBlank() }?.let { return it }
+
+        stream.audioLocale?.language?.takeIf { it.isNotBlank() }?.let { langCode ->
+            val locale = java.util.Locale(langCode)
+            val name = locale.getDisplayLanguage(java.util.Locale.getDefault())
+            if (name.isNotBlank()) return name.replaceFirstChar { it.uppercase() }
+        }
+
+        stream.audioTrackId?.let { trackId ->
+            val langCode = trackId.substringAfterLast(".").takeIf {
+                it.isNotBlank() && it != trackId
+            }
+            if (langCode != null) {
+                val locale = java.util.Locale(langCode)
+                val name = locale.getDisplayLanguage(java.util.Locale.getDefault())
+                if (name.isNotBlank() && !name.equals(langCode, ignoreCase = true)) {
+                    return name.replaceFirstChar { it.uppercase() }
+                }
+            }
+            return trackId.replaceFirstChar { it.uppercase() }
+        }
+
+        return "Track ${fallbackIndex + 1}"
     }
     
     /**
@@ -45,9 +79,11 @@ object StreamProcessor {
         return streams.mapIndexed { index, stream ->
             AudioTrackOption(
                 index = index,
-                label = stream.audioTrackName ?: stream.audioTrackId ?: "Track ${index + 1}",
-                language = stream.audioLocale?.displayLanguage ?: "Unknown",
-                bitrate = stream.averageBitrate.toLong()
+                label = languageDisplayName(stream, index),
+                language = stream.audioLocale?.displayLanguage
+                    ?.takeIf { it.isNotBlank() }
+                    ?: "",
+                bitrate = stream.averageBitrate.coerceAtLeast(0).toLong()
             )
         }
     }

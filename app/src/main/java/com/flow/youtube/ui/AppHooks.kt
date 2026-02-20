@@ -21,10 +21,32 @@ fun HandleDeepLinks(
 ) {
     LaunchedEffect(deeplinkVideoId, isShort) {
         if (deeplinkVideoId != null) {
-            if (isShort) {
-                navController.navigate("shorts?startVideoId=$deeplinkVideoId")
-            } else {
-                navController.navigate("player/$deeplinkVideoId")
+            val maxAttempts = 30
+            var navigated = false
+            for (attempt in 1..maxAttempts) {
+                delay(100L)
+                try {
+                    if (navController.currentDestination != null) {
+                        if (isShort) {
+                            navController.navigate("shorts?startVideoId=$deeplinkVideoId")
+                        } else {
+                            navController.navigate("player/$deeplinkVideoId")
+                        }
+                        navigated = true
+                        break
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w(
+                        "HandleDeepLinks",
+                        "Navigation attempt $attempt failed for $deeplinkVideoId: ${e.message}"
+                    )
+                }
+            }
+            if (!navigated) {
+                android.util.Log.e(
+                    "HandleDeepLinks",
+                    "Navigation failed after $maxAttempts attempts for: $deeplinkVideoId"
+                )
             }
             onDeeplinkConsumed()
         }

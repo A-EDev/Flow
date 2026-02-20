@@ -198,6 +198,24 @@ class QuickActionsViewModel @Inject constructor(
                 }
 
                 if (streamInfo != null) {
+                    // ── Audio selection ──────────────────────────────────────────────────
+                    val allAudio = streamInfo.audioStreams ?: emptyList()
+
+                    fun isAacCompatible(a: org.schabi.newpipe.extractor.stream.AudioStream): Boolean {
+                        val mime  = (a.format?.mimeType ?: "").lowercase()
+                        val fname = (a.format?.name ?: "").lowercase()
+                        if (fname.contains("opus") || fname.contains("vorbis") ||
+                            mime.contains("opus") || mime.contains("vorbis") ||
+                            fname.contains("webm") || mime.contains("webm")) return false
+                        return true
+                    }
+
+                    val compatibleAudio = allAudio
+                        .filter  { isAacCompatible(it) }
+                        .maxByOrNull { it.averageBitrate }
+                        ?: allAudio.maxByOrNull { it.averageBitrate }
+
+                    // ── Video-stream selection ────────────────────────────────────────────
                     val combinedStreams = streamInfo.videoStreams
                         ?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
                         ?: emptyList()
@@ -205,50 +223,46 @@ class QuickActionsViewModel @Inject constructor(
                         ?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
                         ?: emptyList()
 
-                    val bestCombined = combinedStreams.maxByOrNull { it.height }
-                    val bestVideoOnly = videoOnlyStreams.maxByOrNull { it.height }
-                    
+                    fun isMp4Video(s: org.schabi.newpipe.extractor.stream.VideoStream): Boolean {
+                        val mime  = (s.format?.mimeType ?: "").lowercase()
+                        val fname = (s.format?.name ?: "").lowercase()
+                        return mime.contains("mp4") || fname.contains("mpeg") || fname.contains("mp4")
+                    }
+
+                    val bestMp4VideoOnly  = videoOnlyStreams.filter { isMp4Video(it) }.maxByOrNull { it.height }
+                    val bestAnyVideoOnly  = videoOnlyStreams.maxByOrNull { it.height }
+                    val bestCombined      = combinedStreams.maxByOrNull  { it.height }
+
                     val selectedStream: org.schabi.newpipe.extractor.stream.VideoStream?
                     val audioUrl: String?
 
-                    if (bestVideoOnly != null && bestCombined != null && bestVideoOnly.height > bestCombined.height) {
-                        selectedStream = bestVideoOnly
-                        
-                        val isMp4Video = selectedStream.format?.name?.contains("mp4", ignoreCase = true) == true
-                        
-                        val compatibleAudio = if (isMp4Video) {
-                            streamInfo.audioStreams?.filter { 
-                                it.format?.name?.contains("m4a", ignoreCase = true) == true 
-                            }?.maxByOrNull { it.averageBitrate }
-                        } else {
-                            streamInfo.audioStreams?.filter { 
-                                it.format?.name?.contains("webm", ignoreCase = true) == true 
-                            }?.maxByOrNull { it.averageBitrate }
+                    when {
+                        bestMp4VideoOnly != null && compatibleAudio != null &&
+                                bestMp4VideoOnly.height > (bestCombined?.height ?: 0) -> {
+                            selectedStream = bestMp4VideoOnly
+                            audioUrl = compatibleAudio.content ?: compatibleAudio.url
                         }
-                        
-                        audioUrl = (compatibleAudio ?: streamInfo.audioStreams?.maxByOrNull { it.averageBitrate })?.url
-                    } else if (bestCombined != null) {
-                        selectedStream = bestCombined
-                        audioUrl = null
-                    } else if (bestVideoOnly != null) {
-                        selectedStream = bestVideoOnly
-                        val isMp4Video = selectedStream.format?.name?.contains("mp4", ignoreCase = true) == true
-                        val compatibleAudio = if (isMp4Video) {
-                            streamInfo.audioStreams?.filter { 
-                                it.format?.name?.contains("m4a", ignoreCase = true) == true 
-                            }?.maxByOrNull { it.averageBitrate }
-                        } else {
-                            streamInfo.audioStreams?.filter { 
-                                it.format?.name?.contains("webm", ignoreCase = true) == true 
-                            }?.maxByOrNull { it.averageBitrate }
+                        bestCombined != null -> {
+                            selectedStream = bestCombined
+                            audioUrl = null
                         }
-                        audioUrl = (compatibleAudio ?: streamInfo.audioStreams?.maxByOrNull { it.averageBitrate })?.url
-                    } else {
-                        selectedStream = null
-                        audioUrl = null
+                        bestAnyVideoOnly != null && compatibleAudio != null -> {
+                            selectedStream = bestAnyVideoOnly
+                            audioUrl = compatibleAudio.content ?: compatibleAudio.url
+                        }
+                        bestAnyVideoOnly != null -> {
+                            selectedStream = bestAnyVideoOnly
+                            audioUrl = null
+                        }
+                        else -> {
+                            selectedStream = null
+                            audioUrl = null
+                        }
                     }
 
-                    if (selectedStream != null && selectedStream.url != null) {
+                    // NewPipe DASH VideoStreams store the real URL in .content; .url may be null.
+                    val videoUrl = selectedStream?.content ?: selectedStream?.url
+                    if (selectedStream != null && videoUrl != null) {
                         val fullVideo = Video(
                             id = video.id,
                             title = video.title.ifBlank { streamInfo.name ?: "Unknown" },
@@ -264,7 +278,7 @@ class QuickActionsViewModel @Inject constructor(
                         com.flow.youtube.data.video.downloader.FlowDownloadService.startDownload(
                             context = context,
                             video = fullVideo,
-                            url = selectedStream.url!!,
+                            url = videoUrl,
                             quality = "${selectedStream.height}p",
                             audioUrl = audioUrl
                         )

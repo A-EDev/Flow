@@ -617,7 +617,16 @@ fun ShortVideoPage(
                     scope.launch {
                         val streamInfo = viewModel.getVideoStreamInfo(video.id)
                         availableAudioStreams = streamInfo?.audioStreams
-                            ?.distinctBy { it.averageBitrate.toString() + (it.audioTrackId ?: "") }
+                            ?.sortedByDescending { it.averageBitrate }
+                            ?.groupBy { stream ->
+                                val trackIdLang = stream.audioTrackId
+                                    ?.substringAfterLast(".")
+                                    ?.takeIf { it.isNotBlank() && it != stream.audioTrackId }
+                                val localeLang = stream.audioLocale?.language?.takeIf { it.isNotBlank() }
+                                val trackName = stream.audioTrackName?.takeIf { it.isNotBlank() }
+                                trackIdLang ?: localeLang ?: trackName ?: "default"
+                            }
+                            ?.map { (_, group) -> group.first() }
                             ?: emptyList()
                         isLoadingStreams = false
                         if (availableAudioStreams.isNotEmpty()) showAudioTrackSheet = true
@@ -791,9 +800,36 @@ private fun ShortsAudioTrackSheet(
             LazyColumn {
                 items(audioStreams.size) { index ->
                     val stream = audioStreams[index]
-                    // Always show "Track N" — streams rarely have meaningful locale names
-                    val displayName = "Track ${index + 1}"
-                    val bitrateLabel = if (stream.averageBitrate > 0) "${stream.averageBitrate / 1000} kbps" else ""
+                    val displayName = buildString {
+                        val locale = stream.audioLocale
+                        val trackName = stream.audioTrackName
+                        val trackId = stream.audioTrackId
+                        when {
+                            trackName != null && trackName.isNotBlank() -> append(trackName)
+                            locale != null && locale.language.isNotBlank() -> {
+                                val javaLocale = java.util.Locale(locale.language)
+                                val name = javaLocale.getDisplayLanguage(java.util.Locale.getDefault())
+                                append(name.replaceFirstChar { it.uppercase() }.ifBlank { locale.toString() })
+                            }
+                            trackId != null -> {
+                                val langCode = trackId.substringAfterLast(".")
+                                    .takeIf { it.isNotBlank() && it != trackId }
+                                if (langCode != null) {
+                                    val javaLocale = java.util.Locale(langCode)
+                                    val name = javaLocale.getDisplayLanguage(java.util.Locale.getDefault())
+                                    if (name.isNotBlank() && !name.equals(langCode, ignoreCase = true)) {
+                                        append(name.replaceFirstChar { it.uppercase() })
+                                    } else {
+                                        append(trackId.replaceFirstChar { it.uppercase() })
+                                    }
+                                } else {
+                                    append(trackId.replaceFirstChar { it.uppercase() })
+                                }
+                            }
+                            else -> append("Track ${index + 1}")
+                        }
+                    }
+                    val bitrateLabel = if (stream.averageBitrate >= 1000) "${stream.averageBitrate / 1000} kbps" else ""
                     val isSelected = index == selectedIndex
                     Surface(
                         onClick = { onTrackSelected(index) },
