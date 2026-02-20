@@ -112,80 +112,42 @@ fun PremiumControlsOverlay(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopStart)
-                    .padding(8.dp),
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                // Down Arrow (Minimize/Back)
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.KeyboardArrowDown,
-                        contentDescription = stringResource(R.string.btn_minimize),
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Quality Label
+                    // Down Arrow (Minimize/Back)
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = stringResource(R.string.btn_minimize),
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                    
+                    // Quality Label Pill
                     if (qualityLabel != null) {
-                        TextButton(onClick = onSettingsClick) {
+                        Surface(
+                            color = Color.White.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier.clickable { onSettingsClick() }
+                        ) {
                             Text(
                                 text = if (qualityLabel.all { it.isDigit() }) "${qualityLabel}p" else qualityLabel,
                                 color = Color.White,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
                             )
                         }
-                    }
-                    
-                    // Resize Button (Moved to Top)
-                    IconButton(
-                        onClick = onResizeClick,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = when (resizeMode) {
-                                0 -> Icons.Rounded.AspectRatio // Fit
-                                1 -> Icons.Rounded.Fullscreen // Fill
-                                else -> Icons.Rounded.ZoomIn // Zoom
-                            },
-                            contentDescription = stringResource(R.string.resize_to, resizeModes[resizeMode]),
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    // CC Icon
-                    IconButton(
-                        onClick = onSubtitleClick,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isSubtitlesEnabled) Icons.Rounded.ClosedCaption else Icons.Outlined.ClosedCaption,
-                            contentDescription = stringResource(R.string.captions),
-                            tint = if (isSubtitlesEnabled) primaryColor else Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    // Autoplay Toggle Icon
-                    IconButton(
-                        onClick = { onAutoplayToggle(!autoplayEnabled) },
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (autoplayEnabled) Icons.Rounded.SlowMotionVideo else Icons.Rounded.SlowMotionVideo,
-                            contentDescription = stringResource(R.string.autoplay),
-                            tint = if (autoplayEnabled) primaryColor else Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(24.dp)
-                        )
                     }
 
                     // PiP Button
@@ -217,8 +179,33 @@ fun PremiumControlsOverlay(
                             )
                         }
                     }
+                }
 
-                    // Cast / Chromecast button
+                // Right Actions: Cast, CC, Autoplay, Settings
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // Resize Button (Only in Fullscreen)
+                    if (isFullscreen) {
+                        IconButton(
+                            onClick = onResizeClick,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = when (resizeMode) {
+                                    0 -> Icons.Rounded.AspectRatio 
+                                    1 -> Icons.Rounded.Fullscreen 
+                                    else -> Icons.Rounded.ZoomIn 
+                                },
+                                contentDescription = stringResource(R.string.resize_to, resizeModes[resizeMode]),
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    // Cast button
                     IconButton(
                         onClick = onCastClick,
                         modifier = Modifier.size(40.dp)
@@ -231,6 +218,32 @@ fun PremiumControlsOverlay(
                         )
                     }
 
+                    // CC Icon
+                    IconButton(
+                        onClick = onSubtitleClick,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isSubtitlesEnabled) Icons.Rounded.ClosedCaption else Icons.Outlined.ClosedCaption,
+                            contentDescription = stringResource(R.string.captions),
+                            tint = if (isSubtitlesEnabled) primaryColor else Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    // Autoplay Toggle Icon
+                    IconButton(
+                        onClick = { onAutoplayToggle(!autoplayEnabled) },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.SlowMotionVideo,
+                            contentDescription = stringResource(R.string.autoplay),
+                            tint = if (autoplayEnabled) primaryColor else Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
                     // Settings Icon
                     IconButton(
                         onClick = onSettingsClick,
@@ -239,7 +252,8 @@ fun PremiumControlsOverlay(
                         Icon(
                             imageVector = Icons.Rounded.Settings,
                             contentDescription = stringResource(R.string.settings),
-                            tint = Color.White
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
@@ -315,57 +329,86 @@ fun PremiumControlsOverlay(
                     .align(Alignment.BottomCenter)
                     .background(
                         brush = Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.7f))
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
                         )
                     )
-                    .padding(horizontal = 12.dp, vertical = 4.dp)
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
             ) {
-                // Time and Chapter (Pill Shape) - Positioned better
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Start,
-                    verticalAlignment = Alignment.CenterVertically
+                // Time and Chapter (Unified Pill Shape)
+                Surface(
+                    color = Color.White.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.clip(RoundedCornerShape(12.dp))
                 ) {
-                    Text(
-                        text = formatTime(currentPosition),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
-                    
-                    Text(
-                        text = " / ${formatTime(duration)}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.White.copy(alpha = 0.6f)
-                    )
-                    
-                    if (currentChapter != null) {
-                        Surface(
-                            color = Color.White.copy(alpha = 0.1f),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier
-                                .padding(start = 12.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { onChapterClick() }
-                        ) {
+                    Row(
+                        modifier = Modifier
+                            .wrapContentWidth()
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.Start,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Current Position
+                        Text(
+                            text = formatTime(currentPosition),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                        
+                        // Separator
+                        Text(
+                            text = " / ",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(horizontal = 2.dp)
+                        )
+                        
+                        // Total Duration
+                        Text(
+                            text = formatTime(duration),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                        
+                        // Chapter Display (If available)
+                        if (currentChapter != null) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier
+                                    .padding(start = 12.dp)
+                                    .clickable { onChapterClick() }
                             ) {
+                                // Tiny dot separator
+                                Box(
+                                    modifier = Modifier
+                                        .size(4.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White.copy(alpha = 0.4f))
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                
                                 Icon(
                                     imageVector = Icons.Rounded.Bookmark,
                                     contentDescription = null,
                                     tint = primaryColor,
                                     modifier = Modifier.size(14.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = currentChapter.title,
                                     style = MaterialTheme.typography.labelSmall,
                                     color = Color.White,
+                                    fontWeight = FontWeight.Medium,
                                     maxLines = 1,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    modifier = Modifier.widthIn(max = 180.dp)
+                                    modifier = Modifier.widthIn(max = 160.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Rounded.ChevronRight,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
@@ -374,9 +417,10 @@ fun PremiumControlsOverlay(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Seekbar and Fullscreen
+                // Seekbar and Screen Size Controls
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Box(modifier = Modifier.weight(1f)) {
@@ -395,16 +439,16 @@ fun PremiumControlsOverlay(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(16.dp))
-
+                    // Fullscreen Button
                     IconButton(
                         onClick = onFullscreenClick,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
                             imageVector = if (isFullscreen) Icons.Rounded.FullscreenExit else Icons.Rounded.Fullscreen,
                             contentDescription = stringResource(R.string.fullscreen),
-                            tint = Color.White
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
