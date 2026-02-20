@@ -43,6 +43,9 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
+      - name: Build Nightly APK
+        run: ./gradlew assembleNightly --stacktrace
+
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
@@ -54,6 +57,12 @@ jobs:
         with:
           name: flow-apk
           path: app/build/outputs/apk/release/app-release.apk
+
+      - name: Upload Nightly APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: flow-nightly-apk
+          path: app/build/outputs/apk/nightly/app-nightly.apk
 
   release:
     name: Create Release
@@ -85,12 +94,18 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
+      - name: Build Nightly APK
+        run: ./gradlew assembleNightly --stacktrace
+
       - name: Get version from tag
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
       - name: Prepare Release APK
         run: cp app/build/outputs/apk/release/app-release.apk flow.apk
+
+      - name: Prepare Nightly APK
+        run: cp app/build/outputs/apk/nightly/app-nightly.apk flow-nightly.apk
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -116,6 +131,7 @@ jobs:
           generate_release_notes: true
           files: |
             flow.apk
+            flow-nightly.apk
           draft: false
           prerelease: false
         env:
