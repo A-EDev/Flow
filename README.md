@@ -110,7 +110,7 @@ Google relies on server-side tracking. Flow relies on client-side vector analysi
 ### Nightly / Debug Build
 > ⚠️ Nightly builds are unstable and may contain bugs. Use at your own risk.
 
-[![Nightly Build](https://img.shields.io/badge/Nightly-Download-blue?style=for-the-badge&logo=github)](https://nightly.link/A-EDev/Flow/workflows/build/main/flow-debug-apk.zip)
+[![Nightly Build](https://img.shields.io/badge/Nightly-Download-blue?style=for-the-badge&logo=github)](https://nightly.link/A-EDev/Flow/workflows/build/main/flow-nightly-apk.zip)
 
 **No GitHub account required** — powered by [nightly.link](https://nightly.link)
 
