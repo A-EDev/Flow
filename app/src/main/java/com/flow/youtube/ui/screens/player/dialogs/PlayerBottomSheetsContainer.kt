@@ -17,7 +17,6 @@ import com.flow.youtube.ui.components.FlowCommentsBottomSheet
 import com.flow.youtube.ui.components.FlowDescriptionBottomSheet
 import com.flow.youtube.ui.components.FlowPlaylistQueueBottomSheet
 import com.flow.youtube.ui.components.VideoQuickActionsBottomSheet
-import com.flow.youtube.ui.screens.music.MusicPlayerViewModel
 import com.flow.youtube.ui.screens.player.VideoPlayerUiState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flow.youtube.data.model.Comment
@@ -32,7 +31,6 @@ fun PlayerBottomSheetsContainer(
     comments: List<Comment>,
     isLoadingComments: Boolean,
     context: Context,
-    musicVm: MusicPlayerViewModel,
     onPlayAsShort: (String) -> Unit,
     onPlayAsMusic: (String) -> Unit,
     onLoadReplies: (Comment) -> Unit = {},

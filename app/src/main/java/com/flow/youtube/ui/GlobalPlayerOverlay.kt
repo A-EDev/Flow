@@ -33,7 +33,6 @@ import com.flow.youtube.ui.components.DraggablePlayerLayout
 import com.flow.youtube.ui.components.PlayerDraggableState
 import com.flow.youtube.ui.components.rememberPlayerDraggableState
 import com.flow.youtube.ui.components.PlayerSheetValue
-import com.flow.youtube.ui.screens.music.MusicPlayerViewModel
 import com.flow.youtube.ui.screens.player.EnhancedVideoPlayerScreen
 import com.flow.youtube.ui.screens.player.VideoPlayerViewModel
 import com.flow.youtube.ui.screens.player.VideoPlayerUiState
@@ -103,7 +102,6 @@ fun GlobalPlayerOverlay(
     val canGoPrevious by playerViewModel.canGoPrevious.collectAsStateWithLifecycle()
     val comments by playerViewModel.commentsState.collectAsStateWithLifecycle()
     val isLoadingComments by playerViewModel.isLoadingComments.collectAsStateWithLifecycle()
-    val musicVm: MusicPlayerViewModel = hiltViewModel()
 
     val playerPreferences = remember { PlayerPreferences(context) }
     val swipeGesturesEnabled by playerPreferences.swipeGesturesEnabled.collectAsState(initial = true)
@@ -573,7 +571,6 @@ fun GlobalPlayerOverlay(
             comments = comments,
             isLoadingComments = isLoadingComments,
             context = context,
-            musicVm = musicVm,
             onPlayAsShort = { videoId ->
                 onClose()
                 onNavigateToShorts(videoId)
