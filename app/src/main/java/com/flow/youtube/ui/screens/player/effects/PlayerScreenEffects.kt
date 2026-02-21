@@ -237,8 +237,9 @@ fun PlayerInitEffect(
         val videoStream = uiState.videoStream
         val audioStream = uiState.audioStream
         val localFilePath = uiState.localFilePath
+        val hlsUrl = uiState.hlsUrl
 
-        if (localFilePath != null && videoStream == null && audioStream == null) {
+        if (localFilePath != null && videoStream == null && audioStream == null && hlsUrl == null) {
             val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
             if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) {
                 Log.d(TAG, "Player already prepared for $videoId (offline), skipping")
@@ -283,7 +284,8 @@ fun PlayerInitEffect(
                 subtitles = subtitles,
                 durationSeconds = streamInfo?.duration ?: 0L,
                 dashManifestUrl = streamInfo?.dashMpdUrl,
-                localFilePath = uiState.localFilePath
+                localFilePath = uiState.localFilePath,
+                hlsUrl = uiState.hlsUrl
             )
             
             // Resume from saved position

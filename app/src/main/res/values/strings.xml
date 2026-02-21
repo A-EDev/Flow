@@ -262,6 +262,7 @@
     <string name="subscribe">Subscribe</string>
     <string name="unlike">Unlike</string>
     <string name="tab_shorts">Shorts</string>
+    <string name="tab_live">Live</string>
     <string name="tab_playlists">Playlists</string>
     <string name="tab_about">About</string>
     <string name="no_videos_found">No videos found</string>

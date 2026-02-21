@@ -82,6 +82,7 @@ class EnhancedPlayerManager private constructor() {
     // Duration and manifest info
     private var currentDurationSeconds: Long = -1
     private var currentDashManifestUrl: String? = null
+    private var currentHlsUrl: String? = null
 
     // Queue management
     private var playbackQueue: List<com.flow.youtube.data.model.Video> = emptyList()
@@ -336,7 +337,8 @@ class EnhancedPlayerManager private constructor() {
         subtitles: List<SubtitlesStream>,
         durationSeconds: Long = -1,
         dashManifestUrl: String? = null,
-        localFilePath: String? = null
+        localFilePath: String? = null,
+        hlsUrl: String? = null
     ) {
         Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.height})")
         resetPlaybackStateForNewVideo(videoId)
@@ -347,6 +349,7 @@ class EnhancedPlayerManager private constructor() {
         
         this.currentDurationSeconds = durationSeconds
         this.currentDashManifestUrl = dashManifestUrl
+        this.currentHlsUrl = hlsUrl
         currentVideoId = videoId
         
         // Process streams using StreamProcessor
@@ -407,6 +410,7 @@ class EnhancedPlayerManager private constructor() {
         currentVideoStream = null
         currentAudioStream = null
         currentDashManifestUrl = null
+        currentHlsUrl = null
         selectedSubtitleIndex = null
         
         player?.let { it.stop(); it.clearMediaItems() }
@@ -434,6 +438,7 @@ class EnhancedPlayerManager private constructor() {
                 availableVideoStreams = availableVideoStreams,
                 currentVideoStream = currentVideoStream,
                 dashManifestUrl = null,
+                hlsUrl = null,
                 durationSeconds = currentDurationSeconds,
                 currentDurationSeconds = currentDurationSeconds,
                 preservePosition = preservePosition,
@@ -451,6 +456,7 @@ class EnhancedPlayerManager private constructor() {
             availableVideoStreams = availableVideoStreams,
             currentVideoStream = currentVideoStream,
             dashManifestUrl = currentDashManifestUrl,
+            hlsUrl = currentHlsUrl,
             durationSeconds = currentDurationSeconds,
             currentDurationSeconds = currentDurationSeconds,
             preservePosition = preservePosition,

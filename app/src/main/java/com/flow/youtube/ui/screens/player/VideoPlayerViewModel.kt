@@ -263,7 +263,8 @@ class VideoPlayerViewModel @Inject constructor(
             dislikeCount = null,
             // Also reset subscription and like state for new video
             isSubscribed = false,
-            likeState = null
+            likeState = null,
+            hlsUrl = null
         )
         
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
@@ -429,7 +430,8 @@ class VideoPlayerViewModel @Inject constructor(
                             isAdaptiveMode = preferredQuality == VideoQuality.AUTO,
                             autoplayEnabled = autoplay,
                             streamSizes = emptyMap(),
-                            localFilePath = localFilePath
+                            localFilePath = localFilePath,
+                            hlsUrl = streamInfo.hlsUrl
                         )
 
                         // PARALLEL FETCH: Channel info and stream sizes simultaneously
@@ -972,7 +974,8 @@ data class VideoPlayerUiState(
     val dislikeCount: Long? = null,
     val hasNext: Boolean = false,
     val hasPrevious: Boolean = false,
-    val queueTitle: String? = null
+    val queueTitle: String? = null,
+    val hlsUrl: String? = null
 )
 
 data class SubtitleInfo(

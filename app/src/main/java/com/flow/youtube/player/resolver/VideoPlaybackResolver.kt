@@ -35,15 +35,31 @@ class VideoPlaybackResolver(
         videoStreams: List<VideoStream>,
         audioStream: AudioStream?,
         dashManifestUrl: String?,
+        hlsUrl: String?,
         durationSeconds: Long
     ): MediaSource? {
-        Log.d(TAG, "Resolving playback: ${videoStreams.size} video streams, audio=${audioStream != null}, dash=${!dashManifestUrl.isNullOrEmpty()}, duration=${durationSeconds}s")
+        Log.d(TAG, "Resolving playback: ${videoStreams.size} video streams, audio=${audioStream != null}, dash=${!dashManifestUrl.isNullOrEmpty()}, hls=${!hlsUrl.isNullOrEmpty()}, duration=${durationSeconds}s")
+        
+        // 1. Priority: HLS URL for Live streams
+        if (!hlsUrl.isNullOrEmpty()) {
+            try {
+                Log.d(TAG, "Using YouTube HLS manifest for playback: ${hlsUrl.take(80)}...")
+                val hlsItem = androidx.media3.common.MediaItem.Builder()
+                    .setUri(hlsUrl)
+                    .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
+                    .build()
+                return androidx.media3.exoplayer.hls.HlsMediaSource.Factory(progressiveDataSourceFactory)
+                    .createMediaSource(hlsItem)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to use YouTube HLS manifest", e)
+            }
+        }
         
         // If only 1 video stream is passed, the user selected a specific quality
         // In this case, DON'T use YouTube's DASH URL (which has all qualities) - use the specific stream
         val useSpecificStream = videoStreams.size == 1
         
-        // 1. Priority: YouTube's native DASH manifest (only for adaptive/auto mode with multiple streams)
+        // 2. Priority: YouTube's native DASH manifest (only for adaptive/auto mode with multiple streams)
         if (!dashManifestUrl.isNullOrEmpty() && !useSpecificStream) {
             try {
                 Log.d(TAG, "Using YouTube DASH manifest for adaptive playback: ${dashManifestUrl.take(80)}...")
@@ -60,7 +76,7 @@ class VideoPlaybackResolver(
             Log.d(TAG, "User selected specific quality (${videoStreams.firstOrNull()?.height}p) - bypassing YouTube DASH URL")
         }
 
-        // 2. Generate DASH manifests from progressive streams (NewPipe approach)
+        // 3. Generate DASH manifests from progressive streams (NewPipe approach)
         // This avoids YouTube's progressive throttling (~50-100 KB/s limit)
         val videoSource = createVideoSource(videoStreams, durationSeconds)
         val audioSource = createAudioSource(audioStream, durationSeconds)

@@ -55,6 +55,7 @@ class MediaLoader(
         availableVideoStreams: List<VideoStream>,
         currentVideoStream: VideoStream?,
         dashManifestUrl: String?,
+        hlsUrl: String?,
         durationSeconds: Long,
         currentDurationSeconds: Long,
         preservePosition: Long? = null,
@@ -90,6 +91,7 @@ class MediaLoader(
                     availableVideoStreams = availableVideoStreams,
                     currentVideoStream = currentVideoStream,
                     dashManifestUrl = dashManifestUrl,
+                    hlsUrl = hlsUrl,
                     finalDuration = finalDuration,
                     localFilePath = localFilePath
                 )
@@ -138,6 +140,7 @@ class MediaLoader(
         availableVideoStreams: List<VideoStream>,
         currentVideoStream: VideoStream?,
         dashManifestUrl: String?,
+        hlsUrl: String?,
         finalDuration: Long,
         localFilePath: String?
     ): MediaSource? {
@@ -159,7 +162,7 @@ class MediaLoader(
                 listOfNotNull(currentVideoStream ?: availableVideoStreams.firstOrNull())
             }
             Log.d(TAG, "Passing ${selectedStreams.size} stream(s) to resolver: ${selectedStreams.map { "${it.height}p" }}")
-            resolver.resolve(selectedStreams, audio, dashManifestUrl, finalDuration)
+            resolver.resolve(selectedStreams, audio, dashManifestUrl, hlsUrl, finalDuration)
         }
     }
 }

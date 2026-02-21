@@ -61,11 +61,13 @@ fun ChannelScreen(
     val uiState by viewModel.uiState.collectAsState()
     val videosPagingFlow by viewModel.videosPagingFlow.collectAsState()
     val shortsPagingFlow by viewModel.shortsPagingFlow.collectAsState()
+    val livePagingFlow by viewModel.livePagingFlow.collectAsState()
     val playlistsPagingFlow by viewModel.playlistsPagingFlow.collectAsState()
     
     // Collect paging items when flow is available
     val videosLazyPagingItems = videosPagingFlow?.collectAsLazyPagingItems()
     val shortsLazyPagingItems = shortsPagingFlow?.collectAsLazyPagingItems()
+    val liveLazyPagingItems = livePagingFlow?.collectAsLazyPagingItems()
     val playlistsLazyPagingItems = playlistsPagingFlow?.collectAsLazyPagingItems()
     
     // Initialize view model
@@ -141,6 +143,7 @@ fun ChannelScreen(
                         uiState = uiState,
                         videosLazyPagingItems = videosLazyPagingItems,
                         shortsLazyPagingItems = shortsLazyPagingItems,
+                        liveLazyPagingItems = liveLazyPagingItems,
                         playlistsLazyPagingItems = playlistsLazyPagingItems,
                         onVideoClick = onVideoClick,
                         onShortClick = onShortClick,
@@ -160,6 +163,7 @@ private fun ChannelContent(
     uiState: ChannelUiState,
     videosLazyPagingItems: LazyPagingItems<Video>?,
     shortsLazyPagingItems: LazyPagingItems<Video>?,
+    liveLazyPagingItems: LazyPagingItems<Video>?,
     playlistsLazyPagingItems: LazyPagingItems<com.flow.youtube.data.model.Playlist>?,
     onVideoClick: (Video) -> Unit,
     onShortClick: (String) -> Unit,
@@ -309,6 +313,7 @@ private fun ChannelContent(
                 val tabTitles = listOf(
                     stringResource(R.string.tab_videos),
                     stringResource(R.string.tab_shorts),
+                    stringResource(R.string.tab_live),
                     stringResource(R.string.tab_playlists),
                     stringResource(R.string.tab_about)
                 )
@@ -352,6 +357,10 @@ private fun ChannelContent(
                             }
                         }
                     }
+                } else {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        EmptyStateMessage(stringResource(R.string.no_videos_found))
+                    }
                 }
             }
             1 -> { // Shorts
@@ -374,9 +383,39 @@ private fun ChannelContent(
                             }
                         }
                     }
+                } else {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        EmptyStateMessage(stringResource(R.string.no_shorts_found))
+                    }
                 }
             }
-            2 -> { // Playlists
+            2 -> { // Live
+                if (liveLazyPagingItems != null) {
+                    if (liveLazyPagingItems.loadState.refresh is LoadState.NotLoading && liveLazyPagingItems.itemCount == 0) {
+                        item(span = { GridItemSpan(maxLineSpan) }) {
+                            EmptyStateMessage(stringResource(R.string.no_videos_found))
+                        }
+                    } else {
+                        items(
+                            count = liveLazyPagingItems.itemCount,
+                            key = liveLazyPagingItems.itemKey { it.id }
+                        ) { index ->
+                            val video = liveLazyPagingItems[index]
+                            if (video != null) {
+                                VideoCardFullWidth(
+                                    video = video,
+                                    onClick = { onVideoClick(video) }
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        EmptyStateMessage(stringResource(R.string.no_videos_found))
+                    }
+                }
+            }
+            3 -> { // Playlists
                 if (playlistsLazyPagingItems != null) {
                     if (playlistsLazyPagingItems.loadState.refresh is LoadState.NotLoading && playlistsLazyPagingItems.itemCount == 0) {
                         item(span = { GridItemSpan(maxLineSpan) }) {
@@ -396,9 +435,13 @@ private fun ChannelContent(
                             }
                         }
                     }
+                } else {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        EmptyStateMessage(stringResource(R.string.no_playlists_found))
+                    }
                 }
             }
-            3 -> { // About
+            4 -> { // About
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     AboutSection(channelInfo = channelInfo)
                 }

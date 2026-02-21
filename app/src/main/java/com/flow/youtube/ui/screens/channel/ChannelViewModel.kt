@@ -37,12 +37,16 @@ class ChannelViewModel : ViewModel() {
     private val _shortsPagingFlow = MutableStateFlow<Flow<PagingData<Video>>?>(null)
     val shortsPagingFlow: StateFlow<Flow<PagingData<Video>>?> = _shortsPagingFlow.asStateFlow()
     
+    private val _livePagingFlow = MutableStateFlow<Flow<PagingData<Video>>?>(null)
+    val livePagingFlow: StateFlow<Flow<PagingData<Video>>?> = _livePagingFlow.asStateFlow()
+    
     private val _playlistsPagingFlow = MutableStateFlow<Flow<PagingData<com.flow.youtube.data.model.Playlist>>?>(null)
     val playlistsPagingFlow: StateFlow<Flow<PagingData<com.flow.youtube.data.model.Playlist>>?> = _playlistsPagingFlow.asStateFlow()
     
     private var subscriptionRepository: SubscriptionRepository? = null
     private var currentVideosTab: ListLinkHandler? = null
     private var currentShortsTab: ListLinkHandler? = null
+    private var currentLiveTab: ListLinkHandler? = null
     private var currentPlaylistsTab: ListLinkHandler? = null
     
     companion object {
@@ -158,9 +162,12 @@ class ChannelViewModel : ViewModel() {
                             val tabUrl = tab.url ?: ""
                             Log.d(TAG, "Checking tab: Name=$tabName, URL=$tabUrl")
                             
-                            val isVideos = tabName.contains("video", ignoreCase = true) || 
+                            val isLive = tabName.contains("live", ignoreCase = true) || 
+                                         tabUrl.contains("/streams", ignoreCase = true)
+                                         
+                            val isVideos = (tabName.contains("video", ignoreCase = true) || 
                                          tabName.contains("Videos", ignoreCase = true) ||
-                                         tabUrl.contains("/videos", ignoreCase = true)
+                                         tabUrl.contains("/videos", ignoreCase = true)) && !isLive
                                          
                             val isShorts = tabName.contains("shorts", ignoreCase = true) || 
                                          tabUrl.contains("/shorts", ignoreCase = true)
@@ -169,7 +176,12 @@ class ChannelViewModel : ViewModel() {
                                             tabName.contains("Playlists", ignoreCase = true) ||
                                             tabUrl.contains("/playlists", ignoreCase = true)
                             
-                            if (isVideos && !isShorts) {
+                            if (isLive) {
+                                currentLiveTab = tab
+                                Log.d(TAG, "Found live tab")
+                            }
+                            
+                            if (isVideos) {
                                 currentVideosTab = tab
                                 Log.d(TAG, "Found videos tab")
                             }
@@ -202,6 +214,14 @@ class ChannelViewModel : ViewModel() {
                     _shortsPagingFlow.value = Pager(
                         config = PagingConfig(pageSize = 20, enablePlaceholders = false),
                         pagingSourceFactory = { ChannelVideosPagingSource(channelInfo, currentShortsTab) }
+                    ).flow.cachedIn(viewModelScope)
+                }
+                
+                // Create the paging flow for Live
+                if (currentLiveTab != null) {
+                    _livePagingFlow.value = Pager(
+                        config = PagingConfig(pageSize = 20, enablePlaceholders = false),
+                        pagingSourceFactory = { ChannelVideosPagingSource(channelInfo, currentLiveTab) }
                     ).flow.cachedIn(viewModelScope)
                 }
                 
@@ -305,6 +325,6 @@ data class ChannelUiState(
     val error: String? = null,
     val videosError: String? = null,
     val isSubscribed: Boolean = false,
-    val selectedTab: Int = 0 // 0: Videos, 1: Shorts, 2: Playlists, 3: About
+    val selectedTab: Int = 0 // 0: Videos, 1: Shorts, 2: Live, 3: Playlists, 4: About
 )
 
