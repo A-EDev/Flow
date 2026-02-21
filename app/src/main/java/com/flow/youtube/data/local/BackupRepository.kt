@@ -25,6 +25,14 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 
+data class SettingsBackup(
+    val strings: Map<String, String> = emptyMap(),
+    val booleans: Map<String, Boolean> = emptyMap(),
+    val ints: Map<String, Int> = emptyMap(),
+    val floats: Map<String, Float> = emptyMap(),
+    val longs: Map<String, Long> = emptyMap()
+)
+
 data class BackupData(
     val version: Int = 1,
     val timestamp: Long = System.currentTimeMillis(),
@@ -33,10 +41,12 @@ data class BackupData(
     val subscriptions: List<ChannelSubscription>? = emptyList(),
     val playlists: List<PlaylistEntity>? = emptyList(),
     val playlistVideos: List<PlaylistVideoCrossRef>? = emptyList(),
-    val videos: List<VideoEntity>? = emptyList()
+    val videos: List<VideoEntity>? = emptyList(),
+    val settings: SettingsBackup? = null
 )
 
 class BackupRepository(private val context: Context) {
+    private val playerPreferences = PlayerPreferences(context)
     private val gson = GsonBuilder()
         .setPrettyPrinting()
         .disableHtmlEscaping()
@@ -60,7 +70,8 @@ class BackupRepository(private val context: Context) {
                 subscriptions = subscriptionRepo.getAllSubscriptions().first(),
                 playlists = database.playlistDao().getAllPlaylists().first(),
                 playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
-                videos = database.videoDao().getAllVideos()
+                videos = database.videoDao().getAllVideos(),
+                settings = playerPreferences.getExportData()
             )
 
             val json = gson.toJson(backupData)
@@ -117,6 +128,9 @@ class BackupRepository(private val context: Context) {
                 backupData.playlists?.forEach { database.playlistDao().insertPlaylist(it) }
                 backupData.playlistVideos?.forEach { database.playlistDao().insertPlaylistVideoCrossRef(it) }
             }
+
+            // Import Settings Data
+            backupData.settings?.let { playerPreferences.restoreData(it) }
 
             Result.success(Unit)
         } catch (e: Exception) {

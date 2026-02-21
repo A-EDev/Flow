@@ -622,6 +622,36 @@ class PlayerPreferences(private val context: Context) {
             preferences[Keys.PREFERRED_LYRICS_PROVIDER] = provider
         }
     }
+
+    suspend fun getExportData(): SettingsBackup {
+        val prefs = context.playerPreferencesDataStore.data.first()
+        val strings = mutableMapOf<String, String>()
+        val booleans = mutableMapOf<String, Boolean>()
+        val ints = mutableMapOf<String, Int>()
+        val floats = mutableMapOf<String, Float>()
+        val longs = mutableMapOf<String, Long>()
+
+        prefs.asMap().forEach { (key, value) ->
+            when (value) {
+                is String -> strings[key.name] = value
+                is Boolean -> booleans[key.name] = value
+                is Int -> ints[key.name] = value
+                is Float -> floats[key.name] = value
+                is Long -> longs[key.name] = value
+            }
+        }
+        return SettingsBackup(strings, booleans, ints, floats, longs)
+    }
+
+    suspend fun restoreData(backup: SettingsBackup) {
+        context.playerPreferencesDataStore.edit { prefs ->
+            backup.strings.forEach { (k, v) -> prefs[stringPreferencesKey(k)] = v }
+            backup.booleans.forEach { (k, v) -> prefs[booleanPreferencesKey(k)] = v }
+            backup.ints.forEach { (k, v) -> prefs[intPreferencesKey(k)] = v }
+            backup.floats.forEach { (k, v) -> prefs[floatPreferencesKey(k)] = v }
+            backup.longs.forEach { (k, v) -> prefs[longPreferencesKey(k)] = v }
+        }
+    }
 }
 
 /** Action to take when a SponsorBlock segment is encountered. */

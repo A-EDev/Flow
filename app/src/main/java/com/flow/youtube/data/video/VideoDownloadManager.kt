@@ -133,55 +133,27 @@ class VideoDownloadManager @Inject constructor(
     }
 
     /**
-     * Copy a downloaded file to public storage via MediaStore (Android 10+).
-     * This allows the file to be visible in the system file manager and
-     * accessible to external players without MANAGE_EXTERNAL_STORAGE.
-     * Returns the content URI of the inserted file, or null on failure.
+     * Tell the Android system to scan the newly downloaded file.
+     * This adds the file into the system's MediaStore index so it's instantly 
+     * visible to external gallery and media player apps, without needing a duplicate copy.
      */
-    fun copyToPublicStorage(filePath: String, title: String, mimeType: String = "video/mp4"): Uri? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
-        
+    fun scanFile(filePath: String, mimeType: String = "video/mp4") {
         try {
             val file = File(filePath)
             if (!file.exists()) {
-                Log.e(TAG, "copyToPublicStorage: File does not exist: $filePath")
-                return null
+                Log.e(TAG, "scanFile: File does not exist: $filePath")
+                return
             }
             
-            val isAudio = mimeType.startsWith("audio/")
-            val collection = if (isAudio) {
-                MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            } else {
-                MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            android.media.MediaScannerConnection.scanFile(
+                context,
+                arrayOf(file.absolutePath),
+                arrayOf(mimeType)
+            ) { path, uri ->
+                Log.d(TAG, "scanFile: Scanned $path: -> uri=$uri")
             }
-            
-            val values = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, file.name)
-                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                put(MediaStore.MediaColumns.RELATIVE_PATH, 
-                    if (isAudio) "${Environment.DIRECTORY_MUSIC}/$AUDIO_DIR" 
-                    else "${Environment.DIRECTORY_MOVIES}/$VIDEO_DIR")
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
-            }
-            
-            val resolver = context.contentResolver
-            val uri = resolver.insert(collection, values) ?: return null
-            
-            resolver.openOutputStream(uri)?.use { outputStream ->
-                file.inputStream().use { inputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-            }
-            
-            values.clear()
-            values.put(MediaStore.MediaColumns.IS_PENDING, 0)
-            resolver.update(uri, values, null, null)
-            
-            Log.d(TAG, "copyToPublicStorage: Copied $filePath to MediaStore: $uri")
-            return uri
         } catch (e: Exception) {
-            Log.e(TAG, "copyToPublicStorage failed", e)
-            return null
+            Log.e(TAG, "scanFile failed", e)
         }
     }
 

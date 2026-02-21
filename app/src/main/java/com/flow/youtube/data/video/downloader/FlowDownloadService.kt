@@ -406,20 +406,11 @@ class FlowDownloadService : Service() {
                         downloadManager.updateItemFull(ids.first(), fileSize, fileSize, DownloadItemStatus.COMPLETED)
                     }
                     
-                    // Copy to public storage via MediaStore so the file is visible
-                    // in the system file manager and playable by external apps
                     try {
                         val mimeType = if (audioOnly) "audio/mp4" else "video/mp4"
-                        val mediaUri = downloadManager.copyToPublicStorage(
-                            mission.savePath, mission.video.title, mimeType
-                        )
-                        if (mediaUri != null) {
-                            Log.d(TAG, "executeDownload: Copied to public MediaStore: $mediaUri")
-                        } else {
-                            Log.d(TAG, "executeDownload: MediaStore copy skipped (pre-Q or file in public dir already)")
-                        }
+                        downloadManager.scanFile(mission.savePath, mimeType)
                     } catch (e: Exception) {
-                        Log.w(TAG, "executeDownload: MediaStore copy failed (non-fatal)", e)
+                        Log.w(TAG, "executeDownload: MediaScanner indexing failed (non-fatal)", e)
                     }
 
                     // Emit final progress
