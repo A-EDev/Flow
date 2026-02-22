@@ -2,10 +2,7 @@ package com.flow.youtube.data.local
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.core.stringSetPreferencesKey
+import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import com.flow.youtube.data.model.Channel
 import com.flow.youtube.data.model.Playlist
@@ -14,6 +11,7 @@ import com.flow.youtube.ui.theme.ThemeMode
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -287,7 +285,7 @@ class LocalDataManager @Inject constructor(@ApplicationContext private val conte
         val floats = mutableMapOf<String, Float>()
         val longs = mutableMapOf<String, Long>()
 
-        prefs.asMap().forEach { (key, value) ->
+        prefs.asMap().entries.forEach { (key, value) ->
             val name = key.name
             if (name == "theme_mode" || name == "accent_color" || 
                 name == "bedtime_reminder" || name == "break_reminder" ||

@@ -20,7 +20,7 @@ import com.flow.youtube.ui.theme.ThemeMode
 import com.supersuman.apkupdater.ApkUpdater
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.lifecycleScope
