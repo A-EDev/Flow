@@ -47,6 +47,7 @@ data class BackupData(
 
 class BackupRepository(private val context: Context) {
     private val playerPreferences = PlayerPreferences(context)
+    private val localDataManager = LocalDataManager(context)
     private val gson = GsonBuilder()
         .setPrettyPrinting()
         .disableHtmlEscaping()
@@ -64,6 +65,17 @@ class BackupRepository(private val context: Context) {
 
     suspend fun exportData(uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
         try {
+            val playerSettings = playerPreferences.getExportData()
+            val localSettings = localDataManager.getExportData()
+            
+            val mergedSettings = SettingsBackup(
+                strings = playerSettings.strings + localSettings.strings,
+                booleans = playerSettings.booleans + localSettings.booleans,
+                ints = playerSettings.ints + localSettings.ints,
+                floats = playerSettings.floats + localSettings.floats,
+                longs = playerSettings.longs + localSettings.longs
+            )
+
             val backupData = BackupData(
                 viewHistory = viewHistory.getAllHistory().first(),
                 searchHistory = searchHistoryRepo.getSearchHistoryFlow().first(),
@@ -71,7 +83,7 @@ class BackupRepository(private val context: Context) {
                 playlists = database.playlistDao().getAllPlaylists().first(),
                 playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
                 videos = database.videoDao().getAllVideos(),
-                settings = playerPreferences.getExportData()
+                settings = mergedSettings
             )
 
             val json = gson.toJson(backupData)
@@ -130,7 +142,10 @@ class BackupRepository(private val context: Context) {
             }
 
             // Import Settings Data
-            backupData.settings?.let { playerPreferences.restoreData(it) }
+            backupData.settings?.let { 
+                playerPreferences.restoreData(it) 
+                localDataManager.restoreData(it)
+            }
 
             Result.success(Unit)
         } catch (e: Exception) {

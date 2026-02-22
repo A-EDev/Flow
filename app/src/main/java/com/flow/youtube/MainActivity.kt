@@ -86,9 +86,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
 
-            // Load theme preference
+            // Load theme preference and keep it reactive
             LaunchedEffect(Unit) {
-                themeMode = dataManager.themeMode.first()
+                dataManager.themeMode.collect { mode ->
+                    themeMode = mode
+                }
             }
             
             // Initialize Flow Neuro Engine

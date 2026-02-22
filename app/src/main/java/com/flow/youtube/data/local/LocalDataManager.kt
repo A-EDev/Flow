@@ -278,5 +278,51 @@ class LocalDataManager @Inject constructor(@ApplicationContext private val conte
             prefs[BREAK_FREQUENCY] = minutes
         }
     }
+
+    suspend fun getExportData(): SettingsBackup {
+        val prefs = context.dataStore.data.first()
+        val strings = mutableMapOf<String, String>()
+        val booleans = mutableMapOf<String, Boolean>()
+        val ints = mutableMapOf<String, Int>()
+        val floats = mutableMapOf<String, Float>()
+        val longs = mutableMapOf<String, Long>()
+
+        prefs.asMap().forEach { (key, value) ->
+            val name = key.name
+            if (name == "theme_mode" || name == "accent_color" || 
+                name == "bedtime_reminder" || name == "break_reminder" ||
+                name.startsWith("bedtime_") || name == "break_frequency") {
+                
+                when (value) {
+                    is String -> strings[name] = value
+                    is Boolean -> booleans[name] = value
+                    is Int -> ints[name] = value
+                    is Float -> floats[name] = value
+                    is Long -> longs[name] = value
+                }
+            }
+        }
+        return SettingsBackup(strings, booleans, ints, floats, longs)
+    }
+
+    suspend fun restoreData(backup: SettingsBackup) {
+        context.dataStore.edit { prefs ->
+            backup.strings.forEach { (k, v) -> 
+                if (k == "theme_mode" || k == "accent_color") {
+                    prefs[stringPreferencesKey(k)] = v 
+                }
+            }
+            backup.booleans.forEach { (k, v) -> 
+                if (k == "bedtime_reminder" || k == "break_reminder") {
+                    prefs[androidx.datastore.preferences.core.booleanPreferencesKey(k)] = v 
+                }
+            }
+            backup.ints.forEach { (k, v) -> 
+                if (k.startsWith("bedtime_") || k == "break_frequency") {
+                    prefs[androidx.datastore.preferences.core.intPreferencesKey(k)] = v 
+                }
+            }
+        }
+    }
 }
 
