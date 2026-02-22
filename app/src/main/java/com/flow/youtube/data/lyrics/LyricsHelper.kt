@@ -5,17 +5,28 @@
 package com.flow.youtube.data.lyrics
 
 import android.util.Log
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Orchestrates multiple lyrics providers, ordering them by user preference.
- * Tries each provider in order and returns the first successful result.
- * Caches structured LyricsEntry results per media item.
+ *
+ * Strategy:
+ *  1. Run BetterLyrics and SimpMusic **in parallel** (both support word-level sync).
+ *     Return whichever comes back first with a valid word-sync result.
+ *  2. If neither returns word-sync within their timeout, fall back to LrcLib / YouTube
+ *     sequentially for at least line-level synced lyrics.
+ *  3. Cache successful results per videoId.
  */
 class LyricsHelper(
     val preferredProvider: PreferredLyricsProvider = PreferredLyricsProvider.LRCLIB
 ) {
     companion object {
         private const val TAG = "LyricsHelper"
+        private const val WORD_SYNC_TIMEOUT_MS = 8_000L
+        private const val FALLBACK_TIMEOUT_MS = 7_000L
     }
 
     private val lrcLibProvider = LrcLibLyricsProvider()
@@ -26,10 +37,18 @@ class LyricsHelper(
     private val cache = mutableMapOf<String, List<LyricsEntry>>()
 
     /**
-     * Fetch lyrics using the preferred provider order.
-     * Falls back through all providers until one succeeds.
+     * Fetch lyrics using a two-phase strategy:
      *
-     * @return Pair of (structured lyrics entries with word timestamps, provider name)
+     * Phase 1 — Parallel word-sync: run BetterLyrics + SimpMusic simultaneously.
+     *   - Accept the first result that contains word-level timestamps.
+     *   - If both return line-level results, keep the best one (most lines) as a fallback.
+     *   - Both providers have [WORD_SYNC_TIMEOUT_MS] to respond.
+     *
+     * Phase 2 — Sequential fallback: only reached if Phase 1 yielded nothing.
+     *   - Try LrcLib first (usually fast, good line-sync coverage).
+     *   - Then YouTube as a last resort.
+     *
+     * @return Pair of (entries, providerName), or null if nothing was found.
      */
     suspend fun getLyrics(
         videoId: String,
@@ -42,124 +61,112 @@ class LyricsHelper(
             return cached to "Cache"
         }
 
-        val orderedProviders = getOrderedProviders()
-        var bestResult: Pair<List<LyricsEntry>, String>? = null
-        var bestHasWordSync = false
+        val wordSyncResult = fetchWordSyncParallel(videoId, title, artist, duration)
+        if (wordSyncResult != null) {
+            cache[videoId] = wordSyncResult.first
+            Log.d(TAG, "Word-sync lyrics from ${wordSyncResult.second}")
+            return wordSyncResult
+        }
 
-        for (provider in orderedProviders) {
+        val fallbackProviders = listOf(lrcLibProvider, youTubeProvider)
+        for (provider in fallbackProviders) {
             try {
-                Log.d(TAG, "Trying provider: ${provider.name}")
-                val result = provider.getLyrics(videoId, title, artist, duration)
+                Log.d(TAG, "Fallback: trying ${provider.name}")
+                val result = withTimeoutOrNull(FALLBACK_TIMEOUT_MS) {
+                    provider.getLyrics(videoId, title, artist, duration)
+                } ?: continue
 
                 if (result.isSuccess) {
                     val entries = result.getOrNull()
                     if (!entries.isNullOrEmpty()) {
-                        val syncedLinesCount = entries.count { it.words != null && it.words.isNotEmpty() }
-                        val totalLines = entries.size
-                        val wordSyncRatio = if (totalLines > 0) syncedLinesCount.toFloat() / totalLines else 0f
-                        
-                        val hasWordSync = wordSyncRatio > 0.1f
-                        
-                        Log.d(TAG, "Got lyrics from ${provider.name} (${entries.size} lines, synced=$syncedLinesCount, ratio=$wordSyncRatio, hasWordSync=$hasWordSync)")
-
-                        if (hasWordSync) {
-                            if (!bestHasWordSync || provider == getProviderInstance(preferredProvider)) {
-                                bestResult = entries to provider.name
-                                bestHasWordSync = true
-                                if (provider == getProviderInstance(preferredProvider)) {
-                                    cache[videoId] = entries
-                                    return entries to provider.name
-                                }
-                            }
-                        } else if (bestResult == null) {
-                            bestResult = entries to provider.name
-                        }
+                        cache[videoId] = entries
+                        Log.d(TAG, "Line-sync lyrics from ${provider.name} (${entries.size} lines)")
+                        return entries to provider.name
                     }
-                } else {
-                    Log.w(TAG, "Provider ${provider.name} failed: ${result.exceptionOrNull()?.message}")
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Provider ${provider.name} threw exception: ${e.message}")
+                Log.e(TAG, "Fallback provider ${provider.name} threw: ${e.message}")
             }
         }
 
-        if (bestResult != null && !bestHasWordSync) {
-            Log.d(TAG, "Only line-level lyrics found. Retrying word-sync providers once...")
-            for (provider in listOf(betterLyricsProvider, simpMusicProvider)) {
+        Log.w(TAG, "No lyrics found for $videoId")
+        return null
+    }
+
+    /**
+     * Run BetterLyrics and SimpMusic simultaneously.
+     * Returns the first result with word-sync; if neither has word-sync, returns
+     * the better of the two line-sync results (or null if both fail).
+     */
+    private suspend fun fetchWordSyncParallel(
+        videoId: String,
+        title: String,
+        artist: String,
+        duration: Int
+    ): Pair<List<LyricsEntry>, String>? = coroutineScope {
+        val providers = buildList {
+            if (preferredProvider == PreferredLyricsProvider.SIMPMUSIC) {
+                add(simpMusicProvider)
+                add(betterLyricsProvider)
+            } else {
+                add(betterLyricsProvider)
+                add(simpMusicProvider)
+            }
+        }
+
+        data class ProviderResult(val provider: LyricsProvider, val entries: List<LyricsEntry>?)
+
+        val jobs = providers.map { provider ->
+            async {
                 try {
-                    kotlinx.coroutines.delay(500) 
-                    val result = provider.getLyrics(videoId, title, artist, duration)
-                    if (result.isSuccess) {
-                        val entries = result.getOrNull()
-                        if (!entries.isNullOrEmpty()) {
-                            val syncedCount = entries.count { it.words != null && it.words.isNotEmpty() }
-                            if (syncedCount > 0) {
-                                Log.d(TAG, "Retry: Got word-sync lyrics from ${provider.name} ($syncedCount synced lines)")
-                                bestResult = entries to provider.name
-                                bestHasWordSync = true
-                                break
-                            }
-                        }
+                    Log.d(TAG, "Parallel fetch: ${provider.name}")
+                    val result = withTimeoutOrNull(WORD_SYNC_TIMEOUT_MS) {
+                        provider.getLyrics(videoId, title, artist, duration)
                     }
+                    val entries = result?.getOrNull()
+                    ProviderResult(provider, entries?.takeIf { it.isNotEmpty() })
                 } catch (e: Exception) {
-                    Log.d(TAG, "Retry: Provider ${provider.name} failed again: ${e.message}")
+                    Log.e(TAG, "Parallel provider ${provider.name} threw: ${e.message}")
+                    ProviderResult(provider, null)
                 }
             }
         }
 
-        return bestResult?.also { 
-            cache[videoId] = it.first
-            Log.d(TAG, "Returning best lyrics from ${it.second}") 
+        val results = jobs.awaitAll()
+
+        val preferred = results.firstOrNull { r ->
+            r.entries != null && hasWordSync(r.entries)
         }
+        if (preferred != null) {
+            Log.d(TAG, "Word-sync from ${preferred.provider.name}")
+            return@coroutineScope preferred.entries!! to preferred.provider.name
+        }
+
+        val anyWordSync = results.firstOrNull { r ->
+            r.entries != null && hasWordSync(r.entries)
+        }
+        if (anyWordSync != null) {
+            Log.d(TAG, "Word-sync from ${anyWordSync.provider.name}")
+            return@coroutineScope anyWordSync.entries!! to anyWordSync.provider.name
+        }
+
+        val bestLineLevelResult = results
+            .filter { it.entries != null }
+            .maxByOrNull { it.entries!!.size }
+        if (bestLineLevelResult != null) {
+            Log.d(TAG, "Line-level fallback from ${bestLineLevelResult.provider.name}")
+            return@coroutineScope bestLineLevelResult.entries!! to bestLineLevelResult.provider.name
+        }
+
+        null
     }
 
-    private fun getProviderInstance(type: PreferredLyricsProvider): LyricsProvider? {
-        return when(type) {
-            PreferredLyricsProvider.LRCLIB -> lrcLibProvider
-            PreferredLyricsProvider.BETTER_LYRICS -> betterLyricsProvider
-            PreferredLyricsProvider.SIMPMUSIC -> simpMusicProvider
-            else -> null
-        }
+    private fun hasWordSync(entries: List<LyricsEntry>): Boolean {
+        val synced = entries.count { it.words != null && it.words.isNotEmpty() }
+        return synced.toFloat() / entries.size.coerceAtLeast(1) > 0.1f
     }
 
-    /**
-     * Orders providers to prioritize word-sync-capable providers.
-     * BetterLyrics and SimpMusic support word-by-word timestamps, so they
-     * are always tried before LRCLIB (line-level only). The user's preferred
-     * provider controls which word-sync provider is tried first.
-     * YouTube is always last since it only provides plain text.
-     */
-    private fun getOrderedProviders(): List<LyricsProvider> {
-        val providers = mutableListOf<LyricsProvider>()
-
-        val wordSyncProviders = listOf(betterLyricsProvider, simpMusicProvider)
-        val preferredInstance = getProviderInstance(preferredProvider)
-        
-        if (preferredInstance != null && preferredInstance in wordSyncProviders) {
-            providers.add(preferredInstance)
-        }
-        
-        wordSyncProviders.forEach { provider ->
-            if (provider !in providers) providers.add(provider)
-        }
-        
-        if (lrcLibProvider !in providers) {
-            providers.add(lrcLibProvider)
-        }
-
-        providers.add(youTubeProvider)
-
-        return providers
-    }
-
-    /**
-     * Clear the lyrics cache for a specific video or all videos.
-     */
     fun clearCache(videoId: String? = null) {
-        if (videoId != null) {
-            cache.remove(videoId)
-        } else {
-            cache.clear()
-        }
+        if (videoId != null) cache.remove(videoId) else cache.clear()
     }
 }

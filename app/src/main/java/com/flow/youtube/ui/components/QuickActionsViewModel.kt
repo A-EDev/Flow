@@ -259,13 +259,10 @@ class QuickActionsViewModel @Inject constructor(
                             selectedStream = bestCombined
                             audioUrl = null
                         }
-                        bestAnyVideoOnly != null && compatibleAudio != null -> {
-                            selectedStream = bestAnyVideoOnly
-                            audioUrl = compatibleAudio.content ?: compatibleAudio.url
-                        }
-                        bestAnyVideoOnly != null -> {
-                            selectedStream = bestAnyVideoOnly
-                            audioUrl = null
+                        bestMp4VideoOnly != null -> {
+                            selectedStream = bestMp4VideoOnly
+                            val anyAudio = allAudio.maxByOrNull { it.averageBitrate }
+                            audioUrl = anyAudio?.content ?: anyAudio?.url
                         }
                         else -> {
                             selectedStream = null

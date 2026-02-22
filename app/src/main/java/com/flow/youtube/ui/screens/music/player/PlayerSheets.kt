@@ -195,28 +195,31 @@ fun LyricsContent(
     var activePosition by remember { mutableLongStateOf(currentPosition) }
 
     LaunchedEffect(currentPosition) {
-        if (abs(currentPosition - activePosition) > 500) {
+        if (kotlin.math.abs(currentPosition - activePosition) > 500L) {
             activePosition = currentPosition
         }
     }
 
     LaunchedEffect(Unit) {
         while (true) {
-            if (EnhancedMusicPlayerManager.isPlaying()) {
-                activePosition = EnhancedMusicPlayerManager.getCurrentPosition()
-            }
-            delay(8)
+            delay(16)
+            activePosition = EnhancedMusicPlayerManager.getCurrentPosition()
         }
     }
-    
+
     val currentLineIndex = remember(activePosition, syncedLyrics) {
-        val index = syncedLyrics.indexOfLast { it.time <= activePosition }
-        if (index == -1) 0 else index
+        if (syncedLyrics.isEmpty()) 0
+        else {
+            val idx = syncedLyrics.indexOfLast { it.time <= activePosition + 300L }
+            if (idx == -1) 0 else idx
+        }
     }
-    
     LaunchedEffect(currentLineIndex) {
         if (syncedLyrics.isNotEmpty() && currentLineIndex >= 0) {
-            listState.animateScrollToItem(currentLineIndex, scrollOffset = -400)
+            listState.animateScrollToItem(
+                index = currentLineIndex,
+                scrollOffset = -300
+            )
         }
     }
 
@@ -247,11 +250,12 @@ fun LyricsContent(
                         label = "lyric_scale"
                     )
                     
-                    if (isCurrent && entry.words != null && entry.words.size > 1) {
+                    if (entry.words != null && entry.words.isNotEmpty()) {
                         val annotatedString = buildAnnotatedString {
                             entry.words.forEachIndexed { wordIndex, word ->
                                 val wordDuration = (word.endTime - word.startTime).coerceAtLeast(1)
-                                val isWordActive = activePosition >= word.startTime && activePosition <= word.endTime
+                                val isWordActive = isCurrent &&
+                                    activePosition >= word.startTime && activePosition <= word.endTime
                                 val hasWordPassed = activePosition > word.endTime
 
                                 val transitionProgress = when {
@@ -266,12 +270,13 @@ fun LyricsContent(
 
                                 val wordAlpha = when {
                                     hasWordPassed -> 1f
-                                    isWordActive -> 0.5f + (0.5f * transitionProgress)
-                                    else -> 0.35f
+                                    isWordActive -> 0.4f + (0.6f * transitionProgress)
+                                    else -> 0.3f
                                 }
 
                                 val wordColor = textColor.copy(alpha = wordAlpha)
                                 val wordWeight = when {
+                                    !isCurrent -> FontWeight.Bold
                                     hasWordPassed -> FontWeight.Bold
                                     isWordActive -> FontWeight.ExtraBold
                                     else -> FontWeight.Medium
@@ -285,11 +290,11 @@ fun LyricsContent(
                                 }
                             }
                         }
-                        
+
                         Text(
                             text = annotatedString,
                             style = MaterialTheme.typography.headlineMedium.copy(
-                                fontWeight = FontWeight.ExtraBold,
+                                fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Bold,
                                 fontSize = 28.sp,
                                 lineHeight = 38.sp,
                                 letterSpacing = (-0.5).sp
@@ -297,6 +302,7 @@ fun LyricsContent(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .graphicsLayer {
+                                    this.alpha = alpha
                                     this.scaleX = scale
                                     this.scaleY = scale
                                 }

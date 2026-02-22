@@ -79,7 +79,10 @@ fun DownloadQualityDialog(
                     modifier = Modifier.heightIn(max = 400.dp)
                 ) {
                     val videoStreams = uiState.streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList()
-                    val videoOnlyStreams = uiState.streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList()
+                    val videoOnlyStreams = uiState.streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>()?.filter {
+                        it.format?.name?.contains("mp4", ignoreCase = true) == true ||
+                        it.format?.mimeType?.contains("mp4", ignoreCase = true) == true
+                    } ?: emptyList()
                     
                     // Prioritize combined streams, then append video-only ones
                     val allStreams = videoStreams + videoOnlyStreams

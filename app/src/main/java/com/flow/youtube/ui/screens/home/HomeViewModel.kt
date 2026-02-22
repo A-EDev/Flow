@@ -115,7 +115,7 @@ class HomeViewModel @Inject constructor(
 
     private fun updateVideosAndShorts(newVideos: List<Video>, append: Boolean = false) {
         val (newShorts, regularVideos) = newVideos.partition { 
-            it.isShort || (it.duration in 1..80) || (it.duration == 0 && !it.isLive)
+            it.isShort || (it.duration in 1..120) || (it.duration == 0 && !it.isLive)
         }
         
         _uiState.update { state ->
@@ -372,10 +372,10 @@ class HomeViewModel @Inject constructor(
     
     private fun List<Video>.filterValid(): List<Video> {
         return this.filter { 
-            // Keep regular videos (>80s or live streams)
+            // Keep regular videos (>120s or live streams)
             // Shorts are handled separately by loadHomeShorts()
             !it.isShort && 
-            ((it.duration > 80) || (it.duration == 0 && it.isLive)) 
+            ((it.duration > 120) || (it.duration == 0 && it.isLive)) 
         }
     }
     
@@ -385,7 +385,7 @@ class HomeViewModel @Inject constructor(
      */
     private fun List<Video>.extractShorts(): List<Video> {
         return this.filter { 
-            it.isShort || (it.duration in 1..80 && !it.isLive)
+            it.isShort || (it.duration in 1..120 && !it.isLive)
         }
     }
 }

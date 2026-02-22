@@ -145,6 +145,7 @@ fun EnhancedMusicPlayerScreen(
         val isManagerPlaying = EnhancedMusicPlayerManager.isPlaying()
         
         if (managerTrack?.videoId == track.videoId && (isManagerPlaying || managerTrack != null)) {
+            viewModel.ensureLyricsLoaded(track)
         } else {
             viewModel.loadAndPlayTrack(track)
         }

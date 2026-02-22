@@ -575,6 +575,21 @@ class MusicPlayerViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Called when the player screen opens for a track that is ALREADY playing in
+     * EnhancedMusicPlayerManager (same videoId). In that case, the currentTrack
+     * StateFlow doesn't re-emit, so fetchLyrics is never triggered automatically.
+     *
+     * - If lyrics are already loaded for this track, does nothing (cache hit).
+     * - Otherwise fetches lyrics as normal.
+     */
+    fun ensureLyricsLoaded(track: MusicTrack) {
+        val state = _uiState.value
+        if (state.isLyricsLoading) return
+        if (!state.syncedLyrics.isNullOrEmpty()) return
+        if (!state.lyrics.isNullOrEmpty()) return
+        fetchLyrics(track.videoId, track.artist, track.title, track.duration)
+    }
 
     fun updateProgress() {
         val position = EnhancedMusicPlayerManager.getCurrentPosition()

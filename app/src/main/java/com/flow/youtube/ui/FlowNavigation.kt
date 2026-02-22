@@ -82,7 +82,7 @@ fun NavGraphBuilder.flowAppGraph(
         selectedBottomNavIndex.intValue = 0
         HomeScreen(
             onVideoClick = { video ->
-                if (video.duration in 1..80) {
+                if (video.duration in 1..120) {
                     navController.navigate("shorts?startVideoId=${video.id}")
                 } else {
                     playerViewModel.playVideo(video)
@@ -151,7 +151,7 @@ fun NavGraphBuilder.flowAppGraph(
         selectedBottomNavIndex.intValue = 3
         SubscriptionsScreen(
             onVideoClick = { video ->
-                if (video.duration in 1..80) {
+                if (video.duration in 1..120) {
                     navController.navigate("shorts?startVideoId=${video.id}")
                 } else {
                     navController.navigate("player/${video.id}")
@@ -205,7 +205,7 @@ fun NavGraphBuilder.flowAppGraph(
         selectedBottomNavIndex.intValue = -1
         SearchScreen(
             onVideoClick = { video ->
-                if (video.duration in 1..80) {
+                if (video.duration in 1..120) {
                     navController.navigate("shorts?startVideoId=${video.id}")
                 } else {
                     navController.navigate("player/${video.id}")
@@ -383,7 +383,7 @@ fun NavGraphBuilder.flowAppGraph(
         ChannelScreen(
             channelUrl = channelUrl,
             onVideoClick = { video ->
-                if (video.duration in 1..80) {
+                if (video.duration in 1..120) {
                     navController.navigate("shorts?startVideoId=${video.id}")
                 } else {
                     navController.navigate("player/${video.id}")
@@ -405,7 +405,7 @@ fun NavGraphBuilder.flowAppGraph(
         showBottomNav.value = false
         HistoryScreen(
             onVideoClick = { track ->
-                if (track.duration in 1..80) {
+                if (track.duration in 1..120) {
                     navController.navigate("shorts?startVideoId=${track.videoId}")
                 } else {
                     navController.navigate("player/${track.videoId}")
@@ -424,7 +424,7 @@ fun NavGraphBuilder.flowAppGraph(
         showBottomNav.value = false
         LikedVideosScreen(
             onVideoClick = { track ->
-                if (track.duration in 1..80) {
+                if (track.duration in 1..120) {
                     navController.navigate("shorts?startVideoId=${track.videoId}")
                 } else {
                     navController.navigate("player/${track.videoId}")
@@ -446,7 +446,7 @@ fun NavGraphBuilder.flowAppGraph(
             onVideoClick = { video ->
                 if (video.isMusic) {
                     navController.navigate("musicPlayer/${video.id}")
-                } else if (video.duration in 1..80) {
+                } else if (video.duration in 1..120) {
                     navController.navigate("shorts?startVideoId=${video.id}")
                 } else {
                     navController.navigate("player/${video.id}")
@@ -533,7 +533,7 @@ fun NavGraphBuilder.flowAppGraph(
             onVideoClick = { video ->
                 if (video.isMusic) {
                     navController.navigate("musicPlayer/${video.id}")
-                } else if (video.duration in 1..80) {
+                } else if (video.duration in 1..120) {
                     navController.navigate("shorts?startVideoId=${video.id}")
                 } else {
                     navController.navigate("player/${video.id}")
@@ -624,7 +624,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
             },
             onVideoClick = { track ->
-                if (track.duration in 1..80) {
+                if (track.duration in 1..120) {
                     navController.navigate("shorts?startVideoId=${track.videoId}")
                 } else {
                     navController.navigate("player/${track.videoId}")
