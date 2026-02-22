@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -33,6 +34,7 @@ fun UnifiedPlayerSheet(
     onTabSelect: (PlayerTab) -> Unit,
     isExpanded: Boolean,
     onExpand: () -> Unit,
+    sheetCornerRadius: androidx.compose.ui.unit.Dp = 32.dp,
     // Up Next Params
     queue: List<MusicTrack>,
     currentIndex: Int,
@@ -58,8 +60,16 @@ fun UnifiedPlayerSheet(
     Surface(
         modifier = modifier.fillMaxSize(),
         color = Color.Transparent,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.12f))
+        shape = RoundedCornerShape(topStart = sheetCornerRadius, topEnd = sheetCornerRadius),
+        border = BorderStroke(
+            width = 1.dp, 
+            brush = Brush.verticalGradient(
+                colors = listOf(
+                    Color.White.copy(alpha = 0.15f), 
+                    Color.Transparent
+                )
+            )
+        )
     ) {
         Box(
             modifier = Modifier
@@ -67,8 +77,8 @@ fun UnifiedPlayerSheet(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.75f),
-                            Color.Black.copy(alpha = 0.95f)
+                            Color(0xFF1E1E1E).copy(alpha = 0.90f),
+                            Color.Black.copy(alpha = 0.98f)
                         )
                     )
                 )
@@ -77,10 +87,10 @@ fun UnifiedPlayerSheet(
                 // Drag Handle
                 Box(
                     modifier = Modifier
-                        .padding(top = 12.dp)
-                        .width(36.dp)
-                        .height(4.dp)
-                        .background(Color.White.copy(alpha = 0.25f), CircleShape)
+                        .padding(top = 16.dp, bottom = 4.dp)
+                        .width(48.dp)
+                        .height(5.dp)
+                        .background(Color.White.copy(alpha = 0.2f), CircleShape)
                         .align(Alignment.CenterHorizontally)
                 )
 
@@ -88,8 +98,8 @@ fun UnifiedPlayerSheet(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp)
-                        .height(56.dp),
+                        .padding(top = 4.dp)
+                        .height(64.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -127,20 +137,21 @@ fun UnifiedPlayerSheet(
                                 )
                                 
                                 val indicatorWidth by animateFloatAsState(
-                                    targetValue = if (isSelected) 20f else 0f,
-                                    animationSpec = spring(stiffness = Spring.StiffnessLow)
+                                    targetValue = if (isSelected) 32f else 0f,
+                                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioMediumBouncy)
                                 )
                                 
                                 if (indicatorWidth > 0f) {
-                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Spacer(modifier = Modifier.height(6.dp))
                                     Box(
                                         modifier = Modifier
                                             .width(indicatorWidth.dp)
-                                            .height(3.dp)
+                                            .height(4.dp)
                                             .background(Color.White, CircleShape)
+                                            .shadow(8.dp, CircleShape, ambientColor = Color.White, spotColor = Color.White)
                                     )
                                 } else {
-                                    Spacer(modifier = Modifier.height(7.dp))
+                                    Spacer(modifier = Modifier.height(10.dp))
                                 }
                             }
                         }
@@ -151,7 +162,7 @@ fun UnifiedPlayerSheet(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                        .clip(RoundedCornerShape(topStart = sheetCornerRadius, topEnd = sheetCornerRadius))
                 ) {
                     when (currentTab) {
                         PlayerTab.UP_NEXT -> UpNextContent(

@@ -21,7 +21,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -202,8 +204,8 @@ fun EnhancedMusicPlayerScreen(
             contentDescription = null,
             modifier = Modifier
                 .fillMaxSize()
-                .blur(100.dp),
-            alpha = 0.6f,
+                .blur(120.dp),
+            alpha = 0.65f,
             contentScale = ContentScale.Crop
         )
         
@@ -213,10 +215,10 @@ fun EnhancedMusicPlayerScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color.Black.copy(alpha = 0.4f),
-                            Color.Black.copy(alpha = 0.2f),
-                            Color.Black.copy(alpha = 0.6f),
-                            Color.Black.copy(alpha = 0.9f),
+                            Color.Black.copy(alpha = 0.5f),
+                            Color.Black.copy(alpha = 0.3f),
+                            Color.Black.copy(alpha = 0.7f),
+                            Color.Black.copy(alpha = 0.95f),
                             Color.Black
                         )
                     )
@@ -298,14 +300,16 @@ fun EnhancedMusicPlayerScreen(
                                 this.scaleY = mainArtworkScale
                             }
                             .shadow(
-                                elevation = if (uiState.isPlaying) 16.dp else 4.dp,
-                                shape = MaterialTheme.shapes.medium
+                                elevation = if (uiState.isPlaying) 32.dp else 12.dp,
+                                shape = RoundedCornerShape(24.dp),
+                                spotColor = Color.White.copy(alpha = 0.1f)
                             )
+                            .clip(RoundedCornerShape(24.dp))
                     ) {
                         artworkContent(Modifier.fillMaxSize())
                     }
                     
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(36.dp))
                     
                     // Title and Artist Row
                     Row(
@@ -313,23 +317,25 @@ fun EnhancedMusicPlayerScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = uiState.currentTrack?.title ?: track.title,
-                                    style = MaterialTheme.typography.titleLarge,
+                                    style = MaterialTheme.typography.headlineSmall,
                                     color = Color.White,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.ExtraBold,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f, fill = false)
                                 )
                                 
                             }
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = uiState.currentTrack?.artist ?: track.artist,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = Color.White.copy(alpha = 0.7f),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontWeight = FontWeight.Medium,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier
@@ -348,7 +354,7 @@ fun EnhancedMusicPlayerScreen(
                         )
                     }
         
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(40.dp))
 
                     // Seekbar
                     PlayerProgressSlider(
@@ -358,7 +364,7 @@ fun EnhancedMusicPlayerScreen(
                         isPlaying = uiState.isPlaying
                     )
                 
-                    Spacer(modifier = Modifier.height(24.dp)) 
+                    Spacer(modifier = Modifier.height(36.dp)) 
 
                     // Playback Controls
                     PlayerPlaybackControls(
@@ -459,6 +465,8 @@ fun EnhancedMusicPlayerScreen(
             }
         }
 
+        val sheetCornerRadius = 16.dp + (16.dp * dragFraction)
+
         Box(
             modifier = Modifier
                 .offset { IntOffset(0, sheetOffset.roundToInt()) }
@@ -466,12 +474,12 @@ fun EnhancedMusicPlayerScreen(
                 .height(with(density) { (maxHeight - expandedY).toDp() })
                 .shadow(
                     elevation = 20.dp,
-                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+                    shape = RoundedCornerShape(topStart = sheetCornerRadius, topEnd = sheetCornerRadius),
                     clip = false
                 )
                 .background(
                     color = Color.Transparent,
-                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+                    shape = RoundedCornerShape(topStart = sheetCornerRadius, topEnd = sheetCornerRadius)
                 )
                 .draggable(
                     orientation = Orientation.Vertical,
@@ -493,6 +501,7 @@ fun EnhancedMusicPlayerScreen(
                 onTabSelect = { currentTab = it },
                 isExpanded = dragFraction > 0.5f,
                 onExpand = { animateSheet(expandedY) },
+                sheetCornerRadius = sheetCornerRadius,
                 queue = uiState.queue,
                 currentIndex = uiState.currentQueueIndex,
                 playingFrom = uiState.playingFrom,

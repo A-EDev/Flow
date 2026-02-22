@@ -89,7 +89,11 @@ fun PlayerPlaybackControls(
         // Play/Pause
         val interactionSource = remember { MutableInteractionSource() }
         val isPressed by interactionSource.collectIsPressedAsState()
-        val scale by animateFloatAsState(targetValue = if (isPressed) 0.9f else 1f, label = "scale")
+        val scale by animateFloatAsState(
+            targetValue = if (isPressed) 0.85f else 1f,
+            animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = 400f),
+            label = "scale"
+        )
         
         Box(
             contentAlignment = Alignment.Center,
@@ -168,7 +172,11 @@ fun ControlButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(targetValue = if (isPressed) 0.85f else 1f, label = "scale")
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.75f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = 400f),
+        label = "scale"
+    )
     
     IconButton(
         onClick = onClick,
