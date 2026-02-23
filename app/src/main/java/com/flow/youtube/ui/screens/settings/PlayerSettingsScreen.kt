@@ -61,6 +61,7 @@ fun PlayerSettingsScreen(
     val autoplayEnabled by playerPreferences.autoplayEnabled.collectAsState(initial = true)
     val skipSilenceEnabled by playerPreferences.skipSilenceEnabled.collectAsState(initial = false)
     val sponsorBlockEnabled by playerPreferences.sponsorBlockEnabled.collectAsState(initial = false)
+    val deArrowEnabled by playerPreferences.deArrowEnabled.collectAsState(initial = false)
     val manualPipButtonEnabled by playerPreferences.manualPipButtonEnabled.collectAsState(initial = true)
     val backgroundPlayEnabled by playerPreferences.backgroundPlayEnabled.collectAsState(initial = false)
     val preferredAudioLanguage by playerPreferences.preferredAudioLanguage.collectAsState(initial = "original")
@@ -134,6 +135,14 @@ fun PlayerSettingsScreen(
                         subtitle = stringResource(R.string.player_settings_sponsorblock_subtitle),
                         checked = sponsorBlockEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setSponsorBlockEnabled(it) } }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.AutoFixHigh,
+                        title = stringResource(R.string.player_settings_dearrow),
+                        subtitle = stringResource(R.string.player_settings_dearrow_subtitle),
+                        checked = deArrowEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setDeArrowEnabled(it) } }
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(

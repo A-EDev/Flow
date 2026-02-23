@@ -20,6 +20,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -40,9 +41,12 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.res.stringResource
 import com.flow.youtube.R
 import coil.compose.AsyncImage
+import com.flow.youtube.data.local.PlayerPreferences
 import com.flow.youtube.data.local.VideoHistoryEntry
 import com.flow.youtube.data.local.ViewHistory
+import com.flow.youtube.data.model.DeArrowResult
 import com.flow.youtube.data.model.Video
+import com.flow.youtube.data.repository.DeArrowRepository
 import com.flow.youtube.ui.theme.extendedColors
 import com.flow.youtube.utils.formatDuration
 import com.flow.youtube.utils.formatViewCount
@@ -65,6 +69,15 @@ fun VideoCard(
         }
     }
 
+    val playerPrefs = remember { PlayerPreferences(context) }
+    val deArrowEnabled by playerPrefs.deArrowEnabled.collectAsState(initial = false)
+    val deArrowResult by produceState<DeArrowResult?>(
+        initialValue = null, key1 = video.id, key2 = deArrowEnabled
+    ) {
+        value = if (deArrowEnabled) DeArrowRepository.getDeArrowResult(video.id) else null
+    }
+    val displayTitle = deArrowResult?.title ?: video.title
+    val displayThumbnailUrl = deArrowResult?.thumbnailUrl ?: video.thumbnailUrl
     Column(
         modifier = modifier
             .width(180.dp)
@@ -81,8 +94,8 @@ fun VideoCard(
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         ) {
             AsyncImage(
-                model = video.thumbnailUrl,
-                contentDescription = video.title,
+                model = displayThumbnailUrl,
+                contentDescription = displayTitle,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
@@ -141,7 +154,7 @@ fun VideoCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = video.title,
+                    text = displayTitle,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold, // Stronger weight for readability
                     maxLines = 2,
@@ -208,6 +221,17 @@ fun VideoCardHorizontal(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val playerPrefs = remember { PlayerPreferences(context) }
+    val deArrowEnabled by playerPrefs.deArrowEnabled.collectAsState(initial = false)
+    val deArrowResult by produceState<DeArrowResult?>(
+        initialValue = null, key1 = video.id, key2 = deArrowEnabled
+    ) {
+        value = if (deArrowEnabled) DeArrowRepository.getDeArrowResult(video.id) else null
+    }
+    val displayTitle = deArrowResult?.title ?: video.title
+    val displayThumbnailUrl = deArrowResult?.thumbnailUrl ?: video.thumbnailUrl
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -223,8 +247,8 @@ fun VideoCardHorizontal(
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             AsyncImage(
-                model = video.thumbnailUrl,
-                contentDescription = video.title,
+                model = displayThumbnailUrl,
+                contentDescription = displayTitle,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
@@ -250,7 +274,7 @@ fun VideoCardHorizontal(
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = video.title,
+                text = displayTitle,
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 2,
@@ -299,6 +323,17 @@ fun VideoCardFullWidth(
         }
     }
 
+    // DeArrow: replace clickbait titles and thumbnails if enabled
+    val playerPrefsFullWidth = remember { PlayerPreferences(context) }
+    val deArrowEnabledFullWidth by playerPrefsFullWidth.deArrowEnabled.collectAsState(initial = false)
+    val deArrowResultFullWidth by produceState<DeArrowResult?>(
+        initialValue = null, key1 = video.id, key2 = deArrowEnabledFullWidth
+    ) {
+        value = if (deArrowEnabledFullWidth) DeArrowRepository.getDeArrowResult(video.id) else null
+    }
+    val displayTitle = deArrowResultFullWidth?.title ?: video.title
+    val displayThumbnailUrl = deArrowResultFullWidth?.thumbnailUrl ?: video.thumbnailUrl
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -314,8 +349,8 @@ fun VideoCardFullWidth(
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         ) {
             SafeAsyncImage(
-                model = video.thumbnailUrl,
-                contentDescription = video.title,
+                model = displayThumbnailUrl,
+                contentDescription = displayTitle,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
@@ -381,7 +416,7 @@ fun VideoCardFullWidth(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
-                    text = video.title,
+                    text = displayTitle,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 2,
@@ -446,6 +481,17 @@ fun CompactVideoCard(
         }
     }
 
+    // DeArrow: replace clickbait titles and thumbnails if enabled
+    val playerPrefsCompact = remember { PlayerPreferences(context) }
+    val deArrowEnabledCompact by playerPrefsCompact.deArrowEnabled.collectAsState(initial = false)
+    val deArrowResultCompact by produceState<DeArrowResult?>(
+        initialValue = null, key1 = video.id, key2 = deArrowEnabledCompact
+    ) {
+        value = if (deArrowEnabledCompact) DeArrowRepository.getDeArrowResult(video.id) else null
+    }
+    val displayTitle = deArrowResultCompact?.title ?: video.title
+    val displayThumbnailUrl = deArrowResultCompact?.thumbnailUrl ?: video.thumbnailUrl
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -461,8 +507,8 @@ fun CompactVideoCard(
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         ) {
             SafeAsyncImage(
-                model = video.thumbnailUrl,
-                contentDescription = video.title,
+                model = displayThumbnailUrl,
+                contentDescription = displayTitle,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
@@ -506,7 +552,7 @@ fun CompactVideoCard(
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = video.title,
+                text = displayTitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 2,

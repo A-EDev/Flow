@@ -452,6 +452,9 @@
     <string name="loop_video">Loop video</string>
     <string name="player_settings_sponsorblock">SponsorBlock</string>
     <string name="player_settings_sponsorblock_subtitle">Skip sponsored segments</string>
+    <string name="player_settings_dearrow">DeArrow</string>
+    <string name="player_settings_dearrow_subtitle">Replace clickbait titles and thumbnails with community alternatives</string>
+    <string name="dearrow_badge">DeArrow</string>
 
     <!-- SponsorBlock per-category segment actions (Player Appearance) -->
     <string name="sb_segments_header">SponsorBlock Segment Actions</string>

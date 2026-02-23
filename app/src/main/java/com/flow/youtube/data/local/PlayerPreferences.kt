@@ -87,6 +87,9 @@ class PlayerPreferences(private val context: Context) {
         // SponsorBlock submit
         val SB_SUBMIT_ENABLED = booleanPreferencesKey("sb_submit_enabled")
         val SB_USER_ID = stringPreferencesKey("sb_user_id")
+
+        // DeArrow
+        val DEARROW_ENABLED = booleanPreferencesKey("dearrow_enabled")
     }
     
     // Grid item size preference
@@ -398,6 +401,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setSponsorBlockEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SPONSOR_BLOCK_ENABLED] = enabled
+        }
+    }
+
+    // DeArrow
+    val deArrowEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.DEARROW_ENABLED] ?: false
+        }
+
+    suspend fun setDeArrowEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DEARROW_ENABLED] = enabled
         }
     }
     
