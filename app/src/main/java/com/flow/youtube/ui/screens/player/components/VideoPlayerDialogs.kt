@@ -84,8 +84,7 @@ fun DownloadQualityDialog(
                         it.format?.mimeType?.contains("mp4", ignoreCase = true) == true
                     } ?: emptyList()
                     
-                    // Prioritize combined streams, then append video-only ones
-                    val allStreams = videoStreams + videoOnlyStreams
+                    val allStreams = videoOnlyStreams + videoStreams
                     val distinctStreams = allStreams.distinctBy { it.height }.sortedByDescending { it.height }
                     
                     if (distinctStreams.isEmpty()) {
@@ -95,7 +94,7 @@ fun DownloadQualityDialog(
                     }
 
                     items(distinctStreams) { stream ->
-                        val isVideoOnly = videoOnlyStreams.any { it.url == stream.url }
+                        val isVideoOnly = videoOnlyStreams.any { it === stream }
                         val qualityLabel = "${stream.height}p"
                         
                         val sizeInBytes = uiState.streamSizes[stream.height]

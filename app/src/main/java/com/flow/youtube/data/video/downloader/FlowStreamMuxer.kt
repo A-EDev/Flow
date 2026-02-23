@@ -10,7 +10,7 @@ import java.nio.ByteBuffer
 
 object FlowStreamMuxer {
     private const val TAG = "FlowStreamMuxer"
-    private const val BUFFER_SIZE = 256 * 1024  // 256KB buffer (down from 1MB)
+    private const val BUFFER_SIZE = 2 * 1024 * 1024
 
     /**
      * Muxes video and audio streams into a single MP4 file.
@@ -31,15 +31,17 @@ object FlowStreamMuxer {
         var muxer: MediaMuxer? = null
 
         try {
-            // Validate input files exist
-            if (!File(videoPath).exists()) {
-                Log.e(TAG, "Video file not found: $videoPath")
+            val vf = File(videoPath)
+            val af = File(audioPath)
+            if (!vf.exists() || vf.length() == 0L) {
+                Log.e(TAG, "Video tmp file missing or empty: $videoPath (size=${vf.length()})")
                 return false
             }
-            if (!File(audioPath).exists()) {
-                Log.e(TAG, "Audio file not found: $audioPath")
+            if (!af.exists() || af.length() == 0L) {
+                Log.e(TAG, "Audio tmp file missing or empty: $audioPath (size=${af.length()})")
                 return false
             }
+            Log.d(TAG, "Muxing: video=${vf.length()} bytes, audio=${af.length()} bytes -> $outputPath")
 
             videoExtractor = MediaExtractor().apply { setDataSource(videoPath) }
             audioExtractor = MediaExtractor().apply { setDataSource(audioPath) }

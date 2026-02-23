@@ -1,5 +1,6 @@
 package com.flow.youtube.data.video.downloader
 
+import android.net.Uri
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -21,10 +22,10 @@ class ParallelDownloader @Inject constructor() {
 
     companion object {
         private const val TAG = "ParallelDownloader"
-        private const val BUFFER_SIZE = 512 * 1024   // 512KB read buffer
-        private const val BLOCK_SIZE = 1L * 1024 * 1024  // 1MB work-stealing block
-        private const val MAX_RETRIES = 3
-        private const val INITIAL_RETRY_DELAY_MS = 1000L
+        private const val BUFFER_SIZE = 512 * 1024      
+        private const val BLOCK_SIZE = 2L * 1024 * 1024  
+        private const val MAX_RETRIES = 5               
+        private const val INITIAL_RETRY_DELAY_MS = 2000L
     }
 
     private var _client: OkHttpClient? = null
@@ -34,13 +35,70 @@ class ParallelDownloader @Inject constructor() {
         val existing = _client
         if (existing != null) return existing
         return OkHttpClient.Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .connectionPool(okhttp3.ConnectionPool(threads * 3, 5, TimeUnit.MINUTES))
+            .connectTimeout(30, TimeUnit.SECONDS)   
+            .readTimeout(120, TimeUnit.SECONDS)     
+            .connectionPool(okhttp3.ConnectionPool(threads * 4, 5, TimeUnit.MINUTES))
             .followRedirects(true)
             .retryOnConnectionFailure(true)
             .build()
             .also { _client = it }
+    }
+
+    // ===== YouTube URL helpers =====
+
+    /**
+     * YouTube CDN (googlevideo.com / youtube.com/videoplayback) streams embed a `range=0-N`
+     * query parameter that caps how much content the CDN will serve per URL.
+     * For parallel block downloads we must strip that cap and append `&range=X-Y` per-block,
+     * matching how YouTube's official clients (and MusicPlayerUtils) do it.
+     */
+    private fun isYouTubeStreamUrl(url: String): Boolean {
+        return try {
+            val host = Uri.parse(url).host ?: return false
+            host.contains("googlevideo.com") ||
+                (host.contains("youtube.com") && url.contains("videoplayback"))
+        } catch (_: Exception) { false }
+    }
+
+    /**
+     * YouTube embeds the true content length as a `clen=` query parameter.
+     * This is the canonical size for the *entire* stream, even when the URL
+     * has an embedded `range=` restriction that would cause a HEAD/GET to
+     * return only a fragment.
+     */
+    private fun extractClenFromUrl(url: String): Long {
+        return try {
+            Uri.parse(url).getQueryParameter("clen")?.toLongOrNull() ?: -1L
+        } catch (_: Exception) { -1L }
+    }
+
+    /**
+     * Return the URL with any embedded `range=` query parameter removed.
+     * All other parameters (including `n` for throttle deobfuscation) are kept.
+     */
+    private fun stripRangeParam(url: String): String {
+        return try {
+            val uri = Uri.parse(url)
+            if (uri.getQueryParameter("range") == null) return url
+            val builder = uri.buildUpon().clearQuery()
+            uri.queryParameterNames
+                .filter { it != "range" }
+                .forEach { key ->
+                    uri.getQueryParameters(key).forEach { value ->
+                        builder.appendQueryParameter(key, value)
+                    }
+                }
+            builder.build().toString()
+        } catch (_: Exception) { url }
+    }
+
+    /**
+     * Append `range=X-Y` as a query parameter for a YouTube block request.
+     * Assumes the URL has already had its original `range=` stripped.
+     */
+    private fun buildYouTubeBlockUrl(baseUrl: String, startByte: Long, endByte: Long): String {
+        val sep = if (baseUrl.contains('?')) "&" else "?"
+        return "${baseUrl}${sep}range=$startByte-$endByte"
     }
 
     /**
@@ -57,8 +115,39 @@ class ParallelDownloader @Inject constructor() {
                 mission.status = MissionStatus.RUNNING
                 val client = getClient(mission.threads)
 
+                // --- Resolve base URLs ---
+                // For YouTube DASH streams the original URL may contain an embedded
+                // `range=0-N` parameter placed by the extractor. That cap prevents
+                // the CDN from serving the full file.  We strip it here so all block
+                // workers can append their own `&range=X-Y` per-block.
+                val videoBaseUrl = if (isYouTubeStreamUrl(mission.url)) {
+                    stripRangeParam(mission.url).also {
+                        Log.d(TAG, "start: Stripped range from video URL (YouTube DASH)")
+                    }
+                } else mission.url
+
+                val audioBaseUrl = mission.audioUrl?.let { audioUrl ->
+                    if (isYouTubeStreamUrl(audioUrl)) {
+                        stripRangeParam(audioUrl).also {
+                            Log.d(TAG, "start: Stripped range from audio URL (YouTube DASH)")
+                        }
+                    } else audioUrl
+                }
+
+                // --- Resolve content lengths ---
                 if (mission.totalBytes == 0L) {
-                    val length = getContentLength(client, mission.url, mission.userAgent)
+                    // Fast path: read clen= from the original URL (before stripping)
+                    val clenFromUrl = if (isYouTubeStreamUrl(mission.url)) {
+                        extractClenFromUrl(mission.url)
+                    } else -1L
+
+                    val length = if (clenFromUrl > 0) {
+                        Log.d(TAG, "start: Video clen from URL=$clenFromUrl")
+                        clenFromUrl
+                    } else {
+                        getContentLength(client, videoBaseUrl, mission.userAgent)
+                    }
+
                     Log.d(TAG, "start: Video content length=$length")
                     if (length <= 0) {
                         mission.status = MissionStatus.FAILED
@@ -68,8 +157,18 @@ class ParallelDownloader @Inject constructor() {
                     mission.totalBytes = length
                 }
 
-                if (mission.audioUrl != null && mission.audioTotalBytes == 0L) {
-                    val audioLength = getContentLength(client, mission.audioUrl, mission.userAgent)
+                if (audioBaseUrl != null && mission.audioTotalBytes == 0L) {
+                    val clenFromUrl = if (isYouTubeStreamUrl(mission.audioUrl ?: "")) {
+                        extractClenFromUrl(mission.audioUrl ?: "")
+                    } else -1L
+
+                    val audioLength = if (clenFromUrl > 0) {
+                        Log.d(TAG, "start: Audio clen from URL=$clenFromUrl")
+                        clenFromUrl
+                    } else {
+                        getContentLength(client, audioBaseUrl, mission.userAgent)
+                    }
+
                     Log.d(TAG, "start: Audio content length=$audioLength")
                     if (audioLength <= 0) {
                         mission.status = MissionStatus.FAILED
@@ -95,7 +194,7 @@ class ParallelDownloader @Inject constructor() {
                 mission.videoBlockCounter.set(0)
                 mission.audioBlockCounter.set(0)
 
-                Log.d(TAG, "start: Video blocks=$videoBlockCount, Audio blocks=$audioBlockCount, Threads=${mission.threads}")
+                Log.d(TAG, "start: video=${mission.totalBytes}B in $videoBlockCount blocks, audio=${mission.audioTotalBytes}B in $audioBlockCount blocks, threads=${mission.threads}")
 
                 coroutineScope {
                     // Launch worker threads for video
@@ -105,7 +204,7 @@ class ParallelDownloader @Inject constructor() {
                                 client = client,
                                 mission = mission,
                                 file = videoFile,
-                                url = mission.url,
+                                url = videoBaseUrl,           // range-stripped base URL
                                 totalBytes = mission.totalBytes,
                                 blockCounter = mission.videoBlockCounter,
                                 totalBlocks = videoBlockCount,
@@ -116,7 +215,7 @@ class ParallelDownloader @Inject constructor() {
                     }
 
                     // Launch worker threads for audio (if DASH)
-                    val audioDeferreds = if (isDash && audioFile != null) {
+                    val audioDeferreds = if (isDash && audioFile != null && audioBaseUrl != null) {
                         val audioThreads = (mission.threads / 2).coerceIn(2, mission.threads)
                         (0 until audioThreads).map { threadIndex ->
                             async(Dispatchers.IO) {
@@ -124,7 +223,7 @@ class ParallelDownloader @Inject constructor() {
                                     client = client,
                                     mission = mission,
                                     file = audioFile,
-                                    url = mission.audioUrl!!,
+                                    url = audioBaseUrl,       // range-stripped base URL
                                     totalBytes = mission.audioTotalBytes,
                                     blockCounter = mission.audioBlockCounter,
                                     totalBlocks = audioBlockCount,
@@ -255,6 +354,14 @@ class ParallelDownloader @Inject constructor() {
     /**
      * Download a single byte-range block and write directly to RandomAccessFile.
      * No locks — progress is tracked via AtomicLong in mission.
+     *
+     * For YouTube DASH URLs (googlevideo.com):
+     *   - Use `&range=X-Y` query parameter (CDN-native range)
+     *   - Append YouTube headers to avoid bot-detection throttling
+     *   - Accept HTTP 200 (full response for query range) as well as 206
+     *
+     * For all other URLs:
+     *   - Use standard `Range: bytes=X-Y` HTTP header
      */
     private fun downloadBlock(
         client: OkHttpClient,
@@ -265,17 +372,31 @@ class ParallelDownloader @Inject constructor() {
         endByte: Long,
         isAudio: Boolean
     ): Boolean {
-        val request = Request.Builder()
-            .url(url)
-            .header("Range", "bytes=$startByte-$endByte")
-            .header("User-Agent", mission.userAgent)
-            .build()
+        val isYT = isYouTubeStreamUrl(url)
+
+        val request = if (isYT) {
+            val rangedUrl = buildYouTubeBlockUrl(url, startByte, endByte)
+            Request.Builder()
+                .url(rangedUrl)
+                .header("User-Agent", mission.userAgent)
+                .header("Origin", "https://www.youtube.com")
+                .header("Referer", "https://www.youtube.com/")
+                .header("Accept", "*/*")
+                .header("Accept-Encoding", "identity")
+                .build()
+        } else {
+            Request.Builder()
+                .url(url)
+                .header("Range", "bytes=$startByte-$endByte")
+                .header("User-Agent", mission.userAgent)
+                .build()
+        }
 
         val response = client.newCall(request).execute()
         try {
             if (!response.isSuccessful) {
                 val code = response.code
-                Log.e(TAG, "Block download failed: HTTP $code (range=$startByte-$endByte)")
+                Log.e(TAG, "Block download failed: HTTP $code (range=$startByte-$endByte, yt=$isYT)")
                 if (code == 403) {
                     mission.error = "URL expired (403). Re-fetch needed."
                 }
@@ -284,7 +405,6 @@ class ParallelDownloader @Inject constructor() {
 
             val inputStream = response.body?.byteStream() ?: return false
             val buffer = ByteArray(BUFFER_SIZE)
-            var offset = startByte
 
             RandomAccessFile(file, "rw").use { raf ->
                 raf.seek(startByte)
@@ -294,8 +414,6 @@ class ParallelDownloader @Inject constructor() {
                     if (mission.status != MissionStatus.RUNNING) return false
 
                     raf.write(buffer, 0, bytesRead)
-                    offset += bytesRead
-
                     mission.updateProgress(bytesRead.toLong(), isAudio)
                 }
             }
@@ -315,32 +433,43 @@ class ParallelDownloader @Inject constructor() {
     }
 
     private fun getContentLength(client: OkHttpClient, url: String, userAgent: String): Long {
+        val useQueryRange = isYouTubeStreamUrl(url)
         return try {
-            val request = Request.Builder()
-                .url(url)
-                .head()
-                .header("User-Agent", userAgent)
-                .build()
-            val response = client.newCall(request).execute()
-            val length = response.header("Content-Length")?.toLongOrNull() ?: -1L
-            response.close()
-            length
-        } catch (e: Exception) {
-            Log.e(TAG, "Content length check failed: url=$url, error=${e.message}")
-            try {
+            if (!useQueryRange) {
                 val request = Request.Builder()
+                    .url(url)
+                    .head()
+                    .header("User-Agent", userAgent)
+                    .build()
+                val response = client.newCall(request).execute()
+                val length = response.header("Content-Length")?.toLongOrNull() ?: -1L
+                response.close()
+                if (length > 0) return length
+            }
+            // Fallback: Range bytes=0-0 → read Content-Range header
+            val rangeRequest = if (useQueryRange) {
+                // YouTube: use query-range
+                Request.Builder()
+                    .url(buildYouTubeBlockUrl(url, 0L, 0L))
+                    .header("User-Agent", userAgent)
+                    .header("Origin", "https://www.youtube.com")
+                    .header("Referer", "https://www.youtube.com/")
+                    .build()
+            } else {
+                Request.Builder()
                     .url(url)
                     .header("Range", "bytes=0-0")
                     .header("User-Agent", userAgent)
                     .build()
-                val response = client.newCall(request).execute()
-                val range = response.header("Content-Range")
-                val total = range?.substringAfter("/")?.toLongOrNull() ?: -1L
-                response.close()
-                if (total > 0) return total
-            } catch (e2: Exception) {
-                Log.e(TAG, "Content length GET retry failed", e2)
             }
+            val rangeResponse = client.newCall(rangeRequest).execute()
+            val total = rangeResponse.header("Content-Range")
+                ?.substringAfter("/")?.toLongOrNull() ?: -1L
+            val bodyLen = rangeResponse.header("Content-Length")?.toLongOrNull() ?: -1L
+            rangeResponse.close()
+            if (total > 0) total else if (bodyLen > 1) bodyLen else -1L
+        } catch (e: Exception) {
+            Log.e(TAG, "Content length check failed: url=$url, error=${e.message}")
             -1L
         }
     }
