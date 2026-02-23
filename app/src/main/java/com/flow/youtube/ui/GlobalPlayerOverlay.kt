@@ -176,7 +176,8 @@ fun GlobalPlayerOverlay(
 
     FullscreenEffect(
         isFullscreen = screenState.isFullscreen,
-        activity = activity
+        activity = activity,
+        videoAspectRatio = videoAspectRatio
     )
     
     OrientationResetEffect(activity)
@@ -249,6 +250,7 @@ fun GlobalPlayerOverlay(
         context = context,
         isExpanded = playerSheetState.fraction > 0.9f,
         isFullscreen = screenState.isFullscreen,
+        videoAspectRatio = videoAspectRatio,
         onEnterFullscreen = { screenState.isFullscreen = true },
         onExitFullscreen = { screenState.isFullscreen = false }
     )

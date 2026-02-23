@@ -150,13 +150,19 @@ fun GestureOverlayAutoHideEffect(
 @Composable
 fun FullscreenEffect(
     isFullscreen: Boolean,
-    activity: Activity?
+    activity: Activity?,
+    videoAspectRatio: Float = 16f / 9f
 ) {
-    LaunchedEffect(isFullscreen) {
+    LaunchedEffect(isFullscreen, videoAspectRatio) {
         activity?.let { act ->
             if (isFullscreen) {
-                act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                
+                val orientation = if (videoAspectRatio < 1f) {
+                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+                } else {
+                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                }
+                act.requestedOrientation = orientation
+
                 WindowCompat.setDecorFitsSystemWindows(act.window, false)
                 val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
@@ -165,7 +171,7 @@ fun FullscreenEffect(
                 // Return to unspecified mode when exiting fullscreen
                 act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 // We don't clear KEEP_SCREEN_ON here because the generic effect handles it based on playing state
-                
+
                 WindowCompat.setDecorFitsSystemWindows(act.window, true)
                 val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
@@ -387,6 +393,7 @@ fun OrientationListenerEffect(
     context: Context,
     isExpanded: Boolean,
     isFullscreen: Boolean,
+    videoAspectRatio: Float = 16f / 9f,
     onEnterFullscreen: () -> Unit,
     onExitFullscreen: () -> Unit
 ) {
@@ -415,11 +422,11 @@ fun OrientationListenerEffect(
 
     LaunchedEffect(targetOrientation) {
         targetOrientation?.let { target ->
-            // Use kotlinx.coroutines.delay
             kotlinx.coroutines.delay(500)
-            if (target == 1 && isExpanded && !isFullscreen) {
+            val isVerticalVideo = videoAspectRatio < 1f
+            if (target == 1 && isExpanded && !isFullscreen && !isVerticalVideo) {
                 onEnterFullscreen()
-            } else if (target == 0 && isFullscreen) {
+            } else if (target == 0 && isFullscreen && !isVerticalVideo) {
                 onExitFullscreen()
             }
         }

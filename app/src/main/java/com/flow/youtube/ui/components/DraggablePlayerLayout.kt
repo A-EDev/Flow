@@ -171,7 +171,8 @@ fun DraggablePlayerLayout(
         
         val expandedVideoWidth = if (isSplitLayout) fullScreenWidth * 0.65f else fullScreenWidth
         val baseVideoHeight = expandedVideoWidth * (9f / 16f)
-        val fullVideoHeight = expandedVideoWidth / videoAspectRatio
+        val clampedAspectRatio = videoAspectRatio.coerceAtMost(2.0f)
+        val fullVideoHeight = expandedVideoWidth / clampedAspectRatio
         val expandedVideoHeight = lerpFloat(baseVideoHeight, fullVideoHeight, animatedPlayerHeightFraction)
 
         val nestedScrollConnection = remember(fullVideoHeight, baseVideoHeight) {
