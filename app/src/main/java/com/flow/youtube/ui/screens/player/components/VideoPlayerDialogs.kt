@@ -111,7 +111,7 @@ fun DownloadQualityDialog(
                         Surface(
                             onClick = {
                                 onDismiss()
-                                val downloadUrl = stream.url
+                                val downloadUrl = stream.content ?: stream.url
                                 if (downloadUrl != null) {
                                     // Find best COMPATIBLE audio stream if DASH
                                     var audioUrl: String? = null
@@ -119,18 +119,23 @@ fun DownloadQualityDialog(
                                         val isMp4Video = stream.format?.name?.contains("mp4", ignoreCase = true) == true ||
                                             stream.format?.mimeType?.contains("mp4", ignoreCase = true) == true
                                         val allAudio = uiState.streamInfo?.audioStreams ?: emptyList()
-                                        
+
+                                        fun isAacCompatible(a: org.schabi.newpipe.extractor.stream.AudioStream): Boolean {
+                                            val fmt  = (a.format?.name ?: "").lowercase()
+                                            val mime = (a.format?.mimeType ?: "").lowercase()
+                                            return !fmt.contains("opus") && !fmt.contains("vorbis") &&
+                                                   !fmt.contains("webm") && !mime.contains("opus") &&
+                                                   !mime.contains("vorbis") && !mime.contains("webm")
+                                        }
+
                                         // Filter by Language Preference first
                                         val langFilteredAudio = if (!preferredLang.isNullOrEmpty() && preferredLang != "original") {
-                                            // Prefer exact language match
-                                            val langMatches = allAudio.filter { 
-                                                // Check locale code (e.g. "en") or full tag (e.g. "en-US")
-                                                it.audioLocale?.language.equals(preferredLang, ignoreCase = true) || 
+                                            val langMatches = allAudio.filter {
+                                                it.audioLocale?.language.equals(preferredLang, ignoreCase = true) ||
                                                 it.audioLocale?.toLanguageTag().equals(preferredLang, ignoreCase = true)
                                             }
                                             if (langMatches.isNotEmpty()) langMatches else allAudio
                                         } else {
-                                            // Prefer ORIGINAL track type, then NON-DUBBED
                                             val originals = allAudio.filter { it.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL }
                                             if (originals.isNotEmpty()) originals else {
                                                 val nonDubbed = allAudio.filter { it.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED }
@@ -139,43 +144,29 @@ fun DownloadQualityDialog(
                                         }
 
                                         var compatibleAudio = if (isMp4Video) {
-                                            // MP4 video needs AAC/M4A audio (not Opus/WebM)
-                                            langFilteredAudio.filter { a ->
-                                                val fmt = a.format?.name ?: ""
-                                                val mime = a.format?.mimeType ?: ""
-                                                fmt.contains("m4a", true) || fmt.contains("mp4", true) ||
-                                                    mime.contains("audio/mp4", true)
-                                            }.maxByOrNull { it.bitrate }
+                                            langFilteredAudio.filter { isAacCompatible(it) }
+                                                .maxByOrNull { it.bitrate }
+                                                ?: allAudio.filter { isAacCompatible(it) }.maxByOrNull { it.bitrate }
                                         } else {
-                                            // WebM video prefers WebM/Opus audio
                                             langFilteredAudio.filter { a ->
-                                                val fmt = a.format?.name ?: ""
+                                                val fmt  = a.format?.name ?: ""
                                                 val mime = a.format?.mimeType ?: ""
-                                                fmt.contains("webm", true) || mime.contains("audio/webm", true)
+                                                fmt.contains("webm", true) || mime.contains("audio/webm", true) ||
+                                                fmt.contains("opus", true) || mime.contains("opus", true)
                                             }.maxByOrNull { it.bitrate }
+                                                ?: allAudio.maxByOrNull { it.bitrate }
                                         }
 
-                                        // Fallback: search across ALL audio streams if filtered list yielded nothing
-                                        if (compatibleAudio == null) {
-                                            compatibleAudio = if (isMp4Video) {
-                                                allAudio.filter { a ->
-                                                    val fmt = a.format?.name ?: ""
-                                                    val mime = a.format?.mimeType ?: ""
-                                                    fmt.contains("m4a", true) || fmt.contains("mp4", true) ||
-                                                        mime.contains("audio/mp4", true)
-                                                }.maxByOrNull { it.bitrate }
-                                            } else {
-                                                allAudio.maxByOrNull { it.bitrate }
-                                            }
-                                        }
-                                        
                                         if (compatibleAudio == null && isMp4Video) {
-                                            compatibleAudio = allAudio.filter { a ->
-                                                val mime = a.format?.mimeType ?: ""
-                                                !mime.contains("opus", true) && !mime.contains("vorbis", true) && !mime.contains("webm", true)
-                                            }.maxByOrNull { it.bitrate }
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                "No AAC audio stream available — download cannot proceed",
+                                                android.widget.Toast.LENGTH_LONG
+                                            ).show()
+                                            return@Surface
                                         }
-                                        audioUrl = (compatibleAudio ?: if (!isMp4Video) allAudio.maxByOrNull { it.bitrate } else null)?.url
+
+                                        audioUrl = compatibleAudio?.let { it.content ?: it.url }
                                     }
                                     
                                     VideoPlayerUtils.startDownload(context, video, downloadUrl, qualityLabel, audioUrl)

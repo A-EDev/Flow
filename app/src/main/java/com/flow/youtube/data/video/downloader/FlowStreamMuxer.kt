@@ -74,9 +74,10 @@ object FlowStreamMuxer {
             if (audioMime.contains("opus", ignoreCase = true) || 
                 audioMime.contains("vorbis", ignoreCase = true) ||
                 audioMime.contains("webm", ignoreCase = true)) {
-                Log.e(TAG, "Audio codec '$audioMime' is incompatible with MP4 container. " +
-                    "MediaMuxer requires AAC (audio/mp4a-latm). " +
-                    "Ensure the download selects M4A/AAC audio for MP4 video.")
+                Log.e(TAG, "INCOMPATIBLE AUDIO CODEC detected: '$audioMime'. " +
+                    "MediaMuxer(MPEG_4) requires AAC (audio/mp4a-latm) but got '$audioMime'. " +
+                    "The download stream selection must ensure an M4A/AAC audio URL is passed for MP4 video. " +
+                    "Audio path: $audioPath")
                 return false
             }
             
