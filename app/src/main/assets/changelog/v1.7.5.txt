@@ -1,0 +1,31 @@
+FLOW CHANGE LOG
+VERSION: 1.7.5
+DATE: 2026-02-23
+
+NEW FEATURES
+- DeArrow Integration: Added support for DeArrow, allowing users to replace clickbait titles and thumbnails with community-submitted alternatives in video cards and settings.
+- Live Streams Support: Added a dedicated "Live" tab in channel screens to display live streams separately from regular videos and shorts.
+- HLS Playback: Introduced HLS manifest support for live stream playback, prioritizing it over DASH for better compatibility.
+- Enhanced Lyrics Fetching: Completely refactored lyrics fetching with parallel processing for BetterLyrics and SimpMusic, improved sync timing, and better fallback to line-level lyrics.
+- Timestamp Interactions: Added clickable timestamps in video descriptions and comments, allowing users to jump to specific points in the video.
+- Quick Actions on Cards: Enabled quick actions menu on video cards with options like mark as watched and channel navigation.
+- Settings Backup/Restore: Added export and import functionality for app settings, including player preferences and local data.
+
+FIXES AND STABILITY
+- Download Stability: Improved parallel downloading with YouTube DASH optimizations, including URL range parameter handling, increased buffer sizes, extended timeouts, and more retries.
+- Media Indexing: Replaced file copying to public storage with media scanning for instant visibility in gallery apps, improving reliability.
+- Muxing Errors: Enhanced error messages in video/audio muxing, with better validation of input files and codec compatibility checks.
+- Player Orientation: Fixed fullscreen orientation to respect video aspect ratio, preventing incorrect rotations for vertical videos.
+
+PERFORMANCE AND REFACTORING
+- Library Updates: Updated NewPipeExtractor to v0.26.0 for better extraction capabilities.
+- Dynamic Aspect Ratio: Added real-time aspect ratio detection and adjustment for player UI, including nested scroll support for height changes.
+- UI Performance: Optimized animations and layout calculations, including improved spring animations for controls and better resource management.
+- Code Refactoring: Migrated to reactive theme loading, improved subtitle selection logic, and enhanced download quality prioritization.
+
+UI AND STYLE ENHANCEMENTS
+- Shorts Threshold: Increased duration threshold for shorts classification from 80 to 120 seconds for better categorization.
+- Music Player Redesign: Enhanced music player UI with improved blur effects, gradients, spacing, and control animations.
+- Player Controls: Reorganized premium controls overlay for better layout, added quality pills, and improved button positioning.
+- Navigation Updates: Updated flow navigation to reflect new duration thresholds and added live stream support.
+- Lyrics Display: Improved word-level lyric syncing, scrolling, and visual effects in the music player.
