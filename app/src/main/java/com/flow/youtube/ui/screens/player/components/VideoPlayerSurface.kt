@@ -10,6 +10,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.ui.PlayerView
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.player.EnhancedPlayerManager
@@ -19,7 +21,8 @@ import com.flow.youtube.player.EnhancedPlayerManager
 fun VideoPlayerSurface(
     video: Video,
     resizeMode: Int,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onVideoAspectRatioChanged: ((Float) -> Unit)? = null
 ) {
     val context = LocalContext.current
     
@@ -39,6 +42,22 @@ fun VideoPlayerSurface(
         }
     }
     
+    DisposableEffect(Unit) {
+        val player = EnhancedPlayerManager.getInstance().getPlayer()
+        val listener = object : Player.Listener {
+            override fun onVideoSizeChanged(videoSize: VideoSize) {
+                if (videoSize.width > 0 && videoSize.height > 0) {
+                    val ratio = videoSize.width.toFloat() / videoSize.height.toFloat()
+                    onVideoAspectRatioChanged?.invoke(ratio.coerceIn(0.56f, 2.5f))
+                }
+            }
+        }
+        player?.addListener(listener)
+        onDispose {
+            player?.removeListener(listener)
+        }
+    }
+
     // Setup surface callback immediately when playerView changes
     DisposableEffect(playerView) {
         val surfaceView = playerView.videoSurfaceView as? android.view.SurfaceView

@@ -108,6 +108,12 @@ fun GlobalPlayerOverlay(
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
 
+    var videoAspectRatio by remember { mutableFloatStateOf(16f / 9f) }
+
+    LaunchedEffect(video.id) {
+        videoAspectRatio = 16f / 9f
+    }
+
     var showSbSubmitDialog by remember { mutableStateOf(false) }
     var showDlnaDialog by remember { mutableStateOf(false) }
     val dlnaDevices by DlnaCastManager.devices.collectAsState()
@@ -299,6 +305,7 @@ fun GlobalPlayerOverlay(
                 state = playerSheetState,
                 progress = progress,
                 isFullscreen = screenState.isFullscreen,
+                videoAspectRatio = videoAspectRatio,
                 videoContent = { modifier ->
                     // ALWAYS use the same video surface
                     val gestureModifier = if (!isMinimized) {
@@ -338,7 +345,8 @@ fun GlobalPlayerOverlay(
                         VideoPlayerSurface(
                             video = video,
                             resizeMode = screenState.resizeMode,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxSize(),
+                            onVideoAspectRatioChanged = { videoAspectRatio = it }
                         )
                         
                         // Show subtitles only when expanded

@@ -3,7 +3,9 @@ package com.flow.youtube.ui.components
 import android.content.res.Configuration
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -17,9 +19,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -106,13 +112,25 @@ fun DraggablePlayerLayout(
     bodyContent: @Composable (Float, androidx.compose.ui.unit.Dp) -> Unit,
     miniControls: @Composable (Float) -> Unit,
     progress: Float,
-    isFullscreen: Boolean
+    isFullscreen: Boolean,
+    videoAspectRatio: Float = 16f / 9f
 ) {
     val density = LocalDensity.current
     val config = LocalConfiguration.current
     val isLandscape = config.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isTablet = config.screenWidthDp >= 600
-    
+
+    var playerHeightFraction by remember { mutableFloatStateOf(1f) }
+    val animatedPlayerHeightFraction by animateFloatAsState(
+        targetValue = playerHeightFraction,
+        animationSpec = spring(dampingRatio = 0.75f, stiffness = 350f),
+        label = "playerHeightFraction"
+    )
+
+    LaunchedEffect(videoAspectRatio) {
+        playerHeightFraction = 1f
+    }
+
     // Get Status Bar Height
     val statusBarHeight = WindowInsets.statusBars.getTop(density).toFloat()
 
@@ -152,8 +170,42 @@ fun DraggablePlayerLayout(
         val margin = with(density) { 12.dp.toPx() }
         
         val expandedVideoWidth = if (isSplitLayout) fullScreenWidth * 0.65f else fullScreenWidth
-        val expandedVideoHeight = expandedVideoWidth * (9f / 16f)
-        
+        val baseVideoHeight = expandedVideoWidth * (9f / 16f)
+        val fullVideoHeight = expandedVideoWidth / videoAspectRatio
+        val expandedVideoHeight = lerpFloat(baseVideoHeight, fullVideoHeight, animatedPlayerHeightFraction)
+
+        val nestedScrollConnection = remember(fullVideoHeight, baseVideoHeight) {
+            object : NestedScrollConnection {
+                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                    val delta = available.y
+                    val playerDelta = fullVideoHeight - baseVideoHeight
+                    if (delta < 0 && playerHeightFraction > 0f && playerDelta > 1f) {
+                        val maxConsumable = playerHeightFraction * playerDelta
+                        val consumed = maxOf(delta, -maxConsumable)
+                        playerHeightFraction = (playerHeightFraction + consumed / playerDelta).coerceIn(0f, 1f)
+                        return Offset(0f, consumed)
+                    }
+                    return Offset.Zero
+                }
+
+                override fun onPostScroll(
+                    consumed: Offset,
+                    available: Offset,
+                    source: NestedScrollSource
+                ): Offset {
+                    val delta = available.y
+                    val playerDelta = fullVideoHeight - baseVideoHeight
+                    if (delta > 0 && playerHeightFraction < 1f && playerDelta > 1f) {
+                        val maxConsumable = (1f - playerHeightFraction) * playerDelta
+                        val consumable = minOf(delta, maxConsumable)
+                        playerHeightFraction = (playerHeightFraction + consumable / playerDelta).coerceIn(0f, 1f)
+                        return Offset(0f, consumable)
+                    }
+                    return Offset.Zero
+                }
+            }
+        }
+
         // Calculate Positions
         val currentTopPadding = lerpFloat(statusBarHeight, 0f, fraction)
         
@@ -200,6 +252,7 @@ fun DraggablePlayerLayout(
                 modifier = bodyModifier
                     .alpha(1f - fraction)
                     .graphicsLayer { translationY = fraction * 100f }
+                    .nestedScroll(nestedScrollConnection)
             ) {
                 bodyContent(1f - fraction, videoHeightPlaceholder)
             }
