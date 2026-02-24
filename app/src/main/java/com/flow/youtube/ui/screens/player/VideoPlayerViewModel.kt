@@ -137,11 +137,9 @@ class VideoPlayerViewModel @Inject constructor(
             isSubscribed = false,
             likeState = null
         )
-        
+        saveHistoryEntry(video)
         // Start loading streams
         loadVideoInfo(video.id, isWifi = detectIsWifi(), forceRefresh = true)
-    
-
     }
 
     /**
@@ -198,7 +196,7 @@ class VideoPlayerViewModel @Inject constructor(
                 queueTitle = title
             )
         }
-        
+        saveHistoryEntry(startVideo)
         // Start loading the first video
         loadVideoInfo(startVideo.id, isWifi = detectIsWifi(), forceRefresh = true)
     }
@@ -478,9 +476,18 @@ class VideoPlayerViewModel @Inject constructor(
                                             val playerResult = YouTube.player(videoId, client = YouTubeClient.MOBILE)
                                             playerResult.getOrNull()?.let { playerResponse ->
                                                 val sizes = mutableMapOf<Int, Long>()
-                                                val bestAudioSize = playerResponse.streamingData?.adaptiveFormats
-                                                    ?.filter { it.isAudio }?.maxByOrNull { it.bitrate }?.contentLength ?: 0L
-                                                
+
+                                                val audioFormats = playerResponse.streamingData
+                                                    ?.adaptiveFormats?.filter { it.isAudio } ?: emptyList()
+                                                val bestAacSize = audioFormats
+                                                    .filter { it.mimeType.contains("mp4", ignoreCase = true) }
+                                                    .maxByOrNull { it.bitrate }?.contentLength ?: 0L
+                                                val bestOpusSize = audioFormats
+                                                    .filter { it.mimeType.contains("webm", ignoreCase = true) }
+                                                    .maxByOrNull { it.bitrate }?.contentLength ?: 0L
+                                                val bestAnyAudioSize = audioFormats
+                                                    .maxByOrNull { it.bitrate }?.contentLength ?: 0L
+
                                                 playerResponse.streamingData?.formats?.forEach { format ->
                                                     if (format.height != null && format.contentLength != null) {
                                                         sizes[format.height] = format.contentLength
@@ -488,7 +495,13 @@ class VideoPlayerViewModel @Inject constructor(
                                                 }
                                                 playerResponse.streamingData?.adaptiveFormats?.forEach { format ->
                                                     if (format.height != null && format.contentLength != null && !format.isAudio) {
-                                                        val totalSize = format.contentLength + bestAudioSize
+                                                        val isMp4Video = format.mimeType.contains("mp4", ignoreCase = true)
+                                                        val audioSize = when {
+                                                            isMp4Video && bestAacSize > 0 -> bestAacSize
+                                                            !isMp4Video && bestOpusSize > 0 -> bestOpusSize
+                                                            else -> bestAnyAudioSize
+                                                        }
+                                                        val totalSize = format.contentLength + audioSize
                                                         val currentSize = sizes[format.height] ?: 0L
                                                         if (totalSize > currentSize) sizes[format.height] = totalSize
                                                     }
@@ -638,6 +651,26 @@ class VideoPlayerViewModel @Inject constructor(
         }
     }
     
+    /**
+     * Eagerly records a video as opened in history (position = 0).
+     * Called the moment the user opens any video so history is always populated,
+     * regardless of how quickly they close the player.
+     */
+    private fun saveHistoryEntry(video: Video) {
+        viewModelScope.launch {
+            viewHistory.savePlaybackPosition(
+                videoId = video.id,
+                position = 0L,
+                duration = if (video.duration > 0) video.duration * 1000L else 0L,
+                title = video.title,
+                thumbnailUrl = video.thumbnailUrl.takeIf { it.isNotEmpty() }
+                    ?: "https://i.ytimg.com/vi/${video.id}/hqdefault.jpg",
+                channelName = video.channelName,
+                channelId = video.channelId
+            )
+        }
+    }
+
     fun savePlaybackPosition(
         videoId: String, 
         position: Long, 

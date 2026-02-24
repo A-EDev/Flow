@@ -266,14 +266,17 @@ fun GlobalPlayerOverlay(
             val streamInfo = playerUiState.streamInfo
             val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
             val channelName = streamInfo?.uploaderName ?: video.channelName
-            val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url ?: video.thumbnailUrl
+            val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
+                ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
+                ?: "https://i.ytimg.com/vi/${video.id}/hqdefault.jpg"
             
-            if (screenState.currentPosition > 0 && screenState.duration > 0) {
+            val title = streamInfo?.name ?: video.title
+            if (title.isNotEmpty()) {
                 playerViewModel.savePlaybackPosition(
                     videoId = video.id,
                     position = screenState.currentPosition,
                     duration = screenState.duration,
-                    title = streamInfo?.name ?: video.title,
+                    title = title,
                     thumbnailUrl = thumbnailUrl,
                     channelName = channelName,
                     channelId = channelId

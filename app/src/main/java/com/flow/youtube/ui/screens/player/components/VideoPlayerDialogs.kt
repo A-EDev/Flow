@@ -102,7 +102,7 @@ fun DownloadQualityDialog(
                         
                         val sizeText = if (sizeInBytes != null && sizeInBytes > 0) {
                             val mb = sizeInBytes / (1024 * 1024.0)
-                            "$formatName • ${String.format("%.1f MB", mb)}"
+                            "$formatName • ~${String.format("%.0f MB", mb)}"
                         } else {
                             "$formatName • $qualityLabel"
                         }

@@ -56,20 +56,44 @@ fun WatchProgressSaveEffect(
     uiState: VideoPlayerUiState,
     viewModel: VideoPlayerViewModel
 ) {
+    LaunchedEffect(videoId) {
+        delay(3000)
+        val streamInfo = uiState.streamInfo
+        val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
+        val channelName = streamInfo?.uploaderName ?: video.channelName
+        val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
+            ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
+            ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+        val title = streamInfo?.name ?: video.title
+        if (title.isNotEmpty()) {
+            viewModel.savePlaybackPosition(
+                videoId = videoId,
+                position = currentPosition,
+                duration = duration,
+                title = title,
+                thumbnailUrl = thumbnailUrl,
+                channelName = channelName,
+                channelId = channelId
+            )
+        }
+    }
+
     LaunchedEffect(videoId, isPlaying) {
         while (isPlaying) {
-            delay(10000) // Save every 10 seconds
+            delay(10000)
             val streamInfo = uiState.streamInfo
             val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
             val channelName = streamInfo?.uploaderName ?: video.channelName
-            val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url ?: video.thumbnailUrl
-            
-            if (currentPosition > 0 && duration > 0) {
+            val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
+                ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
+                ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+            val title = streamInfo?.name ?: video.title
+            if (duration > 0 && title.isNotEmpty()) {
                 viewModel.savePlaybackPosition(
                     videoId = videoId,
                     position = currentPosition,
                     duration = duration,
-                    title = streamInfo?.name ?: video.title,
+                    title = title,
                     thumbnailUrl = thumbnailUrl,
                     channelName = channelName,
                     channelId = channelId
@@ -320,7 +344,9 @@ fun VideoCleanupEffect(
             val streamInfo = uiState.streamInfo
             val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
             val channelName = streamInfo?.uploaderName ?: video.channelName
-            val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url ?: video.thumbnailUrl
+            val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
+                ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
+                ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
 
             viewModel.savePlaybackPosition(
                 videoId = videoId,

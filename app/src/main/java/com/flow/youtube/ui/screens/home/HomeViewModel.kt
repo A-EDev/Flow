@@ -48,6 +48,9 @@ class HomeViewModel @Inject constructor(
     private var viewHistory: ViewHistory? = null
     
     private val sessionWatchedTopics = mutableListOf<String>()
+
+    // Video IDs the user has watched >=90 % — excluded from recommendations.
+    private val watchedVideoIds = MutableStateFlow<Set<String>>(emptySet())
     
     init {
         loadFlowFeed(forceRefresh = true)
@@ -60,6 +63,16 @@ class HomeViewModel @Inject constructor(
         isInitialized = true
         
         viewHistory = ViewHistory.getInstance(context)
+        
+        // Keep the watched-IDs set up to date so the feed can filter them out
+        viewModelScope.launch {
+            viewHistory!!.getVideoHistoryFlow().collect { history ->
+                watchedVideoIds.value = history
+                    .filter { it.progressPercentage >= 90f }
+                    .map { it.videoId }
+                    .toHashSet()
+            }
+        }
         
         viewModelScope.launch {
             FlowNeuroEngine.initialize(context)
@@ -185,9 +198,10 @@ class HomeViewModel @Inject constructor(
                 }
                 
                 // Filter to regular videos for the main feed
-                val subsPool = rawSubs.filterValid()
-                val discoveryPool = rawDiscovery.filterValid()
-                val viralPool = rawViral.filterValid()
+                val watched = watchedVideoIds.value
+                val subsPool = rawSubs.filterValid().filterWatched(watched)
+                val discoveryPool = rawDiscovery.filterValid().filterWatched(watched)
+                val viralPool = rawViral.filterValid().filterWatched(watched)
                 
                 val bestSubs = FlowNeuroEngine.rank(subsPool, userSubs).take(10)
                 val bestDiscovery = FlowNeuroEngine.rank(discoveryPool, userSubs)
@@ -277,7 +291,7 @@ class HomeViewModel @Inject constructor(
                     }
                 }
                 
-                val newVideos = rawVideos.filterValid()
+                val newVideos = rawVideos.filterValid().filterWatched(watchedVideoIds.value)
 
                 
                 if (newVideos.isNotEmpty()) {
@@ -387,6 +401,15 @@ class HomeViewModel @Inject constructor(
         return this.filter { 
             it.isShort || (it.duration in 1..120 && !it.isLive)
         }
+    }
+
+    /**
+     * Remove videos the user has already fully watched (≥90 % progress)
+     * so they don't re-appear in the home feed.
+     */
+    private fun List<Video>.filterWatched(watchedIds: Set<String>): List<Video> {
+        if (watchedIds.isEmpty()) return this
+        return this.filter { !watchedIds.contains(it.id) }
     }
 }
 
