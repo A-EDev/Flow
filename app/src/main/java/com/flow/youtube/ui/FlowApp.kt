@@ -179,7 +179,9 @@ fun FlowApp(
                             onItemSelected = { index ->
                             when (index) {
                                 0 -> {
-                                    if (currentRoute.value != "home") {
+                                    if (currentRoute.value == "home") {
+                                        TabScrollEventBus.emitScrollToTop("home")
+                                    } else {
                                         selectedBottomNavIndex.intValue = index
                                         currentRoute.value = "home"
                                         navController.navigate("home") {
@@ -188,31 +190,47 @@ fun FlowApp(
                                     }
                                 }
                                 1 -> {
-                                    selectedBottomNavIndex.intValue = index
-                                    currentRoute.value = "shorts"
-                                    navController.navigate("shorts") {
-                                        launchSingleTop = true
+                                    if (currentRoute.value.startsWith("shorts")) {
+                                        TabScrollEventBus.emitScrollToTop("shorts")
+                                    } else {
+                                        selectedBottomNavIndex.intValue = index
+                                        currentRoute.value = "shorts"
+                                        navController.navigate("shorts") {
+                                            launchSingleTop = true
+                                        }
                                     }
                                 }
                                 2 -> {
-                                    selectedBottomNavIndex.intValue = index
-                                    currentRoute.value = "music"
-                                    navController.navigate("music") {
-                                        launchSingleTop = true
+                                    if (currentRoute.value == "music") {
+                                        TabScrollEventBus.emitScrollToTop("music")
+                                    } else {
+                                        selectedBottomNavIndex.intValue = index
+                                        currentRoute.value = "music"
+                                        navController.navigate("music") {
+                                            launchSingleTop = true
+                                        }
                                     }
                                 }
                                 3 -> {
-                                    selectedBottomNavIndex.intValue = index
-                                    currentRoute.value = "subscriptions"
-                                    navController.navigate("subscriptions") {
-                                        launchSingleTop = true
+                                    if (currentRoute.value == "subscriptions") {
+                                        TabScrollEventBus.emitScrollToTop("subscriptions")
+                                    } else {
+                                        selectedBottomNavIndex.intValue = index
+                                        currentRoute.value = "subscriptions"
+                                        navController.navigate("subscriptions") {
+                                            launchSingleTop = true
+                                        }
                                     }
                                 }
                                 4 -> {
-                                    selectedBottomNavIndex.intValue = index
-                                    currentRoute.value = "library"
-                                    navController.navigate("library") {
-                                        launchSingleTop = true
+                                    if (currentRoute.value == "library") {
+                                        TabScrollEventBus.emitScrollToTop("library")
+                                    } else {
+                                        selectedBottomNavIndex.intValue = index
+                                        currentRoute.value = "library"
+                                        navController.navigate("library") {
+                                            launchSingleTop = true
+                                        }
                                     }
                                 }
                             }

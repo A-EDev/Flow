@@ -295,9 +295,10 @@ class FlowDownloadService : Service() {
                     Log.d(TAG, "Executing download...")
                     executeDownload(mission, videoId, audioOnly)
                 } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
                     Log.e(TAG, "Error in download job for $videoId", e)
                     mission.status = MissionStatus.FAILED
-                    mission.error = "Internal error: ${e.message}"
+                    mission.error = "Download failed. Please try again."
                     updateAllItemStatuses(videoId, DownloadItemStatus.FAILED)
                     updateNotification(mission, videoId)
                     stopForeground(false)
@@ -446,7 +447,7 @@ class FlowDownloadService : Service() {
             if (e is kotlinx.coroutines.CancellationException) throw e
             Log.e(TAG, "executeDownload: Critical error", e)
             mission.status = MissionStatus.FAILED
-            mission.error = e.message
+            mission.error = "Download failed. Please try again."
             updateAllItemStatuses(videoId, DownloadItemStatus.FAILED)
             stopForeground(false)
             updateNotification(mission, videoId)

@@ -10,11 +10,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.collectLatest
+import com.flow.youtube.ui.TabScrollEventBus
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Search
@@ -54,6 +58,17 @@ fun EnhancedMusicScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val currentTrack by EnhancedMusicPlayerManager.currentTrack.collectAsState()
+    val musicListState = rememberLazyListState()
+
+    // Scroll to top and refresh when tapping the music tab while already on this screen
+    LaunchedEffect(Unit) {
+        TabScrollEventBus.scrollToTopEvents
+            .filter { it == "music" }
+            .collectLatest {
+                musicListState.animateScrollToItem(0)
+                viewModel.refresh()
+            }
+    }
     
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
@@ -151,6 +166,7 @@ fun EnhancedMusicScreen(
                         modifier = Modifier.fillMaxSize()
                     ) {
                         LazyColumn(
+                            state = musicListState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(bottom = 16.dp)
                         ) {

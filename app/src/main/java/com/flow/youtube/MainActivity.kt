@@ -77,10 +77,15 @@ class MainActivity : ComponentActivity() {
             val context = LocalContext.current
             var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
             
-            // Check for updates ONCE on launch
+            // Check for updates ONCE on launch — skip debug builds, enforce 24h cooldown
             LaunchedEffect(Unit) {
-                // Use BuildConfig.VERSION_NAME (This comes from your build.gradle)
+                if (BuildConfig.DEBUG) return@LaunchedEffect
+                val lastCheck = dataManager.lastUpdateCheck.first()
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastCheck < 24 * 60 * 60 * 1000L) return@LaunchedEffect
+
                 val info = UpdateManager.checkForUpdate(BuildConfig.VERSION_NAME)
+                dataManager.setLastUpdateCheck(currentTime)
                 if (info != null && info.isNewer) {
                     updateInfo = info
                 }

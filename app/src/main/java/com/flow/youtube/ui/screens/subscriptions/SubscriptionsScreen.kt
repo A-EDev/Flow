@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Notifications
@@ -44,8 +45,11 @@ import com.flow.youtube.data.model.Video
 import com.flow.youtube.ui.components.*
 import com.flow.youtube.ui.theme.extendedColors
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.collectLatest
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
+import com.flow.youtube.ui.TabScrollEventBus
 
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +64,7 @@ fun SubscriptionsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val feedGridState = rememberLazyGridState()
     
     // Import Launcher
     val launcher = rememberLauncherForActivityResult(
@@ -79,6 +84,16 @@ fun SubscriptionsScreen(
     // Initialize view model
     LaunchedEffect(Unit) {
         viewModel.initialize(context)
+    }
+
+    // Scroll to top and refresh when tapping the subscriptions tab while already on this screen
+    LaunchedEffect(Unit) {
+        TabScrollEventBus.scrollToTopEvents
+            .filter { it == "subscriptions" }
+            .collectLatest {
+                feedGridState.animateScrollToItem(0)
+                viewModel.refreshFeed()
+            }
     }
     
     val subscribedChannels = uiState.subscribedChannels
@@ -231,6 +246,7 @@ fun SubscriptionsScreen(
                         } else {
                             LazyVerticalGrid(
                                 columns = if (uiState.isFullWidthView) GridCells.Adaptive(320.dp) else GridCells.Fixed(1),
+                                state = feedGridState,
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(16.dp),

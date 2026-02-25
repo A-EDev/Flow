@@ -43,6 +43,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import androidx.compose.ui.unit.Dp
+import com.flow.youtube.ui.TabScrollEventBus
 
 private data class HomeLayoutConfig(
     val columns: Int,
@@ -136,6 +137,16 @@ fun HomeScreen(
                 viewModel.loadMoreVideos()
             }
         }
+    }
+
+    // Scroll to top (and refresh) when the home nav-bar tab is re-tapped while already on this screen
+    LaunchedEffect(Unit) {
+        TabScrollEventBus.scrollToTopEvents
+            .filter { it == "home" }
+            .collectLatest {
+                gridState.animateScrollToItem(0)
+                viewModel.refreshFeed()
+            }
     }
 
     val pullRefreshState = rememberPullRefreshState(
