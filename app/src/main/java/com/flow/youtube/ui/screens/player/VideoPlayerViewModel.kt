@@ -24,6 +24,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.stream.*
 import com.flow.youtube.data.video.VideoDownloadManager
 import com.flow.youtube.data.video.DownloadedVideo
+import com.flow.youtube.ui.screens.player.util.VideoPlayerUtils
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
 
@@ -475,7 +476,7 @@ class VideoPlayerViewModel @Inject constructor(
                                         try {
                                             val playerResult = YouTube.player(videoId, client = YouTubeClient.MOBILE)
                                             playerResult.getOrNull()?.let { playerResponse ->
-                                                val sizes = mutableMapOf<Int, Long>()
+                                                val sizes = mutableMapOf<String, Long>()
 
                                                 val audioFormats = playerResponse.streamingData
                                                     ?.adaptiveFormats?.filter { it.isAudio } ?: emptyList()
@@ -490,11 +491,14 @@ class VideoPlayerViewModel @Inject constructor(
 
                                                 playerResponse.streamingData?.formats?.forEach { format ->
                                                     if (format.height != null && format.contentLength != null) {
-                                                        sizes[format.height] = format.contentLength
+                                                        val codecKey = VideoPlayerUtils.codecKeyFromMimeType(format.mimeType)
+                                                        val key = VideoPlayerUtils.streamSizeKey(format.height, codecKey)
+                                                        sizes[key] = format.contentLength
                                                     }
                                                 }
                                                 playerResponse.streamingData?.adaptiveFormats?.forEach { format ->
                                                     if (format.height != null && format.contentLength != null && !format.isAudio) {
+                                                        val codecKey = VideoPlayerUtils.codecKeyFromMimeType(format.mimeType)
                                                         val isMp4Video = format.mimeType.contains("mp4", ignoreCase = true)
                                                         val audioSize = when {
                                                             isMp4Video && bestAacSize > 0 -> bestAacSize
@@ -502,8 +506,9 @@ class VideoPlayerViewModel @Inject constructor(
                                                             else -> bestAnyAudioSize
                                                         }
                                                         val totalSize = format.contentLength + audioSize
-                                                        val currentSize = sizes[format.height] ?: 0L
-                                                        if (totalSize > currentSize) sizes[format.height] = totalSize
+                                                        val key = VideoPlayerUtils.streamSizeKey(format.height, codecKey)
+                                                        val currentSize = sizes[key] ?: 0L
+                                                        if (totalSize > currentSize) sizes[key] = totalSize
                                                     }
                                                 }
                                                 sizes
@@ -1001,7 +1006,7 @@ data class VideoPlayerUiState(
     val chapters: List<StreamSegment> = emptyList(),
     val autoplayEnabled: Boolean = true,
     val commentCountText: String = "0",
-    val streamSizes: Map<Int, Long> = emptyMap(),
+    val streamSizes: Map<String, Long> = emptyMap(),
     val localFilePath: String? = null,
     val metadataError: String? = null,
     val dislikeCount: Long? = null,

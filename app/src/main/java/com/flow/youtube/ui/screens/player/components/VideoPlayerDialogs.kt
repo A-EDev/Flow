@@ -13,7 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material3.*
@@ -78,15 +77,19 @@ fun DownloadQualityDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.heightIn(max = 400.dp)
                 ) {
-                    val videoStreams = uiState.streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList()
-                    val videoOnlyStreams = uiState.streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>()?.filter {
-                        it.format?.name?.contains("mp4", ignoreCase = true) == true ||
-                        it.format?.mimeType?.contains("mp4", ignoreCase = true) == true
-                    } ?: emptyList()
-                    
-                    val allStreams = videoOnlyStreams + videoStreams
-                    val distinctStreams = allStreams.distinctBy { it.height }.sortedByDescending { it.height }
-                    
+                    val videoOnlyStreams = uiState.streamInfo?.videoOnlyStreams
+                        ?.filterIsInstance<VideoStream>() ?: emptyList()
+                    val muxedStreams = uiState.streamInfo?.videoStreams
+                        ?.filterIsInstance<VideoStream>() ?: emptyList()
+
+                    val codecPriority = mapOf("av1" to 0, "vp9" to 1, "h264" to 2, "hevc" to 3, "vp8" to 4)
+                    val distinctStreams = (videoOnlyStreams + muxedStreams)
+                        .distinctBy { "${it.height}_${VideoPlayerUtils.codecKeyFromStream(it)}" }
+                        .sortedWith(
+                            compareByDescending<VideoStream> { it.height }
+                                .thenBy { codecPriority[VideoPlayerUtils.codecKeyFromStream(it)] ?: 99 }
+                        )
+
                     if (distinctStreams.isEmpty()) {
                          item {
                              Text(stringResource(R.string.no_download_streams), modifier = Modifier.padding(16.dp))
@@ -94,17 +97,22 @@ fun DownloadQualityDialog(
                     }
 
                     items(distinctStreams) { stream ->
-                        val isVideoOnly = videoOnlyStreams.any { it === stream }
-                        val qualityLabel = "${stream.height}p"
-                        
-                        val sizeInBytes = uiState.streamSizes[stream.height]
-                        val formatName = stream.format?.name ?: "MP4"
-                        
+                        val codecKey   = VideoPlayerUtils.codecKeyFromStream(stream)
+                        val codecLabel = VideoPlayerUtils.codecLabelFromKey(codecKey)
+                        val qualityLabel = "$codecLabel ${stream.height}p"
+
+                        val sizeInBytes = uiState.streamSizes[VideoPlayerUtils.streamSizeKey(stream.height, codecKey)]
                         val sizeText = if (sizeInBytes != null && sizeInBytes > 0) {
-                            val mb = sizeInBytes / (1024 * 1024.0)
-                            "$formatName • ~${String.format("%.0f MB", mb)}"
-                        } else {
-                            "$formatName • $qualityLabel"
+                            val mb = sizeInBytes / (1024.0 * 1024.0)
+                            String.format("~%.2f MB", mb)
+                        } else null
+
+                        // Resolution badge
+                        val resBadge = when {
+                            stream.height >= 2160 -> "4K"
+                            stream.height >= 1440 -> "2K"
+                            stream.height >= 1080 -> "HD"
+                            else                  -> null
                         }
 
                         Surface(
@@ -112,11 +120,9 @@ fun DownloadQualityDialog(
                                 onDismiss()
                                 val downloadUrl = stream.content ?: stream.url
                                 if (downloadUrl != null) {
-                                    // Find best COMPATIBLE audio stream if DASH
                                     var audioUrl: String? = null
-                                    if (isVideoOnly) {
-                                        val isMp4Video = stream.format?.name?.contains("mp4", ignoreCase = true) == true ||
-                                            stream.format?.mimeType?.contains("mp4", ignoreCase = true) == true
+                                    if (stream.isVideoOnly) {
+                                        val isMp4Container = codecKey != "vp9" && codecKey != "vp8"
                                         val allAudio = uiState.streamInfo?.audioStreams ?: emptyList()
 
                                         fun isAacCompatible(a: org.schabi.newpipe.extractor.stream.AudioStream): Boolean {
@@ -127,7 +133,6 @@ fun DownloadQualityDialog(
                                                    !mime.contains("vorbis") && !mime.contains("webm")
                                         }
 
-                                        // Filter by Language Preference first
                                         val langFilteredAudio = if (!preferredLang.isNullOrEmpty() && preferredLang != "original") {
                                             val langMatches = allAudio.filter {
                                                 it.audioLocale?.language.equals(preferredLang, ignoreCase = true) ||
@@ -135,16 +140,19 @@ fun DownloadQualityDialog(
                                             }
                                             if (langMatches.isNotEmpty()) langMatches else allAudio
                                         } else {
-                                            val originals = allAudio.filter { it.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL }
+                                            val originals = allAudio.filter {
+                                                it.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
+                                            }
                                             if (originals.isNotEmpty()) originals else {
-                                                val nonDubbed = allAudio.filter { it.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED }
+                                                val nonDubbed = allAudio.filter {
+                                                    it.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED
+                                                }
                                                 if (nonDubbed.isNotEmpty()) nonDubbed else allAudio
                                             }
                                         }
 
-                                        var compatibleAudio = if (isMp4Video) {
-                                            langFilteredAudio.filter { isAacCompatible(it) }
-                                                .maxByOrNull { it.bitrate }
+                                        val compatibleAudio = if (isMp4Container) {
+                                            langFilteredAudio.filter { isAacCompatible(it) }.maxByOrNull { it.bitrate }
                                                 ?: allAudio.filter { isAacCompatible(it) }.maxByOrNull { it.bitrate }
                                         } else {
                                             langFilteredAudio.filter { a ->
@@ -156,20 +164,23 @@ fun DownloadQualityDialog(
                                                 ?: allAudio.maxByOrNull { it.bitrate }
                                         }
 
-                                        if (compatibleAudio == null && isMp4Video) {
+                                        if (compatibleAudio == null && isMp4Container) {
                                             android.widget.Toast.makeText(
                                                 context,
-                                                "No AAC audio stream available — download cannot proceed",
+                                                "No compatible audio stream — download cannot proceed",
                                                 android.widget.Toast.LENGTH_LONG
                                             ).show()
                                             return@Surface
                                         }
-
                                         audioUrl = compatibleAudio?.let { it.content ?: it.url }
                                     }
-                                    
+
                                     VideoPlayerUtils.startDownload(context, video, downloadUrl, qualityLabel, audioUrl)
-                                    Toast.makeText(context, context.getString(R.string.downloading_template, qualityLabel), Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.downloading_template, qualityLabel),
+                                        Toast.LENGTH_SHORT
+                                    ).show()
                                 }
                             },
                             shape = RoundedCornerShape(16.dp),
@@ -179,51 +190,39 @@ fun DownloadQualityDialog(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp),
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                            CircleShape
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Download,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                                
-                                Spacer(modifier = Modifier.width(16.dp))
-                                
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = qualityLabel,
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold
                                     )
-                                    Text(
-                                        text = sizeText,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    if (sizeText != null) {
+                                        Text(
+                                            text = sizeText,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
-                                
-                                if (stream.height >= 1080) {
+
+                                if (resBadge != null) {
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Surface(
-                                        color = MaterialTheme.colorScheme.primary,
+                                        color = when (resBadge) {
+                                            "4K" -> MaterialTheme.colorScheme.tertiary
+                                            "2K" -> MaterialTheme.colorScheme.secondary
+                                            else -> MaterialTheme.colorScheme.primary
+                                        },
                                         shape = RoundedCornerShape(4.dp)
                                     ) {
                                         Text(
-                                            text = "HD",
-                                            color = MaterialTheme.colorScheme.onPrimary,
+                                            text = resBadge,
+                                            color = MaterialTheme.colorScheme.surface,
                                             style = MaterialTheme.typography.labelSmall,
-                                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
                                             fontWeight = FontWeight.Bold
                                         )
                                     }
