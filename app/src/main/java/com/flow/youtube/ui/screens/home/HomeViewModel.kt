@@ -53,8 +53,20 @@ class HomeViewModel @Inject constructor(
     private val watchedVideoIds = MutableStateFlow<Set<String>>(emptySet())
     
     init {
-        loadFlowFeed(forceRefresh = true)
-        loadHomeShorts()
+        if (HomeFeedCache.isFresh()) {
+            _uiState.update {
+                it.copy(
+                    videos = HomeFeedCache.videos,
+                    shorts = HomeFeedCache.shorts,
+                    isLoading = false,
+                    isFlowFeed = true,
+                    lastRefreshTime = HomeFeedCache.timestamp
+                )
+            }
+        } else {
+            loadFlowFeed(forceRefresh = true)
+            loadHomeShorts()
+        }
     }
     
 
@@ -238,14 +250,16 @@ class HomeViewModel @Inject constructor(
                    return@launch
                 }
 
+                val now = System.currentTimeMillis()
                 _uiState.update { it.copy(
                     videos = finalMix, 
                     isLoading = false,
                     isRefreshing = false,
                     hasMorePages = true,
                     isFlowFeed = true,
-                    lastRefreshTime = System.currentTimeMillis()
+                    lastRefreshTime = now
                 )}
+                HomeFeedCache.update(finalMix, _uiState.value.shorts)
                 
             } catch (e: Exception) {
                  _uiState.update { it.copy(isLoading = false, isRefreshing = false, error = "Failed to load feed") }
@@ -361,6 +375,7 @@ class HomeViewModel @Inject constructor(
     }
     
     fun refreshFeed() {
+        HomeFeedCache.clear()
         _uiState.update { it.copy(isRefreshing = true) }
         loadFlowFeed(forceRefresh = true)
     }
@@ -410,6 +425,40 @@ class HomeViewModel @Inject constructor(
     private fun List<Video>.filterWatched(watchedIds: Set<String>): List<Video> {
         if (watchedIds.isEmpty()) return this
         return this.filter { !watchedIds.contains(it.id) }
+    }
+}
+
+/**
+ * Process-lifetime in-memory cache for the Home feed.
+ *
+ * Survives ViewModel recreation (which happens when the user navigates away
+ * from Home and comes back via the bottom nav), preventing an unwanted
+ * network reload on every tab switch. The cache expires after [CACHE_TTL_MS]
+ * (default 30 minutes) and is explicitly cleared when the user pulls-to-refresh.
+ */
+internal object HomeFeedCache {
+    private const val CACHE_TTL_MS = 30 * 60 * 1000L // 30 minutes
+
+    @Volatile var videos: List<Video> = emptyList()
+        private set
+    @Volatile var shorts: List<Video> = emptyList()
+        private set
+    @Volatile var timestamp: Long = 0L
+        private set
+
+    fun isFresh(): Boolean =
+        videos.isNotEmpty() && (System.currentTimeMillis() - timestamp) < CACHE_TTL_MS
+
+    fun update(newVideos: List<Video>, newShorts: List<Video>) {
+        videos = newVideos
+        shorts = newShorts
+        timestamp = System.currentTimeMillis()
+    }
+
+    fun clear() {
+        videos = emptyList()
+        shorts = emptyList()
+        timestamp = 0L
     }
 }
 

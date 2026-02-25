@@ -81,15 +81,18 @@ object RssSubscriptionService {
     }
 
     /**
-     * Get videos from a single channel using NewPipe Extractor.
-     * 
+     * Get videos (including Shorts) from a single channel using NewPipe Extractor.
+     *
      * Strategy:
      * 1. Use FeedInfo (RSS) ONLY to quickly check if the channel has recent uploads.
      *    RSS does NOT provide duration, isShortFormContent, or proper textualUploadDate.
-     * 2. If recent uploads exist, fetch FULL data from ChannelTabInfo (Videos tab).
-     * 3. If RSS fails entirely, fall back to ChannelTabInfo directly.
+     * 2. If recent uploads exist, fetch FULL data from ChannelTabInfo for both the
+     *    VIDEOS tab and the SHORTS tab (in parallel when both are available).
+     * 3. Items from the dedicated SHORTS tab are always marked isShort=true regardless
+     *    of whether the extractor sets isShortFormContent.
+     * 4. If RSS fails entirely, fall back to ChannelTabInfo directly.
      */
-    private fun getChannelVideos(channelId: String, minimumDateMillis: Long): List<Video> {
+    private suspend fun getChannelVideos(channelId: String, minimumDateMillis: Long): List<Video> {
         val channelUrl = "$YOUTUBE_URL/channel/$channelId"
         val service = NewPipe.getService(0)
 
@@ -119,16 +122,50 @@ object RssSubscriptionService {
 
             val videosTab = channelInfo.tabs.find { tab ->
                 tab.contentFilters.contains(ChannelTabs.VIDEOS)
-            } ?: return emptyList()
+            }
+            val shortsTab = channelInfo.tabs.find { tab ->
+                tab.contentFilters.contains(ChannelTabs.SHORTS)
+            }
 
-            val tabInfo = ChannelTabInfo.getInfo(service, videosTab)
-            val videos = tabInfo.relatedItems
-                .filterIsInstance<StreamInfoItem>()
-                .take(15)
+            if (videosTab == null && shortsTab == null) return emptyList()
+
+            val (videoItems, shortsItems) = coroutineScope {
+                val videoDeferred = videosTab?.let {
+                    async(Dispatchers.IO) {
+                        runCatching {
+                            ChannelTabInfo.getInfo(service, it)
+                                .relatedItems
+                                .filterIsInstance<StreamInfoItem>()
+                                .take(15)
+                        }.getOrElse { emptyList() }
+                    }
+                }
+                val shortsDeferred = shortsTab?.let {
+                    async(Dispatchers.IO) {
+                        runCatching {
+                            ChannelTabInfo.getInfo(service, it)
+                                .relatedItems
+                                .filterIsInstance<StreamInfoItem>()
+                                .take(10)
+                        }.getOrElse { emptyList() }
+                    }
+                }
+                (videoDeferred?.await() ?: emptyList<StreamInfoItem>()) to
+                        (shortsDeferred?.await() ?: emptyList())
+            }
+
+            val shortsUrls = shortsItems.map { it.url }.toHashSet()
+
+            val videos = (videoItems + shortsItems)
+                .distinctBy { it.url }
                 .mapNotNull { item ->
-                    val uploadTimeMillis = item.uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli()
+                    val uploadTimeMillis =
+                        item.uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli()
                     if (uploadTimeMillis == null || uploadTimeMillis > minimumDateMillis) {
-                        streamInfoItemToVideo(item, channelId, channelAvatar)
+                        streamInfoItemToVideo(
+                            item, channelId, channelAvatar,
+                            forceShort = item.url in shortsUrls
+                        )
                     } else null
                 }
 
@@ -143,11 +180,15 @@ object RssSubscriptionService {
     /**
      * Convert NewPipe StreamInfoItem to our Video model.
      * ChannelTabInfo provides proper duration, textualUploadDate, and isShortFormContent.
+     *
+     * @param forceShort When true, the item is unconditionally treated as a Short
+     *   (e.g. because it came directly from the channel's Shorts tab).
      */
     private fun streamInfoItemToVideo(
         item: StreamInfoItem,
         channelId: String,
-        channelAvatar: String?
+        channelAvatar: String?,
+        forceShort: Boolean = false
     ): Video {
         val videoId = extractVideoId(item.url)
         val thumbnail = item.thumbnails.maxByOrNull { it.width }?.url
@@ -191,7 +232,7 @@ object RssSubscriptionService {
             channelThumbnailUrl = channelAvatar
                 ?: item.uploaderAvatars?.maxByOrNull { it.height }?.url
                 ?: "",
-            isShort = item.isShortFormContent,
+            isShort = forceShort || item.isShortFormContent,
             isLive = item.streamType == org.schabi.newpipe.extractor.stream.StreamType.LIVE_STREAM
         )
     }

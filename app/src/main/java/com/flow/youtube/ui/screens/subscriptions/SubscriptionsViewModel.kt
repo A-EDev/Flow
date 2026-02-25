@@ -122,7 +122,9 @@ class SubscriptionsViewModel : ViewModel() {
     private fun updateVideos(videos: List<Video>) {
         val sortedVideos = videos.sortedByDescending { it.timestamp }
 
-        val (shorts, regular) = sortedVideos.partition { it.isShort }
+        val (shorts, regular) = sortedVideos.partition { video ->
+            video.isShort || (video.duration in 1..120 && !video.isLive)
+        }
         _uiState.update { it.copy(recentVideos = regular, shorts = shorts) }
     }
     
