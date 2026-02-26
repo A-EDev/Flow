@@ -662,6 +662,7 @@ class VideoPlayerViewModel @Inject constructor(
      * regardless of how quickly they close the player.
      */
     private fun saveHistoryEntry(video: Video) {
+        if (video.id.startsWith("recovered_")) return
         viewModelScope.launch {
             viewHistory.savePlaybackPosition(
                 videoId = video.id,

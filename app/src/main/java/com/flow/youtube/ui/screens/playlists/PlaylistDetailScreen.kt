@@ -32,13 +32,18 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.flow.youtube.data.local.PlaylistRepository
+import com.flow.youtube.data.local.dao.VideoDao
+import com.flow.youtube.data.local.entity.VideoEntity
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.music.YouTubeMusicService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Semaphore
 
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -576,6 +581,7 @@ private fun formatViewCount(count: Long): String {
 class PlaylistDetailViewModel @Inject constructor(
     private val repository: PlaylistRepository,
     private val youTubeRepository: com.flow.youtube.data.repository.YouTubeRepository,
+    private val videoDao: VideoDao,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -609,6 +615,10 @@ class PlaylistDetailViewModel @Inject constructor(
                 )}
                 repository.getPlaylistVideosFlow(playlistId).collect { videos ->
                     _uiState.update { it.copy(videos = videos) }
+                    val stubs = videos.filter { it.title.isEmpty() }.take(50)
+                    if (stubs.isNotEmpty()) {
+                        enrichMetadata(stubs)
+                    }
                 }
             } else {
                 // Try Remote (YouTube)
@@ -691,6 +701,40 @@ class PlaylistDetailViewModel @Inject constructor(
     fun deletePlaylist() {
         viewModelScope.launch {
             repository.deletePlaylist(playlistId)
+        }
+    }
+
+    private val enrichSemaphore = Semaphore(1)
+
+    private fun enrichMetadata(stubs: List<Video>) {
+        if (!enrichSemaphore.tryAcquire()) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                stubs.chunked(5).forEach { chunk ->
+                    chunk.forEach { stub ->
+                        try {
+                            val enriched = youTubeRepository.getVideo(stub.id) ?: return@forEach
+                            val e = VideoEntity.fromDomain(enriched)
+                            videoDao.insertVideoOrIgnore(e)
+                            videoDao.updateVideoMetadata(
+                                id = e.id,
+                                title = e.title,
+                                channelName = e.channelName,
+                                channelId = e.channelId,
+                                thumbnailUrl = e.thumbnailUrl,
+                                duration = e.duration,
+                                viewCount = e.viewCount,
+                                uploadDate = e.uploadDate,
+                                description = e.description,
+                                channelThumbnailUrl = e.channelThumbnailUrl
+                            )
+                        } catch (_: Exception) {}
+                    }
+                    delay(300L)
+                }
+            } finally {
+                enrichSemaphore.release()
+            }
         }
     }
 }

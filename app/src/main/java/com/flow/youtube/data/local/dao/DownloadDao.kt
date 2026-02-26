@@ -124,4 +124,8 @@ interface DownloadDao {
     /** Count completed downloads */
     @Query("SELECT COUNT(DISTINCT videoId) FROM download_items WHERE status = 'COMPLETED'")
     suspend fun getCompletedDownloadCount(): Int
+
+    /** Check if a download item already exists for a given file path */
+    @Query("SELECT EXISTS(SELECT 1 FROM download_items WHERE filePath = :filePath)")
+    suspend fun existsByFilePath(filePath: String): Boolean
 }

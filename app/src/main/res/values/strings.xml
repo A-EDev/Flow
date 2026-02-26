@@ -671,6 +671,22 @@
     <string name="import_from_youtube">Import from YouTube</string>
     <string name="import_from_youtube_desc">Import subscriptions from YouTube Takeout (CSV).</string>
 
+    <!-- YouTube Data Import (Watch History & Playlists) -->
+    <string name="import_yt_data_section_title">YouTube Data</string>
+    <string name="import_yt_data_section_subtitle">Import additional data from YouTube Takeout</string>
+    <string name="import_yt_watch_history">Import Watch History</string>
+    <string name="import_yt_watch_history_desc">Import your watch history from YouTube Takeout (watch-history.html).</string>
+    <string name="import_yt_playlist">Import YouTube Playlist</string>
+    <string name="import_yt_playlist_desc">Import a playlist from YouTube Takeout CSV (Playlist-&lt;name&gt;.csv).</string>
+    <string name="import_yt_music_playlist">Import YouTube Music Playlist</string>
+    <string name="import_yt_music_playlist_desc">Import a music playlist from YouTube Music Takeout CSV. Appears under Music Playlists.</string>
+    <string name="import_yt_history_success_template">Imported %1$d entries from your YouTube watch history</string>
+    <string name="import_yt_history_failed_template">Failed to import watch history: %1$s</string>
+    <string name="import_yt_playlist_success_template">Imported playlist &#8220;%1$s&#8221; with %2$d videos</string>
+    <string name="import_yt_playlist_failed_template">Failed to import playlist: %1$s</string>
+    <string name="import_yt_history_empty_error">No watch history entries found in this file. Make sure it is a YouTube Takeout watch-history.html file.</string>
+    <string name="import_yt_playlist_empty_error">No videos found in this CSV. Make sure it is a YouTube Takeout playlist CSV file.</string>
+
     <!-- Download Settings Screen -->
     <string name="download_settings_title">Download Settings</string>
     <string name="storage_header">Storage</string>

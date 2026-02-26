@@ -1,5 +1,10 @@
 package com.flow.youtube.ui.screens.library
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
@@ -24,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -34,6 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.flow.youtube.R
@@ -58,6 +65,28 @@ fun DownloadsScreen(
 
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+
+    val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+        Manifest.permission.READ_MEDIA_VIDEO
+    else
+        Manifest.permission.READ_EXTERNAL_STORAGE
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) viewModel.rescan()
+    }
+
+    LaunchedEffect(Unit) {
+        val alreadyGranted = ContextCompat.checkSelfPermission(context, storagePermission) ==
+            PackageManager.PERMISSION_GRANTED
+        if (alreadyGranted) {
+            viewModel.rescan()
+        } else {
+            permissionLauncher.launch(storagePermission)
+        }
+    }
 
     var pendingDelete by remember { mutableStateOf<PendingDeletion?>(null) }
 

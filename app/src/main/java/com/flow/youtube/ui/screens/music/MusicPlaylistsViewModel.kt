@@ -6,11 +6,15 @@ import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.local.PlaylistRepository
+import com.flow.youtube.data.local.entity.VideoEntity
 import com.flow.youtube.data.music.DownloadManager
 import com.flow.youtube.data.music.YouTubeMusicService
+import com.flow.youtube.data.repository.YouTubeRepository
 import com.flow.youtube.ui.screens.playlists.PlaylistInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,20 +26,72 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
 @HiltViewModel
 class MusicPlaylistsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val playlistRepository: PlaylistRepository,
-    private val downloadManager: DownloadManager
+    private val downloadManager: DownloadManager,
+    private val youTubeRepository: YouTubeRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MusicPlaylistsUiState())
     val uiState: StateFlow<MusicPlaylistsUiState> = _uiState.asStateFlow()
 
+    private val isEnrichingMusic = AtomicBoolean(false)
+
     init {
         loadPlaylists()
+        enrichMusicPlaylistStubs()
+    }
+
+    /**
+     * Background-enriches any imported music playlist stubs (videos with empty title).
+     * Mirrors the lazy enrichment that PlaylistDetailScreen does, but runs proactively
+     * so the music library shows proper titles/thumbnails without needing to open each playlist.
+     */
+    fun enrichMusicPlaylistStubs() {
+        if (!isEnrichingMusic.compareAndSet(false, true)) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val db = com.flow.youtube.data.local.AppDatabase.getDatabase(context)
+                val videoDao = db.videoDao()
+                val playlistDao = db.playlistDao()
+                val stubs = playlistDao.getMusicPlaylistStubVideos()
+                if (stubs.isEmpty()) return@launch
+                Log.d("MusicPlaylistsVM", "Enriching ${stubs.size} music playlist stubs")
+                stubs.chunked(5).forEach { chunk ->
+                    chunk.forEach { stub ->
+                        try {
+                            val video = youTubeRepository.getVideo(stub.id) ?: return@forEach
+                            val e = VideoEntity.fromDomain(video)
+                            videoDao.insertVideoOrIgnore(e)
+                            videoDao.updateVideoMetadata(
+                                id = e.id,
+                                title = e.title,
+                                channelName = e.channelName,
+                                channelId = e.channelId,
+                                thumbnailUrl = e.thumbnailUrl,
+                                duration = e.duration,
+                                viewCount = e.viewCount,
+                                uploadDate = e.uploadDate,
+                                description = e.description,
+                                channelThumbnailUrl = e.channelThumbnailUrl
+                            )
+                        } catch (e: Exception) {
+                            Log.w("MusicPlaylistsVM", "Failed to enrich stub ${stub.id}", e)
+                        }
+                    }
+                    delay(300L)
+                }
+            } catch (e: Exception) {
+                Log.e("MusicPlaylistsVM", "enrichMusicPlaylistStubs failed", e)
+            } finally {
+                isEnrichingMusic.set(false)
+            }
+        }
     }
 
     private fun loadPlaylists() {

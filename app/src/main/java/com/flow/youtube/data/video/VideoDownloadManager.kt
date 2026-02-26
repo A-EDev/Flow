@@ -470,4 +470,112 @@ class VideoDownloadManager @Inject constructor(
             .take(100) 
         return "${safeTitle}_${quality}.$extension"
     }
+
+    /**
+     * Scans all known download directories for video/audio files that are not tracked in the
+     * database (e.g. after a database wipe) and re-inserts them as completed downloads so they
+     * appear in the Downloads screen and can be played back locally.
+     *
+     * Safe to call repeatedly — files already recorded in the DB are skipped.
+     */
+    suspend fun scanAndRecoverDownloads() = withContext(Dispatchers.IO) {
+        try {
+            val dirsToScan = buildList {
+                customDownloadPath?.let { add(File(it)) }
+                add(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), VIDEO_DIR))
+                add(File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), VIDEO_DIR))
+                add(File(context.getExternalFilesDir(Environment.DIRECTORY_MOVIES), VIDEO_DIR))
+                add(File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), VIDEO_DIR))
+            }
+
+            val videoExtensions = setOf("mp4", "webm", "mkv", "avi", "mov")
+            val audioExtensions = setOf("m4a", "mp3", "aac", "opus", "ogg")
+
+            for (dir in dirsToScan.distinctBy { it.canonicalPath }) {
+                if (!dir.exists() || !dir.isDirectory) continue
+                val files = dir.listFiles() ?: continue
+
+                for (file in files) {
+                    if (!file.isFile) continue
+                    val ext = file.extension.lowercase()
+                    val isVideo = ext in videoExtensions
+                    val isAudio = ext in audioExtensions
+                    if (!isVideo && !isAudio) continue
+
+                    val filePath = file.absolutePath
+                    if (downloadDao.existsByFilePath(filePath)) continue
+
+                    val pseudoId = "recovered_${filePath.hashCode().toLong() and 0xFFFFFFFFL}"
+
+                    val mmr = android.media.MediaMetadataRetriever()
+                    var title = file.nameWithoutExtension
+                    var artist = "Local File"
+                    var durationMs = 0L
+                    try {
+                        mmr.setDataSource(filePath)
+                        mmr.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE)
+                            ?.takeIf { it.isNotBlank() }?.let { title = it }
+                        mmr.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                            ?.takeIf { it.isNotBlank() }?.let { artist = it }
+                        mmr.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)
+                            ?.toLongOrNull()?.let { durationMs = it }
+                    } catch (_: Exception) {
+                    } finally {
+                        try { mmr.release() } catch (_: Exception) {}
+                    }
+
+                    val fileType = if (isVideo) DownloadFileType.VIDEO else DownloadFileType.AUDIO
+
+                    val thumbnailUrl: String = if (isVideo) {
+                        try {
+                            val mmr2 = android.media.MediaMetadataRetriever()
+                            mmr2.setDataSource(filePath)
+                            val bmp = mmr2.getFrameAtTime(
+                                1_000_000L, 
+                                android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+                            ) ?: mmr2.getFrameAtTime(0L, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                            mmr2.release()
+                            if (bmp != null) {
+                                val thumbFile = java.io.File(context.cacheDir, "thumb_$pseudoId.jpg")
+                                thumbFile.outputStream().use {
+                                    bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, it)
+                                }
+                                bmp.recycle()
+                                if (thumbFile.exists() && thumbFile.length() > 0) "file://${thumbFile.absolutePath}" else ""
+                            } else ""
+                        } catch (_: Exception) { "" }
+                    } else ""
+
+                    downloadDao.insertDownload(
+                        DownloadEntity(
+                            videoId = pseudoId,
+                            title = title,
+                            uploader = artist,
+                            duration = durationMs / 1000,
+                            thumbnailUrl = thumbnailUrl,
+                            createdAt = file.lastModified()
+                        )
+                    )
+                    downloadDao.insertItem(
+                        DownloadItemEntity(
+                            videoId = pseudoId,
+                            fileType = fileType,
+                            fileName = file.name,
+                            filePath = filePath,
+                            format = ext,
+                            quality = "Local",
+                            mimeType = if (isVideo) "video/mp4" else "audio/mp4",
+                            downloadedBytes = file.length(),
+                            totalBytes = file.length(),
+                            status = DownloadItemStatus.COMPLETED
+                        )
+                    )
+
+                    Log.i(TAG, "scanAndRecoverDownloads: recovered '${file.name}' as $pseudoId")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "scanAndRecoverDownloads failed", e)
+        }
+    }
 }

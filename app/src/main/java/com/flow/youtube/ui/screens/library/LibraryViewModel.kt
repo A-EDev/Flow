@@ -38,10 +38,9 @@ class LibraryViewModel @Inject constructor(
             }
         }
         
-        // Load watch history count (excluding music)
         viewModelScope.launch {
-            viewHistory.getVideoHistoryFlow().collect { history ->
-                _uiState.update { it.copy(watchHistoryCount = history.size) }
+            viewHistory.getVideoCount().collect { count ->
+                _uiState.update { it.copy(watchHistoryCount = count) }
             }
         }
 

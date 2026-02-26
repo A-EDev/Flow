@@ -2,6 +2,7 @@ package com.flow.youtube.data.local
 
 import android.content.Context
 import android.net.Uri
+import android.provider.OpenableColumns
 import com.flow.youtube.data.local.entity.PlaylistEntity
 import com.flow.youtube.data.local.entity.PlaylistVideoCrossRef
 import com.flow.youtube.data.local.entity.VideoEntity
@@ -34,7 +35,7 @@ data class SettingsBackup(
 )
 
 data class BackupData(
-    val version: Int = 1,
+    val version: Int = 2,
     val timestamp: Long = System.currentTimeMillis(),
     val viewHistory: List<VideoHistoryEntry>? = emptyList(),
     val searchHistory: List<SearchHistoryItem>? = emptyList(),
@@ -42,6 +43,7 @@ data class BackupData(
     val playlists: List<PlaylistEntity>? = emptyList(),
     val playlistVideos: List<PlaylistVideoCrossRef>? = emptyList(),
     val videos: List<VideoEntity>? = emptyList(),
+    val likedVideos: List<LikedVideoInfo>? = emptyList(),
     val settings: SettingsBackup? = null
 )
 
@@ -61,6 +63,7 @@ class BackupRepository(private val context: Context) {
     private val viewHistory = ViewHistory.getInstance(context)
     private val searchHistoryRepo = SearchHistoryRepository(context)
     private val subscriptionRepo = SubscriptionRepository.getInstance(context)
+    private val likedVideosRepo = LikedVideosRepository.getInstance(context)
     private val database = AppDatabase.getDatabase(context)
 
     suspend fun exportData(uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
@@ -83,6 +86,7 @@ class BackupRepository(private val context: Context) {
                 playlists = database.playlistDao().getAllPlaylists().first(),
                 playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
                 videos = database.videoDao().getAllVideos(),
+                likedVideos = likedVideosRepo.getAllLikedVideos().first(),
                 settings = mergedSettings
             )
 
@@ -109,18 +113,14 @@ class BackupRepository(private val context: Context) {
             val backupData = parseBackupJson(json)
                 ?: return@withContext Result.failure(Exception("Invalid backup file"))
 
-            // Import View History
-            backupData.viewHistory?.forEach { entry ->
-                viewHistory.savePlaybackPosition(
-                    videoId = entry.videoId,
-                    position = entry.position,
-                    duration = entry.duration,
-                    title = entry.title,
-                    thumbnailUrl = entry.thumbnailUrl,
-                    channelName = entry.channelName,
-                    channelId = entry.channelId,
-                    isMusic = entry.isMusic
-                )
+            // Import View History (bulk-insert for performance with large backups)
+            backupData.viewHistory?.let { entries ->
+                if (entries.isNotEmpty()) viewHistory.bulkSaveHistoryEntries(entries)
+            }
+
+            // Import Liked Videos
+            backupData.likedVideos?.forEach { info ->
+                likedVideosRepo.likeVideo(info)
             }
 
             // Import Search History
@@ -135,8 +135,8 @@ class BackupRepository(private val context: Context) {
 
             // Import Room Data
             database.withTransaction {
-                // We merge (insert with ignore/replace)
-                backupData.videos?.forEach { database.videoDao().insertVideo(it) }
+                // We merge (insert with ignore so existing richer data is not overwritten)
+                backupData.videos?.forEach { database.videoDao().insertVideoOrIgnore(it) }
                 backupData.playlists?.forEach { database.playlistDao().insertPlaylist(it) }
                 backupData.playlistVideos?.forEach { database.playlistDao().insertPlaylistVideoCrossRef(it) }
             }
@@ -281,6 +281,232 @@ class BackupRepository(private val context: Context) {
             }
             
             Result.success(importedCount)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Import YouTube watch history from a YouTube Takeout HTML file (watch-history.html).
+     *
+     * Streams the file in 64KB chunks so large files (50MB+) do not cause OOM.
+     * Saves entries in bulk DataStore transactions (500 per batch) for performance.
+     */
+    suspend fun importYouTubeWatchHistory(uri: Uri): Result<Int> = withContext(Dispatchers.IO) {
+        try {
+            val READ_SIZE  = 65_536  // 64 KB read buffer
+            val OVERLAP    = 2_048   // bytes kept from previous chunk to catch cross-boundary matches
+            val BATCH_SIZE = 500     // entries saved per DataStore transaction
+
+            // Match: watch?v=VIDEO_ID">TITLE</a> optionally followed by channel link
+            val videoPattern = Regex(
+                """href="https://www\.youtube\.com/watch\?v=([\w-]{10,12})"[^>]*?>([^<]+)</a>""",
+                RegexOption.IGNORE_CASE
+            )
+            val channelPattern = Regex(
+                """href="https://www\.youtube\.com/channel/([^"&\s]+)"[^>]*?>([^<]+)</a>""",
+                RegexOption.IGNORE_CASE
+            )
+
+            var importedCount = 0
+            val batch = mutableListOf<VideoHistoryEntry>()
+
+            context.contentResolver.openInputStream(uri)
+                ?.bufferedReader(Charsets.UTF_8)
+                ?.use { reader ->
+                    val buf  = CharArray(READ_SIZE)
+                    val tail = StringBuilder(OVERLAP)
+
+                    while (true) {
+                        val n = reader.read(buf)
+                        if (n == -1) break
+
+                        val window = tail.toString() + String(buf, 0, n)
+
+                        val videoMatches   = videoPattern.findAll(window).toList()
+                        val channelMatches = channelPattern.findAll(window).toList()
+                        var chIdx = 0
+
+                        for (vm in videoMatches) {
+                            if (vm.range.last < tail.length) continue
+
+                            val videoId = vm.groupValues[1].trim()
+                            if (videoId.isEmpty()) continue
+
+                            val title = unescapeHtmlEntities(vm.groupValues[2].trim())
+
+                            while (chIdx < channelMatches.size &&
+                                channelMatches[chIdx].range.first <= vm.range.first
+                            ) chIdx++
+
+                            val cm = channelMatches.getOrNull(chIdx)
+                            val channelId: String
+                            val channelName: String
+                            if (cm != null && cm.range.first - vm.range.last < 2_000) {
+                                channelId   = cm.groupValues[1].trim()
+                                channelName = unescapeHtmlEntities(cm.groupValues[2].trim())
+                            } else {
+                                channelId   = ""
+                                channelName = ""
+                            }
+
+                            batch.add(
+                                VideoHistoryEntry(
+                                    videoId      = videoId,
+                                    position     = 0L,
+                                    duration     = 0L,
+                                    timestamp    = System.currentTimeMillis() - importedCount, 
+                                    title        = title,
+                                    thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                                    channelName  = channelName,
+                                    channelId    = channelId,
+                                    isMusic      = false
+                                )
+                            )
+                            importedCount++
+                        }
+
+                        tail.clear()
+                        if (window.length > OVERLAP) {
+                            tail.append(window, window.length - OVERLAP, window.length)
+                        } else {
+                            tail.append(window)
+                        }
+
+                        if (batch.size >= BATCH_SIZE) {
+                            viewHistory.bulkSaveHistoryEntries(batch)
+                            batch.clear()
+                            kotlinx.coroutines.yield() 
+                        }
+                    }
+
+                    if (batch.isNotEmpty()) {
+                        viewHistory.bulkSaveHistoryEntries(batch)
+                        batch.clear()
+                    }
+                } ?: return@withContext Result.failure(Exception("Could not read file"))
+
+            if (importedCount == 0) {
+                return@withContext Result.failure(Exception("no_entries"))
+            }
+
+            Result.success(importedCount)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun unescapeHtmlEntities(text: String): String = text
+        .replace("&amp;",  "&")
+        .replace("&lt;",   "<")
+        .replace("&gt;",   ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;",  "'")
+        .replace("&apos;", "'")
+        .replace("&#x27;", "'")
+
+    /**
+     * Import a YouTube playlist from a YouTube Takeout CSV file (e.g. "Watch later-videos.csv").
+     *
+     * Actual Takeout CSV schema (2-column, no metadata header):
+     *   Video ID,Playlist Video Creation Timestamp
+     *   wxmYUyLS47w,2026-02-25T19:35:57+00:00
+     *
+     * The playlist name is derived from the file's display name: strip "-videos.csv" suffix.
+     */
+    suspend fun importYouTubePlaylist(uri: Uri, isMusic: Boolean = false): Result<Pair<String, Int>> = withContext(Dispatchers.IO) {
+        try {
+            val displayName = context.contentResolver.query(
+                uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            } ?: "Imported Playlist"
+
+            val playlistName = displayName
+                .removeSuffix(".csv")
+                .let { if (it.endsWith("-videos", ignoreCase = true)) it.dropLast(7) else it }
+                .trim()
+                .ifEmpty { "Imported Playlist" }
+
+            val videoIds = mutableListOf<String>()
+
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                inputStream.bufferedReader(Charsets.UTF_8).use { reader ->
+                    var headerSkipped = false
+                    reader.forEachLine { raw ->
+                        val line = raw.trim()
+                        if (line.isEmpty()) return@forEachLine
+
+                        if (!headerSkipped) {
+                            headerSkipped = true
+                            if (line.startsWith("Video ID", ignoreCase = true)) return@forEachLine
+                        }
+
+                        val videoId = line.split(",").firstOrNull()?.trim() ?: return@forEachLine
+
+                        if (videoId.isNotEmpty() &&
+                            videoId.all { it.isLetterOrDigit() || it == '_' || it == '-' }
+                        ) {
+                            videoIds.add(videoId)
+                        }
+                    }
+                }
+            } ?: return@withContext Result.failure(Exception("Could not read file"))
+
+            if (videoIds.isEmpty()) {
+                return@withContext Result.failure(Exception("no_videos"))
+            }
+
+            val isWatchLater = playlistName.equals("watch later", ignoreCase = true)
+            val playlistId  = if (isWatchLater) PlaylistRepository.WATCH_LATER_ID
+                              else "yt_import_${System.currentTimeMillis()}"
+            val finalName   = if (isWatchLater) "Watch Later" else playlistName
+            val firstThumb  = "https://i.ytimg.com/vi/${videoIds.first()}/hqdefault.jpg"
+
+            database.withTransaction {
+                val existingPlaylist = database.playlistDao().getPlaylist(playlistId)
+                if (existingPlaylist == null) {
+                    database.playlistDao().insertPlaylist(
+                        PlaylistEntity(
+                            id           = playlistId,
+                            name         = finalName,
+                            description  = if (isWatchLater) "Your watch later list"
+                                           else "Imported from YouTube Takeout",
+                            thumbnailUrl = firstThumb,
+                            isPrivate    = isWatchLater,
+                            createdAt    = System.currentTimeMillis(),
+                            isMusic      = isMusic
+                        )
+                    )
+                }
+
+                videoIds.forEachIndexed { index, videoId ->
+                    database.videoDao().insertVideoOrIgnore(
+                        VideoEntity(
+                            id                  = videoId,
+                            title               = "",
+                            channelName         = "",
+                            channelId           = "",
+                            thumbnailUrl        = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                            duration            = 0,
+                            viewCount           = 0L,
+                            uploadDate          = "",
+                            description         = "",
+                            channelThumbnailUrl = "",
+                            isMusic             = isMusic
+                        )
+                    )
+                    database.playlistDao().insertPlaylistVideoCrossRef(
+                        PlaylistVideoCrossRef(
+                            playlistId = playlistId,
+                            videoId    = videoId,
+                            position   = index.toLong()
+                        )
+                    )
+                }
+            }
+
+            Result.success(Pair(finalName, videoIds.size))
         } catch (e: Exception) {
             Result.failure(e)
         }

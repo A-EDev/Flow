@@ -22,6 +22,9 @@ class DownloadsViewModel @Inject constructor(
 
     init {
         observeDownloads()
+        viewModelScope.launch {
+            videoDownloadManager.scanAndRecoverDownloads()
+        }
     }
 
     private fun observeDownloads() {
@@ -47,6 +50,12 @@ class DownloadsViewModel @Inject constructor(
     fun deleteMusicDownload(videoId: String) {
         viewModelScope.launch {
             musicDownloadManager.deleteDownload(videoId)
+        }
+    }
+
+    fun rescan() {
+        viewModelScope.launch {
+            videoDownloadManager.scanAndRecoverDownloads()
         }
     }
 }

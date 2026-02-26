@@ -2,6 +2,7 @@ package com.flow.youtube.ui.screens.library
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -25,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.BackHandler
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.flow.youtube.R
@@ -32,7 +34,7 @@ import com.flow.youtube.data.local.PlaylistRepository
 import com.flow.youtube.data.model.Video
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun WatchLaterScreen(
     onBackClick: () -> Unit,
@@ -46,34 +48,95 @@ fun WatchLaterScreen(
     
     var watchLaterVideos by remember { mutableStateOf<List<Video>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    
+    var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val inSelectionMode = selectedIds.isNotEmpty()
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = inSelectionMode) { selectedIds = emptySet() }
+
     // Load watch later videos
     LaunchedEffect(Unit) {
         repo.getVideoOnlyWatchLaterFlow().collect { videos ->
             watchLaterVideos = videos
             isLoading = false
+            if (inSelectionMode) selectedIds = selectedIds.intersect(videos.map { it.id }.toSet())
         }
     }
     
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            icon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text("Remove ${selectedIds.size} video${if (selectedIds.size == 1) "" else "s"}?") },
+            text = { Text("They will be removed from Watch Later. You can add them again later.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val toRemove = selectedIds.toSet()
+                        scope.launch { toRemove.forEach { id -> repo.removeFromWatchLater(id) } }
+                        selectedIds = emptySet()
+                        showDeleteConfirm = false
+                    }
+                ) { Text("Remove", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancel") }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { }, // Title moved to header section below image
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.close))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { /* More options */ }) {
-                        Icon(Icons.Default.MoreVert, stringResource(R.string.more_options))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+            if (inSelectionMode) {
+                TopAppBar(
+                    title = { Text("${selectedIds.size} selected", style = MaterialTheme.typography.titleMedium) },
+                    navigationIcon = {
+                        IconButton(onClick = { selectedIds = emptySet() }) {
+                            Icon(Icons.Default.Close, "Cancel selection")
+                        }
+                    },
+                    actions = {
+                        val allSelected = selectedIds.size == watchLaterVideos.size && watchLaterVideos.isNotEmpty()
+                        IconButton(onClick = {
+                            selectedIds = if (allSelected) emptySet()
+                            else watchLaterVideos.map { it.id }.toSet()
+                        }) {
+                            Icon(
+                                if (allSelected) Icons.Outlined.CheckBox else Icons.Default.SelectAll,
+                                if (allSelected) "Deselect all" else "Select all"
+                            )
+                        }
+                        IconButton(onClick = { showDeleteConfirm = true }) {
+                            Icon(
+                                Icons.Default.Delete,
+                                "Delete selected",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
                 )
-            )
+            } else {
+                TopAppBar(
+                    title = { }, // Title is in the hero header below
+                    navigationIcon = {
+                        IconButton(onClick = onBackClick) {
+                            Icon(Icons.Default.ArrowBack, stringResource(R.string.close))
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = { /* More options */ }) {
+                            Icon(Icons.Default.MoreVert, stringResource(R.string.more_options))
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.Transparent,
+                        scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
+                    )
+                )
+            }
         },
         modifier = modifier
     ) { paddingValues ->
@@ -124,13 +187,24 @@ fun WatchLaterScreen(
                     items = watchLaterVideos,
                     key = { _, video -> video.id }
                 ) { index, video ->
+                    val isSelected = video.id in selectedIds
                     WatchLaterVideoItem(
                         video = video,
-                        onClick = { onPlayPlaylist(watchLaterVideos, index) },
-                        onRemove = {
-                            scope.launch {
-                                repo.removeFromWatchLater(video.id)
+                        isSelected = isSelected,
+                        inSelectionMode = inSelectionMode,
+                        onClick = {
+                            if (inSelectionMode) {
+                                selectedIds = if (isSelected) selectedIds - video.id
+                                             else selectedIds + video.id
+                            } else {
+                                onPlayPlaylist(watchLaterVideos, index)
                             }
+                        },
+                        onLongClick = {
+                            selectedIds = selectedIds + video.id
+                        },
+                        onRemove = {
+                            scope.launch { repo.removeFromWatchLater(video.id) }
                         }
                     )
                 }
@@ -254,25 +328,39 @@ private fun WatchLaterHeader(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun WatchLaterVideoItem(
     video: Video,
+    isSelected: Boolean,
+    inSelectionMode: Boolean,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onRemove: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
+    val selectionBg = if (isSelected)
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
+    else Color.Transparent
+
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .background(selectionBg)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(vertical = 12.dp, horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Drag Handle removed as per request
-        
+        if (inSelectionMode) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = { onClick() },
+                modifier = Modifier.size(24.dp)
+            )
+        }
         // Thumbnail
         Box(
             modifier = Modifier
@@ -346,38 +434,39 @@ private fun WatchLaterVideoItem(
             }
         }
 
-        // More Options
-        Box {
-            IconButton(
-                onClick = { showMenu = true },
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = stringResource(R.string.more_options),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+        if (!inSelectionMode) {
+            Box {
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = stringResource(R.string.more_options),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
 
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.remove_from_watch_later)) },
-                    onClick = {
-                        onRemove()
-                        showMenu = false
-                    },
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                )
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.remove_from_watch_later)) },
+                        onClick = {
+                            onRemove()
+                            showMenu = false
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    )
+                }
             }
         }
     }

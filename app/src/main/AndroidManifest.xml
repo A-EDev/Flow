@@ -17,6 +17,10 @@
     <uses-permission
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+    <!-- Required for reading local video files on Android 13+ -->
+    <uses-permission
+        android:name="android.permission.READ_MEDIA_VIDEO"
+        android:minSdkVersion="33" />
     <!-- Optional: allows saving downloads to public Movies/Music folders (survives app uninstall) -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <!-- Required for DLNA/UPnP SSDP device discovery (FOSS casting, no Google services) -->

@@ -1,42 +1,68 @@
 package com.flow.youtube.data.local
 
 import android.content.Context
+import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.flow.youtube.data.local.entity.WatchHistoryEntity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 
+/**
+ * Legacy DataStore kept only for one-time migration of existing user data.
+ * After migration it is left empty (cleared).
+ */
 private val Context.viewHistoryDataStore: DataStore<Preferences> by preferencesDataStore(name = "view_history")
 
+/**
+ * Watch-history repository backed by Room SQLite.
+*/
 class ViewHistory private constructor(private val context: Context) {
-    
+
+    private val dao = AppDatabase.getDatabase(context).watchHistoryDao()
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     companion object {
+        private const val TAG = "ViewHistory"
+
         @Volatile
         private var INSTANCE: ViewHistory? = null
-        
+
         fun getInstance(context: Context): ViewHistory {
             return INSTANCE ?: synchronized(this) {
-                INSTANCE ?: ViewHistory(context.applicationContext).also { INSTANCE = it }
+                INSTANCE ?: ViewHistory(context.applicationContext).also { instance ->
+                    INSTANCE = instance
+                    instance.scope.launch { instance.migrateFromDataStoreIfNeeded() }
+                }
             }
         }
-        
-        // Keys format: "video_{videoId}_position", "video_{videoId}_duration", "video_{videoId}_timestamp"
-        private fun positionKey(videoId: String) = longPreferencesKey("video_${videoId}_position")
-        private fun durationKey(videoId: String) = longPreferencesKey("video_${videoId}_duration")
-        private fun timestampKey(videoId: String) = longPreferencesKey("video_${videoId}_timestamp")
-        private fun titleKey(videoId: String) = stringPreferencesKey("video_${videoId}_title")
-        private fun thumbnailKey(videoId: String) = stringPreferencesKey("video_${videoId}_thumbnail")
-        private fun channelNameKey(videoId: String) = stringPreferencesKey("video_${videoId}_channel_name")
-        private fun channelIdKey(videoId: String) = stringPreferencesKey("video_${videoId}_channel_id")
-        private fun isMusicKey(videoId: String) = androidx.datastore.preferences.core.booleanPreferencesKey("video_${videoId}_is_music")
+
+        private fun positionKey(id: String)    = longPreferencesKey("video_${id}_position")
+        private fun durationKey(id: String)    = longPreferencesKey("video_${id}_duration")
+        private fun timestampKey(id: String)   = longPreferencesKey("video_${id}_timestamp")
+        private fun titleKey(id: String)       = stringPreferencesKey("video_${id}_title")
+        private fun thumbnailKey(id: String)   = stringPreferencesKey("video_${id}_thumbnail")
+        private fun channelNameKey(id: String) = stringPreferencesKey("video_${id}_channel_name")
+        private fun channelIdKey(id: String)   = stringPreferencesKey("video_${id}_channel_id")
+        private fun isMusicKey(id: String)     = booleanPreferencesKey("video_${id}_is_music")
     }
-    
+
+    // ── Writes ───────────────────────────────────────────────────────────────
+
     /**
-     * Save video playback position
+     * Save / update playback position (called during real playback).
+     * REPLACE strategy so progress is always current.
      */
     suspend fun savePlaybackPosition(
         videoId: String,
@@ -48,135 +74,138 @@ class ViewHistory private constructor(private val context: Context) {
         channelId: String = "",
         isMusic: Boolean = false
     ) {
-        context.viewHistoryDataStore.edit { preferences ->
-            preferences[positionKey(videoId)] = position
-            preferences[durationKey(videoId)] = duration
-            preferences[timestampKey(videoId)] = System.currentTimeMillis()
-            if (title.isNotEmpty()) preferences[titleKey(videoId)] = title
-            if (thumbnailUrl.isNotEmpty()) preferences[thumbnailKey(videoId)] = thumbnailUrl
-            if (channelName.isNotEmpty()) preferences[channelNameKey(videoId)] = channelName
-            if (channelId.isNotEmpty()) preferences[channelIdKey(videoId)] = channelId
-            preferences[isMusicKey(videoId)] = isMusic
-        }
-    }
-    
-    /**
-     * Get saved playback position for a video
-     */
-    fun getPlaybackPosition(videoId: String): Flow<Long> {
-        return context.viewHistoryDataStore.data.map { preferences ->
-            preferences[positionKey(videoId)] ?: 0L
-        }
-    }
-    
-    /**
-     * Get full video history entry
-     */
-    fun getVideoHistory(videoId: String): Flow<VideoHistoryEntry?> {
-        return context.viewHistoryDataStore.data.map { preferences ->
-            val position = preferences[positionKey(videoId)] ?: return@map null
-            val duration = preferences[durationKey(videoId)] ?: 0L
-            val timestamp = preferences[timestampKey(videoId)] ?: 0L
-            val title = preferences[titleKey(videoId)] ?: ""
-            val thumbnail = preferences[thumbnailKey(videoId)] ?: ""
-            val channelName = preferences[channelNameKey(videoId)] ?: ""
-            val channelId = preferences[channelIdKey(videoId)] ?: ""
-            val isMusic = preferences[isMusicKey(videoId)] ?: false
-            
-            VideoHistoryEntry(
-                videoId = videoId,
-                position = position,
-                duration = duration,
-                timestamp = timestamp,
-                title = title,
+        val thumbnail = thumbnailUrl.ifEmpty { "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" }
+        dao.upsert(
+            WatchHistoryEntity(
+                videoId      = videoId,
+                position     = position,
+                duration     = duration,
+                timestamp    = System.currentTimeMillis(),
+                title        = title,
                 thumbnailUrl = thumbnail,
-                channelName = channelName,
-                channelId = channelId,
-                isMusic = isMusic
+                channelName  = channelName,
+                channelId    = channelId,
+                isMusic      = isMusic
+            )
+        )
+    }
+
+    /**
+     * Bulk-insert history entries from an import.
+     * Uses IGNORE conflict strategy so that real playback progress already in
+     * the DB is never overwritten by imported stubs.
+     */
+    suspend fun bulkSaveHistoryEntries(entries: List<VideoHistoryEntry>) {
+        if (entries.isEmpty()) return
+        val entities = entries.map { entry ->
+            WatchHistoryEntity(
+                videoId      = entry.videoId,
+                position     = entry.position,
+                duration     = entry.duration,
+                timestamp    = entry.timestamp,
+                title        = entry.title,
+                thumbnailUrl = entry.thumbnailUrl.ifEmpty {
+                    "https://i.ytimg.com/vi/${entry.videoId}/hqdefault.jpg"
+                },
+                channelName  = entry.channelName,
+                channelId    = entry.channelId,
+                isMusic      = entry.isMusic
             )
         }
+        dao.insertAll(entities)
     }
-    
+
+    suspend fun clearVideoHistory(videoId: String) {
+        dao.deleteEntry(videoId)
+    }
+
+    suspend fun clearAllHistory() {
+        dao.clearAll()
+    }
+
+    // ── Reads ────────────────────────────────────────────────────────────────
+
+    fun getPlaybackPosition(videoId: String): Flow<Long> =
+        dao.getEntry(videoId).map { it?.position ?: 0L }
+
+    fun getVideoHistory(videoId: String): Flow<VideoHistoryEntry?> =
+        dao.getEntry(videoId).map { it?.toDomain() }
+
+    /** All history, newest first. */
+    fun getAllHistory(): Flow<List<VideoHistoryEntry>> =
+        dao.getAllHistory().map { list -> list.map { it.toDomain() } }
+
+    /** Video (non-music) history, newest first. */
+    fun getVideoHistoryFlow(): Flow<List<VideoHistoryEntry>> =
+        dao.getVideoHistory().map { list -> list.map { it.toDomain() } }
+
+    /** Music history, newest first. */
+    fun getMusicHistoryFlow(): Flow<List<VideoHistoryEntry>> =
+        dao.getMusicHistory().map { list -> list.map { it.toDomain() } }
+
+    /** Efficient count without loading all rows — use this instead of list.size. */
+    fun getVideoCount(): Flow<Int> = dao.getVideoCount()
+
+
     /**
-     * Get all video history entries
+     * On the first launch after the 10→11 DB migration the Room table is empty
+     * but the old DataStore may contain thousands of entries.  Read them all
+     * in batches and insert into Room, then clear the DataStore.
      */
-    fun getAllHistory(): Flow<List<VideoHistoryEntry>> {
-        return context.viewHistoryDataStore.data.map { preferences ->
+    private suspend fun migrateFromDataStoreIfNeeded() {
+        try {
+            val roomCount = dao.getCount().first()
+            if (roomCount > 0) return
+
+            val prefs = context.viewHistoryDataStore.data.first()
             val videoIds = mutableSetOf<String>()
-            
-            // Extract unique video IDs from keys
-            preferences.asMap().keys.forEach { key ->
-                val keyName = key.name
-                if (keyName.startsWith("video_") && keyName.endsWith("_position")) {
-                    val videoId = keyName.removePrefix("video_").removeSuffix("_position")
-                    videoIds.add(videoId)
+            prefs.asMap().keys.forEach { key ->
+                val name = key.name
+                if (name.startsWith("video_") && name.endsWith("_position")) {
+                    videoIds.add(name.removePrefix("video_").removeSuffix("_position"))
                 }
             }
-            
-            // Build history entries
-            videoIds.mapNotNull { videoId ->
-                val position = preferences[positionKey(videoId)] ?: return@mapNotNull null
-                val duration = preferences[durationKey(videoId)] ?: 0L
-                val timestamp = preferences[timestampKey(videoId)] ?: 0L
-                val title = preferences[titleKey(videoId)] ?: ""
-                val thumbnail = preferences[thumbnailKey(videoId)] ?: ""
-                val channelName = preferences[channelNameKey(videoId)] ?: ""
-                val channelId = preferences[channelIdKey(videoId)] ?: ""
-                val isMusic = preferences[isMusicKey(videoId)] ?: false
-                
-                VideoHistoryEntry(
-                    videoId = videoId,
-                    position = position,
-                    duration = duration,
-                    timestamp = timestamp,
-                    title = title,
-                    thumbnailUrl = thumbnail,
-                    channelName = channelName,
-                    channelId = channelId,
-                    isMusic = isMusic
-                )
-            }.sortedByDescending { it.timestamp }
-        }
-    }
+            if (videoIds.isEmpty()) return
 
-    fun getMusicHistoryFlow(): Flow<List<VideoHistoryEntry>> {
-        return getAllHistory().map { list -> list.filter { it.isMusic } }
-    }
+            Log.i(TAG, "Migrating ${videoIds.size} watch-history entries from DataStore → Room")
 
-    fun getVideoHistoryFlow(): Flow<List<VideoHistoryEntry>> {
-        return getAllHistory().map { list -> list.filter { !it.isMusic } }
-    }
-    
-    /**
-     * Clear history for a specific video
-     */
-    suspend fun clearVideoHistory(videoId: String) {
-        context.viewHistoryDataStore.edit { preferences ->
-            preferences.remove(positionKey(videoId))
-            preferences.remove(durationKey(videoId))
-            preferences.remove(timestampKey(videoId))
-            preferences.remove(titleKey(videoId))
-            preferences.remove(thumbnailKey(videoId))
-            preferences.remove(channelNameKey(videoId))
-            preferences.remove(channelIdKey(videoId))
-        }
-    }
-    
-    /**
-     * Clear all history
-     */
-    suspend fun clearAllHistory() {
-        context.viewHistoryDataStore.edit { preferences ->
-            preferences.clear()
+            val BATCH = 500
+            val batch = mutableListOf<WatchHistoryEntity>()
+
+            for (videoId in videoIds) {
+                val position = prefs[positionKey(videoId)]    ?: continue
+                val duration = prefs[durationKey(videoId)]    ?: 0L
+                val ts       = prefs[timestampKey(videoId)]   ?: 0L
+                val title    = prefs[titleKey(videoId)]       ?: ""
+                val thumb    = prefs[thumbnailKey(videoId)]
+                    ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+                val chName   = prefs[channelNameKey(videoId)] ?: ""
+                val chId     = prefs[channelIdKey(videoId)]   ?: ""
+                val isMusic  = prefs[isMusicKey(videoId)]     ?: false
+
+                batch += WatchHistoryEntity(videoId, position, duration, ts, title, thumb, chName, chId, isMusic)
+
+                if (batch.size >= BATCH) {
+                    dao.insertAll(batch)
+                    batch.clear()
+                    yield()
+                }
+            }
+            if (batch.isNotEmpty()) dao.insertAll(batch)
+
+            context.viewHistoryDataStore.edit { it.clear() }
+            Log.i(TAG, "DataStore → Room migration complete (${videoIds.size} entries)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Migration from DataStore failed", e)
         }
     }
 }
 
 data class VideoHistoryEntry(
     val videoId: String,
-    val position: Long, // Position in milliseconds
-    val duration: Long, // Total duration in milliseconds
-    val timestamp: Long, // When it was last watched
+    val position: Long,
+    val duration: Long,   
+    val timestamp: Long,    
     val title: String,
     val thumbnailUrl: String,
     val channelName: String = "",

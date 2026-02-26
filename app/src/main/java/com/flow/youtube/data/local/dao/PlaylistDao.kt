@@ -61,4 +61,14 @@ interface PlaylistDao {
 
     @Query("SELECT * FROM playlist_video_cross_ref")
     suspend fun getAllPlaylistVideoCrossRefs(): List<PlaylistVideoCrossRef>
+
+    /** Returns stub VideoEntities (empty title) that live inside music playlists. Used for background enrichment. */
+    @Query("""
+        SELECT DISTINCT v.* FROM videos v
+        INNER JOIN playlist_video_cross_ref r ON v.id = r.videoId
+        INNER JOIN playlists p ON p.id = r.playlistId
+        WHERE p.isMusic = 1 AND (v.title = '' OR v.title IS NULL)
+        LIMIT 200
+    """)
+    suspend fun getMusicPlaylistStubVideos(): List<VideoEntity>
 }

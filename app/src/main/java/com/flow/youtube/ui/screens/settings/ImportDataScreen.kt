@@ -13,7 +13,9 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.Psychology
+import androidx.compose.material.icons.outlined.QueueMusic
 import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -85,6 +87,77 @@ fun ImportDataScreen(
                         snackbarHostState.showSnackbar(context.getString(R.string.import_youtube_success_template, result.getOrNull()))
                     } else {
                         snackbarHostState.showSnackbar(context.getString(R.string.import_youtube_failed_template, result.exceptionOrNull()?.message))
+                    }
+                }
+            }
+        }
+    )
+
+    val youtubeHistoryImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            uri?.let {
+                scope.launch {
+                    val result = backupRepo.importYouTubeWatchHistory(it)
+                    if (result.isSuccess) {
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.import_yt_history_success_template, result.getOrNull())
+                        )
+                    } else {
+                        val errMsg = result.exceptionOrNull()?.message
+                        val display = when (errMsg) {
+                            "no_entries" -> context.getString(R.string.import_yt_history_empty_error)
+                            else -> context.getString(R.string.import_yt_history_failed_template, errMsg)
+                        }
+                        snackbarHostState.showSnackbar(display)
+                    }
+                }
+            }
+        }
+    )
+
+    val youtubePlaylistImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            uri?.let {
+                scope.launch {
+                    val result = backupRepo.importYouTubePlaylist(it)
+                    if (result.isSuccess) {
+                        val (name, count) = result.getOrNull()!!
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.import_yt_playlist_success_template, name, count)
+                        )
+                    } else {
+                        val errMsg = result.exceptionOrNull()?.message
+                        val display = when (errMsg) {
+                            "no_videos" -> context.getString(R.string.import_yt_playlist_empty_error)
+                            else -> context.getString(R.string.import_yt_playlist_failed_template, errMsg)
+                        }
+                        snackbarHostState.showSnackbar(display)
+                    }
+                }
+            }
+        }
+    )
+
+    val youtubeMusicPlaylistImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            uri?.let {
+                scope.launch {
+                    val result = backupRepo.importYouTubePlaylist(it, isMusic = true)
+                    if (result.isSuccess) {
+                        val (name, count) = result.getOrNull()!!
+                        snackbarHostState.showSnackbar(
+                            context.getString(R.string.import_yt_playlist_success_template, name, count)
+                        )
+                    } else {
+                        val errMsg = result.exceptionOrNull()?.message
+                        val display = when (errMsg) {
+                            "no_videos" -> context.getString(R.string.import_yt_playlist_empty_error)
+                            else -> context.getString(R.string.import_yt_playlist_failed_template, errMsg)
+                        }
+                        snackbarHostState.showSnackbar(display)
                     }
                 }
             }
@@ -201,8 +274,45 @@ fun ImportDataScreen(
                     description = stringResource(R.string.import_from_libretube_desc),
                     painter = painterResource(id = R.drawable.ic_libretube),
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    enabled = true,
+                    enabled = false,
                     onClick = { /* TODO */ }
+                )
+            }
+
+            item {
+                PreferencesSectionHeader(
+                    title = stringResource(R.string.import_yt_data_section_title),
+                    subtitle = stringResource(R.string.import_yt_data_section_subtitle)
+                )
+            }
+
+            item {
+                ImportOptionCard(
+                    title = stringResource(R.string.import_yt_watch_history),
+                    description = stringResource(R.string.import_yt_watch_history_desc),
+                    icon = Icons.Outlined.History,
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    onClick = { youtubeHistoryImportLauncher.launch(arrayOf("text/html", "text/plain")) }
+                )
+            }
+
+            item {
+                ImportOptionCard(
+                    title = stringResource(R.string.import_yt_playlist),
+                    description = stringResource(R.string.import_yt_playlist_desc),
+                    icon = Icons.Outlined.PlaylistPlay,
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    onClick = { youtubePlaylistImportLauncher.launch(arrayOf("text/comma-separated-values", "text/csv", "text/plain")) }
+                )
+            }
+
+            item {
+                ImportOptionCard(
+                    title = stringResource(R.string.import_yt_music_playlist),
+                    description = stringResource(R.string.import_yt_music_playlist_desc),
+                    icon = Icons.Outlined.QueueMusic,
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    onClick = { youtubeMusicPlaylistImportLauncher.launch(arrayOf("text/comma-separated-values", "text/csv", "text/plain")) }
                 )
             }
 
