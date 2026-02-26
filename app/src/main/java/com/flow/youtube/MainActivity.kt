@@ -319,10 +319,10 @@ class MainActivity : ComponentActivity() {
                         val latestTag = json.get("tag_name").asString
                         val currentVersion = BuildConfig.VERSION_NAME
                         
-                        val cleanLatest = latestTag.removePrefix("v")
-                        val cleanCurrent = currentVersion.removePrefix("v")
+                        val cleanLatest = latestTag.removePrefix("v").split("-").first()
+                        val cleanCurrent = currentVersion.removePrefix("v").split("-").first()
                         
-                        Log.d("MainActivity", "Latest tag: $latestTag, Current: $currentVersion")
+                        Log.d("MainActivity", "Latest tag: $latestTag, Current: $currentVersion, Comparing: $cleanLatest vs $cleanCurrent")
                         
                         if (isNewerVersion(cleanLatest, cleanCurrent)) {
                             withContext(Dispatchers.Main) {
@@ -350,8 +350,10 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun isNewerVersion(latest: String, current: String): Boolean {
-        val latestParts = latest.split(".").mapNotNull { it.toIntOrNull() }
-        val currentParts = current.split(".").mapNotNull { it.toIntOrNull() }
+        val cleanLatest = latest.split("-").first()
+        val cleanCurrent = current.split("-").first()
+        val latestParts = cleanLatest.split(".").mapNotNull { it.toIntOrNull() }
+        val currentParts = cleanCurrent.split(".").mapNotNull { it.toIntOrNull() }
         
         val size = maxOf(latestParts.size, currentParts.size)
         for (i in 0 until size) {

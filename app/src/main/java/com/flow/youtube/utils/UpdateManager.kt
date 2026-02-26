@@ -38,8 +38,8 @@ object UpdateManager {
             val json = JSONObject(response.body?.string() ?: "{}")
             
             // 1. Get Remote Version
-            val remoteTag = json.optString("tag_name", "").removePrefix("v")
-            val currentTag = currentVersionName.removePrefix("v")
+            val remoteTag = json.optString("tag_name", "").removePrefix("v").split("-").first()
+            val currentTag = currentVersionName.removePrefix("v").split("-").first()
 
             // 2. Get Download URL (Prioritize APK asset, fallback to browser link)
             val assets = json.optJSONArray("assets")
@@ -73,11 +73,14 @@ object UpdateManager {
     }
 
     /**
-     * Compares two version strings (e.g., "1.2.0" vs "1.1.9")
+     * Compares two version strings (e.g., "1.2.0" vs "1.1.9").
+     * Both strings should already have build-type suffixes stripped (done in checkForUpdate).
      */
     private fun isNewer(remote: String, current: String): Boolean {
-        val remoteParts = remote.split(".").map { it.toIntOrNull() ?: 0 }
-        val currentParts = current.split(".").map { it.toIntOrNull() ?: 0 }
+        val cleanRemote = remote.split("-").first()
+        val cleanCurrent = current.split("-").first()
+        val remoteParts = cleanRemote.split(".").map { it.toIntOrNull() ?: 0 }
+        val currentParts = cleanCurrent.split(".").map { it.toIntOrNull() ?: 0 }
         
         val length = maxOf(remoteParts.size, currentParts.size)
         

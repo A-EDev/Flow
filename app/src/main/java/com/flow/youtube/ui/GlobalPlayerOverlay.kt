@@ -152,6 +152,11 @@ fun GlobalPlayerOverlay(
         isPlaying = playerState.playWhenReady,
         screenState = screenState
     )
+
+    PlaybackRefocusEffect(
+        screenState = screenState,
+        lifecycleOwner = lifecycleOwner
+    )
     
     AutoHideControlsEffect(
         showControls = screenState.showControls,

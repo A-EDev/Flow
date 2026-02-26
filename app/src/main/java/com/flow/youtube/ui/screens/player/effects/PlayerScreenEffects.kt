@@ -12,6 +12,8 @@ import androidx.compose.runtime.*
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.player.EnhancedPlayerManager
@@ -34,14 +36,108 @@ fun PositionTrackingEffect(
     isPlaying: Boolean,
     screenState: PlayerScreenState
 ) {
+    // High-frequency active tracking (only while playing)
     LaunchedEffect(isPlaying) {
         while (isPlaying) {
             EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
-                screenState.currentPosition = player.currentPosition
-                screenState.bufferedPosition = player.bufferedPosition
-                screenState.duration = player.duration.coerceAtLeast(0)
+                screenState.currentPosition = player.currentPosition.coerceAtLeast(0L)
+                screenState.bufferedPosition = player.bufferedPosition.coerceAtLeast(0L)
+                // Only write duration when ExoPlayer reports a valid value.
+                // player.duration returns C.TIME_UNSET (Long.MIN_VALUE) while buffering/recovering,
+                // coercing that to 0 would clear the known duration and break the seekbar.
+                val playerDuration = player.duration
+                if (playerDuration > 0L) {
+                    screenState.duration = playerDuration
+                }
             }
             delay(50)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(500L)
+            if (screenState.duration <= 0L) {
+                EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
+                    val playerDuration = player.duration
+                    if (playerDuration > 0L) {
+                        screenState.duration = playerDuration
+                        screenState.currentPosition = player.currentPosition.coerceAtLeast(0L)
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Observes lifecycle ON_RESUME events and recovers player state after screen-off/on.
+ *
+ * On some devices (notably Samsung running Android 16), the activity goes through
+ * onStop()/onStart() when the screen is turned off and back on. This causes:
+ *  - collectAsStateWithLifecycle() to briefly stop, then resume with potentially stale state
+ *  - ExoPlayer to reset its reported duration to TIME_UNSET during re-buffering
+ *  - The UI to display 0:00 / 0:00 even though playback is still live
+ *
+ * This effect detects ON_RESUME, waits for ExoPlayer to report a valid duration,
+ * then restores the screenState and re-triggers playback if needed.
+ */
+@Composable
+fun PlaybackRefocusEffect(
+    screenState: PlayerScreenState,
+    lifecycleOwner: LifecycleOwner
+) {
+    var resumeTrigger by remember { mutableIntStateOf(0) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                resumeTrigger++
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(resumeTrigger) {
+        if (resumeTrigger == 0) return@LaunchedEffect
+
+        delay(150L)
+
+        val player = EnhancedPlayerManager.getInstance().getPlayer() ?: return@LaunchedEffect
+        val playerMgrState = EnhancedPlayerManager.getInstance().playerState.value
+
+        if (playerMgrState.currentVideoId != null) {
+            var attempts = 0
+            while (attempts < 25 && player.duration <= 0L) {
+                delay(100L)
+                attempts++
+            }
+
+            val validDuration = player.duration
+            if (validDuration > 0L) {
+                screenState.duration = validDuration
+                screenState.currentPosition = player.currentPosition.coerceAtLeast(0L)
+            }
+
+            // On some Samsung devices (Android 16+), the system kills the audio session
+            // when the screen is turned off, putting ExoPlayer into STATE_IDLE.
+            // player.play() alone does nothing from IDLE — we must call prepare() first
+            // to reconnect the existing MediaSource, then resume.
+            if (player.playbackState == Player.STATE_IDLE && playerMgrState.currentVideoId != null) {
+                Log.d(TAG, "PlaybackRefocusEffect: player in IDLE after resume, calling prepare()")
+                player.prepare()
+                // Give ExoPlayer a moment to transition to BUFFERING/READY before play()
+                delay(300L)
+            }
+
+            // Resume playback if the player should be playing but isn't
+            // (covers: audio focus loss, system-induced pause, brief BUFFERING pause).
+            if (playerMgrState.playWhenReady && !player.isPlaying &&
+                player.playbackState != Player.STATE_ENDED
+            ) {
+                player.play()
+            }
         }
     }
 }
