@@ -3,6 +3,7 @@
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -124,50 +126,39 @@ fun PersistentMiniMusicPlayer(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(64.dp)
+                        .shadow(16.dp, RoundedCornerShape(18.dp), ambientColor = Color.Black.copy(alpha = 0.5f), spotColor = Color.Black.copy(alpha = 0.5f))
                         .clickable(onClick = onExpandClick),
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color.Transparent
+                    shape = RoundedCornerShape(18.dp),
+                    color = MaterialTheme.colorScheme.surface
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        // Blurred album art background
                         AsyncImage(
                             model = track.thumbnailUrl,
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .blur(50.dp),
+                                .blur(80.dp),
                             contentScale = ContentScale.Crop,
-                            alpha = 0.55f
+                            alpha = 0.25f
                         )
 
-                        // Glass overlay
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(
-                                    Brush.horizontalGradient(
-                                        colors = listOf(
-                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
-                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
-                                            MaterialTheme.colorScheme.surface.copy(alpha = 0.82f)
-                                        )
-                                    )
-                                )
+                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
                         )
 
                         // Progress 
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(2.5.dp)
+                                .height(3.dp)
                                 .align(Alignment.BottomCenter)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-                                    )
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                             )
                             Box(
                                 modifier = Modifier
@@ -188,37 +179,38 @@ fun PersistentMiniMusicPlayer(
                             // Album art + info
                             Row(
                                 modifier = Modifier.weight(1f),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 // Album art
-                                Surface(
-                                    modifier = Modifier.size(48.dp),
-                                    shape = RoundedCornerShape(10.dp),
-                                    tonalElevation = 0.dp,
-                                    color = Color.Transparent
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(RoundedCornerShape(12.dp))
                                 ) {
-                                    Box {
-                                        AsyncImage(
-                                            model = track.thumbnailUrl,
-                                            contentDescription = stringResource(R.string.album_art),
-                                            modifier = Modifier
-                                                .fillMaxSize()
-                                                .clip(RoundedCornerShape(10.dp)),
-                                            contentScale = ContentScale.Crop
-                                        )
+                                    AsyncImage(
+                                        model = track.thumbnailUrl,
+                                        contentDescription = stringResource(R.string.album_art),
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(12.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                                    )
 
-                                        // Subtle playing indicator
-                                        if (playerState.isPlaying) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(48.dp)
-                                                    .clip(RoundedCornerShape(10.dp))
-                                                    .background(Color.Black.copy(alpha = 0.25f)),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                MiniWaveform()
-                                            }
+                                    if (playerState.isPlaying) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(48.dp)
+                                                .background(Color.Black.copy(alpha = 0.35f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            MiniWaveform()
                                         }
                                     }
                                 }
@@ -230,20 +222,21 @@ fun PersistentMiniMusicPlayer(
                                 ) {
                                     Text(
                                         text = track.title,
-                                        style = MaterialTheme.typography.bodyMedium.copy(
-                                            fontWeight = FontWeight.SemiBold,
-                                            fontSize = 14.sp,
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
                                             letterSpacing = (-0.2).sp
                                         ),
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
-                                    Spacer(modifier = Modifier.height(1.dp))
+                                    Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = track.artist,
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            fontSize = 12.sp
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Medium
                                         ),
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
@@ -254,15 +247,15 @@ fun PersistentMiniMusicPlayer(
 
                             // Controls
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(0.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 // Play/Pause
                                 Box(
                                     modifier = Modifier
-                                        .size(42.dp)
+                                        .size(44.dp)
                                         .scale(animatedScale)
-                                        .clip(RoundedCornerShape(12.dp))
+                                        .clip(CircleShape)
                                         .background(MaterialTheme.colorScheme.primary)
                                         .clickable {
                                             playPauseScale = 0.85f

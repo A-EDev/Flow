@@ -1,11 +1,13 @@
 package com.flow.youtube.ui
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -156,22 +158,6 @@ fun FlowApp(
             bottomBar = {
                 if (!isInPipMode && showBottomNav.value) {
                     Column {
-                        // Music mini player above bottom nav
-                        // Only show music player if NOT on music screen AND no video is currently active/cached
-                        if (currentMusicTrack != null && !currentRoute.value.startsWith("musicPlayer") && playerUiState.cachedVideo == null && playerUiState.streamInfo == null) {
-                            PersistentMiniMusicPlayer(
-                                onExpandClick = {
-                                    currentMusicTrack?.let { track ->
-                                        navController.navigate("musicPlayer/${track.videoId}")
-                                    }
-                                },
-                                onDismiss = {
-                                    EnhancedMusicPlayerManager.stop()
-                                    EnhancedMusicPlayerManager.clearCurrentTrack()
-                                }
-                            )
-                        }
-                        
                         // Bottom nav bar
                         FloatingBottomNavBar(
                             selectedIndex = selectedBottomNavIndex.intValue,
@@ -302,5 +288,37 @@ fun FlowApp(
             navController.navigate("shorts?startVideoId=$videoId")
         }
     )
+    
+    // ===== GLOBAL MUSIC PLAYER OVERLAY =====
+    val animatedBottomPadding by animateDpAsState(
+        targetValue = if (!isInPipMode && showBottomNav.value) {
+            bottomNavContentHeightDp + with(density) { navBarBottomInset.toDp() }
+        } else {
+            with(density) { navBarBottomInset.toDp() }
+        },
+        animationSpec = tween(300),
+        label = "musicPlayerBottomPadding"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(bottom = animatedBottomPadding),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        if (currentMusicTrack != null && !currentRoute.value.startsWith("musicPlayer") && playerUiState.cachedVideo == null && playerUiState.streamInfo == null) {
+            PersistentMiniMusicPlayer(
+                onExpandClick = {
+                    currentMusicTrack?.let { track ->
+                        navController.navigate("musicPlayer/${track.videoId}")
+                    }
+                },
+                onDismiss = {
+                    EnhancedMusicPlayerManager.stop()
+                    EnhancedMusicPlayerManager.clearCurrentTrack()
+                }
+            )
+        }
+    }
   } 
 }
