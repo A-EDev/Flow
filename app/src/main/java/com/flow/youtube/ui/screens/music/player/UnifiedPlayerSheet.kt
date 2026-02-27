@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,104 +60,85 @@ fun UnifiedPlayerSheet(
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = Color.Transparent,
+        color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(topStart = sheetCornerRadius, topEnd = sheetCornerRadius),
-        border = BorderStroke(
-            width = 1.dp, 
-            brush = Brush.verticalGradient(
-                colors = listOf(
-                    Color.White.copy(alpha = 0.15f), 
-                    Color.Transparent
-                )
-            )
-        )
+        shadowElevation = 24.dp,
+        tonalElevation = 6.dp
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF1E1E1E).copy(alpha = 0.90f),
-                            Color.Black.copy(alpha = 0.98f)
-                        )
-                    )
-                )
+            modifier = Modifier.fillMaxSize()
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Drag Handle
                 Box(
                     modifier = Modifier
                         .padding(top = 16.dp, bottom = 4.dp)
-                        .width(48.dp)
-                        .height(5.dp)
-                        .background(Color.White.copy(alpha = 0.2f), CircleShape)
+                        .width(36.dp)
+                        .height(4.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                            shape = CircleShape
+                        )
                         .align(Alignment.CenterHorizontally)
                 )
 
-                // Tab Row
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 4.dp)
-                        .height(64.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                        .height(48.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
+                            shape = CircleShape
+                        )
                 ) {
-                    PlayerTab.values().forEach { tab ->
-                        val isSelected = isExpanded && tab == currentTab
-                        val title = when(tab) {
-                            PlayerTab.UP_NEXT -> stringResource(R.string.up_next)
-                            PlayerTab.LYRICS -> stringResource(R.string.lyrics)
-                            PlayerTab.RELATED -> stringResource(R.string.related)
-                        }
-                        
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) { 
-                                    onTabSelect(tab)
-                                    onExpand()
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        PlayerTab.values().forEach { tab ->
+                            val isSelected = isExpanded && tab == currentTab
+                            val title = when(tab) {
+                                PlayerTab.UP_NEXT -> stringResource(R.string.up_next)
+                                PlayerTab.LYRICS -> stringResource(R.string.lyrics)
+                                PlayerTab.RELATED -> stringResource(R.string.related)
+                            }
+                            
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .padding(4.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                                    )
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) { 
+                                        if (!isSelected) {
+                                            onTabSelect(tab)
+                                            onExpand()
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Text(
                                     text = title,
-                                    style = MaterialTheme.typography.titleMedium,
+                                    style = MaterialTheme.typography.labelLarge,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) Color.White else Color.White.copy(alpha = 0.5f),
-                                    modifier = Modifier.graphicsLayer {
-                                        scaleX = if (isSelected) 1.05f else 1f
-                                        scaleY = if (isSelected) 1.05f else 1f
-                                    }
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                
-                                val indicatorWidth by animateFloatAsState(
-                                    targetValue = if (isSelected) 32f else 0f,
-                                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioMediumBouncy)
-                                )
-                                
-                                if (indicatorWidth > 0f) {
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .width(indicatorWidth.dp)
-                                            .height(4.dp)
-                                            .background(Color.White, CircleShape)
-                                            .shadow(8.dp, CircleShape, ambientColor = Color.White, spotColor = Color.White)
-                                    )
-                                } else {
-                                    Spacer(modifier = Modifier.height(10.dp))
-                                }
                             }
                         }
                     }
                 }
+                
+                HorizontalDivider(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                )
                 
                 // Content
                 Box(
