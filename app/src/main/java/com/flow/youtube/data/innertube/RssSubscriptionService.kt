@@ -27,57 +27,73 @@ object RssSubscriptionService {
     private const val CHANNEL_CHUNK_SIZE = 5
     private const val CHANNEL_BATCH_SIZE = 50
     private val CHANNEL_BATCH_DELAY = (500L..1500L)
-    private const val MAX_FEED_AGE_DAYS = 30L
+    private const val MAX_FEED_AGE_DAYS = 90L
 
     /**
      * Fetch latest videos from subscribed channels using NewPipe Extractor.
      * Progressive loading: emits partial results as channel chunks complete.
      */
+    private const val MAX_REGULAR_VIDEOS = 150
+    private const val MAX_SHORTS = 60
+
     fun fetchSubscriptionVideos(channelIds: List<String>, maxTotal: Int = 200): Flow<List<Video>> = flow {
+        Log.i(TAG, "======== FEED FETCH START: ${channelIds.size} channels ========")
         if (channelIds.isEmpty()) {
+            Log.w(TAG, "No channel IDs provided — emitting empty list")
             emit(emptyList())
             return@flow
         }
 
-        val allVideos = mutableListOf<Video>()
+        val allRegular = mutableListOf<Video>()
+        val allShorts  = mutableListOf<Video>()
         val channelExtractionCount = AtomicInteger(0)
         val minimumDateMillis = System.currentTimeMillis() - (MAX_FEED_AGE_DAYS * 86400000L)
+        Log.i(TAG, "Age cutoff: ${java.util.Date(minimumDateMillis)} (${MAX_FEED_AGE_DAYS}d)")
 
         val chunks = channelIds.chunked(CHANNEL_CHUNK_SIZE)
+        Log.i(TAG, "Processing ${chunks.size} chunks of max $CHANNEL_CHUNK_SIZE channels each")
 
-        for (chunk in chunks) {
+        for ((chunkIndex, chunk) in chunks.withIndex()) {
             val count = channelExtractionCount.get()
             if (count >= CHANNEL_BATCH_SIZE) {
+                Log.i(TAG, "Batch limit reached ($count), throttling...")
                 delay(CHANNEL_BATCH_DELAY.random())
                 channelExtractionCount.set(0)
             }
 
+            Log.d(TAG, "Chunk ${chunkIndex + 1}/${chunks.size}: fetching ${chunk.size} channels: $chunk")
             val chunkVideos = coroutineScope {
                 chunk.map { channelId ->
                     async(Dispatchers.IO) {
                         try {
                             val videos = getChannelVideos(channelId, minimumDateMillis)
-                            if (videos.isNotEmpty()) {
-                                channelExtractionCount.incrementAndGet()
-                            }
+                            if (videos.isNotEmpty()) channelExtractionCount.incrementAndGet()
                             videos
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
                         } catch (e: Exception) {
-                            Log.w(TAG, "Failed to fetch channel $channelId: ${e.message}")
+                            Log.e(TAG, "UNCAUGHT in channel $channelId: ${e::class.simpleName}: ${e.message}")
                             emptyList()
                         }
                     }
                 }.awaitAll().flatten()
             }
 
-            allVideos.addAll(chunkVideos)
+            chunkVideos.forEach { if (it.isShort) allShorts.add(it) else allRegular.add(it) }
+            Log.d(TAG, "Chunk ${chunkIndex + 1} done: +${chunkVideos.size} (regular=${allRegular.size}, shorts=${allShorts.size})")
 
-            val sorted = allVideos.sortedByDescending { it.timestamp }.take(maxTotal)
-            emit(sorted.toList())
+            emit(buildFeed(allRegular, allShorts))
         }
 
-        val finalSorted = allVideos.sortedByDescending { it.timestamp }.take(maxTotal)
-        emit(finalSorted)
-        Log.d(TAG, "Feed complete: ${finalSorted.size} videos from ${channelIds.size} channels")
+        emit(buildFeed(allRegular, allShorts))
+        Log.i(TAG, "======== FEED FETCH COMPLETE: regular=${allRegular.size.coerceAtMost(MAX_REGULAR_VIDEOS)} shorts=${allShorts.size.coerceAtMost(MAX_SHORTS)} from ${channelIds.size} channels ========")
+    }
+
+    /** Merge regular and shorts lists with independent caps, sorted by date. */
+    private fun buildFeed(regular: List<Video>, shorts: List<Video>): List<Video> {
+        val r = regular.sortedByDescending { it.timestamp }.take(MAX_REGULAR_VIDEOS)
+        val s = shorts.sortedByDescending  { it.timestamp }.take(MAX_SHORTS)
+        return (r + s).sortedByDescending { it.timestamp }
     }
 
     /**
@@ -95,59 +111,85 @@ object RssSubscriptionService {
     private suspend fun getChannelVideos(channelId: String, minimumDateMillis: Long): List<Video> {
         val channelUrl = "$YOUTUBE_URL/channel/$channelId"
         val service = NewPipe.getService(0)
+        Log.d(TAG, "[$channelId] Starting fetch")
 
         var hasRecentUploads = true
         try {
+            Log.d(TAG, "[$channelId] RSS: requesting FeedInfo...")
             val feedInfo = FeedInfo.getInfo(channelUrl)
             val feedItems = feedInfo.relatedItems.filterIsInstance<StreamInfoItem>()
+            Log.d(TAG, "[$channelId] RSS: got ${feedItems.size} items")
 
             if (feedItems.isNotEmpty()) {
-                val mostRecentTime = feedItems.maxOf {
-                    it.uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli() ?: 0
+                val parsedTimes = feedItems.mapNotNull { item ->
+                    val t = item.uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli()
+                    Log.d(TAG, "[$channelId] RSS item '${item.name?.take(40)}': rawDate='${item.uploadDate}' → parsed=$t")
+                    t
                 }
-                hasRecentUploads = mostRecentTime > minimumDateMillis
+                Log.d(TAG, "[$channelId] RSS: ${parsedTimes.size}/${feedItems.size} dates parsed successfully")
+
+                hasRecentUploads = if (parsedTimes.isEmpty()) {
+                    Log.w(TAG, "[$channelId] RSS: ALL dates unparseable — treating as recent (fail-open)")
+                    true
+                } else {
+                    val newest = parsedTimes.max()
+                    val isRecent = newest > minimumDateMillis
+                    Log.d(TAG, "[$channelId] RSS: newest=${java.util.Date(newest)} cutoff=${java.util.Date(minimumDateMillis)} isRecent=$isRecent")
+                    isRecent
+                }
+            } else {
+                Log.w(TAG, "[$channelId] RSS: feed returned 0 items — treating as recent (fail-open)")
             }
 
             if (!hasRecentUploads) {
-                Log.d(TAG, "No recent uploads for $channelId, skipping")
+                Log.i(TAG, "[$channelId] SKIPPED: no uploads in last ${MAX_FEED_AGE_DAYS}d")
                 return emptyList()
             }
         } catch (e: Exception) {
-            Log.d(TAG, "RSS check failed for $channelId: ${e.message}")
+            Log.w(TAG, "[$channelId] RSS FAILED (${e::class.simpleName}): ${e.message} — falling back to ChannelTabInfo")
         }
 
         try {
+            Log.d(TAG, "[$channelId] ChannelInfo: requesting...")
             val channelInfo = ChannelInfo.getInfo(service, channelUrl)
             val channelAvatar = channelInfo.avatars.maxByOrNull { it.height }?.url ?: ""
+            val tabNames = channelInfo.tabs.map { it.contentFilters.joinToString() }
+            Log.d(TAG, "[$channelId] ChannelInfo: found tabs: $tabNames")
 
-            val videosTab = channelInfo.tabs.find { tab ->
-                tab.contentFilters.contains(ChannelTabs.VIDEOS)
-            }
-            val shortsTab = channelInfo.tabs.find { tab ->
-                tab.contentFilters.contains(ChannelTabs.SHORTS)
-            }
+            val videosTab = channelInfo.tabs.find { it.contentFilters.contains(ChannelTabs.VIDEOS) }
+            val shortsTab = channelInfo.tabs.find { it.contentFilters.contains(ChannelTabs.SHORTS) }
+            Log.d(TAG, "[$channelId] videosTab=${videosTab != null} shortsTab=${shortsTab != null}")
 
-            if (videosTab == null && shortsTab == null) return emptyList()
+            if (videosTab == null && shortsTab == null) {
+                Log.w(TAG, "[$channelId] No VIDEOS or SHORTS tab found — returning empty")
+                return emptyList()
+            }
 
             val (videoItems, shortsItems) = coroutineScope {
                 val videoDeferred = videosTab?.let {
                     async(Dispatchers.IO) {
                         runCatching {
-                            ChannelTabInfo.getInfo(service, it)
-                                .relatedItems
-                                .filterIsInstance<StreamInfoItem>()
-                                .take(15)
-                        }.getOrElse { emptyList() }
+                            val items = ChannelTabInfo.getInfo(service, it)
+                                .relatedItems.filterIsInstance<StreamInfoItem>().take(15)
+                            Log.d(TAG, "[$channelId] VIDEOS tab: ${items.size} items")
+                            items
+                        }.getOrElse { ex ->
+                            Log.e(TAG, "[$channelId] VIDEOS tab FAILED (${ex::class.simpleName}): ${ex.message}")
+                            emptyList()
+                        }
                     }
                 }
                 val shortsDeferred = shortsTab?.let {
                     async(Dispatchers.IO) {
                         runCatching {
-                            ChannelTabInfo.getInfo(service, it)
-                                .relatedItems
-                                .filterIsInstance<StreamInfoItem>()
-                                .take(10)
-                        }.getOrElse { emptyList() }
+                            val items = ChannelTabInfo.getInfo(service, it)
+                                .relatedItems.filterIsInstance<StreamInfoItem>().take(10)
+                            Log.d(TAG, "[$channelId] SHORTS tab: ${items.size} items")
+                            items
+                        }.getOrElse { ex ->
+                            Log.e(TAG, "[$channelId] SHORTS tab FAILED (${ex::class.simpleName}): ${ex.message}")
+                            emptyList()
+                        }
                     }
                 }
                 (videoDeferred?.await() ?: emptyList<StreamInfoItem>()) to
@@ -155,24 +197,27 @@ object RssSubscriptionService {
             }
 
             val shortsUrls = shortsItems.map { it.url }.toHashSet()
+            val combined = (videoItems + shortsItems).distinctBy { it.url }
+            Log.d(TAG, "[$channelId] Combined: ${combined.size} unique items (${videoItems.size} videos + ${shortsItems.size} shorts before dedup)")
 
-            val videos = (videoItems + shortsItems)
-                .distinctBy { it.url }
-                .mapNotNull { item ->
-                    val uploadTimeMillis =
-                        item.uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli()
-                    if (uploadTimeMillis == null || uploadTimeMillis > minimumDateMillis) {
-                        streamInfoItemToVideo(
-                            item, channelId, channelAvatar,
-                            forceShort = item.url in shortsUrls
-                        )
-                    } else null
+            val videos = combined.mapNotNull { item ->
+                val uploadTimeMillis = item.uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli()
+                val isOld = uploadTimeMillis != null && uploadTimeMillis <= minimumDateMillis
+                if (isOld) {
+                    Log.d(TAG, "[$channelId] FILTERED OUT '${item.name?.take(40)}': uploadTime=${java.util.Date(uploadTimeMillis!!)} is older than cutoff")
+                    null
+                } else {
+                    streamInfoItemToVideo(item, channelId, channelAvatar, forceShort = item.url in shortsUrls)
                 }
+            }
 
-            Log.d(TAG, "Fetched ${videos.size} videos from $channelId (${videos.count { it.isShort }} shorts)")
+            Log.i(TAG, "[$channelId] RESULT: ${videos.size} videos (${videos.count { it.isShort }} shorts, ${videos.count { !it.isShort }} regular)")
             return videos
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            Log.w(TAG, "[$channelId] Cancelled — propagating")
+            throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch $channelId: ${e.message}")
+            Log.e(TAG, "[$channelId] ChannelInfo FAILED (${e::class.simpleName}): ${e.message}")
             return emptyList()
         }
     }

@@ -1,6 +1,7 @@
 package com.flow.youtube.ui.screens.subscriptions
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.local.ChannelSubscription
@@ -19,7 +20,8 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeoutOrNull
 
 class SubscriptionsViewModel : ViewModel() {
-    
+    companion object { private const val TAG = "SubsViewModel" }
+
     private lateinit var subscriptionRepository: SubscriptionRepository
     private lateinit var viewHistory: ViewHistory
     
@@ -44,6 +46,7 @@ class SubscriptionsViewModel : ViewModel() {
         
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             cacheDao.getSubscriptionFeed().collect { cachedFeed ->
+                Log.d(TAG, "Cache observer: ${cachedFeed.size} entries in DB")
                 if (cachedFeed.isNotEmpty()) {
                     val videos = cachedFeed.map { entity ->
                          Video(
@@ -60,64 +63,78 @@ class SubscriptionsViewModel : ViewModel() {
                             isShort = entity.isShort
                         )
                     }
+                    Log.d(TAG, "Cache observer: calling updateVideos with ${videos.size} videos")
                     updateVideos(videos)
                 }
             }
         }
         
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
-            subscriptionRepository.getAllSubscriptions().collectLatest { subscriptions ->
-                val channels = subscriptions.map { sub ->
-                    Channel(
-                        id = sub.channelId,
-                        name = sub.channelName,
-                        thumbnailUrl = sub.channelThumbnail,
-                        subscriberCount = 0L, 
-                        isSubscribed = true
-                    )
-                }
-                _uiState.update { it.copy(subscribedChannels = channels) }
+            subscriptionRepository.getAllSubscriptions()
+                .map { subs -> subs.map { it.channelId }.sorted() }
+                .distinctUntilChanged()
+                .collect { channelIds ->
+                    Log.i(TAG, "Channel IDs changed: ${channelIds.size} channels \u2014 triggering fetch")
 
-                if (channels.isNotEmpty()) {
-                    if (_uiState.value.recentVideos.isEmpty()) {
-                        _uiState.update { it.copy(isLoading = true) }
+                    val allSubs = subscriptionRepository.getAllSubscriptions().first()
+                    val channels = allSubs.map { sub ->
+                        Channel(
+                            id = sub.channelId,
+                            name = sub.channelName,
+                            thumbnailUrl = sub.channelThumbnail,
+                            subscriberCount = 0L,
+                            isSubscribed = true
+                        )
                     }
+                    _uiState.update { it.copy(subscribedChannels = channels) }
 
-                    com.flow.youtube.data.innertube.RssSubscriptionService.fetchSubscriptionVideos(
-                        channelIds = channels.map { it.id },
-                        maxTotal = 200
-                    ).collect { videos ->
-                        if (videos.isNotEmpty()) {
-                            val entities = videos.map { video ->
-                                com.flow.youtube.data.local.entity.SubscriptionFeedEntity(
-                                    videoId = video.id,
-                                    title = video.title,
-                                    channelName = video.channelName,
-                                    channelId = video.channelId,
-                                    thumbnailUrl = video.thumbnailUrl,
-                                    duration = video.duration,
-                                    viewCount = video.viewCount,
-                                    uploadDate = video.uploadDate,
-                                    timestamp = video.timestamp,
-                                    channelThumbnailUrl = video.channelThumbnailUrl,
-                                    isShort = video.isShort,
-                                    cachedAt = System.currentTimeMillis()
-                                )
-                            }
-                            launch(PerformanceDispatcher.diskIO) {
-                                cacheDao.insertSubscriptionFeed(entities)
-                            }
+                    if (channels.isNotEmpty()) {
+                        if (_uiState.value.recentVideos.isEmpty()) {
+                            _uiState.update { it.copy(isLoading = true) }
                         }
+                        Log.i(TAG, "Starting network fetch for ${channels.size} channels")
+
+                        com.flow.youtube.data.innertube.RssSubscriptionService.fetchSubscriptionVideos(
+                            channelIds = channels.map { it.id }
+                        ).collect { videos ->
+                            Log.i(TAG, "Network emit received: ${videos.size} videos (shorts=${videos.count { it.isShort }}, regular=${videos.count { !it.isShort }})")
+                            if (videos.isNotEmpty()) {
+                                updateVideos(videos)
+                                val entities = videos.map { video ->
+                                    com.flow.youtube.data.local.entity.SubscriptionFeedEntity(
+                                        videoId = video.id,
+                                        title = video.title,
+                                        channelName = video.channelName,
+                                        channelId = video.channelId,
+                                        thumbnailUrl = video.thumbnailUrl,
+                                        duration = video.duration,
+                                        viewCount = video.viewCount,
+                                        uploadDate = video.uploadDate,
+                                        timestamp = video.timestamp,
+                                        channelThumbnailUrl = video.channelThumbnailUrl,
+                                        isShort = video.isShort,
+                                        cachedAt = System.currentTimeMillis()
+                                    )
+                                }
+                                launch(PerformanceDispatcher.diskIO) {
+                                    cacheDao.clearSubscriptionFeed()
+                                    cacheDao.insertSubscriptionFeed(entities)
+                                }
+                            } else {
+                                Log.w(TAG, "Network emit was empty!")
+                            }
+                            _uiState.update { it.copy(isLoading = false) }
+                        }
+                    } else {
+                        Log.w(TAG, "No channels \u2014 skipping fetch")
                         _uiState.update { it.copy(isLoading = false) }
                     }
-                } else {
-                    _uiState.update { it.copy(isLoading = false) }
                 }
-            }
         }
-        
-       
+
     }
+
+
 
     private fun updateVideos(videos: List<Video>) {
         val sortedVideos = videos.sortedByDescending { it.timestamp }
@@ -125,6 +142,7 @@ class SubscriptionsViewModel : ViewModel() {
         val (shorts, regular) = sortedVideos.partition { video ->
             video.isShort || (video.duration in 1..120 && !video.isLive)
         }
+        Log.i(TAG, "updateVideos: total=${sortedVideos.size} → regular=${regular.size}, shorts=${shorts.size}")
         _uiState.update { it.copy(recentVideos = regular, shorts = shorts) }
     }
     
@@ -223,6 +241,7 @@ class SubscriptionsViewModel : ViewModel() {
                     maxTotal = 200
                 ).collect { videos ->
                     if (videos.isNotEmpty()) {
+                        updateVideos(videos)
                         val entities = videos.map { video ->
                             com.flow.youtube.data.local.entity.SubscriptionFeedEntity(
                                 videoId = video.id,
@@ -240,6 +259,7 @@ class SubscriptionsViewModel : ViewModel() {
                             )
                         }
                         launch(PerformanceDispatcher.diskIO) {
+                            cacheDao.clearSubscriptionFeed()
                             cacheDao.insertSubscriptionFeed(entities)
                         }
                     }
