@@ -4,6 +4,10 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.app.AlertDialog
+import android.content.Context
+import android.net.Uri
+import android.os.PowerManager
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.setContent
@@ -62,6 +66,8 @@ class MainActivity : ComponentActivity() {
         val dataManager = LocalDataManager(applicationContext)
 
         handleIntent(intent)
+
+        requestBatteryOptimizationExemptionIfNeeded()
         
         // Check for updates (only in release builds or if forced)
         if (!BuildConfig.DEBUG) {
@@ -363,5 +369,29 @@ class MainActivity : ComponentActivity() {
             if (l < c) return false
         }
         return false
+    }
+
+    /**
+     * Ask Android to whitelist this app from battery optimization / Doze mode.
+     *
+     * Without this, on aggressive OEM ROMs (Xiaomi MIUI, Samsung OneUI DeX, CRDroid, Huawei)
+     * the OS can throttle network access or kill the background playback service after a few
+     * minutes of screen-off. 
+     *
+     * The system shows a standard dialog asking the user to confirm.  We only request this once
+     * per install (if the app is not already exempt).  No spammy repeat prompts.
+     */
+    private fun requestBatteryOptimizationExemptionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager ?: return
+        if (powerManager.isIgnoringBatteryOptimizations(packageName)) return // already exempt
+        try {
+            val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                data = Uri.parse("package:$packageName")
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.w("MainActivity", "Could not request battery optimization exemption: ${e.message}")
+        }
     }
 }

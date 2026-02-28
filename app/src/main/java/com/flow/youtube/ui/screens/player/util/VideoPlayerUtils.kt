@@ -154,7 +154,7 @@ object VideoPlayerUtils {
         }
     }
 
-    fun startDownload(context: Context, video: Video, url: String, qualityLabel: String, audioUrl: String? = null) {
+    fun startDownload(context: Context, video: Video, url: String, qualityLabel: String, audioUrl: String? = null, videoCodec: String? = null) {
         try {
             promptStoragePermissionIfNeeded(context)
 
@@ -164,7 +164,8 @@ object VideoPlayerUtils {
                 video, 
                 url, 
                 qualityLabel,
-                audioUrl
+                audioUrl,
+                videoCodec = videoCodec
             )
             
             Toast.makeText(context, "Started download: ${video.title}", Toast.LENGTH_SHORT).show()

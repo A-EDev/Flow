@@ -95,6 +95,10 @@ fun DownloadsScreen(
 
     fun requestDelete(id: String, type: DeletionType) {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        when (type) {
+            DeletionType.VIDEO -> viewModel.requestDeleteVideo(id)
+            DeletionType.MUSIC -> viewModel.requestDeleteMusic(id)
+        }
         pendingDelete = PendingDeletion(id, type)
         coroutineScope.launch {
             val result = snackbarHostState.showSnackbar(
@@ -102,22 +106,10 @@ fun DownloadsScreen(
                 actionLabel = undoLabel,
                 duration = SnackbarDuration.Short
             )
-            when (result) {
-                SnackbarResult.ActionPerformed -> {
-                    pendingDelete = null
-                }
-                SnackbarResult.Dismissed -> {
-                    pendingDelete?.let { deletion ->
-                        when (deletion.type) {
-                            DeletionType.VIDEO ->
-                                viewModel.deleteVideoDownload(deletion.id)
-                            DeletionType.MUSIC ->
-                                viewModel.deleteMusicDownload(deletion.id)
-                        }
-                    }
-                    pendingDelete = null
-                }
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.cancelDelete(id)
             }
+            pendingDelete = null
         }
     }
 

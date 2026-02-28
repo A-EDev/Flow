@@ -84,6 +84,12 @@ class Media3MusicService : MediaLibraryService() {
     
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
+
+    /**
+     * Coroutine job that defers WakeLock/WifiLock release by 30 seconds after playback pauses.
+     * Prevents the CPU from entering deep sleep during brief buffering/focus-loss events.
+     */
+    private var lockReleaseJob: Job? = null
     
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
@@ -214,9 +220,15 @@ class Media3MusicService : MediaLibraryService() {
             }
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) {
-                     acquireLocks()
+                    lockReleaseJob?.cancel()
+                    lockReleaseJob = null
+                    acquireLocks()
                 } else {
-                     releaseLocks()
+                    lockReleaseJob?.cancel()
+                    lockReleaseJob = serviceScope.launch {
+                        delay(30_000L)
+                        releaseLocks()
+                    }
                 }
             }
         })
@@ -441,11 +453,32 @@ class Media3MusicService : MediaLibraryService() {
         return mediaLibrarySession
     }
 
+    /**
+     * Prevent aggressive OEM ROMs (Xiaomi MIUI, Samsung OneUI, Huawei EMUI, CRDroid)
+     * from killing the music service when the app task is swiped from recents.
+     *
+     * Without this override Android calls stopSelf() via the default onTaskRemoved,
+     * which destroys the foreground service and stops background music playback.
+     * Overriding without calling super keeps the service alive.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        if (::player.isInitialized && player.isPlaying) {
+            return
+        }
+        try {
+            if (::mediaLibrarySession.isInitialized) {
+            }
+        } catch (_: Exception) { }
+    }
+
     override fun onDestroy() {
         // Clear audio session ID so external processors know we're gone
         currentAudioSessionId = 0
         Log.i(TAG, "Audio session destroyed")
         
+        lockReleaseJob?.cancel()
+        lockReleaseJob = null
+
         if (::connectivityObserver.isInitialized) {
             connectivityObserver.stopObserving()
         }

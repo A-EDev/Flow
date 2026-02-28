@@ -18,11 +18,13 @@ import com.flow.youtube.data.local.entity.DownloadWithItems
 import com.flow.youtube.data.model.Video
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
@@ -400,24 +402,28 @@ class VideoDownloadManager @Inject constructor(
         try {
             val download = downloadDao.getDownloadWithItems(videoId)
             if (download != null) {
-                // Delete physical files
-                for (item in download.items) {
-                    try {
-                        val file = File(item.filePath)
-                        if (file.exists()) {
-                            file.delete()
-                            Log.d(TAG, "Deleted file: ${item.filePath}")
+                kotlinx.coroutines.coroutineScope {
+                    download.items.forEach { item ->
+                        launch {
+                            try {
+                                val file = File(item.filePath)
+                                if (file.exists()) {
+                                    file.delete()
+                                    Log.d(TAG, "Deleted file: ${item.filePath}")
+                                }
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to delete file: ${item.filePath}", e)
+                            }
                         }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed to delete file: ${item.filePath}", e)
                     }
-                }
-                // Delete thumbnail if exists
-                download.download.thumbnailPath?.let { thumbPath ->
-                    try {
-                        File(thumbPath).takeIf { it.exists() }?.delete()
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed to delete thumbnail", e)
+                    download.download.thumbnailPath?.let { thumbPath ->
+                        launch {
+                            try {
+                                File(thumbPath).takeIf { it.exists() }?.delete()
+                            } catch (e: Exception) {
+                                Log.w(TAG, "Failed to delete thumbnail", e)
+                            }
+                        }
                     }
                 }
                 downloadDao.deleteDownload(videoId)

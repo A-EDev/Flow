@@ -94,6 +94,26 @@ class EnhancedPlayerManager private constructor() {
     
     // Coroutine scope
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    /**
+     * Set to true while PlaybackRefocusEffect is recovering from a screen-off/on cycle.
+     * Prevents onPlaybackStateChanged(STATE_ENDED) from skipping to the next video or
+     * seeking to 0 during the transient states that ExoPlayer goes through during recovery.
+     */
+    @Volatile private var isRecoveringFromBackground = false
+
+    /** Call at the start of a screen-off recovery sequence (before prepare()). */
+    fun beginBackgroundRecovery() {
+        isRecoveringFromBackground = true
+        if (_playerState.value.hasEnded) {
+            _playerState.value = _playerState.value.copy(hasEnded = false)
+        }
+    }
+
+    /** Call after the recovery sequence completes or is abandoned. */
+    fun endBackgroundRecovery() {
+        isRecoveringFromBackground = false
+    }
     
     // Modular components
     private val playerFactory = PlayerFactory()
@@ -266,10 +286,10 @@ class EnhancedPlayerManager private constructor() {
                 _playerState.value = _playerState.value.copy(
                     isBuffering = playbackState == Player.STATE_BUFFERING,
                     playWhenReady = player?.playWhenReady ?: false,
-                    hasEnded = playbackState == Player.STATE_ENDED
+                    hasEnded = playbackState == Player.STATE_ENDED && !isRecoveringFromBackground
                 )
                 
-                if (playbackState == Player.STATE_ENDED) {
+                if (playbackState == Player.STATE_ENDED && !isRecoveringFromBackground) {
                     if (_playerState.value.isLooping) {
                         player?.seekTo(0)
                         player?.play()

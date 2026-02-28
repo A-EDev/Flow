@@ -104,43 +104,44 @@ fun PlaybackRefocusEffect(
 
         delay(150L)
 
-        val player = EnhancedPlayerManager.getInstance().getPlayer() ?: return@LaunchedEffect
-        val playerMgrState = EnhancedPlayerManager.getInstance().playerState.value
+        val mgr = EnhancedPlayerManager.getInstance()
+        val player = mgr.getPlayer() ?: return@LaunchedEffect
+        val playerMgrState = mgr.playerState.value
 
         if (playerMgrState.currentVideoId != null) {
-            var attempts = 0
-            while (attempts < 25 && player.duration <= 0L) {
-                delay(100L)
-                attempts++
-            }
+            mgr.beginBackgroundRecovery()
+            try {
+                val savedPosition = player.currentPosition.takeIf { it > 500L }
+                    ?: screenState.currentPosition.takeIf { it > 500L }
 
-            val validDuration = player.duration
-            if (validDuration > 0L) {
-                screenState.duration = validDuration
-                screenState.currentPosition = player.currentPosition.coerceAtLeast(0L)
-            }
-
-            // On some Samsung devices (Android 16+), the system kills the audio session
-            // when the screen is turned off, putting ExoPlayer into STATE_IDLE.
-            // player.play() alone does nothing from IDLE — we must call prepare() first
-            // to reconnect the existing MediaSource, then resume.
-            if (player.playbackState == Player.STATE_IDLE && playerMgrState.currentVideoId != null) {
-                Log.d(TAG, "PlaybackRefocusEffect: player in IDLE after resume, calling prepare()")
-                val lastPos = screenState.currentPosition
-                player.prepare()
-                if (lastPos > 0) {
-                    player.seekTo(lastPos)
+                var attempts = 0
+                while (attempts < 25 && player.duration <= 0L) {
+                    delay(100L)
+                    attempts++
                 }
-                // Give ExoPlayer a moment to transition to BUFFERING/READY before play()
-                delay(300L)
-            }
 
-            // Resume playback if the player should be playing but isn't
-            // (covers: audio focus loss, system-induced pause, brief BUFFERING pause).
-            if (playerMgrState.playWhenReady && !player.isPlaying &&
-                player.playbackState != Player.STATE_ENDED
-            ) {
-                player.play()
+                val validDuration = player.duration
+                if (validDuration > 0L) {
+                    screenState.duration = validDuration
+                    screenState.currentPosition = player.currentPosition.coerceAtLeast(0L)
+                }
+
+                if (player.playbackState == Player.STATE_IDLE && playerMgrState.currentVideoId != null) {
+                    Log.d(TAG, "PlaybackRefocusEffect: player in IDLE after resume, calling prepare()")
+                    player.prepare()
+                    if (savedPosition != null && savedPosition > 500L) {
+                        player.seekTo(savedPosition)
+                    }
+                    delay(300L)
+                }
+
+                if (playerMgrState.playWhenReady && !player.isPlaying &&
+                    player.playbackState != Player.STATE_ENDED
+                ) {
+                    player.play()
+                }
+            } finally {
+                mgr.endBackgroundRecovery()
             }
         }
     }

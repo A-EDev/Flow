@@ -1,0 +1,9 @@
+FLOW CHANGE LOG
+VERSION: 1.8.0
+DATE: 2026-02-28
+
+FIXES AND STABILITY
+- VP9 Download Fix: Fixed VP9/VP8 video downloads failing during the audio merge step. The muxer now selects WebM/Opus output format for VP9 streams instead of the MP4 container, which Android's MediaMuxer cannot use with VP9 video or Opus audio. The downloaded file is saved with a .webm extension and correctly indexed in the media library.
+- Playback Refocus Fix: Fixed a bug where turning the screen off and back on caused playback to show 0s/0s duration and immediately skip to the next video. A recovery flag now prevents the false STATE_ENDED event that fired during player re-preparation, and the playback position is correctly restored after screen-on.
+- Download Delete on Back: Fixed downloads being silently cancelled when pressing the back button during the undo window. The delete operation is now tied to the ViewModel lifecycle rather than the screen's composable scope, so navigating away no longer cancels the pending deletion. The undo action still works as expected within the 4-second window.
+- Background Playback Stability: Improved background playback reliability on devices with aggressive battery management (Xiaomi MIUI, Samsung OneUI, CRDroid, Huawei). Changes include: app now requests battery optimization exemption on first launch, services use START_STICKY and handle task removal gracefully, WakeLock and WifiLock are held for a 30-second grace period after pausing to survive brief interruptions, and Samsung-specific keep-alive metadata has been added.

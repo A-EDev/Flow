@@ -213,23 +213,6 @@ class QuickActionsViewModel @Inject constructor(
                 }
 
                 if (streamInfo != null) {
-                    // ── Audio selection ──────────────────────────────────────────────────
-                    val allAudio = streamInfo.audioStreams ?: emptyList()
-
-                    fun isAacCompatible(a: org.schabi.newpipe.extractor.stream.AudioStream): Boolean {
-                        val mime  = (a.format?.mimeType ?: "").lowercase()
-                        val fname = (a.format?.name ?: "").lowercase()
-                        if (fname.contains("opus") || fname.contains("vorbis") ||
-                            mime.contains("opus") || mime.contains("vorbis") ||
-                            fname.contains("webm") || mime.contains("webm")) return false
-                        return true
-                    }
-
-                    val compatibleAudio = allAudio
-                        .filter  { isAacCompatible(it) }
-                        .maxByOrNull { it.averageBitrate }
-                        ?: allAudio.maxByOrNull { it.averageBitrate }
-
                     // ── Video-stream selection ────────────────────────────────────────────
                     val combinedStreams = streamInfo.videoStreams
                         ?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
@@ -244,31 +227,73 @@ class QuickActionsViewModel @Inject constructor(
                         return mime.contains("mp4") || fname.contains("mpeg") || fname.contains("mp4")
                     }
 
+                    fun isVp9Video(s: org.schabi.newpipe.extractor.stream.VideoStream): Boolean {
+                        val mime  = (s.format?.mimeType ?: "").lowercase()
+                        val fname = (s.format?.name ?: "").lowercase()
+                        return mime.contains("vp9") || mime.contains("vp09") ||
+                               fname.contains("vp9") || fname.contains("webm")
+                    }
+
                     val bestMp4VideoOnly  = videoOnlyStreams.filter { isMp4Video(it) }.maxByOrNull { it.height }
+                    val bestVp9VideoOnly  = videoOnlyStreams.filter { isVp9Video(it) }.maxByOrNull { it.height }
                     val bestAnyVideoOnly  = videoOnlyStreams.maxByOrNull { it.height }
-                    val bestCombined      = combinedStreams.maxByOrNull  { it.height }
+                    val bestCombined      = combinedStreams.maxByOrNull { it.height }
+
+                    // ── Audio selection (codec-aware) ────────────────────────────────────
+                    val allAudio = streamInfo.audioStreams ?: emptyList()
+
+                    fun isAacCompatible(a: org.schabi.newpipe.extractor.stream.AudioStream): Boolean {
+                        val mime  = (a.format?.mimeType ?: "").lowercase()
+                        val fname = (a.format?.name ?: "").lowercase()
+                        if (fname.contains("opus") || fname.contains("vorbis") ||
+                            mime.contains("opus") || mime.contains("vorbis") ||
+                            fname.contains("webm") || mime.contains("webm")) return false
+                        return true
+                    }
+
+                    fun isOpusCompatible(a: org.schabi.newpipe.extractor.stream.AudioStream): Boolean {
+                        val mime  = (a.format?.mimeType ?: "").lowercase()
+                        val fname = (a.format?.name ?: "").lowercase()
+                        return fname.contains("webm") || mime.contains("audio/webm") ||
+                               fname.contains("opus") || mime.contains("opus")
+                    }
 
                     val selectedStream: org.schabi.newpipe.extractor.stream.VideoStream?
                     val audioUrl: String?
+                    val videoCodec: String?
 
                     when {
-                        bestMp4VideoOnly != null && compatibleAudio != null &&
+                        bestMp4VideoOnly != null &&
                                 bestMp4VideoOnly.height > (bestCombined?.height ?: 0) -> {
                             selectedStream = bestMp4VideoOnly
-                            audioUrl = compatibleAudio.content ?: compatibleAudio.url
+                            val aacAudio = allAudio.filter { isAacCompatible(it) }.maxByOrNull { it.averageBitrate }
+                                ?: allAudio.filter { isAacCompatible(it) }.maxByOrNull { it.averageBitrate }
+                            audioUrl = aacAudio?.content ?: aacAudio?.url
+                            videoCodec = null
                         }
                         bestCombined != null -> {
                             selectedStream = bestCombined
                             audioUrl = null
+                            videoCodec = null
+                        }
+                        bestVp9VideoOnly != null &&
+                                (bestVp9VideoOnly.height > (bestMp4VideoOnly?.height ?: 0)) -> {
+                            selectedStream = bestVp9VideoOnly
+                            val opusAudio = allAudio.filter { isOpusCompatible(it) }.maxByOrNull { it.averageBitrate }
+                                ?: allAudio.maxByOrNull { it.averageBitrate }
+                            audioUrl = opusAudio?.content ?: opusAudio?.url
+                            videoCodec = "vp9"
                         }
                         bestMp4VideoOnly != null -> {
                             selectedStream = bestMp4VideoOnly
-                            val anyAudio = allAudio.maxByOrNull { it.averageBitrate }
-                            audioUrl = anyAudio?.content ?: anyAudio?.url
+                            val aacAudio = allAudio.filter { isAacCompatible(it) }.maxByOrNull { it.averageBitrate }
+                            audioUrl = aacAudio?.content ?: aacAudio?.url
+                            videoCodec = null
                         }
                         else -> {
                             selectedStream = null
                             audioUrl = null
+                            videoCodec = null
                         }
                     }
 
@@ -292,7 +317,8 @@ class QuickActionsViewModel @Inject constructor(
                             video = fullVideo,
                             url = videoUrl,
                             quality = "${selectedStream.height}p",
-                            audioUrl = audioUrl
+                            audioUrl = audioUrl,
+                            videoCodec = videoCodec
                         )
                         Toast.makeText(context, "Download started: ${fullVideo.title}", Toast.LENGTH_SHORT).show()
                     } else {

@@ -36,6 +36,13 @@ class VideoPlayerService : Service() {
     
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
+
+    /**
+     * Coroutine job that releases WakeLock/WifiLock after a 30-second grace period.
+     * Cancelled and re-scheduled each time playback state changes so brief pauses
+     * (buffering, audio focus loss) don’t let the CPU deep-sleep and kill the stream.
+     */
+    private var lockReleaseJob: Job? = null
     
     private var currentVideo: Video? = null
     private var isPlaying = false
@@ -113,9 +120,15 @@ class VideoPlayerService : Service() {
                 isPlaying = state.isPlaying
                 
                 if (isPlaying) {
-                     acquireLocks()
+                    lockReleaseJob?.cancel()
+                    lockReleaseJob = null
+                    acquireLocks()
                 } else {
-                     releaseLocks()
+                    lockReleaseJob?.cancel()
+                    lockReleaseJob = serviceScope.launch {
+                        delay(30_000L)
+                        releaseLocks()
+                    }
                 }
                 
                 updatePlaybackState(state.isPlaying, EnhancedPlayerManager.getInstance().getCurrentPosition())
@@ -139,7 +152,7 @@ class VideoPlayerService : Service() {
         intent?.let { handleIntent(it) }
         MediaButtonReceiver.handleIntent(mediaSession, intent)
         
-        return START_NOT_STICKY // Don't restart if killed (NewPipe behavior)
+        return START_STICKY 
     }
     
     private fun handleIntent(intent: Intent) {
@@ -181,12 +194,29 @@ class VideoPlayerService : Service() {
     }
     
     override fun onBind(intent: Intent?): IBinder? = null
+
+    /**
+     * Prevent aggressive OEM ROMs (Xiaomi MIUI, Samsung OneUI, Huawei EMUI, CRDroid)
+     * from killing the service when the app is swiped from the recents screen.
+     *
+     * By default, Android calls stopSelf() via onTaskRemoved() when a task is removed
+     * and the service was not started in a sticky fashion.
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        val video = currentVideo
+        if (video != null) {
+            updateNotification()
+        } else {
+            startForeground(NOTIFICATION_ID, createPlaceholderNotification())
+        }
+    }
     
     override fun onDestroy() {
         Log.d("VideoPlayerService", "onDestroy() called")
+        lockReleaseJob?.cancel()
+        lockReleaseJob = null
         stopPlayback()
         releaseLocks()
-        EnhancedPlayerManager.getInstance().release()
         mediaSession.isActive = false
         mediaSession.release()
         serviceScope.cancel()

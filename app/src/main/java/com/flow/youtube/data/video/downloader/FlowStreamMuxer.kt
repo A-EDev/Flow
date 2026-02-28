@@ -49,9 +49,6 @@ object FlowStreamMuxer {
             // Ensure output directory exists
             File(outputPath).parentFile?.mkdirs()
 
-            muxer = MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-
-            // Select video track
             val videoTrackIndex = selectTrack(videoExtractor, "video/")
             if (videoTrackIndex < 0) {
                 Log.e(TAG, "No video track found in $videoPath")
@@ -59,6 +56,19 @@ object FlowStreamMuxer {
             }
             videoExtractor.selectTrack(videoTrackIndex)
             val videoFormat = videoExtractor.getTrackFormat(videoTrackIndex)
+            val videoMime = videoFormat.getString(MediaFormat.KEY_MIME) ?: ""
+
+            val useWebM = videoMime.contains("vp9", ignoreCase = true) ||
+                          videoMime.contains("vp8", ignoreCase = true) ||
+                          videoMime.contains("vp09", ignoreCase = true)
+
+            val muxerFormat = if (useWebM)
+                MediaMuxer.OutputFormat.MUXER_OUTPUT_WEBM
+            else
+                MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
+
+            Log.d(TAG, "Video codec: $videoMime → using ${if (useWebM) "WebM" else "MPEG-4"} container")
+            muxer = MediaMuxer(outputPath, muxerFormat)
             val muxerVideoTrack = muxer.addTrack(videoFormat)
 
             // Select audio track
@@ -69,20 +79,17 @@ object FlowStreamMuxer {
             }
             audioExtractor.selectTrack(audioTrackIndex)
             val audioFormat = audioExtractor.getTrackFormat(audioTrackIndex)
-            
-            // Validate audio codec compatibility with MP4 container
-            // MediaMuxer(MUXER_OUTPUT_MPEG_4) only supports AAC audio, NOT Opus/Vorbis
+
             val audioMime = audioFormat.getString(MediaFormat.KEY_MIME) ?: ""
-            if (audioMime.contains("opus", ignoreCase = true) || 
-                audioMime.contains("vorbis", ignoreCase = true) ||
-                audioMime.contains("webm", ignoreCase = true)) {
-                Log.e(TAG, "INCOMPATIBLE AUDIO CODEC detected: '$audioMime'. " +
-                    "MediaMuxer(MPEG_4) requires AAC (audio/mp4a-latm) but got '$audioMime'. " +
-                    "The download stream selection must ensure an M4A/AAC audio URL is passed for MP4 video. " +
+            if (!useWebM && (audioMime.contains("opus", ignoreCase = true) ||
+                             audioMime.contains("vorbis", ignoreCase = true))) {
+                Log.e(TAG, "INCOMPATIBLE AUDIO CODEC for MP4 container: '$audioMime'. " +
+                    "Expected AAC (audio/mp4a-latm). " +
+                    "The stream selection must pass an M4A/AAC audio URL for H264/H265 video. " +
                     "Audio path: $audioPath")
                 return false
             }
-            
+
             val muxerAudioTrack = muxer.addTrack(audioFormat)
 
             muxer.start()

@@ -25,6 +25,14 @@
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <!-- Required for DLNA/UPnP SSDP device discovery (FOSS casting, no Google services) -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+    <!--
+        Request battery optimization exemption so Android Doze mode does not throttle
+        network access or kill the background playback service.  The app will show a
+        system dialog asking the user to approve the exemption; this is the same approach
+        used by most open-source media players to survive aggressive OEM battery managers.
+        (Referenced in-app via PowerManager.isIgnoringBatteryOptimizations check.)
+    -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:name=".FlowApplication"
@@ -35,6 +43,18 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Flow"
         android:usesCleartextTraffic="true">
+
+        <!--
+            Samsung keep-alive hints (same as NewPipe).
+            Prevents Samsung’s DeX and screen-off battery manager from killing the
+            background playback service on OneUI devices.
+        -->
+        <meta-data
+            android:name="com.samsung.android.keepalive.density"
+            android:value="true" />
+        <meta-data
+            android:name="com.samsung.android.multidisplay.keep_process_alive"
+            android:value="true" />
 
         <activity
             android:name=".MainActivity"

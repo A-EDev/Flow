@@ -155,16 +155,17 @@ fun DownloadQualityDialog(
                                             langFilteredAudio.filter { isAacCompatible(it) }.maxByOrNull { it.bitrate }
                                                 ?: allAudio.filter { isAacCompatible(it) }.maxByOrNull { it.bitrate }
                                         } else {
-                                            langFilteredAudio.filter { a ->
+                                            val opusFilter: (org.schabi.newpipe.extractor.stream.AudioStream) -> Boolean = { a ->
                                                 val fmt  = a.format?.name ?: ""
                                                 val mime = a.format?.mimeType ?: ""
                                                 fmt.contains("webm", true) || mime.contains("audio/webm", true) ||
                                                 fmt.contains("opus", true) || mime.contains("opus", true)
-                                            }.maxByOrNull { it.bitrate }
-                                                ?: allAudio.maxByOrNull { it.bitrate }
+                                            }
+                                            langFilteredAudio.filter(opusFilter).maxByOrNull { it.bitrate }
+                                                ?: allAudio.filter(opusFilter).maxByOrNull { it.bitrate }
                                         }
 
-                                        if (compatibleAudio == null && isMp4Container) {
+                                        if (compatibleAudio == null) {
                                             android.widget.Toast.makeText(
                                                 context,
                                                 "No compatible audio stream — download cannot proceed",
@@ -172,10 +173,13 @@ fun DownloadQualityDialog(
                                             ).show()
                                             return@Surface
                                         }
-                                        audioUrl = compatibleAudio?.let { it.content ?: it.url }
+                                        audioUrl = compatibleAudio.let { it.content ?: it.url }
                                     }
 
-                                    VideoPlayerUtils.startDownload(context, video, downloadUrl, qualityLabel, audioUrl)
+                                    VideoPlayerUtils.startDownload(
+                                        context, video, downloadUrl, qualityLabel, audioUrl,
+                                        videoCodec = if (codecKey == "vp9" || codecKey == "vp8") codecKey else null
+                                    )
                                     Toast.makeText(
                                         context,
                                         context.getString(R.string.downloading_template, qualityLabel),

@@ -71,14 +71,22 @@ class FlowDownloadService : Service() {
         /** Audio-only download mode flag — if set, only download audio stream */
         const val EXTRA_AUDIO_ONLY = "audio_only"
 
+        /**
+         * Optional video codec hint (e.g. "vp9", "vp8", "h264").
+         * When set to "vp9" or "vp8" the service will use a .webm output container
+         * instead of .mp4, since Android's MediaMuxer cannot mux VP9 into MPEG-4.
+         */
+        const val EXTRA_VIDEO_CODEC = "video_codec"
+
         fun startDownload(
-            context: Context, 
-            video: Video, 
-            url: String, 
-            quality: String, 
+            context: Context,
+            video: Video,
+            url: String,
+            quality: String,
             audioUrl: String? = null,
             audioOnly: Boolean = false,
-            userAgent: String? = null
+            userAgent: String? = null,
+            videoCodec: String? = null
         ) {
             val intent = Intent(context, FlowDownloadService::class.java).apply {
                 action = ACTION_START_DOWNLOAD
@@ -92,6 +100,7 @@ class FlowDownloadService : Service() {
                 putExtra("video_duration", video.duration)
                 putExtra("video_user_agent", userAgent)
                 putExtra(EXTRA_AUDIO_ONLY, audioOnly)
+                if (videoCodec != null) putExtra(EXTRA_VIDEO_CODEC, videoCodec)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -149,11 +158,12 @@ class FlowDownloadService : Service() {
                 val duration = intent.getIntExtra("video_duration", 0)
                 val userAgent = intent.getStringExtra("video_user_agent")
                 val audioOnly = intent.getBooleanExtra(EXTRA_AUDIO_ONLY, false)
+                val videoCodec = intent.getStringExtra(EXTRA_VIDEO_CODEC)
 
-                Log.d(TAG, "onStartCommand: handleStartDownload for '$title', audioOnly=$audioOnly, UA=$userAgent")
+                Log.d(TAG, "onStartCommand: handleStartDownload for '$title', audioOnly=$audioOnly, codec=$videoCodec, UA=$userAgent")
                 handleStartDownload(
-                    videoId, title, url, audioUrl, quality, 
-                    thumbnail, channel, duration, audioOnly, userAgent
+                    videoId, title, url, audioUrl, quality,
+                    thumbnail, channel, duration, audioOnly, userAgent, videoCodec
                 )
             }
             ACTION_PAUSE_DOWNLOAD -> {
@@ -177,12 +187,18 @@ class FlowDownloadService : Service() {
     private fun handleStartDownload(
         videoId: String, title: String, url: String, audioUrl: String?,
         quality: String, thumbnail: String, channel: String,
-        duration: Int, audioOnly: Boolean, userAgent: String?
+        duration: Int, audioOnly: Boolean, userAgent: String?,
+        videoCodec: String? = null
     ) {
         try {
             Log.d(TAG, "handleStartDownload: Checking directories...")
             val fileType = if (audioOnly) DownloadFileType.AUDIO else DownloadFileType.VIDEO
-            val extension = if (audioOnly) "m4a" else "mp4"
+            val isWebMCodec = videoCodec?.lowercase()?.let { it == "vp9" || it == "vp8" } ?: false
+            val extension = when {
+                audioOnly -> "m4a"
+                isWebMCodec -> "webm"
+                else -> "mp4"
+            }
             val downloadDir = downloadManager.getDownloadDir(fileType)
             Log.d(TAG, "handleStartDownload: downloadDir=${downloadDir.absolutePath}, exists=${downloadDir.exists()}, canWrite=${downloadDir.canWrite()}")
 
@@ -266,7 +282,7 @@ class FlowDownloadService : Service() {
                         items.add(DownloadItemEntity(
                             videoId = videoId, fileType = DownloadFileType.VIDEO,
                             fileName = fileName, filePath = savePath,
-                            format = "mp4", quality = quality,
+                            format = if (isWebMCodec) "webm" else "mp4", quality = quality,
                             status = DownloadItemStatus.PENDING
                         ))
                     }
@@ -408,7 +424,11 @@ class FlowDownloadService : Service() {
                     }
                     
                     try {
-                        val mimeType = if (audioOnly) "audio/mp4" else "video/mp4"
+                        val mimeType = when {
+                            audioOnly -> "audio/mp4"
+                            mission.savePath.endsWith(".webm") -> "video/webm"
+                            else -> "video/mp4"
+                        }
                         downloadManager.scanFile(mission.savePath, mimeType)
                     } catch (e: Exception) {
                         Log.w(TAG, "executeDownload: MediaScanner indexing failed (non-fatal)", e)
