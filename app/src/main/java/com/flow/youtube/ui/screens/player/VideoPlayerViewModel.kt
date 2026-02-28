@@ -141,6 +141,12 @@ class VideoPlayerViewModel @Inject constructor(
             likeState = null
         )
         saveHistoryEntry(video)
+        EnhancedPlayerManager.getInstance().startBackgroundService(
+            videoId   = video.id,
+            title     = video.title.ifEmpty { "Loading…" },
+            channel   = video.channelName,
+            thumbnail = video.thumbnailUrl
+        )
         // Start loading streams
         loadVideoInfo(video.id, isWifi = detectIsWifi(), forceRefresh = true)
     }
@@ -212,6 +218,12 @@ class VideoPlayerViewModel @Inject constructor(
             )
         }
         saveHistoryEntry(startVideo)
+        EnhancedPlayerManager.getInstance().startBackgroundService(
+            videoId   = startVideo.id,
+            title     = startVideo.title.ifEmpty { "Loading…" },
+            channel   = startVideo.channelName,
+            thumbnail = startVideo.thumbnailUrl
+        )
         // Start loading the first video
         loadVideoInfo(startVideo.id, isWifi = detectIsWifi(), forceRefresh = true)
     }
@@ -247,8 +259,8 @@ class VideoPlayerViewModel @Inject constructor(
             return
         }
         
-        // If loading the same video and not forcing refresh, skip
-        if (!forceRefresh && currentState.isLoading && currentState.streamInfo?.id == videoId) {
+        if (!forceRefresh && currentState.isLoading &&
+            (currentState.streamInfo?.id == videoId || currentState.cachedVideo?.id == videoId)) {
              Log.d("VideoPlayerViewModel", "Video $videoId is currently loading. Skipping redundant request.")
              return
         }
@@ -278,7 +290,9 @@ class VideoPlayerViewModel @Inject constructor(
             // Also reset subscription and like state for new video
             isSubscribed = false,
             likeState = null,
-            hlsUrl = null
+            hlsUrl = null,
+            localFilePath = null,
+            localFileVideoId = null
         )
         
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
@@ -286,7 +300,39 @@ class VideoPlayerViewModel @Inject constructor(
             var isOfflineAvailable = false
             
             try {
-                // PARALLEL FETCH: Fetch dislikes, preferences, and downloaded status simultaneously
+                val streamInfoDeferred = async(PerformanceDispatcher.networkIO) {
+                    var info: StreamInfo? = null
+                    var lastError: Throwable? = null
+                    var attempt = 0
+                    val maxAttempts = 3
+                    while (info == null && attempt < maxAttempts) {
+                        try {
+                            attempt++
+                            info = withTimeoutOrNull(10_000L) {
+                                repository.getVideoStreamInfo(videoId)
+                            }
+                            if (info == null && attempt < maxAttempts) {
+                                Log.w("VideoPlayerViewModel", "Stream info fetch failed (attempt $attempt), retrying in ${attempt * 300}ms...")
+                                delay(attempt * 300L)
+                            }
+                        } catch (e: org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException) {
+                            Log.e("VideoPlayerViewModel", "Content restriction for $videoId: ${e.javaClass.simpleName}: ${e.message}")
+                            lastError = e
+                            break
+                        } catch (e: Exception) {
+                            Log.e("VideoPlayerViewModel", "Failed to load stream info (attempt $attempt)", e)
+                            lastError = e
+                            if (attempt < maxAttempts) {
+                                delay(attempt * 300L)
+                            }
+                        }
+                    }
+                    if (info == null) {
+                        Log.e("VideoPlayerViewModel", "Stream info fetch failed after $maxAttempts attempts")
+                    }
+                    Pair(info, lastError)
+                }
+
                 val parallelData = supervisorScope {
                     val dislikesDeferred = async(PerformanceDispatcher.networkIO) {
                         withTimeoutOrNull(5000L) { fetchReturnYouTubeDislike(videoId) }
@@ -335,6 +381,7 @@ class VideoPlayerViewModel @Inject constructor(
                     _uiState.update { 
                         it.copy(
                             localFilePath = localFile?.absolutePath,
+                            localFileVideoId = videoId,
                             error = null,
                             errorHint = null,
                             isLoading = false
@@ -344,42 +391,6 @@ class VideoPlayerViewModel @Inject constructor(
 
                 kotlinx.coroutines.withTimeout(30_000) {
                     Log.d("VideoPlayerViewModel", "Loading video $videoId with preferred quality: ${preferredQuality.label} (isWifi=$isWifi)")
-
-                    // OPTIMIZED: Fetch stream info with retry and timeout
-                    // Run logic even if offline video exists, to get fresh metadata/comments and related videos
-                    val streamInfoDeferred = async(PerformanceDispatcher.networkIO) {
-                        var info: StreamInfo? = null
-                        var lastError: Throwable? = null
-                        var attempt = 0
-                        val maxAttempts = if (isOfflineAvailable) 1 else 3 // Don't retry much if we have offline video
-                        while (info == null && attempt < maxAttempts) {
-                            try {
-                                attempt++
-                                info = withTimeoutOrNull(10_000L) {
-                                    repository.getVideoStreamInfo(videoId)
-                                }
-
-                                if (info == null && attempt < maxAttempts) {
-                                    Log.w("VideoPlayerViewModel", "Stream info fetch failed (attempt $attempt), retrying in ${attempt * 300}ms...")
-                                    delay(attempt * 300L) // Faster backoff: 300ms, 600ms
-                                }
-                            } catch (e: org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException) {
-                                Log.e("VideoPlayerViewModel", "Content restriction for $videoId: ${e.javaClass.simpleName}: ${e.message}")
-                                lastError = e
-                                break
-                            } catch (e: Exception) {
-                                Log.e("VideoPlayerViewModel", "Failed to load stream info (attempt $attempt)", e)
-                                lastError = e
-                                if (attempt < maxAttempts) {
-                                    delay(attempt * 300L)
-                                }
-                            }
-                        }
-                        if (info == null) {
-                            Log.e("VideoPlayerViewModel", "Stream info fetch failed after $maxAttempts attempts")
-                        }
-                        Pair(info, lastError)
-                    }
 
                     val (streamInfo, streamError) = streamInfoDeferred.await()
                     
@@ -449,6 +460,7 @@ class VideoPlayerViewModel @Inject constructor(
                             autoplayEnabled = autoplay,
                             streamSizes = emptyMap(),
                             localFilePath = localFilePath,
+                            localFileVideoId = if (localFilePath != null) videoId else null,
                             hlsUrl = streamInfo.hlsUrl
                         )
 
@@ -1038,6 +1050,7 @@ data class VideoPlayerUiState(
     val commentCountText: String = "0",
     val streamSizes: Map<String, Long> = emptyMap(),
     val localFilePath: String? = null,
+    val localFileVideoId: String? = null,
     val metadataError: String? = null,
     val dislikeCount: Long? = null,
     val hasNext: Boolean = false,

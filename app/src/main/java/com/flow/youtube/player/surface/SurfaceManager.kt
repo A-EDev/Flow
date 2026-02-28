@@ -35,8 +35,16 @@ class SurfaceManager(
     /**
      * Attach a video surface to the player.
      * Uses getSurface() approach like NewPipe for better compatibility.
+     *
+     * @param forceAttach When true, always calls setVideoSurface even if the surface appears
+     *   unchanged. Must be true for [SurfaceHolder.Callback.surfaceCreated] calls, because
+     *   Android may reuse the same SurfaceHolder/Surface Java object while replacing the
+     *   underlying native buffer queue — the dedup check cannot detect this and would
+     *   incorrectly skip the call, leaving the codec bound to an obsolete surface.
+     *   Set to false (default) only for the fallback in AndroidView.update, where the purpose
+     *   is purely to handle a missed initial callback.
      */
-    fun attachVideoSurface(holder: SurfaceHolder?, player: ExoPlayer?): Boolean {
+    fun attachVideoSurface(holder: SurfaceHolder?, player: ExoPlayer?, forceAttach: Boolean = false): Boolean {
         if (holder == null) {
             Log.w(TAG, "attachVideoSurface called with null holder")
             surfaceHolder = null
@@ -60,7 +68,14 @@ class SurfaceManager(
         return runCatching {
             val surface = holder.surface
             if (surface != null && surface.isValid) {
-                Log.d(TAG, "Attempting to attach surface ${surface.hashCode()} to player")
+                if (!forceAttach && isSurfaceReady && holder == surfaceHolder) {
+                    val existingSurface = runCatching { surfaceHolder?.surface }.getOrNull()
+                    if (existingSurface != null && existingSurface.isValid && existingSurface == surface) {
+                        Log.d(TAG, "Surface already attached and ready — skipping redundant setVideoSurface (update fallback)")
+                        return@runCatching true
+                    }
+                }
+                Log.d(TAG, "Attempting to attach surface ${surface.hashCode()} to player (forceAttach=$forceAttach)")
                 player.setVideoSurface(surface)
                 Log.d(TAG, "Surface attached to player via getSurface() (NewPipe approach)")
                 _surfaceReadyFlow.value = true
@@ -118,7 +133,7 @@ class SurfaceManager(
             Log.w(TAG, "Failed to attach placeholder surface", e)
         }
 
-        _surfaceReadyFlow.value = false
+        setSurfaceReady(false)
     }
     
     /**

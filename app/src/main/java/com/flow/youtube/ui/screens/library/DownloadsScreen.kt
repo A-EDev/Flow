@@ -12,7 +12,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,13 +46,12 @@ import com.flow.youtube.R
 import com.flow.youtube.data.music.DownloadedTrack
 import com.flow.youtube.data.video.DownloadedVideo
 import com.flow.youtube.utils.formatDuration
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadsScreen(
     onBackClick: () -> Unit,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (videos: List<DownloadedVideo>, startIndex: Int) -> Unit,
     onMusicClick: (List<DownloadedTrack>, Int) -> Unit,
     onHomeClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -63,8 +61,6 @@ fun DownloadsScreen(
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val haptic = LocalHapticFeedback.current
 
-    val snackbarHostState = remember { SnackbarHostState() }
-    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
     val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
@@ -88,34 +84,16 @@ fun DownloadsScreen(
         }
     }
 
-    var pendingDelete by remember { mutableStateOf<PendingDeletion?>(null) }
-
-    val undoMessage = stringResource(R.string.download_deleted)
-    val undoLabel = stringResource(R.string.action_undo)
-
     fun requestDelete(id: String, type: DeletionType) {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         when (type) {
-            DeletionType.VIDEO -> viewModel.requestDeleteVideo(id)
-            DeletionType.MUSIC -> viewModel.requestDeleteMusic(id)
-        }
-        pendingDelete = PendingDeletion(id, type)
-        coroutineScope.launch {
-            val result = snackbarHostState.showSnackbar(
-                message = undoMessage,
-                actionLabel = undoLabel,
-                duration = SnackbarDuration.Short
-            )
-            if (result == SnackbarResult.ActionPerformed) {
-                viewModel.cancelDelete(id)
-            }
-            pendingDelete = null
+            DeletionType.VIDEO -> viewModel.deleteVideoDownload(id)
+            DeletionType.MUSIC -> viewModel.deleteMusicDownload(id)
         }
     }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -170,7 +148,7 @@ fun DownloadsScreen(
                 when (targetIndex) {
                     0 -> VideosDownloadsList(
                         videos = uiState.downloadedVideos,
-                        onVideoClick = onVideoClick,
+                        onVideoClick = { videos, index -> onVideoClick(videos, index) },
                         onDeleteClick = { id ->
                             requestDelete(id, DeletionType.VIDEO)
                         },
@@ -191,13 +169,8 @@ fun DownloadsScreen(
 }
 
 // ═══════════════════════════════════════════════════════
-// DELETION UNDO
+// DELETION TYPE
 // ═══════════════════════════════════════════════════════
-
-private data class PendingDeletion(
-    val id: String,
-    val type: DeletionType
-)
 
 private enum class DeletionType { VIDEO, MUSIC }
 
@@ -320,7 +293,7 @@ private data class TabInfo(
 @Composable
 private fun VideosDownloadsList(
     videos: List<DownloadedVideo>,
-    onVideoClick: (String) -> Unit,
+    onVideoClick: (List<DownloadedVideo>, Int) -> Unit,
     onDeleteClick: (String) -> Unit,
     onHomeClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -338,13 +311,13 @@ private fun VideosDownloadsList(
             contentPadding = PaddingValues(vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            items(
+            itemsIndexed(
                 items = videos,
-                key = { it.video.id }
-            ) { video ->
+                key = { _, video -> video.video.id }
+            ) { index, video ->
                 VideoDownloadCard(
                     video = video,
-                    onClick = { onVideoClick(video.video.id) },
+                    onClick = { onVideoClick(videos, index) },
                     onDeleteClick = { onDeleteClick(video.video.id) },
                     modifier = Modifier.animateItem(
                         fadeInSpec = tween(300, easing = EaseOutCubic),

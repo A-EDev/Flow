@@ -695,7 +695,8 @@ class EnhancedPlayerManager private constructor() {
 
     // ===== Surface Management =====
     
-    fun attachVideoSurface(holder: SurfaceHolder?) = surfaceManager?.attachVideoSurface(holder, player)
+    fun attachVideoSurface(holder: SurfaceHolder?, forceAttach: Boolean = false) =
+        surfaceManager?.attachVideoSurface(holder, player, forceAttach)
     fun detachVideoSurface(holder: SurfaceHolder? = null) = surfaceManager?.detachVideoSurface(holder, player, appContext)
     fun clearSurface() = surfaceManager?.clearSurface(player)
     suspend fun awaitSurfaceReady(timeoutMillis: Long = 1000) = surfaceManager?.awaitSurfaceReady(timeoutMillis) ?: false

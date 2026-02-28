@@ -584,8 +584,10 @@ fun NavGraphBuilder.flowAppGraph(
         
         com.flow.youtube.ui.screens.library.DownloadsScreen(
             onBackClick = { navController.popBackStack() },
-            onVideoClick = { videoId ->
-                navController.navigate("player/$videoId")
+            onVideoClick = { videos, index ->
+                val videoList = videos.map { it.video }
+                playerViewModel.playPlaylist(videoList, index, "Downloads")
+                GlobalPlayerState.setCurrentVideo(videoList[index])
             },
             onMusicClick = { tracks, index ->
                 val musicTracks = tracks.map { it.track }

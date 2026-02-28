@@ -375,6 +375,11 @@ fun PlayerInitEffect(
         val hlsUrl = uiState.hlsUrl
 
         if (localFilePath != null && videoStream == null && audioStream == null && hlsUrl == null) {
+            if (uiState.localFileVideoId != null && uiState.localFileVideoId != videoId) {
+                Log.d(TAG, "Skipping stale localFilePath for $videoId (belongs to ${uiState.localFileVideoId})")
+                return@LaunchedEffect
+            }
+
             val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
             if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) {
                 Log.d(TAG, "Player already prepared for $videoId (offline), skipping")

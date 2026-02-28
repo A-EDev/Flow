@@ -65,7 +65,7 @@ fun VideoPlayerSurface(
             object : android.view.SurfaceHolder.Callback {
                 override fun surfaceCreated(holder: android.view.SurfaceHolder) {
                     Log.d("EnhancedVideoPlayer", "Surface created for video ${video.id}")
-                    EnhancedPlayerManager.getInstance().attachVideoSurface(holder)
+                    EnhancedPlayerManager.getInstance().attachVideoSurface(holder, forceAttach = true)
                 }
                 
                 override fun surfaceChanged(
@@ -102,39 +102,19 @@ fun VideoPlayerSurface(
                 else -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
             }
             
-            // CRITICAL: Ensure surface is attached whenever this view updates
-            // This handles the case where PlayerView is recreated after navigation
-            try {
-                val surfaceView = view.videoSurfaceView
-                if (surfaceView is android.view.SurfaceView) {
-                    val holder = surfaceView.holder
-                    val surface = holder.surface
-                    if (surface != null && surface.isValid) {
-                        EnhancedPlayerManager.getInstance().attachVideoSurface(holder)
-                        Log.d("EnhancedVideoPlayer", "Surface reattached in update block")
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w("EnhancedVideoPlayer", "Failed to reattach surface in update", e)
-            }
-            
-            // Fallback: If surface is still not ready after update, mark it as ready
-            // This ensures media loads even if the surface callback doesn't fire properly
             if (!EnhancedPlayerManager.getInstance().isSurfaceReady) {
                 try {
                     val surfaceView = view.videoSurfaceView
-                    Log.d("EnhancedVideoPlayer", "Fallback check - videoSurfaceView: ${surfaceView?.javaClass?.simpleName}, width=${(surfaceView as? android.view.SurfaceView)?.width}, height=${(surfaceView as? android.view.SurfaceView)?.height}, isSurfaceReady: ${EnhancedPlayerManager.getInstance().isSurfaceReady}")
                     if (surfaceView is android.view.SurfaceView) {
-                        EnhancedPlayerManager.getInstance().attachVideoSurface(surfaceView.holder)
-                        val holderIsValid = runCatching { surfaceView.holder.surface?.isValid == true }.getOrDefault(false)
-                        if (holderIsValid) {
-                            Log.d("EnhancedVideoPlayer", "Surface exists, marking as ready (fallback)")
-                            EnhancedPlayerManager.getInstance().setSurfaceReady(true)
-                            EnhancedPlayerManager.getInstance().retryLoadMediaIfSurfaceReady()
+                        val holder = surfaceView.holder
+                        val surface = holder.surface
+                        if (surface != null && surface.isValid) {
+                            EnhancedPlayerManager.getInstance().attachVideoSurface(holder)
+                            Log.d("EnhancedVideoPlayer", "Surface reattached in update block (fallback - was not ready)")
                         }
                     }
                 } catch (e: Exception) {
-                    Log.d("EnhancedVideoPlayer", "Fallback surface ready check error: ${e.message}")
+                    Log.w("EnhancedVideoPlayer", "Failed to reattach surface in update fallback", e)
                 }
             }
         },
