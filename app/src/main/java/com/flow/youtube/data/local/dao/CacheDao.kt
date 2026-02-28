@@ -15,6 +15,14 @@ interface CacheDao {
     @Query("SELECT * FROM subscription_feed_cache ORDER BY timestamp DESC LIMIT 200")
     fun getSubscriptionFeed(): Flow<List<SubscriptionFeedEntity>>
 
+    /** Returns how many rows are currently in the cache. */
+    @Query("SELECT COUNT(*) FROM subscription_feed_cache")
+    suspend fun getSubscriptionFeedCount(): Int
+
+    /** Returns the most-recent cachedAt timestamp, or null when the table is empty. */
+    @Query("SELECT MAX(cachedAt) FROM subscription_feed_cache")
+    suspend fun getLatestCachedAt(): Long?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSubscriptionFeed(videos: List<SubscriptionFeedEntity>)
 

@@ -53,4 +53,11 @@ interface WatchHistoryDao {
 
     @Query("SELECT COUNT(*) FROM watch_history WHERE isMusic = 0")
     fun getVideoCount(): Flow<Int>
+
+    /**
+     * Returns video IDs that the user has already watched (position > 0 OR appeared in history).
+     * Used to filter watched shorts from the subscription shelf.
+     */
+    @Query("SELECT videoId FROM watch_history WHERE isMusic = 0")
+    suspend fun getAllWatchedVideoIds(): List<String>
 }

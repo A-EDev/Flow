@@ -25,6 +25,7 @@ import org.schabi.newpipe.extractor.stream.*
 import com.flow.youtube.data.video.VideoDownloadManager
 import com.flow.youtube.data.video.DownloadedVideo
 import com.flow.youtube.ui.screens.player.util.VideoPlayerUtils
+import com.flow.youtube.ui.screens.player.util.VideoErrorMapper
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
 
@@ -130,6 +131,7 @@ class VideoPlayerViewModel @Inject constructor(
             cachedVideo = video,
             isLoading = true,
             error = null,
+            errorHint = null,
             metadataError = null,
             streamInfo = null,
             videoStream = null,
@@ -170,6 +172,17 @@ class VideoPlayerViewModel @Inject constructor(
         _isLoadingComments.value = false
     }
 
+    /**
+     * Retry loading the current video after an error.
+     * Uses the cached video metadata to know which video to reload.
+     */
+    fun retryLoadVideo() {
+        val videoId = _uiState.value.cachedVideo?.id ?: return
+        Log.d("VideoPlayerViewModel", "Retrying video load for $videoId")
+        _uiState.update { it.copy(error = null, errorHint = null, isLoading = true) }
+        loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true)
+    }
+
     fun playPlaylist(videos: List<Video>, startIndex: Int, title: String? = null) {
         if (videos.isEmpty()) return
         val startVideo = videos.getOrNull(startIndex) ?: videos.first()
@@ -187,6 +200,7 @@ class VideoPlayerViewModel @Inject constructor(
                 cachedVideo = startVideo,
                 isLoading = true,
                 error = null,
+                errorHint = null,
                 metadataError = null,
                 streamInfo = null,
                 videoStream = null,
@@ -254,6 +268,7 @@ class VideoPlayerViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(
             isLoading = true, 
             error = null, 
+            errorHint = null,
             metadataError = null,
             streamInfo = null,
             videoStream = null,
@@ -321,9 +336,7 @@ class VideoPlayerViewModel @Inject constructor(
                         it.copy(
                             localFilePath = localFile?.absolutePath,
                             error = null,
-                            // Don't set isLoading=false yet if we want to try fetching metadata/comments
-                            // But usually users want instant playback.
-                            // Let's set it false so player starts, metadata can load in background
+                            errorHint = null,
                             isLoading = false
                         )
                     }
@@ -334,8 +347,9 @@ class VideoPlayerViewModel @Inject constructor(
 
                     // OPTIMIZED: Fetch stream info with retry and timeout
                     // Run logic even if offline video exists, to get fresh metadata/comments and related videos
-                    val streamInfoDeferred = async(PerformanceDispatcher.networkIO) { 
+                    val streamInfoDeferred = async(PerformanceDispatcher.networkIO) {
                         var info: StreamInfo? = null
+                        var lastError: Throwable? = null
                         var attempt = 0
                         val maxAttempts = if (isOfflineAvailable) 1 else 3 // Don't retry much if we have offline video
                         while (info == null && attempt < maxAttempts) {
@@ -344,13 +358,18 @@ class VideoPlayerViewModel @Inject constructor(
                                 info = withTimeoutOrNull(10_000L) {
                                     repository.getVideoStreamInfo(videoId)
                                 }
-                                
+
                                 if (info == null && attempt < maxAttempts) {
                                     Log.w("VideoPlayerViewModel", "Stream info fetch failed (attempt $attempt), retrying in ${attempt * 300}ms...")
                                     delay(attempt * 300L) // Faster backoff: 300ms, 600ms
                                 }
+                            } catch (e: org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException) {
+                                Log.e("VideoPlayerViewModel", "Content restriction for $videoId: ${e.javaClass.simpleName}: ${e.message}")
+                                lastError = e
+                                break
                             } catch (e: Exception) {
                                 Log.e("VideoPlayerViewModel", "Failed to load stream info (attempt $attempt)", e)
+                                lastError = e
                                 if (attempt < maxAttempts) {
                                     delay(attempt * 300L)
                                 }
@@ -359,10 +378,10 @@ class VideoPlayerViewModel @Inject constructor(
                         if (info == null) {
                             Log.e("VideoPlayerViewModel", "Stream info fetch failed after $maxAttempts attempts")
                         }
-                        info
+                        Pair(info, lastError)
                     }
-                    
-                    val streamInfo = streamInfoDeferred.await()
+
+                    val (streamInfo, streamError) = streamInfoDeferred.await()
                     
                     // Extract related videos directly from the stream info (avoids extra network call)
                     val relatedVideos = if (streamInfo != null) {
@@ -544,17 +563,20 @@ class VideoPlayerViewModel @Inject constructor(
                                 it.copy(
                                     isLoading = false,
                                     error = null,
+                                    errorHint = null,
                                     relatedVideos = relatedVideos,
                                     localFilePath = localFile?.absolutePath
                                 )
                             }
                         } else {
                             Log.e("VideoPlayerViewModel", "Stream info is null for $videoId and no offline copy found.")
+                            val videoError = VideoErrorMapper.from(context, streamError, videoId)
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
                                     relatedVideos = relatedVideos,
-                                    error = "Failed to load video"
+                                    error = videoError.message,
+                                    errorHint = videoError.hint
                                 )
                             }
                         }
@@ -564,12 +586,14 @@ class VideoPlayerViewModel @Inject constructor(
                 Log.e("VideoPlayerViewModel", "Video info load timed out for $videoId after 30s")
                 if (isOfflineAvailable) {
                      Log.d("VideoPlayerViewModel", "Ignoring timeout, playing offline video")
-                     _uiState.update { it.copy(isLoading = false, error = null) }
+                     _uiState.update { it.copy(isLoading = false, error = null, errorHint = null) }
                 } else {
+                    val videoError = VideoErrorMapper.fromTimeout(context)
                     _uiState.update { 
                         it.copy(
                             isLoading = false,
-                            error = "Load timed out. Please check your connection."
+                            error = videoError.message,
+                            errorHint = videoError.hint
                         )
                     }
                 }
@@ -578,7 +602,7 @@ class VideoPlayerViewModel @Inject constructor(
                 
                 if (isOfflineAvailable) {
                      Log.d("VideoPlayerViewModel", "Ignoring exception, playing offline video")
-                     _uiState.update { it.copy(isLoading = false, error = null) }
+                     _uiState.update { it.copy(isLoading = false, error = null, errorHint = null) }
                 } else {
                     // Final fallback if everything fails
                     val downloadedVideo = videoDownloadManager.downloadedVideos.map { list -> 
@@ -591,14 +615,17 @@ class VideoPlayerViewModel @Inject constructor(
                                 streamInfo = null,
                                 isLoading = false,
                                 error = null,
+                                errorHint = null,
                                 localFilePath = downloadedVideo.filePath
                             )
                         }
                     } else {
+                        val videoError = VideoErrorMapper.from(context, e, videoId)
                         _uiState.update { 
                             it.copy(
                                 isLoading = false,
-                                error = e.message ?: "An error occurred"
+                                error = videoError.message,
+                                errorHint = videoError.hint
                             )
                         }
                     }
@@ -996,6 +1023,8 @@ data class VideoPlayerUiState(
     val subtitlesEnabled: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
+    /** Optional secondary hint shown below the primary error in the player's error panel. */
+    val errorHint: String? = null,
     val savedPosition: kotlinx.coroutines.flow.Flow<Long>? = null,
     val isAdaptiveMode: Boolean = false,
     val isMiniPlayer: Boolean = false,

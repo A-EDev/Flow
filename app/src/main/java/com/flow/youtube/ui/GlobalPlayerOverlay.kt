@@ -14,6 +14,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -404,6 +410,66 @@ fun GlobalPlayerOverlay(
                                     .align(Alignment.TopCenter)
                                     .padding(top = 0.dp)
                             )
+
+                            // ── Error overlay ────────────────────────────────────────────
+                            val errorMsg  = playerUiState.error
+                            val errorHint = playerUiState.errorHint
+                            if (errorMsg != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Color.Black.copy(alpha = 0.82f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                                        modifier = Modifier
+                                            .padding(horizontal = 32.dp)
+                                            .widthIn(max = 380.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.ErrorOutline,
+                                            contentDescription = "Playback error",
+                                            tint = Color(0xFFFF6B6B),
+                                            modifier = Modifier.size(48.dp)
+                                        )
+                                        Text(
+                                            text = errorMsg,
+                                            color = Color.White,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            textAlign = TextAlign.Center
+                                        )
+                                        if (!errorHint.isNullOrBlank()) {
+                                            Text(
+                                                text = errorHint,
+                                                color = Color.White.copy(alpha = 0.72f),
+                                                fontSize = 13.sp,
+                                                textAlign = TextAlign.Center,
+                                                lineHeight = 18.sp
+                                            )
+                                        }
+                                        Button(
+                                            onClick = { playerViewModel.retryLoadVideo() },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = Color(0xFFFF0000),
+                                                contentColor   = Color.White
+                                            ),
+                                            shape = RoundedCornerShape(8.dp),
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Refresh,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("Retry", fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
+                                }
+                            }
                         }
                         
                         // Controls overlay - fully expanded only

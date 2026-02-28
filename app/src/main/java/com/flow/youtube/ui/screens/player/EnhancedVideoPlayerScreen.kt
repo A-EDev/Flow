@@ -51,10 +51,17 @@ fun EnhancedVideoPlayerScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val comments by viewModel.commentsState.collectAsStateWithLifecycle()
 
-    // Error Snackbar
+    // Error Snackbar — supplementary to the in-video error overlay.
     LaunchedEffect(uiState.error) {
         uiState.error?.let { errorMsg ->
-            snackbarHostState.showSnackbar(message = errorMsg, withDismissAction = true)
+            val fullMessage = if (!uiState.errorHint.isNullOrBlank()) {
+                "$errorMsg\n\n${uiState.errorHint}"
+            } else errorMsg
+            snackbarHostState.showSnackbar(
+                message = fullMessage,
+                withDismissAction = true,
+                duration = SnackbarDuration.Long
+            )
         }
     }
 

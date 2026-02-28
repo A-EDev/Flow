@@ -1014,5 +1014,45 @@
     <string name="import_engine_failed">Failed to import engine profile</string>
     <string name="import_engine_section_title">Flow Engine</string>
     <string name="import_engine_section_subtitle">Restore your AI learning profile</string>
+
+    <!-- Video Player Errors -->
+    <string name="error_age_restricted">Age-restricted content</string>
+    <string name="error_age_restricted_hint">This video is only available to signed-in users who have verified their age.</string>
+    <string name="error_private_video">Private video</string>
+    <string name="error_private_video_hint">The owner of this video has set it to private.</string>
+    <string name="error_geo_restricted">Not available in your region</string>
+    <string name="error_geo_restricted_hint">The content owner has restricted this video in your country. Try using a VPN.</string>
+    <string name="error_paid_content">Paid / rental content</string>
+    <string name="error_paid_content_hint">This video requires a purchase or rental on YouTube.</string>
+    <string name="error_yt_music_premium">YouTube Music Premium content</string>
+    <string name="error_yt_music_premium_hint">This track is only available to YouTube Music Premium subscribers.</string>
+    <string name="error_channel_terminated">Channel has been terminated</string>
+    <string name="error_channel_terminated_hint">This channel no longer exists on YouTube.</string>
+    <string name="error_captcha">YouTube CAPTCHA required</string>
+    <string name="error_captcha_hint">YouTube is asking for bot verification. Please open YouTube in a browser and solve the CAPTCHA, then try again.</string>
+    <string name="error_not_available">Video not available</string>
+    <string name="error_not_available_hint">This video may have been deleted, made private, or removed by YouTube.</string>
+    <string name="error_not_supported">Content type not supported</string>
+    <string name="error_not_supported_hint">This format or content type cannot be played in Flow.</string>
+    <string name="error_no_internet">No internet connection</string>
+    <string name="error_no_internet_hint">Check your Wi-Fi or mobile data and try again.</string>
+    <string name="error_timeout">Connection timed out</string>
+    <string name="error_timeout_hint">The server took too long to respond. Check your connection and try again.</string>
+    <string name="error_network">Network error</string>
+    <string name="error_network_hint">A network issue prevented the video from loading. Check your connection and try again.</string>
+    <string name="error_http_forbidden">Access denied (403)</string>
+    <string name="error_http_forbidden_hint">YouTube refused to serve this stream. The video link may have expired — try reloading.</string>
+    <string name="error_http_general">HTTP error %1$s</string>
+    <string name="error_http_general_hint">YouTube returned an unexpected response (%1$s). Try again in a moment.</string>
+    <string name="error_stream_failed">Media stream failed</string>
+    <string name="error_stream_failed_hint">The video stream could not be read. This may be a temporary YouTube issue.</string>
+    <string name="error_codec_issue">Playback error (codec issue)</string>
+    <string name="error_codec_issue_hint">Your device could not decode this stream. Try selecting a lower quality.</string>
+    <string name="error_playback_failed">Playback failed</string>
+    <string name="error_playback_failed_hint">An unexpected player error occurred. Please try again.</string>
+    <string name="error_extraction_failed">Failed to parse video data</string>
+    <string name="error_extraction_failed_hint">YouTube may have updated its format. Flow will be updated soon — please try again later.</string>
+    <string name="error_generic">Failed to load video</string>
+    <string name="error_generic_hint">An unknown error occurred. Please try again.</string>
 </resources>
 

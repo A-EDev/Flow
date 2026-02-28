@@ -20,7 +20,14 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeoutOrNull
 
 class SubscriptionsViewModel : ViewModel() {
-    companion object { private const val TAG = "SubsViewModel" }
+    companion object {
+        private const val TAG = "SubsViewModel"
+        /**
+         * How old the subscription-feed cache may be before a background refresh is triggered.
+         * 2 hours — balances freshness with avoiding an RSS fetch on every screen visit.
+         */
+        private const val FEED_CACHE_TTL_MS = 2 * 60 * 60 * 1000L // 2 hours
+    }
 
     private lateinit var subscriptionRepository: SubscriptionRepository
     private lateinit var viewHistory: ViewHistory
@@ -30,13 +37,16 @@ class SubscriptionsViewModel : ViewModel() {
 
     private val ytRepository: YouTubeRepository = YouTubeRepository.getInstance()
     private lateinit var cacheDao: com.flow.youtube.data.local.dao.CacheDao
+    private lateinit var watchHistoryDao: com.flow.youtube.data.local.dao.WatchHistoryDao
     private lateinit var playerPreferences: PlayerPreferences
     
     fun initialize(context: Context) {
         subscriptionRepository = SubscriptionRepository.getInstance(context)
         playerPreferences = PlayerPreferences(context)
         viewHistory = ViewHistory.getInstance(context)
-        cacheDao = com.flow.youtube.data.local.AppDatabase.getDatabase(context).cacheDao()
+        val db = com.flow.youtube.data.local.AppDatabase.getDatabase(context)
+        cacheDao = db.cacheDao()
+        watchHistoryDao = db.watchHistoryDao()
         
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             playerPreferences.shortsShelfEnabled.collect { enabled ->
@@ -92,38 +102,50 @@ class SubscriptionsViewModel : ViewModel() {
                         if (_uiState.value.recentVideos.isEmpty()) {
                             _uiState.update { it.copy(isLoading = true) }
                         }
-                        Log.i(TAG, "Starting network fetch for ${channels.size} channels")
 
-                        com.flow.youtube.data.innertube.RssSubscriptionService.fetchSubscriptionVideos(
-                            channelIds = channels.map { it.id }
-                        ).collect { videos ->
-                            Log.i(TAG, "Network emit received: ${videos.size} videos (shorts=${videos.count { it.isShort }}, regular=${videos.count { !it.isShort }})")
-                            if (videos.isNotEmpty()) {
-                                updateVideos(videos)
-                                val entities = videos.map { video ->
-                                    com.flow.youtube.data.local.entity.SubscriptionFeedEntity(
-                                        videoId = video.id,
-                                        title = video.title,
-                                        channelName = video.channelName,
-                                        channelId = video.channelId,
-                                        thumbnailUrl = video.thumbnailUrl,
-                                        duration = video.duration,
-                                        viewCount = video.viewCount,
-                                        uploadDate = video.uploadDate,
-                                        timestamp = video.timestamp,
-                                        channelThumbnailUrl = video.channelThumbnailUrl,
-                                        isShort = video.isShort,
-                                        cachedAt = System.currentTimeMillis()
-                                    )
-                                }
-                                launch(PerformanceDispatcher.diskIO) {
-                                    cacheDao.clearSubscriptionFeed()
-                                    cacheDao.insertSubscriptionFeed(entities)
-                                }
-                            } else {
-                                Log.w(TAG, "Network emit was empty!")
-                            }
+                        // ── Cache-age gate ─────────────────────────────────────────────────
+                        val cacheCount   = cacheDao.getSubscriptionFeedCount()
+                        val latestCachedAt = cacheDao.getLatestCachedAt() ?: 0L
+                        val cacheAgeMs   = System.currentTimeMillis() - latestCachedAt
+                        val isCacheStale = cacheCount == 0 || cacheAgeMs > FEED_CACHE_TTL_MS
+
+                        if (!isCacheStale) {
+                            Log.i(TAG, "Feed cache is fresh (age=${cacheAgeMs / 60_000}min, $cacheCount entries) — skipping network fetch")
                             _uiState.update { it.copy(isLoading = false) }
+                        } else {
+                            Log.i(TAG, "Starting network fetch for ${channels.size} channels (cacheAge=${cacheAgeMs / 60_000}min, rows=$cacheCount)")
+
+                            com.flow.youtube.data.innertube.RssSubscriptionService.fetchSubscriptionVideos(
+                                channelIds = channels.map { it.id }
+                            ).collect { videos ->
+                                Log.i(TAG, "Network emit received: ${videos.size} videos (shorts=${videos.count { it.isShort }}, regular=${videos.count { !it.isShort }})")
+                                if (videos.isNotEmpty()) {
+                                    updateVideos(videos)
+                                    val entities = videos.map { video ->
+                                        com.flow.youtube.data.local.entity.SubscriptionFeedEntity(
+                                            videoId = video.id,
+                                            title = video.title,
+                                            channelName = video.channelName,
+                                            channelId = video.channelId,
+                                            thumbnailUrl = video.thumbnailUrl,
+                                            duration = video.duration,
+                                            viewCount = video.viewCount,
+                                            uploadDate = video.uploadDate,
+                                            timestamp = video.timestamp,
+                                            channelThumbnailUrl = video.channelThumbnailUrl,
+                                            isShort = video.isShort,
+                                            cachedAt = System.currentTimeMillis()
+                                        )
+                                    }
+                                    launch(PerformanceDispatcher.diskIO) {
+                                        cacheDao.clearSubscriptionFeed()
+                                        cacheDao.insertSubscriptionFeed(entities)
+                                    }
+                                } else {
+                                    Log.w(TAG, "Network emit was empty!")
+                                }
+                                _uiState.update { it.copy(isLoading = false) }
+                            }
                         }
                     } else {
                         Log.w(TAG, "No channels \u2014 skipping fetch")
@@ -136,14 +158,28 @@ class SubscriptionsViewModel : ViewModel() {
 
 
 
-    private fun updateVideos(videos: List<Video>) {
+    private suspend fun updateVideos(videos: List<Video>) {
         val sortedVideos = videos.sortedByDescending { it.timestamp }
 
         val (shorts, regular) = sortedVideos.partition { video ->
             video.isShort || (video.duration in 1..120 && !video.isLive)
         }
         Log.i(TAG, "updateVideos: total=${sortedVideos.size} → regular=${regular.size}, shorts=${shorts.size}")
-        _uiState.update { it.copy(recentVideos = regular, shorts = shorts) }
+
+        // ── Watched-shorts filter ──────────────────────────────────────────
+        val watchedIds: Set<String> = try {
+            watchHistoryDao.getAllWatchedVideoIds().toHashSet()
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not read watch history for shorts filtering", e)
+            emptySet()
+        }
+        val unwatchedShorts = if (watchedIds.isEmpty()) shorts
+            else shorts.filter { it.id !in watchedIds }
+
+        Log.i(TAG, "Shorts after watched filter: ${unwatchedShorts.size}/${shorts.size} " +
+                "(${shorts.size - unwatchedShorts.size} hidden as already watched)")
+
+        _uiState.update { it.copy(recentVideos = regular, shorts = unwatchedShorts) }
     }
     
     private fun parseRelativeTime(dateString: String): Long {

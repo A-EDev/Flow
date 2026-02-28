@@ -189,7 +189,12 @@ class YouTubeRepository @Inject constructor() {
     }
     
     /**
-     * Get video stream info for playback
+     * Get video stream info for playback.
+     *
+     * Throws the original exception on failure so callers can display specific, accurate
+     * error messages (age restriction, geo-block, private video, etc.) instead of a
+     * generic "unknown error".  Callers that want null-on-failure should wrap in
+     * try/catch themselves.
      */
     suspend fun getVideoStreamInfo(videoId: String): StreamInfo? = withContext(Dispatchers.IO) {
         try {
@@ -198,12 +203,12 @@ class YouTubeRepository @Inject constructor() {
         } catch (e: Exception) {
             // NewPipe "The page needs to be reloaded" error handling
             // This often happens due to stale internal state or specific YouTube bot identifiers
-            val isReloadError = e.message?.contains("page needs to be reloaded", ignoreCase = true) == true || 
+            val isReloadError = e.message?.contains("page needs to be reloaded", ignoreCase = true) == true ||
                                (e is org.schabi.newpipe.extractor.exceptions.ContentNotAvailableException && e.message?.contains("reloaded") == true)
-            
+
             if (isReloadError) {
                 Log.w("YouTubeRepository", "Hit 'page needs to be reloaded' error for $videoId. Retrying with fresh state...")
-                
+
                 // Re-init NewPipe to potentially clear internal state
                 try {
                      val country = ContentCountry("US")
@@ -215,16 +220,17 @@ class YouTubeRepository @Inject constructor() {
 
                 // Retry with alternate URL format which works as a cache buster sometimes
                 try {
-                    val altUrl = "https://youtu.be/$videoId" 
+                    val altUrl = "https://youtu.be/$videoId"
                     Log.d("YouTubeRepository", "Retrying with alternate URL: $altUrl")
                     return@withContext StreamInfo.getInfo(service, altUrl)
                 } catch (retryEx: Exception) {
                     Log.e("YouTubeRepository", "Retry failed for $videoId: ${retryEx.message}", retryEx)
+                    throw retryEx
                 }
             } else {
                 Log.e("YouTubeRepository", "Error getting stream info for $videoId: ${e.message}", e)
+                throw e
             }
-            null
         }
     }
 
