@@ -126,7 +126,11 @@ fun PlaybackRefocusEffect(
             // to reconnect the existing MediaSource, then resume.
             if (player.playbackState == Player.STATE_IDLE && playerMgrState.currentVideoId != null) {
                 Log.d(TAG, "PlaybackRefocusEffect: player in IDLE after resume, calling prepare()")
+                val lastPos = screenState.currentPosition
                 player.prepare()
+                if (lastPos > 0) {
+                    player.seekTo(lastPos)
+                }
                 // Give ExoPlayer a moment to transition to BUFFERING/READY before play()
                 delay(300L)
             }
@@ -152,9 +156,13 @@ fun WatchProgressSaveEffect(
     uiState: VideoPlayerUiState,
     viewModel: VideoPlayerViewModel
 ) {
+    val currentPos by rememberUpdatedState(currentPosition)
+    val currentDur by rememberUpdatedState(duration)
+    val currentUi by rememberUpdatedState(uiState)
+
     LaunchedEffect(videoId) {
         delay(3000)
-        val streamInfo = uiState.streamInfo
+        val streamInfo = currentUi.streamInfo
         val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
         val channelName = streamInfo?.uploaderName ?: video.channelName
         val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
@@ -164,8 +172,8 @@ fun WatchProgressSaveEffect(
         if (title.isNotEmpty()) {
             viewModel.savePlaybackPosition(
                 videoId = videoId,
-                position = currentPosition,
-                duration = duration,
+                position = currentPos,
+                duration = currentDur,
                 title = title,
                 thumbnailUrl = thumbnailUrl,
                 channelName = channelName,
@@ -177,18 +185,18 @@ fun WatchProgressSaveEffect(
     LaunchedEffect(videoId, isPlaying) {
         while (isPlaying) {
             delay(10000)
-            val streamInfo = uiState.streamInfo
+            val streamInfo = currentUi.streamInfo
             val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
             val channelName = streamInfo?.uploaderName ?: video.channelName
             val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
                 ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
                 ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
             val title = streamInfo?.name ?: video.title
-            if (duration > 0 && title.isNotEmpty()) {
+            if (currentDur > 0 && title.isNotEmpty()) {
                 viewModel.savePlaybackPosition(
                     videoId = videoId,
-                    position = currentPosition,
-                    duration = duration,
+                    position = currentPos,
+                    duration = currentDur,
                     title = title,
                     thumbnailUrl = thumbnailUrl,
                     channelName = channelName,
@@ -435,9 +443,13 @@ fun VideoCleanupEffect(
     uiState: VideoPlayerUiState,
     viewModel: VideoPlayerViewModel
 ) {
+    val currentPos by rememberUpdatedState(currentPosition)
+    val currentDur by rememberUpdatedState(duration)
+    val currentUi by rememberUpdatedState(uiState)
+
     DisposableEffect(videoId) {
         onDispose {
-            val streamInfo = uiState.streamInfo
+            val streamInfo = currentUi.streamInfo
             val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
             val channelName = streamInfo?.uploaderName ?: video.channelName
             val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
@@ -446,8 +458,8 @@ fun VideoCleanupEffect(
 
             viewModel.savePlaybackPosition(
                 videoId = videoId,
-                position = currentPosition,
-                duration = duration,
+                position = currentPos,
+                duration = currentDur,
                 title = streamInfo?.name ?: video.title,
                 thumbnailUrl = thumbnailUrl,
                 channelName = channelName,

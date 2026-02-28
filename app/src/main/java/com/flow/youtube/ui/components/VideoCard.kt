@@ -157,7 +157,7 @@ fun VideoCard(
                     text = displayTitle,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold, // Stronger weight for readability
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface,
                     lineHeight = 18.sp
@@ -277,7 +277,7 @@ fun VideoCardHorizontal(
                 text = displayTitle,
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
 
@@ -419,7 +419,7 @@ fun VideoCardFullWidth(
                     text = displayTitle,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 2,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
 
@@ -555,7 +555,7 @@ fun CompactVideoCard(
                 text = displayTitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 2,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = FontWeight.SemiBold
             )
@@ -700,7 +700,7 @@ private fun ContinueWatchingCard(
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = entry.title,
-            maxLines = 2,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,
@@ -794,7 +794,7 @@ fun ShortsCard(
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = video.title,
-            maxLines = 2,
+            maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold

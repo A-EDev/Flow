@@ -77,25 +77,21 @@ fun UpdateDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.5f))
-                .clickable(onClick = onDismiss), // Dismiss on scrim click
+                .background(Color.Black.copy(alpha = 0.6f))
+                .clickable(onClick = onDismiss),
             contentAlignment = Alignment.BottomCenter
         ) {
-            Card(
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .clickable(enabled = false) {}, // Prevent click propagation
-                shape = RoundedCornerShape(28.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF1E1E22)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                    .clickable(enabled = false) {}, 
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                color = Color(0xFF1E1E22) 
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(24.dp),
+                        .padding(top = 32.dp, bottom = 24.dp, start = 24.dp, end = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Box(
@@ -108,18 +104,18 @@ fun UpdateDialog(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_notification_logo),
                             contentDescription = stringResource(R.string.update_flow),
-                            tint = MaterialTheme.colorScheme.primary, // Using primary color as before
-                            modifier = Modifier.size(36.dp)
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(40.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     Text(
                         text = stringResource(R.string.new_update_available), 
                         style = MaterialTheme.typography.titleLarge.copy(
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 22.sp
                         ),
                         color = Color.White
                     )
@@ -127,105 +123,88 @@ fun UpdateDialog(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     Text(
-                        text = stringResource(R.string.update_available_template, updateInfo.version), 
+                        text = "Version ${updateInfo.version}", 
                         style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        color = Color.LightGray.copy(alpha = 0.8f)
+                        color = Color.LightGray.copy(alpha = 0.7f)
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // 3. Version Info Box 
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = Color(0xFF131316),
-                        modifier = Modifier.fillMaxWidth()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false) 
+                            .heightIn(max = 280.dp)
+                            .verticalScroll(rememberScrollState())
                     ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
+                        Text(
+                            text = stringResource(R.string.release_notes).uppercase(),
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.2.sp
+                            ),
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+
+                        MarkdownChangelogText(
+                            markdown = displayedChangelog,
+                            textColor = Color.White.copy(alpha = 0.85f)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(32.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Button(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White.copy(alpha = 0.1f),
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(26.dp)
                         ) {
-                            // Header row
+                            Text(
+                                text = stringResource(R.string.maybe_later),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+
+                        Button(
+                            onClick = onUpdate,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            shape = RoundedCornerShape(26.dp)
+                        ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
                             ) {
-                                Text(
-                                    text = stringResource(R.string.release_notes), 
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    letterSpacing = 1.sp
+                                Icon(
+                                    Icons.Default.CloudDownload, 
+                                    contentDescription = null, 
+                                    modifier = Modifier.size(20.dp)
                                 )
+                                Spacer(Modifier.width(8.dp))
                                 Text(
-                                    text = updateInfo.version,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.Gray
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            // Changelog content
-                            Column(
-                                modifier = Modifier
-                                    .heightIn(max = 140.dp)
-                                    .verticalScroll(rememberScrollState())
-                            ) {
-                                MarkdownChangelogText(
-                                    markdown = displayedChangelog,
-                                    textColor = Color.LightGray
+                                    text = stringResource(R.string.update_flow),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // 4. Buttons (Vertical Stack - Reference Design)
-                    Button(
-                        onClick = onUpdate,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary, // Original primary color
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        shape = RoundedCornerShape(26.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.CloudDownload, 
-                            contentDescription = null, 
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.update_flow), // Restored original text
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    Button(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White.copy(alpha = 0.1f), // Subtle background for secondary
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(26.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.maybe_later), // Restored original text
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
                     }
                 }
             }

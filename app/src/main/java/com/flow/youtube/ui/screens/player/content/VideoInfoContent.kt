@@ -144,11 +144,7 @@ fun LazyListScope.relatedVideosContent(
     item {
         if (relatedVideos.isNotEmpty()) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = stringResource(R.string.related_videos),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-                )
+               
             }
         }
     }

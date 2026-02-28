@@ -83,6 +83,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "flow_database"
                 )
                 .addMigrations(MIGRATION_10_11)
+                .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance
                 instance
