@@ -694,17 +694,45 @@ class EnhancedPlayerManager private constructor() {
         get() = sponsorBlockHandler?.toastEvent ?: MutableSharedFlow()
 
     // ===== Surface Management =====
-    
-    fun attachVideoSurface(holder: SurfaceHolder?, forceAttach: Boolean = false) =
-        surfaceManager?.attachVideoSurface(holder, player, forceAttach)
+
+    fun attachVideoSurface(holder: SurfaceHolder?, forceAttach: Boolean = false): Boolean? {
+        val attached = surfaceManager?.attachVideoSurface(holder, player, forceAttach)
+        if (attached == true) {
+            val p = player
+            if (p != null && currentVideoStream != null && currentAudioStream != null) {
+                if (p.currentMediaItem == null) {
+                    Log.d(TAG, "attachVideoSurface: no media item — loading media now")
+                    loadMediaInternal(currentVideoStream, currentAudioStream)
+                } else if (p.playbackState == Player.STATE_IDLE) {
+                    Log.d(TAG, "attachVideoSurface: surface back and player IDLE — calling prepare()")
+                    p.prepare()
+                    if (p.playWhenReady) p.play()
+                }
+            }
+        }
+        return attached
+    }
     fun detachVideoSurface(holder: SurfaceHolder? = null) = surfaceManager?.detachVideoSurface(holder, player, appContext)
     fun clearSurface() = surfaceManager?.clearSurface(player)
     suspend fun awaitSurfaceReady(timeoutMillis: Long = 1000) = surfaceManager?.awaitSurfaceReady(timeoutMillis) ?: false
     
     fun setSurfaceReady(ready: Boolean) {
         surfaceManager?.setSurfaceReady(ready)
-        if (ready && player?.currentMediaItem == null && currentVideoStream != null && currentAudioStream != null) {
-            loadMediaInternal(currentVideoStream, currentAudioStream)
+        if (ready) {
+            val p = player
+            if (p != null && currentVideoStream != null && currentAudioStream != null) {
+                when {
+                    p.currentMediaItem == null -> {
+                        Log.d(TAG, "setSurfaceReady: no media item yet, loading media")
+                        loadMediaInternal(currentVideoStream, currentAudioStream)
+                    }
+                    p.playbackState == Player.STATE_IDLE -> {
+                        Log.d(TAG, "setSurfaceReady: player idle, calling prepare() to recover")
+                        p.prepare()
+                        if (p.playWhenReady) p.play()
+                    }
+                }
+            }
         }
     }
     

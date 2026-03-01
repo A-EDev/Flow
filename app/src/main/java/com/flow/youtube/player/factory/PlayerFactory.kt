@@ -129,6 +129,7 @@ class PlayerFactory {
             .setHandleAudioBecomingNoisy(true)
             .setLoadControl(loadControl)
             .setMediaSourceFactory(DefaultMediaSourceFactory(factory))
+            .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()
             .also {
                 Log.d(TAG, "ExoPlayer instance created")

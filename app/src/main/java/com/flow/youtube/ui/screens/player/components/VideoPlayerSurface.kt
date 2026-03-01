@@ -26,10 +26,8 @@ fun VideoPlayerSurface(
 ) {
     val context = LocalContext.current
     
-    // ExoPlayer view - create new instance per video to ensure fresh surface
-    // This guarantees surfaceCreated() fires for every video switch
-    val playerView = remember(video.id) {
-        Log.d("EnhancedVideoPlayer", "Creating new PlayerView for video ${video.id}")
+    val playerView = remember {
+        Log.d("EnhancedVideoPlayer", "Creating shared PlayerView")
         PlayerView(context).apply {
             useController = false
             layoutParams = FrameLayout.LayoutParams(
@@ -58,8 +56,7 @@ fun VideoPlayerSurface(
         }
     }
 
-    // Setup surface callback immediately when playerView changes
-    DisposableEffect(playerView) {
+    DisposableEffect(Unit) {
         val surfaceView = playerView.videoSurfaceView as? android.view.SurfaceView
         val callback = if (surfaceView != null) {
             object : android.view.SurfaceHolder.Callback {
@@ -93,7 +90,7 @@ fun VideoPlayerSurface(
         factory = { playerView },
         update = { view ->
             view.player = EnhancedPlayerManager.getInstance().getPlayer()
-            
+
             // Apply resize mode
             view.resizeMode = when (resizeMode) {
                 0 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT

@@ -102,7 +102,7 @@ class SurfaceManager(
         }
 
         Log.d(TAG, "detachVideoSurface called")
-        // NOTE: We do NOT clear surfaceHolder here to support reuse scenarios
+        surfaceHolder = null
         
         try {
             if (player != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
