@@ -25,7 +25,7 @@ import java.nio.ByteOrder
 object FlowMkvMuxer {
 
     private const val TAG = "FlowMkvMuxer"
-    private const val SAMPLE_BUF_SIZE   = 2 * 1024 * 1024   // 2 MB per-sample read buffer
+    private const val SAMPLE_BUF_SIZE   = 8 * 1024 * 1024   // 8 MB initial read buffer (AV1 ≥2000p keyframes can exceed 2 MB)
     private const val CLUSTER_LIMIT_MS  = 5_000L             // new cluster every ~5 s
 
     // ─────────────────── EBML element ID arrays (big-endian) ─────────────────────────
@@ -243,7 +243,23 @@ object FlowMkvMuxer {
         videoEx.seekTo(0L, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
         audioEx.seekTo(0L, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
 
-        val sampleBuf = ByteBuffer.allocate(SAMPLE_BUF_SIZE)
+        var sampleBuf = ByteBuffer.allocate(SAMPLE_BUF_SIZE)
+
+        fun readSampleBytes(ex: MediaExtractor): ByteArray? {
+            sampleBuf.clear()
+            val size = ex.readSampleData(sampleBuf, 0)
+            if (size < 0) return null
+            if (size > sampleBuf.capacity()) {
+                Log.d(TAG, "Oversized sample ($size B > ${sampleBuf.capacity()} B) — growing buffer")
+                sampleBuf = ByteBuffer.allocate(size + (size shr 2))
+                val retry = ex.readSampleData(sampleBuf, 0)
+                if (retry < 0) return null
+                sampleBuf.rewind()
+                return ByteArray(retry).also { sampleBuf.get(it, 0, retry) }
+            }
+            sampleBuf.rewind()
+            return ByteArray(size).also { sampleBuf.get(it, 0, size) }
+        }
 
         var videoDone = false
         var audioDone = false
@@ -288,24 +304,20 @@ object FlowMkvMuxer {
             val takeVideo = !videoDone && (audioDone || videoTimeUs <= audioTimeUs)
 
             if (takeVideo) {
-                sampleBuf.clear()
-                val size = videoEx.readSampleData(sampleBuf, 0)
-                if (size < 0) {
+                val data = readSampleBytes(videoEx)
+                if (data == null) {
                     videoDone = true; videoTimeUs = Long.MAX_VALUE
                 } else {
-                    val data = sampleBuf.extractBytes(size)
                     val isKey = (videoEx.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC) != 0
                     appendBlock(1, videoTimeUs, isKey, data)
                     videoEx.advance()
                     videoTimeUs = readNextTime(videoEx) { videoDone = true }
                 }
             } else {
-                sampleBuf.clear()
-                val size = audioEx.readSampleData(sampleBuf, 0)
-                if (size < 0) {
+                val data = readSampleBytes(audioEx)
+                if (data == null) {
                     audioDone = true; audioTimeUs = Long.MAX_VALUE
                 } else {
-                    val data = sampleBuf.extractBytes(size)
                     appendBlock(2, audioTimeUs, true, data)
                     audioEx.advance()
                     audioTimeUs = readNextTime(audioEx) { audioDone = true }

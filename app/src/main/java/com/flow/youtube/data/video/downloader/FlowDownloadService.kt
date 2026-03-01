@@ -195,8 +195,7 @@ class FlowDownloadService : Service() {
             val fileType = if (audioOnly) DownloadFileType.AUDIO else DownloadFileType.VIDEO
             val isWebMCodec = videoCodec?.lowercase()?.let { it == "vp9" || it == "vp8" } ?: false
             val isAv1Codec = videoCodec?.lowercase() == "av1"
-            val av1NeedsMkv = isAv1Codec &&
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+            val av1NeedsMkv = isAv1Codec
             val extension = when {
                 audioOnly  -> "m4a"
                 isWebMCodec -> "webm"
@@ -286,7 +285,7 @@ class FlowDownloadService : Service() {
                         items.add(DownloadItemEntity(
                             videoId = videoId, fileType = DownloadFileType.VIDEO,
                             fileName = fileName, filePath = savePath,
-                            format = when { isWebMCodec -> "webm"; av1NeedsMkv -> "mkv"; else -> "mp4" }, quality = quality,
+                            format = when { isWebMCodec -> "webm"; isAv1Codec -> "mkv"; else -> "mp4" }, quality = quality,
                             status = DownloadItemStatus.PENDING
                         ))
                     }

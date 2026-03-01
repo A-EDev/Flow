@@ -11,7 +11,7 @@ import java.nio.ByteBuffer
 
 object FlowStreamMuxer {
     private const val TAG = "FlowStreamMuxer"
-    private const val BUFFER_SIZE = 2 * 1024 * 1024
+    private const val BUFFER_SIZE = 8 * 1024 * 1024  // 8 MB — handles large frames at 4K/8K
 
     /**
      * Muxes video and audio streams into a single MP4 file.
@@ -77,18 +77,9 @@ object FlowStreamMuxer {
                                       audioMime.contains("vorbis", ignoreCase = true)
 
             // ── AV1 routing ───────────────────────────────────────────────────────────
-            // MediaMuxer supports AV1 in MPEG-4 only from API 34 (Android 14) onward.
-            // On older devices, or whenever the audio codec is Opus/Vorbis (which MPEG-4 cannot hold),
-            // we fall back to our pure-Kotlin Matroska muxer.
             if (isAv1) {
-                val useNativeMp4 = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
-                                && !isOpusOrVorbisAudio
-                if (!useNativeMp4) {
-                    Log.d(TAG, "AV1: delegating to FlowMkvMuxer " +
-                        "(API=${Build.VERSION.SDK_INT}, audio=$audioMime)")
-                    return FlowMkvMuxer.mux(videoPath, audioPath, outputPath)
-                }
-                Log.d(TAG, "AV1 on API 34+ → MPEG-4 container (native MediaMuxer support)")
+                Log.d(TAG, "AV1: delegating to FlowMkvMuxer (API=${Build.VERSION.SDK_INT}, audio=$audioMime)")
+                return FlowMkvMuxer.mux(videoPath, audioPath, outputPath)
             }
 
             if (!useWebM && !isAv1 && isOpusOrVorbisAudio) {
