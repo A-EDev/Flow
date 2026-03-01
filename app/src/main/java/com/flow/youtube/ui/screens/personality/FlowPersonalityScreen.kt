@@ -1277,11 +1277,12 @@ private fun TimeContextCards(brain: FlowNeuroEngine.UserBrain) {
         else -> 3
     }
     
+    val emptyVector = FlowNeuroEngine.ContentVector()
     val periods = listOf(
-        Triple("Morning", "6AM - 12PM", brain.morningVector),
-        Triple("Afternoon", "12PM - 6PM", brain.afternoonVector),
-        Triple("Evening", "6PM - 12AM", brain.eveningVector),
-        Triple("Night", "12AM - 6AM", brain.nightVector)
+        Triple("Morning", "6AM - 12PM", brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_MORNING] ?: emptyVector),
+        Triple("Afternoon", "12PM - 6PM", brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_AFTERNOON] ?: emptyVector),
+        Triple("Evening", "6PM - 12AM", brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_EVENING] ?: emptyVector),
+        Triple("Night", "12AM - 6AM", brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_NIGHT] ?: emptyVector)
     )
     
     val icons = listOf("🌅", "☀️", "🌆", "🌙")
@@ -1929,9 +1930,9 @@ private fun EmptyStateCard(message: String) {
 private fun getCurrentContextVector(brain: FlowNeuroEngine.UserBrain): FlowNeuroEngine.ContentVector {
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     return when (hour) {
-        in 6..11 -> brain.morningVector
-        in 12..17 -> brain.afternoonVector
-        in 18..23 -> brain.eveningVector
-        else -> brain.nightVector
+        in 6..11 -> brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_MORNING] ?: FlowNeuroEngine.ContentVector()
+        in 12..17 -> brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_AFTERNOON] ?: FlowNeuroEngine.ContentVector()
+        in 18..23 -> brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_EVENING] ?: FlowNeuroEngine.ContentVector()
+        else -> brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_NIGHT] ?: FlowNeuroEngine.ContentVector()
     }
 }

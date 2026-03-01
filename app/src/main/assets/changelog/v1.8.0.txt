@@ -6,11 +6,29 @@ NEW FEATURES
 - Subscription Feed Caching: Subscription shorts/videos are now cached locally and only re-fetched from RSS after a 2-hour cooldown, eliminating redundant network calls on every app open or navigation event. Already-watched shorts are also filtered out of the subscriptions shelf using local watch history, so the feed only surfaces new content.
 - Accurate Player Error Messages: The video player now surfaces the real reason a video cannot be played instead of a generic "Failed to load video" message. Age-restricted content, private videos, geo-blocked videos, paid content, account-terminated channels, and ReCaptcha challenges each show a distinct, plain-language message with an explanatory hint. A dedicated error panel appears over the player surface with a Retry button for recoverable failures. The root fix ensures typed exceptions from the extraction layer (AgeRestrictedContentException, PrivateContentException, GeographicRestrictionException, etc.) propagate all the way to the UI mapper instead of being silently discarded.
 - Downloaded Videos Queue: Matching the existing playlist queue system.
-- Priority Loading To Video Player: Ensure the video player loads independently than the rest of the content for faster loading times. 
+- Priority Loading To Video Player: Ensure the video player loads independently than the rest of the content for faster loading times.
+
+FLOWNEURO ENGINE V8
+- Independent Pacing Dimension: Pacing is now extracted from title keywords instead of being derived from duration. Words like "compilation", "speedrun" signal high pacing; "podcast", "essay" signal low pacing.
+- Local IDF Weighting: Common words like "gameplay" now receive reduced weight automatically. Niche words like "Subnautica" drive recommendations instead of generic filler.
+- Snowball Candidate Generation: The app now fetches related videos for the user's last 3 positive interactions and feeds them into the ranking pool alongside search results, creating organic topic transitions.
+- Description Intelligence: Video descriptions are parsed for keywords and timestamp/chapter markers, improving topic extraction and complexity scoring for structured content.
+- Weekend/Weekday Time Awareness: Time-based recommendations now use 8 buckets instead of 4, distinguishing weekday patterns from weekend patterns.
+- Topic Co-occurrence Learning: Topics that frequently appear together in liked videos build affinity scores that boost future videos matching both topics.
+- Engagement Rate Signal: Videos with high like-to-view ratios receive a quality boost during ranking.
+- Adaptive Diversity System: When only 2-3 topics dominate the profile, the per-topic cap tightens and exploration slots are reserved to force novel content into the feed.
+- Topic Blocking Now Scrubs Vectors: Blocking a topic also removes its scores from all internal vectors, preventing residual influence on rankings.
+- Vector Rebalancing: After negative feedback, the engine compresses over-concentrated topic scores to prevent any single topic from dominating the feed.
+- Watch-Time Weighted Learning: Absolute minutes watched now contribute a logarithmic bonus to the learning rate alongside percentage watched.
+- Query Temporal Jitter: Discovery queries append random temporal words to prevent stale search results from YouTube's deterministic search API.
+- Session Tracking: Internal session-aware fatigue, auto-reset after 30 minutes of inactivity, mild affinity boost for sustained in-session interest, and binge detection after 20+ videos.
+- Onboarding Improvements: Differentiated seed weights based on selection order, decaying warmup boost over first 50 interactions.
+- Backup Format Compatibility: Importing V6/V7 brain backups now correctly migrates old 4-bucket time vectors into the new 8-bucket system instead of dropping them as empty.
+- Fixed Negative Feedback Math: Weak topics can now actually be suppressed via dislike/not-interested. Channel blocking scrubs stored scores. Discovery queries filter blocked terms. Persona tracking auto-updates. Channel pruning retains disliked channels instead of deleting them.
 
 FIXES AND STABILITY
 - VP9 Download Fix: Fixed VP9/VP8 video downloads failing during the audio merge step. The muxer now selects WebM/Opus output format for VP9 streams instead of the MP4 container, which Android's MediaMuxer cannot use with VP9 video or Opus audio. The downloaded file is saved with a .webm extension and correctly indexed in the media library.
-- AV1 Download Fix: Fixed  AV1 downloads failed at the audio merging phase. Added a pure-Kotlin EBML/Matroska muxer. Produces valid .mkv files that ExoPlayer, VLC, and MX Player can play. Works on all API levels, no NDK or FFmpeg needed. Supports V_AV1, V_VP9, V_VP8, V_AVC, V_HEVC video + A_AAC, A_OPUS, A_VORBIS audio.
+- AV1 Download Fix: Fixed AV1 downloads failed at the audio merging phase. Added a pure-Kotlin EBML/Matroska muxer. Produces valid .mkv files that ExoPlayer, VLC, and MX Player can play. Works on all API levels, no NDK or FFmpeg needed. Supports V_AV1, V_VP9, V_VP8, V_AVC, V_HEVC video + A_AAC, A_OPUS, A_VORBIS audio.
 - Playback Refocus Fix: Fixed a bug where turning the screen off and back on caused playback to show 0s/0s duration and immediately skip to the next video. A recovery flag now prevents the false STATE_ENDED event that fired during player re-preparation, and the playback position is correctly restored after screen-on.
 - Download Delete on Back: Fixed downloads being silently cancelled when pressing the back button during the undo window. The delete operation is now tied to the ViewModel lifecycle rather than the screen's composable scope, so navigating away no longer cancels the pending deletion. The undo action still works as expected within the 4-second window.
 - Background Playback Stability: Improved background playback reliability on devices with aggressive battery management (Xiaomi MIUI, Samsung OneUI, CRDroid, Huawei). Changes include: app now requests battery optimization exemption on first launch, services use START_STICKY and handle task removal gracefully, WakeLock and WifiLock are held for a 30-second grace period after pausing to survive brief interruptions, and Samsung-specific keep-alive metadata has been added.
