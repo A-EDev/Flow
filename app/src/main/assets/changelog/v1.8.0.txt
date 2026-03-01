@@ -2,6 +2,9 @@ FLOW CHANGE LOG
 VERSION: 1.8.0
 DATE: 2026-02-28
 
+CORE UPDATE [IMPORTANT]
+- Update App Signing Key For Enhanced Security.
+
 NEW FEATURES
 - Subscription Feed Caching: Subscription shorts/videos are now cached locally and only re-fetched from RSS after a 2-hour cooldown, eliminating redundant network calls on every app open or navigation event. Already-watched shorts are also filtered out of the subscriptions shelf using local watch history, so the feed only surfaces new content.
 - Accurate Player Error Messages: The video player now surfaces the real reason a video cannot be played instead of a generic "Failed to load video" message. Age-restricted content, private videos, geo-blocked videos, paid content, account-terminated channels, and ReCaptcha challenges each show a distinct, plain-language message with an explanatory hint. A dedicated error panel appears over the player surface with a Retry button for recoverable failures. The root fix ensures typed exceptions from the extraction layer (AgeRestrictedContentException, PrivateContentException, GeographicRestrictionException, etc.) propagate all the way to the UI mapper instead of being silently discarded.
@@ -26,6 +29,9 @@ FLOWNEURO ENGINE V8
 - Backup Format Compatibility: Importing V6/V7 brain backups now correctly migrates old 4-bucket time vectors into the new 8-bucket system instead of dropping them as empty.
 - Fixed Negative Feedback Math: Weak topics can now actually be suppressed via dislike/not-interested. Channel blocking scrubs stored scores. Discovery queries filter blocked terms. Persona tracking auto-updates. Channel pruning retains disliked channels instead of deleting them.
 
+UI AND STYLE ENHANCEMENTS
+- Onboarding Screen Redesign: Implemented a 3-steps Onboarding workflow. Added new import data and search + Subscribe features to onboarding.
+
 FIXES AND STABILITY
 - VP9 Download Fix: Fixed VP9/VP8 video downloads failing during the audio merge step. The muxer now selects WebM/Opus output format for VP9 streams instead of the MP4 container, which Android's MediaMuxer cannot use with VP9 video or Opus audio. The downloaded file is saved with a .webm extension and correctly indexed in the media library.
 - AV1 Download Fix: Fixed AV1 downloads failed at the audio merging phase. Added a pure-Kotlin EBML/Matroska muxer. Produces valid .mkv files that ExoPlayer, VLC, and MX Player can play. Works on all API levels, no NDK or FFmpeg needed. Supports V_AV1, V_VP9, V_VP8, V_AVC, V_HEVC video + A_AAC, A_OPUS, A_VORBIS audio.
@@ -36,3 +42,4 @@ FIXES AND STABILITY
 - Surface Lifecycle Crash Fix: Fixed a crash during background playback where turning the screen off and back on after navigating to a recommended video would cause the video to freeze and show a black screen. The issue was caused by surface lifecycle race conditions and codec binding to obsolete surfaces after screen-off/on cycles. Added proper surface attachment forcing and background service initialization to maintain playback continuity.
 - Instant Download Deletion: Removed the 4-second undo delay from the Downloads screen. Deleting a video or music download is now immediate with no snackbar or undo step.
 - Continue Watching / Resume Position Fix: Fixed videos not resuming from their saved positions when opened from the Continue Watching shelf. Root cause was that opening a video called saveHistoryEntry() which immediately overwrote any saved DB progress with position = 0 (REPLACE-strategy upsert) before loadVideoInfo() had a chance to read it. Fixed by adding touchHistoryEntry() to ViewHistory — it reads the existing position from the DB first and upserts preserving that value, so saved progress is never erased on open. The saved position is also now passed directly to ExoPlayer as preservePosition at media-load time (via setStreams → loadMediaInternal → MediaLoader.seekTo after prepare()), replacing the old post-load seek that always read the already-wiped value.
+- Refactor Build.yml: Added caching and reusable artifacts for faster builds.

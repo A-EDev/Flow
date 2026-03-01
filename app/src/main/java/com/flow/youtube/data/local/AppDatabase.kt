@@ -37,7 +37,7 @@ import com.flow.youtube.data.local.entity.WatchHistoryEntity
         DownloadItemEntity::class,
         WatchHistoryEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -58,20 +58,29 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS watch_history (
-                        videoId     TEXT    NOT NULL PRIMARY KEY,
-                        position    INTEGER NOT NULL,
-                        duration    INTEGER NOT NULL,
-                        timestamp   INTEGER NOT NULL,
-                        title       TEXT    NOT NULL,
-                        thumbnailUrl TEXT   NOT NULL,
-                        channelName TEXT    NOT NULL,
-                        channelId   TEXT    NOT NULL,
-                        isMusic     INTEGER NOT NULL
+                        videoId      TEXT    NOT NULL PRIMARY KEY,
+                        position     INTEGER NOT NULL,
+                        duration     INTEGER NOT NULL,
+                        timestamp    INTEGER NOT NULL,
+                        title        TEXT    NOT NULL,
+                        thumbnailUrl TEXT    NOT NULL,
+                        channelName  TEXT    NOT NULL,
+                        channelId    TEXT    NOT NULL,
+                        isMusic      INTEGER NOT NULL
                     )
                     """.trimIndent()
                 )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_watch_history_videoId ON watch_history(videoId)")
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_watch_history_timestamp ON watch_history(timestamp)")
-                db.execSQL("CREATE INDEX IF NOT EXISTS index_watch_history_isMusic  ON watch_history(isMusic)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_watch_history_isMusic ON watch_history(isMusic)")
+            }
+        }
+
+        // Devices that installed the buggy 10→11 migration (missing the unique
+        // videoId index) need this patch migration to add it.
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_watch_history_videoId ON watch_history(videoId)")
             }
         }
 
@@ -82,7 +91,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "flow_database"
                 )
-                .addMigrations(MIGRATION_10_11)
+                .addMigrations(MIGRATION_10_11, MIGRATION_11_12)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance

@@ -27,42 +27,55 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      # Explicit Gradle cache on top of setup-java's built-in cache.
+      # Caches the build-cache directory so incremental tasks are skipped.
+      - name: Cache Gradle build cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches/build-cache-*
+          key: gradle-build-cache-${{ runner.os }}-${{ hashFiles('**/*.gradle.kts', '**/libs.versions.toml', '**/gradle-wrapper.properties') }}
+          restore-keys: gradle-build-cache-${{ runner.os }}-
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
-
-      - name: Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
 
       - name: Decode Keystore
         run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
 
-      - name: Build Release APK
-        run: ./gradlew assembleRelease --stacktrace
+      # Build all variants in a single Gradle invocation so tasks share the
+      # configuration phase, classpath resolution and incremental build cache.
+      # --parallel  — lets Gradle run independent subproject tasks concurrently.
+      # --build-cache — reuses outputs from previous runs stored above.
+      # --no-daemon  — avoids daemon startup overhead inside the ephemeral runner.
+      - name: Build all APKs
+        run: >
+          ./gradlew assembleDebug assembleRelease assembleNightly
+          --parallel --build-cache --no-daemon --stacktrace
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-
-      - name: Build Nightly APK
-        run: ./gradlew assembleNightly --stacktrace
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: flow-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: flow-apk
+          name: flow-release-apk
           path: app/build/outputs/apk/release/app-release.apk
+          retention-days: 14
 
       - name: Upload Nightly APK
         uses: actions/upload-artifact@v4
         with:
           name: flow-nightly-apk
           path: app/build/outputs/apk/nightly/app-nightly.apk
+          retention-days: 14
 
   release:
     name: Create Release
@@ -74,38 +87,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      # Download pre-built APKs from the build job — no recompilation needed.
+      - name: Download Release APK
+        uses: actions/download-artifact@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
-          cache: gradle
+          name: flow-release-apk
+          path: dist/
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Download Nightly APK
+        uses: actions/download-artifact@v4
+        with:
+          name: flow-nightly-apk
+          path: dist/
 
-      - name: Decode Keystore
-        run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
-
-      - name: Build Release APK
-        run: ./gradlew assembleRelease --stacktrace
-        env:
-          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-
-      - name: Build Nightly APK
-        run: ./gradlew assembleNightly --stacktrace
+      - name: Rename APKs for release
+        run: |
+          mv dist/app-release.apk dist/flow.apk
+          mv dist/app-nightly.apk dist/flow-nightly.apk
 
       - name: Get version from tag
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-
-      - name: Prepare Release APK
-        run: cp app/build/outputs/apk/release/app-release.apk flow.apk
-
-      - name: Prepare Nightly APK
-        run: cp app/build/outputs/apk/nightly/app-nightly.apk flow-nightly.apk
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -130,9 +132,10 @@ jobs:
 
           generate_release_notes: true
           files: |
-            flow.apk
-            flow-nightly.apk
+            dist/flow.apk
+            dist/flow-nightly.apk
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

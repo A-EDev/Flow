@@ -1,5 +1,7 @@
 package com.flow.youtube.ui.screens.onboarding
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -8,163 +10,349 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.flow.youtube.R
+import com.flow.youtube.data.local.BackupRepository
+import com.flow.youtube.data.local.ChannelSubscription
+import com.flow.youtube.data.local.SubscriptionRepository
 import com.flow.youtube.data.recommendation.FlowNeuroEngine
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.schabi.newpipe.extractor.ServiceList
+import org.schabi.newpipe.extractor.channel.ChannelInfoItem
+
+// ─────────────────────────────────────────────────────────────
+// Constants & types
+// ─────────────────────────────────────────────────────────────
 
 private const val MIN_TOPICS = 3
-private const val STAGGER_DELAY_MS = 60L
+private const val STAGGER_DELAY_MS = 50L
+
+private enum class OnboardingStep(val index: Int, val label: String) {
+    INTERESTS(0, "Interests"),
+    CHANNELS(1, "Channels"),
+    IMPORT(2, "Import")
+}
+
+data class ChannelSearchResult(
+    val channelId: String,
+    val name: String,
+    val thumbnailUrl: String,
+    val subscriberCount: Long = -1L
+)
+
+// ─────────────────────────────────────────────────────────────
+// Root screen
+// ─────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OnboardingScreen(
-    onComplete: () -> Unit
-) {
+fun OnboardingScreen(onComplete: () -> Unit) {
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
-    val listState = rememberLazyListState()
 
+    val subscriptionRepo = remember { SubscriptionRepository.getInstance(context) }
+    val backupRepo = remember { BackupRepository(context) }
+
+    var currentStep by remember { mutableStateOf(OnboardingStep.INTERESTS) }
+
+    // Step 1 — interests
     var selectedTopics by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var isLoading by remember { mutableStateOf(false) }
-
-    var visibleItems by remember { mutableStateOf(0) }
+    var visibleCategories by remember { mutableStateOf(0) }
     val totalCategories = FlowNeuroEngine.TOPIC_CATEGORIES.size
 
     LaunchedEffect(Unit) {
         for (i in 1..totalCategories) {
             delay(STAGGER_DELAY_MS)
-            visibleItems = i
+            visibleCategories = i
         }
     }
 
-    val canContinue = selectedTopics.size >= MIN_TOPICS
-    val selectionProgress = (selectedTopics.size.toFloat() / MIN_TOPICS).coerceAtMost(1f)
+    // Step 2 — channel search
+    var searchQuery by remember { mutableStateOf("") }
+    var searchResults by remember { mutableStateOf<List<ChannelSearchResult>>(emptyList()) }
+    var isSearching by remember { mutableStateOf(false) }
+    var subscribedInSession by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var searchJob by remember { mutableStateOf<Job?>(null) }
 
-    val animatedProgress by animateFloatAsState(
-        targetValue = selectionProgress,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioLowBouncy,
-            stiffness = Spring.StiffnessLow
-        ),
-        label = "progress"
-    )
+    // Step 3 — feedback
+    var importMessage by remember { mutableStateOf<String?>(null) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(importMessage) {
+        importMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            importMessage = null
+        }
+    }
+
+    val newPipeImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            scope.launch {
+                val result = backupRepo.importNewPipe(it)
+                importMessage = if (result.isSuccess)
+                    context.getString(R.string.import_newpipe_success_template, result.getOrNull())
+                else
+                    context.getString(R.string.import_newpipe_failed_template, result.exceptionOrNull()?.message)
+            }
+        }
+    }
+
+    val youtubeImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            scope.launch {
+                val result = backupRepo.importYouTube(it)
+                importMessage = if (result.isSuccess)
+                    context.getString(R.string.import_youtube_success_template, result.getOrNull())
+                else
+                    context.getString(R.string.import_youtube_failed_template, result.exceptionOrNull()?.message)
+            }
+        }
+    }
+
+    val youtubeHistoryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            scope.launch {
+                val result = backupRepo.importYouTubeWatchHistory(it)
+                importMessage = if (result.isSuccess)
+                    context.getString(R.string.import_yt_history_success_template, result.getOrNull())
+                else
+                    context.getString(R.string.import_yt_history_failed_template, result.exceptionOrNull()?.message)
+            }
+        }
+    }
+
+    fun finish() {
+        scope.launch {
+            FlowNeuroEngine.completeOnboarding(context, selectedTopics)
+            onComplete()
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        topBar = {
+            StepIndicatorBar(currentStep = currentStep)
+        },
         bottomBar = {
             OnboardingBottomBar(
-                canContinue = canContinue,
-                isLoading = isLoading,
-                progress = animatedProgress,
-                selectedCount = selectedTopics.size,
-                onContinue = {
-                    if (canContinue && !isLoading) {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        isLoading = true
-                        coroutineScope.launch {
-                            FlowNeuroEngine.completeOnboarding(context, selectedTopics)
-                            onComplete()
-                        }
-                    }
+                currentStep = currentStep,
+                canAdvance = when (currentStep) {
+                    OnboardingStep.INTERESTS -> selectedTopics.size >= MIN_TOPICS
+                    else -> true
+                },
+                isFirstStep = currentStep == OnboardingStep.INTERESTS,
+                isLastStep = currentStep == OnboardingStep.IMPORT,
+                onBack = {
+                    val prev = OnboardingStep.entries.getOrNull(currentStep.index - 1)
+                    if (prev != null) currentStep = prev
+                },
+                onNext = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    val next = OnboardingStep.entries.getOrNull(currentStep.index + 1)
+                    if (next != null) currentStep = next else finish()
                 },
                 onSkip = {
-                    coroutineScope.launch {
-                        FlowNeuroEngine.completeOnboarding(context, emptySet())
-                        onComplete()
-                    }
+                    val next = OnboardingStep.entries.getOrNull(currentStep.index + 1)
+                    if (next != null) currentStep = next else finish()
                 }
             )
         }
     ) { innerPadding ->
-        LazyColumn(
-            state = listState,
+        AnimatedContent(
+            targetState = currentStep,
+            transitionSpec = {
+                val forward = targetState.index > initialState.index
+                val enter = if (forward)
+                    slideInHorizontally(tween(300)) { it / 4 } + fadeIn(tween(250))
+                else
+                    slideInHorizontally(tween(300)) { -it / 4 } + fadeIn(tween(250))
+                val exit = if (forward)
+                    slideOutHorizontally(tween(250)) { -it / 4 } + fadeOut(tween(200))
+                else
+                    slideOutHorizontally(tween(250)) { it / 4 } + fadeOut(tween(200))
+                enter togetherWith exit
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentPadding = PaddingValues(
-                start = 20.dp,
-                end = 20.dp,
-                top = 16.dp,
-                bottom = 8.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item(key = "header") {
-                OnboardingHeader(
-                    modifier = Modifier.animateItem()
+            label = "step_content"
+        ) { step ->
+            when (step) {
+                OnboardingStep.INTERESTS -> InterestsStep(
+                    selectedTopics = selectedTopics,
+                    visibleCategories = visibleCategories,
+                    onTopicToggle = { topic ->
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        selectedTopics = if (selectedTopics.contains(topic))
+                            selectedTopics - topic
+                        else
+                            selectedTopics + topic
+                    }
                 )
-            }
-
-            items(
-                items = FlowNeuroEngine.TOPIC_CATEGORIES,
-                key = { it.name }
-            ) { category ->
-                val index = FlowNeuroEngine.TOPIC_CATEGORIES.indexOf(category)
-                val isVisible = index < visibleItems
-
-                AnimatedVisibility(
-                    visible = isVisible,
-                    enter = fadeIn(
-                        animationSpec = tween(300, easing = EaseOutCubic)
-                    ) + slideInVertically(
-                        initialOffsetY = { it / 3 },
-                        animationSpec = tween(350, easing = EaseOutCubic)
-                    ),
-                ) {
-                    TopicCategoryCard(
-                        category = category,
-                        selectedTopics = selectedTopics,
-                        initiallyExpanded = index == 0,
-                        onTopicToggle = { topic ->
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            selectedTopics = if (selectedTopics.contains(topic)) {
-                                selectedTopics - topic
+                OnboardingStep.CHANNELS -> ChannelsStep(
+                    searchQuery = searchQuery,
+                    searchResults = searchResults,
+                    isSearching = isSearching,
+                    subscribedInSession = subscribedInSession,
+                    onQueryChange = { q ->
+                        searchQuery = q
+                        searchJob?.cancel()
+                        if (q.isBlank()) {
+                            searchResults = emptyList()
+                            isSearching = false
+                            return@ChannelsStep
+                        }
+                        searchJob = scope.launch {
+                            delay(400)
+                            isSearching = true
+                            searchResults = searchChannels(q)
+                            isSearching = false
+                        }
+                    },
+                    onSubscribeToggle = { result ->
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        scope.launch {
+                            if (subscribedInSession.contains(result.channelId)) {
+                                subscriptionRepo.unsubscribe(result.channelId)
+                                subscribedInSession = subscribedInSession - result.channelId
                             } else {
-                                selectedTopics + topic
+                                subscriptionRepo.subscribe(
+                                    ChannelSubscription(
+                                        channelId = result.channelId,
+                                        channelName = result.name,
+                                        channelThumbnail = result.thumbnailUrl,
+                                        subscribedAt = System.currentTimeMillis()
+                                    )
+                                )
+                                subscribedInSession = subscribedInSession + result.channelId
                             }
                         }
+                    }
+                )
+                OnboardingStep.IMPORT -> ImportStep(
+                    onImportNewPipe = {
+                        newPipeImportLauncher.launch(arrayOf("application/json"))
+                    },
+                    onImportYouTube = {
+                        youtubeImportLauncher.launch(
+                            arrayOf("text/comma-separated-values", "text/csv", "text/plain")
+                        )
+                    },
+                    onImportYouTubeHistory = {
+                        youtubeHistoryLauncher.launch(
+                            arrayOf("text/html", "application/octet-stream", "*/*")
+                        )
+                    }
+                )
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Step indicator bar
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun StepIndicatorBar(currentStep: OnboardingStep) {
+    Surface(color = MaterialTheme.colorScheme.background) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OnboardingStep.entries.forEach { step ->
+                val isActive = step == currentStep
+                val isPast = step.index < currentStep.index
+
+                val trackColor by animateColorAsState(
+                    targetValue = when {
+                        isPast || isActive -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    animationSpec = tween(300),
+                    label = "track_${step.name}"
+                )
+                val labelColor by animateColorAsState(
+                    targetValue = when {
+                        isPast || isActive -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                    },
+                    animationSpec = tween(300),
+                    label = "label_${step.name}"
+                )
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(trackColor)
+                    )
+                    Text(
+                        text = step.label,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Normal,
+                        color = labelColor
                     )
                 }
             }
@@ -172,206 +360,527 @@ fun OnboardingScreen(
     }
 }
 
-// ═══════════════════════════════════════════════════════
-// HEADER
-// ═══════════════════════════════════════════════════════
+// ─────────────────────────────────────────────────────────────
+// Bottom navigation bar
+// ─────────────────────────────────────────────────────────────
+
 @Composable
-private fun OnboardingHeader(
-    modifier: Modifier = Modifier
+private fun OnboardingBottomBar(
+    currentStep: OnboardingStep,
+    canAdvance: Boolean,
+    isFirstStep: Boolean,
+    isLastStep: Boolean,
+    onBack: () -> Unit,
+    onNext: () -> Unit,
+    onSkip: () -> Unit
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 24.dp),
-        horizontalAlignment = Alignment.Start
-    ) {
-        Surface(
-            modifier = Modifier.size(52.dp),
-            shape = RoundedCornerShape(14.dp),
-            color = MaterialTheme.colorScheme.primaryContainer,
-            tonalElevation = 2.dp
+    Surface(color = MaterialTheme.colorScheme.background) {
+        HorizontalDivider(
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
+            thickness = 0.5.dp
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_notification_logo),
-                    contentDescription = null,
-                    modifier = Modifier.size(30.dp),
-                    tint = MaterialTheme.colorScheme.primary
+            if (!isFirstStep) {
+                TextButton(
+                    onClick = onBack,
+                    contentPadding = PaddingValues(horizontal = 4.dp)
+                ) {
+                    Icon(
+                        Icons.Default.ArrowBack,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text("Back", style = MaterialTheme.typography.labelLarge)
+                }
+            } else {
+                Spacer(Modifier.width(8.dp))
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Skip",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onSkip
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+
+                Button(
+                    onClick = onNext,
+                    enabled = canAdvance,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.height(44.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                    )
+                ) {
+                    Text(
+                        text = if (isLastStep) "Finish" else "Continue",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    if (!isLastStep) {
+                        Spacer(Modifier.width(4.dp))
+                        Icon(
+                            Icons.Default.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Step 1 — Interests
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun InterestsStep(
+    selectedTopics: Set<String>,
+    visibleCategories: Int,
+    onTopicToggle: (String) -> Unit
+) {
+    val remaining = (MIN_TOPICS - selectedTopics.size).coerceAtLeast(0)
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            StepHeader(
+                title = "What do you enjoy?",
+                subtitle = if (remaining > 0)
+                    "Pick at least $MIN_TOPICS topics to personalise your feed. $remaining more to go."
+                else
+                    "Great selection. You can always update this later in settings."
+            )
+        }
+
+        items(
+            items = FlowNeuroEngine.TOPIC_CATEGORIES,
+            key = { it.name }
+        ) { category ->
+            val index = FlowNeuroEngine.TOPIC_CATEGORIES.indexOf(category)
+            AnimatedVisibility(
+                visible = index < visibleCategories,
+                enter = fadeIn(tween(280)) + slideInVertically(tween(300)) { it / 4 },
+                modifier = Modifier.animateItem()
+            ) {
+                CategoryCard(
+                    category = category,
+                    selectedTopics = selectedTopics,
+                    initiallyExpanded = index < 2,
+                    onTopicToggle = onTopicToggle
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        item { Spacer(Modifier.height(8.dp)) }
+    }
+}
 
+// ─────────────────────────────────────────────────────────────
+// Step 2 — Channel search
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun ChannelsStep(
+    searchQuery: String,
+    searchResults: List<ChannelSearchResult>,
+    isSearching: Boolean,
+    subscribedInSession: Set<String>,
+    onQueryChange: (String) -> Unit,
+    onSubscribeToggle: (ChannelSearchResult) -> Unit
+) {
+    val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(Unit) {
+        delay(200)
+        focusRequester.requestFocus()
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item {
+            StepHeader(
+                title = "Find channels",
+                subtitle = "Search for channels you already follow and subscribe in one tap."
+            )
+        }
+
+        item {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onQueryChange,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester),
+                placeholder = {
+                    Text(
+                        "Search channels…",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        Icons.Outlined.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                trailingIcon = if (isSearching) {
+                    { CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp) }
+                } else null,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                )
+            )
+        }
+
+        if (searchQuery.isNotBlank() && searchResults.isEmpty() && !isSearching) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "No channels found for \"$searchQuery\"",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+                    )
+                }
+            }
+        }
+
+        if (searchQuery.isBlank()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Outlined.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(36.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.25f)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "Type a channel name to search",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        )
+                    }
+                }
+            }
+        }
+
+        items(searchResults, key = { it.channelId }) { result ->
+            ChannelResultRow(
+                result = result,
+                isSubscribed = subscribedInSession.contains(result.channelId),
+                onToggle = { onSubscribeToggle(result) }
+            )
+        }
+
+        if (subscribedInSession.isNotEmpty()) {
+            item {
+                Text(
+                    text = "${subscribedInSession.size} channel${if (subscribedInSession.size > 1) "s" else ""} added",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+
+        item { Spacer(Modifier.height(8.dp)) }
+    }
+}
+
+@Composable
+private fun ChannelResultRow(
+    result: ChannelSearchResult,
+    isSubscribed: Boolean,
+    onToggle: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surface)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AsyncImage(
+            model = result.thumbnailUrl,
+            contentDescription = null,
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentScale = ContentScale.Crop,
+            placeholder = painterResource(R.drawable.ic_notification_logo),
+            error = painterResource(R.drawable.ic_notification_logo)
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = result.name,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (result.subscriberCount > 0) {
+                Text(
+                    text = formatSubscriberCount(result.subscriberCount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+                )
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        AnimatedContent(
+            targetState = isSubscribed,
+            transitionSpec = { fadeIn(tween(150)) togetherWith fadeOut(tween(100)) },
+            label = "sub_btn_${result.channelId}"
+        ) { subscribed ->
+            if (subscribed) {
+                FilledTonalButton(
+                    onClick = onToggle,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.height(36.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Subscribed", style = MaterialTheme.typography.labelMedium)
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onToggle,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.height(36.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("Subscribe", style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Step 3 — Import
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun ImportStep(
+    onImportNewPipe: () -> Unit,
+    onImportYouTube: () -> Unit,
+    onImportYouTubeHistory: () -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        item {
+            StepHeader(
+                title = "Import your data",
+                subtitle = "Bring your subscriptions and history from other apps. Everything is optional."
+            )
+        }
+
+        item {
+            Text(
+                text = "Subscriptions",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+            )
+        }
+
+        item {
+            ImportCard(
+                painter = painterResource(id = R.drawable.ic_newpipe),
+                title = stringResource(R.string.import_from_newpipe),
+                description = "Import your NewPipe subscriptions from a JSON backup file.",
+                onClick = onImportNewPipe
+            )
+        }
+
+        item {
+            ImportCard(
+                painter = painterResource(id = R.drawable.ic_youtube),
+                title = stringResource(R.string.import_from_youtube),
+                description = "Import your YouTube subscriptions from a Google Takeout CSV file.",
+                onClick = onImportYouTube
+            )
+        }
+
+        item {
+            Text(
+                text = "Watch history",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+            )
+        }
+
+        item {
+            ImportCard(
+                painter = painterResource(id = R.drawable.ic_youtube),
+                title = stringResource(R.string.import_yt_watch_history),
+                description = stringResource(R.string.import_yt_watch_history_desc),
+                onClick = onImportYouTubeHistory
+            )
+        }
+
+        item { Spacer(Modifier.height(8.dp)) }
+    }
+}
+
+@Composable
+private fun ImportCard(
+    painter: androidx.compose.ui.graphics.painter.Painter,
+    title: String,
+    description: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+        tonalElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.size(42.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        painter = painter,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = Color.Unspecified
+                    )
+                }
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 18.sp
+                )
+            }
+            Icon(
+                Icons.Outlined.FileDownload,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(18.dp)
+                    .alpha(0.45f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+// Shared composables
+// ─────────────────────────────────────────────────────────────
+
+@Composable
+private fun StepHeader(title: String, subtitle: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
         Text(
-            text = stringResource(R.string.welcome_to_flow),
-            style = MaterialTheme.typography.headlineLarge,
+            text = title,
+            style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
             letterSpacing = (-0.5).sp
         )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
         Text(
-            text = stringResource(R.string.onboarding_subtitle),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            lineHeight = 24.sp
-        )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Text(
-            text = stringResource(R.string.onboarding_instructions),
+            text = subtitle,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            lineHeight = 22.sp
         )
     }
 }
 
-// ═══════════════════════════════════════════════════════
-// BOTTOM BAR
-// ═══════════════════════════════════════════════════════
-@Composable
-private fun OnboardingBottomBar(
-    canContinue: Boolean,
-    isLoading: Boolean,
-    progress: Float,
-    selectedCount: Int,
-    onContinue: () -> Unit,
-    onSkip: () -> Unit
-) {
-    val surfaceColor = MaterialTheme.colorScheme.surface
-
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        tonalElevation = 3.dp,
-        shadowElevation = 8.dp,
-        color = surfaceColor
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(fraction = progress)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(
-                            if (canContinue) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
-                        )
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = if (canContinue) {
-                            stringResource(
-                                R.string.selected_count_template,
-                                selectedCount
-                            )
-                        } else {
-                            stringResource(
-                                R.string.selected_with_more_needed_template,
-                                selectedCount,
-                                MIN_TOPICS - selectedCount
-                            )
-                        },
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (canContinue)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    if (!canContinue) {
-                        Text(
-                            text = stringResource(R.string.btn_skip_for_now),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(
-                                alpha = 0.6f
-                            ),
-                            modifier = Modifier
-                                .padding(top = 2.dp)
-                                .clip(RoundedCornerShape(4.dp))
-                                .clickable(
-                                    interactionSource = remember {
-                                        MutableInteractionSource()
-                                    },
-                                    indication = LocalIndication.current,
-                                    onClick = onSkip
-                                )
-                                .padding(vertical = 4.dp)
-                        )
-                    }
-                }
-
-                FilledTonalButton(
-                    onClick = onContinue,
-                    enabled = canContinue && !isLoading,
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier.height(48.dp),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        disabledContainerColor = MaterialTheme.colorScheme
-                            .surfaceVariant,
-                        disabledContentColor = MaterialTheme.colorScheme
-                            .onSurfaceVariant.copy(alpha = 0.5f)
-                    )
-                ) {
-                    if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(R.string.onboarding_btn_continue),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Icon(
-                            Icons.Default.ArrowForward,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ═══════════════════════════════════════════════════════
-// CATEGORY CARD
-// ═══════════════════════════════════════════════════════
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun TopicCategoryCard(
+private fun CategoryCard(
     category: FlowNeuroEngine.TopicCategory,
     selectedTopics: Set<String>,
     initiallyExpanded: Boolean,
@@ -380,85 +889,69 @@ private fun TopicCategoryCard(
     var isExpanded by remember { mutableStateOf(initiallyExpanded) }
     val selectedCount = category.topics.count { selectedTopics.contains(it) }
 
-    Card(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(
+            1.dp,
+            if (selectedCount > 0)
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+            else
+                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        tonalElevation = 1.dp
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
-                    .clickable(
-                        role = Role.Button,
-                        onClickLabel = stringResource(
-                            if (isExpanded) R.string.cd_collapse_category
-                            else R.string.cd_expand_category
-                        )
-                    ) { isExpanded = !isExpanded }
-                    .padding(vertical = 4.dp),
+                    .clickable(role = Role.Button) { isExpanded = !isExpanded }
+                    .padding(vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = category.icon,
-                    fontSize = 24.sp,
-                    modifier = Modifier.padding(end = 12.dp)
+                    fontSize = 20.sp,
+                    modifier = Modifier.padding(end = 10.dp)
                 )
-
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = stringResource(
-                            getCategoryNameResId(category.name)
-                        ),
-                        style = MaterialTheme.typography.titleSmall,
+                        text = stringResource(getCategoryNameResId(category.name)),
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     if (selectedCount > 0) {
                         Text(
-                            text = stringResource(
-                                R.string.selected_count_template,
-                                selectedCount
-                            ),
+                            text = "$selectedCount selected",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
-
                 Icon(
-                    if (isExpanded) Icons.Outlined.ExpandLess
-                    else Icons.Outlined.ExpandMore,
+                    imageVector = if (isExpanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
                     contentDescription = null,
                     modifier = Modifier
-                        .size(24.dp)
-                        .alpha(0.6f),
+                        .size(20.dp)
+                        .alpha(0.5f),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            // Chips
             AnimatedVisibility(
                 visible = isExpanded,
-                enter = expandVertically(
-                    animationSpec = tween(250, easing = EaseOutCubic)
-                ) + fadeIn(animationSpec = tween(200)),
-                exit = shrinkVertically(
-                    animationSpec = tween(200, easing = EaseInCubic)
-                ) + fadeOut(animationSpec = tween(150))
+                enter = expandVertically(tween(220)) + fadeIn(tween(180)),
+                exit = shrinkVertically(tween(180)) + fadeOut(tween(130))
             ) {
                 FlowRow(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(top = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     category.topics.forEach { topic ->
                         TopicChip(
@@ -473,9 +966,6 @@ private fun TopicCategoryCard(
     }
 }
 
-// ═══════════════════════════════════════════════════════
-// TOPIC CHIP
-// ═══════════════════════════════════════════════════════
 @Composable
 private fun TopicChip(
     topic: String,
@@ -483,69 +973,52 @@ private fun TopicChip(
     onClick: () -> Unit
 ) {
     val containerColor by animateColorAsState(
-        targetValue = if (isSelected)
-            MaterialTheme.colorScheme.primaryContainer
-        else
-            MaterialTheme.colorScheme.surfaceContainerHighest,
-        animationSpec = tween(200),
-        label = "chipColor"
+        targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+        else MaterialTheme.colorScheme.surfaceContainerHighest,
+        animationSpec = tween(180),
+        label = "chip_bg"
     )
-
     val contentColor by animateColorAsState(
-        targetValue = if (isSelected)
-            MaterialTheme.colorScheme.onPrimaryContainer
-        else
-            MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = tween(200),
-        label = "chipContentColor"
+        targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+        else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(180),
+        label = "chip_fg"
     )
 
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         color = containerColor,
-        border = if (isSelected) BorderStroke(
-            1.5.dp,
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-        ) else BorderStroke(
-            1.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-        ),
+        border = if (isSelected)
+            BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.4f))
+        else
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
         modifier = Modifier.semantics {
             stateDescription = if (isSelected) "Selected" else "Not selected"
             role = Role.Checkbox
         }
     ) {
         Row(
-            modifier = Modifier.padding(
-                horizontal = 12.dp,
-                vertical = 8.dp
-            ),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(5.dp)
         ) {
             AnimatedVisibility(
                 visible = isSelected,
-                enter = fadeIn(tween(150)) + expandHorizontally(
-                    expandFrom = Alignment.Start
-                ),
-                exit = fadeOut(tween(100)) + shrinkHorizontally(
-                    shrinkTowards = Alignment.Start
-                )
+                enter = fadeIn(tween(120)) + expandHorizontally(expandFrom = Alignment.Start),
+                exit = fadeOut(tween(100)) + shrinkHorizontally(shrinkTowards = Alignment.Start)
             ) {
                 Icon(
                     Icons.Default.Check,
                     contentDescription = null,
-                    modifier = Modifier.size(14.dp),
+                    modifier = Modifier.size(12.dp),
                     tint = MaterialTheme.colorScheme.primary
                 )
             }
-
             Text(
                 text = topic,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = if (isSelected) FontWeight.Medium
-                    else FontWeight.Normal,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                 color = contentColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -554,17 +1027,66 @@ private fun TopicChip(
     }
 }
 
-private fun getCategoryNameResId(categoryName: String): Int {
-    return when {
-        categoryName.contains("Gaming") -> R.string.category_gaming
-        categoryName.contains("Music") -> R.string.category_music
-        categoryName.contains("Technology") -> R.string.category_technology
-        categoryName.contains("Entertainment") -> R.string.category_entertainment
-        categoryName.contains("Education") -> R.string.category_education
-        categoryName.contains("Health & Fitness") -> R.string.category_health_fitness
-        categoryName.contains("Lifestyle") -> R.string.category_lifestyle
-        categoryName.contains("Creative") -> R.string.category_creative
-        categoryName.contains("Science & Nature") -> R.string.category_science_nature
-        else -> R.string.category_news_current_events
+// ─────────────────────────────────────────────────────────────
+// Channel search
+// ─────────────────────────────────────────────────────────────
+
+private suspend fun searchChannels(query: String): List<ChannelSearchResult> =
+    withContext(Dispatchers.IO) {
+        try {
+            val extractor = ServiceList.YouTube.getSearchExtractor(query, listOf("channels"), null)
+            extractor.fetchPage()
+            extractor.initialPage.items
+                .filterIsInstance<ChannelInfoItem>()
+                .take(15)
+                .mapNotNull { item ->
+                    val channelId = try {
+                        val url = item.url
+                        when {
+                            url.contains("/channel/") ->
+                                url.substringAfter("/channel/").substringBefore("/").substringBefore("?")
+                            url.contains("/@") ->
+                                url.substringAfter("/@").substringBefore("/").substringBefore("?")
+                            else ->
+                                url.substringAfterLast("/").substringBefore("?")
+                        }
+                    } catch (e: Exception) { "" }
+
+                    if (channelId.isEmpty() || item.name.isNullOrEmpty()) return@mapNotNull null
+
+                    ChannelSearchResult(
+                        channelId = channelId,
+                        name = item.name ?: "",
+                        thumbnailUrl = item.thumbnails
+                            .sortedByDescending { it.height }
+                            .firstOrNull()?.url ?: "",
+                        subscriberCount = item.subscriberCount
+                    )
+                }
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
+
+// ─────────────────────────────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────────────────────────────
+
+private fun formatSubscriberCount(count: Long): String = when {
+    count >= 1_000_000 -> "${count / 1_000_000}M subscribers"
+    count >= 1_000 -> "${count / 1_000}K subscribers"
+    else -> "$count subscribers"
+}
+
+private fun getCategoryNameResId(categoryName: String): Int = when {
+    categoryName.contains("Gaming") -> R.string.category_gaming
+    categoryName.contains("Music") -> R.string.category_music
+    categoryName.contains("Technology") -> R.string.category_technology
+    categoryName.contains("Entertainment") -> R.string.category_entertainment
+    categoryName.contains("Education") -> R.string.category_education
+    categoryName.contains("Health & Fitness") -> R.string.category_health_fitness
+    categoryName.contains("Lifestyle") -> R.string.category_lifestyle
+    categoryName.contains("Creative") -> R.string.category_creative
+    categoryName.contains("Science & Nature") -> R.string.category_science_nature
+    else -> R.string.category_news_current_events
 }

@@ -24,3 +24,6 @@ build_result.md
 LibreTube-master
 # Secrets and Local configuration
 local.properties
+*.keystore
+*.jks
+key.properties
