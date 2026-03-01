@@ -194,9 +194,13 @@ class FlowDownloadService : Service() {
             Log.d(TAG, "handleStartDownload: Checking directories...")
             val fileType = if (audioOnly) DownloadFileType.AUDIO else DownloadFileType.VIDEO
             val isWebMCodec = videoCodec?.lowercase()?.let { it == "vp9" || it == "vp8" } ?: false
+            val isAv1Codec = videoCodec?.lowercase() == "av1"
+            val av1NeedsMkv = isAv1Codec &&
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE
             val extension = when {
-                audioOnly -> "m4a"
+                audioOnly  -> "m4a"
                 isWebMCodec -> "webm"
+                av1NeedsMkv -> "mkv"
                 else -> "mp4"
             }
             val downloadDir = downloadManager.getDownloadDir(fileType)
@@ -282,7 +286,7 @@ class FlowDownloadService : Service() {
                         items.add(DownloadItemEntity(
                             videoId = videoId, fileType = DownloadFileType.VIDEO,
                             fileName = fileName, filePath = savePath,
-                            format = if (isWebMCodec) "webm" else "mp4", quality = quality,
+                            format = when { isWebMCodec -> "webm"; av1NeedsMkv -> "mkv"; else -> "mp4" }, quality = quality,
                             status = DownloadItemStatus.PENDING
                         ))
                     }
@@ -427,6 +431,7 @@ class FlowDownloadService : Service() {
                         val mimeType = when {
                             audioOnly -> "audio/mp4"
                             mission.savePath.endsWith(".webm") -> "video/webm"
+                            mission.savePath.endsWith(".mkv")  -> "video/x-matroska"
                             else -> "video/mp4"
                         }
                         downloadManager.scanFile(mission.savePath, mimeType)

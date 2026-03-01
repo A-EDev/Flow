@@ -152,8 +152,13 @@ fun DownloadQualityDialog(
                                         }
 
                                         val compatibleAudio = if (isMp4Container) {
-                                            langFilteredAudio.filter { isAacCompatible(it) }.maxByOrNull { it.bitrate }
+                                            val aacAudio =
+                                                langFilteredAudio.filter { isAacCompatible(it) }.maxByOrNull { it.bitrate }
                                                 ?: allAudio.filter { isAacCompatible(it) }.maxByOrNull { it.bitrate }
+                                            if (aacAudio == null && codecKey == "av1")
+                                                langFilteredAudio.maxByOrNull { it.bitrate }
+                                                    ?: allAudio.maxByOrNull { it.bitrate }
+                                            else aacAudio
                                         } else {
                                             val opusFilter: (org.schabi.newpipe.extractor.stream.AudioStream) -> Boolean = { a ->
                                                 val fmt  = a.format?.name ?: ""
@@ -178,7 +183,10 @@ fun DownloadQualityDialog(
 
                                     VideoPlayerUtils.startDownload(
                                         context, video, downloadUrl, qualityLabel, audioUrl,
-                                        videoCodec = if (codecKey == "vp9" || codecKey == "vp8") codecKey else null
+                                        videoCodec = when (codecKey) {
+                                            "vp9", "vp8", "av1" -> codecKey
+                                            else -> null
+                                        }
                                     )
                                     Toast.makeText(
                                         context,

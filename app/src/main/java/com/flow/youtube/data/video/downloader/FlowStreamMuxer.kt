@@ -4,6 +4,7 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import android.os.Build
 import android.util.Log
 import java.io.File
 import java.nio.ByteBuffer
@@ -61,17 +62,8 @@ object FlowStreamMuxer {
             val useWebM = videoMime.contains("vp9", ignoreCase = true) ||
                           videoMime.contains("vp8", ignoreCase = true) ||
                           videoMime.contains("vp09", ignoreCase = true)
+            val isAv1   = videoMime.contains("av01", ignoreCase = true)
 
-            val muxerFormat = if (useWebM)
-                MediaMuxer.OutputFormat.MUXER_OUTPUT_WEBM
-            else
-                MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
-
-            Log.d(TAG, "Video codec: $videoMime → using ${if (useWebM) "WebM" else "MPEG-4"} container")
-            muxer = MediaMuxer(outputPath, muxerFormat)
-            val muxerVideoTrack = muxer.addTrack(videoFormat)
-
-            // Select audio track
             val audioTrackIndex = selectTrack(audioExtractor, "audio/")
             if (audioTrackIndex < 0) {
                 Log.e(TAG, "No audio track found in $audioPath")
@@ -79,16 +71,41 @@ object FlowStreamMuxer {
             }
             audioExtractor.selectTrack(audioTrackIndex)
             val audioFormat = audioExtractor.getTrackFormat(audioTrackIndex)
-
             val audioMime = audioFormat.getString(MediaFormat.KEY_MIME) ?: ""
-            if (!useWebM && (audioMime.contains("opus", ignoreCase = true) ||
-                             audioMime.contains("vorbis", ignoreCase = true))) {
-                Log.e(TAG, "INCOMPATIBLE AUDIO CODEC for MP4 container: '$audioMime'. " +
-                    "Expected AAC (audio/mp4a-latm). " +
-                    "The stream selection must pass an M4A/AAC audio URL for H264/H265 video. " +
+
+            val isOpusOrVorbisAudio = audioMime.contains("opus", ignoreCase = true) ||
+                                      audioMime.contains("vorbis", ignoreCase = true)
+
+            // ── AV1 routing ───────────────────────────────────────────────────────────
+            // MediaMuxer supports AV1 in MPEG-4 only from API 34 (Android 14) onward.
+            // On older devices, or whenever the audio codec is Opus/Vorbis (which MPEG-4 cannot hold),
+            // we fall back to our pure-Kotlin Matroska muxer.
+            if (isAv1) {
+                val useNativeMp4 = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                                && !isOpusOrVorbisAudio
+                if (!useNativeMp4) {
+                    Log.d(TAG, "AV1: delegating to FlowMkvMuxer " +
+                        "(API=${Build.VERSION.SDK_INT}, audio=$audioMime)")
+                    return FlowMkvMuxer.mux(videoPath, audioPath, outputPath)
+                }
+                Log.d(TAG, "AV1 on API 34+ → MPEG-4 container (native MediaMuxer support)")
+            }
+
+            if (!useWebM && !isAv1 && isOpusOrVorbisAudio) {
+                Log.e(TAG, "INCOMPATIBLE audio codec for MP4 container: '$audioMime'. " +
+                    "Require AAC (audio/mp4a-latm) for H264/H265/HEVC video. " +
                     "Audio path: $audioPath")
                 return false
             }
+
+            val muxerFormat = if (useWebM)
+                MediaMuxer.OutputFormat.MUXER_OUTPUT_WEBM
+            else
+                MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4
+
+            Log.d(TAG, "Video codec: $videoMime → ${if (useWebM) "WebM" else "MPEG-4"} container")
+            muxer = MediaMuxer(outputPath, muxerFormat)
+            val muxerVideoTrack = muxer.addTrack(videoFormat)
 
             val muxerAudioTrack = muxer.addTrack(audioFormat)
 
