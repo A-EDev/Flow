@@ -38,6 +38,8 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.Calendar
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.*
 
 /**
@@ -90,8 +92,9 @@ object FlowNeuroEngine {
     private val sessionTopicHistory = mutableListOf<String>()
 
     // V8: Local IDF tracking (not persisted — rebuilt from usage)
-    private val wordDocumentFrequency = mutableMapOf<String, Int>()
-    private var totalDocumentsRanked: Int = 0
+    private val wordDocumentFrequency = ConcurrentHashMap<String, Int>()
+    private val totalDocumentsRanked = AtomicInteger(0)
+    private val TIMESTAMP_PATTERN = Regex("""\d{1,2}:\d{2}""")
 
     // =================================================
     // TIME DECAY ENGINE
@@ -262,12 +265,13 @@ object FlowNeuroEngine {
      * During cold start (<30 documents ranked), returns base weight unchanged.
      */
     private fun calculateIdfWeight(word: String, baseWeight: Double): Double {
-        if (totalDocumentsRanked < 30) return baseWeight
+        val ranked = totalDocumentsRanked.get()
+        if (ranked < 30) return baseWeight
 
         val df = wordDocumentFrequency[word] ?: 0
         // Smoothed IDF: rare words ≈ 1.0, ubiquitous words ≈ 0.15
-        val idf = ln(1.0 + totalDocumentsRanked.toDouble() / (df + 1.0))
-        val maxIdf = ln(1.0 + totalDocumentsRanked.toDouble())
+        val idf = ln(1.0 + ranked.toDouble() / (df + 1.0))
+        val maxIdf = ln(1.0 + ranked.toDouble())
         val normalizedIdf = (idf / maxIdf).coerceIn(0.15, 1.0)
 
         return baseWeight * normalizedIdf
@@ -389,7 +393,7 @@ object FlowNeuroEngine {
             currentUserBrain = UserBrain()
             featureCache.clear()
             wordDocumentFrequency.clear()
-            totalDocumentsRanked = 0
+            totalDocumentsRanked.set(0)
             resetSession()
             saveBrainToDataStore(context.applicationContext)
         }
@@ -901,26 +905,24 @@ object FlowNeuroEngine {
 
         if (filtered.isEmpty()) return@withContext emptyList()
 
-        // V8: Update IDF counters before scoring
+        // V8: Update IDF counters before scoring (thread-safe writes)
         filtered.forEach { video ->
             val vector = getOrExtractFeatures(video)
             vector.topics.keys.forEach { word ->
-                wordDocumentFrequency[word] =
-                    (wordDocumentFrequency[word] ?: 0) + 1
+                wordDocumentFrequency.merge(word, 1, Int::plus)
             }
-            totalDocumentsRanked++
+            totalDocumentsRanked.incrementAndGet()
         }
 
         // V8: Prevent unbounded IDF growth (logarithmic forgetting)
-        if (totalDocumentsRanked > 10000) {
-            wordDocumentFrequency.entries.forEach { entry ->
-                entry.setValue(entry.value / 2)
-            }
-            totalDocumentsRanked /= 2
+        if (totalDocumentsRanked.get() > 10000) {
+            wordDocumentFrequency.replaceAll { _, v -> v / 2 }
+            totalDocumentsRanked.updateAndGet { it / 2 }
         }
 
         // V8: Invalidate feature cache periodically as IDF weights shift
-        if (totalDocumentsRanked % 500 == 0 && totalDocumentsRanked > 0) {
+        val ranked = totalDocumentsRanked.get()
+        if (ranked % 500 == 0 && ranked > 0) {
             synchronized(featureCache) {
                 featureCache.clear()
             }
@@ -1356,10 +1358,7 @@ object FlowNeuroEngine {
         val rawTitleWords = video.title.split("\\s+".toRegex())
             .filter { it.length > 1 }
 
-        val hasChapters = run {
-            val timestampPattern = Regex("""\d{1,2}:\d{2}""")
-            timestampPattern.findAll(description).count() >= 3
-        }
+        val hasChapters = TIMESTAMP_PATTERN.findAll(description).count() >= 3
 
         val complexityScore = run {
             val titleLenFactor =
