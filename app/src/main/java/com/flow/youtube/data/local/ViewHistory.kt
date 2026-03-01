@@ -91,6 +91,36 @@ class ViewHistory private constructor(private val context: Context) {
     }
 
     /**
+     * Create-or-touch a history entry **without** overwriting an already-saved
+     * playback position.  Call this on video open so the video appears in history
+     * even if the user closes it immediately, while leaving any real progress intact.
+     */
+    suspend fun touchHistoryEntry(
+        videoId: String,
+        title: String = "",
+        thumbnailUrl: String = "",
+        channelName: String = "",
+        channelId: String = "",
+        duration: Long = 0L
+    ) {
+        val thumbnail = thumbnailUrl.ifEmpty { "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" }
+        val existingPosition = dao.getPosition(videoId) ?: 0L  // preserve saved progress
+        dao.upsert(
+            WatchHistoryEntity(
+                videoId      = videoId,
+                position     = existingPosition,
+                duration     = duration,
+                timestamp    = System.currentTimeMillis(),
+                title        = title,
+                thumbnailUrl = thumbnail,
+                channelName  = channelName,
+                channelId    = channelId,
+                isMusic      = false
+            )
+        )
+    }
+
+    /**
      * Bulk-insert history entries from an import.
      * Uses IGNORE conflict strategy so that real playback progress already in
      * the DB is never overwritten by imported stubs.

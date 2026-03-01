@@ -358,7 +358,8 @@ class EnhancedPlayerManager private constructor() {
         durationSeconds: Long = -1,
         dashManifestUrl: String? = null,
         localFilePath: String? = null,
-        hlsUrl: String? = null
+        hlsUrl: String? = null,
+        startPosition: Long = 0L
     ) {
         Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.height})")
         resetPlaybackStateForNewVideo(videoId)
@@ -416,11 +417,12 @@ class EnhancedPlayerManager private constructor() {
         
         surfaceManager?.awaitSurfaceReady(timeout)
 
-        // Load media
+        // Load media — pass startPosition as preservePosition so ExoPlayer seeks right after prepare()
+        val resumePos = startPosition.takeIf { it > 0L }
         when {
-            localFilePath != null -> loadMediaInternal(null, audioStream, localFilePath = localFilePath)
-            currentVideoStream != null -> loadMediaInternal(currentVideoStream, currentAudioStream)
-            else -> loadMediaInternal(null, currentAudioStream ?: audioStream)
+            localFilePath != null -> loadMediaInternal(null, audioStream, localFilePath = localFilePath, preservePosition = resumePos)
+            currentVideoStream != null -> loadMediaInternal(currentVideoStream, currentAudioStream, preservePosition = resumePos)
+            else -> loadMediaInternal(null, currentAudioStream ?: audioStream, preservePosition = resumePos)
         }
     }
 

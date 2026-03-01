@@ -703,15 +703,15 @@ class VideoPlayerViewModel @Inject constructor(
     private fun saveHistoryEntry(video: Video) {
         if (video.id.startsWith("recovered_")) return
         viewModelScope.launch {
-            viewHistory.savePlaybackPosition(
-                videoId = video.id,
-                position = 0L,
-                duration = if (video.duration > 0) video.duration * 1000L else 0L,
-                title = video.title,
+            // Use touchHistoryEntry so we never overwrite an already-saved playback position.
+            viewHistory.touchHistoryEntry(
+                videoId     = video.id,
+                duration    = if (video.duration > 0) video.duration * 1000L else 0L,
+                title       = video.title,
                 thumbnailUrl = video.thumbnailUrl.takeIf { it.isNotEmpty() }
                     ?: "https://i.ytimg.com/vi/${video.id}/hqdefault.jpg",
                 channelName = video.channelName,
-                channelId = video.channelId
+                channelId   = video.channelId
             )
         }
     }

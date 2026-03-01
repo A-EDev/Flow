@@ -26,6 +26,7 @@ import android.view.OrientationEventListener
 import android.widget.Toast
 import android.provider.Settings
 import androidx.media3.common.Player
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import com.flow.youtube.player.sponsorblock.SponsorBlockHandler
 
@@ -415,6 +416,10 @@ fun PlayerInitEffect(
             val audioStreams = streamInfo?.audioStreams ?: emptyList()
             val subtitles = streamInfo?.subtitles ?: emptyList()
             
+            // Read saved position BEFORE setStreams (DB is correct here because touchHistoryEntry
+            // preserves any existing progress instead of wiping it to 0)
+            val savedPos = uiState.savedPosition?.first() ?: 0L
+
             EnhancedPlayerManager.getInstance().setStreams(
                 videoId = videoId,
                 videoStream = videoStream,
@@ -425,15 +430,9 @@ fun PlayerInitEffect(
                 durationSeconds = streamInfo?.duration ?: 0L,
                 dashManifestUrl = streamInfo?.dashMpdUrl,
                 localFilePath = uiState.localFilePath,
-                hlsUrl = uiState.hlsUrl
+                hlsUrl = uiState.hlsUrl,
+                startPosition = savedPos
             )
-            
-            // Resume from saved position
-            uiState.savedPosition?.take(1)?.collect { position ->
-                if (position > 0) {
-                    EnhancedPlayerManager.getInstance().seekTo(position)
-                }
-            }
             
             EnhancedPlayerManager.getInstance().play()
         }
