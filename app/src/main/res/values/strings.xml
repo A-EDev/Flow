@@ -741,6 +741,10 @@
     <string name="os_label">OS: Android %1$s</string>
     <string name="density_label">Density: %1$s</string>
     <string name="about_title">About</string>
+    <string name="section_app">App</string>
+    <string name="section_contact">Contact</string>
+    <string name="section_legal">Legal</string>
+    <string name="section_device">Device</string>
     <string name="donate_item_title">Donate</string>
     <string name="support_dev_subtitle">Support development</string>
     <string name="btn_ok">OK</string>
