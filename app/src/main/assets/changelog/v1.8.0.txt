@@ -31,6 +31,10 @@ FLOWNEURO ENGINE V8
 
 UI AND STYLE ENHANCEMENTS
 - Onboarding Screen Redesign: Implemented a 3-steps Onboarding workflow. Added new import data and search + Subscribe features to onboarding.
+- About Screen Redesign: Completely rebuilt the About screen with a flat, section-based layout (no card containers). Sections are divided into App, Contact, Legal, and Device with uppercase label headers. Added a Reddit row (r/Flow_Official) with an inline SVG icon. The hero area shows the app icon tinted on-background, the app name in wide ExtraBold lettering, and a plain version string — no pill badges or gradients.
+- Music Screen Shimmer: The loading skeleton for the Music screen now matches the actual layout: a filter-chip row, Quick Picks rows with track title/artist and thumbnail columns, and Recommended/Recently Played grid rows. The previous shimmer used the Home screen skeleton which had no structural resemblance to the Music layout.
+- Bottom Nav Scroll Animation: The bottom navigation bar now hides when the user scrolls down and reappears when they scroll up. A NestedScrollConnection intercepts scroll events; the bar slides off-screen with a combined slide+fade and restores on upward scroll or when navigating to a new screen.
+- Dynamic Mini Player Positioning: The mini video player and mini music player now track the bottom navigation bar’s visible height. When the nav bar hides during scroll the players shift down to sit above the true system inset rather than leaving an empty gap.
 
 FIXES AND STABILITY
 - VP9 Download Fix: Fixed VP9/VP8 video downloads failing during the audio merge step. The muxer now selects WebM/Opus output format for VP9 streams instead of the MP4 container, which Android's MediaMuxer cannot use with VP9 video or Opus audio. The downloaded file is saved with a .webm extension and correctly indexed in the media library.

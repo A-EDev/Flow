@@ -67,7 +67,6 @@ class MainActivity : ComponentActivity() {
 
         handleIntent(intent)
 
-        requestBatteryOptimizationExemptionIfNeeded()
         
         // Check for updates (only in release builds or if forced)
         if (!BuildConfig.DEBUG) {

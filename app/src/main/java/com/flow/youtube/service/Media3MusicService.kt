@@ -117,7 +117,8 @@ class Media3MusicService : MediaLibraryService() {
             wakeLock?.setReferenceCounted(false)
             
             val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-            wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "Flow:MusicServiceWifiLock")
+            @Suppress("DEPRECATION")
+            wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL, "Flow:MusicServiceWifiLock")
             wifiLock?.setReferenceCounted(false)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to acquire locks", e)
@@ -228,6 +229,7 @@ class Media3MusicService : MediaLibraryService() {
                     lockReleaseJob = serviceScope.launch {
                         delay(30_000L)
                         releaseLocks()
+                        stopSelf()
                     }
                 }
             }
@@ -465,10 +467,7 @@ class Media3MusicService : MediaLibraryService() {
         if (::player.isInitialized && player.isPlaying) {
             return
         }
-        try {
-            if (::mediaLibrarySession.isInitialized) {
-            }
-        } catch (_: Exception) { }
+        stopSelf()
     }
 
     override fun onDestroy() {

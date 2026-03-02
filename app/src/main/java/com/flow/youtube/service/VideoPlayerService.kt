@@ -77,7 +77,8 @@ class VideoPlayerService : Service() {
             wakeLock?.setReferenceCounted(false)
             
             val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-            wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "Flow:VideoPlayerWifiLock")
+            @Suppress("DEPRECATION")
+            wifiLock = wifiManager.createWifiLock(WifiManager.WIFI_MODE_FULL, "Flow:VideoPlayerWifiLock")
             wifiLock?.setReferenceCounted(false)
         } catch (e: Exception) {
             Log.e("VideoPlayerService", "Failed to acquire locks", e)
@@ -128,6 +129,7 @@ class VideoPlayerService : Service() {
                     lockReleaseJob = serviceScope.launch {
                         delay(30_000L)
                         releaseLocks()
+                        stopPlayback()
                     }
                 }
                 
@@ -152,7 +154,7 @@ class VideoPlayerService : Service() {
         intent?.let { handleIntent(it) }
         MediaButtonReceiver.handleIntent(mediaSession, intent)
         
-        return START_STICKY 
+        return START_NOT_STICKY
     }
     
     private fun handleIntent(intent: Intent) {
@@ -203,11 +205,10 @@ class VideoPlayerService : Service() {
      * and the service was not started in a sticky fashion.
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
-        val video = currentVideo
-        if (video != null) {
+        if (isPlaying) {
             updateNotification()
         } else {
-            startForeground(NOTIFICATION_ID, createPlaceholderNotification())
+            stopPlayback()
         }
     }
     
