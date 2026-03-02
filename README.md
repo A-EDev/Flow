@@ -7,12 +7,12 @@
   <div align="center">
 <img src="https://img.shields.io/badge/Status-Active_Development-success?style=for-the-badge&logo=github-actions">
 <br>
-<!-- Downloads & Version (Social Proof) -->
+<!-- Downloads & Version -->
 <a href="https://github.com/A-EDev/Flow/releases">
   <img src="https://img.shields.io/github/downloads/A-EDev/Flow/total?style=for-the-badge&color=orange&logo=github&label=Downloads">
 </a>
 <a href="https://github.com/A-EDev/Flow/releases">
-  <img src="https://img.shields.io/github/v/release/A-EDev/Flow?style=for-the-badge&color=crimson&label=Latest%20Version&logo=google-play">
+  <img src="https://img.shields.io/github/v/release/A-EDev/Flow?style=for-the-badge&color=crimson&label=Latest%20Version">
 </a>
 
 <br>
@@ -25,6 +25,9 @@
 <br>
 
 <!-- Community & License -->
+<a href="https://www.reddit.com/r/Flow_Official/">
+  <img src="https://img.shields.io/badge/Reddit-r%2FFlow__Official-FF4500?style=for-the-badge&logo=reddit&logoColor=white">
+</a>
 <img src="https://img.shields.io/github/stars/A-EDev/Flow?style=for-the-badge&logo=star&color=gold">
 <img src="https://img.shields.io/github/forks/A-EDev/Flow?style=for-the-badge&logo=git&color=silver">
 <a href="LICENSE">
@@ -36,44 +39,86 @@
 
   <br><br>
   
-  <h3><b>The First Privacy-Focused Client That Actually Learns.</b></h3>
+  <h3>A privacy-respecting YouTube and YouTube Music client for Android with a local recommendation engine.</h3>
   <p>
-    Flow is a modern, Material 3 YouTube client built with Jetpack Compose.<br>
-    It features <b>FlowNeuro™</b>, a local-only recommendation engine that adapts to your taste without tracking you.
+    Flow is a YouTube client built with Jetpack Compose and Material 3.<br>
+    It includes FlowNeuro, a recommendation engine that runs entirely on your device — no accounts, no tracking, no data leaves your phone.
   </p>
   
   <p>
-    <a href="https://github.com/A-EDev/Flow/releases"><b>📥 Download APK</b></a> • 
-    <a href="https://github.com/A-EDev/Flow/wiki"><b>📚 Documentation (Wiki)</b></a> • 
-    <a href="#support--donations"><b>❤️ Donate</b></a>
+    <a href="https://github.com/A-EDev/Flow/releases"><b>Download APK</b></a> · 
+    <a href="https://github.com/A-EDev/Flow/wiki"><b>Documentation</b></a> · 
+    <a href="https://www.reddit.com/r/Flow_Official/"><b>Subreddit</b></a> · 
+    <a href="#support--donations"><b>Donate</b></a>
   </p>
 </div>
 
 ---
 
-## ✨ Why Flow?
+## Why Flow?
 
-Most open-source clients focus purely on playback. Flow focuses on discovery.
+Most open-source YouTube clients give you playback but no way to discover new content. You either use the official app and get tracked, or you use an alternative and lose recommendations entirely.
 
-### 🧠 FlowNeuro™ Engine
-Google relies on server-side tracking. Flow relies on client-side vector analysis.
-*   **On-Device Intelligence:** A vector-based engine runs locally on your phone to learn what you like.
-*   **Transparent Algorithm:** Visualize your "Cognitive Map" in settings. See exactly why a video was recommended.
-*   **Context Aware:** Flow knows you like Lofi in the morning and Gaming at night.
-
-### 🎨 Uncompromising Aesthetics
-*   **100% Jetpack Compose:** Smooth animations, predictive back gestures, and zero lag.
-*   **11+ Premium Themes:** From OLED Black to Ocean Blue and Sunset Orange.
-*   **Seamless Playback:** 4K video, background play, and Picture-in-Picture (PiP) work out of the box.
-
-### 🔒 Privacy First
-*   **No Google Account Needed:** Your data lives in a JSON file on your device.
-*   **No Tracking:** No ads, no analytics, no server-side surveillance.
-*   **Total Control:** Export your data or nuke your recommendation brain instantly.
+Flow gives you both. The recommendation engine learns what you like by analyzing your watch behavior locally. It never leaves your devices. You can inspect everything it knows about you, adjust it, or wipe it at any time.
 
 ---
 
-## 📸 Screenshots
+## Features
+
+### Video
+- High-quality playback via ExoPlayer (Media3) with resolution switching (1080p, 720p, 480p, 360p)
+- SponsorBlock — automatically skips sponsors, intros, outros, and filler
+- DeArrow — replaces clickbait thumbnails and titles with community-sourced alternatives
+- Background playback — listen to audio with the screen off
+- Picture-in-Picture — keep watching while using other apps
+- Casting to smart TVs and streaming devices
+- Playback speed control (0.25x to 2x)
+- Video chapters with seek jumping
+- Gesture controls for brightness, volume, and seeking
+- Subtitles with customizable font size, color, and background
+- Downloads with VP9, AV1, and standard format support
+- Resume playback from where you left off
+
+### Music
+- Dedicated music player with album art and audio visualizations
+- Queue management with add, remove, and reorder
+- Shuffle and repeat (single/all)
+- Persistent mini player across the app
+- Synchronized lyrics display
+- Fetches tracks from YouTube Music
+
+### Recommendations (FlowNeuro Engine)
+- Runs 100% on-device — no server, no telemetry, no account needed
+- Learns from what you watch, skip, like, dislike, search for, and how long you watch
+- Distinguishes weekday and weekend patterns, morning and night preferences
+- Detects when you're getting bored of a topic and mixes in new content
+- Prevents your feed from collapsing into the same 2-3 topics
+- Surfaces related videos from your recent watches to create natural topic transitions
+- Uses engagement signals (like-to-view ratios) to filter out low-quality content
+- Full transparency dashboard — see what the algorithm knows and why it recommended something
+- Export/import your entire recommendation profile as a file
+
+### Library
+- Local watch history
+- Favorites and custom playlists
+- Shorts feed with bookmarking
+- Continue watching shelf
+- Subscription management with cached feeds
+
+### Privacy
+- No Google account required
+- No ads, analytics, or tracking
+- All data stored locally on your device
+- Import subscriptions and history from NewPipe
+- Export or delete everything at any time
+
+### Appearance
+- 11 themes: Light, Dark, OLED Black, Ocean Blue, Forest Green, Sunset Orange, Purple Nebula, Midnight Black, Rose Gold, Arctic Ice, Crimson Red
+- Built entirely with Jetpack Compose and Material 3
+
+---
+
+## Screenshots
 
 <div align="center">
   <table>
@@ -101,7 +146,6 @@ Google relies on server-side tracking. Flow relies on client-side vector analysi
 </div>
 
 ---
-
 ## Download
 
 ### Stable Release
