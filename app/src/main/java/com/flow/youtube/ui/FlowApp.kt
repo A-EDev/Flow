@@ -2,8 +2,13 @@ package com.flow.youtube.ui
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -66,6 +71,23 @@ fun FlowApp(
     
     val selectedBottomNavIndex = remember { mutableIntStateOf(0) }
     val showBottomNav = remember { mutableStateOf(true) }
+
+    // Scroll-based bottom nav hide/show
+    var isNavScrolledVisible by remember { mutableStateOf(true) }
+    LaunchedEffect(currentRoute.value) {
+        isNavScrolledVisible = true
+    }
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                when {
+                    available.y < -10f -> isNavScrolledVisible = false 
+                    available.y > 10f  -> isNavScrolledVisible = true  
+                }
+                return Offset.Zero
+            }
+        }
+    }
     
     // Observer global player state
     val isInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
@@ -92,9 +114,12 @@ fun FlowApp(
         val marginPx = with(density) { 12.dp.toPx() }
         
         // Calculate maxOffset: Position of Mini Player Top
-        // We want it to sit at bottom-right, respecting bottom nav
-        // Y = FullHeight - (Content + Inset) - MiniPlayer - Margin
-        val maxOffset = screenHeightPx - bottomNavHeightPx - miniPlayerHeightPx - marginPx
+        val effectiveBottomOffsetPx = if (!isInPipMode && showBottomNav.value) {
+            bottomNavHeightPx
+        } else {
+            navBarBottomInset.toFloat()
+        }
+        val maxOffset = screenHeightPx - effectiveBottomOffsetPx - miniPlayerHeightPx - marginPx
         
         // Draggable player state
         val playerSheetState = rememberPlayerDraggableState(maxOffset = maxOffset)
@@ -154,44 +179,20 @@ fun FlowApp(
             modifier = Modifier.fillMaxSize(),
             snackbarHost = { androidx.compose.material3.SnackbarHost(hostState = snackbarHostState) },
             containerColor = if (isInPipMode) androidx.compose.ui.graphics.Color.Black else androidx.compose.material3.MaterialTheme.colorScheme.background,
-            contentWindowInsets = WindowInsets.systemBars.only(WindowInsetsSides.Top), 
-            bottomBar = {
-                if (!isInPipMode && showBottomNav.value) {
-                    Column {
-                        // Bottom nav bar
-                        FloatingBottomNavBar(
-                            selectedIndex = selectedBottomNavIndex.intValue,
-                            isShortsEnabled = isShortsNavigationEnabled,
-                            onItemSelected = { index ->
-                                val route = when (index) {
-                                    0 -> "home"
-                                    1 -> "shorts"
-                                    2 -> "music"
-                                    3 -> "subscriptions"
-                                    4 -> "library"
-                                    else -> "home"
-                                }
-
-                                if (currentRoute.value == route) {
-                                    TabScrollEventBus.emitScrollToTop(route)
-                                } else {
-                                    selectedBottomNavIndex.intValue = index
-                                    currentRoute.value = route
-                                    navController.navigate(route) {
-                                        popUpTo("home") {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            }
-                    )
-                    }
-                }
-            }
+            contentWindowInsets = WindowInsets.systemBars,
+            bottomBar = {} 
         ) { paddingValues ->
-            Box(modifier = Modifier.padding(if (isInPipMode) PaddingValues(0.dp) else paddingValues)) {
+            val navBarExtraBottomPadding by animateDpAsState(
+                targetValue = if (!isInPipMode && showBottomNav.value && isNavScrolledVisible) bottomNavContentHeightDp else 0.dp,
+                animationSpec = tween(durationMillis = 220),
+                label = "contentNavPadding"
+            )
+            Box(
+                modifier = Modifier
+                    .padding(if (isInPipMode) PaddingValues(0.dp) else paddingValues)
+                    .padding(bottom = navBarExtraBottomPadding.coerceAtLeast(0.dp))
+                    .nestedScroll(nestedScrollConnection)
+            ) {
                 if (needsOnboarding != null) {
                     NavHost(
                         navController = navController,
@@ -231,6 +232,49 @@ fun FlowApp(
                 }
             }
         }
+
+        // ── Floating bottom nav bar overlay ──────────────────────────────────
+        AnimatedVisibility(
+            visible = !isInPipMode && showBottomNav.value && isNavScrolledVisible,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = spring(dampingRatio = 0.8f, stiffness = 320f)
+            ) + fadeIn(animationSpec = tween(160, delayMillis = 40)),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = spring(dampingRatio = 0.85f, stiffness = 350f)
+            ) + fadeOut(animationSpec = tween(120))
+        ) {
+            FloatingBottomNavBar(
+                selectedIndex = selectedBottomNavIndex.intValue,
+                isShortsEnabled = isShortsNavigationEnabled,
+                onItemSelected = { index ->
+                    val route = when (index) {
+                        0 -> "home"
+                        1 -> "shorts"
+                        2 -> "music"
+                        3 -> "subscriptions"
+                        4 -> "library"
+                        else -> "home"
+                    }
+
+                    if (currentRoute.value == route) {
+                        TabScrollEventBus.emitScrollToTop(route)
+                    } else {
+                        selectedBottomNavIndex.intValue = index
+                        currentRoute.value = route
+                        navController.navigate(route) {
+                            popUpTo("home") {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
+            )
+        }
     }
     
     // ===== GLOBAL PLAYER OVERLAY =====
@@ -255,15 +299,16 @@ fun FlowApp(
     )
     
     // ===== GLOBAL MUSIC PLAYER OVERLAY =====
-    val animatedBottomPadding by animateDpAsState(
-        targetValue = if (!isInPipMode && showBottomNav.value) {
+    val animatedBottomPaddingRaw by animateDpAsState(
+        targetValue = if (!isInPipMode && showBottomNav.value && isNavScrolledVisible) {
             bottomNavContentHeightDp + with(density) { navBarBottomInset.toDp() }
         } else {
             with(density) { navBarBottomInset.toDp() }
         },
-        animationSpec = tween(300),
+        animationSpec = tween(220),
         label = "musicPlayerBottomPadding"
     )
+    val animatedBottomPadding = animatedBottomPaddingRaw.coerceAtLeast(0.dp)
 
     Box(
         modifier = Modifier

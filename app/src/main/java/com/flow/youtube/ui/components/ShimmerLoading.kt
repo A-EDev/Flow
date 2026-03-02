@@ -745,6 +745,140 @@ fun ShimmerComment(
     }
 }
 
+/**
+ * Shimmer that mirrors the exact Music screen layout:
+ *  - Filter chips row
+ *  - "Quick picks" two-column grid (left album art + text + right small album art)
+ *  - "Recommended" horizontal card row
+ *  - "Recently played" horizontal card row
+ */
+@Composable
+fun MusicScreenShimmerLoading(
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxSize()) {
+        // Filter chips (Workout, Energize, Relax…)
+        ShimmerChipRow(chipCount = 5)
+
+        Spacer(Modifier.height(8.dp))
+
+        // ── Quick picks ────────────────────────────────────────────────────
+        ShimmerSectionTitle()
+
+        // 4 rows that mimic [left thumb | title+artist | right small thumb]
+        repeat(4) { index ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Left album art square
+                ShimmerBone(
+                    modifier = Modifier.size(56.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    delayMillis = index * 40
+                )
+
+                // Title + artist stacked
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    ShimmerBone(
+                        modifier = Modifier.fillMaxWidth(0.80f).height(13.dp),
+                        delayMillis = 60 + index * 40
+                    )
+                    ShimmerBone(
+                        modifier = Modifier.fillMaxWidth(0.50f).height(11.dp),
+                        shape = RoundedCornerShape(4.dp),
+                        delayMillis = 100 + index * 40
+                    )
+                }
+
+                // Right small thumbnail
+                ShimmerBone(
+                    modifier = Modifier.size(56.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    delayMillis = 120 + index * 40
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // ── Recommended ────────────────────────────────────────────────────
+        ShimmerSectionTitle()
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            repeat(3) { index ->
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Square album art
+                    ShimmerBone(
+                        modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        delayMillis = index * 60
+                    )
+                    // Title
+                    ShimmerBone(
+                        modifier = Modifier.fillMaxWidth(0.90f).height(12.dp),
+                        delayMillis = 40 + index * 60
+                    )
+                    // Artist
+                    ShimmerBone(
+                        modifier = Modifier.fillMaxWidth(0.65f).height(10.dp),
+                        shape = RoundedCornerShape(4.dp),
+                        delayMillis = 80 + index * 60
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // ── Recently played ─────────────────────────────────────────────────
+        ShimmerSectionTitle()
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            repeat(3) { index ->
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    ShimmerBone(
+                        modifier = Modifier.fillMaxWidth().aspectRatio(1f),
+                        shape = RoundedCornerShape(12.dp),
+                        delayMillis = index * 50
+                    )
+                    ShimmerBone(
+                        modifier = Modifier.fillMaxWidth(0.85f).height(12.dp),
+                        delayMillis = 40 + index * 50
+                    )
+                    ShimmerBone(
+                        modifier = Modifier.fillMaxWidth(0.60f).height(10.dp),
+                        shape = RoundedCornerShape(4.dp),
+                        delayMillis = 80 + index * 50
+                    )
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun HomeShimmerLoading(
     modifier: Modifier = Modifier

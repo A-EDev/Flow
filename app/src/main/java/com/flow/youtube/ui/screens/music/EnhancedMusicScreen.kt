@@ -143,7 +143,7 @@ fun EnhancedMusicScreen(
 
             when {
                 isInitialLoading -> {
-                    HomeShimmerLoading()
+                    MusicScreenShimmerLoading()
                 }
                 
                 uiState.error != null && uiState.trendingSongs.isEmpty() -> {
