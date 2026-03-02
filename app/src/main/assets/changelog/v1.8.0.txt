@@ -10,6 +10,14 @@ NEW FEATURES
 - Accurate Player Error Messages: The video player now surfaces the real reason a video cannot be played instead of a generic "Failed to load video" message. Age-restricted content, private videos, geo-blocked videos, paid content, account-terminated channels, and ReCaptcha challenges each show a distinct, plain-language message with an explanatory hint. A dedicated error panel appears over the player surface with a Retry button for recoverable failures. The root fix ensures typed exceptions from the extraction layer (AgeRestrictedContentException, PrivateContentException, GeographicRestrictionException, etc.) propagate all the way to the UI mapper instead of being silently discarded.
 - Downloaded Videos Queue: Matching the existing playlist queue system.
 - Priority Loading To Video Player: Ensure the video player loads independently than the rest of the content for faster loading times.
+- YouTube Takeout Import: Added support for importing watch history and subscriptions from YouTube Takeout data exports.
+- Search Paging: Search results now support infinite scrolling with full paging, replacing the previous fixed-result list.
+- Playback Notification: Dedicated playback notification for better background playback control.
+- Navigation State Preservation: Implemented saveState and restoreState for navigation so scroll positions are preserved when switching between screens.
+- Download Storage Scanning: Added storage scanning and data wipe prevention to protect offline content.
+- Download Buffer Increase: Raised download buffer sizes from 2MB to 8MB for more reliable media fetching.
+- Click To Scroll Up: Tapping a navigation button while already on that screen scrolls the content back to the top.
+- Paging Support: Integrated paging across various screens for smooth infinite scroll performance.
 
 FLOWNEURO ENGINE V8
 - Independent Pacing Dimension: Pacing is now extracted from title keywords instead of being derived from duration. Words like "compilation", "speedrun" signal high pacing; "podcast", "essay" signal low pacing.
@@ -34,7 +42,13 @@ UI AND STYLE ENHANCEMENTS
 - About Screen Redesign: Completely rebuilt the About screen with a flat, section-based layout (no card containers). Sections are divided into App, Contact, Legal, and Device with uppercase label headers. Added a Reddit row (r/Flow_Official) with an inline SVG icon. The hero area shows the app icon tinted on-background, the app name in wide ExtraBold lettering, and a plain version string — no pill badges or gradients.
 - Music Screen Shimmer: The loading skeleton for the Music screen now matches the actual layout: a filter-chip row, Quick Picks rows with track title/artist and thumbnail columns, and Recommended/Recently Played grid rows. The previous shimmer used the Home screen skeleton which had no structural resemblance to the Music layout.
 - Bottom Nav Scroll Animation: The bottom navigation bar now hides when the user scrolls down and reappears when they scroll up. A NestedScrollConnection intercepts scroll events; the bar slides off-screen with a combined slide+fade and restores on upward scroll or when navigating to a new screen.
-- Dynamic Mini Player Positioning: The mini video player and mini music player now track the bottom navigation bar’s visible height. When the nav bar hides during scroll the players shift down to sit above the true system inset rather than leaving an empty gap.
+- Dynamic Mini Player Positioning: The mini video player and mini music player now track the bottom navigation bar's visible height. When the nav bar hides during scroll the players shift down to sit above the true system inset rather than leaving an empty gap.
+- Global Mini Player Redesign: The mini music player is now a global overlay, no longer anchored to the bottom navigation bar.
+- Music Player Bottom Sheet Polish: Updated the music player bottom sheet with solid background colors for a cleaner look.
+- Search UI Redesign: Redesigned search interface with improved filtering system.
+- Video Card Title Truncation: Improved title truncation on video cards to prevent awkward text clipping.
+- Update Dialog Redesign: Redesigned the in-app update dialog.
+- Download Size Accuracy: Improved download size display accuracy for media files.
 
 FIXES AND STABILITY
 - VP9 Download Fix: Fixed VP9/VP8 video downloads failing during the audio merge step. The muxer now selects WebM/Opus output format for VP9 streams instead of the MP4 container, which Android's MediaMuxer cannot use with VP9 video or Opus audio. The downloaded file is saved with a .webm extension and correctly indexed in the media library.
@@ -47,3 +61,4 @@ FIXES AND STABILITY
 - Instant Download Deletion: Removed the 4-second undo delay from the Downloads screen. Deleting a video or music download is now immediate with no snackbar or undo step.
 - Continue Watching / Resume Position Fix: Fixed videos not resuming from their saved positions when opened from the Continue Watching shelf. Root cause was that opening a video called saveHistoryEntry() which immediately overwrote any saved DB progress with position = 0 (REPLACE-strategy upsert) before loadVideoInfo() had a chance to read it. Fixed by adding touchHistoryEntry() to ViewHistory — it reads the existing position from the DB first and upserts preserving that value, so saved progress is never erased on open. The saved position is also now passed directly to ExoPlayer as preservePosition at media-load time (via setStreams → loadMediaInternal → MediaLoader.seekTo after prepare()), replacing the old post-load seek that always read the already-wiped value.
 - Refactor Build.yml: Added caching and reusable artifacts for faster builds.
+- Subscription Screen Video Fetching Fix: Resolved issues with video fetching in the Subscriptions screen.
