@@ -8,6 +8,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
@@ -26,6 +27,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -290,16 +292,19 @@ fun DraggablePlayerLayout(
                     orientation = Orientation.Vertical,
                     onDragStopped = { velocity ->
                         val target = when {
-                            velocity > 800f -> state.maxOffset  
-                            velocity < -800f -> 0f             
+                            velocity > 800f -> state.maxOffset
+                            velocity < -800f -> 0f
                             state.offsetY.value > state.maxOffset * 0.5f -> state.maxOffset
-                            else -> 0f                        
+                            else -> 0f
                         }
                         state.scope.launch {
                             state.offsetY.animateTo(target, spring(dampingRatio = 0.8f, stiffness = 300f))
                         }
                     }
                 )
+                .then(if (fraction > 0.6f) Modifier.pointerInput(Unit) {
+                    detectTapGestures { state.expand() }
+                } else Modifier)
         ) {
             // Video Surface
             videoContent(Modifier.fillMaxSize())

@@ -879,6 +879,9 @@ fun NavGraphBuilder.flowAppGraph(
             }
         } else {
             uiState.playlistDetails?.let { details ->
+                val isUserPlaylist = playlistId.matches(
+                    Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+                )
                 com.flow.youtube.ui.screens.music.PlaylistPage(
                     playlistDetails = details,
                     onBackClick = { navController.popBackStack() },
@@ -891,7 +894,9 @@ fun NavGraphBuilder.flowAppGraph(
                     },
                     onArtistClick = { channelId ->
                         navController.navigate("artist/$channelId")
-                    }
+                    },
+                    onLoadMore = { musicViewModel.loadMorePlaylistTracks() },
+                    isUserPlaylist = isUserPlaylist
                 )
             }
         }

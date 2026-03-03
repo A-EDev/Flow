@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.local.PlaylistRepository
 import com.flow.youtube.data.local.entity.VideoEntity
+import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.music.DownloadManager
 import com.flow.youtube.data.music.YouTubeMusicService
 import com.flow.youtube.data.repository.YouTubeRepository
@@ -271,6 +272,72 @@ class MusicPlaylistsViewModel @Inject constructor(
                  _playlistDownloadProgress.value = 0f
             }
         }
+    }
+
+    // ── Track search (used on user playlists) ─────────────────────────────────
+
+    private val _trackSearchResults = MutableStateFlow<List<MusicTrack>>(emptyList())
+    val trackSearchResults = _trackSearchResults.asStateFlow()
+
+    private val _isSearchingTracks = MutableStateFlow(false)
+    val isSearchingTracks = _isSearchingTracks.asStateFlow()
+
+    private val _addedTrackIds = MutableStateFlow<Set<String>>(emptySet())
+    val addedTrackIds = _addedTrackIds.asStateFlow()
+
+    private val _locallyAddedTracks = MutableStateFlow<List<MusicTrack>>(emptyList())
+    val locallyAddedTracks = _locallyAddedTracks.asStateFlow()
+
+    fun searchTracks(query: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _isSearchingTracks.value = true
+            try {
+                val results = YouTubeMusicService.searchMusic(query, limit = 30)
+                _trackSearchResults.value = results
+            } catch (e: Exception) {
+                Log.e("MusicPlaylistsVM", "searchTracks failed", e)
+                _trackSearchResults.value = emptyList()
+            } finally {
+                _isSearchingTracks.value = false
+            }
+        }
+    }
+
+    fun addTrackToPlaylist(playlistId: String, track: MusicTrack) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val video = Video(
+                    id = track.videoId,
+                    title = track.title,
+                    channelName = track.artist,
+                    channelId = track.channelId,
+                    thumbnailUrl = track.thumbnailUrl,
+                    duration = track.duration,
+                    viewCount = 0L,
+                    uploadDate = "",
+                    timestamp = System.currentTimeMillis(),
+                    description = track.album,
+                    isMusic = true
+                )
+                playlistRepository.addVideoToPlaylist(playlistId, video)
+                _addedTrackIds.update { it + track.videoId }
+                _locallyAddedTracks.update { it + track }
+                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Added to playlist", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e("MusicPlaylistsVM", "addTrackToPlaylist failed", e)
+                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Failed to add track", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    fun clearTrackSearch() {
+        _trackSearchResults.value = emptyList()
+        _addedTrackIds.value = emptySet()
+        _locallyAddedTracks.value = emptyList()
     }
 }
 
