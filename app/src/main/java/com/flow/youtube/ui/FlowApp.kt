@@ -113,13 +113,7 @@ fun FlowApp(
         val miniPlayerHeightPx = miniPlayerWidthPx * (9f / 16f)
         val marginPx = with(density) { 12.dp.toPx() }
         
-        // Calculate maxOffset: Position of Mini Player Top
-        val effectiveBottomOffsetPx = if (!isInPipMode && showBottomNav.value) {
-            bottomNavHeightPx
-        } else {
-            navBarBottomInset.toFloat()
-        }
-        val maxOffset = screenHeightPx - effectiveBottomOffsetPx - miniPlayerHeightPx - marginPx
+        val maxOffset = screenHeightPx - bottomNavHeightPx - miniPlayerHeightPx - marginPx
         
         // Draggable player state
         val playerSheetState = rememberPlayerDraggableState(maxOffset = maxOffset)

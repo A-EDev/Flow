@@ -52,7 +52,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.flow.youtube.R
-import com.flow.youtube.data.local.BackupRepository
 import com.flow.youtube.data.local.ChannelSubscription
 import com.flow.youtube.data.local.SubscriptionRepository
 import com.flow.youtube.data.recommendation.FlowNeuroEngine
@@ -63,6 +62,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.channel.ChannelInfoItem
+import androidx.activity.ComponentActivity
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.flow.youtube.ui.screens.settings.ImportViewModel
+import com.flow.youtube.ui.screens.settings.ImportProgressBanner
 
 // ─────────────────────────────────────────────────────────────
 // Constants & types
@@ -96,7 +100,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     val haptic = LocalHapticFeedback.current
 
     val subscriptionRepo = remember { SubscriptionRepository.getInstance(context) }
-    val backupRepo = remember { BackupRepository(context) }
+    val importViewModel: ImportViewModel = hiltViewModel(context as ComponentActivity)
 
     var currentStep by remember { mutableStateOf(OnboardingStep.INTERESTS) }
 
@@ -123,6 +127,24 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     var importMessage by remember { mutableStateOf<String?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val importState by importViewModel.state.collectAsStateWithLifecycle()
+    LaunchedEffect(importState) {
+        when (val s = importState) {
+            is ImportViewModel.State.Success -> {
+                importMessage = if (s.count > 0)
+                    "Imported ${s.count} ${s.label.lowercase()}"
+                else
+                    "${s.label} imported"
+                importViewModel.dismiss()
+            }
+            is ImportViewModel.State.Error -> {
+                importMessage = "Import failed: ${s.message}"
+                importViewModel.dismiss()
+            }
+            else -> {}
+        }
+    }
+
     LaunchedEffect(importMessage) {
         importMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -132,45 +154,15 @@ fun OnboardingScreen(onComplete: () -> Unit) {
 
     val newPipeImportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        uri?.let {
-            scope.launch {
-                val result = backupRepo.importNewPipe(it)
-                importMessage = if (result.isSuccess)
-                    context.getString(R.string.import_newpipe_success_template, result.getOrNull())
-                else
-                    context.getString(R.string.import_newpipe_failed_template, result.exceptionOrNull()?.message)
-            }
-        }
-    }
+    ) { uri -> uri?.let { importViewModel.importNewPipe(it) } }
 
     val youtubeImportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        uri?.let {
-            scope.launch {
-                val result = backupRepo.importYouTube(it)
-                importMessage = if (result.isSuccess)
-                    context.getString(R.string.import_youtube_success_template, result.getOrNull())
-                else
-                    context.getString(R.string.import_youtube_failed_template, result.exceptionOrNull()?.message)
-            }
-        }
-    }
+    ) { uri -> uri?.let { importViewModel.importYouTube(it) } }
 
     val youtubeHistoryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        uri?.let {
-            scope.launch {
-                val result = backupRepo.importYouTubeWatchHistory(it)
-                importMessage = if (result.isSuccess)
-                    context.getString(R.string.import_yt_history_success_template, result.getOrNull())
-                else
-                    context.getString(R.string.import_yt_history_failed_template, result.exceptionOrNull()?.message)
-            }
-        }
-    }
+    ) { uri -> uri?.let { importViewModel.importYouTubeWatchHistory(it) } }
 
     fun finish() {
         scope.launch {
@@ -282,6 +274,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                     }
                 )
                 OnboardingStep.IMPORT -> ImportStep(
+                    importState = importState,
                     onImportNewPipe = {
                         newPipeImportLauncher.launch(arrayOf("application/json"))
                     },
@@ -722,6 +715,7 @@ private fun ChannelResultRow(
 
 @Composable
 private fun ImportStep(
+    importState: ImportViewModel.State,
     onImportNewPipe: () -> Unit,
     onImportYouTube: () -> Unit,
     onImportYouTubeHistory: () -> Unit
@@ -737,6 +731,7 @@ private fun ImportStep(
                 subtitle = "Bring your subscriptions and history from other apps. Everything is optional."
             )
         }
+        item { ImportProgressBanner(importState) }
 
         item {
             Text(

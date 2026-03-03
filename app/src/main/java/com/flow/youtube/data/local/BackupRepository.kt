@@ -25,6 +25,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import java.util.concurrent.atomic.AtomicInteger
 
 data class SettingsBackup(
     val strings: Map<String, String> = emptyMap(),
@@ -153,7 +154,7 @@ class BackupRepository(private val context: Context) {
         }
     }
 
-    suspend fun importNewPipe(uri: Uri): Result<Int> = withContext(Dispatchers.IO) {
+    suspend fun importNewPipe(uri: Uri, onProgress: ((current: Int, total: Int) -> Unit)? = null): Result<Int> = withContext(Dispatchers.IO) {
         try {
             var importedCount = 0
             val subscriptionsToImport = mutableListOf<ChannelSubscription>()
@@ -176,6 +177,8 @@ class BackupRepository(private val context: Context) {
                             var channelId = ""
                             if (url.contains("/channel/")) {
                                 channelId = url.substringAfter("/channel/")
+                            } else if (url.contains("/@")) {
+                                channelId = url.substringAfter("/@")
                             } else if (url.contains("/user/")) {
                                 channelId = url.substringAfter("/user/")
                             }
@@ -198,16 +201,21 @@ class BackupRepository(private val context: Context) {
             }
 
             // Fetch avatars in parallel with rate limiting
+            val totalForProgress = subscriptionsToImport.size
+            val completedCount = AtomicInteger(0)
+            onProgress?.invoke(0, totalForProgress)
             val subscriptionsWithAvatars = supervisorScope {
                 subscriptionsToImport.map { sub ->
                     async(Dispatchers.IO) {
                         semaphore.withPermit {
-                            try {
+                            val result = try {
                                 val avatarUrl = fetchChannelAvatar(sub.channelId)
                                 sub.copy(channelThumbnail = avatarUrl)
                             } catch (e: Exception) {
                                 sub // Return original if fail
                             }
+                            onProgress?.invoke(completedCount.incrementAndGet(), totalForProgress)
+                            result
                         }
                     }
                 }.awaitAll()
@@ -224,7 +232,7 @@ class BackupRepository(private val context: Context) {
         }
     }
 
-    suspend fun importYouTube(uri: Uri): Result<Int> = withContext(Dispatchers.IO) {
+    suspend fun importYouTube(uri: Uri, onProgress: ((current: Int, total: Int) -> Unit)? = null): Result<Int> = withContext(Dispatchers.IO) {
         try {
             var importedCount = 0
             val subscriptionsToImport = mutableListOf<ChannelSubscription>()
@@ -241,9 +249,9 @@ class BackupRepository(private val context: Context) {
                         val parts = line.split(",", limit = 3)
                         
                         if (parts.size >= 3) {
-                            val channelId = parts[0]
-                            val channelUrl = parts[1]
-                            val channelName = parts[2] // This now contains the full name, even with commas
+                            val channelId = parts[0].trim().trimStart('\uFEFF')
+                            val channelUrl = parts[1].trim()
+                            val channelName = parts[2].trim().removeSurrounding("\"")
                             
                             if (channelId.isNotEmpty() && channelName.isNotEmpty()) {
                                  val subscription = ChannelSubscription(
@@ -260,16 +268,21 @@ class BackupRepository(private val context: Context) {
             }
             
             // Fetch avatars in parallel with rate limiting
+            val ytTotalForProgress = subscriptionsToImport.size
+            val ytCompletedCount = AtomicInteger(0)
+            onProgress?.invoke(0, ytTotalForProgress)
             val subscriptionsWithAvatars = supervisorScope {
                 subscriptionsToImport.map { sub ->
                     async(Dispatchers.IO) {
                         semaphore.withPermit {
-                            try {
+                            val result = try {
                                 val avatarUrl = fetchChannelAvatar(sub.channelId)
                                 sub.copy(channelThumbnail = avatarUrl)
                             } catch (e: Exception) {
                                 sub // Return original if fail
                             }
+                            onProgress?.invoke(ytCompletedCount.incrementAndGet(), ytTotalForProgress)
+                            result
                         }
                     }
                 }.awaitAll()
@@ -515,7 +528,10 @@ class BackupRepository(private val context: Context) {
     // Helper to fetch channel avatar using NewPipe
     private fun fetchChannelAvatar(channelId: String): String {
         return try {
-            val url = "https://www.youtube.com/channel/$channelId"
+            val url = if (channelId.startsWith("UC") && channelId.length > 20)
+                "https://www.youtube.com/channel/$channelId"
+            else
+                "https://www.youtube.com/@$channelId"
             val info = ChannelInfo.getInfo(ServiceList.YouTube, url)
             info.avatars.maxByOrNull { it.height }?.url ?: ""
         } catch (e: Exception) {

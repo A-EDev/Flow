@@ -289,10 +289,11 @@ fun DraggablePlayerLayout(
                     },
                     orientation = Orientation.Vertical,
                     onDragStopped = { velocity ->
-                        val target = if (velocity > 800 || state.offsetY.value > state.maxOffset * 0.3f) {
-                            state.maxOffset
-                        } else {
-                            0f
+                        val target = when {
+                            velocity > 800f -> state.maxOffset  
+                            velocity < -800f -> 0f             
+                            state.offsetY.value > state.maxOffset * 0.5f -> state.maxOffset
+                            else -> 0f                        
                         }
                         state.scope.launch {
                             state.offsetY.animateTo(target, spring(dampingRatio = 0.8f, stiffness = 300f))

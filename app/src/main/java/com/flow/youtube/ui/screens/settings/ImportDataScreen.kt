@@ -19,6 +19,11 @@ import androidx.compose.material.icons.outlined.QueueMusic
 import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,6 +36,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.ComponentActivity
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.flow.youtube.R
 import com.flow.youtube.data.local.BackupRepository
 import kotlinx.coroutines.launch
@@ -44,6 +52,34 @@ fun ImportDataScreen(
     val scope = rememberCoroutineScope()
     val backupRepo = remember { BackupRepository(context) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Activity-scoped ViewModel: survives screen navigation so imports keep running
+    val activity = context as ComponentActivity
+    val importViewModel: ImportViewModel = hiltViewModel(activity)
+    val importState by importViewModel.state.collectAsStateWithLifecycle()
+
+    // Show snackbar when an import finishes (success or error), then reset state
+    LaunchedEffect(importState) {
+        when (val s = importState) {
+            is ImportViewModel.State.Success -> {
+                snackbarHostState.showSnackbar(
+                    if (s.count > 0) "Imported ${s.count} ${s.label.lowercase()}"
+                    else "${s.label} imported successfully"
+                )
+                importViewModel.dismiss()
+            }
+            is ImportViewModel.State.Error -> {
+                val msg = when (s.message) {
+                    "no_entries" -> "No watch-history entries found in file"
+                    "no_videos"  -> "No videos found in playlist file"
+                    else         -> "Import failed: ${s.message}"
+                }
+                snackbarHostState.showSnackbar(msg)
+                importViewModel.dismiss()
+            }
+            else -> {}
+        }
+    }
 
     val flowImportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -63,57 +99,17 @@ fun ImportDataScreen(
 
     val newPipeImportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
-        onResult = { uri ->
-            uri?.let {
-                scope.launch {
-                    val result = backupRepo.importNewPipe(it)
-                    if (result.isSuccess) {
-                        snackbarHostState.showSnackbar(context.getString(R.string.import_newpipe_success_template, result.getOrNull()))
-                    } else {
-                        snackbarHostState.showSnackbar(context.getString(R.string.import_newpipe_failed_template, result.exceptionOrNull()?.message))
-                    }
-                }
-            }
-        }
+        onResult = { uri -> uri?.let { importViewModel.importNewPipe(it) } }
     )
 
     val youtubeImportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
-        onResult = { uri ->
-            uri?.let {
-                scope.launch {
-                    val result = backupRepo.importYouTube(it)
-                    if (result.isSuccess) {
-                        snackbarHostState.showSnackbar(context.getString(R.string.import_youtube_success_template, result.getOrNull()))
-                    } else {
-                        snackbarHostState.showSnackbar(context.getString(R.string.import_youtube_failed_template, result.exceptionOrNull()?.message))
-                    }
-                }
-            }
-        }
+        onResult = { uri -> uri?.let { importViewModel.importYouTube(it) } }
     )
 
     val youtubeHistoryImportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
-        onResult = { uri ->
-            uri?.let {
-                scope.launch {
-                    val result = backupRepo.importYouTubeWatchHistory(it)
-                    if (result.isSuccess) {
-                        snackbarHostState.showSnackbar(
-                            context.getString(R.string.import_yt_history_success_template, result.getOrNull())
-                        )
-                    } else {
-                        val errMsg = result.exceptionOrNull()?.message
-                        val display = when (errMsg) {
-                            "no_entries" -> context.getString(R.string.import_yt_history_empty_error)
-                            else -> context.getString(R.string.import_yt_history_failed_template, errMsg)
-                        }
-                        snackbarHostState.showSnackbar(display)
-                    }
-                }
-            }
-        }
+        onResult = { uri -> uri?.let { importViewModel.importYouTubeWatchHistory(it) } }
     )
 
     val youtubePlaylistImportLauncher = rememberLauncherForActivityResult(
@@ -214,6 +210,11 @@ fun ImportDataScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // Live progress banner — visible whenever the ViewModel is running an import
+            item {
+                ImportProgressBanner(importState)
+            }
+
             item {
                 InfoCard(
                     icon = Icons.Outlined.FileDownload,
@@ -254,6 +255,7 @@ fun ImportDataScreen(
                     description = stringResource(R.string.import_from_youtube_desc),
                     painter = painterResource(id = R.drawable.ic_youtube),
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    enabled = importState !is ImportViewModel.State.Running,
                     onClick = { youtubeImportLauncher.launch(arrayOf("text/comma-separated-values", "text/csv", "text/plain")) }
                 )
             }
@@ -264,6 +266,7 @@ fun ImportDataScreen(
                     description = stringResource(R.string.import_from_newpipe_desc),
                     painter = painterResource(id = R.drawable.ic_newpipe),
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    enabled = importState !is ImportViewModel.State.Running,
                     onClick = { newPipeImportLauncher.launch(arrayOf("application/json")) }
                 )
             }
@@ -292,6 +295,7 @@ fun ImportDataScreen(
                     description = stringResource(R.string.import_yt_watch_history_desc),
                     icon = Icons.Outlined.History,
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    enabled = importState !is ImportViewModel.State.Running,
                     onClick = { youtubeHistoryImportLauncher.launch(arrayOf("text/html", "text/plain")) }
                 )
             }
@@ -486,6 +490,77 @@ fun ImportOptionCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 16.sp
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Animated banner that shows import progress.
+ * Appears when state is [ImportViewModel.State.Running] and fades out otherwise.
+ */
+@Composable
+internal fun ImportProgressBanner(state: ImportViewModel.State) {
+    AnimatedVisibility(
+        visible = state is ImportViewModel.State.Running,
+        enter = expandVertically() + fadeIn(),
+        exit  = shrinkVertically() + fadeOut()
+    ) {
+        val running = state as? ImportViewModel.State.Running ?: return@AnimatedVisibility
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
+            border = androidx.compose.foundation.BorderStroke(
+                1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+            )
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier  = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color     = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text     = "Importing ${running.label}\u2026",
+                        style    = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
+                        color    = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (running.total > 0) {
+                        Text(
+                            text  = "${running.current} / ${running.total}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                if (running.total > 0) {
+                    LinearProgressIndicator(
+                        progress   = { running.current.toFloat() / running.total.toFloat() },
+                        modifier   = Modifier.fillMaxWidth().height(3.dp),
+                        color      = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    )
+                } else {
+                    LinearProgressIndicator(
+                        modifier   = Modifier.fillMaxWidth().height(3.dp),
+                        color      = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text  = "You can navigate away \u2014 the import continues in the background.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
         }

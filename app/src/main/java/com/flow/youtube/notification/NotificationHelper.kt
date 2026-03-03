@@ -36,6 +36,7 @@ object NotificationHelper {
     const val CHANNEL_GENERAL = "general_channel"
     const val CHANNEL_REMINDERS = "reminders_channel"
     const val CHANNEL_UPDATES = "updates_channel"
+    const val CHANNEL_IMPORTS = "imports_channel"
     
     // Notification IDs
     const val NOTIFICATION_DOWNLOAD_PROGRESS = 1001
@@ -46,6 +47,8 @@ object NotificationHelper {
     const val NOTIFICATION_MUSIC_PLAYBACK = 3002
     const val NOTIFICATION_GENERAL = 4000
     const val NOTIFICATION_REMINDER = 5000
+    const val NOTIFICATION_IMPORT_PROGRESS = 6001
+    const val NOTIFICATION_IMPORT_COMPLETE = 6002
     
     private var channelsCreated = false
     
@@ -150,6 +153,17 @@ object NotificationHelper {
                 setShowBadge(true)
             }
             
+            val importsChannel = NotificationChannel(
+                CHANNEL_IMPORTS,
+                "Data Import",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Shows progress while importing subscriptions or watch history"
+                setShowBadge(false)
+                enableLights(false)
+                enableVibration(false)
+            }
+            
             notificationManager.createNotificationChannels(
                 listOf(
                     downloadsChannel,
@@ -158,7 +172,8 @@ object NotificationHelper {
                     musicPlaybackChannel,
                     generalChannel,
                     remindersChannel,
-                    updatesChannel
+                    updatesChannel,
+                    importsChannel
                 )
             )
             
@@ -180,8 +195,51 @@ object NotificationHelper {
         }
     }
     
+    // ========== IMPORT NOTIFICATIONS ==========
+
+    /**
+     * Show (or update) the import-in-progress notification.
+     * When total == 0 the progress bar is indeterminate.
+     */
+    fun showImportProgress(context: Context, label: String, current: Int, total: Int) {
+        if (!hasNotificationPermission(context)) return
+        val contentText = if (total > 0) "$current / $total" else "Starting…"
+        val builder = NotificationCompat.Builder(context, CHANNEL_IMPORTS)
+            .setSmallIcon(R.drawable.ic_notification_logo)
+            .setContentTitle("Importing $label")
+            .setContentText(contentText)
+            .apply {
+                if (total > 0) setProgress(total, current, false)
+                else setProgress(0, 0, true)
+            }
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setCategory(NotificationCompat.CATEGORY_PROGRESS)
+        NotificationManagerCompat.from(context).notify(NOTIFICATION_IMPORT_PROGRESS, builder.build())
+    }
+
+    /** Replace the progress notification with a one-shot completion notification. */
+    fun showImportComplete(context: Context, label: String, count: Int) {
+        if (!hasNotificationPermission(context)) return
+        // cancel progress first
+        NotificationManagerCompat.from(context).cancel(NOTIFICATION_IMPORT_PROGRESS)
+        val builder = NotificationCompat.Builder(context, CHANNEL_IMPORTS)
+            .setSmallIcon(R.drawable.ic_notification_logo)
+            .setContentTitle("Import complete")
+            .setContentText("Imported $count ${label.lowercase()}")
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+        NotificationManagerCompat.from(context).notify(NOTIFICATION_IMPORT_COMPLETE, builder.build())
+    }
+
+    /** Cancel the ongoing import progress notification (e.g. on error). */
+    fun cancelImportNotification(context: Context) {
+        NotificationManagerCompat.from(context).cancel(NOTIFICATION_IMPORT_PROGRESS)
+    }
+
     // ========== DOWNLOAD NOTIFICATIONS ==========
-    
+
     /**
      * Show download progress notification
      */
