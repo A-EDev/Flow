@@ -97,6 +97,30 @@ class ImportViewModel @Inject constructor(
         }
     }
 
+    fun importLibreTube(uri: Uri) {
+        if (isRunning) return
+        val label = "LibreTube subscriptions"
+        viewModelScope.launch {
+            startProgress(label, 0, 0)
+            val result = backupRepo.importLibreTube(uri) { current, total ->
+                updateProgress(label, current, total)
+            }
+            handleResult(label, result)
+        }
+    }
+
+    fun importMetrolist(uri: Uri) {
+        if (isRunning) return
+        val label = "Metrolist music playlists"
+        viewModelScope.launch {
+            startProgress(label, 0, 0)
+            val result = backupRepo.importMetrolist(uri) { current, total ->
+                updateProgress(label, current, total)
+            }
+            handleResult(label, result)
+        }
+    }
+
     /** Reset state back to [State.Idle] after the caller has handled a Success or Error. */
     fun dismiss() {
         _state.value = State.Idle

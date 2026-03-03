@@ -525,6 +525,214 @@ class BackupRepository(private val context: Context) {
         }
     }
 
+    /**
+     * Import subscriptions from a LibreTube backup file (JSON).
+     *
+     * LibreTube native backup format:
+     *   { "format": "Piped", "version": 1, "subscriptions": [{channelId, name, avatar}, ...], ... }
+     *
+     * Avatars are usually included in the backup; fetching is only done when a stored URL is absent.
+     */
+    suspend fun importLibreTube(uri: Uri, onProgress: ((current: Int, total: Int) -> Unit)? = null): Result<Int> = withContext(Dispatchers.IO) {
+        try {
+            val subscriptionsToImport = mutableListOf<ChannelSubscription>()
+            val semaphore = Semaphore(5)
+
+            context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                val jsonString = inputStream.bufferedReader().use { it.readText() }
+                val jsonObject = org.json.JSONObject(jsonString)
+
+                if (jsonObject.has("subscriptions")) {
+                    val array = jsonObject.getJSONArray("subscriptions")
+                    for (i in 0 until array.length()) {
+                        val item = array.getJSONObject(i)
+
+                        // LibreTube native: { channelId, name, avatar }
+                        val channelId = item.optString("channelId")
+                        val name      = item.optString("name", "")
+                        val avatar    = item.optString("avatar", "")
+
+                        if (channelId.isNotEmpty()) {
+                            subscriptionsToImport.add(
+                                ChannelSubscription(
+                                    channelId        = channelId,
+                                    channelName      = name,
+                                    channelThumbnail = avatar,
+                                    subscribedAt     = System.currentTimeMillis()
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            val total     = subscriptionsToImport.size
+            val completed = AtomicInteger(0)
+            onProgress?.invoke(0, total)
+
+            val finalSubs = supervisorScope {
+                subscriptionsToImport.map { sub ->
+                    async(Dispatchers.IO) {
+                        semaphore.withPermit {
+                            val result = if (sub.channelThumbnail.isEmpty()) {
+                                try {
+                                    sub.copy(channelThumbnail = fetchChannelAvatar(sub.channelId))
+                                } catch (e: Exception) { sub }
+                            } else sub
+                            onProgress?.invoke(completed.incrementAndGet(), total)
+                            result
+                        }
+                    }
+                }.awaitAll()
+            }
+
+            finalSubs.forEach { subscriptionRepo.subscribe(it) }
+            Result.success(finalSubs.size)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Import music playlists from a Metrolist backup file (ZIP containing "song.db").
+     *
+     * The backup is a ZIP archive with two entries:
+     *   • settings.preferences_pb   – app settings (ignored)
+     *   • song.db                   – Room/SQLite database
+     *
+     * Tables read:
+     *   playlist          (id TEXT, name TEXT, thumbnailUrl TEXT, isLocal INTEGER)
+     *   song              (id TEXT, title TEXT, thumbnailUrl TEXT, duration INTEGER, isLocal INTEGER)
+     *   playlist_song_map (playlistId TEXT, songId TEXT, position INTEGER)
+     *
+     * All imported content is tagged isMusic = true so it appears in the Music section.
+     */
+    suspend fun importMetrolist(uri: Uri, onProgress: ((current: Int, total: Int) -> Unit)? = null): Result<Int> = withContext(Dispatchers.IO) {
+        val tempDb = java.io.File(context.cacheDir, "metrolist_import_${System.currentTimeMillis()}.db")
+        try {
+            // 1. Extract "song.db" from the ZIP archive
+            var foundDb = false
+            context.contentResolver.openInputStream(uri)?.use { raw ->
+                java.util.zip.ZipInputStream(raw.buffered()).use { zip ->
+                    var entry = zip.nextEntry
+                    while (entry != null) {
+                        if (entry.name == "song.db") {
+                            tempDb.outputStream().use { zip.copyTo(it) }
+                            foundDb = true
+                            break
+                        }
+                        zip.closeEntry()
+                        entry = zip.nextEntry
+                    }
+                }
+            }
+
+            if (!foundDb) return@withContext Result.failure(Exception("invalid_format"))
+
+            // 2. Open the extracted database read-only
+            val db = android.database.sqlite.SQLiteDatabase.openDatabase(
+                tempDb.absolutePath, null,
+                android.database.sqlite.SQLiteDatabase.OPEN_READONLY
+            )
+
+            var importedCount = 0
+
+            db.use {
+                // 3. Load playlists (exclude local-file playlists)
+                val playlists = mutableListOf<Triple<String, String, String>>()
+                db.rawQuery("SELECT id, name, COALESCE(thumbnailUrl,'') FROM playlist WHERE isLocal = 0", null).use { c ->
+                    while (c.moveToNext()) playlists.add(Triple(c.getString(0), c.getString(1), c.getString(2)))
+                }
+
+                // 4. Load non-local songs
+                data class SongRow(val id: String, val title: String, val thumb: String, val duration: Int)
+                val songs = mutableMapOf<String, SongRow>()
+                db.rawQuery("SELECT id, title, COALESCE(thumbnailUrl,''), COALESCE(duration,0) FROM song WHERE isLocal = 0", null).use { c ->
+                    while (c.moveToNext())
+                        songs[c.getString(0)] = SongRow(c.getString(0), c.getString(1), c.getString(2), c.getInt(3))
+                }
+
+                // 5. Load playlist-song mappings ordered by position
+                val playlistSongs = mutableMapOf<String, MutableList<Pair<String, Int>>>()
+                db.rawQuery("SELECT playlistId, songId, position FROM playlist_song_map ORDER BY playlistId, position", null).use { c ->
+                    while (c.moveToNext())
+                        playlistSongs.getOrPut(c.getString(0)) { mutableListOf() }
+                            .add(Pair(c.getString(1), c.getInt(2)))
+                }
+
+                val total = playlists.size
+                var done  = 0
+                onProgress?.invoke(0, total)
+
+                // 6. Insert into Flow's database
+                database.withTransaction {
+                    for ((plId, plName, plThumb) in playlists) {
+                        val songList   = playlistSongs[plId] ?: emptyList()
+                        val newPlId    = "metro_${System.currentTimeMillis()}_${plId.take(8)}"
+                        val thumbUrl   = plThumb.takeIf { it.isNotEmpty() }
+                            ?: songList.firstOrNull()?.let { (sid, _) ->
+                                songs[sid]?.thumb?.takeIf { it.isNotEmpty() }
+                            }
+                            ?: ""
+
+                        database.playlistDao().insertPlaylist(
+                            PlaylistEntity(
+                                id           = newPlId,
+                                name         = plName,
+                                description  = "Imported from Metrolist",
+                                thumbnailUrl = thumbUrl,
+                                isPrivate    = false,
+                                createdAt    = System.currentTimeMillis(),
+                                isMusic      = true
+                            )
+                        )
+
+                        songList.forEachIndexed { index, (songId, _) ->
+                            val row = songs[songId]
+                            val thumb = row?.thumb?.ifEmpty {
+                                "https://i.ytimg.com/vi/$songId/hqdefault.jpg"
+                            } ?: "https://i.ytimg.com/vi/$songId/hqdefault.jpg"
+
+                            database.videoDao().insertVideoOrIgnore(
+                                VideoEntity(
+                                    id                  = songId,
+                                    title               = row?.title ?: "",
+                                    channelName         = "",
+                                    channelId           = "",
+                                    thumbnailUrl        = thumb,
+                                    duration            = row?.duration ?: 0,
+                                    viewCount           = 0L,
+                                    uploadDate          = "",
+                                    description         = "",
+                                    channelThumbnailUrl = "",
+                                    isMusic             = true
+                                )
+                            )
+                            database.playlistDao().insertPlaylistVideoCrossRef(
+                                PlaylistVideoCrossRef(
+                                    playlistId = newPlId,
+                                    videoId    = songId,
+                                    position   = index.toLong()
+                                )
+                            )
+                            importedCount++
+                        }
+
+                        done++
+                        onProgress?.invoke(done, total)
+                    }
+                }
+            }
+
+            if (importedCount == 0) return@withContext Result.failure(Exception("no_content"))
+            Result.success(importedCount)
+        } catch (e: Exception) {
+            Result.failure(e)
+        } finally {
+            tempDb.delete()
+        }
+    }
+
     // Helper to fetch channel avatar using NewPipe
     private fun fetchChannelAvatar(channelId: String): String {
         return try {

@@ -1,0 +1,19 @@
+FLOW CHANGE LOG
+VERSION: 1.8.1
+DATE: 2026-03-06
+
+NEW FEATURES
+- LibreTube Import: Import your subscriptions directly from a LibreTube backup file (JSON). Avatars already embedded in the backup are reused; only channels with missing thumbnails trigger a network fetch, keeping the import fast.
+- Metrolist Import: Import your music playlists from a Metrolist backup file (.zip). All playlists and their tracks are imported into the Music Library with full thumbnail and duration data. Local-file-only playlists and tracks are skipped automatically.
+
+IMPORTS AND ONBOARDING
+- Background Import System: Import operations are now managed by an activity-scoped ViewModel so they survive screen navigation. Starting an import and then leaving the Import screen no longer cancels the operation.
+- Import Progress Notifications: A persistent notification shows live import progress (channels fetched / total) while an import runs in the background. A completion notification is posted when the import finishes.
+- Live Progress Banner: An animated progress banner is shown inside the Import screen and the onboarding Import step whenever an import is running, displaying the current label and a progress indicator.
+- NewPipe Handle URLs: Fixed subscriptions imported from NewPipe exports that use @handle-style channel URLs (e.g. youtube.com/@Channel) being silently skipped. The URL parser now correctly extracts the handle and resolves the channel avatar via the YouTube extractor.
+- YouTube Takeout BOM Fix: Fixed YouTube Takeout CSV files beginning with a UTF-8 BOM (\uFEFF) causing the first channel ID to be parsed incorrectly. The BOM is now stripped before processing. Quoted channel names (present in some regional Takeout exports) are also unquoted correctly.
+- Channel Avatar Resolution: Fixed avatar fetching for channels whose ID is a @handle rather than a UC-prefixed ID. The YouTube API URL is now constructed as youtube.com/@handle instead of youtube.com/channel/@handle, which previously returned no avatar.
+
+FIXES AND STABILITY
+- Mini Player Snap-to-Collapsed Regression: Fixed a regression introduced in v1.8.0 where the mini video player would randomly snap to the collapsed state instead of staying expanded. The root cause was that maxOffset, which drives the drag anchor of DraggablePlayerLayout, was recalculated whenever the bottom navigation bar visibility changed. Because maxOffset is a key in rememberSaveable and a LaunchedEffect dependency inside the draggable state, any change triggered a full state reset and an immediate snap animation. The fix holds maxOffset constant throughout the session by always using the full navigation bar height, independent of whether the bar is currently visible.
+- Mini Player Fling Direction: Fixed the mini player ignoring upward fling gestures. The drag-stop handler previously only checked for positive velocity (downward fling to collapse) and fell through to a threshold check for all other gestures. Negative velocity (upward fling to expand) is now an explicit case in the when block, matching the intended symmetric gesture handling.

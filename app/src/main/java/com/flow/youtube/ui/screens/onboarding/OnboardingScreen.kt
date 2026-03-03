@@ -164,6 +164,14 @@ fun OnboardingScreen(onComplete: () -> Unit) {
         contract = ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { importViewModel.importYouTubeWatchHistory(it) } }
 
+    val libreTubeImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let { importViewModel.importLibreTube(it) } }
+
+    val metrolistImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let { importViewModel.importMetrolist(it) } }
+
     fun finish() {
         scope.launch {
             FlowNeuroEngine.completeOnboarding(context, selectedTopics)
@@ -287,6 +295,12 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                         youtubeHistoryLauncher.launch(
                             arrayOf("text/html", "application/octet-stream", "*/*")
                         )
+                    },
+                    onImportLibreTube = {
+                        libreTubeImportLauncher.launch(arrayOf("application/json"))
+                    },
+                    onImportMetrolist = {
+                        metrolistImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
                     }
                 )
             }
@@ -718,7 +732,9 @@ private fun ImportStep(
     importState: ImportViewModel.State,
     onImportNewPipe: () -> Unit,
     onImportYouTube: () -> Unit,
-    onImportYouTubeHistory: () -> Unit
+    onImportYouTubeHistory: () -> Unit,
+    onImportLibreTube: () -> Unit,
+    onImportMetrolist: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -758,6 +774,34 @@ private fun ImportStep(
                 title = stringResource(R.string.import_from_youtube),
                 description = "Import your YouTube subscriptions from a Google Takeout CSV file.",
                 onClick = onImportYouTube
+            )
+        }
+
+        item {
+            ImportCard(
+                painter = painterResource(id = R.drawable.ic_libretube),
+                title = stringResource(R.string.import_from_libretube),
+                description = "Import your LibreTube subscriptions from a backup JSON file.",
+                onClick = onImportLibreTube
+            )
+        }
+
+        item {
+            Text(
+                text = "Music playlists",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+            )
+        }
+
+        item {
+            ImportCard(
+                painter = painterResource(id = R.drawable.ic_metrolist),
+                title = stringResource(R.string.import_from_metrolist),
+                description = "Import your Metrolist music playlists from a backup ZIP file.",
+                onClick = onImportMetrolist
             )
         }
 

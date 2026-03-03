@@ -70,9 +70,11 @@ fun ImportDataScreen(
             }
             is ImportViewModel.State.Error -> {
                 val msg = when (s.message) {
-                    "no_entries" -> "No watch-history entries found in file"
-                    "no_videos"  -> "No videos found in playlist file"
-                    else         -> "Import failed: ${s.message}"
+                    "no_entries"     -> "No watch-history entries found in file"
+                    "no_videos"      -> "No videos found in playlist file"
+                    "no_content"     -> "No importable content found in this backup"
+                    "invalid_format" -> "Unrecognised backup format — make sure you selected the correct file"
+                    else             -> "Import failed: ${s.message}"
                 }
                 snackbarHostState.showSnackbar(msg)
                 importViewModel.dismiss()
@@ -161,6 +163,16 @@ fun ImportDataScreen(
     )
 
     // Flow Engine / Neural profile import
+    val libreTubeImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri -> uri?.let { importViewModel.importLibreTube(it) } }
+    )
+
+    val metrolistImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri -> uri?.let { importViewModel.importMetrolist(it) } }
+    )
+
     val importEngineLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri ->
@@ -277,8 +289,26 @@ fun ImportDataScreen(
                     description = stringResource(R.string.import_from_libretube_desc),
                     painter = painterResource(id = R.drawable.ic_libretube),
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    enabled = false,
-                    onClick = { /* TODO */ }
+                    enabled = importState !is ImportViewModel.State.Running,
+                    onClick = { libreTubeImportLauncher.launch(arrayOf("application/json")) }
+                )
+            }
+
+            item {
+                PreferencesSectionHeader(
+                    title = stringResource(R.string.import_music_apps_section_title),
+                    subtitle = stringResource(R.string.import_music_apps_section_subtitle)
+                )
+            }
+
+            item {
+                ImportOptionCard(
+                    title = stringResource(R.string.import_from_metrolist),
+                    description = stringResource(R.string.import_from_metrolist_desc),
+                    painter = painterResource(id = R.drawable.ic_metrolist),
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    enabled = importState !is ImportViewModel.State.Running,
+                    onClick = { metrolistImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) }
                 )
             }
 

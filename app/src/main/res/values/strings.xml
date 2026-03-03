@@ -667,7 +667,13 @@
     <string name="import_from_newpipe">Import from NewPipe</string>
     <string name="import_from_newpipe_desc">Import subscriptions from a NewPipe export file (JSON).</string>
     <string name="import_from_libretube">Import from LibreTube</string>
-    <string name="import_from_libretube_desc">Import data from LibreTube. (Coming Soon)</string>
+    <string name="import_from_libretube_desc">Import subscriptions from a LibreTube backup file (JSON).</string>
+
+    <!-- Music Apps Import -->
+    <string name="import_music_apps_section_title">Music Apps</string>
+    <string name="import_music_apps_section_subtitle">Import your music library from other players</string>
+    <string name="import_from_metrolist">Import from Metrolist</string>
+    <string name="import_from_metrolist_desc">Import music playlists from a Metrolist backup file (.zip). Playlists appear in your Music Library.</string>
     <string name="import_from_youtube">Import from YouTube</string>
     <string name="import_from_youtube_desc">Import subscriptions from YouTube Takeout (CSV).</string>
 
