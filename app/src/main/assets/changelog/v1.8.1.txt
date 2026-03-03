@@ -5,6 +5,7 @@ DATE: 2026-03-06
 NEW FEATURES
 - LibreTube Import: Import your subscriptions directly from a LibreTube backup file (JSON). Avatars already embedded in the backup are reused; only channels with missing thumbnails trigger a network fetch, keeping the import fast.
 - Metrolist Import: Import your music playlists from a Metrolist backup file (.zip). All playlists and their tracks are imported into the Music Library with full thumbnail and duration data. Local-file-only playlists and tracks are skipped automatically.
+- Video playlists Downloads: Download full playlists with one click. Capped to 720p for the best error free mp4 download formats.
 
 IMPORTS AND ONBOARDING
 - Background Import System: Import operations are now managed by an activity-scoped ViewModel so they survive screen navigation. Starting an import and then leaving the Import screen no longer cancels the operation.

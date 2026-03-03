@@ -49,7 +49,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 
 import androidx.lifecycle.SavedStateHandle
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import android.content.Context
+import android.widget.Toast
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.withPermit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,6 +66,9 @@ fun PlaylistDetailScreen(
     viewModel: PlaylistDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isDownloadingPlaylist by viewModel.isDownloadingPlaylist.collectAsState()
+    val playlistDownloadProgress by viewModel.playlistDownloadProgress.collectAsState()
+    val currentDownloadingTitle by viewModel.currentDownloadingTitle.collectAsState()
 
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -143,7 +151,11 @@ fun PlaylistDetailScreen(
                     onShuffle = {
                         val shuffled = uiState.videos.shuffled()
                         onPlayPlaylist(shuffled, 0)
-                    }
+                    },
+                    onDownloadAll = { viewModel.downloadPlaylist() },
+                    isDownloading = isDownloadingPlaylist,
+                    downloadProgress = playlistDownloadProgress,
+                    currentDownloadingTitle = currentDownloadingTitle
                 )
             }
 
@@ -222,6 +234,10 @@ private fun PlaylistHeader(
     isPrivate: Boolean,
     onPlayAll: () -> Unit,
     onShuffle: () -> Unit,
+    onDownloadAll: () -> Unit = {},
+    isDownloading: Boolean = false,
+    downloadProgress: Float = 0f,
+    currentDownloadingTitle: String? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -329,16 +345,52 @@ private fun PlaylistHeader(
                     }
                 }
 
-                Surface(
-                    onClick = { /* Download */ },
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                Box(
+                    contentAlignment = Alignment.Center,
                     modifier = Modifier.size(48.dp)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.ArrowDownward, null, modifier = Modifier.size(24.dp))
+                    Surface(
+                        onClick = { if (!isDownloading) onDownloadAll() },
+                        shape = CircleShape,
+                        color = if (isDownloading)
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        else
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (isDownloading) Icons.Default.Downloading else Icons.Default.ArrowDownward,
+                                contentDescription = if (isDownloading) "Downloading playlist" else "Download all",
+                                tint = if (isDownloading) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    if (isDownloading && downloadProgress > 0f) {
+                        CircularProgressIndicator(
+                            progress = { downloadProgress },
+                            modifier = Modifier.size(48.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 2.dp
+                        )
                     }
                 }
+            }
+
+            AnimatedVisibility(
+                visible = isDownloading && currentDownloadingTitle != null,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Text(
+                    text = "Downloading: ${currentDownloadingTitle ?: ""}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
         }
     }
@@ -579,6 +631,7 @@ private fun formatViewCount(count: Long): String {
 
 @HiltViewModel
 class PlaylistDetailViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val repository: PlaylistRepository,
     private val youTubeRepository: com.flow.youtube.data.repository.YouTubeRepository,
     private val videoDao: VideoDao,
@@ -598,8 +651,136 @@ class PlaylistDetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
+    // ── Playlist download state ──────────────────────────────────────────────
+    private val _isDownloadingPlaylist = MutableStateFlow(false)
+    val isDownloadingPlaylist: StateFlow<Boolean> = _isDownloadingPlaylist.asStateFlow()
+
+    private val _playlistDownloadProgress = MutableStateFlow(0f)
+    val playlistDownloadProgress: StateFlow<Float> = _playlistDownloadProgress.asStateFlow()
+
+    private val _currentDownloadingTitle = MutableStateFlow<String?>(null)
+    val currentDownloadingTitle: StateFlow<String?> = _currentDownloadingTitle.asStateFlow()
+
     init {
         loadPlaylist()
+    }
+
+    /**
+     * Download every video in this playlist sequentially via [FlowDownloadService].
+     * Fetches stream info (NewPipe) for each video, picks the best 720p-compatible MP4
+     * stream with a paired AAC audio track, then hands off to the background service.
+     */
+    fun downloadPlaylist() {
+        if (_isDownloadingPlaylist.value) return
+
+        viewModelScope.launch {
+            val videos = _uiState.value.videos
+            if (videos.isEmpty()) {
+                Toast.makeText(context, "Playlist is empty", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+
+            _isDownloadingPlaylist.value = true
+            _playlistDownloadProgress.value = 0f
+            Toast.makeText(context, "Downloading ${videos.size} videos…", Toast.LENGTH_SHORT).show()
+
+            var successCount = 0
+            var processedCount = 0
+            val total = videos.size
+
+            val semaphore = Semaphore(2)
+
+            for (video in videos) {
+                semaphore.withPermit {
+                    _currentDownloadingTitle.value = video.title
+                    try {
+                        val streamInfo = withContext(Dispatchers.IO) {
+                            youTubeRepository.getVideoStreamInfo(video.id)
+                        }
+
+                        if (streamInfo != null) {
+                            // ── Select best video stream (prefer MP4, 720p cap for bandwidth) ──
+                            val videoOnlyStreams = streamInfo.videoOnlyStreams
+                                ?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
+                                ?: emptyList()
+                            val combinedStreams = streamInfo.videoStreams
+                                ?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
+                                ?: emptyList()
+                            val allAudio = streamInfo.audioStreams ?: emptyList()
+
+                            fun isMp4(s: org.schabi.newpipe.extractor.stream.VideoStream): Boolean {
+                                val mime = (s.format?.mimeType ?: "").lowercase()
+                                val name = (s.format?.name ?: "").lowercase()
+                                return mime.contains("mp4") || name.contains("mp4") || name.contains("mpeg")
+                            }
+
+                            fun isAacAudio(a: org.schabi.newpipe.extractor.stream.AudioStream): Boolean {
+                                val mime = (a.format?.mimeType ?: "").lowercase()
+                                val name = (a.format?.name ?: "").lowercase()
+                                return !name.contains("opus") && !name.contains("webm") &&
+                                       !mime.contains("opus") && !mime.contains("webm")
+                            }
+
+                            // Prefer video-only MP4 ≤720p for offline storage efficiency
+                            val bestVideoOnly = videoOnlyStreams
+                                .filter { isMp4(it) && it.height <= 720 }
+                                .maxByOrNull { it.height }
+                                ?: videoOnlyStreams.filter { isMp4(it) }.maxByOrNull { it.height }
+
+                            val bestCombined = combinedStreams.filter { isMp4(it) }
+                                .maxByOrNull { it.height }
+
+                            val selectedStream = bestVideoOnly ?: bestCombined
+                                ?: (videoOnlyStreams + combinedStreams).maxByOrNull { it.height }
+
+                            if (selectedStream != null) {
+                                val videoUrl = selectedStream.content ?: selectedStream.url
+                                val audioUrl = if (selectedStream in videoOnlyStreams) {
+                                    val aac = allAudio.filter { isAacAudio(it) }.maxByOrNull { it.averageBitrate }
+                                    aac?.content ?: aac?.url
+                                } else null
+
+                                val qualityLabel = "${selectedStream.height}p"
+                                val fullVideo = video.copy(
+                                    thumbnailUrl = video.thumbnailUrl.ifBlank {
+                                        streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: ""
+                                    }
+                                )
+
+                                if (videoUrl != null) {
+                                    withContext(Dispatchers.Main) {
+                                        com.flow.youtube.data.video.downloader.FlowDownloadService.startDownload(
+                                            context = context,
+                                            video = fullVideo,
+                                            url = videoUrl,
+                                            quality = qualityLabel,
+                                            audioUrl = audioUrl
+                                        )
+                                        successCount++
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("PlaylistDetailVM", "Failed to queue download for ${video.title}", e)
+                    }
+
+                    processedCount++
+                    _playlistDownloadProgress.value = processedCount.toFloat() / total
+                    delay(400L)
+                }
+            }
+
+            val msg = if (successCount > 0)
+                "Queued $successCount/${total} downloads"
+            else
+                "Could not queue any downloads from this playlist"
+            Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+
+            _isDownloadingPlaylist.value = false
+            _currentDownloadingTitle.value = null
+            _playlistDownloadProgress.value = 0f
+        }
     }
 
     private fun loadPlaylist() {
