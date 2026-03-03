@@ -186,7 +186,7 @@ Flow is free and open-source. I am an independent developer without banking acce
 Flow stands on the shoulders of giants. Special thanks to:
 
 *   **[NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor):** The backbone of our data extraction.
-*   **[MetroList](https://github.com/mostafafalahagamy/Metrolist):** Inspiration for the Hybrid Music fetching approach.
+*   **[MetroList](https://github.com/MetrolistGroup/Metrolist):** Inspiration for the Hybrid Music fetching approach.
 *   **[ExoPlayer](https://github.com/google/ExoPlayer):** The gold standard for Android media playback.
 *   **[Jetpack Compose](https://developer.android.com/jetpack/compose):** For enabling the beautiful, modern UI.
 *   **[Material Design 3](https://m3.material.io/):** For the design system and guidelines.

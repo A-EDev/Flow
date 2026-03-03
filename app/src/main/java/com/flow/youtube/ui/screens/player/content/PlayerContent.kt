@@ -285,7 +285,8 @@ fun PlayerContent(
             onCastClick = {
                 com.flow.youtube.player.CastHelper.showCastPicker(context)
             },
-            isCasting = com.flow.youtube.player.CastHelper.isCasting(context)
+            isCasting = com.flow.youtube.player.CastHelper.isCasting(context),
+            isLive = !uiState.hlsUrl.isNullOrEmpty()
         )
     }
 }

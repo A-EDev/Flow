@@ -77,6 +77,7 @@ fun PremiumControlsOverlay(
     // Cast / Chromecast support
     onCastClick: () -> Unit = {},
     isCasting: Boolean = false,
+    isLive: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -347,28 +348,54 @@ fun PremiumControlsOverlay(
                         horizontalArrangement = Arrangement.Start,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Current Position
-                        Text(
-                            text = formatTime(currentPosition),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                        
-                        // Separator
-                        Text(
-                            text = " / ",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color.White.copy(alpha = 0.5f),
-                            modifier = Modifier.padding(horizontal = 2.dp)
-                        )
-                        
-                        // Total Duration
-                        Text(
-                            text = formatTime(duration),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color.White.copy(alpha = 0.7f)
-                        )
+                        if (isLive) {
+                            val dotAlpha by rememberInfiniteTransition(label = "liveDot").animateFloat(
+                                initialValue = 1f,
+                                targetValue = 0.2f,
+                                animationSpec = infiniteRepeatable(
+                                    animation = tween(800, easing = LinearEasing),
+                                    repeatMode = RepeatMode.Reverse
+                                ),
+                                label = "dotAlpha"
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Red.copy(alpha = dotAlpha))
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "LIVE",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.Red,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp
+                            )
+                        } else {
+                            // Current Position
+                            Text(
+                                text = formatTime(currentPosition),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                            
+                            // Separator
+                            Text(
+                                text = " / ",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White.copy(alpha = 0.5f),
+                                modifier = Modifier.padding(horizontal = 2.dp)
+                            )
+                            
+                            // Total Duration
+                            Text(
+                                text = formatTime(duration),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = Color.White.copy(alpha = 0.7f)
+                            )
+                        }
                         
                         // Chapter Display (If available)
                         if (currentChapter != null) {
@@ -424,19 +451,29 @@ fun PremiumControlsOverlay(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Box(modifier = Modifier.weight(1f)) {
-                        SeekbarWithPreview(
-                            value = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
-                            onValueChange = { progress ->
-                                val newPosition = (progress * duration).toLong()
-                                onSeek(newPosition)
-                            },
-                            seekbarPreviewHelper = seekbarPreviewHelper,
-                            chapters = chapters,
-                            sponsorSegments = sponsorSegments,
-                            duration = duration,
-                            bufferedValue = bufferedPercentage,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        if (isLive) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(3.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(Color.Red)
+                            )
+                        } else {
+                            SeekbarWithPreview(
+                                value = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
+                                onValueChange = { progress ->
+                                    val newPosition = (progress * duration).toLong()
+                                    onSeek(newPosition)
+                                },
+                                seekbarPreviewHelper = seekbarPreviewHelper,
+                                chapters = chapters,
+                                sponsorSegments = sponsorSegments,
+                                duration = duration,
+                                bufferedValue = bufferedPercentage,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
 
                     // Fullscreen Button

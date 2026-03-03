@@ -584,7 +584,8 @@ fun GlobalPlayerOverlay(
                                     DlnaCastManager.startDiscovery(context)
                                     showDlnaDialog = true
                                 },
-                                isCasting = DlnaCastManager.isCasting
+                                isCasting = DlnaCastManager.isCasting,
+                                isLive = !playerUiState.hlsUrl.isNullOrEmpty()
                             )
                         }
                     }

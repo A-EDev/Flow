@@ -29,6 +29,8 @@ class VideoPlaybackResolver(
 ) {
     companion object {
         private const val TAG = "VideoPlaybackResolver"
+
+        private const val LIVE_EDGE_GAP_MS = 10_000L
     }
 
     fun resolve(
@@ -43,15 +45,25 @@ class VideoPlaybackResolver(
         // 1. Priority: HLS URL for Live streams
         if (!hlsUrl.isNullOrEmpty()) {
             try {
-                Log.d(TAG, "Using YouTube HLS manifest for playback: ${hlsUrl.take(80)}...")
-                val hlsItem = androidx.media3.common.MediaItem.Builder()
+                Log.d(TAG, "Using YouTube HLS manifest for live playback: ${hlsUrl.take(80)}...")
+
+                val liveItem = androidx.media3.common.MediaItem.Builder()
                     .setUri(hlsUrl)
                     .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_M3U8)
+                    .setLiveConfiguration(
+                        androidx.media3.common.MediaItem.LiveConfiguration.Builder()
+                            .setTargetOffsetMs(LIVE_EDGE_GAP_MS)
+                            .build()
+                    )
                     .build()
-                return androidx.media3.exoplayer.hls.HlsMediaSource.Factory(progressiveDataSourceFactory)
-                    .createMediaSource(hlsItem)
+
+                val cachelessFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
+
+                return androidx.media3.exoplayer.hls.HlsMediaSource.Factory(cachelessFactory)
+                    .setAllowChunklessPreparation(true)
+                    .createMediaSource(liveItem)
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to use YouTube HLS manifest", e)
+                Log.w(TAG, "Failed to build live HLS media source", e)
             }
         }
         
