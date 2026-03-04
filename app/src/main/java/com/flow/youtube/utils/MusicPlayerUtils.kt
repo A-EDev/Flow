@@ -62,10 +62,9 @@ object MusicPlayerUtils {
     // Request deduplication - prevents duplicate fetches for same video
     private val activeRequests = ConcurrentHashMap<String, CompletableDeferred<Result<PlaybackData>>>()
     
-    // Result cache - keeps completed results for short-term reuse
-    private data class CachedResult(val result: Result<PlaybackData>, val timestamp: Long)
+    private data class CachedResult(val result: Result<PlaybackData>, val expiryMs: Long)
     private val resultCache = ConcurrentHashMap<String, CachedResult>()
-    private const val RESULT_CACHE_TTL_MS = 30_000L // Cache successful results for 30 seconds
+    private const val MAX_RESULT_CACHE_TTL_MS = 600_000L // 10 minutes
     
     private val videoRefreshTimestamps = ConcurrentHashMap<String, Long>()
 
@@ -94,9 +93,8 @@ object MusicPlayerUtils {
     ): Result<PlaybackData> = withContext(Dispatchers.IO) {
         val cached = resultCache[videoId]
         if (cached != null) {
-            val age = System.currentTimeMillis() - cached.timestamp
-            if (age < RESULT_CACHE_TTL_MS && cached.result.isSuccess) {
-                Log.d(TAG, "Returning cached result for $videoId (age: ${age}ms)")
+            if (System.currentTimeMillis() < cached.expiryMs && cached.result.isSuccess) {
+                Log.d(TAG, "Returning cached result for $videoId (expires in ${cached.expiryMs - System.currentTimeMillis()}ms)")
                 return@withContext cached.result
             } else {
                 resultCache.remove(videoId)
@@ -122,7 +120,10 @@ object MusicPlayerUtils {
             deferred.complete(result)
             
             if (result.isSuccess) {
-                resultCache[videoId] = CachedResult(result, System.currentTimeMillis())
+                val expiresInSec = result.getOrNull()?.streamExpiresInSeconds ?: 300
+                val ttlMs = minOf(expiresInSec * 1000L - 60_000L, MAX_RESULT_CACHE_TTL_MS).coerceAtLeast(30_000L)
+                resultCache[videoId] = CachedResult(result, System.currentTimeMillis() + ttlMs)
+                Log.d(TAG, "Cached result for $videoId, TTL=${ttlMs / 1000}s")
             }
             
             result

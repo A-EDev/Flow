@@ -176,107 +176,68 @@ class MusicPlayerViewModel @Inject constructor(
 
     fun loadAndPlayTrack(track: MusicTrack, queue: List<MusicTrack> = emptyList(), sourceName: String? = null) {
         loadTrackJob?.cancel()
-        loadTrackJob = viewModelScope.launch(PerformanceDispatcher.networkIO) {
-            supervisorScope {
-                launch(PerformanceDispatcher.diskIO) {
-                    playlistRepository.addToHistory(track)
-                }
-                
-                launch(PerformanceDispatcher.diskIO) {
-                    viewHistory.savePlaybackPosition(
-                        videoId = track.videoId,
-                        position = 0,
-                        duration = track.duration.toLong() * 1000,
-                        title = track.title,
-                        thumbnailUrl = track.thumbnailUrl,
-                        channelName = track.artist,
-                        channelId = "",
-                        isMusic = true
-                    )
-                }
-            }
-            
-            viewHistory.savePlaybackPosition(
-                videoId = track.videoId,
-                position = 0,
-                duration = track.duration.toLong() * 1000,
-                title = track.title,
-                thumbnailUrl = track.thumbnailUrl,
-                channelName = track.artist,
-                channelId = "", 
-                isMusic = true
-            )
+        loadTrackJob = viewModelScope.launch {
+            val finalSourceName = sourceName ?: "Radio \u2022 ${track.artist}"
+            val activeQueue = if (queue.isNotEmpty()) queue else listOf(track)
 
-            val finalSourceName = sourceName ?: "Radio • ${track.artist}"
-            
-            withContext(kotlinx.coroutines.Dispatchers.Main) {
-                EnhancedMusicPlayerManager.setPendingTrack(track, finalSourceName)
-            }
-
+            // ─── PHASE 1: Instant start ───────────────────────────────────────────
             _uiState.update { it.copy(
                 currentTrack = track,
-                isLoading = true, 
+                isLoading = true,
                 error = null,
                 playingFrom = finalSourceName,
-                selectedFilter = "All" 
+                selectedFilter = "All"
             ) }
-            
-            try {
-                val isCached = downloadManager.isCachedForOffline(track.videoId)
-                
-                val streamUrl = if (isCached) {
-                    android.util.Log.d("MusicPlayerViewModel", "Track ${track.videoId} found in cache - playing offline")
-                    "music://${track.videoId}"
-                } else {
-                    // OPTIMIZED: Use centralized resolution with caching
-                    val url = EnhancedMusicPlayerManager.resolveStreamUrl(track.videoId)
-                    
-                    if (url != null) {
-                        android.util.Log.d("MusicPlayerViewModel", "Resolved stream URL: $url")
-                        url
-                    } else {
-                        android.util.Log.w("MusicPlayerViewModel", "Resolution failed, falling back to ResolvingDataSource")
-                        "music://${track.videoId}"
+
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                EnhancedMusicPlayerManager.playTrack(
+                    track = track,
+                    audioUrl = "music://${track.videoId}",
+                    queue = activeQueue
+                )
+            }
+
+            // Player is now buffering — clear loading indicator so artwork etc. show
+            _uiState.update { it.copy(isLoading = false) }
+
+            // ─── PHASE 2: Background — does NOT block audio ───────────────────────
+            supervisorScope {
+                launch(PerformanceDispatcher.networkIO) {
+                    if (!downloadManager.isCachedForOffline(track.videoId)) {
+                        EnhancedMusicPlayerManager.resolveStreamUrl(track.videoId)
                     }
                 }
 
-                withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    EnhancedMusicPlayerManager.playTrack(
-                        track = track,
-                        audioUrl = streamUrl,
-                        queue = if (queue.isNotEmpty()) queue else listOf(track)
+                launch(PerformanceDispatcher.diskIO) {
+                    playlistRepository.addToHistory(track)
+                    viewHistory.savePlaybackPosition(
+                        videoId    = track.videoId,
+                        position   = 0,
+                        duration   = track.duration.toLong() * 1000,
+                        title      = track.title,
+                        thumbnailUrl = track.thumbnailUrl,
+                        channelName = track.artist,
+                        channelId  = "",
+                        isMusic    = true
                     )
                 }
-                
-                supervisorScope {
+
+                launch(PerformanceDispatcher.networkIO) {
+                    fetchRelatedContent(track.videoId)
+                }
+
+                if (queue.size <= 1) {
                     launch(PerformanceDispatcher.networkIO) {
-                        fetchRelatedContent(track.videoId)
-                    }
-                    
-                    if (queue.size <= 1) {
-                        launch(PerformanceDispatcher.networkIO) {
-                            val relatedTracks = withTimeoutOrNull(8_000L) {
-                                YouTubeMusicService.getRelatedMusic(track.videoId, 20)
-                            } ?: emptyList()
-                            
-                            if (relatedTracks.isNotEmpty()) {
-                                EnhancedMusicPlayerManager.updateQueue(listOf(track) + relatedTracks)
-                                _uiState.update { it.copy(autoplaySuggestions = relatedTracks) }
-                            }
+                        val relatedTracks = withTimeoutOrNull(8_000L) {
+                            YouTubeMusicService.getRelatedMusic(track.videoId, 20)
+                        } ?: emptyList()
+
+                        if (relatedTracks.isNotEmpty()) {
+                            EnhancedMusicPlayerManager.updateQueue(listOf(track) + relatedTracks)
+                            _uiState.update { it.copy(autoplaySuggestions = relatedTracks) }
                         }
                     }
                 }
-                
-                _uiState.update { it.copy(
-                    currentTrack = track,
-                    isLoading = false
-                ) }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _uiState.update { it.copy(
-                    isLoading = false,
-                    error = "Failed to load track: ${e.message}"
-                ) }
             }
         }
     }
