@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 1.8.1
-DATE: 2026-03-06
+DATE: 2026-03-04
 
 NEW FEATURES
 - LibreTube Import: Import your subscriptions directly from a LibreTube backup file (JSON). Avatars already embedded in the backup are reused; only channels with missing thumbnails trigger a network fetch, keeping the import fast.

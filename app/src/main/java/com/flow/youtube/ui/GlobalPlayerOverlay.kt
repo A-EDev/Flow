@@ -628,7 +628,7 @@ fun GlobalPlayerOverlay(
                     videoPlayerHeight = videoHeight,
                     screenState = screenState,
                     onVideoClick = { clickedVideo ->
-                        if (clickedVideo.duration <= 120) {
+                        if (clickedVideo.isShort || (clickedVideo.duration in 1..120)) {
                             onClose()
                             EnhancedPlayerManager.getInstance().stop()
                             onNavigateToShorts(clickedVideo.id)

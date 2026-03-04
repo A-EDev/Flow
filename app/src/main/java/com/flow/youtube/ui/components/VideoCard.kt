@@ -100,22 +100,23 @@ fun VideoCard(
                 contentScale = ContentScale.Crop
             )
 
-            // Glassmorphic Duration Badge
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp),
-                color = Color.Black.copy(alpha = 0.6f),
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
-            ) {
-                Text(
-                    text = formatDuration(video.duration),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White, // Consistent white for badges
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                    fontWeight = FontWeight.Bold
-                )
+            if (video.isLive || video.duration > 0) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp),
+                    color = if (video.isLive) Color(0xFFCC0000).copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.6f),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
+                ) {
+                    Text(
+                        text = if (video.isLive) "LIVE" else formatDuration(video.duration),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             // Watch progress bar
@@ -253,19 +254,21 @@ fun VideoCardHorizontal(
                 contentScale = ContentScale.Crop
             )
 
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(6.dp),
-                color = Color.Black.copy(alpha = 0.7f),
-                shape = RoundedCornerShape(6.dp)
-            ) {
-                Text(
-                    text = formatDuration(video.duration),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                )
+            if (video.isLive || video.duration > 0) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp),
+                    color = if (video.isLive) Color(0xFFCC0000).copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = if (video.isLive) "LIVE" else formatDuration(video.duration),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                }
             }
         }
 
@@ -355,22 +358,23 @@ fun VideoCardFullWidth(
                 contentScale = ContentScale.Crop
             )
 
-            // Glassmorphic Duration badge
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp),
-                color = Color.Black.copy(alpha = 0.7f),
-                shape = RoundedCornerShape(5.dp),
-                border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
-            ) {
-                Text(
-                    text = formatDuration(video.duration),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                    fontWeight = FontWeight.Bold
-                )
+            if (video.isLive || video.duration > 0) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp),
+                    color = if (video.isLive) Color(0xFFCC0000).copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(5.dp),
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
+                ) {
+                    Text(
+                        text = if (video.isLive) "LIVE" else formatDuration(video.duration),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             // Watch progress bar
@@ -513,22 +517,23 @@ fun CompactVideoCard(
                 contentScale = ContentScale.Crop
             )
 
-            // Duration badge
-            Surface(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(4.dp),
-                color = Color.Black.copy(alpha = 0.7f),
-                shape = RoundedCornerShape(4.dp)
-            ) {
-                Text(
-                    text = formatDuration(video.duration),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                )
+            if (video.isLive || video.duration > 0) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(4.dp),
+                    color = if (video.isLive) Color(0xFFCC0000).copy(alpha = 0.9f) else Color.Black.copy(alpha = 0.7f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = if (video.isLive) "LIVE" else formatDuration(video.duration),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             // Watch progress bar
