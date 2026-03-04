@@ -469,11 +469,21 @@ class VideoDownloadManager @Inject constructor(
         )
     }
 
-    /** Generate a safe filename from title and quality */
+    /** Generate a safe filename from title and quality.
+     *
+     * Supports international characters (Arabic, Chinese, Japanese, etc.) by using
+     * Unicode-aware character classes instead of ASCII-only ranges.
+     * Only characters that are illegal in filenames on Android/FAT filesystems
+     * are replaced with underscores.
+     */
     fun generateFileName(title: String, quality: String, extension: String = "mp4"): String {
-        val safeTitle = title.replace(Regex("[^a-zA-Z0-9\\s.-]"), "_")
+        val safeTitle = title
+            .replace(Regex("[^\\p{L}\\p{N}\\s._-]"), "_")
             .replace(Regex("\\s+"), "_")
-            .take(100) 
+            .replace(Regex("_+"), "_")
+            .trim('_')
+            .take(100)
+            .ifEmpty { "video" }
         return "${safeTitle}_${quality}.$extension"
     }
 
