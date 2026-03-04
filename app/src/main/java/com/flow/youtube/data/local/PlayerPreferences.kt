@@ -90,6 +90,13 @@ class PlayerPreferences(private val context: Context) {
 
         // DeArrow
         val DEARROW_ENABLED = booleanPreferencesKey("dearrow_enabled")
+
+        // Notification preferences
+        val NOTIF_NEW_VIDEOS_ENABLED = booleanPreferencesKey("notif_new_videos_enabled")
+        val NOTIF_DOWNLOADS_ENABLED = booleanPreferencesKey("notif_downloads_enabled")
+        val NOTIF_REMINDERS_ENABLED = booleanPreferencesKey("notif_reminders_enabled")
+        val NOTIF_UPDATES_ENABLED = booleanPreferencesKey("notif_updates_enabled")
+        val NOTIF_GENERAL_ENABLED = booleanPreferencesKey("notif_general_enabled")
     }
     
     // Grid item size preference
@@ -413,6 +420,53 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setDeArrowEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DEARROW_ENABLED] = enabled
+        }
+    }
+
+    // ========== NOTIFICATION PREFERENCES ==========
+
+    val notifNewVideosEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.NOTIF_NEW_VIDEOS_ENABLED] ?: true }
+
+    suspend fun setNotifNewVideosEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.NOTIF_NEW_VIDEOS_ENABLED] = enabled
+        }
+    }
+
+    val notifDownloadsEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.NOTIF_DOWNLOADS_ENABLED] ?: true }
+
+    suspend fun setNotifDownloadsEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.NOTIF_DOWNLOADS_ENABLED] = enabled
+        }
+    }
+
+    val notifRemindersEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.NOTIF_REMINDERS_ENABLED] ?: true }
+
+    suspend fun setNotifRemindersEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.NOTIF_REMINDERS_ENABLED] = enabled
+        }
+    }
+
+    val notifUpdatesEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.NOTIF_UPDATES_ENABLED] ?: true }
+
+    suspend fun setNotifUpdatesEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.NOTIF_UPDATES_ENABLED] = enabled
+        }
+    }
+
+    val notifGeneralEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.NOTIF_GENERAL_ENABLED] ?: true }
+
+    suspend fun setNotifGeneralEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.NOTIF_GENERAL_ENABLED] = enabled
         }
     }
     

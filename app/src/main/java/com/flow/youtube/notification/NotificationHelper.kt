@@ -19,7 +19,10 @@ import com.flow.youtube.MainActivity
 import com.flow.youtube.R
 import com.squareup.picasso.Picasso
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import com.flow.youtube.data.local.PlayerPreferences
 import java.net.URL
 
 /**
@@ -305,6 +308,7 @@ object NotificationHelper {
         notificationId: Int = NOTIFICATION_DOWNLOAD_COMPLETE
     ) {
         if (!hasNotificationPermission(context)) return
+        if (!PlayerPreferences(context).notifDownloadsEnabled.first()) return
         
         // Intent to open the downloaded file or app
         val openIntent = Intent(context, MainActivity::class.java).apply {
@@ -351,6 +355,7 @@ object NotificationHelper {
         notificationId: Int = NOTIFICATION_DOWNLOAD_FAILED
     ) {
         if (!hasNotificationPermission(context)) return
+        if (!runBlocking { PlayerPreferences(context).notifDownloadsEnabled.first() }) return
         
         // Intent to retry download
         val retryIntent = Intent(context, NotificationActionReceiver::class.java).apply {
@@ -399,6 +404,7 @@ object NotificationHelper {
         channelId: String
     ) {
         if (!hasNotificationPermission(context)) return
+        if (!PlayerPreferences(context).notifNewVideosEnabled.first()) return
         
         // Save to database
         storeNotification(
@@ -461,6 +467,7 @@ object NotificationHelper {
         videoCount: Int
     ) {
         if (!hasNotificationPermission(context)) return
+        if (!runBlocking { PlayerPreferences(context).notifNewVideosEnabled.first() }) return
         
         val summaryNotification = NotificationCompat.Builder(context, CHANNEL_SUBSCRIPTIONS)
             .setSmallIcon(R.drawable.ic_notification_logo)
@@ -487,6 +494,7 @@ object NotificationHelper {
         downloadUrl: String
     ) {
         if (!hasNotificationPermission(context)) return
+        if (!runBlocking { PlayerPreferences(context).notifUpdatesEnabled.first() }) return
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -527,6 +535,7 @@ object NotificationHelper {
         notificationId: Int = NOTIFICATION_GENERAL
     ) {
         if (!hasNotificationPermission(context)) return
+        if (!runBlocking { PlayerPreferences(context).notifGeneralEnabled.first() }) return
         
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -560,6 +569,7 @@ object NotificationHelper {
         thumbnailUrl: String? = null
     ) {
         if (!hasNotificationPermission(context)) return
+        if (!runBlocking { PlayerPreferences(context).notifGeneralEnabled.first() }) return
         
         val notificationId = NOTIFICATION_GENERAL + videoId.hashCode().and(0xFFF)
         
@@ -600,6 +610,7 @@ object NotificationHelper {
      */
     fun showReminderNotification(context: Context, title: String, message: String) {
         if (!hasNotificationPermission(context)) return
+        if (!runBlocking { PlayerPreferences(context).notifRemindersEnabled.first() }) return
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK

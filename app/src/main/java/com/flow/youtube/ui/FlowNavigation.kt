@@ -244,7 +244,8 @@ fun NavGraphBuilder.flowAppGraph(
             onNavigateToBufferSettings = { navController.navigate("settings/buffer") },
             onNavigateToSearchHistory = { navController.navigate("settings/search_history") },
             onNavigateToAbout = { navController.navigate("settings/about") },
-            onNavigateToUserPreferences = { navController.navigate("settings/user_preferences") }
+            onNavigateToUserPreferences = { navController.navigate("settings/user_preferences") },
+            onNavigateToNotifications = { navController.navigate("settings/notifications") }
         )
     }
 
@@ -350,6 +351,14 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "settings/downloads"
         showBottomNav.value = false
         com.flow.youtube.ui.screens.settings.DownloadSettingsScreen(
+            onNavigateBack = { navController.popBackStack() }
+        )
+    }
+
+    composable("settings/notifications") {
+        currentRoute.value = "settings/notifications"
+        showBottomNav.value = false
+        com.flow.youtube.ui.screens.settings.NotificationSettingsScreen(
             onNavigateBack = { navController.popBackStack() }
         )
     }

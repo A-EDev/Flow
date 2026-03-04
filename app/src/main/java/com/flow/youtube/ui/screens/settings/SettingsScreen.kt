@@ -69,6 +69,7 @@ fun SettingsScreen(
     onNavigateToSearchHistory: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToUserPreferences: () -> Unit,
+    onNavigateToNotifications: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -419,6 +420,22 @@ item {
                 }
             }
             
+            // =================================================
+            // NOTIFICATIONS
+            // =================================================
+            item { SectionHeader(text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_header_notifications)) }
+
+            item {
+                SettingsGroup {
+                    SettingsItem(
+                        icon = Icons.Outlined.NotificationsNone,
+                        title = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_notifications),
+                        subtitle = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_notifications_subtitle),
+                        onClick = onNavigateToNotifications
+                    )
+                }
+            }
+
             // =================================================
             // DATA MANAGEMENT
             // =================================================

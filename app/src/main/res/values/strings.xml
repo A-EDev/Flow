@@ -299,7 +299,23 @@
     <string name="settings_header_content_playback">Content &amp; Playback</string>
     <string name="settings_header_data_management">Data Management</string>
     <string name="settings_header_about">About</string>
-    
+    <string name="settings_header_notifications">Notifications</string>
+    <string name="settings_item_notifications">Notification Preferences</string>
+    <string name="settings_item_notifications_subtitle">Control which notifications Flow can send</string>
+    <string name="notif_settings_title">Notification Preferences</string>
+    <string name="notif_type_new_videos">New Videos</string>
+    <string name="notif_type_new_videos_subtitle">Notify when subscribed channels upload new videos</string>
+    <string name="notif_type_downloads">Download Notifications</string>
+    <string name="notif_type_downloads_subtitle">Progress, completion, and failure alerts</string>
+    <string name="notif_type_reminders">Screen Time Reminders</string>
+    <string name="notif_type_reminders_subtitle">Bedtime and break reminders from Time Management</string>
+    <string name="notif_type_updates">App Updates</string>
+    <string name="notif_type_updates_subtitle">Get notified when a new version of Flow is available</string>
+    <string name="notif_type_general">General Notifications</string>
+    <string name="notif_type_general_subtitle">Miscellaneous app alerts and announcements</string>
+    <string name="notif_system_settings">System Notification Settings</string>
+    <string name="notif_system_settings_subtitle">Open Android settings to manage per-channel permissions</string>
+
     <string name="settings_item_theme">Theme</string>
     <string name="settings_item_content_prefs">Content Preferences</string>
     <string name="settings_item_content_prefs_subtitle">Block topics you don\'t want to see</string>

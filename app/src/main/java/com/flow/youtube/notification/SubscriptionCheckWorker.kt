@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.work.*
 import com.flow.youtube.data.local.SubscriptionRepository
+import com.flow.youtube.data.local.PlayerPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -179,14 +180,17 @@ class SubscriptionCheckWorker(
                 
                 if (shouldNotify) {
                     Log.d(TAG, "New video found for ${subscription.channelName}: ${latestVideo.title}")
-                    NotificationHelper.showNewVideoNotification(
-                        context = applicationContext,
-                        channelName = subscription.channelName,
-                        videoTitle = latestVideo.title,
-                        videoId = latestVideo.id,
-                        thumbnailUrl = latestVideo.thumbnailUrl,
-                        channelId = subscription.channelId
-                    )
+                    val prefs = PlayerPreferences(applicationContext)
+                    if (prefs.notifNewVideosEnabled.first()) {
+                        NotificationHelper.showNewVideoNotification(
+                            context = applicationContext,
+                            channelName = subscription.channelName,
+                            videoTitle = latestVideo.title,
+                            videoId = latestVideo.id,
+                            thumbnailUrl = latestVideo.thumbnailUrl,
+                            channelId = subscription.channelId
+                        )
+                    }
                     return true
                 }
             }
