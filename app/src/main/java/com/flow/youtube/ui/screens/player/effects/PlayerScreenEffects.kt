@@ -17,6 +17,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.player.EnhancedPlayerManager
+import com.flow.youtube.player.error.PlayerDiagnostics
 import com.flow.youtube.player.state.EnhancedPlayerState
 import com.flow.youtube.ui.screens.player.VideoPlayerUiState
 import com.flow.youtube.ui.screens.player.VideoPlayerViewModel
@@ -125,6 +126,13 @@ fun PlaybackRefocusEffect(
                 if (validDuration > 0L) {
                     screenState.duration = validDuration
                     screenState.currentPosition = player.currentPosition.coerceAtLeast(0L)
+                } else {
+                    PlayerDiagnostics.logRefocusGlitch(
+                        TAG,
+                        "No valid duration after $attempts polls; state=${player.playbackState} pos=${player.currentPosition}"
+                    )
+                    mgr.handleRefocusStuck(playerMgrState.currentVideoId)
+                    return@LaunchedEffect
                 }
 
                 if (player.playbackState == Player.STATE_IDLE && playerMgrState.currentVideoId != null) {

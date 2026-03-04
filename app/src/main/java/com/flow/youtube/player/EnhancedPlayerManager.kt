@@ -124,6 +124,10 @@ class EnhancedPlayerManager private constructor() {
     private var sponsorBlockHandler: SponsorBlockHandler? = null
     private var playbackTracker: PlaybackTracker? = null
     private var errorHandler: PlayerErrorHandler? = null
+
+    private val _streamExpiredEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val streamExpiredEvent: SharedFlow<Unit> = _streamExpiredEvent.asSharedFlow()
+
     private var audioFeaturesManager: AudioFeaturesManager? = null
     private var mediaLoader: MediaLoader? = null
     
@@ -190,6 +194,7 @@ class EnhancedPlayerManager private constructor() {
             onReloadStream = { position, reason -> reloadCurrentStream(position, reason) },
             onQualityDowngrade = { attemptQualityDowngrade() },
             onPlaybackShutdown = { onPlaybackShutdown() },
+            onStreamExpired = { scope.launch { _streamExpiredEvent.emit(Unit) } },
             getFailedStreamUrls = { qualityManager?.let { qm ->
                 availableVideoStreams.filter { qm.hasStreamFailed(it.getContent()) }.map { it.getContent() }.toSet()
             } ?: emptySet() },
@@ -878,6 +883,15 @@ class EnhancedPlayerManager private constructor() {
     }
     
     private fun onPlaybackShutdown() = errorHandler?.handlePlaybackShutdown(player)
+
+    /**
+     * Called by [PlaybackRefocusEffect] when the player is stuck in an unrecoverable state
+     * after a screen-off/on cycle (duration still 0 after all poll attempts).
+     */
+    fun handleRefocusStuck(videoId: String?) {
+        val p = player ?: return
+        errorHandler?.handleRefocusStuck(p, videoId)
+    }
 }
 
 // Backward compatibility type aliases

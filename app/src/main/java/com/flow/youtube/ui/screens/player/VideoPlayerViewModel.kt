@@ -85,6 +85,16 @@ class VideoPlayerViewModel @Inject constructor(
     }
     
     init {
+        // Re-fetch streams whenever an expired URL is detected (HTTP 403/410 "data changed")
+        viewModelScope.launch {
+            EnhancedPlayerManager.getInstance().streamExpiredEvent.collect {
+                val videoId = _uiState.value.cachedVideo?.id ?: return@collect
+                Log.w("VideoPlayerViewModel", "Stream expired — re-fetching streams for $videoId")
+                _uiState.update { it.copy(error = null, errorHint = null, isLoading = true) }
+                loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true)
+            }
+        }
+
         viewModelScope.launch {
             EnhancedPlayerManager.getInstance().playerState.collect { playerState ->
                 _uiState.update { 

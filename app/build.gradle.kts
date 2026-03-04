@@ -16,7 +16,7 @@ android {
         applicationId = "com.flow.youtube"
         minSdk = 21
         targetSdk = 34
-        versionCode = 8
+        versionCode = 10
         versionName = "1.8.1"
 
         testInstrumentationRunner = "com.flow.youtube.HiltTestRunner"

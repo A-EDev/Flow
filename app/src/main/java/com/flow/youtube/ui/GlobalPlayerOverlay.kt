@@ -16,6 +16,9 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.ContentCopy
+import android.widget.Toast
+import com.flow.youtube.player.error.PlayerDiagnostics
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -466,6 +469,33 @@ fun GlobalPlayerOverlay(
                                             )
                                             Spacer(Modifier.width(6.dp))
                                             Text("Retry", fontWeight = FontWeight.SemiBold)
+                                        }
+                                        OutlinedButton(
+                                            onClick = {
+                                                val ok = PlayerDiagnostics.copyToClipboard(context)
+                                                Toast.makeText(
+                                                    context,
+                                                    if (ok) "Logs copied to clipboard" else "Failed to copy logs",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            },
+                                            border = androidx.compose.foundation.BorderStroke(
+                                                1.dp, Color.White.copy(alpha = 0.45f)
+                                            ),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.ContentCopy,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(
+                                                "Copy Logs",
+                                                color = Color.White,
+                                                fontWeight = FontWeight.Medium
+                                            )
                                         }
                                     }
                                 }
