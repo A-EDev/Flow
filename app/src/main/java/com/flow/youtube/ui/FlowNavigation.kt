@@ -219,6 +219,9 @@ fun NavGraphBuilder.flowAppGraph(
                 }
                 val encodedUrl = java.net.URLEncoder.encode(channelUrl, "UTF-8")
                 navController.navigate("channel?url=$encodedUrl")
+            },
+            onPlaylistClick = { playlist ->
+                navController.navigate("playlist/${playlist.id}")
             }
         )
     }

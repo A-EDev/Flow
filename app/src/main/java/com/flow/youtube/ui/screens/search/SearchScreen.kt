@@ -78,6 +78,7 @@ private val discoverCategories = listOf(
 fun SearchScreen(
     onVideoClick: (Video) -> Unit,
     onChannelClick: (Channel) -> Unit,
+    onPlaylistClick: (Playlist) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = viewModel()
 ) {
@@ -228,9 +229,9 @@ fun SearchScreen(
                 }
                 else -> {
                     if (isGridMode) {
-                        SearchResultGrid(pagingItems, gridState, onVideoClick, onChannelClick)
+                        SearchResultGrid(pagingItems, gridState, onVideoClick, onChannelClick, onPlaylistClick)
                     } else {
-                        SearchResultList(pagingItems, listState, onVideoClick, onChannelClick)
+                        SearchResultList(pagingItems, listState, onVideoClick, onChannelClick, onPlaylistClick)
                     }
                 }
             }
@@ -445,7 +446,8 @@ private fun SearchResultList(
     pagingItems: androidx.paging.compose.LazyPagingItems<SearchResultItem>,
     listState: LazyListState,
     onVideoClick: (Video) -> Unit,
-    onChannelClick: (Channel) -> Unit
+    onChannelClick: (Channel) -> Unit,
+    onPlaylistClick: (Playlist) -> Unit
 ) {
     LazyColumn(
         state = listState,
@@ -479,7 +481,7 @@ private fun SearchResultList(
                     is SearchResultItem.ChannelResult ->
                         SearchChannelCard(item.channel, onClick = { onChannelClick(item.channel) })
                     is SearchResultItem.PlaylistResult ->
-                        SearchPlaylistCard(item.playlist, onClick = {})
+                        SearchPlaylistCard(item.playlist, onClick = { onPlaylistClick(item.playlist) })
                 }
             }
         }
@@ -493,7 +495,8 @@ private fun SearchResultGrid(
     pagingItems: androidx.paging.compose.LazyPagingItems<SearchResultItem>,
     gridState: LazyGridState,
     onVideoClick: (Video) -> Unit,
-    onChannelClick: (Channel) -> Unit
+    onChannelClick: (Channel) -> Unit,
+    onPlaylistClick: (Playlist) -> Unit
 ) {
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
@@ -524,7 +527,7 @@ private fun SearchResultGrid(
                 is SearchResultItem.ChannelResult ->
                     SearchChannelCardCompact(item.channel, onClick = { onChannelClick(item.channel) })
                 is SearchResultItem.PlaylistResult ->
-                    SearchPlaylistCardCompact(item.playlist, onClick = {})
+                    SearchPlaylistCardCompact(item.playlist, onClick = { onPlaylistClick(item.playlist) })
             }
         }
 
