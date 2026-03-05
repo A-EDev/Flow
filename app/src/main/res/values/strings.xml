@@ -510,6 +510,10 @@
     <string name="section_channel">Channel</string>
     <string name="section_algorithm">Algorithm</string>
     <string name="section_options">Options</string>
+    <!-- Channel blocking -->
+    <string name="dont_show_channel">Don&#x2019;t show this channel</string>
+    <string name="dont_show_channel_desc">Remove from your recommendations</string>
+    <string name="channel_blocked_toast">%1$s won&#x2019;t appear in your feed</string>
     <!-- Misc -->
     <string name="btn_save">Save</string>
     <string name="btn_cancel">Cancel</string>

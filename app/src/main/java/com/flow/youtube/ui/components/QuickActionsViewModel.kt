@@ -104,6 +104,27 @@ class QuickActionsViewModel @Inject constructor(
     }
 
     /**
+     * Block the channel of a video — the channel will never appear in the feed again.
+     * Uses FlowNeuroEngine.blockChannel to persist the block and scrub any existing
+     * channel score, mirroring the "Blocked Channels" UI in User Preferences.
+     */
+    fun blockChannel(video: Video) {
+        if (video.channelId.isBlank()) return
+        viewModelScope.launch {
+            try {
+                FlowNeuroEngine.blockChannel(context, video.channelId)
+                Toast.makeText(
+                    context,
+                    context.getString(com.flow.youtube.R.string.channel_blocked_toast, video.channelName),
+                    Toast.LENGTH_SHORT
+                ).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    /**
      * Mark a video as "Not Interested" - this strongly penalizes the video's topics
      * and channel in the FlowNeuroEngine, making similar content much less likely to appear.
      */

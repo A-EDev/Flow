@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.outlined.VideoLibrary
@@ -310,6 +311,26 @@ fun VideoQuickActionsBottomSheet(
                             onClick = {
                                 viewModel.markNotInterested(video)
                                 onNotInterested()
+                                onDismiss()
+                            }
+                        ),
+                        FlowMenuItemData(
+                            icon = {
+                                Icon(
+                                    Icons.Outlined.Block,
+                                    null,
+                                    tint = MaterialTheme.colorScheme.error
+                                )
+                            },
+                            title = {
+                                Text(
+                                    stringResource(R.string.dont_show_channel),
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            },
+                            description = { Text(stringResource(R.string.dont_show_channel_desc)) },
+                            onClick = {
+                                viewModel.blockChannel(video)
                                 onDismiss()
                             }
                         )

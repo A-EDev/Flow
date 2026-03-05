@@ -131,6 +131,9 @@
     <!-- Actions Rapides Vidéo -->
     <string name="save_to_playlist">Enregistrer dans une playlist</string>
     <string name="not_interested">Non intéressé</string>
+    <string name="dont_show_channel">Ne plus afficher cette chaîne</string>
+    <string name="dont_show_channel_desc">Retirer de vos recommandations</string>
+    <string name="channel_blocked_toast">%1$s n&#x2019;apparaîtra plus dans votre fil</string>
     <string name="details_metadata">Détails et métadonnées</string>
 
     <!-- Dialogue d'Informations Médias -->

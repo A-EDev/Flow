@@ -350,6 +350,11 @@ class FlowNeuroEngine(private val appContext: Context) {
         suspend fun unblockChannel(context: Context, channelId: String) =
             getInstance(context).unblockChannel(channelId)
 
+        suspend fun blockChannel(channelId: String) =
+            requireInstance().blockChannel(channelId)
+        suspend fun blockChannel(context: Context, channelId: String) =
+            getInstance(context).blockChannel(channelId)
+
         val TOPIC_CATEGORIES: List<TopicCategory>
             get() = instance?.TOPIC_CATEGORIES ?: emptyList()
     }
