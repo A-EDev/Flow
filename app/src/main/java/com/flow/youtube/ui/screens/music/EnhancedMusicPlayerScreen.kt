@@ -44,6 +44,8 @@ import kotlin.math.roundToInt
 
 import com.flow.youtube.R
 import com.flow.youtube.player.EnhancedMusicPlayerManager
+import com.flow.youtube.player.SleepTimerManager
+import com.flow.youtube.ui.components.SleepTimerSheet
 import com.flow.youtube.ui.screens.music.player.*
 import com.flow.youtube.ui.components.MusicQuickActionsSheet 
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -69,7 +71,16 @@ fun EnhancedMusicPlayerScreen(
     var showMoreOptions by remember { mutableStateOf(false) }
     var showAudioSettings by remember { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }
+    var showSleepTimer by remember { mutableStateOf(false) }
     var skipDirection by remember { mutableStateOf<SkipDirection?>(null) }
+
+    LaunchedEffect(Unit) {
+        SleepTimerManager.attachToPlayer(
+            player = EnhancedMusicPlayerManager.player
+        ) {
+            EnhancedMusicPlayerManager.player?.pause()
+        }
+    }
     
     // Unified Sheet State
     var currentTab by remember { mutableStateOf(PlayerTab.UP_NEXT) }
@@ -131,6 +142,12 @@ fun EnhancedMusicPlayerScreen(
     if (showAudioSettings) {
         AudioSettingsSheet(
             onDismiss = { showAudioSettings = false }
+        )
+    }
+
+    if (showSleepTimer) {
+        SleepTimerSheet(
+            onDismiss = { showSleepTimer = false }
         )
     }
 
@@ -238,6 +255,7 @@ fun EnhancedMusicPlayerScreen(
                 PlayerTopBar(
                     playingFrom = uiState.playingFrom,
                     onBackClick = onBackClick,
+                    onSleepTimerClick = { showSleepTimer = true },
                     onMoreOptionsClick = { showMoreOptions = true }
                 )
             }

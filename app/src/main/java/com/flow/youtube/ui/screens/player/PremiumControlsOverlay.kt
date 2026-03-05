@@ -78,6 +78,8 @@ fun PremiumControlsOverlay(
     onCastClick: () -> Unit = {},
     isCasting: Boolean = false,
     isLive: Boolean = false,
+    onSleepTimerClick: () -> Unit = {},
+    isSleepTimerActive: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -241,6 +243,18 @@ fun PremiumControlsOverlay(
                             imageVector = Icons.Rounded.SlowMotionVideo,
                             contentDescription = stringResource(R.string.autoplay),
                             tint = if (autoplayEnabled) primaryColor else Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onSleepTimerClick,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Bedtime,
+                            contentDescription = stringResource(R.string.sleep_timer),
+                            tint = if (isSleepTimerActive) primaryColor else Color.White,
                             modifier = Modifier.size(24.dp)
                         )
                     }

@@ -12,10 +12,12 @@ import androidx.compose.ui.res.stringResource
 import com.flow.youtube.R
 import com.flow.youtube.data.model.Video
 import com.flow.youtube.player.EnhancedPlayerManager
+import com.flow.youtube.player.SleepTimerManager
 import com.flow.youtube.ui.components.FlowChaptersBottomSheet
 import com.flow.youtube.ui.components.FlowCommentsBottomSheet
 import com.flow.youtube.ui.components.FlowDescriptionBottomSheet
 import com.flow.youtube.ui.components.FlowPlaylistQueueBottomSheet
+import com.flow.youtube.ui.components.SleepTimerSheet
 import com.flow.youtube.ui.components.VideoQuickActionsBottomSheet
 import com.flow.youtube.ui.screens.player.VideoPlayerUiState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,6 +63,14 @@ fun PlayerBottomSheetsContainer(
         }
     }
     
+    LaunchedEffect(Unit) {
+        SleepTimerManager.attachToPlayer(
+            player = EnhancedPlayerManager.getInstance().getPlayer()
+        ) {
+            EnhancedPlayerManager.getInstance().pause()
+        }
+    }
+
     // Quick actions sheet
     if (screenState.showQuickActions) {
         VideoQuickActionsBottomSheet(
@@ -167,6 +177,12 @@ fun PlayerBottomSheetsContainer(
                 EnhancedPlayerManager.getInstance().playVideoAtIndex(index)
             },
             onDismiss = { screenState.showPlaylistQueueSheet = false }
+        )
+    }
+
+    if (screenState.showSleepTimerSheet) {
+        SleepTimerSheet(
+            onDismiss = { screenState.showSleepTimerSheet = false }
         )
     }
 

@@ -643,6 +643,23 @@
     <string name="bedtime_end_title">Wake Up Time</string>
     <string name="confirm">Confirm</string>
 
+    <!-- Sleep Timer -->
+    <string name="sleep_timer">Sleep Timer</string>
+    <string name="sleep_timer_duration">Duration</string>
+    <string name="sleep_timer_minutes">%1$d min</string>
+    <string name="sleep_timer_min_label">5 min</string>
+    <string name="sleep_timer_max_label">120 min</string>
+    <string name="sleep_timer_custom_label">Custom time</string>
+    <string name="sleep_timer_unit">min</string>
+    <string name="sleep_timer_input_error">Enter a value between 1 and 1440</string>
+    <string name="sleep_timer_end_of_song">End of song / video</string>
+    <string name="sleep_timer_start">Start</string>
+    <string name="sleep_timer_stops_in">Stops in</string>
+    <string name="sleep_timer_end_of_media">End of current song</string>
+    <string name="sleep_timer_reset">Reset</string>
+    <string name="sleep_timer_cancel_timer">Cancel Timer</string>
+    <string name="sleep_timer_active_label">Sleep timer active</string>
+
     <!-- Search History Settings Screen -->
     <string name="search_history_title">Search &amp; History</string>
     <string name="save_search_history_title">Save Search History</string>

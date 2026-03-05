@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.Bedtime
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -18,12 +19,14 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.flow.youtube.R
+import com.flow.youtube.player.SleepTimerManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerTopBar(
     playingFrom: String,
     onBackClick: () -> Unit,
+    onSleepTimerClick: () -> Unit = {},
     onMoreOptionsClick: () -> Unit
 ) {
     CenterAlignedTopAppBar(
@@ -60,9 +63,18 @@ fun PlayerTopBar(
             }
         },
         actions = {
+            IconButton(onClick = onSleepTimerClick) {
+                Icon(
+                    imageVector = Icons.Outlined.Bedtime,
+                    contentDescription = stringResource(R.string.sleep_timer),
+                    tint = if (SleepTimerManager.isActive) MaterialTheme.colorScheme.primary
+                           else Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
             IconButton(onClick = onMoreOptionsClick) {
                 Icon(
-                    Icons.Outlined.MoreVert, 
+                    Icons.Outlined.MoreVert,
                     stringResource(R.string.more_options),
                     tint = Color.White
                 )

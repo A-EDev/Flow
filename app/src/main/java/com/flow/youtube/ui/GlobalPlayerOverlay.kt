@@ -615,7 +615,9 @@ fun GlobalPlayerOverlay(
                                     showDlnaDialog = true
                                 },
                                 isCasting = DlnaCastManager.isCasting,
-                                isLive = !playerUiState.hlsUrl.isNullOrEmpty()
+                                isLive = !playerUiState.hlsUrl.isNullOrEmpty(),
+                                onSleepTimerClick = { screenState.showSleepTimerSheet = true },
+                                isSleepTimerActive = com.flow.youtube.player.SleepTimerManager.isActive
                             )
                         }
                     }

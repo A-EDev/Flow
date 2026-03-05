@@ -286,7 +286,9 @@ fun PlayerContent(
                 com.flow.youtube.player.CastHelper.showCastPicker(context)
             },
             isCasting = com.flow.youtube.player.CastHelper.isCasting(context),
-            isLive = !uiState.hlsUrl.isNullOrEmpty()
+            isLive = !uiState.hlsUrl.isNullOrEmpty(),
+            onSleepTimerClick = { screenState.showSleepTimerSheet = true },
+            isSleepTimerActive = com.flow.youtube.player.SleepTimerManager.isActive
         )
     }
 }
