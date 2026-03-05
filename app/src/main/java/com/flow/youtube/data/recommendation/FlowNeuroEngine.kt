@@ -30,6 +30,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -38,63 +39,370 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.util.Calendar
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.*
 
 /**
- * 🧠 Flow Neuro Engine (V8 — "The Rabbit Hole")
+ * 🧠 Flow Neuro Engine (V9.1 — Performance + Anti-Repetition)
  *
  * Client-side hybrid recommendation: Vector Space Model + Heuristic Rules.
  *
- * V8 Changes over V7:
- * - Added: Independent pacing dimension derived from title/metadata keywords
- *   (no longer redundant with duration)
- * - Added: Local IDF weighting — common words like "gameplay" get reduced
- *   weight over time so niche words drive recommendations
- * - Added: Description timestamp/chapter detection for complexity heuristic
- * - Added: Title similarity now uses lemma normalization (prevents cluster spam
- *   from inflected forms like "Playing"/"Play"/"Played")
- * - Added: Onboarding warmup — preferred topics get decaying boost over first
- *   50 interactions so organic learning gradually takes over
- * - Added: Query temporal jitter to prevent search result stagnation
- * - Added: Mild session affinity boost (sustained interest detection, NOT
- *   aggressive flooding)
- * - Added: Snowball candidate generation API for repository layer
- *   (related videos graph traversal)
- * - Improved: Feature cache invalidation when IDF weights shift
- * - Improved: Pacing now factored into cosine similarity scalar blend
- * - Fixed: All V7 fixes carried forward (negative feedback floor,
- *   channel pruning, persona auto-update, DataStore applicationContext)
+ * V9.1 Changes over V9:
+ * - Performance: Pre-compiled regex (eliminates thousands of regex compilations per rank)
+ * - Performance: Export mutex scope reduction (IO no longer blocks engine)
+ * - Performance: IDF dead weight pruning (words that halve to 0 are removed)
+ * - Feature: Impression fatigue system (videos seen but not clicked get penalized)
+ * - Feature: Already-watched penalty with music exception and partial-watch graduation
+ * - Feature: Engagement rate floor (clickbait filter for high-view low-engagement videos)
+ * - All V9 fixes carried forward
  */
-object FlowNeuroEngine {
+class FlowNeuroEngine(private val appContext: Context) {
 
-    private const val TAG = "FlowNeuroEngine"
-    private const val BRAIN_FILENAME = "user_neuro_brain.json"
-    private const val SCHEMA_VERSION = 8
+    companion object {
+        private const val TAG = "FlowNeuroEngine"
+        private const val BRAIN_FILENAME = "user_neuro_brain.json"
+        private const val SCHEMA_VERSION = 9
+
+        // ── Pre-compiled Regex ──
+        // V9.1 FIX: Regex compiled once, not thousands of times per rank() call.
+        private val WHITESPACE_REGEX = Regex("\\s+")
+
+        // ── Scoring Weight Constants ──
+
+        /** Subscription boost: subscribers are trusted curators, mild boost */
+        private const val SUBSCRIPTION_BOOST = 0.15
+
+        /** Serendipity bonus: novel content that still fits time context */
+        private const val SERENDIPITY_BONUS = 0.10
+
+        /** Curiosity gap: familiar topic at unexpected complexity */
+        private const val CURIOSITY_GAP_BONUS = 0.10
+
+        /** Channel boredom: channels with <5% click rate get halved */
+        private const val CHANNEL_BOREDOM_MULTIPLIER = 0.5
+        private const val CHANNEL_BOREDOM_THRESHOLD = 0.05
+
+        /** Not-interested channel floor: recoverable but penalized */
+        private const val NOT_INTERESTED_CHANNEL_FLOOR = 0.20
+
+        /** Channel EMA alpha: slow-moving average (α=0.05) */
+        private const val CHANNEL_EMA_ALPHA = 0.05
+        private const val CHANNEL_EMA_DECAY = 1.0 - CHANNEL_EMA_ALPHA
+
+        /** Max channel scores to retain (prune mediocre middle) */
+        private const val MAX_CHANNEL_SCORES = 500
+        private const val CHANNEL_KEEP_LOW = 50
+        private const val CHANNEL_KEEP_HIGH = 200
+
+        /** Topic vector decay: non-relevant topics decay by 3% per positive interaction */
+        private const val TOPIC_DECAY_RATE = 0.97
+
+        /** Topic floor: topics below this threshold are pruned */
+        private const val TOPIC_PRUNE_THRESHOLD = 0.03
+
+        /** Shorts learning rate multiplier: short-form engagement is noisy */
+        private const val SHORTS_LEARNING_PENALTY = 0.01
+
+        /** Max consecutive skips tracked before capping */
+        private const val MAX_CONSECUTIVE_SKIPS = 30
+
+        /** Session auto-reset thresholds */
+        private const val SESSION_RESET_IDLE_MINUTES = 120L
+        private const val SESSION_RESET_EMPTY_MINUTES = 30L
+
+        /** Cold-start threshold: below this, popularity and jitter are amplified */
+        private const val COLD_START_THRESHOLD = 30
+
+        /** Onboarding warmup threshold: preferred topic boost decays over this many interactions */
+        private const val ONBOARDING_WARMUP_INTERACTIONS = 50
+
+        /** Onboarding warmup max boost */
+        private const val ONBOARDING_MAX_BOOST = 0.15
+
+        /** Engagement rate normalization: 5% like/view ratio = max boost */
+        private const val ENGAGEMENT_RATE_BASELINE = 0.05
+        private const val ENGAGEMENT_MAX_BOOST = 0.05
+        private const val ENGAGEMENT_MIN_VIEWS = 1000L
+
+        /** V9.1: Engagement rate floor — clickbait filter for high-view low-engagement videos.
+         *  Videos older than 24h with >50K views and <1% engagement get heavily penalized.
+         *  Time guard prevents penalizing new videos that haven't accumulated likes yet. */
+        private const val ENGAGEMENT_FLOOR_RATE = 0.01
+        private const val ENGAGEMENT_FLOOR_MIN_VIEWS = 50_000L
+        private const val ENGAGEMENT_FLOOR_PENALTY = 0.2
+
+        /** Binge detection: after this many videos, novelty gets extra weight */
+        private const val BINGE_THRESHOLD = 20
+        private const val BINGE_NOVELTY_FACTOR = 0.15
+
+        /** Jitter: randomness to prevent deterministic ordering */
+        private const val JITTER_COLD_START = 0.20
+        private const val JITTER_NORMAL = 0.02
+
+        /** Title similarity threshold for duplicate detection */
+        private const val TITLE_SIMILARITY_STRICT = 0.55
+        private const val TITLE_SIMILARITY_RELAXED = 0.60
+
+        /** Feature cache max size */
+        private const val FEATURE_CACHE_MAX = 150
+
+        /** IDF cold-start threshold: below this, IDF weighting is disabled */
+        private const val IDF_COLD_START_DOCS = 30
+        private const val IDF_MIN_WEIGHT = 0.15
+        private const val IDF_MAX_WEIGHT = 1.0
+
+        /** Session topic history max size */
+        private const val SESSION_TOPIC_HISTORY_MAX = 50
+
+        /** Session affinity: sustained interest thresholds */
+        private const val SESSION_AFFINITY_STRONG_THRESHOLD = 3
+        private const val SESSION_AFFINITY_STRONG_BOOST = 0.08
+        private const val SESSION_AFFINITY_MILD_THRESHOLD = 2
+        private const val SESSION_AFFINITY_MILD_BOOST = 0.04
+
+        /** Topic affinity cap per video and total storage */
+        private const val AFFINITY_INCREMENT = 0.02
+        private const val AFFINITY_MAX = 1.0
+        private const val AFFINITY_PRUNE_THRESHOLD = 0.05
+        private const val AFFINITY_MAX_ENTRIES = 500
+        private const val AFFINITY_KEEP_TOP = 300
+        private const val AFFINITY_MAX_BOOST_PER_VIDEO = 0.15
+        private const val AFFINITY_BOOST_PER_PAIR = 0.05
+
+        /** Cosine similarity blend weights */
+        private const val TOPIC_SIMILARITY_WEIGHT = 0.70
+        private const val DURATION_SIMILARITY_WEIGHT = 0.10
+        private const val PACING_SIMILARITY_WEIGHT = 0.10
+        private const val COMPLEXITY_SIMILARITY_WEIGHT = 0.10
+
+        /** Vector adjustment: saturation, compression, negative feedback */
+        private const val NEGATIVE_PROPORTIONAL_EXPONENT = 1.5
+        private const val NEGATIVE_FLOOR_FACTOR = 0.3
+        private const val NEGATIVE_SCALAR_PROPORTIONAL = 0.3
+        private const val NEGATIVE_SCALAR_FLOOR = 0.1
+        private const val COMPRESSION_THRESHOLD = 0.6
+        private const val COMPRESSION_CEILING = 0.5
+        private const val COMPRESSION_FACTOR = 0.7
+
+        /** Classic video threshold (views) */
+        private const val CLASSIC_VIEW_THRESHOLD = 5_000_000L
+
+        /** Diversity phase 1 target size */
+        private const val DIVERSITY_PHASE1_TARGET = 20
+
+        /** Complexity feature weights */
+        private const val COMPLEXITY_TITLE_LEN_MAX = 80.0
+        private const val COMPLEXITY_TITLE_LEN_WEIGHT = 0.4
+        private const val COMPLEXITY_WORD_LEN_DIVISOR = 8.0
+        private const val COMPLEXITY_WORD_LEN_WEIGHT = 0.4
+        private const val COMPLEXITY_CHAPTER_BONUS = 0.2
+
+        /** Description extraction limits */
+        private const val DESCRIPTION_MIN_LENGTH = 20
+        private const val DESCRIPTION_TAKE_CHARS = 200
+        private const val DESCRIPTION_TAKE_WORDS = 15
+        private const val DESCRIPTION_WORD_WEIGHT = 0.2
+
+        /** Channel keyword weight */
+        private const val CHANNEL_KEYWORD_WEIGHT = 1.0
+
+        /** Title keyword weight */
+        private const val TITLE_KEYWORD_WEIGHT = 0.5
+
+        /** Bigram weight */
+        private const val BIGRAM_WEIGHT = 0.75
+
+        /** Not-interested learning rates */
+        private const val NOT_INTERESTED_GLOBAL_RATE = -0.35
+        private const val NOT_INTERESTED_TIME_RATE = -0.25
+        private const val NOT_INTERESTED_SKIP_INCREMENT = 3
+
+        /** Persona stability threshold for hysteresis */
+        private const val PERSONA_STABILITY_THRESHOLD = 3
+        private const val PERSONA_MAX_STABILITY = 10
+
+        /** Exploration: max score for a topic to be considered unexplored */
+        private const val EXPLORATION_SCORE_THRESHOLD = 0.1
+
+        /** Debounce delay for saving brain state */
+        private const val SAVE_DEBOUNCE_MS = 5000L
+
+        /** Timestamp pattern for chapter detection */
+        private val TIMESTAMP_PATTERN = Regex("""\d{1,2}:\d{2}""")
+        private const val CHAPTER_TIMESTAMP_MIN = 3
+
+        // ── V9.1: Impression Fatigue Constants ──
+        /** Max impression entries to track (LRU eviction beyond this) */
+        private const val IMPRESSION_CACHE_MAX = 500
+
+        /** Impression decay rate: exp(-DECAY_RATE * hours) */
+        private const val IMPRESSION_DECAY_RATE = 0.1
+
+        /** Impression penalty tiers */
+        private const val IMPRESSION_PENALTY_HEAVY = 0.05
+        private const val IMPRESSION_PENALTY_MEDIUM = 0.30
+        private const val IMPRESSION_PENALTY_LIGHT = 0.85
+        private const val IMPRESSION_THRESHOLD_DROP = 5
+        private const val IMPRESSION_THRESHOLD_HEAVY = 3
+        private const val IMPRESSION_THRESHOLD_LIGHT = 1
+
+        // ── V9.1: Already-Watched Constants ──
+        /** Music video max duration for re-watch exemption (8 minutes) */
+        private const val MUSIC_REWATCH_MAX_DURATION = 480
+
+        /** Watched penalty tiers based on percentWatched */
+        private const val WATCHED_PENALTY_FULL = 0.02
+        private const val WATCHED_PENALTY_HALF = 0.30
+        private const val WATCHED_PENALTY_SAMPLED = 0.70
+        private const val WATCHED_THRESHOLD_FULL = 0.85f
+        private const val WATCHED_THRESHOLD_HALF = 0.50f
+        private const val WATCHED_THRESHOLD_SAMPLED = 0.15f
+
+        /** Watch history max entries */
+        private const val WATCH_HISTORY_MAX = 2000
+
+        // ── Singleton-like access for backward compatibility ──
+
+        @Volatile
+        private var instance: FlowNeuroEngine? = null
+
+        fun getInstance(context: Context): FlowNeuroEngine {
+            return instance ?: synchronized(this) {
+                instance ?: FlowNeuroEngine(context.applicationContext).also {
+                    instance = it
+                }
+            }
+        }
+
+        private fun requireInstance(): FlowNeuroEngine =
+            instance ?: error("FlowNeuroEngine not initialized. Call initialize(context) first.")
+
+        // ── Backward-compatible forwarding API ──
+
+        suspend fun initialize(context: Context) = getInstance(context).initialize()
+
+        suspend fun rank(candidates: List<Video>, userSubs: Set<String>): List<Video> =
+            requireInstance().rank(candidates, userSubs)
+
+        suspend fun generateDiscoveryQueries(): List<String> =
+            requireInstance().generateDiscoveryQueries()
+
+        suspend fun needsOnboarding(): Boolean = requireInstance().needsOnboarding()
+
+        suspend fun getBrainSnapshot(): UserBrain = requireInstance().getBrainSnapshot()
+
+        fun getPersona(brain: UserBrain): FlowPersona = requireInstance().getPersona(brain)
+
+        suspend fun markNotInterested(video: Video) =
+            requireInstance().markNotInterested(video)
+        suspend fun markNotInterested(context: Context, video: Video) =
+            getInstance(context).markNotInterested(video)
+
+        suspend fun onVideoInteraction(
+            video: Video,
+            interactionType: InteractionType,
+            percentWatched: Float = 0f
+        ) = requireInstance().onVideoInteraction(video, interactionType, percentWatched)
+        suspend fun onVideoInteraction(
+            context: Context,
+            video: Video,
+            interactionType: InteractionType,
+            percentWatched: Float = 0f
+        ) = getInstance(context).onVideoInteraction(video, interactionType, percentWatched)
+
+        suspend fun completeOnboarding(selectedTopics: Set<String>) =
+            requireInstance().completeOnboarding(selectedTopics)
+        suspend fun completeOnboarding(context: Context, selectedTopics: Set<String>) =
+            getInstance(context).completeOnboarding(selectedTopics)
+
+        suspend fun exportBrainToStream(output: OutputStream): Boolean =
+            requireInstance().exportBrainToStream(output)
+        suspend fun importBrainFromStream(input: InputStream): Boolean =
+            requireInstance().importBrainFromStream(input)
+        suspend fun importBrainFromStream(context: Context, input: InputStream): Boolean =
+            getInstance(context).importBrainFromStream(input)
+
+        suspend fun resetBrain() = requireInstance().resetBrain()
+        suspend fun resetBrain(context: Context) = getInstance(context).resetBrain()
+
+        suspend fun getPreferredTopics(): Set<String> = requireInstance().getPreferredTopics()
+        suspend fun getBlockedTopics(): Set<String> = requireInstance().getBlockedTopics()
+
+        suspend fun addPreferredTopic(topic: String) = requireInstance().addPreferredTopic(topic)
+        suspend fun addPreferredTopic(context: Context, topic: String) =
+            getInstance(context).addPreferredTopic(topic)
+
+        suspend fun removePreferredTopic(topic: String) =
+            requireInstance().removePreferredTopic(topic)
+        suspend fun removePreferredTopic(context: Context, topic: String) =
+            getInstance(context).removePreferredTopic(topic)
+
+        suspend fun addBlockedTopic(topic: String) = requireInstance().addBlockedTopic(topic)
+        suspend fun addBlockedTopic(context: Context, topic: String) =
+            getInstance(context).addBlockedTopic(topic)
+
+        suspend fun removeBlockedTopic(topic: String) =
+            requireInstance().removeBlockedTopic(topic)
+        suspend fun removeBlockedTopic(context: Context, topic: String) =
+            getInstance(context).removeBlockedTopic(topic)
+
+        suspend fun unblockChannel(channelId: String) =
+            requireInstance().unblockChannel(channelId)
+        suspend fun unblockChannel(context: Context, channelId: String) =
+            getInstance(context).unblockChannel(channelId)
+
+        val TOPIC_CATEGORIES: List<TopicCategory>
+            get() = instance?.TOPIC_CATEGORIES ?: emptyList()
+    }
+
+    // ── Concurrency ──
 
     private val brainMutex = Mutex()
     private val saveScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pendingSaveJob: Job? = null
 
-    // V7: Feature vector cache (LRU)
+    // Feature vector cache (LRU)
     private val featureCache = object : LinkedHashMap<String, ContentVector>(
         200, 0.75f, true
     ) {
         override fun removeEldestEntry(
             eldest: MutableMap.MutableEntry<String, ContentVector>?
-        ): Boolean = size > 150
+        ): Boolean = size > FEATURE_CACHE_MAX
     }
 
-    // V7: Session tracking
+    // Session tracking
     private var sessionStartTime: Long = System.currentTimeMillis()
     private var sessionVideoCount: Int = 0
     private val sessionTopicHistory = mutableListOf<String>()
 
-    // V8: Local IDF tracking (not persisted — rebuilt from usage)
-    private val wordDocumentFrequency = ConcurrentHashMap<String, Int>()
-    private val totalDocumentsRanked = AtomicInteger(0)
-    private val TIMESTAMP_PATTERN = Regex("""\d{1,2}:\d{2}""")
+    // IDF tracking — persisted in brain state
+    private var idfWordFrequency = mutableMapOf<String, Int>()
+    private var idfTotalDocuments = 0
+
+    // ── V9.1: Impression Fatigue Cache ──
+    // In-memory only (not persisted). Resets on app restart, matching
+    // user mental model: "I restarted the app, show me fresh stuff."
+    private data class ImpressionEntry(var count: Int, var lastSeen: Long)
+
+    private val impressionCache = object : LinkedHashMap<String, ImpressionEntry>(
+        IMPRESSION_CACHE_MAX + 50, 0.75f, true
+    ) {
+        override fun removeEldestEntry(
+            eldest: MutableMap.MutableEntry<String, ImpressionEntry>?
+        ): Boolean = size > IMPRESSION_CACHE_MAX
+    }
+
+    // ── V9.1: Watch History (in-memory, lightweight) ──
+    // Tracks what the user has watched and how much, for re-watch penalty.
+    // This is separate from any Room-based watch history the app may have.
+    // Persisted as part of brain state so it survives app restarts.
+    private data class WatchEntry(val percentWatched: Float, val timestamp: Long)
+
+    private val watchHistory = LinkedHashMap<String, WatchEntry>(
+        WATCH_HISTORY_MAX + 50, 0.75f, true
+    )
+
+    private var currentUserBrain: UserBrain = UserBrain()
+    private var isInitialized = false
 
     // =================================================
     // TIME DECAY ENGINE
@@ -120,6 +428,22 @@ object FlowNeuroEngine {
                     1.0 / (1.0 + (0.35 * years))
                 }
                 else -> 0.85
+            }
+        }
+
+        /**
+         * V9.1: Returns true if the video's upload date text indicates
+         * it is older than approximately 24 hours.
+         * Used by engagement rate floor to avoid penalizing new uploads.
+         */
+        fun isOlderThan24Hours(dateText: String): Boolean {
+            val text = dateText.lowercase()
+            return when {
+                text.contains("second") || text.contains("minute") ||
+                    text.contains("hour") -> false
+                text.contains("day") || text.contains("week") ||
+                    text.contains("month") || text.contains("year") -> true
+                else -> true // Unknown format — assume older
             }
         }
     }
@@ -193,6 +517,7 @@ object FlowNeuroEngine {
         "vloggers" to "vlog",
         "reacting" to "react", "reacted" to "react",
         "reacts" to "react", "reactions" to "reaction",
+        "compilations" to "compilation",
         // Science
         "experiments" to "experiment", "experimenting" to "experiment",
         "experimental" to "experiment",
@@ -212,34 +537,65 @@ object FlowNeuroEngine {
         "photographing" to "photography",
         "photographs" to "photography",
         "photographer" to "photography",
-        // Plurals / common suffixes
+        // Common verbs
+        "explained" to "explain", "explains" to "explain",
+        "explaining" to "explain",
+        "created" to "create", "creates" to "create",
+        "creating" to "create", "creator" to "create",
+        "creators" to "create",
+        "discovered" to "discover", "discovers" to "discover",
+        "discovering" to "discover",
+        "exploring" to "explore", "explored" to "explore",
+        "explores" to "explore",
+        "comparing" to "compare", "compared" to "compare",
+        "compares" to "compare", "comparison" to "compare",
+        "comparisons" to "compare",
+        // Plurals
         "videos" to "video", "channels" to "channel",
         "episodes" to "episode",
         "movies" to "movie", "documentaries" to "documentary",
         "podcasts" to "podcast", "interviews" to "interview",
-        "challenges" to "challenge", "compilations" to "compilation"
+        "challenges" to "challenge",
+        "montages" to "montage"
     )
 
     private fun normalizeLemma(word: String): String =
         LEMMA_MAP[word.lowercase()] ?: word.lowercase()
 
     // =================================================
-    // V8: TITLE SIMILARITY (Now uses lemma normalization)
+    // V9.1: MUSIC DETECTION
+    // =================================================
+
+    private val MUSIC_KEYWORDS = setOf(
+        "music", "song", "lyrics", "remix", "lofi", "lo-fi",
+        "playlist", "official audio", "official video",
+        "music video", "feat", "ft.", "acoustic", "cover",
+        "karaoke", "instrumental", "beat", "rap", "hip hop",
+        "pop", "rock", "jazz", "classical", "edm", "mix"
+    )
+
+    /**
+     * Detects if a video is likely a music track (not a music tutorial/documentary).
+     * Short duration + music keywords = music track.
+     * Long-form music content (concerts, production tutorials) is NOT exempt.
+     */
+    private fun isMusicTrack(video: Video): Boolean {
+        if (video.duration > MUSIC_REWATCH_MAX_DURATION) return false
+        val titleLower = video.title.lowercase()
+        val channelLower = video.channelName.lowercase()
+        return MUSIC_KEYWORDS.any { keyword ->
+            titleLower.contains(keyword) || channelLower.contains(keyword)
+        }
+    }
+
+    // =================================================
+    // TITLE SIMILARITY
     // =================================================
 
     private fun calculateTitleSimilarity(
         title1: String,
         title2: String
     ): Double {
-        fun tokenizeForSimilarity(text: String): Set<String> {
-            return text.lowercase()
-                .split("\\s+".toRegex())
-                .map { it.trim { c -> !c.isLetterOrDigit() } }
-                .filter { it.length > 2 && !STOP_WORDS.contains(it) }
-                .map { normalizeLemma(it) }
-                .toSet()
-        }
-
         val words1 = tokenizeForSimilarity(title1)
         val words2 = tokenizeForSimilarity(title2)
         if (words1.isEmpty() || words2.isEmpty()) return 0.0
@@ -249,36 +605,53 @@ object FlowNeuroEngine {
         return if (union > 0) intersection.toDouble() / union else 0.0
     }
 
+    private fun tokenizeForSimilarity(text: String): Set<String> {
+        return text.lowercase()
+            .split(WHITESPACE_REGEX)
+            .map { it.trim { c -> !c.isLetterOrDigit() } }
+            .filter { it.length > 2 }
+            .map { normalizeLemma(it) }
+            .filter { !STOP_WORDS.contains(it) }
+            .toSet()
+    }
+
     private fun isVideoClassic(viewCount: Long): Boolean =
-        viewCount >= 5_000_000L
+        viewCount >= CLASSIC_VIEW_THRESHOLD
 
     // =================================================
-    // V8: IDF WEIGHT CALCULATION
+    // IDF WEIGHT CALCULATION
     // =================================================
 
-    /**
-     * TF-IDF inspired weight adjustment.
-     * Words that appear across many ranked videos get reduced weight,
-     * ensuring niche-specific words like "Subnautica" or "Elden" drive
-     * recommendations rather than generic words like "gameplay" or "part".
-     *
-     * During cold start (<30 documents ranked), returns base weight unchanged.
-     */
-    private fun calculateIdfWeight(word: String, baseWeight: Double): Double {
-        val ranked = totalDocumentsRanked.get()
-        if (ranked < 30) return baseWeight
+    private data class IdfSnapshot(
+        val wordFrequency: Map<String, Int>,
+        val totalDocs: Int
+    )
 
-        val df = wordDocumentFrequency[word] ?: 0
-        // Smoothed IDF: rare words ≈ 1.0, ubiquitous words ≈ 0.15
-        val idf = ln(1.0 + ranked.toDouble() / (df + 1.0))
-        val maxIdf = ln(1.0 + ranked.toDouble())
-        val normalizedIdf = (idf / maxIdf).coerceIn(0.15, 1.0)
+    // Must be called under brainMutex
+    private fun takeIdfSnapshot(): IdfSnapshot {
+        return IdfSnapshot(
+            wordFrequency = idfWordFrequency.toMap(),
+            totalDocs = idfTotalDocuments
+        )
+    }
+
+    private fun calculateIdfWeight(
+        word: String,
+        baseWeight: Double,
+        idfSnapshot: IdfSnapshot
+    ): Double {
+        if (idfSnapshot.totalDocs < IDF_COLD_START_DOCS) return baseWeight
+
+        val df = idfSnapshot.wordFrequency[word] ?: 0
+        val idf = ln(1.0 + idfSnapshot.totalDocs.toDouble() / (df + 1.0))
+        val maxIdf = ln(1.0 + idfSnapshot.totalDocs.toDouble())
+        val normalizedIdf = (idf / maxIdf).coerceIn(IDF_MIN_WEIGHT, IDF_MAX_WEIGHT)
 
         return baseWeight * normalizedIdf
     }
 
     // =================================================
-    // V8: PACING KEYWORD SETS
+    // PACING KEYWORD SETS
     // =================================================
 
     private val HIGH_PACING_WORDS = setOf(
@@ -304,7 +677,7 @@ object FlowNeuroEngine {
     data class ContentVector(
         val topics: Map<String, Double> = emptyMap(),
         val duration: Double = 0.5,
-        val pacing: Double = 0.5,      // V8: Independent, derived from title keywords
+        val pacing: Double = 0.5,
         val complexity: Double = 0.5,
         val isLive: Double = 0.0
     )
@@ -355,67 +728,91 @@ object FlowNeuroEngine {
         val hasCompletedOnboarding: Boolean = false,
         val lastPersona: String? = null,
         val personaStability: Int = 0,
+        val idfWordFrequency: Map<String, Int> = emptyMap(),
+        val idfTotalDocuments: Int = 0,
+        // V9.1: Persisted watch history for already-watched penalty
+        val watchHistoryMap: Map<String, Float> = emptyMap(),
         val schemaVersion: Int = SCHEMA_VERSION
     )
-
-    private var currentUserBrain: UserBrain = UserBrain()
-    private var isInitialized = false
 
     // =================================================
     // 2. PUBLIC API
     // =================================================
 
-    suspend fun initialize(context: Context) {
+    suspend fun initialize() {
         brainMutex.withLock {
             if (isInitialized) return
 
-            val appContext = context.applicationContext
-            val loaded = loadBrainFromDataStore(appContext)
+            val loaded = loadBrainFromDataStore()
             if (!loaded) {
-                loadLegacyBrain(appContext)
-                saveBrainToDataStore(appContext)
+                loadLegacyBrain()
+                saveBrainToDataStore()
                 val legacyFile = File(appContext.filesDir, BRAIN_FILENAME)
                 if (legacyFile.exists()) {
                     legacyFile.delete()
                     Log.i(TAG, "Migrated legacy brain to DataStore")
                 }
             }
-            resetSession()
+
+            // Restore IDF state from brain
+            idfWordFrequency = currentUserBrain.idfWordFrequency.toMutableMap()
+            idfTotalDocuments = currentUserBrain.idfTotalDocuments
+
+            // V9.1: Restore watch history from brain
+            currentUserBrain.watchHistoryMap.forEach { (id, pct) ->
+                watchHistory[id] = WatchEntry(pct, System.currentTimeMillis())
+            }
+
+            resetSessionInternal()
             isInitialized = true
         }
+    }
+
+    fun shutdown() {
+        pendingSaveJob?.cancel()
+        saveScope.cancel()
     }
 
     suspend fun getBrainSnapshot(): UserBrain =
         brainMutex.withLock { currentUserBrain }
 
-    suspend fun resetBrain(context: Context) {
+    suspend fun resetBrain() {
         brainMutex.withLock {
             currentUserBrain = UserBrain()
             featureCache.clear()
-            wordDocumentFrequency.clear()
-            totalDocumentsRanked.set(0)
-            resetSession()
-            saveBrainToDataStore(context.applicationContext)
+            idfWordFrequency.clear()
+            idfTotalDocuments = 0
+            impressionCache.clear()
+            watchHistory.clear()
+            resetSessionInternal()
+            saveBrainToDataStore()
         }
     }
 
-    fun resetSession() {
+    suspend fun resetSession() {
+        brainMutex.withLock {
+            resetSessionInternal()
+        }
+    }
+
+    private fun resetSessionInternal() {
         sessionStartTime = System.currentTimeMillis()
         sessionVideoCount = 0
-        synchronized(sessionTopicHistory) {
-            sessionTopicHistory.clear()
-        }
+        sessionTopicHistory.clear()
+        // V9.1: Clear impression cache on session reset
+        // so a manual refresh gives the user a "fresh" feeling
+        impressionCache.clear()
     }
 
     fun getSessionDurationMinutes(): Long =
         (System.currentTimeMillis() - sessionStartTime) / 60_000L
 
-    private fun scheduleDebouncedSave(context: Context) {
+    private fun scheduleDebouncedSave() {
         pendingSaveJob?.cancel()
         pendingSaveJob = saveScope.launch {
-            delay(5000L)
+            delay(SAVE_DEBOUNCE_MS)
             brainMutex.withLock {
-                saveBrainToDataStore(context.applicationContext)
+                saveBrainToDataStore()
             }
         }
     }
@@ -427,11 +824,10 @@ object FlowNeuroEngine {
     suspend fun getBlockedTopics(): Set<String> =
         brainMutex.withLock { currentUserBrain.blockedTopics }
 
-    suspend fun addBlockedTopic(context: Context, topic: String) {
+    suspend fun addBlockedTopic(topic: String) {
         val normalized = topic.trim().lowercase()
         if (normalized.isBlank()) return
         brainMutex.withLock {
-            // V8 FIX: Also remove from global vector and time vectors
             val lemma = normalizeLemma(normalized)
 
             val scrubbed = scrubTopicFromVector(
@@ -442,7 +838,6 @@ object FlowNeuroEngine {
                     scrubTopicFromVector(vector, lemma, normalized)
                 }
 
-            // Also remove from preferred topics if present
             val cleanedPreferred = currentUserBrain.preferredTopics
                 .filter { it.lowercase() != normalized }
                 .toSet()
@@ -453,15 +848,10 @@ object FlowNeuroEngine {
                 timeVectors = scrubbedTimeVectors,
                 preferredTopics = cleanedPreferred
             )
-            saveBrainToDataStore(context.applicationContext)
+            saveBrainToDataStore()
         }
     }
 
-    /**
-     * Removes all topic entries whose key contains the blocked term
-     * or its lemma. e.g. blocking "minecraft" also removes
-     * "minecraft build", "play minecraft" etc.
-     */
     private fun scrubTopicFromVector(
         vector: ContentVector,
         lemma: String,
@@ -473,20 +863,20 @@ object FlowNeuroEngine {
         return vector.copy(topics = cleaned)
     }
 
-    suspend fun removeBlockedTopic(context: Context, topic: String) {
+    suspend fun removeBlockedTopic(topic: String) {
         brainMutex.withLock {
             currentUserBrain = currentUserBrain.copy(
                 blockedTopics = currentUserBrain.blockedTopics -
                     topic.lowercase()
             )
-            saveBrainToDataStore(context.applicationContext)
+            saveBrainToDataStore()
         }
     }
 
     suspend fun getBlockedChannels(): Set<String> =
         brainMutex.withLock { currentUserBrain.blockedChannels }
 
-    suspend fun blockChannel(context: Context, channelId: String) {
+    suspend fun blockChannel(channelId: String) {
         if (channelId.isBlank()) return
         brainMutex.withLock {
             val cleanedScores = currentUserBrain.channelScores
@@ -498,16 +888,16 @@ object FlowNeuroEngine {
                     channelId,
                 channelScores = cleanedScores
             )
-            saveBrainToDataStore(context.applicationContext)
+            saveBrainToDataStore()
         }
     }
 
-    suspend fun unblockChannel(context: Context, channelId: String) {
+    suspend fun unblockChannel(channelId: String) {
         brainMutex.withLock {
             currentUserBrain = currentUserBrain.copy(
                 blockedChannels = currentUserBrain.blockedChannels - channelId
             )
-            saveBrainToDataStore(context.applicationContext)
+            saveBrainToDataStore()
         }
     }
 
@@ -604,10 +994,7 @@ object FlowNeuroEngine {
     suspend fun getPreferredTopics(): Set<String> =
         brainMutex.withLock { currentUserBrain.preferredTopics }
 
-    suspend fun setPreferredTopics(
-        context: Context,
-        topics: Set<String>
-    ) {
+    suspend fun setPreferredTopics(topics: Set<String>) {
         brainMutex.withLock {
             val newTopics = currentUserBrain.globalVector.topics.toMutableMap()
             topics.forEach { topic ->
@@ -619,11 +1006,11 @@ object FlowNeuroEngine {
                     topics = newTopics
                 )
             )
-            saveBrainToDataStore(context.applicationContext)
+            saveBrainToDataStore()
         }
     }
 
-    suspend fun addPreferredTopic(context: Context, topic: String) {
+    suspend fun addPreferredTopic(topic: String) {
         val normalized = topic.trim()
         if (normalized.isBlank()) return
         brainMutex.withLock {
@@ -635,28 +1022,20 @@ object FlowNeuroEngine {
                     topics = newTopics
                 )
             )
-            saveBrainToDataStore(context.applicationContext)
+            saveBrainToDataStore()
         }
     }
 
-    suspend fun removePreferredTopic(context: Context, topic: String) {
+    suspend fun removePreferredTopic(topic: String) {
         brainMutex.withLock {
             currentUserBrain = currentUserBrain.copy(
                 preferredTopics = currentUserBrain.preferredTopics - topic
             )
-            saveBrainToDataStore(context.applicationContext)
+            saveBrainToDataStore()
         }
     }
 
-    /**
-     * V8: Onboarding seeds with differentiated weights.
-     * First 3 selected topics get higher weight (user picked them first =
-     * stronger signal). Also builds initial topic affinity matrix.
-     */
-    suspend fun completeOnboarding(
-        context: Context,
-        selectedTopics: Set<String>
-    ) {
+    suspend fun completeOnboarding(selectedTopics: Set<String>) {
         brainMutex.withLock {
             val topicList = selectedTopics.toList()
             val newTopics = mutableMapOf<String, Double>()
@@ -670,7 +1049,6 @@ object FlowNeuroEngine {
                 newTopics[normalizeLemma(topic)] = weight
             }
 
-            // Build initial topic affinities from co-selected topics
             val affinities = mutableMapOf<String, Double>()
             val normalizedList = topicList.map { normalizeLemma(it) }
             for (i in normalizedList.indices) {
@@ -690,7 +1068,7 @@ object FlowNeuroEngine {
                 topicAffinities = affinities,
                 hasCompletedOnboarding = true
             )
-            saveBrainToDataStore(context.applicationContext)
+            saveBrainToDataStore()
             Log.i(TAG, "Onboarding: ${selectedTopics.size} topics")
         }
     }
@@ -699,30 +1077,28 @@ object FlowNeuroEngine {
         return if (t1 < t2) "$t1|$t2" else "$t2|$t1"
     }
 
-    /**
-     * "Not Interested" — strong negative signal.
-     */
-    suspend fun markNotInterested(context: Context, video: Video) {
-        val videoVector = getOrExtractFeatures(video)
+    suspend fun markNotInterested(video: Video) {
+        val videoVector = getOrExtractFeatures(video, takeIdfSnapshotSafe())
 
         brainMutex.withLock {
             val newGlobal = adjustVector(
-                currentUserBrain.globalVector, videoVector, -0.35
+                currentUserBrain.globalVector, videoVector,
+                NOT_INTERESTED_GLOBAL_RATE
             )
 
             val newChannelScores = currentUserBrain.channelScores.toMutableMap()
-            newChannelScores[video.channelId] = 0.05
+            newChannelScores[video.channelId] = NOT_INTERESTED_CHANNEL_FLOOR
 
             val bucket = TimeBucket.current()
             val currentBucketVec = currentUserBrain.timeVectors[bucket]
                 ?: ContentVector()
             val newBucketVec = adjustVector(
-                currentBucketVec, videoVector, -0.25
+                currentBucketVec, videoVector, NOT_INTERESTED_TIME_RATE
             )
 
-            // V8 FIX: not-interested is a stronger signal than a skip;
-            val newSkips = (currentUserBrain.consecutiveSkips + 3)
-                .coerceAtMost(30)
+            val newSkips = (currentUserBrain.consecutiveSkips +
+                NOT_INTERESTED_SKIP_INCREMENT)
+                .coerceAtMost(MAX_CONSECUTIVE_SKIPS)
 
             currentUserBrain = currentUserBrain.copy(
                 globalVector = newGlobal,
@@ -732,7 +1108,7 @@ object FlowNeuroEngine {
                 totalInteractions = currentUserBrain.totalInteractions + 1,
                 consecutiveSkips = newSkips
             )
-            saveBrainToDataStore(context.applicationContext)
+            saveBrainToDataStore()
         }
     }
 
@@ -740,11 +1116,6 @@ object FlowNeuroEngine {
     // DISCOVERY QUERY GENERATION
     // =================================================
 
-    /**
-     * V8: Added query temporal jitter to prevent YouTube returning
-     * identical results for the same query day after day.
-     * Added affinity-based queries for co-occurring topic combinations.
-     */
     suspend fun generateDiscoveryQueries(): List<String> =
         brainMutex.withLock {
             val interests = currentUserBrain.globalVector.topics
@@ -755,10 +1126,8 @@ object FlowNeuroEngine {
                 .take(6)
                 .map { it.key }
 
-            // Direct interest (top 2)
             queries.addAll(sortedInterests.take(2))
 
-            // Bridge queries with V8 temporal jitter
             val timeJitter = listOf(
                 "", "2024", "2025", "new", "best", "top"
             ).random()
@@ -768,12 +1137,8 @@ object FlowNeuroEngine {
                     "${sortedInterests[0]} ${sortedInterests[1]} $timeJitter"
                         .trim()
                 )
-                queries.add(
-                    "${sortedInterests[0]} ${sortedInterests[2]}"
-                )
-                queries.add(
-                    "${sortedInterests[1]} ${sortedInterests[2]}"
-                )
+                queries.add("${sortedInterests[0]} ${sortedInterests[2]}")
+                queries.add("${sortedInterests[1]} ${sortedInterests[2]}")
             } else if (sortedInterests.size >= 2) {
                 queries.add(
                     "${sortedInterests[0]} ${sortedInterests[1]} $timeJitter"
@@ -781,7 +1146,6 @@ object FlowNeuroEngine {
                 )
             }
 
-            // Affinity-based queries
             currentUserBrain.topicAffinities.entries
                 .sortedByDescending { it.value }
                 .take(2)
@@ -792,14 +1156,12 @@ object FlowNeuroEngine {
                     }
                 }
 
-            // Time context obsession
             val bucket = TimeBucket.current()
             val currentBucketVec = currentUserBrain.timeVectors[bucket]
                 ?: ContentVector()
             currentBucketVec.topics.maxByOrNull { it.value }?.key
                 ?.let { queries.add(it) }
 
-            // Persona suffix
             val persona = getPersona(currentUserBrain)
             val suffix = when (persona) {
                 FlowPersona.DEEP_DIVER -> "documentary"
@@ -814,12 +1176,10 @@ object FlowNeuroEngine {
                 queries.add("${sortedInterests[0]} $suffix")
             }
 
-            // Exploration queries (weakest macro categories)
             getExplorationQueries(currentUserBrain).forEach {
                 queries.add(it)
             }
 
-            // Fallback
             if (queries.isEmpty()) {
                 val preferred = currentUserBrain.preferredTopics.toList()
                 if (preferred.isNotEmpty()) {
@@ -842,14 +1202,6 @@ object FlowNeuroEngine {
                 .shuffled()
         }
 
-    /**
-     * V8: Provides seed video IDs for snowball candidate generation.
-     * The repository layer should fetch related videos for these IDs
-     * and add them to the candidate pool before calling rank().
-     *
-     * Returns up to [count] video IDs from recent positive interactions
-     * that would make good seeds for related video expansion.
-     */
     fun getSnowballSeeds(
         recentlyWatched: List<Video>,
         count: Int = 3
@@ -864,13 +1216,11 @@ object FlowNeuroEngine {
     // =================================================
 
     /**
-     * V8 Changes:
-     * - IDF-weighted feature extraction (common words penalized)
-     * - Onboarding warmup boost (preferred topics decay over 50 interactions)
-     * - Mild session affinity (sustained interest, not flooding)
-     * - Independent pacing factored into scoring
-     * - Feature cache invalidation when IDF weights shift
-     * - Engagement rate signal from like/view ratio
+     * V9.1 additions to ranking:
+     * - Impression fatigue: videos seen but not clicked get penalized
+     * - Already-watched penalty with music exception
+     * - Engagement rate floor (clickbait filter)
+     * - All V9 fixes carried forward
      */
     suspend fun rank(
         candidates: List<Video>,
@@ -878,17 +1228,33 @@ object FlowNeuroEngine {
     ): List<Video> = withContext(Dispatchers.Default) {
         if (candidates.isEmpty()) return@withContext emptyList()
 
-        // Session staleness auto-reset — prevents morning context
-        // contaminating an evening session after the app was idle.
+        // Session staleness auto-reset
         val sessionAgeMinutes = getSessionDurationMinutes()
-        if (sessionAgeMinutes > 120 ||
-            (sessionAgeMinutes > 30 && sessionVideoCount == 0)
+        if (sessionAgeMinutes > SESSION_RESET_IDLE_MINUTES ||
+            (sessionAgeMinutes > SESSION_RESET_EMPTY_MINUTES &&
+                sessionVideoCount == 0)
         ) {
-            resetSession()
+            brainMutex.withLock { resetSessionInternal() }
         }
 
-        val brain = brainMutex.withLock { currentUserBrain }
+        // Take consistent snapshots under the lock
+        val brain: UserBrain
+        val idfSnapshot: IdfSnapshot
+        val sessionTopics: List<String>
+        val impressionSnapshot: Map<String, ImpressionEntry>
+        val watchHistorySnapshot: Map<String, WatchEntry>
+
+        brainMutex.withLock {
+            brain = currentUserBrain
+            idfSnapshot = takeIdfSnapshot()
+            sessionTopics = sessionTopicHistory.toList()
+            // V9.1: Snapshot impression and watch state
+            impressionSnapshot = impressionCache.toMap()
+            watchHistorySnapshot = watchHistory.toMap()
+        }
+
         val random = java.util.Random()
+        val now = System.currentTimeMillis()
 
         // Pre-filter blocked content
         val filtered = candidates.filter { video ->
@@ -905,27 +1271,9 @@ object FlowNeuroEngine {
 
         if (filtered.isEmpty()) return@withContext emptyList()
 
-        // V8: Update IDF counters before scoring (thread-safe writes)
-        filtered.forEach { video ->
-            val vector = getOrExtractFeatures(video)
-            vector.topics.keys.forEach { word ->
-                wordDocumentFrequency.merge(word, 1, Int::plus)
-            }
-            totalDocumentsRanked.incrementAndGet()
-        }
-
-        // V8: Prevent unbounded IDF growth (logarithmic forgetting)
-        if (totalDocumentsRanked.get() > 10000) {
-            wordDocumentFrequency.replaceAll { _, v -> v / 2 }
-            totalDocumentsRanked.updateAndGet { it / 2 }
-        }
-
-        // V8: Invalidate feature cache periodically as IDF weights shift
-        val ranked = totalDocumentsRanked.get()
-        if (ranked % 500 == 0 && ranked > 0) {
-            synchronized(featureCache) {
-                featureCache.clear()
-            }
+        // Extract all features with consistent IDF snapshot
+        val videoVectors = filtered.map { video ->
+            video to getOrExtractFeatures(video, idfSnapshot)
         }
 
         // Time context
@@ -939,19 +1287,14 @@ object FlowNeuroEngine {
         val wContext = 0.4 - (boredomFactor * 0.5)
         val wNovelty = 0.2 + boredomFactor
 
-        // V8: Onboarding warmup — preferred topics get decaying boost
-        val onboardingWarmup = if (brain.totalInteractions < 50) {
-            1.0 - (brain.totalInteractions / 50.0) * 0.5
+        // Onboarding warmup factor
+        val isOnboarding = brain.totalInteractions < ONBOARDING_WARMUP_INTERACTIONS
+        val onboardingWarmup = if (isOnboarding) {
+            1.0 - (brain.totalInteractions /
+                ONBOARDING_WARMUP_INTERACTIONS.toDouble()) * 0.5
         } else 0.5
 
-        // Session fatigue from internal tracking
-        val sessionTopics = synchronized(sessionTopicHistory) {
-            sessionTopicHistory.toList()
-        }
-
-        val scored = filtered.map { video ->
-            val videoVector = getOrExtractFeatures(video)
-
+        val scored = videoVectors.map { (video, videoVector) ->
             val personalityScore = calculateCosineSimilarity(
                 brain.globalVector, videoVector
             )
@@ -964,17 +1307,6 @@ object FlowNeuroEngine {
                 (contextScore * wContext) +
                 (noveltyScore * wNovelty)
 
-            // V8: Onboarding warmup boost
-            if (brain.totalInteractions < 50) {
-                val videoTopics = videoVector.topics.keys
-                val hasPreferred = brain.preferredTopics.any { pref ->
-                    videoTopics.contains(normalizeLemma(pref))
-                }
-                if (hasPreferred) {
-                    totalScore += onboardingWarmup * 0.15
-                }
-            }
-
             // Topic affinity boost
             val videoTopics = videoVector.topics.keys.toList()
             var affinityBoost = 0.0
@@ -982,35 +1314,57 @@ object FlowNeuroEngine {
                 for (j in i + 1 until videoTopics.size) {
                     val key = makeAffinityKey(videoTopics[i], videoTopics[j])
                     val affinity = brain.topicAffinities[key] ?: 0.0
-                    affinityBoost += affinity * 0.05
+                    affinityBoost += affinity * AFFINITY_BOOST_PER_PAIR
                 }
             }
-            totalScore += affinityBoost.coerceAtMost(0.15)
+            totalScore += affinityBoost.coerceAtMost(AFFINITY_MAX_BOOST_PER_VIDEO)
 
             // Subscription boost
-            if (userSubs.contains(video.channelId)) {
-                totalScore += 0.15
+            val isSub = userSubs.contains(video.channelId)
+            if (isSub) {
+                totalScore += SUBSCRIPTION_BOOST
             }
 
             // Serendipity
             if (noveltyScore > 0.6 && contextScore > 0.5) {
-                totalScore += 0.10
+                totalScore += SERENDIPITY_BONUS
             }
 
             // Cold-start popularity
-            if (brain.totalInteractions < 30 && video.viewCount > 0) {
+            if (brain.totalInteractions < COLD_START_THRESHOLD &&
+                video.viewCount > 0
+            ) {
                 val popularityBoost =
                     log10(1.0 + video.viewCount.toDouble()) / 10.0 * 0.05
                 totalScore += popularityBoost
             }
 
-            // V8: Engagement rate signal
-            if (video.viewCount > 1000 && video.likeCount > 0) {
+            // Engagement rate boost (positive signal)
+            if (video.viewCount > ENGAGEMENT_MIN_VIEWS &&
+                video.likeCount > 0
+            ) {
                 val engagementRate = video.likeCount.toDouble() /
                     video.viewCount.toDouble()
-                val engagementBoost = (engagementRate / 0.05)
-                    .coerceIn(0.0, 1.0) * 0.05
+                val engagementBoost = (engagementRate /
+                    ENGAGEMENT_RATE_BASELINE)
+                    .coerceIn(0.0, 1.0) * ENGAGEMENT_MAX_BOOST
                 totalScore += engagementBoost
+            }
+
+            // V9.1: Engagement rate floor — clickbait filter.
+            // Only applies to videos older than 24h with high views
+            // but suspiciously low engagement (proxy for hidden dislikes).
+            if (video.viewCount > ENGAGEMENT_FLOOR_MIN_VIEWS &&
+                video.likeCount >= 0 &&
+                TimeDecay.isOlderThan24Hours(video.uploadDate)
+            ) {
+                val engagementRate = if (video.viewCount > 0) {
+                    video.likeCount.toDouble() / video.viewCount.toDouble()
+                } else 0.0
+
+                if (engagementRate < ENGAGEMENT_FLOOR_RATE) {
+                    totalScore *= ENGAGEMENT_FLOOR_PENALTY
+                }
             }
 
             // Time decay
@@ -1018,7 +1372,6 @@ object FlowNeuroEngine {
                 video.uploadDate, video.isLive
             )
             val isClassic = isVideoClassic(video.viewCount)
-            val isSub = userSubs.contains(video.channelId)
             val finalAgeFactor = when {
                 isClassic || isSub -> (ageMultiplier + 1.0) / 2.0
                 else -> ageMultiplier
@@ -1031,19 +1384,19 @@ object FlowNeuroEngine {
                 brain.globalVector.complexity - videoVector.complexity
             )
             if (isTopicSafe && complexityDiff > 0.35) {
-                totalScore += 0.10
+                totalScore += CURIOSITY_GAP_BONUS
             }
 
             // Channel boredom
             val channelClickRate =
                 brain.channelScores[video.channelId] ?: 0.5
             if (brain.channelScores.containsKey(video.channelId) &&
-                channelClickRate < 0.05
+                channelClickRate < CHANNEL_BOREDOM_THRESHOLD
             ) {
-                totalScore *= 0.5
+                totalScore *= CHANNEL_BOREDOM_MULTIPLIER
             }
 
-            // Session fatigue (internal tracking)
+            // Session fatigue
             val videoPrimaryTopic = videoVector.topics
                 .maxByOrNull { it.value }?.key ?: ""
             val topicSessionCount = sessionTopics
@@ -1057,55 +1410,134 @@ object FlowNeuroEngine {
             }
             totalScore *= fatigueMultiplier
 
-            // V8: Mild session affinity boost (NOT aggressive flooding)
-            // Only boosts topics the user has shown SUSTAINED interest in
-            // during this session (3+ videos on same topic)
-            if (sessionTopics.isNotEmpty() && videoPrimaryTopic.isNotEmpty()) {
+            // Onboarding warmup (applied AFTER fatigue, additive)
+            if (isOnboarding) {
+                val hasPreferred = brain.preferredTopics.any { pref ->
+                    videoVector.topics.containsKey(normalizeLemma(pref))
+                }
+                if (hasPreferred) {
+                    totalScore += onboardingWarmup * ONBOARDING_MAX_BOOST
+                }
+            }
+
+            // Session affinity
+            if (sessionTopics.isNotEmpty() &&
+                videoPrimaryTopic.isNotEmpty()
+            ) {
                 val recentTopics = sessionTopics.takeLast(5)
-                val recentCount = recentTopics.count { it == videoPrimaryTopic }
+                val recentCount = recentTopics.count {
+                    it == videoPrimaryTopic
+                }
                 val sessionAffinityBoost = when {
-                    recentCount >= 3 -> 0.08
-                    recentCount >= 2 -> 0.04
+                    recentCount >= SESSION_AFFINITY_STRONG_THRESHOLD ->
+                        SESSION_AFFINITY_STRONG_BOOST
+                    recentCount >= SESSION_AFFINITY_MILD_THRESHOLD ->
+                        SESSION_AFFINITY_MILD_BOOST
                     else -> 0.0
                 }
                 totalScore += sessionAffinityBoost
             }
 
             // Binge detection
-            if (sessionVideoCount > 20) {
-                val bingeNoveltyBoost = noveltyScore * 0.15
+            if (sessionVideoCount > BINGE_THRESHOLD) {
+                val bingeNoveltyBoost = noveltyScore * BINGE_NOVELTY_FACTOR
                 totalScore += bingeNoveltyBoost
             }
 
+            // ── V9.1: Impression Fatigue ──
+            // Videos seen in previous rank() results but not clicked
+            // get exponentially decaying penalties.
+            val impression = impressionSnapshot[video.id]
+            if (impression != null) {
+                val hoursSinceLastSeen =
+                    (now - impression.lastSeen) / 3_600_000.0
+                val decayedCount = (impression.count *
+                    exp(-IMPRESSION_DECAY_RATE * hoursSinceLastSeen)).toInt()
+
+                val impressionPenalty = when {
+                    decayedCount >= IMPRESSION_THRESHOLD_DROP ->
+                        IMPRESSION_PENALTY_HEAVY
+                    decayedCount >= IMPRESSION_THRESHOLD_HEAVY ->
+                        IMPRESSION_PENALTY_MEDIUM
+                    decayedCount >= IMPRESSION_THRESHOLD_LIGHT ->
+                        IMPRESSION_PENALTY_LIGHT
+                    else -> 1.0
+                }
+                totalScore *= impressionPenalty
+            }
+
+            // ── V9.1: Already-Watched Penalty ──
+            // Videos the user has already watched get penalized based
+            // on how much they watched. Music tracks are exempt.
+            val watchEntry = watchHistorySnapshot[video.id]
+            if (watchEntry != null) {
+                val isMusic = isMusicTrack(video)
+                val watchedPenalty = when {
+                    // Music exception: tracks watched >50% are fine to replay
+                    isMusic && watchEntry.percentWatched > WATCHED_THRESHOLD_HALF ->
+                        1.0
+                    // Fully watched: nearly invisible
+                    watchEntry.percentWatched > WATCHED_THRESHOLD_FULL ->
+                        WATCHED_PENALTY_FULL
+                    // Half watched: heavy penalty
+                    watchEntry.percentWatched > WATCHED_THRESHOLD_HALF ->
+                        WATCHED_PENALTY_HALF
+                    // Sampled (clicked but abandoned): mild penalty
+                    watchEntry.percentWatched > WATCHED_THRESHOLD_SAMPLED ->
+                        WATCHED_PENALTY_SAMPLED
+                    // Barely clicked: no penalty
+                    else -> 1.0
+                }
+                totalScore *= watchedPenalty
+            }
+
             // Jitter
-            val jitter = if (brain.totalInteractions < 50) {
-                random.nextDouble() * 0.2
+            val jitter = if (brain.totalInteractions <
+                ONBOARDING_WARMUP_INTERACTIONS
+            ) {
+                random.nextDouble() * JITTER_COLD_START
             } else {
-                random.nextDouble() * 0.02
+                random.nextDouble() * JITTER_NORMAL
             }
 
             ScoredVideo(video, totalScore + jitter, videoVector)
         }.toMutableList()
 
-        return@withContext applySmartDiversity(scored)
+        // Apply diversity reranking
+        val result = applySmartDiversity(scored)
+
+        // ── V9.1: Log impressions for all returned videos ──
+        // This happens AFTER scoring so it doesn't affect the current
+        // ranking, only future ones. Tracked at the repository level
+        // (videos returned from rank = videos the user will see).
+        brainMutex.withLock {
+            result.forEach { video ->
+                val existing = impressionCache[video.id]
+                if (existing != null) {
+                    existing.count++
+                    existing.lastSeen = now
+                } else {
+                    impressionCache[video.id] =
+                        ImpressionEntry(1, now)
+                }
+            }
+        }
+
+        return@withContext result
     }
 
     // =================================================
     // LEARNING FUNCTION
     // =================================================
 
-    /**
-     * V8: All V7 learning features plus IDF cache invalidation awareness.
-     */
     suspend fun onVideoInteraction(
-        context: Context,
         video: Video,
         interactionType: InteractionType,
         percentWatched: Float = 0f
     ) {
-        val videoVector = getOrExtractFeatures(video)
+        val idfSnapshot = brainMutex.withLock { takeIdfSnapshot() }
+        val videoVector = getOrExtractFeatures(video, idfSnapshot)
 
-        // Watch-time weighting
         val absoluteMinutesWatched = if (
             interactionType == InteractionType.WATCHED && video.duration > 0
         ) {
@@ -1125,9 +1557,8 @@ object FlowNeuroEngine {
             InteractionType.DISLIKED -> -0.40
         }
 
-        // Shorts penalty
         if (video.isShort) {
-            learningRate *= 0.01
+            learningRate *= SHORTS_LEARNING_PENALTY
         }
 
         brainMutex.withLock {
@@ -1148,17 +1579,19 @@ object FlowNeuroEngine {
             val currentChScore =
                 currentUserBrain.channelScores[video.channelId] ?: 0.5
             val outcome = if (learningRate > 0) 1.0 else 0.0
-            val newChScore = (currentChScore * 0.95) + (outcome * 0.05)
+            val newChScore = (currentChScore * CHANNEL_EMA_DECAY) +
+                (outcome * CHANNEL_EMA_ALPHA)
             var newChannelScores = currentUserBrain.channelScores +
                 (video.channelId to newChScore)
 
-            // Channel pruning — keep extremes, prune mediocre middle
-            if (newChannelScores.size > 500) {
+            // Channel pruning
+            if (newChannelScores.size > MAX_CHANNEL_SCORES) {
                 val sorted = newChannelScores.entries.sortedBy { it.value }
-                val keepLow = sorted.take(50)
-                val keepHigh = sorted.takeLast(200)
+                val keepLow = sorted.take(CHANNEL_KEEP_LOW)
+                val keepHigh = sorted.takeLast(CHANNEL_KEEP_HIGH)
                 val keepSet = (keepLow + keepHigh).map { it.key }.toSet()
-                newChannelScores = newChannelScores.filter { it.key in keepSet }
+                newChannelScores = newChannelScores
+                    .filter { it.key in keepSet }
             }
 
             // 4. Consecutive skips
@@ -1166,10 +1599,11 @@ object FlowNeuroEngine {
                 InteractionType.CLICK, InteractionType.LIKED,
                 InteractionType.WATCHED -> 0
                 InteractionType.SKIPPED, InteractionType.DISLIKED ->
-                    (currentUserBrain.consecutiveSkips + 1).coerceAtMost(30)
+                    (currentUserBrain.consecutiveSkips + 1)
+                        .coerceAtMost(MAX_CONSECUTIVE_SKIPS)
             }
 
-            // 5. Topic co-occurrence (positive interactions only)
+            // 5. Topic co-occurrence
             var newAffinities = currentUserBrain.topicAffinities
             if (learningRate > 0) {
                 val topTopics = videoVector.topics.entries
@@ -1185,25 +1619,90 @@ object FlowNeuroEngine {
                             )
                             val current = mutableAffinities[key] ?: 0.0
                             mutableAffinities[key] =
-                                (current + 0.02).coerceAtMost(1.0)
+                                (current + AFFINITY_INCREMENT)
+                                    .coerceAtMost(AFFINITY_MAX)
                         }
                     }
-                    newAffinities = mutableAffinities.filter { it.value > 0.05 }
-                    if (newAffinities.size > 500) {
+                    newAffinities = mutableAffinities
+                        .filter { it.value > AFFINITY_PRUNE_THRESHOLD }
+                    if (newAffinities.size > AFFINITY_MAX_ENTRIES) {
                         newAffinities = newAffinities.entries
                             .sortedByDescending { it.value }
-                            .take(300)
+                            .take(AFFINITY_KEEP_TOP)
                             .associate { it.key to it.value }
                     }
                 }
             }
 
-            // 6. Auto-update persona tracking
+            // 6. Update IDF counters on interaction
+            if (learningRate > 0) {
+                videoVector.topics.keys.forEach { word ->
+                    idfWordFrequency[word] =
+                        (idfWordFrequency[word] ?: 0) + 1
+                }
+                idfTotalDocuments++
+
+                // V9.1 FIX: Prune dead weights after halving
+                if (idfTotalDocuments > 10000) {
+                    idfWordFrequency.replaceAll { _, v -> v / 2 }
+                    idfWordFrequency.entries.removeAll { it.value <= 0 }
+                    idfTotalDocuments /= 2
+                }
+
+                if (idfTotalDocuments % 100 == 0) {
+                    featureCache.clear()
+                }
+            }
+
+            // 7. Persona tracking
             val rawPersona = getPersona(currentUserBrain)
             val lastPersonaName = currentUserBrain.lastPersona
             val newStability = if (rawPersona.name == lastPersonaName) {
-                (currentUserBrain.personaStability + 1).coerceAtMost(10)
+                (currentUserBrain.personaStability + 1)
+                    .coerceAtMost(PERSONA_MAX_STABILITY)
             } else 1
+
+            // 8. Session tracking
+            val primaryTopic = videoVector.topics
+                .maxByOrNull { it.value }?.key
+            if (primaryTopic != null) {
+                sessionTopicHistory.add(primaryTopic)
+                while (sessionTopicHistory.size > SESSION_TOPIC_HISTORY_MAX) {
+                    sessionTopicHistory.removeFirst()
+                }
+            }
+            sessionVideoCount++
+
+            // V9.1: Clear this video's impression count on positive interaction.
+            // The user clicked it, so it's no longer "ignored."
+            if (learningRate > 0) {
+                impressionCache.remove(video.id)
+            }
+
+            // V9.1: Update watch history
+            if (interactionType == InteractionType.WATCHED &&
+                percentWatched > WATCHED_THRESHOLD_SAMPLED
+            ) {
+                val existing = watchHistory[video.id]
+                // Only update if the new watch is deeper than previous
+                if (existing == null ||
+                    percentWatched > existing.percentWatched
+                ) {
+                    watchHistory[video.id] = WatchEntry(
+                        percentWatched, System.currentTimeMillis()
+                    )
+                    // LRU eviction
+                    while (watchHistory.size > WATCH_HISTORY_MAX) {
+                        val oldestKey = watchHistory.keys.first()
+                        watchHistory.remove(oldestKey)
+                    }
+                }
+            }
+
+            // Build watch history map for persistence
+            val watchHistoryMap = watchHistory.mapValues { (_, entry) ->
+                entry.percentWatched
+            }
 
             currentUserBrain = currentUserBrain.copy(
                 globalVector = newGlobal,
@@ -1214,24 +1713,14 @@ object FlowNeuroEngine {
                 totalInteractions = currentUserBrain.totalInteractions + 1,
                 consecutiveSkips = newSkips,
                 lastPersona = rawPersona.name,
-                personaStability = newStability
+                personaStability = newStability,
+                idfWordFrequency = idfWordFrequency.toMap(),
+                idfTotalDocuments = idfTotalDocuments,
+                watchHistoryMap = watchHistoryMap
             )
 
-            scheduleDebouncedSave(context)
+            scheduleDebouncedSave()
         }
-
-        // Update session tracking (outside mutex — not persisted)
-        val primaryTopic = videoVector.topics
-            .maxByOrNull { it.value }?.key
-        if (primaryTopic != null) {
-            synchronized(sessionTopicHistory) {
-                sessionTopicHistory.add(primaryTopic)
-                while (sessionTopicHistory.size > 50) {
-                    sessionTopicHistory.removeFirst()
-                }
-            }
-        }
-        sessionVideoCount++
     }
 
     enum class InteractionType {
@@ -1248,72 +1737,84 @@ object FlowNeuroEngine {
         val vector: ContentVector
     )
 
-    /**
-     * V8: Cached feature extraction with IDF awareness.
-     */
-    private fun getOrExtractFeatures(video: Video): ContentVector {
+    private fun getOrExtractFeatures(
+        video: Video,
+        idfSnapshot: IdfSnapshot
+    ): ContentVector {
         val cacheKey = video.id
         synchronized(featureCache) {
             featureCache[cacheKey]?.let { return it }
         }
-        val vector = extractFeatures(video)
+        val vector = extractFeatures(video, idfSnapshot)
         synchronized(featureCache) {
             featureCache[cacheKey] = vector
         }
         return vector
     }
 
-    /**
-     * V8: Feature extraction with:
-     * - IDF-weighted keywords (common words penalized)
-     * - Independent pacing from title/metadata keywords
-     * - Description timestamp detection for complexity
-     * - Description keyword extraction
-     */
-    private fun extractFeatures(video: Video): ContentVector {
-        val topics = mutableMapOf<String, Double>()
+    private suspend fun takeIdfSnapshotSafe(): IdfSnapshot {
+        return brainMutex.withLock { takeIdfSnapshot() }
+    }
 
-        fun tokenize(text: String): List<String> {
-            return text.lowercase()
-                .split("\\s+".toRegex())
-                .map { word -> word.trim { !it.isLetterOrDigit() } }
-                .filter { it.length > 2 && !STOP_WORDS.contains(it) }
-                .map { normalizeLemma(it) }
-        }
+    /**
+     * V9.1: Uses pre-compiled WHITESPACE_REGEX instead of "\\s+".toRegex()
+     */
+    private fun tokenize(text: String): List<String> {
+        return text.lowercase()
+            .split(WHITESPACE_REGEX)
+            .map { word -> word.trim { !it.isLetterOrDigit() } }
+            .filter { it.length > 2 }
+            .map { normalizeLemma(it) }
+            .filter { !STOP_WORDS.contains(it) }
+    }
+
+    /**
+     * V9.1: All regex usage replaced with pre-compiled WHITESPACE_REGEX.
+     */
+    private fun extractFeatures(
+        video: Video,
+        idfSnapshot: IdfSnapshot
+    ): ContentVector {
+        val topics = mutableMapOf<String, Double>()
 
         val titleWords = tokenize(video.title)
         val chWords = tokenize(video.channelName)
 
-        // Channel keywords (IDF-weighted)
         chWords.forEach {
-            topics[it] = calculateIdfWeight(it, 1.0)
+            topics[it] = calculateIdfWeight(
+                it, CHANNEL_KEYWORD_WEIGHT, idfSnapshot
+            )
         }
 
-        // Title keywords (IDF-weighted)
         titleWords.forEach { word ->
             topics[word] = (topics.getOrDefault(word, 0.0) +
-                calculateIdfWeight(word, 0.5))
+                calculateIdfWeight(word, TITLE_KEYWORD_WEIGHT, idfSnapshot))
         }
 
-        // Bigrams (IDF-weighted)
         if (titleWords.size >= 2) {
             for (i in 0 until titleWords.size - 1) {
                 val bigram = "${titleWords[i]} ${titleWords[i + 1]}"
-                topics[bigram] = calculateIdfWeight(bigram, 0.75)
+                topics[bigram] = calculateIdfWeight(
+                    bigram, BIGRAM_WEIGHT, idfSnapshot
+                )
             }
         }
 
-        // Description extraction (lower weight, capped)
         val description = video.description
-        if (!description.isNullOrBlank() && description.length > 20) {
-            val descWords = tokenize(description.take(200)).take(15)
+        if (!description.isNullOrBlank() &&
+            description.length > DESCRIPTION_MIN_LENGTH
+        ) {
+            val descWords = tokenize(
+                description.take(DESCRIPTION_TAKE_CHARS)
+            ).take(DESCRIPTION_TAKE_WORDS)
             descWords.forEach { word ->
                 topics[word] = (topics.getOrDefault(word, 0.0) +
-                    calculateIdfWeight(word, 0.2))
+                    calculateIdfWeight(
+                        word, DESCRIPTION_WORD_WEIGHT, idfSnapshot
+                    ))
             }
         }
 
-        // Normalize vector
         val normalized = if (topics.isNotEmpty()) {
             var magnitude = 0.0
             topics.values.forEach { magnitude += it * it }
@@ -1322,9 +1823,6 @@ object FlowNeuroEngine {
             else topics
         } else topics
 
-        // === Scalar features ===
-
-        // Duration (logarithmic scale)
         val durationSec = when {
             video.duration > 0 -> video.duration
             video.isLive -> 3600
@@ -1333,7 +1831,6 @@ object FlowNeuroEngine {
         val durationScore = (ln(1.0 + durationSec) /
             ln(1.0 + 7200.0)).coerceIn(0.0, 1.0)
 
-        // V8: Independent pacing from title/metadata keywords
         val pacingScore = run {
             val titleLower = video.title.lowercase()
 
@@ -1354,20 +1851,24 @@ object FlowNeuroEngine {
             }
         }
 
-        // V8: Complexity with description timestamp detection
-        val rawTitleWords = video.title.split("\\s+".toRegex())
+        // NPE-safe chapter detection
+        val hasChapters = if (!description.isNullOrBlank()) {
+            TIMESTAMP_PATTERN.findAll(description).count() >= CHAPTER_TIMESTAMP_MIN
+        } else false
+
+        // V9.1: Pre-compiled regex
+        val rawTitleWords = video.title.split(WHITESPACE_REGEX)
             .filter { it.length > 1 }
 
-        val hasChapters = TIMESTAMP_PATTERN.findAll(description).count() >= 3
-
         val complexityScore = run {
-            val titleLenFactor =
-                (video.title.length / 80.0).coerceIn(0.0, 0.4)
+            val titleLenFactor = (video.title.length /
+                COMPLEXITY_TITLE_LEN_MAX).coerceIn(0.0, COMPLEXITY_TITLE_LEN_WEIGHT)
             val avgWordLen = if (rawTitleWords.isNotEmpty()) {
                 rawTitleWords.map { it.length }.average()
             } else 4.0
-            val wordLenFactor = (avgWordLen / 8.0).coerceIn(0.0, 0.4)
-            val chapterBonus = if (hasChapters) 0.2 else 0.0
+            val wordLenFactor = (avgWordLen /
+                COMPLEXITY_WORD_LEN_DIVISOR).coerceIn(0.0, COMPLEXITY_WORD_LEN_WEIGHT)
+            val chapterBonus = if (hasChapters) COMPLEXITY_CHAPTER_BONUS else 0.0
             (titleLenFactor + wordLenFactor + chapterBonus)
                 .coerceIn(0.0, 1.0)
         }
@@ -1381,9 +1882,6 @@ object FlowNeuroEngine {
         )
     }
 
-    /**
-     * V8: Cosine similarity with independent pacing dimension.
-     */
     private fun calculateCosineSimilarity(
         user: ContentVector,
         content: ContentVector
@@ -1393,13 +1891,12 @@ object FlowNeuroEngine {
         ) user.topics to content.topics
         else content.topics to user.topics
 
-        // Scalar similarity — V8: pacing is now independent and meaningful
         val durationSim = 1.0 - abs(user.duration - content.duration)
         val pacingSim = 1.0 - abs(user.pacing - content.pacing)
         val complexitySim = 1.0 - abs(user.complexity - content.complexity)
-        val scalarScore = (durationSim * 0.10) +
-            (pacingSim * 0.10) +
-            (complexitySim * 0.10)
+        val scalarScore = (durationSim * DURATION_SIMILARITY_WEIGHT) +
+            (pacingSim * PACING_SIMILARITY_WEIGHT) +
+            (complexitySim * COMPLEXITY_SIMILARITY_WEIGHT)
 
         if (smallMap.isEmpty()) return scalarScore
 
@@ -1425,13 +1922,9 @@ object FlowNeuroEngine {
             dotProduct / (sqrt(magA) * sqrt(magB))
         } else 0.0
 
-        // 70% topics, 30% scalar features
-        return (topicSim * 0.7) + scalarScore
+        return (topicSim * TOPIC_SIMILARITY_WEIGHT) + scalarScore
     }
 
-    /**
-     * V7/V8: Fixed negative feedback with absolute floor reduction.
-     */
     private fun adjustVector(
         current: ContentVector,
         target: ContentVector,
@@ -1444,9 +1937,9 @@ object FlowNeuroEngine {
             val currentVal = newTopics[key] ?: 0.0
 
             val delta = if (isNegative) {
-                val proportional =
-                    currentVal * currentVal.pow(1.5) * baseRate
-                val absoluteFloor = baseRate * 0.3
+                val proportional = currentVal *
+                    currentVal.pow(NEGATIVE_PROPORTIONAL_EXPONENT) * baseRate
+                val absoluteFloor = baseRate * NEGATIVE_FLOOR_FACTOR
                 minOf(proportional, absoluteFloor)
             } else {
                 val saturationPenalty = (1.0 - currentVal).pow(2)
@@ -1457,41 +1950,42 @@ object FlowNeuroEngine {
             newTopics[key] = (currentVal + delta).coerceIn(0.0, 1.0)
         }
 
-        // Decay non-relevant topics on positive feedback
-        val decay = if (baseRate > 0) 0.97 else 1.0
+        val decay = if (baseRate > 0) TOPIC_DECAY_RATE else 1.0
         val iterator = newTopics.iterator()
         while (iterator.hasNext()) {
             val entry = iterator.next()
             if (!target.topics.containsKey(entry.key)) {
                 entry.setValue(entry.value * decay)
             }
-            if (entry.value < 0.03) iterator.remove()
+            if (entry.value < TOPIC_PRUNE_THRESHOLD) iterator.remove()
         }
 
-        // V8 FIX: After negative feedback, if the vector has become
-        // too concentrated (top topic >60% of total magnitude),
-        // apply gentle compression to prevent domination.
         if (isNegative && newTopics.isNotEmpty()) {
             val totalMagnitude = newTopics.values.sum()
             val maxScore = newTopics.values.maxOrNull() ?: 0.0
 
-            if (totalMagnitude > 0 && maxScore / totalMagnitude > 0.6) {
+            if (totalMagnitude > 0 &&
+                maxScore / totalMagnitude > COMPRESSION_THRESHOLD
+            ) {
                 val compressed = newTopics.mapValues { (_, v) ->
-                    if (v > 0.5) 0.5 + (v - 0.5) * 0.7 else v
+                    if (v > COMPRESSION_CEILING)
+                        COMPRESSION_CEILING +
+                            (v - COMPRESSION_CEILING) * COMPRESSION_FACTOR
+                    else v
                 }
                 newTopics.clear()
                 newTopics.putAll(compressed)
             }
         }
 
-        // Scalar updates with corrected negative feedback
         fun updateScalar(
             currentScalar: Double,
             targetScalar: Double
         ): Double {
             return if (isNegative) {
-                val proportional = currentScalar * baseRate * 0.3
-                val floor = baseRate * 0.1
+                val proportional = currentScalar * baseRate *
+                    NEGATIVE_SCALAR_PROPORTIONAL
+                val floor = baseRate * NEGATIVE_SCALAR_FLOOR
                 currentScalar + minOf(proportional, floor)
             } else {
                 val saturation = (1.0 - currentScalar).pow(2)
@@ -1511,9 +2005,6 @@ object FlowNeuroEngine {
         )
     }
 
-    /**
-     * V7/V8: Diversity re-ranking with sliding window.
-     */
     private fun applySmartDiversity(
         candidates: MutableList<ScoredVideo>
     ): List<Video> {
@@ -1523,8 +2014,6 @@ object FlowNeuroEngine {
 
         candidates.sortByDescending { it.score }
 
-        // V8 FIX: Calculate how many unique strong topics exist.
-        // If only 2-3 topics dominate, tighten the per-topic cap.
         val uniqueTopics = candidates
             .mapNotNull {
                 it.vector.topics.maxByOrNull { e -> e.value }?.key
@@ -1532,21 +2021,18 @@ object FlowNeuroEngine {
             .distinct()
         val topicDiversity = uniqueTopics.size
 
-        // Adaptive cap: more unique topics → more allowed per topic
         val maxPerTopic = when {
             topicDiversity <= 4 -> 2
             topicDiversity <= 7 -> 3
             else -> 3
         }
 
-        // Reserve exploration slots when diversity is low
         val explorationSlots = when {
             topicDiversity <= 2 -> 6
             topicDiversity <= 4 -> 4
             else -> 2
         }
 
-        // Pre-compute user's top 3 topics from all candidates
         val userTopTopics = candidates
             .flatMap { it.vector.topics.entries }
             .groupBy { it.key }
@@ -1558,11 +2044,15 @@ object FlowNeuroEngine {
             .toSet()
 
         // Phase 1: Strict diversity
+        val deferredHighQuality = mutableListOf<ScoredVideo>()
         val phase1Candidates = candidates.toMutableList()
         val phase1Iterator = phase1Candidates.iterator()
         var explorationCount = 0
+        val topScore = candidates.firstOrNull()?.score ?: 0.0
 
-        while (phase1Iterator.hasNext() && finalPlaylist.size < 20) {
+        while (phase1Iterator.hasNext() &&
+            finalPlaylist.size < DIVERSITY_PHASE1_TARGET
+        ) {
             val current = phase1Iterator.next()
             val primaryTopic = current.vector.topics
                 .maxByOrNull { it.value }?.key ?: ""
@@ -1575,10 +2065,9 @@ object FlowNeuroEngine {
                 .any { existing ->
                     calculateTitleSimilarity(
                         current.video.title, existing.title
-                    ) > 0.55
+                    ) > TITLE_SIMILARITY_STRICT
                 }
 
-            // Novel topics (not in top 3) get a slightly relaxed cap
             val isNovelTopic = primaryTopic.isNotEmpty() &&
                 !userTopTopics.contains(primaryTopic)
             val effectiveTopicCap = if (isNovelTopic &&
@@ -1596,26 +2085,49 @@ object FlowNeuroEngine {
                 }
                 if (isNovelTopic) explorationCount++
                 phase1Iterator.remove()
+            } else if (topScore > 0 &&
+                current.score > (topScore * 0.8)
+            ) {
+                deferredHighQuality.add(current)
+                phase1Iterator.remove()
             }
         }
 
-        // Phase 2: Relaxed with sliding window
-        phase1Candidates.sortedByDescending { it.score }
-            .forEach { scored ->
-                val recentChannels = finalPlaylist.takeLast(5)
-                    .map { it.channelId }
-                val channelSpam = recentChannels
-                    .count { it == scored.video.channelId } >= 2
-                val titleSimilar = finalPlaylist.takeLast(5)
-                    .any { existing ->
-                        calculateTitleSimilarity(
-                            scored.video.title, existing.title
-                        ) > 0.60
-                    }
-                if (!channelSpam && !titleSimilar) {
-                    finalPlaylist.add(scored.video)
+        // Phase 2: Deferred quality
+        deferredHighQuality.sortByDescending { it.score }
+        for (scored in deferredHighQuality) {
+            val recentChannels = finalPlaylist.takeLast(7)
+                .map { it.channelId }
+            val channelOk = recentChannels
+                .count { it == scored.video.channelId } < 2
+            val titleOk = finalPlaylist.takeLast(5)
+                .none { existing ->
+                    calculateTitleSimilarity(
+                        scored.video.title, existing.title
+                    ) > TITLE_SIMILARITY_RELAXED
                 }
+            if (channelOk && titleOk) {
+                finalPlaylist.add(scored.video)
             }
+        }
+
+        // Phase 3: Relaxed fill
+        phase1Candidates.sortByDescending { it.score }
+        for (scored in phase1Candidates) {
+            val recentChannels = finalPlaylist.takeLast(5)
+                .map { it.channelId }
+            val channelSpam = recentChannels
+                .count { it == scored.video.channelId } >= 2
+            val titleSimilar = finalPlaylist.takeLast(5)
+                .any { existing ->
+                    calculateTitleSimilarity(
+                        scored.video.title, existing.title
+                    ) > TITLE_SIMILARITY_RELAXED
+                }
+            if (!channelSpam && !titleSimilar) {
+                finalPlaylist.add(scored.video)
+            }
+        }
 
         return finalPlaylist
     }
@@ -1647,13 +2159,12 @@ object FlowNeuroEngine {
         val preferredTopics: Set<String> = emptySet(),
         val hasCompletedOnboarding: Boolean = false,
         val lastPersona: String? = null,
-        val personaStability: Int = 0
+        val personaStability: Int = 0,
+        val idfWordFrequency: Map<String, Int> = emptyMap(),
+        val idfTotalDocuments: Int = 0,
+        // V9.1: Persisted watch history (videoId → percentWatched)
+        val watchHistoryMap: Map<String, Float> = emptyMap()
     )
-
-    private val json = Json {
-        ignoreUnknownKeys = true
-        encodeDefaults = true
-    }
 
     private object BrainSerializer : Serializer<SerializableBrain> {
         override val defaultValue: SerializableBrain = SerializableBrain()
@@ -1683,14 +2194,12 @@ object FlowNeuroEngine {
         }
     }
 
-    // V8: New filename to prevent corruption from V7 schema differences
     private val Context.brainDataStore: DataStore<SerializableBrain>
         by dataStore(
-            fileName = "flow_neuro_brain_v8.json",
+            fileName = "flow_neuro_brain_v9.json",
             serializer = BrainSerializer
         )
 
-    // Conversion helpers
     private fun ContentVector.toSerializable() = SerializableVector(
         topics = topics, duration = duration, pacing = pacing,
         complexity = complexity, isLive = isLive
@@ -1716,7 +2225,10 @@ object FlowNeuroEngine {
         preferredTopics = preferredTopics,
         hasCompletedOnboarding = hasCompletedOnboarding,
         lastPersona = lastPersona,
-        personaStability = personaStability
+        personaStability = personaStability,
+        idfWordFrequency = idfWordFrequency,
+        idfTotalDocuments = idfTotalDocuments,
+        watchHistoryMap = watchHistoryMap
     )
 
     private fun SerializableBrain.toUserBrain(): UserBrain {
@@ -1737,63 +2249,67 @@ object FlowNeuroEngine {
             hasCompletedOnboarding = hasCompletedOnboarding,
             lastPersona = lastPersona,
             personaStability = personaStability,
+            idfWordFrequency = idfWordFrequency,
+            idfTotalDocuments = idfTotalDocuments,
+            watchHistoryMap = watchHistoryMap,
             schemaVersion = schemaVersion
         )
     }
 
-    private suspend fun saveBrainToDataStore(
-        context: Context
-    ) = withContext(Dispatchers.IO) {
-        try {
-            val appContext = context.applicationContext
-            appContext.brainDataStore.updateData {
-                currentUserBrain.toSerializable()
+    private suspend fun saveBrainToDataStore() =
+        withContext(Dispatchers.IO) {
+            try {
+                appContext.brainDataStore.updateData {
+                    currentUserBrain.toSerializable()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to save brain", e)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to save brain", e)
         }
-    }
 
-    private suspend fun loadBrainFromDataStore(
-        context: Context
-    ): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val appContext = context.applicationContext
-            val data = appContext.brainDataStore.data.first()
-            if (data.interactions > 0 ||
-                data.hasCompletedOnboarding ||
-                data.preferredTopics.isNotEmpty()
-            ) {
-                currentUserBrain = data.toUserBrain()
-                Log.i(
-                    TAG,
-                    "Loaded brain v${data.schemaVersion}, " +
-                        "${data.interactions} interactions"
-                )
-                return@withContext true
+    private suspend fun loadBrainFromDataStore(): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                val data = appContext.brainDataStore.data.first()
+                if (data.interactions > 0 ||
+                    data.hasCompletedOnboarding ||
+                    data.preferredTopics.isNotEmpty()
+                ) {
+                    currentUserBrain = data.toUserBrain()
+                    Log.i(
+                        TAG,
+                        "Loaded brain v${data.schemaVersion}, " +
+                            "${data.interactions} interactions"
+                    )
+                    return@withContext true
+                }
+                return@withContext false
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load brain", e)
+                return@withContext false
             }
-            return@withContext false
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to load brain", e)
-            return@withContext false
         }
-    }
 
     // =================================================
     // EXPORT / IMPORT
     // =================================================
 
+    /**
+     * V9.1 FIX: Mutex scope reduction — only lock to copy state,
+     * then release before JSON serialization and IO.
+     */
     suspend fun exportBrainToStream(
         output: OutputStream
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            brainMutex.withLock {
-                val serializable = currentUserBrain.toSerializable()
-                val jsonBytes = Json { encodeDefaults = true }
-                    .encodeToString(serializable).toByteArray()
-                output.write(jsonBytes)
-                output.flush()
+            val brainCopy = brainMutex.withLock {
+                currentUserBrain.toSerializable()
             }
+            // Lock released — IO won't block ranking/interactions
+            val jsonBytes = Json { encodeDefaults = true }
+                .encodeToString(brainCopy).toByteArray()
+            output.write(jsonBytes)
+            output.flush()
             Log.i(TAG, "Brain exported")
             true
         } catch (e: Exception) {
@@ -1803,33 +2319,37 @@ object FlowNeuroEngine {
     }
 
     suspend fun importBrainFromStream(
-        context: Context,
         input: InputStream
     ): Boolean = withContext(Dispatchers.IO) {
         try {
+            // Read and parse outside mutex
             val text = input.bufferedReader().readText()
             val jsonParser = Json { ignoreUnknownKeys = true }
 
-            // First try: direct V8 format
             val imported = jsonParser
                 .decodeFromString<SerializableBrain>(text)
 
-            // Check if timeVectors actually has data
             val hasTimeData = imported.timeVectors.any { (_, v) ->
                 v.topics.isNotEmpty()
             }
 
             val finalBrain = if (hasTimeData) {
-                // V8 native format — use directly
                 imported.toUserBrain()
             } else {
-                // Likely V6/V7 format — parse legacy fields manually
                 migrateLegacyBackup(text, imported)
             }
 
+            // Only lock for the state assignment
             brainMutex.withLock {
                 currentUserBrain = finalBrain
-                saveBrainToDataStore(context.applicationContext)
+                idfWordFrequency = finalBrain.idfWordFrequency.toMutableMap()
+                idfTotalDocuments = finalBrain.idfTotalDocuments
+                // Restore watch history
+                watchHistory.clear()
+                finalBrain.watchHistoryMap.forEach { (id, pct) ->
+                    watchHistory[id] = WatchEntry(pct, System.currentTimeMillis())
+                }
+                saveBrainToDataStore()
             }
             Log.i(
                 TAG,
@@ -1845,21 +2365,14 @@ object FlowNeuroEngine {
         }
     }
 
-    /**
-     * Legacy migration — reads V3-V8 brain formats.
-     * Delegates to migrateLegacyBackup for unified format handling.
-     */
-    private suspend fun loadLegacyBrain(
-        context: Context
-    ) = withContext(Dispatchers.IO) {
-        val legacyFile = File(context.filesDir, BRAIN_FILENAME)
+    private suspend fun loadLegacyBrain() = withContext(Dispatchers.IO) {
+        val legacyFile = File(appContext.filesDir, BRAIN_FILENAME)
         if (legacyFile.exists()) {
             try {
                 Log.i(TAG, "Migrating legacy JSON brain...")
                 val text = legacyFile.readText()
                 val migrated = migrateLegacyBackup(
-                    text,
-                    SerializableBrain() 
+                    text, SerializableBrain()
                 )
                 currentUserBrain = migrated
                 Log.i(
@@ -1873,15 +2386,9 @@ object FlowNeuroEngine {
             }
         }
 
-        // Try V7 DataStore file
-        tryMigrateFromV7DataStore(context)
+        tryMigrateFromPreviousDataStore()
     }
 
-    /**
-     * Parses a backup JSON that may use V6 field names
-     * (morning/afternoon/evening/night) or V7 timeVectors with
-     * string keys, and maps them to V8's 8-bucket ContentVector map.
-     */
     private fun migrateLegacyBackup(
         rawJson: String,
         partialParse: SerializableBrain
@@ -1895,10 +2402,10 @@ object FlowNeuroEngine {
                 return legacyJsonToVector(obj)
             }
 
-            val morningVec   = parseVector("morning")
+            val morningVec = parseVector("morning")
             val afternoonVec = parseVector("afternoon")
-            val eveningVec   = parseVector("evening")
-            val nightVec     = parseVector("night")
+            val eveningVec = parseVector("evening")
+            val nightVec = parseVector("night")
 
             val hasLegacyData = listOf(
                 morningVec, afternoonVec, eveningVec, nightVec
@@ -1906,19 +2413,17 @@ object FlowNeuroEngine {
 
             val timeVectors: Map<TimeBucket, ContentVector> =
                 if (hasLegacyData) {
-                    // V6 format: 4 buckets → duplicate to weekday + weekend
                     mapOf(
-                        TimeBucket.WEEKDAY_MORNING   to morningVec,
-                        TimeBucket.WEEKEND_MORNING   to morningVec,
+                        TimeBucket.WEEKDAY_MORNING to morningVec,
+                        TimeBucket.WEEKEND_MORNING to morningVec,
                         TimeBucket.WEEKDAY_AFTERNOON to afternoonVec,
                         TimeBucket.WEEKEND_AFTERNOON to afternoonVec,
-                        TimeBucket.WEEKDAY_EVENING   to eveningVec,
-                        TimeBucket.WEEKEND_EVENING   to eveningVec,
-                        TimeBucket.WEEKDAY_NIGHT     to nightVec,
-                        TimeBucket.WEEKEND_NIGHT     to nightVec
+                        TimeBucket.WEEKDAY_EVENING to eveningVec,
+                        TimeBucket.WEEKEND_EVENING to eveningVec,
+                        TimeBucket.WEEKDAY_NIGHT to nightVec,
+                        TimeBucket.WEEKEND_NIGHT to nightVec
                     )
                 } else {
-                    // Try V7 format: timeVectors with string keys
                     val tvObj = jsonObj.optJSONObject("timeVectors")
                     if (tvObj != null) {
                         TimeBucket.entries.associateWith { bucket ->
@@ -1932,7 +2437,6 @@ object FlowNeuroEngine {
                     }
                 }
 
-            // Global vector
             val globalVec = if (partialParse.global.topics.isNotEmpty()) {
                 partialParse.global.toContentVector()
             } else {
@@ -1941,14 +2445,12 @@ object FlowNeuroEngine {
                 }
             }
 
-            // Channel scores
             val channelScores = mutableMapOf<String, Double>()
             val scoresObj = jsonObj.optJSONObject("channelScores")
             scoresObj?.keys()?.forEach { key ->
                 channelScores[key] = scoresObj.getDouble(key)
             }
 
-            // Topic affinities (V7+)
             val affinities = mutableMapOf<String, Double>()
             val affObj = jsonObj.optJSONObject("topicAffinities")
             affObj?.keys()?.forEach { key ->
@@ -1963,6 +2465,13 @@ object FlowNeuroEngine {
                 }
                 return set
             }
+
+            val legacyIdfFreq = mutableMapOf<String, Int>()
+            val idfObj = jsonObj.optJSONObject("idfWordFrequency")
+            idfObj?.keys()?.forEach { key ->
+                legacyIdfFreq[key] = idfObj.getInt(key)
+            }
+            val legacyIdfTotal = jsonObj.optInt("idfTotalDocuments", 0)
 
             return UserBrain(
                 timeVectors = timeVectors,
@@ -1987,10 +2496,17 @@ object FlowNeuroEngine {
                     loadStringSet("preferredTopics")
                 },
                 hasCompletedOnboarding =
-                    partialParse.hasCompletedOnboarding ||
+                partialParse.hasCompletedOnboarding ||
                     jsonObj.optBoolean("hasCompletedOnboarding", false),
                 lastPersona = partialParse.lastPersona,
-                personaStability = partialParse.personaStability
+                personaStability = partialParse.personaStability,
+                idfWordFrequency = if (legacyIdfFreq.isNotEmpty())
+                    legacyIdfFreq
+                else partialParse.idfWordFrequency,
+                idfTotalDocuments = if (legacyIdfTotal > 0)
+                    legacyIdfTotal
+                else partialParse.idfTotalDocuments,
+                watchHistoryMap = partialParse.watchHistoryMap
             )
         } catch (e: Exception) {
             Log.e(TAG, "Legacy backup migration failed", e)
@@ -1998,41 +2514,38 @@ object FlowNeuroEngine {
         }
     }
 
-    /**
-     * V8: Migrate from V7 DataStore format.
-     * V7 used "flow_neuro_brain_v7.json" — if it exists, read it
-     * and convert (pacing defaults to 0.5 for existing vectors).
-     */
-    private suspend fun tryMigrateFromV7DataStore(context: Context) {
-        try {
-            // V7 DataStore file location
-            val v7File = File(
-                context.applicationContext.filesDir,
-                "datastore/flow_neuro_brain_v7.json"
-            )
-            if (!v7File.exists()) return
-
-            Log.i(TAG, "Found V7 DataStore, migrating to V8...")
-            val text = v7File.readText()
-            if (text.isBlank()) return
-
-            val v7Data = Json { ignoreUnknownKeys = true }
-                .decodeFromString<SerializableBrain>(text)
-
-            // V7 SerializableBrain is compatible — pacing will default
-            // to 0.5 via ignoreUnknownKeys + default values
-            if (v7Data.interactions > 0 ||
-                v7Data.hasCompletedOnboarding ||
-                v7Data.preferredTopics.isNotEmpty()
-            ) {
-                currentUserBrain = v7Data.toUserBrain()
-                Log.i(
-                    TAG,
-                    "Migrated V7 brain (${v7Data.interactions} interactions)"
+    private suspend fun tryMigrateFromPreviousDataStore() {
+        val versions = listOf("v8", "v7")
+        for (version in versions) {
+            try {
+                val file = File(
+                    appContext.filesDir,
+                    "datastore/flow_neuro_brain_$version.json"
                 )
+                if (!file.exists()) continue
+
+                Log.i(TAG, "Found $version DataStore, migrating to V9...")
+                val text = file.readText()
+                if (text.isBlank()) continue
+
+                val data = Json { ignoreUnknownKeys = true }
+                    .decodeFromString<SerializableBrain>(text)
+
+                if (data.interactions > 0 ||
+                    data.hasCompletedOnboarding ||
+                    data.preferredTopics.isNotEmpty()
+                ) {
+                    currentUserBrain = data.toUserBrain()
+                    Log.i(
+                        TAG,
+                        "Migrated $version brain " +
+                            "(${data.interactions} interactions)"
+                    )
+                    return
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "$version migration failed", e)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "V7 migration failed", e)
         }
     }
 
@@ -2112,11 +2625,6 @@ object FlowNeuroEngine {
         )
     }
 
-    /**
-     * V8: Persona detection with independent pacing dimension.
-     * Uses title-keyword-derived pacing for Skimmer/Binger detection
-     * instead of the old redundant `1 - duration`.
-     */
     fun getPersona(brain: UserBrain): FlowPersona {
         if (brain.totalInteractions < 15) return FlowPersona.INITIATE
 
@@ -2160,26 +2668,23 @@ object FlowNeuroEngine {
                 musicScore > (totalScore * 0.4) -> FlowPersona.AUDIOPHILE
             v.isLive > 0.6 -> FlowPersona.LIVEWIRE
             isNocturnal -> FlowPersona.NIGHT_OWL
-            // V8: Binger uses high interaction count + high pacing preference
             brain.totalInteractions > 500 &&
                 v.pacing > 0.65 -> FlowPersona.BINGER
             v.complexity > 0.75 -> FlowPersona.SCHOLAR
             v.duration > 0.70 -> FlowPersona.DEEP_DIVER
-            // V8: Skimmer uses short duration + high pacing (both independent)
             v.duration < 0.35 &&
                 v.pacing > 0.60 -> FlowPersona.SKIMMER
             diversityIndex < 0.25 -> FlowPersona.SPECIALIST
             else -> FlowPersona.EXPLORER
         }
 
-        // Persona hysteresis
         val lastPersona = brain.lastPersona?.let { name ->
             FlowPersona.entries.find { it.name == name }
         }
 
         return if (lastPersona != null &&
             rawPersona != lastPersona &&
-            brain.personaStability < 3
+            brain.personaStability < PERSONA_STABILITY_THRESHOLD
         ) {
             lastPersona
         } else {
@@ -2191,28 +2696,37 @@ object FlowNeuroEngine {
     // 6. EXPLORATION ENGINE
     // =================================================
 
+    // V9.1: Pre-compiled regex for MACRO_CATEGORIES
+    private val MACRO_CATEGORY_CLEAN_REGEX = Regex("[^a-zA-Z ]")
+
     private val MACRO_CATEGORIES: List<String> by lazy {
         TOPIC_CATEGORIES.flatMap { category ->
             listOf(
                 category.name
-                    .replace(Regex("[^a-zA-Z ]"), "")
+                    .replace(MACRO_CATEGORY_CLEAN_REGEX, "")
                     .trim()
             ) + category.topics.take(3)
         }.distinct()
     }
 
-    /**
-     * V8: Returns the 2 weakest macro categories for targeted exploration.
-     * Sorted by score so the least-covered areas get explored first.
-     */
     private fun getExplorationQueries(brain: UserBrain): List<String> {
+        val blocked = brain.blockedTopics
+
         return MACRO_CATEGORIES
+            .filter { category ->
+                val normalized = category.lowercase()
+                val lemma = normalizeLemma(normalized)
+                !blocked.any { blockedTerm ->
+                    normalized.contains(blockedTerm) ||
+                        lemma.contains(blockedTerm)
+                }
+            }
             .map { category ->
                 val score = brain.globalVector
                     .topics[normalizeLemma(category)] ?: 0.0
                 category to score
             }
-            .filter { it.second < 0.1 }
+            .filter { it.second < EXPLORATION_SCORE_THRESHOLD }
             .sortedBy { it.second }
             .take(2)
             .map { it.first }
@@ -2222,20 +2736,25 @@ object FlowNeuroEngine {
     // STOP WORDS
     // =================================================
 
-    private val STOP_WORDS = setOf(
+    private val STOP_WORDS = hashSetOf(
+        // Grammatical
         "the", "and", "for", "that", "this", "with", "you", "how",
         "what", "when", "mom", "types", "your", "which", "can",
         "make", "seen", "most", "into", "best", "from", "just",
         "about", "more", "some", "will", "one", "all", "would",
         "there", "their", "out", "not", "but", "have", "has",
         "been", "being", "was", "were", "are",
+        // YouTube meta
         "video", "official", "channel", "review", "reaction",
         "full", "episode", "part", "new", "latest", "update",
-        "updates", "hdr", "uhd", "fps", "live", "stream",
-        "streaming", "watch", "subscribe", "like", "comment",
+        "hdr", "uhd", "fps", "live", "stream",
+        "watch", "subscribe", "like", "comment",
         "share", "click", "link", "description", "below", "check",
         "dont", "miss", "must", "now",
+        // Resolution tags
         "1080p", "720p", "480p", "360p", "240p", "144p",
-        "reupload", "reup", "reuploaded", "compilation", "montage"
+        // Lemma-consistent
+        "compilation", "montage",
+        "reupload", "reup", "reuploaded"
     )
 }
