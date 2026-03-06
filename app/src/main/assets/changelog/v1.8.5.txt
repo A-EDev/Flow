@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 1.8.5
-DATE: 2026-03-05
+DATE: 2026-03-06
 
 NEW FEATURES
 - Add Notification Preferences screen in Settings — individually toggle new-video alerts, download notifications, screen time reminders, app updates, and general notifications; all types enabled by default; includes a shortcut to open Android's per-channel system notification settings
