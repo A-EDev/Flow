@@ -663,6 +663,9 @@
     <string name="sleep_timer_reset">Reset</string>
     <string name="sleep_timer_cancel_timer">Cancel Timer</string>
     <string name="sleep_timer_active_label">Sleep timer active</string>
+    <string name="sleep_timer_close_app">Close app when timer ends</string>
+    <string name="sleep_timer_close_app_desc">Exit app to preserve battery</string>
+    <string name="sleep_timer_will_close_app">App will close when timer ends</string>
 
     <!-- Search History Settings Screen -->
     <string name="search_history_title">Search &amp; History</string>

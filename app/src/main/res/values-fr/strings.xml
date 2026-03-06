@@ -873,4 +873,9 @@
     <string name="done">Terminé</string>
     <string name="playlist_queue">File d\'attente</string>
     <string name="next_up">À suivre</string>
+
+    <!-- Minuterie de Sommeil -->
+    <string name="sleep_timer_close_app">Fermer l\'appli à l\'expiration</string>
+    <string name="sleep_timer_close_app_desc">Quitter l\'appli pour préserver la batterie</string>
+    <string name="sleep_timer_will_close_app">L\'appli se fermera à l\'expiration de la minuterie</string>
 </resources>

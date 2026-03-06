@@ -34,6 +34,10 @@ object SleepTimerManager {
     var pauseAtEndOfMedia by mutableStateOf(false)
         private set
 
+    /** True when the timer should close the app instead of pausing playback. */
+    var closeAppOnExpiry by mutableStateOf(false)
+        private set
+
     /**
      * Epoch-millisecond timestamp at which the player will be paused.
      * -1 when no countdown is running.
@@ -46,6 +50,7 @@ object SleepTimerManager {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var timerJob: Job? = null
     private var pauseCallback: (() -> Unit)? = null
+    private var exitCallback: (() -> Unit)? = null
     private var currentPlayer: Player? = null
 
     private val playerListener = object : Player.Listener {
@@ -85,26 +90,34 @@ object SleepTimerManager {
     }
 
     /**
+     * Register a callback invoked instead of pausing when [closeAppOnExpiry] is true.
+     * Call this alongside [attachToPlayer] wherever the timer is set up.
+     */
+    fun attachExitCallback(fn: () -> Unit) {
+        exitCallback = fn
+    }
+
+    /**
      * Start a countdown timer.
      *
      * @param minutes  Duration in minutes, must be > 0.
      */
-    fun start(minutes: Int) {
+    fun start(minutes: Int, closeApp: Boolean = false) {
         require(minutes > 0) { "minutes must be positive" }
         clearState()
+        closeAppOnExpiry = closeApp
         triggerTimeMs = System.currentTimeMillis() + minutes * 60_000L
         isActive = true
         timerJob = scope.launch {
             delay(minutes * 60_000L)
-            pauseCallback?.invoke()
-            triggerTimeMs = -1L
-            isActive = false
+            firePause()
         }
     }
 
-    /** Start end-of-media mode — player pauses when the current item ends. */
-    fun startEndOfMedia() {
+    /** Start end-of-media mode — player pauses (or closes the app) when the current item ends. */
+    fun startEndOfMedia(closeApp: Boolean = false) {
         clearState()
+        closeAppOnExpiry = closeApp
         pauseAtEndOfMedia = true
         isActive = true
     }
@@ -117,7 +130,7 @@ object SleepTimerManager {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private fun firePause() {
-        pauseCallback?.invoke()
+        if (closeAppOnExpiry) exitCallback?.invoke() else pauseCallback?.invoke()
         cancel()
     }
 
@@ -125,6 +138,7 @@ object SleepTimerManager {
         timerJob?.cancel()
         timerJob = null
         pauseAtEndOfMedia = false
+        closeAppOnExpiry = false
         triggerTimeMs = -1L
         isActive = false
     }

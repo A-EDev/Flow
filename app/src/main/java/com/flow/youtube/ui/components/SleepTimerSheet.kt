@@ -22,6 +22,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -80,6 +81,7 @@ fun SleepTimerSheet(onDismiss: () -> Unit) {
     var sliderValue by remember { mutableFloatStateOf(30f) }
     var customInput by remember { mutableStateOf("") }
     var inputError by remember { mutableStateOf(false) }
+    var closeApp by remember { mutableStateOf(SleepTimerManager.closeAppOnExpiry) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -123,9 +125,10 @@ fun SleepTimerSheet(onDismiss: () -> Unit) {
                     ActiveTimerContent(
                         pauseAtEndOfMedia = pauseAtEndOfMedia,
                         remainingMs = remainingMs,
+                        closeAppOnExpiry = SleepTimerManager.closeAppOnExpiry,
                         onReset = {
                             val minutes = sliderValue.roundToInt()
-                            SleepTimerManager.start(minutes)
+                            SleepTimerManager.start(minutes, closeApp)
                         },
                         onCancel = {
                             SleepTimerManager.cancel()
@@ -154,7 +157,7 @@ fun SleepTimerSheet(onDismiss: () -> Unit) {
                         },
                         inputError = inputError,
                         onEndOfMedia = {
-                            SleepTimerManager.startEndOfMedia()
+                            SleepTimerManager.startEndOfMedia(closeApp)
                             onDismiss()
                         },
                         onCancel = onDismiss,
@@ -165,15 +168,17 @@ fun SleepTimerSheet(onDismiss: () -> Unit) {
                                     inputError = true
                                 }
                                 customInput.isNotEmpty() && minutes != null -> {
-                                    SleepTimerManager.start(minutes)
+                                    SleepTimerManager.start(minutes, closeApp)
                                     onDismiss()
                                 }
                                 else -> {
-                                    SleepTimerManager.start(sliderValue.roundToInt())
+                                    SleepTimerManager.start(sliderValue.roundToInt(), closeApp)
                                     onDismiss()
                                 }
                             }
-                        }
+                        },
+                        closeAppOnExpiry = closeApp,
+                        onCloseAppToggle = { closeApp = it }
                     )
                 }
             }
@@ -188,7 +193,8 @@ private fun ActiveTimerContent(
     pauseAtEndOfMedia: Boolean,
     remainingMs: Long,
     onReset: () -> Unit,
-    onCancel: () -> Unit
+    onCancel: () -> Unit,
+    closeAppOnExpiry: Boolean = false
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -216,6 +222,14 @@ private fun ActiveTimerContent(
                 style = MaterialTheme.typography.displaySmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        if (closeAppOnExpiry) {
+            Text(
+                text = stringResource(R.string.sleep_timer_will_close_app),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.secondary
             )
         }
 
@@ -251,7 +265,9 @@ private fun InactiveTimerContent(
     inputError: Boolean,
     onEndOfMedia: () -> Unit,
     onCancel: () -> Unit,
-    onStart: () -> Unit
+    onStart: () -> Unit,
+    closeAppOnExpiry: Boolean,
+    onCloseAppToggle: (Boolean) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -337,6 +353,30 @@ private fun InactiveTimerContent(
             )
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.sleep_timer_end_of_song))
+        }
+
+        // ── Close app toggle ──────────────────────────────────────────────────
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.sleep_timer_close_app),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = stringResource(R.string.sleep_timer_close_app_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Switch(
+                checked = closeAppOnExpiry,
+                onCheckedChange = onCloseAppToggle
+            )
         }
 
         Spacer(Modifier.height(4.dp))

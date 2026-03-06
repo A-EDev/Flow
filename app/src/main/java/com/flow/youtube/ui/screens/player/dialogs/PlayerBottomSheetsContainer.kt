@@ -69,6 +69,9 @@ fun PlayerBottomSheetsContainer(
         ) {
             EnhancedPlayerManager.getInstance().pause()
         }
+        SleepTimerManager.attachExitCallback {
+            (context as? android.app.Activity)?.finishAndRemoveTask()
+        }
     }
 
     // Quick actions sheet

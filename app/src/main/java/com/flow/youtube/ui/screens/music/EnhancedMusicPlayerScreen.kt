@@ -80,6 +80,9 @@ fun EnhancedMusicPlayerScreen(
         ) {
             EnhancedMusicPlayerManager.player?.pause()
         }
+        SleepTimerManager.attachExitCallback {
+            (context as? android.app.Activity)?.finishAndRemoveTask()
+        }
     }
     
     // Unified Sheet State

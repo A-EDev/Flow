@@ -4,7 +4,8 @@ DATE: 2026-03-05
 
 NEW FEATURES
 - Add Notification Preferences screen in Settings — individually toggle new-video alerts, download notifications, screen time reminders, app updates, and general notifications; all types enabled by default; includes a shortcut to open Android's per-channel system notification settings
-- Add Sleep Timer for both music and video players — set a countdown to automatically pause playback; supports preset durations and custom time entry; works in background playback and picture-in-picture modes
+- Add Sleep Timer for both music and video players — set a countdown to automatically pause playback; supports preset durations and custom time entry; works in background playback and picture-in-picture modes; option to close the app entirely when the timer fires instead of just pausing, preserving battery life
+- Add "Don't show this channel" quick action — tap the menu on any video card and select "Don't show this channel" under the Algorithm section to permanently filter a channel from your recommendations; persisted to your profile and reversible from Settings → Content Preferences → Blocked
 
 RECOMMENDATION ENGINE (V9.1 — "Anti-Repetition")
 - Performance: Pre-compiled regex eliminates thousands of regex object allocations per ranking cycle, reducing CPU overhead on low-end devices
@@ -27,3 +28,4 @@ FIXES AND STABILITY
 - Fix shorts routing condition to only work when detecting a short instead of video durations from 1-120s
 - Fix downloaded videos having all-underscore filenames for non-Latin titles (Arabic, Chinese, etc.) — filename sanitizer now uses Unicode-aware character classes so the original title characters are preserved
 - Fix bottom navigation home button doing nothing when pressed from the search screen — home navigation now uses popBackStack instead of navigate(), avoiding a launchSingleTop+restoreState edge-case that silently no-ops when the search screen sits above home on the back stack
+- Fix search result playlists being unclickable — tapping a playlist in search results now opens the playlist detail screen; video and channel results were already functional but playlists had an empty click handler wired to nowhere
