@@ -391,7 +391,109 @@ object NotificationHelper {
     }
     
     // ========== SUBSCRIPTION NOTIFICATIONS ==========
-    
+
+    /**
+     * Represents a single new video found during a subscription check cycle.
+     */
+    data class NewVideoEntry(
+        val channelName: String,
+        val videoTitle: String,
+        val videoId: String,
+        val thumbnailUrl: String?
+    )
+
+    /**
+     * Smart dispatcher for subscription update notifications.
+     *
+     * - 0 entries  → no-op
+     * - 1 entry    → full individual notification with thumbnail
+     * - 2+ entries → single grouped InboxStyle notification listing all channels;
+     *                shows up as one notification in the shade instead of a flood
+     */
+    suspend fun showSubscriptionUpdates(context: Context, videos: List<NewVideoEntry>) {
+        if (!hasNotificationPermission(context)) return
+        if (!PlayerPreferences(context).notifNewVideosEnabled.first()) return
+        if (videos.isEmpty()) return
+
+        videos.forEach { v ->
+            storeNotification(
+                context,
+                NotificationEntity(
+                    videoId = v.videoId,
+                    title = v.videoTitle,
+                    channelName = v.channelName,
+                    thumbnailUrl = v.thumbnailUrl,
+                    type = "NEW_VIDEO"
+                )
+            )
+        }
+
+        if (videos.size == 1) {
+            val v = videos.first()
+            val notifId = NOTIFICATION_NEW_VIDEO + v.videoId.hashCode().and(0xFFFF)
+            val watchIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("notification_video_id", v.videoId)
+                putExtra("video_id", v.videoId)
+                putExtra("video_title", v.videoTitle)
+            }
+            val watchPendingIntent = PendingIntent.getActivity(
+                context, notifId, watchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val builder = NotificationCompat.Builder(context, CHANNEL_SUBSCRIPTIONS)
+                .setSmallIcon(R.drawable.ic_notification_logo)
+                .setContentTitle(v.channelName)
+                .setContentText(v.videoTitle)
+                .setContentIntent(watchPendingIntent)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setCategory(NotificationCompat.CATEGORY_SOCIAL)
+            v.thumbnailUrl?.let { url ->
+                getBitmapFromUrl(url)?.let { bm ->
+                    builder.setLargeIcon(bm)
+                    builder.setStyle(
+                        NotificationCompat.BigPictureStyle().bigPicture(bm).bigLargeIcon(null as Bitmap?)
+                    )
+                }
+            }
+            NotificationManagerCompat.from(context).notify(notifId, builder.build())
+        } else {
+            val openIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                putExtra("open_subscriptions", true)
+            }
+            val pendingIntent = PendingIntent.getActivity(
+                context, NOTIFICATION_NEW_VIDEO, openIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val inboxStyle = NotificationCompat.InboxStyle()
+                .setBigContentTitle("${videos.size} new videos")
+                .setSummaryText("From your subscriptions")
+            val displayLimit = minOf(videos.size, 5)
+            videos.take(displayLimit).forEach { v ->
+                inboxStyle.addLine("${v.channelName}  \u2022  ${v.videoTitle}")
+            }
+            if (videos.size > displayLimit) {
+                inboxStyle.addLine("+${videos.size - displayLimit} more")
+            }
+            val channelPreview = videos.take(3).joinToString(", ") { it.channelName }
+            val summaryText = if (videos.size > 3) "$channelPreview & more" else channelPreview
+            val notification = NotificationCompat.Builder(context, CHANNEL_SUBSCRIPTIONS)
+                .setSmallIcon(R.drawable.ic_notification_logo)
+                .setContentTitle("${videos.size} new videos")
+                .setContentText(summaryText)
+                .setStyle(inboxStyle)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setCategory(NotificationCompat.CATEGORY_SOCIAL)
+                .setNumber(videos.size)
+                .build()
+            NotificationManagerCompat.from(context).notify(NOTIFICATION_NEW_VIDEO, notification)
+        }
+    }
+
     /**
      * Show notification for new video from subscribed channel
      */

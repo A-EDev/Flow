@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import androidx.work.*
 import com.flow.youtube.data.local.SubscriptionRepository
-import com.flow.youtube.data.local.PlayerPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -110,10 +109,9 @@ class SubscriptionCheckWorker(
             
             Log.d(TAG, "Checking ${subscriptions.size} subscriptions")
             
-            var newVideoCount = 0
+            val newVideos = mutableListOf<NotificationHelper.NewVideoEntry>()
             
-            // Process subscriptions in parallel chunks to avoid overwhelming the network/CPU
-            // but still be faster than sequential
+            // Process in parallel chunks to keep network efficient
             val chunkSize = 10
             subscriptions.chunked(chunkSize).forEach { chunk ->
                 coroutineScope {
@@ -123,19 +121,18 @@ class SubscriptionCheckWorker(
                                 checkChannel(subscription, subscriptionRepository)
                             } catch (e: Exception) {
                                 Log.e(TAG, "Error checking channel ${subscription.channelName}", e)
-                                false
+                                null
                             }
                         }
-                    }.awaitAll().forEach { if (it) newVideoCount++ }
+                    }.awaitAll().filterNotNull().let { newVideos.addAll(it) }
                 }
             }
             
-            // Show summary notification if multiple new videos
-            if (newVideoCount > 1) {
-                NotificationHelper.showNewVideosSummary(applicationContext, newVideoCount)
+            if (newVideos.isNotEmpty()) {
+                NotificationHelper.showSubscriptionUpdates(applicationContext, newVideos)
             }
             
-            Log.d(TAG, "Subscription check complete. Found $newVideoCount new videos.")
+            Log.d(TAG, "Subscription check complete. Found ${newVideos.size} new videos.")
             Result.success()
             
         } catch (e: Exception) {
@@ -147,7 +144,7 @@ class SubscriptionCheckWorker(
     private suspend fun checkChannel(
         subscription: com.flow.youtube.data.local.ChannelSubscription,
         repository: SubscriptionRepository
-    ): Boolean {
+    ): NotificationHelper.NewVideoEntry? {
         val url = String.format(RSS_URL_FORMAT, subscription.channelId)
         val request = Request.Builder().url(url).build()
         
@@ -155,24 +152,17 @@ class SubscriptionCheckWorker(
             val response = client.newCall(request).execute()
             if (!response.isSuccessful) {
                 response.close()
-                return false
+                return null
             }
             
             val xmlContent = response.body?.string()
             response.close()
             
-            if (xmlContent.isNullOrEmpty()) return false
+            if (xmlContent.isNullOrEmpty()) return null
             
-            val latestVideo = parseRssFeed(xmlContent) ?: return false
+            val latestVideo = parseRssFeed(xmlContent) ?: return null
             
-            // Check if it's a new video
             if (subscription.lastVideoId != latestVideo.id) {
-                // Only notify if we had a previous video ID (not first sync)
-                // OR if you want to notify on first sync, remove the check.
-                // Usually, for "new video" notifications, we only want *new* since we started tracking.
-                // However, if lastVideoId is null, it means we just subscribed or migrated.
-                // Let's assume if lastVideoId is null, we just update it without notifying to avoid spam.
-                
                 val shouldNotify = subscription.lastVideoId != null
                 
                 // Update local DB
@@ -180,24 +170,18 @@ class SubscriptionCheckWorker(
                 
                 if (shouldNotify) {
                     Log.d(TAG, "New video found for ${subscription.channelName}: ${latestVideo.title}")
-                    val prefs = PlayerPreferences(applicationContext)
-                    if (prefs.notifNewVideosEnabled.first()) {
-                        NotificationHelper.showNewVideoNotification(
-                            context = applicationContext,
-                            channelName = subscription.channelName,
-                            videoTitle = latestVideo.title,
-                            videoId = latestVideo.id,
-                            thumbnailUrl = latestVideo.thumbnailUrl,
-                            channelId = subscription.channelId
-                        )
-                    }
-                    return true
+                    return NotificationHelper.NewVideoEntry(
+                        channelName = subscription.channelName,
+                        videoTitle = latestVideo.title,
+                        videoId = latestVideo.id,
+                        thumbnailUrl = latestVideo.thumbnailUrl
+                    )
                 }
             }
         } catch (e: Exception) {
             Log.w(TAG, "Failed to check RSS for ${subscription.channelName}: ${e.message}")
         }
-        return false
+        return null
     }
 
     private data class RssVideo(val id: String, val title: String, val thumbnailUrl: String?)

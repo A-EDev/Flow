@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.res.stringResource
 import com.flow.youtube.R
 import com.flow.youtube.data.model.Video
+import com.flow.youtube.player.EnhancedMusicPlayerManager
 import com.flow.youtube.player.EnhancedPlayerManager
 import com.flow.youtube.player.SleepTimerManager
 import com.flow.youtube.ui.components.FlowChaptersBottomSheet
@@ -70,6 +71,14 @@ fun PlayerBottomSheetsContainer(
             EnhancedPlayerManager.getInstance().pause()
         }
         SleepTimerManager.attachExitCallback {
+            EnhancedPlayerManager.getInstance().pause()
+            EnhancedMusicPlayerManager.stop()
+            context.stopService(
+                android.content.Intent(context, com.flow.youtube.service.VideoPlayerService::class.java)
+            )
+            context.stopService(
+                android.content.Intent(context, com.flow.youtube.service.Media3MusicService::class.java)
+            )
             (context as? android.app.Activity)?.finishAndRemoveTask()
         }
     }

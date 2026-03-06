@@ -81,6 +81,10 @@ fun EnhancedMusicPlayerScreen(
             EnhancedMusicPlayerManager.player?.pause()
         }
         SleepTimerManager.attachExitCallback {
+            EnhancedMusicPlayerManager.stop()
+            context.stopService(
+                android.content.Intent(context, com.flow.youtube.service.Media3MusicService::class.java)
+            )
             (context as? android.app.Activity)?.finishAndRemoveTask()
         }
     }
