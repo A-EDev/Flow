@@ -24,9 +24,9 @@ class SubscriptionsViewModel : ViewModel() {
         private const val TAG = "SubsViewModel"
         /**
          * How old the subscription-feed cache may be before a background refresh is triggered.
-         * 2 hours — balances freshness with avoiding an RSS fetch on every screen visit.
+         * 4 hours — balances freshness with avoiding an RSS fetch on every screen visit.
          */
-        private const val FEED_CACHE_TTL_MS = 2 * 60 * 60 * 1000L // 2 hours
+        private const val FEED_CACHE_TTL_MS = 4 * 60 * 60 * 1000L // 4 hours
     }
 
     private lateinit var subscriptionRepository: SubscriptionRepository

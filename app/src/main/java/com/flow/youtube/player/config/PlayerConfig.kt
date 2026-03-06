@@ -90,7 +90,7 @@ object PlayerConfig {
     
     // ===== Surface Configuration =====
     /** Default surface ready timeout in milliseconds */
-    const val DEFAULT_SURFACE_TIMEOUT_MS = 1500L
+    const val DEFAULT_SURFACE_TIMEOUT_MS = 500L
     
     // ===== Error Recovery =====
     /** Delay before retry after error in milliseconds */

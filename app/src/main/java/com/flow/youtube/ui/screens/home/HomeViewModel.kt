@@ -193,7 +193,25 @@ class HomeViewModel @Inject constructor(
                         }.getOrElse { emptyList() }
                     }
 
-                    Triple(deferredSubs.await(), deferredDiscovery.await(), deferredViral.await())
+                    // ── Fast first paint ────────────────────────────────────────
+                    val viralResult = deferredViral.await()
+                    if (viralResult.isNotEmpty()) {
+                        val watched = watchedVideoIds.value
+                        val quickFeed = FlowNeuroEngine.rank(
+                            viralResult.filterValid().filterWatched(watched), userSubs
+                        ).take(15)
+                        if (quickFeed.isNotEmpty()) {
+                            _uiState.update { state ->
+                                state.copy(
+                                    videos = quickFeed,
+                                    isLoading = true,
+                                    isFlowFeed = true
+                                )
+                            }
+                        }
+                    }
+
+                    Triple(deferredSubs.await(), deferredDiscovery.await(), viralResult)
                 }
                 
                 currentQueryIndex = 3
