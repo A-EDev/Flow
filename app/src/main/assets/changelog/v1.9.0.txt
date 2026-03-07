@@ -1,0 +1,12 @@
+FLOW CHANGE LOG
+VERSION: 1.9.0
+DATE: 2026-03-08
+
+NEW FEATURES
+- Add toggle for Home Screen layout — switch between grid and list views for your home feed from the Layout Settings page
+- Improve thumbnail quality — higher resolution thumbnails are now automatically fetched for videos, channels, and playlists to reduce blurriness
+
+FIXES AND STABILITY
+- Fix search screen crash — resolving an issue where the app would crash when infinite scrolling through identical playlists
+- Fix swipe gesture sensitivity — increased the swipe-to-seek thresholds on the video player to prevent accidental skipping when pulling up system navigation
+- Fix music playlist track count — adding a song to a local music playlist now instantly updates the track count in the Add to Playlist dialog

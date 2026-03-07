@@ -188,8 +188,9 @@ data class Playlist(
     val description: String = "",
     val tracks: List<MusicTrack> = emptyList(),
     val createdAt: Long = System.currentTimeMillis(),
-    val thumbnailUrl: String = tracks.firstOrNull()?.thumbnailUrl ?: ""
+    val thumbnailUrl: String = tracks.firstOrNull()?.thumbnailUrl ?: "",
+    val customTrackCount: Int? = null
 ) {
-    val trackCount: Int get() = tracks.size
+    val trackCount: Int get() = customTrackCount ?: tracks.size
     val duration: Int get() = tracks.sumOf { it.duration }
 }

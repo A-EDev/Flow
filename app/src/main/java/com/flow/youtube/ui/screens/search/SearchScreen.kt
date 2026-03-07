@@ -434,12 +434,13 @@ private fun SearchResultList(
         items(
             count = pagingItems.itemCount,
             key = { i ->
-                when (val it = pagingItems.peek(i)) {
+                val prefix = when (val it = pagingItems.peek(i)) {
                     is SearchResultItem.VideoResult -> "v_${it.video.id}"
                     is SearchResultItem.ChannelResult -> "c_${it.channel.id}"
                     is SearchResultItem.PlaylistResult -> "p_${it.playlist.id}"
-                    null -> "null_$i"
+                    null -> "null"
                 }
+                "${prefix}_$i"
             }
         ) { i ->
             val item = pagingItems[i] ?: return@items
@@ -486,12 +487,13 @@ private fun SearchResultGrid(
         items(
             count = pagingItems.itemCount,
             key = { i ->
-                when (val it = pagingItems.peek(i)) {
+                val prefix = when (val it = pagingItems.peek(i)) {
                     is SearchResultItem.VideoResult -> "v_${it.video.id}"
                     is SearchResultItem.ChannelResult -> "c_${it.channel.id}"
                     is SearchResultItem.PlaylistResult -> "p_${it.playlist.id}"
-                    null -> "null_$i"
+                    null -> "null"
                 }
+                "${prefix}_$i"
             }
         ) { i ->
             val item = pagingItems[i] ?: return@items

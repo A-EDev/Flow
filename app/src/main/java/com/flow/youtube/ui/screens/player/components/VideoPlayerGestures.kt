@@ -146,8 +146,8 @@ fun Modifier.videoPlayerControls(
             var isDraggingVertical = false
             var isDraggingHorizontal = false
             var shouldIgnoreGesture = false 
-            val dragThreshold = 50f 
-            val edgeIgnoreThreshold = 120f 
+            val dragThreshold = 100f 
+            val edgeIgnoreThreshold = 250f 
 
             if (currentIsFullscreen) {
                 detectDragGestures(
@@ -254,7 +254,7 @@ fun Modifier.videoPlayerControls(
                         } else if (isDraggingHorizontal) {
                             // Horizontal Seek 
                             
-                            val seekSensitivity = 100f
+                            val seekSensitivity = 200f 
                             
                             if (totalDragX > seekSensitivity) {
                                 // Right - Forward

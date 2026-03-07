@@ -156,7 +156,8 @@ class MusicPlayerViewModel @Inject constructor(
                         description = info.description,
                         tracks = emptyList(), 
                         createdAt = info.createdAt,
-                        thumbnailUrl = info.thumbnailUrl
+                        thumbnailUrl = info.thumbnailUrl,
+                        customTrackCount = info.videoCount
                     )
                 }
                 _uiState.update { it.copy(playlists = playlists) }
