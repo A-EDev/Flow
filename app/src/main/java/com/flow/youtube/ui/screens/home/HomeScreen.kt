@@ -112,6 +112,10 @@ fun HomeScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     val unreadNotifications by notificationViewModel.unreadCount.collectAsState()
+    
+    val preferences = remember { com.flow.youtube.data.local.PlayerPreferences(context) }
+    val homeViewMode by preferences.homeViewMode.collectAsState(initial = com.flow.youtube.data.local.HomeViewMode.GRID)
+    
     val gridState = rememberLazyGridState()
     
     LaunchedEffect(Unit) {
@@ -243,27 +247,30 @@ fun HomeScreen(
                 .pullRefresh(pullRefreshState)
                 .background(MaterialTheme.colorScheme.background)
         ) {
+            val isListView = homeViewMode == com.flow.youtube.data.local.HomeViewMode.LIST
             val layoutConfig = rememberHomeLayoutConfig(maxWidth)
-            val gridCells = GridCells.Fixed(layoutConfig.columns)
+            val gridCells = if (isListView) GridCells.Fixed(1) else GridCells.Fixed(layoutConfig.columns)
 
             when {
                 uiState.isLoading && uiState.videos.isEmpty() -> {
                     // Initial loading state — matches grid layout
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(layoutConfig.shimmerColumns),
+                        columns = if (isListView) GridCells.Fixed(1) else GridCells.Fixed(layoutConfig.shimmerColumns),
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(
-                            start = layoutConfig.contentPadding,
-                            end = layoutConfig.contentPadding,
+                            start = if (isListView) 0.dp else layoutConfig.contentPadding,
+                            end = if (isListView) 0.dp else layoutConfig.contentPadding,
                             top = 8.dp,
                             bottom = 80.dp
                         ),
-                        horizontalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing),
-                        verticalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing),
+                        horizontalArrangement = Arrangement.spacedBy(if (isListView) 0.dp else layoutConfig.cardSpacing),
+                        verticalArrangement = Arrangement.spacedBy(if (isListView) 0.dp else layoutConfig.cardSpacing),
                         userScrollEnabled = false
                     ) {
                         items(12) {
-                            if (layoutConfig.shimmerColumns == 1) {
+                            if (isListView) {
+                                ShimmerVideoCardHorizontal()
+                            } else if (layoutConfig.shimmerColumns == 1) {
                                 ShimmerVideoCardFullWidth()
                             } else {
                                 ShimmerGridVideoCard()
@@ -285,13 +292,13 @@ fun HomeScreen(
                         modifier = Modifier.fillMaxSize(),
                         state = gridState,
                         contentPadding = PaddingValues(
-                            start = layoutConfig.contentPadding,
-                            end = layoutConfig.contentPadding,
+                            start = if (isListView) 0.dp else layoutConfig.contentPadding,
+                            end = if (isListView) 0.dp else layoutConfig.contentPadding,
                             top = 4.dp, 
                             bottom = 80.dp
                         ),
-                        horizontalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing),
-                        verticalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing)
+                        horizontalArrangement = Arrangement.spacedBy(if (isListView) 0.dp else layoutConfig.cardSpacing),
+                        verticalArrangement = Arrangement.spacedBy(if (isListView) 0.dp else layoutConfig.cardSpacing)
                     ) {
                         val videos = uiState.videos
                         if (videos.isNotEmpty()) {
@@ -303,12 +310,19 @@ fun HomeScreen(
                                 items = videosBeforeShorts,
                                 key = { it.id }
                             ) { video ->
-                                VideoCardFullWidth(
-                                    video = video,
-                                    onClick = { onVideoClick(video) },
-                                    onChannelClick = { channelId -> onChannelClick(channelId) },
-                                    useInternalPadding = false
-                                )
+                                if (isListView) {
+                                    VideoCardHorizontal(
+                                        video = video,
+                                        onClick = { onVideoClick(video) }
+                                    )
+                                } else {
+                                    VideoCardFullWidth(
+                                        video = video,
+                                        onClick = { onVideoClick(video) },
+                                        onChannelClick = { channelId -> onChannelClick(channelId) },
+                                        useInternalPadding = false
+                                    )
+                                }
                             }
                             
                             // ── Continue Watching Shelf (between first videos and shorts) ──
@@ -359,12 +373,19 @@ fun HomeScreen(
                                 items = videosAfterShorts,
                                 key = { it.id }
                             ) { video ->
-                                VideoCardFullWidth(
-                                    video = video,
-                                    onClick = { onVideoClick(video) },
-                                    onChannelClick = { channelId -> onChannelClick(channelId) },
-                                    useInternalPadding = false
-                                )
+                                if (isListView) {
+                                    VideoCardHorizontal(
+                                        video = video,
+                                        onClick = { onVideoClick(video) }
+                                    )
+                                } else {
+                                    VideoCardFullWidth(
+                                        video = video,
+                                        onClick = { onVideoClick(video) },
+                                        onChannelClick = { channelId -> onChannelClick(channelId) },
+                                        useInternalPadding = false
+                                    )
+                                }
                             }
                         }
                         

@@ -243,7 +243,16 @@ class YouTubeRepository @Inject constructor() {
             
             val bestThumbnail = info.thumbnails
                 .sortedByDescending { it.height }
-                .firstOrNull()?.url ?: ""
+                .map { it.url }
+                .firstOrNull()?.let { url ->
+                    if (url.contains("i.ytimg.com/vi/") || url.contains("img.youtube.com/vi/")) {
+                        when {
+                            url.endsWith("/mqdefault.jpg") -> url.replace("/mqdefault.jpg", "/hqdefault.jpg")
+                            url.endsWith("/default.jpg") -> url.replace("/default.jpg", "/hqdefault.jpg")
+                            else -> url
+                        }
+                    } else url
+                } ?: ""
             
             val bestAvatar = info.uploaderAvatars
                 .sortedByDescending { it.height }
@@ -599,7 +608,17 @@ class YouTubeRepository @Inject constructor() {
 
         val bestThumbnail = thumbnails
             .sortedByDescending { it.height }
-            .firstOrNull()?.url ?: ""
+            .map { it.url }
+            .firstOrNull()?.let { url ->
+                // YouTube thumbnail quality promotion logic
+                if (url.contains("i.ytimg.com/vi/") || url.contains("img.youtube.com/vi/")) {
+                    when {
+                        url.endsWith("/mqdefault.jpg") -> url.replace("/mqdefault.jpg", "/hqdefault.jpg")
+                        url.endsWith("/default.jpg") -> url.replace("/default.jpg", "/hqdefault.jpg")
+                        else -> url
+                    }
+                } else url
+            } ?: ""
         
         val bestAvatar = uploaderAvatars
             .sortedByDescending { it.height }
@@ -691,7 +710,16 @@ class YouTubeRepository @Inject constructor() {
     private fun org.schabi.newpipe.extractor.playlist.PlaylistInfoItem.toPlaylist(): com.flow.youtube.data.model.Playlist {
         val bestThumbnail = thumbnails
             .sortedByDescending { it.height }
-            .firstOrNull()?.url ?: ""
+            .map { it.url }
+            .firstOrNull()?.let { url ->
+                if (url.contains("i.ytimg.com/vi/") || url.contains("img.youtube.com/vi/")) {
+                    when {
+                        url.endsWith("/mqdefault.jpg") -> url.replace("/mqdefault.jpg", "/hqdefault.jpg")
+                        url.endsWith("/default.jpg") -> url.replace("/default.jpg", "/hqdefault.jpg")
+                        else -> url
+                    }
+                } else url
+            } ?: ""
         
         return com.flow.youtube.data.model.Playlist(
             id = url.substringAfterLast("="),

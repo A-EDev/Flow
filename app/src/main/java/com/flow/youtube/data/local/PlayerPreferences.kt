@@ -61,6 +61,7 @@ class PlayerPreferences(private val context: Context) {
         val SWIPE_GESTURES_ENABLED = booleanPreferencesKey("swipe_gestures_enabled")
         val CONTINUE_WATCHING_ENABLED = booleanPreferencesKey("continue_watching_enabled")
         val DOUBLE_TAP_SEEK_SECONDS = intPreferencesKey("double_tap_seek_seconds")
+        val HOME_VIEW_MODE = stringPreferencesKey("home_view_mode")
 
         // SponsorBlock per-category action keys
         val SB_ACTION_SPONSOR = stringPreferencesKey("sb_action_sponsor")
@@ -304,6 +305,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setDoubleTapSeekSeconds(seconds: Int) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DOUBLE_TAP_SEEK_SECONDS] = seconds
+        }
+    }
+
+    // Home view mode preference
+    val homeViewMode: Flow<HomeViewMode> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            HomeViewMode.valueOf(preferences[Keys.HOME_VIEW_MODE] ?: HomeViewMode.GRID.name)
+        }
+
+    suspend fun setHomeViewMode(mode: HomeViewMode) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.HOME_VIEW_MODE] = mode.name
         }
     }
     val trendingRegion: Flow<String> = context.playerPreferencesDataStore.data
@@ -787,6 +800,11 @@ enum class SliderStyle {
     METROLIST_SLIM, 
     SQUIGGLY,
     SLIM         
+}
+
+enum class HomeViewMode {
+    GRID,
+    LIST
 }
 
 

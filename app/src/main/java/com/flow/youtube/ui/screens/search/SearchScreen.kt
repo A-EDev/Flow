@@ -1,4 +1,4 @@
-﻿package com.flow.youtube.ui.screens.search
+package com.flow.youtube.ui.screens.search
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -50,28 +50,6 @@ import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-
-
-private data class DiscoverCategory(
-    val label: String,
-    val emoji: String,
-    val gradientStart: Int,
-    val gradientEnd: Int,
-    val query: String
-)
-
-private val discoverCategories = listOf(
-    DiscoverCategory("Music",        "\uD83C\uDFB5", 0xFF7C4DFF.toInt(), 0xFFB388FF.toInt(), "music 2024"),
-    DiscoverCategory("Gaming",       "\uD83C\uDFAE", 0xFF00BCD4.toInt(), 0xFF00E5FF.toInt(), "gaming highlights"),
-    DiscoverCategory("Technology",   "\uD83D\uDCBB", 0xFF1565C0.toInt(), 0xFF42A5F5.toInt(), "tech reviews 2024"),
-    DiscoverCategory("Sports",       "\u26BD",        0xFF2E7D32.toInt(), 0xFF66BB6A.toInt(), "sports highlights"),
-    DiscoverCategory("Comedy",       "\uD83D\uDE02", 0xFFE65100.toInt(), 0xFFFFA726.toInt(), "funny videos"),
-    DiscoverCategory("Education",    "\uD83D\uDCDA", 0xFF4CAF50.toInt(), 0xFF8BC34A.toInt(), "educational"),
-    DiscoverCategory("Food",         "\uD83C\uDF55", 0xFFC62828.toInt(), 0xFFEF5350.toInt(), "food recipes"),
-    DiscoverCategory("Travel",       "\u2708\uFE0F",  0xFF0277BD.toInt(), 0xFF29B6F6.toInt(), "travel vlog"),
-    DiscoverCategory("Fitness",      "\uD83C\uDFCB", 0xFF558B2F.toInt(), 0xFF9CCC65.toInt(), "workout fitness"),
-    DiscoverCategory("Science",      "\uD83D\uDD2C", 0xFF6A1B9A.toInt(), 0xFFCE93D8.toInt(), "science explained"),
-)
 
 @OptIn(FlowPreview::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -203,8 +181,7 @@ fun SearchScreen(
                 searchHistory = searchHistory,
                 onHistoryClick = { q -> searchQuery = q; selectedTabIndex = 0; viewModel.search(q) },
                 onHistoryDelete = { item -> scope.launch { searchHistoryRepo.deleteSearchItem(item.id) } },
-                onClearHistory = { scope.launch { searchHistoryRepo.clearSearchHistory() } },
-                onCategoryClick = { q -> searchQuery = q; selectedTabIndex = 0; viewModel.search(q) }
+                onClearHistory = { scope.launch { searchHistoryRepo.clearSearchHistory() } }
             )
         } else {
             SearchTabRow(
@@ -625,8 +602,7 @@ private fun DiscoverScreen(
     searchHistory: List<SearchHistoryItem>,
     onHistoryClick: (String) -> Unit,
     onHistoryDelete: (SearchHistoryItem) -> Unit,
-    onClearHistory: () -> Unit,
-    onCategoryClick: (String) -> Unit
+    onClearHistory: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -660,69 +636,35 @@ private fun DiscoverScreen(
             item { HorizontalDivider(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) }
         }
 
-        item {
-            Text(
-                "Discover",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-            )
-        }
-
-        items(discoverCategories.chunked(2)) { row ->
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 5.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                row.forEach { cat ->
-                    DiscoverCategoryTile(
-                        category = cat,
-                        onClick = { onCategoryClick(cat.query) },
-                        modifier = Modifier.weight(1f)
-                    )
+        if (searchHistory.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillParentMaxSize()
+                        .padding(bottom = 100.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            Icons.Outlined.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            "Search for videos, music and more",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                        )
+                    }
                 }
-                if (row.size < 2) Spacer(Modifier.weight(1f))
             }
         }
     }
 }
 
-@Composable
-private fun DiscoverCategoryTile(
-    category: DiscoverCategory,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .height(78.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .background(
-                Brush.linearGradient(
-                    listOf(Color(category.gradientStart), Color(category.gradientEnd))
-                )
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(category.emoji, fontSize = 20.sp)
-            Text(
-                category.label,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
+
 
 @Composable
 private fun HistoryRow(

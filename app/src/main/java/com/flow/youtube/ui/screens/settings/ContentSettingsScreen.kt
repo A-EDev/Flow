@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.ViewQuilt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -52,6 +53,9 @@ fun ContentSettingsScreen(
     val isHomeShortsShelfEnabled by preferences.homeShortsShelfEnabled.collectAsState(initial = true)
     val isShortsNavigationEnabled by preferences.shortsNavigationEnabled.collectAsState(initial = true)
     val isContinueWatchingEnabled by preferences.continueWatchingEnabled.collectAsState(initial = true)
+    
+    val homeViewModeString by preferences.homeViewMode.collectAsState(initial = com.flow.youtube.data.local.HomeViewMode.GRID)
+    val currentHomeViewMode = homeViewModeString ?: com.flow.youtube.data.local.HomeViewMode.GRID
     
     Scaffold(
         topBar = {
@@ -134,6 +138,65 @@ fun ContentSettingsScreen(
                                 onClick = {
                                     coroutineScope.launch {
                                         preferences.setGridItemSize("SMALL")
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Home Layout Section
+            item {
+                SectionHeader(text = stringResource(R.string.content_settings_header_home_layout))
+                SettingsGroup {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                if (currentHomeViewMode == com.flow.youtube.data.local.HomeViewMode.GRID) Icons.Outlined.GridView else Icons.Outlined.List,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.content_settings_home_layout_title),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    text = stringResource(R.string.content_settings_home_layout_subtitle),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            LayoutOption(
+                                title = stringResource(R.string.content_settings_layout_grid),
+                                icon = Icons.Outlined.GridView,
+                                isSelected = currentHomeViewMode == com.flow.youtube.data.local.HomeViewMode.GRID,
+                                onClick = {
+                                    coroutineScope.launch {
+                                        preferences.setHomeViewMode(com.flow.youtube.data.local.HomeViewMode.GRID)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                            LayoutOption(
+                                title = stringResource(R.string.content_settings_layout_list),
+                                icon = Icons.Outlined.List,
+                                isSelected = currentHomeViewMode == com.flow.youtube.data.local.HomeViewMode.LIST,
+                                onClick = {
+                                    coroutineScope.launch {
+                                        preferences.setHomeViewMode(com.flow.youtube.data.local.HomeViewMode.LIST)
                                     }
                                 },
                                 modifier = Modifier.weight(1f)
@@ -263,6 +326,50 @@ fun ContentSettingsScreen(
             item {
                 Spacer(modifier = Modifier.height(32.dp))
             }
+        }
+    }
+}
+
+
+@Composable
+private fun LayoutOption(
+    title: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                else Color.Transparent
+            )
+            .border(
+                width = if (isSelected) 2.dp else 1.dp,
+                color = if (isSelected) MaterialTheme.colorScheme.primary
+                       else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+            )
         }
     }
 }
