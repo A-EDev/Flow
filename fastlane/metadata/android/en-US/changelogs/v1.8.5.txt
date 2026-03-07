@@ -1,0 +1,33 @@
+FLOW CHANGE LOG
+VERSION: 1.8.5
+DATE: 2026-03-06
+
+NEW FEATURES
+- Add Notification Preferences screen in Settings — individually toggle new-video alerts, download notifications, screen time reminders, app updates, and general notifications; all types enabled by default; includes a shortcut to open Android's per-channel system notification settings
+- Add Sleep Timer for both music and video players — set a countdown to automatically pause playback; supports preset durations and custom time entry; works in background playback and picture-in-picture modes; option to close the app entirely when the timer fires instead of just pausing, preserving battery life
+- Add "Don't show this channel" quick action — tap the menu on any video card and select "Don't show this channel" under the Algorithm section to permanently filter a channel from your recommendations; persisted to your profile and reversible from Settings → Content Preferences → Blocked
+
+RECOMMENDATION ENGINE (V9.1 — "Anti-Repetition")
+- Performance: Pre-compiled regex eliminates thousands of regex object allocations per ranking cycle, reducing CPU overhead on low-end devices
+- Performance: Export no longer blocks the recommendation engine — brain state is copied under lock, then serialized and written to disk after the lock is released
+- Performance: IDF dictionary dead weight pruning — words that decay to zero frequency are now removed from memory instead of persisting as zombie entries
+- Feature: Impression fatigue system — videos shown in previous feed loads but not clicked now receive exponentially decaying score penalties (seen once: ×0.85, seen 3+: ×0.30, seen 5+: ×0.05); impression counts clear when the user clicks a video or resets the session; not persisted across app restarts to match user expectations of a "fresh" feed on relaunch
+- Feature: Already-watched penalty with music exception — fully watched videos are nearly invisible in future feeds (×0.02), half-watched get a heavy penalty (×0.30), and briefly sampled videos get a mild penalty (×0.70); music tracks under 8 minutes are exempt from re-watch penalties so users can replay songs freely; watch history is persisted across app restarts
+- Feature: Engagement rate floor (clickbait filter) — videos older than 24 hours with over 50K views but less than 1% like-to-view ratio receive a ×0.2 score penalty, acting as a proxy for YouTube's hidden dislike count; time guard prevents false positives on newly uploaded videos that haven't accumulated likes yet
+- Fix: NPE in description chapter detection when video description is null
+- Fix: Onboarding warmup boost now applied after session fatigue as an additive bonus, preventing preferred topics from disappearing during early sessions
+- Fix: Channel score recovery from "Not Interested" — floor raised from 0.05 to 0.20, reducing recovery from ~45 positive interactions to ~14
+- Fix: Stop words and lemmatization consistency — lemmatization now runs before stop-word filtering so both "compilation" and "compilations" are consistently handled
+- Fix: Exploration queries now cross-reference blocked topics to prevent suggesting categories the user has explicitly rejected
+- Fix: IDF weights are now persisted and computed only from interacted videos, not from all ranking candidates, ensuring consistent weighting across sessions
+- Fix: Feature cache invalidation is now deterministic — IDF snapshot taken once per ranking call prevents mid-rank score drift
+
+FIXES AND STABILITY
+- Duration badge now hidden entirely when duration == 0 && !isLive (was showing "0:00")
+- Live streams show a red "LIVE" badge
+- Fix shorts routing condition to only work when detecting a short instead of video durations from 1-120s
+- Fix downloaded videos having all-underscore filenames for non-Latin titles (Arabic, Chinese, etc.) — filename sanitizer now uses Unicode-aware character classes so the original title characters are preserved
+- Fix bottom navigation home button doing nothing when pressed from the search screen — home navigation now uses popBackStack instead of navigate(), avoiding a launchSingleTop+restoreState edge-case that silently no-ops when the search screen sits above home on the back stack
+- Fix search result playlists being unclickable — tapping a playlist in search results now opens the playlist detail screen; video and channel results were already functional but playlists had an empty click handler wired to nowhere
+- Fix sleep timer "close app" mode not stopping playback — closing the app now explicitly stops the music and video foreground services before finishing the activity, preventing audio from continuing in the background after the app exits
+- Fix subscription notifications arriving in large batches — the check worker now collects all new videos across all channels and dispatches a single grouped notification; one new video shows a full notification with thumbnail, two or more shows a single InboxStyle notification listing all channels and titles so the notification shade no longer floods with 10–20 simultaneous alerts

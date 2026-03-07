@@ -1,0 +1,23 @@
+Flow is a privacy-first YouTube and YouTube Music client. It provides a personalized feed using a completely local, on-device algorithm, giving you a modern discovery experience without tracking or accounts.
+
+Features:
+
+- Play videos and songs from YouTube and YouTube Music
+- Local recommendation engine (FlowNeuro) that learns your preferences
+- 100% on-device privacy with zero analytics or tracking
+- No Google account required
+- Background audio and Picture-in-Picture (PiP) video playback
+- Built-in SponsorBlock to automatically skip sponsored segments
+- Built-in DeArrow to replace clickbait titles and thumbnails
+- Download videos and audio for offline playback
+- Dedicated music player with synchronized live lyrics
+- Import subscriptions, playlists and history from YouTube, NewPipe and LibreTube
+- Import Music library and playlists from YouTube Music and Metrolist
+- Block specific channels and topics from appearing in your feed
+- Automatically hide videos you have already watched or ignored
+- Adjust audio pitch and playback speed
+- Local playlist and queue management
+- Swipe gesture controls for volume and brightness
+- 11+ different app themes including pure OLED black
+- Modern Material 3 interface
+- Export and backup your local algorithm data
