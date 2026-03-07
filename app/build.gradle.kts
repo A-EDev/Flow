@@ -188,6 +188,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.gson)
 
+    //conscrypt for OkHttp TLS support on older Android versions
+    implementation(libs.conscrypt.android)
+
     // --- Media Playback ---
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.ui)

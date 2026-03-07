@@ -17,6 +17,8 @@ import dagger.hilt.android.HiltAndroidApp
 import coil.ImageLoader
 import coil.ImageLoaderFactory
 import javax.inject.Inject
+import java.security.Security
+import org.conscrypt.Conscrypt
 
 @HiltAndroidApp
 class FlowApplication : Application(), ImageLoaderFactory {
@@ -33,6 +35,11 @@ class FlowApplication : Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
         
+        // Injects modern TLS/SSL certificates so OkHttp and Ktor don't crash
+        if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.N_MR1) {
+            Security.insertProviderAt(Conscrypt.newProvider(), 1)
+        }
+
         // Install crash handler for real-time monitoring
         FlowCrashHandler.install(this)
         

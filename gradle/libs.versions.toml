@@ -2,6 +2,7 @@
 agp = "8.1.2"
 kotlin = "1.9.22"
 coreKtx = "1.13.1"
+conscrypt = "2.5.2"
 activityCompose = "1.9.1"
 composeBom = "2024.09.00"
 navigationCompose = "2.8.0"
@@ -92,6 +93,7 @@ picasso = { group = "com.squareup.picasso", name = "picasso", version.ref = "pic
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
 androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+conscrypt-android = { group = "org.conscrypt", name = "conscrypt-android", version.ref = "conscrypt" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
