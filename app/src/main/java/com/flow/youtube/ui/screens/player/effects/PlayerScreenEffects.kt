@@ -42,14 +42,16 @@ fun PositionTrackingEffect(
     LaunchedEffect(isPlaying) {
         while (isPlaying) {
             EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
-                screenState.currentPosition = player.currentPosition.coerceAtLeast(0L)
-                screenState.bufferedPosition = player.bufferedPosition.coerceAtLeast(0L)
-                // Only write duration when ExoPlayer reports a valid value.
-                // player.duration returns C.TIME_UNSET (Long.MIN_VALUE) while buffering/recovering,
-                // coercing that to 0 would clear the known duration and break the seekbar.
-                val playerDuration = player.duration
-                if (playerDuration > 0L) {
-                    screenState.duration = playerDuration
+                if (player.playbackState != Player.STATE_IDLE) {
+                    screenState.currentPosition = player.currentPosition.coerceAtLeast(0L)
+                    screenState.bufferedPosition = player.bufferedPosition.coerceAtLeast(0L)
+                    // Only write duration when ExoPlayer reports a valid value.
+                    // player.duration returns C.TIME_UNSET (Long.MIN_VALUE) while buffering/recovering,
+                    // coercing that to 0 would clear the known duration and break the seekbar.
+                    val playerDuration = player.duration
+                    if (playerDuration > 0L) {
+                        screenState.duration = playerDuration
+                    }
                 }
             }
             delay(50)
@@ -309,6 +311,11 @@ fun FullscreenEffect(
                 // Return to unspecified mode when exiting fullscreen
                 act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                 // We don't clear KEEP_SCREEN_ON here because the generic effect handles it based on playing state
+                
+                // Reset screen brightness to default when exiting fullscreen
+                val layoutParams = act.window.attributes
+                layoutParams.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                act.window.attributes = layoutParams
 
                 WindowCompat.setDecorFitsSystemWindows(act.window, true)
                 val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
