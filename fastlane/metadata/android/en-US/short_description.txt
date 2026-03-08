@@ -1,1 +1,1 @@
-A privacy-respecting YouTube and YouTube Music client for Android with a local recommendation engine.
+Privacy-respecting YouTube and Music client with local recommendations.

@@ -31,6 +31,13 @@ android {
         
         // Enable multidex for older devices
         multiDexEnabled = true
+
+        dependenciesInfo {
+            // Disables dependency metadata when building APKs (for IzzyOnDroid/F-Droid)
+            includeInApk = false
+            // Disables dependency metadata when building Android App Bundles (for Google Play)
+            includeInBundle = false
+        }
     }
 
     buildFeatures {
@@ -95,13 +102,13 @@ android {
                 "proguard-rules.pro"
             )
             // Use release signing if configured, otherwise fallback to debug
-            val releaseKeystore = signingConfigs.getByName("release").storeFile
+            val releaseKeystore = try { signingConfigs.getByName("release").storeFile } catch (e: Exception) { null }
             if (releaseKeystore?.exists() == true) {
                 signingConfig = signingConfigs.getByName("release")
                 println("Using RELEASE signing config with keystore: ${releaseKeystore.absolutePath}")
             } else {
-                signingConfig = signingConfigs.getByName("debug")
-                println("WARNING: Release keystore not found. Using DEBUG signing config for release build.")
+                signingConfig = null // Let Gradle build an unsigned APK for IzzyOnDroid/F-Droid
+                println("WARNING: Release keystore not found. Building UNSIGNED release APK.")
             }
         }
     }
