@@ -8,6 +8,7 @@ import com.flow.youtube.ui.screens.player.VideoPlayerUiState
 import com.flow.youtube.ui.screens.player.VideoPlayerViewModel
 import com.flow.youtube.ui.screens.player.components.*
 import com.flow.youtube.ui.screens.player.state.PlayerScreenState
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun PlayerDialogsContainer(
@@ -17,6 +18,8 @@ fun PlayerDialogsContainer(
     video: Video,
     viewModel: VideoPlayerViewModel
 ) {
+    val context = LocalContext.current
+
     // Download Quality Dialog
     if (screenState.showDownloadDialog) {
         DownloadQualityDialog(
@@ -34,6 +37,10 @@ fun PlayerDialogsContainer(
             onDismiss = { screenState.showQualitySelector = false },
             onQualitySelected = { height ->
                 EnhancedPlayerManager.getInstance().switchQuality(height)
+            },
+            onBack = {
+                screenState.showQualitySelector = false
+                screenState.showSettingsMenu = true
             }
         )
     }
@@ -46,6 +53,10 @@ fun PlayerDialogsContainer(
             onDismiss = { screenState.showAudioTrackSelector = false },
             onTrackSelected = { index ->
                 EnhancedPlayerManager.getInstance().switchAudioTrack(index)
+            },
+            onBack = {
+                screenState.showAudioTrackSelector = false
+                screenState.showSettingsMenu = true
             }
         )
     }
@@ -64,6 +75,10 @@ fun PlayerDialogsContainer(
             },
             onDisableSubtitles = {
                 screenState.disableSubtitles()
+            },
+            onBack = {
+                screenState.showSubtitleSelector = false
+                screenState.showSettingsMenu = true
             }
         )
     }
@@ -75,14 +90,48 @@ fun PlayerDialogsContainer(
             autoplayEnabled = uiState.autoplayEnabled,
             subtitlesEnabled = screenState.subtitlesEnabled,
             onDismiss = { screenState.showSettingsMenu = false },
-            onShowQuality = { screenState.showQualitySelector = true },
-            onShowAudio = { screenState.showAudioTrackSelector = true },
-            onShowSpeed = { screenState.showPlaybackSpeedSelector = true },
-            onShowSubtitles = { screenState.showSubtitleSelector = true },
+            onShowQuality = { 
+                screenState.showSettingsMenu = false
+                screenState.showQualitySelector = true 
+            },
+            onShowAudio = { 
+                screenState.showSettingsMenu = false
+                screenState.showAudioTrackSelector = true 
+            },
+            onShowSpeed = { 
+                screenState.showSettingsMenu = false
+                screenState.showPlaybackSpeedSelector = true 
+            },
+            onShowSubtitles = { 
+                screenState.showSettingsMenu = false
+                screenState.showSubtitleSelector = true 
+            },
             onAutoplayToggle = { viewModel.toggleAutoplay(it) },
             onSkipSilenceToggle = { viewModel.toggleSkipSilence(it) },
-            onShowSubtitleStyle = { screenState.showSubtitleStyleCustomizer = true },
-            onLoopToggle = { viewModel.toggleLoop(it) }
+            onShowSubtitleStyle = { 
+                screenState.showSettingsMenu = false
+                screenState.showSubtitleStyleCustomizer = true 
+            },
+            onLoopToggle = { viewModel.toggleLoop(it) },
+            onCastClick = {
+                com.flow.youtube.player.dlna.DlnaCastManager.startDiscovery(context)
+                screenState.showSettingsMenu = false
+                screenState.showDlnaDialog = true
+            },
+            onPipClick = {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
+                    com.flow.youtube.player.PictureInPictureHelper.isPipSupported(context)) {
+                    screenState.showSettingsMenu = false
+                    com.flow.youtube.player.PictureInPictureHelper.enterPipMode(
+                        activity = context as androidx.activity.ComponentActivity,
+                        isPlaying = playerState.isPlaying
+                    )
+                }
+            },
+            onSleepTimerClick = {
+                screenState.showSettingsMenu = false
+                screenState.showSleepTimerSheet = true
+            }
         )
     }
 
@@ -93,6 +142,10 @@ fun PlayerDialogsContainer(
             onDismiss = { screenState.showPlaybackSpeedSelector = false },
             onSpeedSelected = { speed ->
                 EnhancedPlayerManager.getInstance().setPlaybackSpeed(speed)
+            },
+            onBack = {
+                screenState.showPlaybackSpeedSelector = false
+                screenState.showSettingsMenu = true
             }
         )
     }
@@ -102,7 +155,11 @@ fun PlayerDialogsContainer(
         SubtitleStyleCustomizerDialog(
             subtitleStyle = screenState.subtitleStyle,
             onStyleChange = { screenState.subtitleStyle = it },
-            onDismiss = { screenState.showSubtitleStyleCustomizer = false }
+            onDismiss = { screenState.showSubtitleStyleCustomizer = false },
+            onBack = {
+                screenState.showSubtitleStyleCustomizer = false
+                screenState.showSettingsMenu = true
+            }
         )
     }
 }

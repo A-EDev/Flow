@@ -39,6 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.flow.youtube.R
 import com.flow.youtube.player.CastHelper
+import com.flow.youtube.data.local.PlayerPreferences
 import org.schabi.newpipe.extractor.stream.StreamSegment
 
 @Composable
@@ -97,6 +98,16 @@ fun PremiumControlsOverlay(
     
     val sponsorSegments by EnhancedPlayerManager.getInstance().sponsorSegments.collectAsState()
 
+    val context = LocalContext.current
+    val playerPreferences = remember { PlayerPreferences(context) }
+    val overlayCastEnabled by playerPreferences.overlayCastEnabled.collectAsState(initial = true)
+    val overlayCcEnabled by playerPreferences.overlayCcEnabled.collectAsState(initial = false)
+    val overlayPipEnabled by playerPreferences.overlayPipEnabled.collectAsState(initial = false)
+    val overlayAutoplayEnabled by playerPreferences.overlayAutoplayEnabled.collectAsState(initial = false)
+    val overlaySleepTimerEnabled by playerPreferences.overlaySleepTimerEnabled.collectAsState(initial = true)
+
+    val isInitialLoading = isBuffering && duration <= 0L && currentPosition <= 0L
+
     AnimatedVisibility(
         visible = isVisible,
         enter = fadeIn(animationSpec = tween(300)),
@@ -108,10 +119,11 @@ fun PremiumControlsOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.6f))
+                .background(if (isInitialLoading) Color.Black else Color.Black.copy(alpha = 0.6f))
         ) {
             // Top Bar
-            Row(
+            if (!isInitialLoading) {
+                Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.TopStart)
@@ -154,7 +166,7 @@ fun PremiumControlsOverlay(
                     }
 
                     // PiP Button
-                    if (isPipSupported) {
+                    if (isPipSupported && overlayPipEnabled) {
                         IconButton(
                             onClick = onPipClick,
                             modifier = Modifier.size(40.dp)
@@ -209,54 +221,63 @@ fun PremiumControlsOverlay(
                     }
 
                     // Cast button
-                    IconButton(
-                        onClick = onCastClick,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isCasting) Icons.Rounded.Cast else Icons.Outlined.Cast,
-                            contentDescription = stringResource(R.string.cast_to_tv),
-                            tint = if (isCasting) primaryColor else Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
+                    if (overlayCastEnabled) {
+                        IconButton(
+                            onClick = onCastClick,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isCasting) Icons.Rounded.Cast else Icons.Outlined.Cast,
+                                contentDescription = stringResource(R.string.cast_to_tv),
+                                tint = if (isCasting) primaryColor else Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
 
                     // CC Icon
-                    IconButton(
-                        onClick = onSubtitleClick,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isSubtitlesEnabled) Icons.Rounded.ClosedCaption else Icons.Outlined.ClosedCaption,
-                            contentDescription = stringResource(R.string.captions),
-                            tint = if (isSubtitlesEnabled) primaryColor else Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
+                    if (overlayCcEnabled) {
+                        IconButton(
+                            onClick = onSubtitleClick,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isSubtitlesEnabled) Icons.Rounded.ClosedCaption else Icons.Outlined.ClosedCaption,
+                                contentDescription = stringResource(R.string.captions),
+                                tint = if (isSubtitlesEnabled) primaryColor else Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
 
                     // Autoplay Toggle Icon
-                    IconButton(
-                        onClick = { onAutoplayToggle(!autoplayEnabled) },
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.SlowMotionVideo,
-                            contentDescription = stringResource(R.string.autoplay),
-                            tint = if (autoplayEnabled) primaryColor else Color.White.copy(alpha = 0.7f),
-                            modifier = Modifier.size(24.dp)
-                        )
+                    if (overlayAutoplayEnabled) {
+                        IconButton(
+                            onClick = { onAutoplayToggle(!autoplayEnabled) },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.SlowMotionVideo,
+                                contentDescription = stringResource(R.string.autoplay),
+                                tint = if (autoplayEnabled) primaryColor else Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
 
-                    IconButton(
-                        onClick = onSleepTimerClick,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Bedtime,
-                            contentDescription = stringResource(R.string.sleep_timer),
-                            tint = if (isSleepTimerActive) primaryColor else Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
+                    // Sleep Timer
+                    if (overlaySleepTimerEnabled) {
+                        IconButton(
+                            onClick = onSleepTimerClick,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Bedtime,
+                                contentDescription = stringResource(R.string.sleep_timer),
+                                tint = if (isSleepTimerActive) primaryColor else Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
 
                     // Settings Icon
@@ -273,8 +294,9 @@ fun PremiumControlsOverlay(
                     }
                 }
             }
+        }
 
-            // Center Controls
+        // Center Controls
             Box(
                 modifier = Modifier.align(Alignment.Center),
                 contentAlignment = Alignment.Center
@@ -284,17 +306,19 @@ fun PremiumControlsOverlay(
                     horizontalArrangement = Arrangement.spacedBy(48.dp)
                 ) {
                     // Previous Video
-                    IconButton(
-                        onClick = onPrevious,
-                        enabled = hasPrevious,
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.SkipPrevious,
-                            contentDescription = stringResource(R.string.previous_video),
-                            tint = if (hasPrevious) Color.White else Color.White.copy(alpha = 0.3f),
-                            modifier = Modifier.size(36.dp)
-                        )
+                    if (!isInitialLoading) {
+                        IconButton(
+                            onClick = onPrevious,
+                            enabled = hasPrevious,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.SkipPrevious,
+                                contentDescription = stringResource(R.string.previous_video),
+                                tint = if (hasPrevious) Color.White else Color.White.copy(alpha = 0.3f),
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
                     }
 
                     // Play/Pause
@@ -309,7 +333,7 @@ fun PremiumControlsOverlay(
                                 indication = ripple(color = Color.White)
                             ) { onPlayPause() }
                     ) {
-                        if (isBuffering) {
+                        if (isBuffering || isInitialLoading) {
                             SleekLoadingAnimation(modifier = Modifier.size(48.dp))
                         } else {
                             Icon(
@@ -322,33 +346,36 @@ fun PremiumControlsOverlay(
                     }
 
                     // Next Video
-                    IconButton(
-                        onClick = onNext,
-                        enabled = hasNext,
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.SkipNext,
-                            contentDescription = stringResource(R.string.next_video),
-                            tint = if (hasNext) Color.White else Color.White.copy(alpha = 0.3f),
-                            modifier = Modifier.size(36.dp)
-                        )
+                    if (!isInitialLoading) {
+                        IconButton(
+                            onClick = onNext,
+                            enabled = hasNext,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.SkipNext,
+                                contentDescription = stringResource(R.string.next_video),
+                                tint = if (hasNext) Color.White else Color.White.copy(alpha = 0.3f),
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
                     }
                 }
             }
 
             // Bottom Bar
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
+            if (!isInitialLoading) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
+                            )
                         )
-                    )
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            ) {
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
                 // Time and Chapter (Unified Pill Shape)
                 Surface(
                     color = Color.White.copy(alpha = 0.15f),
@@ -380,7 +407,7 @@ fun PremiumControlsOverlay(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "LIVE",
+                                text = stringResource(R.string.player_live_label),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = Color.Red,
                                 fontWeight = FontWeight.ExtraBold,
@@ -505,6 +532,7 @@ fun PremiumControlsOverlay(
                 }
             }
         }
+    }
     }
 }
 

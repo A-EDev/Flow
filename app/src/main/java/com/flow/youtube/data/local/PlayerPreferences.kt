@@ -98,6 +98,13 @@ class PlayerPreferences(private val context: Context) {
         val NOTIF_REMINDERS_ENABLED = booleanPreferencesKey("notif_reminders_enabled")
         val NOTIF_UPDATES_ENABLED = booleanPreferencesKey("notif_updates_enabled")
         val NOTIF_GENERAL_ENABLED = booleanPreferencesKey("notif_general_enabled")
+        
+        // Overlay Controls preferences
+        val OVERLAY_CAST_ENABLED = booleanPreferencesKey("overlay_cast_enabled")
+        val OVERLAY_CC_ENABLED = booleanPreferencesKey("overlay_cc_enabled")
+        val OVERLAY_PIP_ENABLED = booleanPreferencesKey("overlay_pip_enabled")
+        val OVERLAY_AUTOPLAY_ENABLED = booleanPreferencesKey("overlay_autoplay_enabled")
+        val OVERLAY_SLEEPTIMER_ENABLED = booleanPreferencesKey("overlay_sleeptimer_enabled")
     }
     
     // Grid item size preference
@@ -480,6 +487,53 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setNotifGeneralEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.NOTIF_GENERAL_ENABLED] = enabled
+        }
+    }
+    
+    // ========== OVERLAY CONTROLS PREFERENCES ==========
+
+    val overlayCastEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.OVERLAY_CAST_ENABLED] ?: true }
+
+    suspend fun setOverlayCastEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.OVERLAY_CAST_ENABLED] = enabled
+        }
+    }
+    
+    val overlayCcEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.OVERLAY_CC_ENABLED] ?: false }
+
+    suspend fun setOverlayCcEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.OVERLAY_CC_ENABLED] = enabled
+        }
+    }
+    
+    val overlayPipEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.OVERLAY_PIP_ENABLED] ?: false }
+
+    suspend fun setOverlayPipEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.OVERLAY_PIP_ENABLED] = enabled
+        }
+    }
+
+    val overlayAutoplayEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.OVERLAY_AUTOPLAY_ENABLED] ?: false }
+
+    suspend fun setOverlayAutoplayEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.OVERLAY_AUTOPLAY_ENABLED] = enabled
+        }
+    }
+    
+    val overlaySleepTimerEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.OVERLAY_SLEEPTIMER_ENABLED] ?: true }
+
+    suspend fun setOverlaySleepTimerEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.OVERLAY_SLEEPTIMER_ENABLED] = enabled
         }
     }
     

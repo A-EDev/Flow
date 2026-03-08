@@ -285,6 +285,9 @@ fun FlowApp(
             playerVisible = false 
             playerViewModel.clearVideo()
         },
+        onMinimize = {
+            playerVisible = false
+        },
         onNavigateToChannel = { channelId ->
             val channelUrl = "https://www.youtube.com/channel/$channelId"
             val encodedUrl = java.net.URLEncoder.encode(channelUrl, "UTF-8")

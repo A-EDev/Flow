@@ -45,6 +45,7 @@ fun EnhancedVideoPlayerScreen(
     onChannelClick: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val config = androidx.compose.ui.platform.LocalConfiguration.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     
@@ -72,7 +73,7 @@ fun EnhancedVideoPlayerScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val isWideLayout = maxWidth > 600.dp && 
+            val isWideLayout = config.smallestScreenWidthDp >= 600 && 
                               !screenState.isFullscreen && !screenState.isInPipMode
 
             if (isWideLayout) {

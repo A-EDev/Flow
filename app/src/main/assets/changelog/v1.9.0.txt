@@ -3,10 +3,17 @@ VERSION: 1.9.0
 DATE: 2026-03-08
 
 NEW FEATURES
-- Add toggle for Home Screen layout — switch between grid and list views for your home feed from the Layout Settings page
-- Improve thumbnail quality — higher resolution thumbnails are now automatically fetched for videos, channels, and playlists to reduce blurriness
+- Customizable Player Overlay — added settings to toggle visibility of Cast, CC, PiP, Autoplay, and Sleep Timer icons on the player
+- Background Playback — added a dedicated "Background" button below the video to easily switch to audio-only background mode
+- Auto-Fullscreen — player now automatically enters and exits fullscreen mode upon device rotation
+- Clean Loading State — implemented a cleaner initial player load that hides controls until metadata is ready
+
+IMPROVEMENTS
+- Improve thumbnail quality — higher resolution thumbnails are now automatically fetched for videos, channels, and playlists
+- Home Screen Layout — switch between grid and list views for your home feed from Layout Settings
+- Add a Back Arrow in Player settings for easy navigation
 
 FIXES AND STABILITY
-- Fix search screen crash — resolving an issue where the app would crash when infinite scrolling through identical playlists
-- Fix swipe gesture sensitivity — increased the swipe-to-seek thresholds on the video player to prevent accidental skipping when pulling up system navigation
-- Fix music playlist track count — adding a song to a local music playlist now instantly updates the track count in the Add to Playlist dialog
+- Fix search screen crash — resolved issue when infinite scrolling through identical playlists
+- Fix swipe gesture sensitivity — increased thresholds on video player to prevent accidental skipping
+- Fix music playlist track count — UI now updates instantly when adding songs to local playlists

@@ -28,6 +28,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
@@ -90,6 +91,7 @@ fun GlobalPlayerOverlay(
     isVisible: Boolean,
     playerSheetState: PlayerDraggableState,
     onClose: () -> Unit,
+    onMinimize: () -> Unit,
     onNavigateToChannel: (String) -> Unit,
     onNavigateToShorts: (String) -> Unit
 ) {
@@ -141,12 +143,30 @@ fun GlobalPlayerOverlay(
         }
     }
 
+    val config = LocalConfiguration.current
+    val isLandscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val isTablet = config.smallestScreenWidthDp >= 600
+
+    LaunchedEffect(isLandscape, isTablet) {
+        if (isLandscape && !isTablet && playerSheetState.currentValue == PlayerSheetValue.Expanded) {
+            // Automatically enter fullscreen on phones when rotated to landscape
+            screenState.isFullscreen = true
+        }
+    }
+
     // Handle Back press in Fullscreen
     BackHandler(enabled = screenState.isFullscreen) {
         screenState.isFullscreen = false
     }
     
     // ===== EFFECTS =====
+    LaunchedEffect(playerUiState.shouldDismissPlayer) {
+        if (playerUiState.shouldDismissPlayer) {
+            onMinimize()
+            playerViewModel.resetDismissState()
+        }
+    }
+    
     LaunchedEffect(playerUiState.isLoading) {
         if (playerUiState.isLoading) {
             playerSheetState.expand()
@@ -262,7 +282,7 @@ fun GlobalPlayerOverlay(
     
     OrientationListenerEffect(
         context = context,
-        isExpanded = playerSheetState.fraction > 0.9f,
+        isExpanded = playerSheetState.fraction < 0.1f,
         isFullscreen = screenState.isFullscreen,
         videoAspectRatio = videoAspectRatio,
         onEnterFullscreen = { screenState.isFullscreen = true },

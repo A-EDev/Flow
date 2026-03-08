@@ -120,6 +120,7 @@ fun VideoInfoContent(
             context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_video)))
         },
         onDownloadClick = { screenState.showDownloadDialog = true },
+        onBackgroundPlayClick = { viewModel.startBackgroundService() },
         onDescriptionClick = { screenState.showDescriptionSheet = true }
     )
 

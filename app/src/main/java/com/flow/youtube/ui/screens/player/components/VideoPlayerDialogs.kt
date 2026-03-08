@@ -346,7 +346,8 @@ fun QualitySelectorDialog(
     availableQualities: List<QualityOption>,
     currentQuality: Int,
     onDismiss: () -> Unit,
-    onQualitySelected: (Int) -> Unit
+    onQualitySelected: (Int) -> Unit,
+    onBack: (() -> Unit)? = null
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -355,12 +356,29 @@ fun QualitySelectorDialog(
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp)
         ) {
-            Text(
-                text = stringResource(R.string.video_quality_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (onBack != null) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(16.dp))
+                }
+                
+                Text(
+                    text = stringResource(R.string.video_quality_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
             HorizontalDivider()
             LazyColumn {
                 items(availableQualities.sortedByDescending { it.height }) { quality ->
@@ -404,7 +422,8 @@ fun AudioTrackSelectorDialog(
     availableAudioTracks: List<AudioTrackOption>,
     currentAudioTrack: Int,
     onDismiss: () -> Unit,
-    onTrackSelected: (Int) -> Unit
+    onTrackSelected: (Int) -> Unit,
+    onBack: (() -> Unit)? = null
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -413,12 +432,29 @@ fun AudioTrackSelectorDialog(
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp)
         ) {
-            Text(
-                text = stringResource(R.string.audio_track),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (onBack != null) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(16.dp))
+                }
+                
+                Text(
+                    text = stringResource(R.string.audio_track),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
             HorizontalDivider()
             LazyColumn {
                 items(availableAudioTracks.size) { index ->
@@ -474,7 +510,8 @@ fun SubtitleSelectorDialog(
     subtitlesEnabled: Boolean,
     onDismiss: () -> Unit,
     onSubtitleSelected: (Int, String) -> Unit,
-    onDisableSubtitles: () -> Unit
+    onDisableSubtitles: () -> Unit,
+    onBack: (() -> Unit)? = null
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -483,12 +520,29 @@ fun SubtitleSelectorDialog(
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp)
         ) {
-            Text(
-                text = stringResource(R.string.filter_subtitles),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (onBack != null) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(16.dp))
+                }
+                
+                Text(
+                    text = stringResource(R.string.filter_subtitles),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
             HorizontalDivider()
             LazyColumn {
                 // Off option
@@ -582,7 +636,10 @@ fun SettingsMenuDialog(
     onAutoplayToggle: (Boolean) -> Unit,
     onSkipSilenceToggle: (Boolean) -> Unit,
     onShowSubtitleStyle: () -> Unit,
-    onLoopToggle: (Boolean) -> Unit
+    onLoopToggle: (Boolean) -> Unit,
+    onCastClick: () -> Unit = {},
+    onPipClick: () -> Unit = {},
+    onSleepTimerClick: () -> Unit = {}
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -607,7 +664,7 @@ fun SettingsMenuDialog(
                 label = stringResource(R.string.quality),
                 value = if (playerState.currentQuality == 0) stringResource(R.string.quality_auto)
                         else "${playerState.currentQuality}p",
-                onClick = { onDismiss(); onShowQuality() }
+                onClick = { onShowQuality() }
             )
 
             // ── Playback Speed ──
@@ -616,7 +673,7 @@ fun SettingsMenuDialog(
                 label = stringResource(R.string.playback_speed),
                 value = if (playerState.playbackSpeed == 1.0f) stringResource(R.string.normal)
                         else "${playerState.playbackSpeed}x",
-                onClick = { onDismiss(); onShowSpeed() }
+                onClick = { onShowSpeed() }
             )
 
             // ── Audio Track ──
@@ -624,7 +681,7 @@ fun SettingsMenuDialog(
                 icon = Icons.Filled.AudioFile,
                 label = stringResource(R.string.audio_track),
                 value = "Track ${playerState.currentAudioTrack + 1}",
-                onClick = { onDismiss(); onShowAudio() }
+                onClick = { onShowAudio() }
             )
 
             // ── Captions ──
@@ -632,7 +689,31 @@ fun SettingsMenuDialog(
                 icon = Icons.Filled.Subtitles,
                 label = stringResource(R.string.filter_subtitles),
                 value = if (subtitlesEnabled) stringResource(R.string.on) else stringResource(R.string.off),
-                onClick = { onDismiss(); onShowSubtitles() }
+                onClick = { onShowSubtitles() }
+            )
+
+            // ── Cast to TV ──
+            PlayerSettingsNavRow(
+                icon = Icons.Filled.Cast,
+                label = stringResource(R.string.cast_to_tv),
+                value = "",
+                onClick = { onDismiss(); onCastClick() }
+            )
+
+            // ── Picture-in-Picture ──
+            PlayerSettingsNavRow(
+                icon = Icons.Filled.PictureInPicture,
+                label = stringResource(R.string.pip_mode),
+                value = "",
+                onClick = { onDismiss(); onPipClick() }
+            )
+
+            // ── Sleep Timer ──
+            PlayerSettingsNavRow(
+                icon = Icons.Filled.Bedtime,
+                label = stringResource(R.string.sleep_timer),
+                value = "",
+                onClick = { onDismiss(); onSleepTimerClick() }
             )
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp))
@@ -753,7 +834,8 @@ private fun PlayerSettingsToggleRow(
 fun PlaybackSpeedSelectorDialog(
     currentSpeed: Float,
     onDismiss: () -> Unit,
-    onSpeedSelected: (Float) -> Unit
+    onSpeedSelected: (Float) -> Unit,
+    onBack: (() -> Unit)? = null
 ) {
     val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -763,12 +845,29 @@ fun PlaybackSpeedSelectorDialog(
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp)
         ) {
-            Text(
-                text = stringResource(R.string.playback_speed),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (onBack != null) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(16.dp))
+                }
+                
+                Text(
+                    text = stringResource(R.string.playback_speed),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
             HorizontalDivider()
             LazyColumn {
                 items(speeds) { speed ->
@@ -811,7 +910,8 @@ fun PlaybackSpeedSelectorDialog(
 fun SubtitleStyleCustomizerDialog(
     subtitleStyle: SubtitleStyle,
     onStyleChange: (SubtitleStyle) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onBack: (() -> Unit)? = null
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -821,12 +921,29 @@ fun SubtitleStyleCustomizerDialog(
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp)
         ) {
-            Text(
-                text = stringResource(R.string.filter_subtitles),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (onBack != null) {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.back)
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(16.dp))
+                }
+                
+                Text(
+                    text = stringResource(R.string.filter_subtitles),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
             HorizontalDivider()
             SubtitleCustomizer(
                 currentStyle = subtitleStyle,

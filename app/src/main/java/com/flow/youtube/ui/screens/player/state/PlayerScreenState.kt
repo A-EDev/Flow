@@ -28,6 +28,7 @@ class PlayerScreenState {
     var showPlaybackSpeedSelector by mutableStateOf(false)
     var showSubtitleStyleCustomizer by mutableStateOf(false)
     var showSleepTimerSheet by mutableStateOf(false)
+    var showDlnaDialog by mutableStateOf(false)
     
     // Bottom Sheet States
     var showQuickActions by mutableStateOf(false)
@@ -94,6 +95,7 @@ class PlayerScreenState {
         showPlaybackSpeedSelector = false
         showSubtitleStyleCustomizer = false
         showSleepTimerSheet = false
+        showDlnaDialog = false
         // Reset bottom sheets
         showQuickActions = false
         showCommentsSheet = false

@@ -544,22 +544,34 @@ fun OrientationListenerEffect(
     onEnterFullscreen: () -> Unit,
     onExitFullscreen: () -> Unit
 ) {
-    var targetOrientation by remember { mutableStateOf<Int?>(null) } // 0=Portrait, 1=Landscape
+    var physicalOrientation by remember { mutableIntStateOf(-1) }
 
+    val currentIsFullscreen by rememberUpdatedState(isFullscreen)
+    val currentAspectRatio by rememberUpdatedState(videoAspectRatio)
+    val currentEnter by rememberUpdatedState(onEnterFullscreen)
+    val currentExit by rememberUpdatedState(onExitFullscreen)
+
+        // We still need to keep this disposable effect to detect physical orientation changes when auto rotate is ON.
+        // BUT we should also just rely on Configuration changes inside GlobalPlayerOverlay for a more robust fallback.
     DisposableEffect(context) {
         val listener = object : OrientationEventListener(context) {
             override fun onOrientationChanged(orientation: Int) {
                 if (orientation == ORIENTATION_UNKNOWN) return
-                // Check setting
+                
                 val autoRotateOn = try {
                     Settings.System.getInt(context.contentResolver, Settings.System.ACCELEROMETER_ROTATION) == 1
                 } catch (e: Exception) { true }
+                
                 if (!autoRotateOn) return
 
-                if ((orientation in 260..280) || (orientation in 80..100)) {
-                    targetOrientation = 1
-                } else if ((orientation in 350..360) || (orientation in 0..10) || (orientation in 170..190)) {
-                    targetOrientation = 0
+                val newOrientation = when {
+                    orientation in 60..120 || orientation in 240..300 -> 1 
+                    orientation in 0..30 || orientation in 330..359 || orientation in 150..210 -> 0 
+                    else -> physicalOrientation 
+                }
+
+                if (newOrientation != physicalOrientation) {
+                    physicalOrientation = newOrientation
                 }
             }
         }
@@ -567,15 +579,17 @@ fun OrientationListenerEffect(
         onDispose { listener.disable() }
     }
 
-    LaunchedEffect(targetOrientation) {
-        targetOrientation?.let { target ->
-            kotlinx.coroutines.delay(500)
-            val isVerticalVideo = videoAspectRatio < 1f
-            if (target == 1 && isExpanded && !isFullscreen && !isVerticalVideo) {
-                onEnterFullscreen()
-            } else if (target == 0 && isFullscreen && !isVerticalVideo) {
-                onExitFullscreen()
-            }
+    LaunchedEffect(physicalOrientation, isExpanded) {
+        delay(150)
+        
+        if (physicalOrientation == -1) return@LaunchedEffect
+
+        val isVerticalVideo = currentAspectRatio < 1f
+
+        if (physicalOrientation == 1 && isExpanded && !currentIsFullscreen && !isVerticalVideo) {
+            currentEnter()
+        } else if (physicalOrientation == 0 && currentIsFullscreen && !isVerticalVideo) {
+            currentExit()
         }
     }
 }

@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.SlowMotionVideo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -58,6 +59,12 @@ fun PlayerSettingsScreen(
     val coroutineScope = rememberCoroutineScope()
     val playerPreferences = remember { PlayerPreferences(context) }
     
+    val overlayCastEnabled by playerPreferences.overlayCastEnabled.collectAsState(initial = true)
+    val overlayCcEnabled by playerPreferences.overlayCcEnabled.collectAsState(initial = false)
+    val overlayPipEnabled by playerPreferences.overlayPipEnabled.collectAsState(initial = false)
+    val overlayAutoplayEnabled by playerPreferences.overlayAutoplayEnabled.collectAsState(initial = false)
+    val overlaySleepTimerEnabled by playerPreferences.overlaySleepTimerEnabled.collectAsState(initial = true)
+    
     val autoplayEnabled by playerPreferences.autoplayEnabled.collectAsState(initial = true)
     val skipSilenceEnabled by playerPreferences.skipSilenceEnabled.collectAsState(initial = false)
     val sponsorBlockEnabled by playerPreferences.sponsorBlockEnabled.collectAsState(initial = false)
@@ -104,6 +111,61 @@ fun PlayerSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
+                Text(
+                    text = stringResource(R.string.player_settings_overlay_controls),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                SettingsGroup {
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Cast,
+                        title = stringResource(R.string.player_settings_overlay_cast),
+                        subtitle = stringResource(R.string.player_settings_overlay_cast_subtitle),
+                        checked = overlayCastEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setOverlayCastEnabled(it) } }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.ClosedCaption,
+                        title = stringResource(R.string.player_settings_overlay_cc),
+                        subtitle = stringResource(R.string.player_settings_overlay_cc_subtitle),
+                        checked = overlayCcEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setOverlayCcEnabled(it) } }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.PictureInPicture,
+                        title = stringResource(R.string.player_settings_overlay_pip),
+                        subtitle = stringResource(R.string.player_settings_overlay_pip_subtitle),
+                        checked = overlayPipEnabled,
+                        onCheckedChange = { 
+                            coroutineScope.launch { 
+                                playerPreferences.setOverlayPipEnabled(it)
+                                playerPreferences.setManualPipButtonEnabled(it)
+                            } 
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Rounded.SlowMotionVideo,
+                        title = stringResource(R.string.player_settings_overlay_autoplay),
+                        subtitle = stringResource(R.string.player_settings_overlay_autoplay_subtitle),
+                        checked = overlayAutoplayEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setOverlayAutoplayEnabled(it) } }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Bedtime,
+                        title = stringResource(R.string.player_settings_overlay_sleep_timer),
+                        subtitle = stringResource(R.string.player_settings_overlay_sleep_timer_subtitle),
+                        checked = overlaySleepTimerEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setOverlaySleepTimerEnabled(it) } }
+                    )
+                }
+            }
+
+            item {
                 SettingsGroup {
                     SettingsSwitchItem(
                         icon = Icons.Outlined.PlayCircle,
@@ -143,14 +205,6 @@ fun PlayerSettingsScreen(
                         subtitle = stringResource(R.string.player_settings_dearrow_subtitle),
                         checked = deArrowEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setDeArrowEnabled(it) } }
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsSwitchItem(
-                        icon = Icons.Outlined.PictureInPicture,
-                        title = stringResource(R.string.player_settings_show_pip),
-                        subtitle = stringResource(R.string.player_settings_show_pip_subtitle),
-                        checked = manualPipButtonEnabled,
-                        onCheckedChange = { coroutineScope.launch { playerPreferences.setManualPipButtonEnabled(it) } }
                     )
                 }
             }
@@ -379,7 +433,7 @@ fun PlayerSettingsScreen(
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                text = "$seconds seconds",
+                                text = stringResource(R.string.player_settings_double_tap_seek_subtitle_template, seconds),
                                 style = MaterialTheme.typography.bodyLarge
                             )
                         }

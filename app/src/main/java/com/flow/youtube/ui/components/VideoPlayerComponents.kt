@@ -40,6 +40,8 @@ import com.flow.youtube.ui.theme.extendedColors
 import com.flow.youtube.utils.formatSubscriberCount
 import com.flow.youtube.utils.formatViewCount
 import com.flow.youtube.utils.formatRichText
+import com.flow.youtube.R
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun VideoInfoSection(
@@ -62,6 +64,7 @@ fun VideoInfoSection(
     onShareClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onSaveClick: () -> Unit,
+    onBackgroundPlayClick: () -> Unit,
     onDescriptionClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -91,7 +94,7 @@ fun VideoInfoSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "${formatViewCount(viewCount)} views",
+                text = stringResource(R.string.views_count_short_template, formatViewCount(viewCount)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -187,7 +190,8 @@ fun VideoInfoSection(
             onDislikeClick = onDislikeClick,
             onShareClick = onShareClick,
             onDownloadClick = onDownloadClick,
-            onSaveClick = onSaveClick
+            onSaveClick = onSaveClick,
+            onBackgroundPlayClick = onBackgroundPlayClick
         )
     }
 }
@@ -210,7 +214,7 @@ fun CommentsPreview(
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Comments",
+                    text = stringResource(R.string.comments),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -301,7 +305,7 @@ fun SubscribeButton(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Subscribed",
+                    text = stringResource(R.string.subscribed),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = contentColor
                 )
@@ -314,7 +318,7 @@ fun SubscribeButton(
                 )
             } else {
                 Text(
-                    text = "Subscribe",
+                    text = stringResource(R.string.subscribe),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = contentColor
                 )
@@ -332,7 +336,8 @@ fun VideoActionRow(
     onDislikeClick: () -> Unit,
     onShareClick: () -> Unit,
     onDownloadClick: () -> Unit,
-    onSaveClick: () -> Unit
+    onSaveClick: () -> Unit,
+    onBackgroundPlayClick: () -> Unit
 ) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -351,7 +356,7 @@ fun VideoActionRow(
         item {
             ActionChip(
                 icon = Icons.Outlined.BookmarkBorder,
-                label = "Save",
+                label = stringResource(R.string.save),
                 onClick = onSaveClick
             )
         }
@@ -359,15 +364,23 @@ fun VideoActionRow(
         item {
             ActionChip(
                 icon = Icons.Outlined.Download,
-                label = "Download",
+                label = stringResource(R.string.download),
                 onClick = onDownloadClick
             )
         }
         
         item {
             ActionChip(
+                icon = Icons.Outlined.Headphones,
+                label = stringResource(R.string.player_action_background),
+                onClick = onBackgroundPlayClick
+            )
+        }
+        
+        item {
+            ActionChip(
                 icon = Icons.Outlined.Share,
-                label = "Share",
+                label = stringResource(R.string.share),
                 onClick = onShareClick
             )
         }
@@ -398,14 +411,14 @@ fun SegmentedLikeDislikeButton(
             ) {
                 Icon(
                     imageVector = if (likeState == "LIKED") Icons.Filled.ThumbUp else Icons.Outlined.ThumbUp,
-                    contentDescription = "Like",
+                    contentDescription = stringResource(R.string.like),
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 val likeText = if (likeCount != null && likeCount > 0) {
                     formatViewCount(likeCount) 
-                } else if (likeState == "LIKED") "Liked" else "Like"
+                } else if (likeState == "LIKED") stringResource(R.string.liked) else stringResource(R.string.like)
                 
                 Text(
                     text = likeText,
@@ -431,7 +444,7 @@ fun SegmentedLikeDislikeButton(
             ) {
                 Icon(
                     imageVector = if (likeState == "DISLIKED") Icons.Filled.ThumbDown else Icons.Outlined.ThumbDown,
-                    contentDescription = "Dislike",
+                    contentDescription = stringResource(R.string.player_action_dislike),
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurface
                 )

@@ -189,6 +189,18 @@ class VideoPlayerViewModel @Inject constructor(
     }
 
     /**
+     * Puts the player into background mode (audio-only) and signals the UI to dismiss.
+     */
+    fun startBackgroundService() {
+        EnhancedPlayerManager.getInstance().switchToAudioOnly()
+        _uiState.update { it.copy(shouldDismissPlayer = true) }
+    }
+
+    fun resetDismissState() {
+        _uiState.update { it.copy(shouldDismissPlayer = false) }
+    }
+
+    /**
      * Retry loading the current video after an error.
      * Uses the cached video metadata to know which video to reload.
      */
@@ -1066,7 +1078,8 @@ data class VideoPlayerUiState(
     val hasNext: Boolean = false,
     val hasPrevious: Boolean = false,
     val queueTitle: String? = null,
-    val hlsUrl: String? = null
+    val hlsUrl: String? = null,
+    val shouldDismissPlayer: Boolean = false
 )
 
 data class SubtitleInfo(

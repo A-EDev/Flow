@@ -83,6 +83,8 @@ class EnhancedPlayerManager private constructor() {
     private var currentDurationSeconds: Long = -1
     private var currentDashManifestUrl: String? = null
     private var currentHlsUrl: String? = null
+    
+    private var isAudioOnlyMode = false
 
     // Queue management
     private var playbackQueue: List<com.flow.youtube.data.model.Video> = emptyList()
@@ -707,7 +709,12 @@ class EnhancedPlayerManager private constructor() {
         if (attached == true) {
             val p = player
             if (p != null && currentVideoStream != null && currentAudioStream != null) {
-                if (p.currentMediaItem == null) {
+                if (isAudioOnlyMode) {
+                    Log.d(TAG, "attachVideoSurface: was in audio-only mode — restoring video stream")
+                    isAudioOnlyMode = false
+                    val pos = p.currentPosition
+                    loadMediaInternal(currentVideoStream, currentAudioStream, preservePosition = pos)
+                } else if (p.currentMediaItem == null) {
                     Log.d(TAG, "attachVideoSurface: no media item — loading media now")
                     loadMediaInternal(currentVideoStream, currentAudioStream)
                 } else if (p.playbackState == Player.STATE_IDLE) {
@@ -722,6 +729,24 @@ class EnhancedPlayerManager private constructor() {
     fun detachVideoSurface(holder: SurfaceHolder? = null) = surfaceManager?.detachVideoSurface(holder, player, appContext)
     fun clearSurface() = surfaceManager?.clearSurface(player)
     suspend fun awaitSurfaceReady(timeoutMillis: Long = 1000) = surfaceManager?.awaitSurfaceReady(timeoutMillis) ?: false
+
+    /**
+     * Switch to audio-only mode by detaching the video surface.
+     * This allows playback to continue without rendering video frames.
+     */
+    fun switchToAudioOnly() {
+        if (isAudioOnlyMode) return
+        Log.d(TAG, "Switching to audio-only mode")
+        isAudioOnlyMode = true
+        
+        surfaceManager?.detachVideoSurface(null, player, appContext)
+        // Set surface ready to false so it doesn't try to auto-reattach
+        surfaceManager?.setSurfaceReady(false)
+        
+        // Reload as audio-only stream (bandwidth saving)
+        val pos = player?.currentPosition ?: 0L
+        loadMediaInternal(null, currentAudioStream, preservePosition = pos)
+    }
     
     fun setSurfaceReady(ready: Boolean) {
         surfaceManager?.setSurfaceReady(ready)

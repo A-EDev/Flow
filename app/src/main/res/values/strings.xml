@@ -571,6 +571,7 @@
     <string name="buffer_label_playback">Start Playback: %1$ds</string>
     <string name="buffer_label_rebuffer">Resume after Rebuffer: %1$ds</string>
     <string name="btn_back">Back</string>
+    <string name="back">Back</string>
     <string name="btn_close">Close</string>
     <!-- Shorts Screen -->
     <string name="loading_shorts">Loading shorts…</string>
@@ -1109,5 +1110,21 @@
     <string name="error_extraction_failed_hint">YouTube may have updated its format. Flow will be updated soon — please try again later.</string>
     <string name="error_generic">Failed to load video</string>
     <string name="error_generic_hint">An unknown error occurred. Please try again.</string>
+
+    <!-- New Video Player Strings -->
+    <string name="player_settings_overlay_controls">Overlay Controls</string>
+    <string name="player_settings_overlay_cast">Cast Button</string>
+    <string name="player_settings_overlay_cast_subtitle">Show cast button on the video player overlay</string>
+    <string name="player_settings_overlay_cc">Closed Captions Button</string>
+    <string name="player_settings_overlay_cc_subtitle">Show CC button on the video player overlay</string>
+    <string name="player_settings_overlay_pip">Picture-in-Picture Button</string>
+    <string name="player_settings_overlay_pip_subtitle">Show PiP button on the video player overlay</string>
+    <string name="player_settings_overlay_autoplay">Autoplay Toggle</string>
+    <string name="player_settings_overlay_autoplay_subtitle">Show autoplay toggle on the video player overlay</string>
+    <string name="player_settings_overlay_sleep_timer">Sleep Timer Button</string>
+    <string name="player_settings_overlay_sleep_timer_subtitle">Show sleep timer button on the video player overlay</string>
+    <string name="player_action_background">Background</string>
+    <string name="player_live_label">LIVE</string>
+    <string name="player_action_dislike">Dislike</string>
 </resources>
 

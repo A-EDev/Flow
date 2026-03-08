@@ -120,7 +120,7 @@ fun DraggablePlayerLayout(
     val density = LocalDensity.current
     val config = LocalConfiguration.current
     val isLandscape = config.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val isTablet = config.screenWidthDp >= 600
+    val isTablet = config.smallestScreenWidthDp >= 600
 
     var playerHeightFraction by remember { mutableFloatStateOf(1f) }
     val animatedPlayerHeightFraction by animateFloatAsState(
