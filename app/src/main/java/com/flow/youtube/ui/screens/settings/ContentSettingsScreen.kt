@@ -53,6 +53,7 @@ fun ContentSettingsScreen(
     val isHomeShortsShelfEnabled by preferences.homeShortsShelfEnabled.collectAsState(initial = true)
     val isShortsNavigationEnabled by preferences.shortsNavigationEnabled.collectAsState(initial = true)
     val isContinueWatchingEnabled by preferences.continueWatchingEnabled.collectAsState(initial = true)
+    val showRelatedVideos by preferences.showRelatedVideos.collectAsState(initial = true)
     
     val homeViewModeString by preferences.homeViewMode.collectAsState(initial = com.flow.youtube.data.local.HomeViewMode.GRID)
     val currentHomeViewMode = homeViewModeString ?: com.flow.youtube.data.local.HomeViewMode.GRID
@@ -253,6 +254,18 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setContinueWatchingEnabled(enabled)
+                            }
+                        }
+                    )
+                    
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.List,
+                        title = stringResource(R.string.settings_show_related_videos_title),
+                        subtitle = stringResource(R.string.settings_show_related_videos_subtitle),
+                        checked = showRelatedVideos,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setShowRelatedVideos(enabled)
                             }
                         }
                     )

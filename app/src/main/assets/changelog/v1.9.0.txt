@@ -7,6 +7,7 @@ NEW FEATURES
 - Background Playback — added a dedicated "Background" button below the video to easily switch to audio-only background mode
 - Auto-Fullscreen — player now automatically enters and exits fullscreen mode upon device rotation
 - Clean Loading State — implemented a cleaner initial player load that hides controls until metadata is ready
+- Add a Related Videos section Toggle in Content Display Settings
 
 IMPROVEMENTS
 - Improve thumbnail quality — higher resolution thumbnails are now automatically fetched for videos, channels, and playlists

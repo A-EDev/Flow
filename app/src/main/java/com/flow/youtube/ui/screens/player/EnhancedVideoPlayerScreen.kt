@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import com.flow.youtube.data.model.Video
+import com.flow.youtube.data.local.PlayerPreferences
 
 // Modular components
 import com.flow.youtube.ui.screens.player.content.VideoInfoContent
@@ -51,6 +52,9 @@ fun EnhancedVideoPlayerScreen(
     
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val comments by viewModel.commentsState.collectAsStateWithLifecycle()
+    
+    val preferences = remember { PlayerPreferences(context) }
+    val showRelatedVideos by preferences.showRelatedVideos.collectAsState(initial = true)
 
     // Error Snackbar — supplementary to the in-video error overlay.
     LaunchedEffect(uiState.error) {
@@ -108,11 +112,13 @@ fun EnhancedVideoPlayerScreen(
                         Modifier.weight(relatedWeight), 
                         contentPadding = PaddingValues(bottom = 80.dp)
                     ) {
-                        relatedVideosContent(
-                            relatedVideos = uiState.relatedVideos,
-                            onVideoClick = onVideoClick,
-                            useCompactView = true
-                        )
+                        if (showRelatedVideos) {
+                            relatedVideosContent(
+                                relatedVideos = uiState.relatedVideos,
+                                onVideoClick = onVideoClick,
+                                useCompactView = true
+                            )
+                        }
                     }
                 }
             } else {
@@ -136,10 +142,12 @@ fun EnhancedVideoPlayerScreen(
                                     onChannelClick = onChannelClick
                                 )
                             }
-                            relatedVideosContent(
-                                relatedVideos = uiState.relatedVideos,
-                                onVideoClick = onVideoClick
-                            )
+                            if (showRelatedVideos) {
+                                relatedVideosContent(
+                                    relatedVideos = uiState.relatedVideos,
+                                    onVideoClick = onVideoClick
+                                )
+                            }
                         }
                     }
                 }

@@ -60,6 +60,7 @@ class PlayerPreferences(private val context: Context) {
         val PREFERRED_LYRICS_PROVIDER = stringPreferencesKey("preferred_lyrics_provider")
         val SWIPE_GESTURES_ENABLED = booleanPreferencesKey("swipe_gestures_enabled")
         val CONTINUE_WATCHING_ENABLED = booleanPreferencesKey("continue_watching_enabled")
+        val SHOW_RELATED_VIDEOS = booleanPreferencesKey("show_related_videos")
         val DOUBLE_TAP_SEEK_SECONDS = intPreferencesKey("double_tap_seek_seconds")
         val HOME_VIEW_MODE = stringPreferencesKey("home_view_mode")
 
@@ -300,6 +301,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setContinueWatchingEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.CONTINUE_WATCHING_ENABLED] = enabled
+        }
+    }
+
+    // Show related videos preference
+    val showRelatedVideos: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SHOW_RELATED_VIDEOS] ?: true
+        }
+
+    suspend fun setShowRelatedVideos(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHOW_RELATED_VIDEOS] = enabled
         }
     }
 

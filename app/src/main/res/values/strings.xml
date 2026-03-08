@@ -452,6 +452,8 @@
     <string name="content_settings_preview_big">Big - 128dp thumbnails</string>
     <string name="content_settings_preview_small">Small - 104dp thumbnails</string>
     <string name="content_settings_dynamic_components">Dynamic Components</string>
+    <string name="settings_show_related_videos_title">Show related videos</string>
+    <string name="settings_show_related_videos_subtitle">Display related videos below the video player</string>
     <string name="settings_subs_shorts_shelf_title">Subscriptions shorts shelf</string>
     <string name="settings_subs_shorts_shelf_subtitle">Show the horizontal shorts shelf in the subscription feed grid.</string>
     <string name="settings_home_shorts_shelf_title">Home screen shorts shelf</string>
