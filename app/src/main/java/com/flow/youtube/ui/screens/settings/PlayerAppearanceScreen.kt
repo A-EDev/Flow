@@ -272,6 +272,107 @@ fun PlayerAppearanceScreen(
                 }
             }
 
+            // Mini Player Preferences section
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                SectionHeader(text = "Mini Player Customizations")
+            }
+            
+            item {
+                SettingsGroup {
+                    val miniPlayerScale by playerPreferences.miniPlayerScale.collectAsState(initial = 0.45f)
+                    val miniPlayerShowSkip by playerPreferences.miniPlayerShowSkipControls.collectAsState(initial = false)
+                    val miniPlayerShowNextPrev by playerPreferences.miniPlayerShowNextPrevControls.collectAsState(initial = false)
+                    
+                    var expandedScale by remember { mutableStateOf(false) }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { expandedScale = true }
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check, // Placeholder icon since no mini player vector exists
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Mini Player Size",
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            val scaleLabel = when (miniPlayerScale) {
+                                0.35f -> "Small"
+                                0.55f -> "Large"
+                                else -> "Normal"
+                            }
+                            Text(
+                                text = scaleLabel,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        
+                        Box {
+                            Icon(
+                                imageVector = Icons.Outlined.ArrowDropDown,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            DropdownMenu(
+                                expanded = expandedScale,
+                                onDismissRequest = { expandedScale = false }
+                            ) {
+                                listOf(
+                                    "Small" to 0.35f,
+                                    "Normal" to 0.45f,
+                                    "Large" to 0.55f
+                                ).forEach { (label, scale) ->
+                                    DropdownMenuItem(
+                                        text = { Text(label) },
+                                        onClick = {
+                                            coroutineScope.launch { playerPreferences.setMiniPlayerScale(scale) }
+                                            expandedScale = false
+                                        },
+                                        trailingIcon = if (miniPlayerScale == scale) ({
+                                            Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)
+                                        }) else null
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    
+                    SettingsToggleItem(
+                        icon = painterResource(R.drawable.ic_swipe_gesture), // Placeholder icon
+                        title = "Show Skip Buttons",
+                        subtitle = "Show rewind/forward 10s buttons on the mini player",
+                        checked = miniPlayerShowSkip,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch { playerPreferences.setMiniPlayerShowSkipControls(enabled) }
+                        }
+                    )
+                    
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+
+                    SettingsToggleItem(
+                        icon = painterResource(R.drawable.ic_swipe_gesture), // Placeholder icon
+                        title = "Show Next/Prev Buttons",
+                        subtitle = "Show next and previous video buttons on the mini player",
+                        checked = miniPlayerShowNextPrev,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch { playerPreferences.setMiniPlayerShowNextPrevControls(enabled) }
+                        }
+                    )
+                }
+            }
+
             // SponsorBlock Segment Actions section
             item {
                 Spacer(modifier = Modifier.height(8.dp))

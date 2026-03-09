@@ -121,6 +121,7 @@ fun DraggablePlayerLayout(
     progress: Float,
     isFullscreen: Boolean,
     bottomPadding: Dp = 0.dp,
+    miniPlayerScale: Float = 0.45f,
     onDismiss: () -> Unit = {},
     videoAspectRatio: Float = 16f / 9f
 ) {
@@ -157,8 +158,9 @@ fun DraggablePlayerLayout(
         // ── 2. Derive dimensions ──────────────────────────────────────────────
         val isSplitLayout = isLandscape && isTablet
 
-        // Mini-player target size (45 % of screen width)
-        val miniWidth  = screenWidth * 0.45f
+        // Mini-player target size based on user preference scale
+        val targetMiniWidth = screenWidth * miniPlayerScale
+        val miniWidth  = if (isTablet) targetMiniWidth.coerceAtMost(400f) else targetMiniWidth
         val miniHeight = miniWidth * (9f / 16f)
         val margin     = with(density) { 12.dp.toPx() }
         val bottomNavPad = with(density) { bottomPadding.toPx() }

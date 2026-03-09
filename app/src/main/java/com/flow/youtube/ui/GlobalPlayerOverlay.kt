@@ -14,6 +14,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -91,6 +95,9 @@ fun GlobalPlayerOverlay(
     isVisible: Boolean,
     playerSheetState: PlayerDraggableState,
     bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    miniPlayerScale: Float = 0.45f,
+    miniPlayerShowSkipControls: Boolean = false,
+    miniPlayerShowNextPrevControls: Boolean = false,
     onClose: () -> Unit,
     onMinimize: () -> Unit,
     onNavigateToChannel: (String) -> Unit,
@@ -347,6 +354,7 @@ fun GlobalPlayerOverlay(
                 isFullscreen = screenState.isFullscreen,
                 videoAspectRatio = videoAspectRatio,
                 bottomPadding = bottomPadding,
+                miniPlayerScale = miniPlayerScale,
                 onDismiss = onClose,
                 videoContent = { modifier ->
                     // ALWAYS use the same video surface
@@ -670,6 +678,40 @@ fun GlobalPlayerOverlay(
             miniControls = { _ ->
                 MiniPlayerControls(
                     playerState = playerState,
+                    showSkipControls = miniPlayerShowSkipControls,
+                    showNextPrevControls = miniPlayerShowNextPrevControls,
+                    onPlayPause = {
+                        if (playerState.playWhenReady) {
+                            EnhancedPlayerManager.getInstance().pause()
+                        } else {
+                            EnhancedPlayerManager.getInstance().play()
+                        }
+                    },
+                    onSkipForward = {
+                        EnhancedPlayerManager.getInstance().seekTo(screenState.currentPosition + 10000)
+                    },
+                    onSkipBack = {
+                        EnhancedPlayerManager.getInstance().seekTo(screenState.currentPosition - 10000)
+                    },
+                    onNext = {
+                        if (playerState.hasNext) {
+                            playerViewModel.playNext()
+                        } else {
+                            playerUiState.relatedVideos.firstOrNull()?.let { nextVideo ->
+                                playerViewModel.playVideo(nextVideo)
+                                GlobalPlayerState.setCurrentVideo(nextVideo)
+                            }
+                        }
+                    },
+                    onPrevious = {
+                        if (playerState.hasPrevious) {
+                            playerViewModel.playPrevious()
+                        } else {
+                            playerViewModel.getPreviousVideoId()?.let { prevId ->
+                                GlobalPlayerState.setCurrentVideo(Video(id = prevId, title = "", channelName = "", channelId = "", thumbnailUrl = "", duration = 0, viewCount = 0, uploadDate = ""))
+                            }
+                        }
+                    },
                     onClose = onClose
                 )
             }
@@ -748,35 +790,51 @@ fun GlobalPlayerOverlay(
 }
 
 /**
- * Mini Player Controls 
+ * Mini Player Controls - Dynamically arranges Play/Pause, Rewind/FastForward, and Next/Previous.
  */
 @Composable
 private fun MiniPlayerControls(
     playerState: com.flow.youtube.player.state.EnhancedPlayerState,
+    showSkipControls: Boolean,
+    showNextPrevControls: Boolean,
+    onPlayPause: () -> Unit,
+    onSkipForward: () -> Unit,
+    onSkipBack: () -> Unit,
+    onNext: () -> Unit,
+    onPrevious: () -> Unit,
     onClose: () -> Unit
 ) {
-    // Overlay Center
+    val configuration = LocalConfiguration.current
+    val isTablet = configuration.screenWidthDp > 600
+    
+    val baseButtonSize = if (isTablet) 56.dp else 40.dp
+    val playButtonSize = if (isTablet) 64.dp else 48.dp
+    val iconSize = if (isTablet) 32.dp else 24.dp
+    
+    var buttonCount = 1 
+    if (showSkipControls) buttonCount += 2
+    if (showNextPrevControls) buttonCount += 2
+    
+    val scaleFactor = if (!isTablet && buttonCount == 5) 0.85f else 1f
+    
+    val finalBaseButtonSize = baseButtonSize * scaleFactor
+    val finalPlayButtonSize = playButtonSize * scaleFactor
+    val finalIconSize = iconSize * scaleFactor
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Play/Pause - Top Left
         IconButton(
-            onClick = { 
-                if (playerState.playWhenReady) {
-                    EnhancedPlayerManager.getInstance().pause()
-                } else {
-                    EnhancedPlayerManager.getInstance().play()
-                }
-            },
+            onClick = onPlayPause,
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(8.dp)
-                .size(56.dp)
+                .size(if (isTablet) 48.dp else 40.dp)
                 .background(Color.Black.copy(alpha = 0.5f), CircleShape)
         ) {
             if (playerState.isBuffering) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp),
+                    modifier = Modifier.size(if (isTablet) 28.dp else 24.dp),
                     strokeWidth = 2.dp,
                     color = Color.White
                 )
@@ -785,12 +843,81 @@ private fun MiniPlayerControls(
                     imageVector = if (playerState.playWhenReady) Icons.Default.Pause else Icons.Default.PlayArrow,
                     contentDescription = if (playerState.playWhenReady) "Pause" else "Play",
                     tint = Color.White,
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(if (isTablet) 28.dp else 24.dp)
                 )
             }
         }
 
-        // Close - Top Right
+        Row(
+            modifier = Modifier.align(Alignment.Center),
+            horizontalArrangement = Arrangement.spacedBy((if(isTablet) 16.dp else 8.dp) * scaleFactor),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (showNextPrevControls) {
+                IconButton(
+                    onClick = onPrevious,
+                    modifier = Modifier
+                        .size(finalBaseButtonSize)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipPrevious,
+                        contentDescription = "Previous",
+                        tint = Color.White,
+                        modifier = Modifier.size(finalIconSize)
+                    )
+                }
+            }
+
+            if (showSkipControls) {
+                IconButton(
+                    onClick = onSkipBack,
+                    modifier = Modifier
+                        .size(finalBaseButtonSize)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Replay10,
+                        contentDescription = "Skip Back 10s",
+                        tint = Color.White,
+                        modifier = Modifier.size(finalIconSize)
+                    )
+                }
+            }
+
+            if (showSkipControls) {
+                IconButton(
+                    onClick = onSkipForward,
+                    modifier = Modifier
+                        .size(finalBaseButtonSize)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Forward10,
+                        contentDescription = "Skip Forward 10s",
+                        tint = Color.White,
+                        modifier = Modifier.size(finalIconSize)
+                    )
+                }
+            }
+
+            if (showNextPrevControls) {
+                IconButton(
+                    onClick = onNext,
+                    modifier = Modifier
+                        .size(finalBaseButtonSize)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SkipNext,
+                        contentDescription = "Next",
+                        tint = Color.White,
+                        modifier = Modifier.size(finalIconSize)
+                    )
+                }
+            }
+        }
+
         IconButton(
             onClick = {
                 EnhancedPlayerManager.getInstance().stop()
@@ -800,14 +927,14 @@ private fun MiniPlayerControls(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(8.dp)
-                .size(56.dp) 
+                .size(if (isTablet) 48.dp else 40.dp)
                 .background(Color.Black.copy(alpha = 0.5f), CircleShape)
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = "Close",
                 tint = Color.White,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(if (isTablet) 28.dp else 24.dp)
             )
         }
     }

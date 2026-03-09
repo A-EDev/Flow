@@ -57,6 +57,7 @@ class PlayerPreferences(private val context: Context) {
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
         val SHORTS_NAVIGATION_ENABLED = booleanPreferencesKey("shorts_navigation_enabled")
+        val MUSIC_NAVIGATION_ENABLED = booleanPreferencesKey("music_navigation_enabled")
         val PREFERRED_LYRICS_PROVIDER = stringPreferencesKey("preferred_lyrics_provider")
         val SWIPE_GESTURES_ENABLED = booleanPreferencesKey("swipe_gestures_enabled")
         val CONTINUE_WATCHING_ENABLED = booleanPreferencesKey("continue_watching_enabled")
@@ -106,6 +107,11 @@ class PlayerPreferences(private val context: Context) {
         val OVERLAY_PIP_ENABLED = booleanPreferencesKey("overlay_pip_enabled")
         val OVERLAY_AUTOPLAY_ENABLED = booleanPreferencesKey("overlay_autoplay_enabled")
         val OVERLAY_SLEEPTIMER_ENABLED = booleanPreferencesKey("overlay_sleeptimer_enabled")
+        
+        // Mini Player Customizations
+        val MINI_PLAYER_SCALE = floatPreferencesKey("mini_player_scale")
+        val MINI_PLAYER_SHOW_SKIP_CONTROLS = booleanPreferencesKey("mini_player_show_skip_controls")
+        val MINI_PLAYER_SHOW_NEXT_PREV_CONTROLS = booleanPreferencesKey("mini_player_show_next_prev_controls")
     }
     
     // Grid item size preference
@@ -289,6 +295,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setShortsNavigationEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHORTS_NAVIGATION_ENABLED] = enabled
+        }
+    }
+
+    // Music navigation enabled preference
+    val musicNavigationEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.MUSIC_NAVIGATION_ENABLED] ?: true
+        }
+
+    suspend fun setMusicNavigationEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_NAVIGATION_ENABLED] = enabled
         }
     }
 
@@ -769,6 +787,41 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setPreferredLyricsProvider(provider: String) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.PREFERRED_LYRICS_PROVIDER] = provider
+        }
+    }
+
+    // ========== MINI PLAYER PREFERENCES ==========
+
+    val miniPlayerScale: Flow<Float> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.MINI_PLAYER_SCALE] ?: 0.45f
+        }
+
+    suspend fun setMiniPlayerScale(scale: Float) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MINI_PLAYER_SCALE] = scale
+        }
+    }
+
+    val miniPlayerShowSkipControls: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.MINI_PLAYER_SHOW_SKIP_CONTROLS] ?: false
+        }
+
+    suspend fun setMiniPlayerShowSkipControls(show: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MINI_PLAYER_SHOW_SKIP_CONTROLS] = show
+        }
+    }
+
+    val miniPlayerShowNextPrevControls: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.MINI_PLAYER_SHOW_NEXT_PREV_CONTROLS] ?: false
+        }
+
+    suspend fun setMiniPlayerShowNextPrevControls(show: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MINI_PLAYER_SHOW_NEXT_PREV_CONTROLS] = show
         }
     }
 

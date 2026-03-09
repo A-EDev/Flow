@@ -460,6 +460,8 @@
     <string name="settings_home_shorts_shelf_subtitle">Show the horizontal shorts shelf on the home screen.</string>
     <string name="settings_shorts_nav_tab_title">Shorts tab in navigation</string>
     <string name="settings_shorts_nav_tab_subtitle">Show the Shorts tab in the bottom navigation bar.</string>
+    <string name="settings_music_nav_tab_title">Music tab in navigation</string>
+    <string name="settings_music_nav_tab_subtitle">Show the Music tab in the bottom navigation bar.</string>
     <string name="settings_continue_watching_title">Continue Watching shelf</string>
     <string name="settings_continue_watching_subtitle">Show a shelf of in-progress videos on the home screen.</string>
     <string name="continue_watching_title">Continue Watching</string>

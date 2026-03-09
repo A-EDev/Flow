@@ -11,6 +11,9 @@ NEW FEATURES
 - Add a Remove button to songs in playlists
 - Add a Custom Interest input in Content Preferences — type any topic to follow it directly
 - 2D Free-Floating Mini Player — the video mini-player now floats freely across the screen. Drag it anywhere, and it seamlessly snaps to any of the 4 corners, or swipe to dismiss it entirely.
+- Customizable Mini Player Size — you can now adjust the dimensions of the free-floating mini video player (Small, Normal, Large)
+- Custom Mini Player Controls — added the ability to show/hide "Skip Forward/Backward" and "Next/Previous" buttons directly on the floating player
+- Navigation Customization — added a toggle in Content Settings to show or hide the "Music" tab from the bottom navigation bar (similar to the Shorts tab)
 
 IMPROVEMENTS
 - Improve thumbnail quality — higher resolution thumbnails are now automatically fetched for videos, channels, and playlists

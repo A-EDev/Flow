@@ -54,6 +54,12 @@ fun FlowApp(
     
     val preferences = remember { com.flow.youtube.data.local.PlayerPreferences(context) }
     val isShortsNavigationEnabled by preferences.shortsNavigationEnabled.collectAsState(initial = true)
+    val isMusicNavigationEnabled by preferences.musicNavigationEnabled.collectAsState(initial = true)
+    
+    // Mini Player Customizations
+    val miniPlayerScale by preferences.miniPlayerScale.collectAsState(initial = 0.45f)
+    val miniPlayerShowSkipControls by preferences.miniPlayerShowSkipControls.collectAsState(initial = false)
+    val miniPlayerShowNextPrevControls by preferences.miniPlayerShowNextPrevControls.collectAsState(initial = false)
     
     // Offline Monitoring
     val currentRoute = remember { mutableStateOf("home") }
@@ -230,6 +236,7 @@ fun FlowApp(
             FloatingBottomNavBar(
                 selectedIndex = selectedBottomNavIndex.intValue,
                 isShortsEnabled = isShortsNavigationEnabled,
+                isMusicEnabled = isMusicNavigationEnabled,
                 onItemSelected = { index ->
                     val route = when (index) {
                         0 -> "home"
@@ -280,6 +287,9 @@ fun FlowApp(
         isVisible = playerVisible,
         playerSheetState = playerSheetState,
         bottomPadding = animatedBottomPadding,
+        miniPlayerScale = miniPlayerScale,
+        miniPlayerShowSkipControls = miniPlayerShowSkipControls,
+        miniPlayerShowNextPrevControls = miniPlayerShowNextPrevControls,
         onClose = { 
             playerVisible = false 
             playerViewModel.clearVideo()

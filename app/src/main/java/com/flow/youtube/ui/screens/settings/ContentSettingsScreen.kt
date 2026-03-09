@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.List
+import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.ViewQuilt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -52,6 +53,7 @@ fun ContentSettingsScreen(
     val isShortsShelfEnabled by preferences.shortsShelfEnabled.collectAsState(initial = true)
     val isHomeShortsShelfEnabled by preferences.homeShortsShelfEnabled.collectAsState(initial = true)
     val isShortsNavigationEnabled by preferences.shortsNavigationEnabled.collectAsState(initial = true)
+    val isMusicNavigationEnabled by preferences.musicNavigationEnabled.collectAsState(initial = true)
     val isContinueWatchingEnabled by preferences.continueWatchingEnabled.collectAsState(initial = true)
     val showRelatedVideos by preferences.showRelatedVideos.collectAsState(initial = true)
     
@@ -243,6 +245,18 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setShortsNavigationEnabled(enabled)
+                            }
+                        }
+                    )
+
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.MusicNote,
+                        title = stringResource(R.string.settings_music_nav_tab_title),
+                        subtitle = stringResource(R.string.settings_music_nav_tab_subtitle),
+                        checked = isMusicNavigationEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setMusicNavigationEnabled(enabled)
                             }
                         }
                     )
