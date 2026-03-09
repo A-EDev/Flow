@@ -11,6 +11,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import javax.inject.Inject
 
 private const val UNDO_WINDOW_MS = 4_000L
@@ -31,6 +34,8 @@ class DownloadsViewModel @Inject constructor(
     private val _pendingDeleteIds = MutableStateFlow<Set<String>>(emptySet())
 
     private val pendingDeleteJobs = mutableMapOf<String, Job>()
+    
+    private val deletionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {
         observeDownloads()
@@ -101,7 +106,7 @@ class DownloadsViewModel @Inject constructor(
 
         _pendingDeleteIds.update { it + id }
 
-        val job = viewModelScope.launch {
+        val job = deletionScope.launch {
             delay(UNDO_WINDOW_MS)
             doDelete()
             _pendingDeleteIds.update { it - id }
@@ -110,13 +115,13 @@ class DownloadsViewModel @Inject constructor(
     }
 
     fun deleteVideoDownload(videoId: String) {
-        viewModelScope.launch {
+        deletionScope.launch {
             videoDownloadManager.deleteDownload(videoId)
         }
     }
 
     fun deleteMusicDownload(videoId: String) {
-        viewModelScope.launch {
+        deletionScope.launch {
             musicDownloadManager.deleteDownload(videoId)
         }
     }

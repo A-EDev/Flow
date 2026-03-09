@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 1.9.0
-DATE: 2026-03-08
+DATE: 2026-03-09
 
 NEW FEATURES
 - Customizable Player Overlay — added settings to toggle visibility of Cast, CC, PiP, Autoplay, and Sleep Timer icons on the player
@@ -20,6 +20,9 @@ IMPROVEMENTS
 - Home Screen Layout — switch between grid and list views for your home feed from Layout Settings
 - Add a Back Arrow in Player settings for easy navigation
 - Lyrics Parser
+- Update Algorithm filters to block full category instead of individual keywords
+- Scrollable Blocked content section in Personality Screen
+- Channel name fetching using ID in Personality Screen
 
 FIXES AND STABILITY
 - Fix search screen crash — resolved issue when infinite scrolling through identical playlists
@@ -32,3 +35,4 @@ FIXES AND STABILITY
 - Fix Helium Effect on songs
 - Fix PiP close button — tapping X on the PiP window now stops playback instead of leaving audio running in the background
 - Fix Playlist Download — added missing codec
+- Fix Download Deletion process 

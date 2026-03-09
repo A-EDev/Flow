@@ -1268,9 +1268,22 @@ class FlowNeuroEngine(private val appContext: Context) {
             }
             val titleLower = video.title.lowercase()
             val channelLower = video.channelName.lowercase()
-            !brain.blockedTopics.any { blocked ->
-                titleLower.contains(blocked) ||
-                    channelLower.contains(blocked)
+            
+            // Expand blocked topics using their matching categories so we block sub-keywords too
+            val expandedBlockedKeywords = brain.blockedTopics.flatMap { blocked ->
+                val blockedLower = blocked.lowercase()
+                val category = TOPIC_CATEGORIES.find { 
+                    it.name.lowercase().contains(blockedLower) || it.topics.any { t -> t.lowercase() == blockedLower } 
+                }
+                if (category != null) {
+                    category.topics.map { it.lowercase() } + blockedLower
+                } else {
+                    listOf(blockedLower)
+                }
+            }.toSet()
+            
+            !expandedBlockedKeywords.any { blockedLower ->
+                titleLower.contains(blockedLower) || channelLower.contains(blockedLower)
             }
         }
 

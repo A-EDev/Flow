@@ -49,6 +49,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.flow.youtube.data.recommendation.FlowNeuroEngine
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -73,6 +75,38 @@ fun FlowPersonalityScreen(
     var persona by remember { mutableStateOf<FlowNeuroEngine.FlowPersona?>(null) }
     var showResetDialog by remember { mutableStateOf(false) }
     var isLoaded by remember { mutableStateOf(false) }
+
+    val cachedChannelNames = remember { androidx.compose.runtime.mutableStateMapOf<String, String>() }
+
+    LaunchedEffect(userBrain) {
+        val brain = userBrain ?: return@LaunchedEffect
+        val allChannels = (brain.blockedChannels + brain.channelScores.keys).distinct()
+        val toFetch = allChannels.filter { !cachedChannelNames.containsKey(it) }
+        
+        if (toFetch.isNotEmpty()) {
+            val repository = com.flow.youtube.data.repository.YouTubeRepository.getInstance()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                kotlinx.coroutines.coroutineScope {
+                    toFetch.chunked(15).forEach { chunk ->
+                        chunk.map { channelId ->
+                            async {
+                                try {
+                                    val info = repository.getChannelInfo(channelId)
+                                    if (info?.name != null) {
+                                        channelId to info.name!!
+                                    } else null
+                                } catch (e: Exception) {
+                                    null
+                                }
+                            }
+                        }.awaitAll().filterNotNull().forEach { (id, name) ->
+                            cachedChannelNames[id] = name
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // SAF launcher: create a file to export brain JSON into
     val exportLauncher = rememberLauncherForActivityResult(
@@ -233,7 +267,7 @@ fun FlowPersonalityScreen(
                             title = stringResource(R.string.channel_memory),
                             subtitle = stringResource(R.string.channel_memory_subtitle)
                         )
-                        ChannelAffinitySection(brain = userBrain!!)
+                        ChannelAffinitySection(brain = userBrain!!, channelNames = cachedChannelNames)
 
                         // 8. ALGORITHM TRANSPARENCY
                         SectionHeader(
@@ -255,6 +289,7 @@ fun FlowPersonalityScreen(
                             )
                             BlockedContentSection(
                                 brain = userBrain!!,
+                                channelNames = cachedChannelNames,
                                 onUnblockTopic = { topic ->
                                     scope.launch {
                                         FlowNeuroEngine.removeBlockedTopic(context, topic)
@@ -1722,6 +1757,7 @@ private fun MaintenanceSection(
 @Composable
 private fun BlockedContentSection(
     brain: FlowNeuroEngine.UserBrain,
+    channelNames: Map<String, String>,
     onUnblockTopic: (String) -> Unit,
     onUnblockChannel: (String) -> Unit
 ) {
@@ -1743,23 +1779,25 @@ private fun BlockedContentSection(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.height(8.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    blockedTopics.forEach { topic ->
-                        InputChip(
-                            selected = false,
-                            onClick = { onUnblockTopic(topic) },
-                            label = { Text(topic.replaceFirstChar { it.uppercase() }) },
-                            trailingIcon = {
-                                Icon(
-                                    Icons.Default.Close,
-                                    "Unblock",
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        )
+                Column(modifier = Modifier.heightIn(max = 240.dp).verticalScroll(rememberScrollState())) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        blockedTopics.forEach { topic ->
+                            InputChip(
+                                selected = false,
+                                onClick = { onUnblockTopic(topic) },
+                                label = { Text(topic.replaceFirstChar { it.uppercase() }) },
+                                trailingIcon = {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        "Unblock",
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -1776,28 +1814,31 @@ private fun BlockedContentSection(
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.height(8.dp))
-                blockedChannels.forEach { channelId ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("🚫", modifier = Modifier.padding(end = 8.dp))
-                        Text(
-                            channelId.take(24) + if (channelId.length > 24) "..." else "",
-                            modifier = Modifier.weight(1f),
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        IconButton(
-                            onClick = { onUnblockChannel(channelId) },
-                            modifier = Modifier.size(32.dp)
+                Column(modifier = Modifier.heightIn(max = 240.dp).verticalScroll(rememberScrollState())) {
+                    blockedChannels.forEach { channelId ->
+                        val displayName = channelNames[channelId] ?: (channelId.take(24) + if (channelId.length > 24) "..." else "")
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                Icons.Default.Close,
-                                "Unblock",
-                                modifier = Modifier.size(16.dp)
+                            Text("🚫", modifier = Modifier.padding(end = 8.dp))
+                            Text(
+                                displayName,
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodySmall
                             )
+                            IconButton(
+                                onClick = { onUnblockChannel(channelId) },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    "Unblock",
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }
