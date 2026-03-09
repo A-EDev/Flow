@@ -52,6 +52,7 @@ fun AddToPlaylistDialog(
     
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = rememberFlowSheetState(),
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         containerColor = MaterialTheme.colorScheme.surface
     ) {

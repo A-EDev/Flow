@@ -1,6 +1,9 @@
 package com.flow.youtube.ui
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -185,21 +188,29 @@ fun FlowApp(
                         navController = navController,
                         startDestination = if (needsOnboarding == true) "onboarding" else "home",
                         enterTransition = {
-                            fadeIn(animationSpec = tween(200)) + slideInHorizontally(
-                                initialOffsetX = { 30 },
-                                animationSpec = tween(200)
+                            fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing)) +
+                            slideInHorizontally(
+                                initialOffsetX = { (it * 0.06f).toInt() },
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
                             )
                         },
                         exitTransition = {
-                            fadeOut(animationSpec = tween(150))
+                            fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing))
                         },
                         popEnterTransition = {
-                            fadeIn(animationSpec = tween(200))
+                            fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing))
                         },
                         popExitTransition = {
-                            fadeOut(animationSpec = tween(150)) + slideOutHorizontally(
-                                targetOffsetX = { 30 },
-                                animationSpec = tween(150)
+                            fadeOut(animationSpec = tween(200, easing = FastOutLinearInEasing)) +
+                            slideOutHorizontally(
+                                targetOffsetX = { (it * 0.06f).toInt() },
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
                             )
                         }
                     ) {

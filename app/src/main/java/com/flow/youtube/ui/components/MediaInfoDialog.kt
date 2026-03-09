@@ -64,6 +64,7 @@ fun MediaInfoDialog(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = rememberFlowSheetState(),
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),

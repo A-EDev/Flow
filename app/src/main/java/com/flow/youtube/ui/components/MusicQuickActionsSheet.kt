@@ -97,7 +97,10 @@ fun MusicQuickActionsSheet(
         )
     }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberFlowSheetState()
+    ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()

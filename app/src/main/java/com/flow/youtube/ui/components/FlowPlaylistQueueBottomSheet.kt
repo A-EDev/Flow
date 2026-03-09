@@ -49,6 +49,7 @@ fun FlowPlaylistQueueBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = rememberFlowSheetState(),
         containerColor = MaterialTheme.colorScheme.surface,
         scrimColor = Color.Black.copy(alpha = 0.6f),
         dragHandle = { BottomSheetDefaults.DragHandle() },

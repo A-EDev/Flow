@@ -68,7 +68,7 @@ fun FlowActionButton(
             containerColor = if (enabled) backgroundColor else backgroundColor.copy(alpha = 0.5f)
         ),
         shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(0.dp)
+        elevation = CardDefaults.cardElevation(1.dp)
     ) {
         Column(
             modifier = Modifier
@@ -178,7 +178,7 @@ fun FlowMenuGroup(
                 colors = item.cardColors ?: CardDefaults.cardColors(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f) // cleaner look
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.5.dp),
                 border = null // Removed border for cleaner look
             ) {
                 FlowMenuItemRow(item = item)

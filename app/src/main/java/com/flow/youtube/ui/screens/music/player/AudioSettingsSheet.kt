@@ -28,6 +28,7 @@ import com.flow.youtube.data.model.FilterType
 import com.flow.youtube.data.model.ParametricEQ
 import com.flow.youtube.data.model.ParametricEQBand
 import com.flow.youtube.player.EnhancedMusicPlayerManager
+import com.flow.youtube.ui.components.rememberFlowSheetState
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
@@ -52,7 +53,7 @@ fun AudioSettingsSheet(
     
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = rememberFlowSheetState(),
         containerColor = MaterialTheme.colorScheme.surface,
         contentColor = MaterialTheme.colorScheme.onSurface
     ) {

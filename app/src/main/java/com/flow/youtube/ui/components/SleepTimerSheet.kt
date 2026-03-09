@@ -59,7 +59,7 @@ import kotlin.math.roundToInt
 @Composable
 fun SleepTimerSheet(onDismiss: () -> Unit) {
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberFlowSheetState()
 
     val isActive = SleepTimerManager.isActive
     val pauseAtEndOfMedia = SleepTimerManager.pauseAtEndOfMedia

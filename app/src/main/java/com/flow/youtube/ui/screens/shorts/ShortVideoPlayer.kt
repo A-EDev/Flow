@@ -49,6 +49,7 @@ import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.model.toShortVideo
 import com.flow.youtube.player.EnhancedMusicPlayerManager
 import com.flow.youtube.player.shorts.ShortsPlayerPool
+import com.flow.youtube.ui.components.rememberFlowSheetState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -694,7 +695,7 @@ private fun ShortsOptionsSheet(
     onQualityClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -784,7 +785,7 @@ private fun ShortsAudioTrackSheet(
     onTrackSelected: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -881,7 +882,7 @@ private fun ShortsQualitySheet(
     onQualitySelected: (org.schabi.newpipe.extractor.stream.VideoStream) -> Unit,
     onDismiss: () -> Unit
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

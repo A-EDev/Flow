@@ -36,6 +36,7 @@ import com.flow.youtube.data.local.SliderStyle
 import com.flow.youtube.data.local.SponsorBlockAction
 import com.flow.youtube.ui.screens.music.player.components.PlayerSliderTrack
 import com.flow.youtube.ui.screens.music.player.components.SquigglySlider
+import com.flow.youtube.ui.components.rememberFlowSheetState
 import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -120,6 +121,7 @@ fun PlayerAppearanceScreen(
     if (showStyleSheet) {
         ModalBottomSheet(
             onDismissRequest = { showStyleSheet = false },
+            sheetState = rememberFlowSheetState(),
             containerColor = MaterialTheme.colorScheme.surface,
             tonalElevation = 0.dp
         ) {

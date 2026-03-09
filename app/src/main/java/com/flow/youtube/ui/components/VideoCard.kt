@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -78,20 +79,27 @@ fun VideoCard(
     }
     val displayTitle = deArrowResult?.title ?: video.title
     val displayThumbnailUrl = deArrowResult?.thumbnailUrl ?: video.thumbnailUrl
+    val interactionSource = remember { MutableInteractionSource() }
     Column(
         modifier = modifier
             .width(180.dp)
-            .clip(RoundedCornerShape(16.dp)) // Clip the whole card for ripple
-            .clickable(onClick = onClick)
-            .padding(4.dp) // Subtle spacing between cards
+            .pressScale(interactionSource)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.material3.ripple(),
+                onClick = onClick
+            )
+            .padding(4.dp)
     ) {
         // THUMBNAIL BOX
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(16.dp)) // More modern rounded corners
+                .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                .thumbnailGradientOverlay()
         ) {
             AsyncImage(
                 model = displayThumbnailUrl,
@@ -233,10 +241,16 @@ fun VideoCardHorizontal(
     val displayTitle = deArrowResult?.title ?: video.title
     val displayThumbnailUrl = deArrowResult?.thumbnailUrl ?: video.thumbnailUrl
 
+    val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .pressScale(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.material3.ripple(),
+                onClick = onClick
+            )
             .padding(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -337,19 +351,26 @@ fun VideoCardFullWidth(
     val displayTitle = deArrowResultFullWidth?.title ?: video.title
     val displayThumbnailUrl = deArrowResultFullWidth?.thumbnailUrl ?: video.thumbnailUrl
 
+    val interactionSource = remember { MutableInteractionSource() }
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .then(if (useInternalPadding) Modifier.padding(horizontal = 12.dp) else Modifier) // Gap from screen edges
+            .pressScale(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.material3.ripple(),
+                onClick = onClick
+            )
+            .then(if (useInternalPadding) Modifier.padding(horizontal = 12.dp) else Modifier)
     ) {
         // Thumbnail with duration
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(16f / 9f)
-                .clip(RoundedCornerShape(16.dp)) // Modern rounded corners
+                .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                .thumbnailGradientOverlay()
         ) {
             SafeAsyncImage(
                 model = displayThumbnailUrl,
@@ -496,10 +517,16 @@ fun CompactVideoCard(
     val displayTitle = deArrowResultCompact?.title ?: video.title
     val displayThumbnailUrl = deArrowResultCompact?.thumbnailUrl ?: video.thumbnailUrl
 
+    val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .pressScale(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.material3.ripple(),
+                onClick = onClick
+            )
             .padding(vertical = 8.dp, horizontal = 12.dp)
     ) {
         // Thumbnail (Left side)
@@ -655,10 +682,16 @@ private fun ContinueWatchingCard(
     entry: VideoHistoryEntry,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Column(
         modifier = Modifier
             .width(200.dp)
-            .clickable(onClick = onClick)
+            .pressScale(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.material3.ripple(),
+                onClick = onClick
+            )
     ) {
         Box(
             modifier = Modifier
@@ -666,6 +699,7 @@ private fun ContinueWatchingCard(
                 .aspectRatio(16f / 9f)
                 .clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
+                .thumbnailGradientOverlay()
         ) {
             SafeAsyncImage(
                 model = entry.thumbnailUrl,
@@ -777,17 +811,24 @@ fun ShortsCard(
     video: Video,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Column(
         modifier = Modifier
             .width(160.dp)
-            .clickable(onClick = onClick)
+            .pressScale(interactionSource)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = androidx.compose.material3.ripple(),
+                onClick = onClick
+            )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(9f / 16f)
-                .clip(RoundedCornerShape(16.dp)) // Match other cards
+                .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
+                .thumbnailGradientOverlay()
         ) {
             SafeAsyncImage(
                 model = video.thumbnailUrl,

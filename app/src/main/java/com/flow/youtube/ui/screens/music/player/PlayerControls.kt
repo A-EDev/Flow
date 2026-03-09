@@ -45,6 +45,7 @@ import com.flow.youtube.R
 import com.flow.youtube.player.RepeatMode
 import com.flow.youtube.data.local.PlayerPreferences
 import com.flow.youtube.data.local.SliderStyle
+import com.flow.youtube.ui.components.pressScale
 import com.flow.youtube.ui.screens.music.player.components.PlayerSliderTrack
 import com.flow.youtube.ui.screens.music.player.components.SquigglySlider
 
@@ -425,9 +426,11 @@ fun PlayerMainActionButtons(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Download Button
+        val downloadInteractionSource = remember { MutableInteractionSource() }
         IconButton(
             onClick = onDownloadClick,
-            modifier = Modifier.size(40.dp)
+            modifier = Modifier.size(40.dp).pressScale(downloadInteractionSource),
+            interactionSource = downloadInteractionSource
         ) {
             Icon(
                 imageVector = if (isDownloaded) Icons.Rounded.OfflinePin else Icons.Outlined.Download,

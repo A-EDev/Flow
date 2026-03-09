@@ -99,7 +99,10 @@ fun VideoQuickActionsBottomSheet(
 
     val context = androidx.compose.ui.platform.LocalContext.current
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberFlowSheetState()
+    ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()

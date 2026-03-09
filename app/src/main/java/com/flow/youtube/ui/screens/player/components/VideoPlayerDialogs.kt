@@ -29,6 +29,7 @@ import com.flow.youtube.data.model.Video
 import com.flow.youtube.player.*
 import com.flow.youtube.ui.components.SubtitleCustomizer
 import com.flow.youtube.ui.components.SubtitleStyle
+import com.flow.youtube.ui.components.rememberFlowSheetState
 import com.flow.youtube.ui.screens.player.VideoPlayerUiState
 import com.flow.youtube.ui.screens.player.util.VideoPlayerUtils
 import androidx.compose.ui.res.stringResource
@@ -349,7 +350,7 @@ fun QualitySelectorDialog(
     onQualitySelected: (Int) -> Unit,
     onBack: (() -> Unit)? = null
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -425,7 +426,7 @@ fun AudioTrackSelectorDialog(
     onTrackSelected: (Int) -> Unit,
     onBack: (() -> Unit)? = null
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -513,7 +514,7 @@ fun SubtitleSelectorDialog(
     onDisableSubtitles: () -> Unit,
     onBack: (() -> Unit)? = null
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -641,7 +642,7 @@ fun SettingsMenuDialog(
     onPipClick: () -> Unit = {},
     onSleepTimerClick: () -> Unit = {}
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -838,7 +839,7 @@ fun PlaybackSpeedSelectorDialog(
     onBack: (() -> Unit)? = null
 ) {
     val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -913,7 +914,7 @@ fun SubtitleStyleCustomizerDialog(
     onDismiss: () -> Unit,
     onBack: (() -> Unit)? = null
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

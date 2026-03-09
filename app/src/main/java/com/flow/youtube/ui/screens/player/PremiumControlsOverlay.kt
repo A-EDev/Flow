@@ -40,6 +40,7 @@ import androidx.compose.ui.res.stringResource
 import com.flow.youtube.R
 import com.flow.youtube.player.CastHelper
 import com.flow.youtube.data.local.PlayerPreferences
+import com.flow.youtube.ui.components.pressScale
 import org.schabi.newpipe.extractor.stream.StreamSegment
 
 @Composable
@@ -307,10 +308,12 @@ fun PremiumControlsOverlay(
                 ) {
                     // Previous Video
                     if (!isInitialLoading) {
+                        val prevInteractionSource = remember { MutableInteractionSource() }
                         IconButton(
                             onClick = onPrevious,
                             enabled = hasPrevious,
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(48.dp).pressScale(prevInteractionSource, pressedScale = 0.82f),
+                            interactionSource = prevInteractionSource
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.SkipPrevious,
@@ -322,14 +325,16 @@ fun PremiumControlsOverlay(
                     }
 
                     // Play/Pause
+                    val playPauseInteractionSource = remember { MutableInteractionSource() }
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
                             .size(72.dp)
+                            .pressScale(playPauseInteractionSource, pressedScale = 0.88f)
                             .clip(CircleShape)
                             .background(Color.Black.copy(alpha = 0.4f))
                             .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
+                                interactionSource = playPauseInteractionSource,
                                 indication = ripple(color = Color.White)
                             ) { onPlayPause() }
                     ) {
@@ -347,10 +352,12 @@ fun PremiumControlsOverlay(
 
                     // Next Video
                     if (!isInitialLoading) {
+                        val nextInteractionSource = remember { MutableInteractionSource() }
                         IconButton(
                             onClick = onNext,
                             enabled = hasNext,
-                            modifier = Modifier.size(48.dp)
+                            modifier = Modifier.size(48.dp).pressScale(nextInteractionSource, pressedScale = 0.82f),
+                            interactionSource = nextInteractionSource
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.SkipNext,
@@ -453,15 +460,7 @@ fun PremiumControlsOverlay(
                                         .clip(CircleShape)
                                         .background(Color.White.copy(alpha = 0.4f))
                                 )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                
-                                Icon(
-                                    imageVector = Icons.Rounded.Bookmark,
-                                    contentDescription = null,
-                                    tint = primaryColor,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(10.dp))                               
                                 Text(
                                     text = currentChapter.title,
                                     style = MaterialTheme.typography.labelSmall,

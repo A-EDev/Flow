@@ -25,6 +25,7 @@ import com.flow.youtube.data.local.PlayerPreferences
 import androidx.compose.ui.res.stringResource
 import com.flow.youtube.R
 import com.flow.youtube.data.lyrics.PreferredLyricsProvider
+import com.flow.youtube.ui.components.rememberFlowSheetState
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.painterResource
 
@@ -337,6 +338,7 @@ fun PlayerSettingsScreen(
     if (showLyricsProviderSheet) {
         ModalBottomSheet(
             onDismissRequest = { showLyricsProviderSheet = false },
+            sheetState = rememberFlowSheetState(),
             containerColor = MaterialTheme.colorScheme.surface,
             tonalElevation = 0.dp
         ) {
