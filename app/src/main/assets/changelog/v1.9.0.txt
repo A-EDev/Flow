@@ -14,6 +14,7 @@ NEW FEATURES
 - Customizable Mini Player Size — you can now adjust the dimensions of the free-floating mini video player (Small, Normal, Large)
 - Custom Mini Player Controls — added the ability to show/hide "Skip Forward/Backward" and "Next/Previous" buttons directly on the floating player
 - Navigation Customization — added a toggle in Content Settings to show or hide the "Music" tab from the bottom navigation bar (similar to the Shorts tab)
+- Add a Settings Search Feature
 
 IMPROVEMENTS
 - Improve thumbnail quality — higher resolution thumbnails are now automatically fetched for videos, channels, and playlists
@@ -25,6 +26,7 @@ IMPROVEMENTS
 - Channel name fetching using ID in Personality Screen
 - Improved Algorithm fallback — Exclude Trending to avoid the Brainrot content
 - Added Bootstrap from subscriptions — Tokenize channels to improve recommendations on cold start
+- Refine UI interactions and Animation — Add on press scale modifier, thumbnail gradients and more...
 
 FIXES AND STABILITY
 - Fix search screen crash — resolved issue when infinite scrolling through identical playlists

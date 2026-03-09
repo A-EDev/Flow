@@ -48,6 +48,12 @@ import okhttp3.Request
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -133,30 +139,212 @@ fun SettingsScreen(
     // Optimize Region Dialog: compute list only once
     val regionList = remember { REGION_NAMES.toList() }
 
+    // Search state
+    var searchQuery by remember { mutableStateOf("") }
+    var isSearchActive by remember { mutableStateOf(false) }
+    val searchFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(isSearchActive) {
+        if (isSearchActive) runCatching { searchFocusRequester.requestFocus() }
+    }
+    BackHandler(enabled = isSearchActive) { isSearchActive = false; searchQuery = "" }
+
+    val onCheckForUpdatesClick: () -> Unit = {
+        if (!isCheckingUpdate) {
+            isCheckingUpdate = true
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    val client = OkHttpClient()
+                    val request = Request.Builder()
+                        .url("https://api.github.com/repos/A-EDev/Flow/releases/latest")
+                        .header("Accept", "application/vnd.github.v3+json")
+                        .build()
+                    val response = client.newCall(request).execute()
+                    withContext(Dispatchers.Main) {
+                        isCheckingUpdate = false
+                        if (response.isSuccessful) {
+                            val body = response.body?.string()
+                            if (body != null) {
+                                val json = JsonParser.parseString(body).asJsonObject
+                                val latestTag = json.get("tag_name").asString
+                                val cleanLatest = latestTag.removePrefix("v")
+                                val cleanCurrent = BuildConfig.VERSION_NAME.removePrefix("v")
+                                val latestParts = cleanLatest.split(".").mapNotNull { it.toIntOrNull() }
+                                val currentParts = cleanCurrent.split(".").mapNotNull { it.toIntOrNull() }
+                                var isNewer = false
+                                val size = maxOf(latestParts.size, currentParts.size)
+                                for (i in 0 until size) {
+                                    val l = latestParts.getOrNull(i) ?: 0
+                                    val c = currentParts.getOrNull(i) ?: 0
+                                    if (l > c) { isNewer = true; break }
+                                    if (l < c) break
+                                }
+                                if (isNewer) {
+                                    updateAvailableTag = latestTag
+                                } else {
+                                    android.widget.Toast.makeText(
+                                        context,
+                                        context.getString(com.flow.youtube.R.string.flow_is_up_to_date),
+                                        android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        } else {
+                            android.widget.Toast.makeText(
+                                context,
+                                context.getString(com.flow.youtube.R.string.update_check_failed),
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        isCheckingUpdate = false
+                        android.widget.Toast.makeText(
+                            context,
+                            context.getString(com.flow.youtube.R.string.update_check_failed),
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        }
+    }
+
+    // Section label strings for the search index
+    val secFlowEngine = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_flow_engine_header)
+    val secAppearance = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_header_appearance)
+    val secContentPlayback = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_header_content_playback)
+    val secNotifications = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_header_notifications)
+    val secDataManagement = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_header_data_management)
+    val secAbout = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_header_about)
+
+    val allSettingsEntries = listOf(
+        SettingSearchEntry(Icons.Outlined.Psychology, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.flow_control_center), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.neural_interest_map_subtitle), secFlowEngine, onNavigateToPersonality),
+        SettingSearchEntry(Icons.Outlined.Palette, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_theme), "", secAppearance, onNavigateToAppearance),
+        SettingSearchEntry(Icons.Outlined.Tune, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_player_appearance), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_player_appearance_subtitle), secAppearance, onNavigateToPlayerAppearance),
+        SettingSearchEntry(Icons.Outlined.GridView, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_content_display), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_content_display_subtitle), secAppearance, onNavigateToContentSettings),
+        SettingSearchEntry(Icons.Outlined.FilterAlt, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_content_prefs), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_content_prefs_subtitle), secContentPlayback, onNavigateToUserPreferences),
+        SettingSearchEntry(Icons.Outlined.PlayCircle, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_player), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_player_subtitle), secContentPlayback, onNavigateToPlayerSettings),
+        SettingSearchEntry(Icons.Outlined.HighQuality, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_quality), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_quality_subtitle), secContentPlayback, onNavigateToVideoQuality),
+        SettingSearchEntry(Icons.Outlined.Slideshow, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.shorts_quality_settings_title), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.shorts_quality_settings_subtitle), secContentPlayback, onNavigateToShortsQuality),
+        SettingSearchEntry(Icons.Outlined.Speed, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_buffer), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_buffer_subtitle), secContentPlayback, onNavigateToBufferSettings),
+        SettingSearchEntry(Icons.Outlined.Download, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_downloads), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_downloads_subtitle), secContentPlayback, onNavigateToDownloads),
+        SettingSearchEntry(Icons.Outlined.TrendingUp, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_region), REGION_NAMES[currentRegion] ?: currentRegion, secContentPlayback) { showRegionDialog = true },
+        SettingSearchEntry(Icons.Outlined.NotificationsNone, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_notifications), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_notifications_subtitle), secNotifications, onNavigateToNotifications),
+        SettingSearchEntry(Icons.Outlined.History, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_search_history), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_search_history_subtitle), secDataManagement, onNavigateToSearchHistory),
+        SettingSearchEntry(Icons.Outlined.Schedule, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_time_management), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_time_management_subtitle), secDataManagement, onNavigateToTimeManagement),
+        SettingSearchEntry(Icons.Outlined.FileUpload, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_export_data), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_export_data_subtitle), secDataManagement) { exportLauncher.launch("flow_backup_${System.currentTimeMillis()}.json") },
+        SettingSearchEntry(Icons.Outlined.FileDownload, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_import_data), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_import_data_subtitle), secDataManagement, onNavigateToImport),
+        SettingSearchEntry(Icons.Outlined.Psychology, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.export_engine_data), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.export_engine_data_subtitle), secDataManagement) { exportBrainLauncher.launch("flow_engine_${System.currentTimeMillis()}.json") },
+        SettingSearchEntry(Icons.Outlined.Info, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_about_flow), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_about_flow_subtitle), secAbout, onNavigateToAbout),
+        SettingSearchEntry(Icons.Outlined.Update, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.check_for_updates), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.check_for_updates_subtitle), secAbout, onCheckForUpdatesClick),
+        SettingSearchEntry(Icons.Outlined.Favorite, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_support), androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_item_support_subtitle), secAbout, onNavigateToDonations)
+    )
+    val filteredEntries = if (searchQuery.isBlank()) emptyList() else allSettingsEntries.filter { entry ->
+        entry.title.contains(searchQuery, ignoreCase = true) ||
+        entry.subtitle.contains(searchQuery, ignoreCase = true) ||
+        entry.sectionLabel.contains(searchQuery, ignoreCase = true)
+    }
+
     Scaffold(
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.background
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.btn_back))
+                if (isSearchActive) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { isSearchActive = false; searchQuery = "" }) {
+                            Icon(Icons.Default.ArrowBack, "Close search")
+                        }
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier
+                                .weight(1f)
+                                .focusRequester(searchFocusRequester),
+                            placeholder = { Text("Search settings…") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(onSearch = {}),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedBorderColor = Color.Transparent
+                            )
+                        )
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Outlined.Close, "Clear search")
+                            }
+                        }
                     }
-                    Text(
-                        text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                    )
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = onNavigateBack) {
+                            Icon(Icons.Default.ArrowBack, androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.btn_back))
+                        }
+                        Text(
+                            text = androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.settings_title),
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = { isSearchActive = true }) {
+                            Icon(Icons.Outlined.Search, "Search settings")
+                        }
+                    }
                 }
             }
         },
         modifier = modifier
     ) { paddingValues ->
+        if (isSearchActive && searchQuery.isNotBlank()) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(MaterialTheme.colorScheme.background),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                if (filteredEntries.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No settings found for \"$searchQuery\"",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    items(filteredEntries.size) { index ->
+                        SettingsSearchResultItem(
+                            entry = filteredEntries[index],
+                            onNavigate = {
+                                isSearchActive = false
+                                searchQuery = ""
+                                filteredEntries[index].onClick()
+                            }
+                        )
+                    }
+                }
+            }
+        } else {
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -500,67 +688,7 @@ item {
                             androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.checking_for_updates)
                         else
                             androidx.compose.ui.res.stringResource(com.flow.youtube.R.string.check_for_updates_subtitle),
-                        onClick = {
-                            if (!isCheckingUpdate) {
-                                isCheckingUpdate = true
-                                coroutineScope.launch(Dispatchers.IO) {
-                                    try {
-                                        val client = OkHttpClient()
-                                        val request = Request.Builder()
-                                            .url("https://api.github.com/repos/A-EDev/Flow/releases/latest")
-                                            .header("Accept", "application/vnd.github.v3+json")
-                                            .build()
-                                        val response = client.newCall(request).execute()
-                                        withContext(Dispatchers.Main) {
-                                            isCheckingUpdate = false
-                                            if (response.isSuccessful) {
-                                                val body = response.body?.string()
-                                                if (body != null) {
-                                                    val json = JsonParser.parseString(body).asJsonObject
-                                                    val latestTag = json.get("tag_name").asString
-                                                    val cleanLatest = latestTag.removePrefix("v")
-                                                    val cleanCurrent = BuildConfig.VERSION_NAME.removePrefix("v")
-                                                    val latestParts = cleanLatest.split(".").mapNotNull { it.toIntOrNull() }
-                                                    val currentParts = cleanCurrent.split(".").mapNotNull { it.toIntOrNull() }
-                                                    var isNewer = false
-                                                    val size = maxOf(latestParts.size, currentParts.size)
-                                                    for (i in 0 until size) {
-                                                        val l = latestParts.getOrNull(i) ?: 0
-                                                        val c = currentParts.getOrNull(i) ?: 0
-                                                        if (l > c) { isNewer = true; break }
-                                                        if (l < c) break
-                                                    }
-                                                    if (isNewer) {
-                                                        updateAvailableTag = latestTag
-                                                    } else {
-                                                        android.widget.Toast.makeText(
-                                                            context,
-                                                            context.getString(com.flow.youtube.R.string.flow_is_up_to_date),
-                                                            android.widget.Toast.LENGTH_SHORT
-                                                        ).show()
-                                                    }
-                                                }
-                                            } else {
-                                                android.widget.Toast.makeText(
-                                                    context,
-                                                    context.getString(com.flow.youtube.R.string.update_check_failed),
-                                                    android.widget.Toast.LENGTH_SHORT
-                                                ).show()
-                                            }
-                                        }
-                                    } catch (e: Exception) {
-                                        withContext(Dispatchers.Main) {
-                                            isCheckingUpdate = false
-                                            android.widget.Toast.makeText(
-                                                context,
-                                                context.getString(com.flow.youtube.R.string.update_check_failed),
-                                                android.widget.Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        onClick = onCheckForUpdatesClick
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
@@ -571,6 +699,7 @@ item {
                     )
                 }
             }
+        }
         }
     }
 
@@ -750,5 +879,38 @@ private fun getThemeNameRes(theme: ThemeMode): Int {
         ThemeMode.NORDIC_HORIZON -> com.flow.youtube.R.string.theme_name_nordic
         ThemeMode.ESPRESSO -> com.flow.youtube.R.string.theme_name_espresso
         ThemeMode.GUNMETAL -> com.flow.youtube.R.string.theme_name_gunmetal
+    }
+}
+
+private data class SettingSearchEntry(
+    val icon: ImageVector,
+    val title: String,
+    val subtitle: String,
+    val sectionLabel: String,
+    val onClick: () -> Unit
+)
+
+@Composable
+private fun SettingsSearchResultItem(
+    entry: SettingSearchEntry,
+    onNavigate: () -> Unit
+) {
+    Column {
+        Text(
+            text = entry.sectionLabel.uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(start = 72.dp, top = 8.dp, bottom = 2.dp)
+        )
+        SettingsItem(
+            icon = entry.icon,
+            title = entry.title,
+            subtitle = entry.subtitle,
+            onClick = onNavigate
+        )
+        HorizontalDivider(
+            Modifier.padding(start = 56.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
     }
 }
