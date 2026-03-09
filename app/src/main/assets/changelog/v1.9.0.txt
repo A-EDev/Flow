@@ -8,11 +8,14 @@ NEW FEATURES
 - Auto-Fullscreen — player now automatically enters and exits fullscreen mode upon device rotation
 - Clean Loading State — implemented a cleaner initial player load that hides controls until metadata is ready
 - Add a Related Videos section Toggle in Content Display Settings
+- Add a Remove button to songs in playlists
+- Add a Custom Interest input in Content Preferences — type any topic to follow it directly
 
 IMPROVEMENTS
 - Improve thumbnail quality — higher resolution thumbnails are now automatically fetched for videos, channels, and playlists
 - Home Screen Layout — switch between grid and list views for your home feed from Layout Settings
 - Add a Back Arrow in Player settings for easy navigation
+- Lyrics Parser
 
 FIXES AND STABILITY
 - Fix search screen crash — resolved issue when infinite scrolling through identical playlists
@@ -22,3 +25,5 @@ FIXES AND STABILITY
 - Fix video replay timecode — videos now automatically seek back to 0 when replaying from the end
 - Fix watch history resume — resolved issue where videos occasionally resumed from 0 due to a race condition during player cleanup
 - Fix video title localization — video titles now appear in their original language based on system locale instead of defaulting to English (#124)
+- Fix Helium Effect on songs
+- Fix PiP close button — tapping X on the PiP window now stops playback instead of leaving audio running in the background

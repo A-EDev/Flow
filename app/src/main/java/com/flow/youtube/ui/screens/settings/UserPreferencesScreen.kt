@@ -56,6 +56,7 @@ fun UserPreferencesScreen(
     var preferredTopics by remember { mutableStateOf<Set<String>>(emptySet()) }
     var blockedTopics by remember { mutableStateOf<Set<String>>(emptySet()) }
     var newBlockedTopic by remember { mutableStateOf("") }
+    var newInterestTopic by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(true) }
     
     val pagerState = rememberPagerState(pageCount = { 2 })
@@ -207,6 +208,67 @@ fun UserPreferencesScreen(
                             }
                         }
                         
+                        item {
+                            PreferencesSectionHeader(
+                                title = "Add Custom Interest",
+                                subtitle = "Type any topic you want to follow"
+                            )
+                        }
+
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp)
+                                ),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    OutlinedTextField(
+                                        value = newInterestTopic,
+                                        onValueChange = { newInterestTopic = it },
+                                        label = { Text("Custom interest (e.g. Jazz, Astrophysics)") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        singleLine = true,
+                                        trailingIcon = {
+                                            IconButton(
+                                                onClick = {
+                                                    if (newInterestTopic.isNotBlank()) {
+                                                        coroutineScope.launch {
+                                                            FlowNeuroEngine.addPreferredTopic(context, newInterestTopic.trim())
+                                                            preferredTopics = FlowNeuroEngine.getPreferredTopics()
+                                                            newInterestTopic = ""
+                                                            focusManager.clearFocus()
+                                                        }
+                                                    }
+                                                },
+                                                enabled = newInterestTopic.isNotBlank()
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.AddCircle,
+                                                    contentDescription = "Add interest",
+                                                    tint = if (newInterestTopic.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        },
+                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                        keyboardActions = KeyboardActions(onDone = {
+                                            if (newInterestTopic.isNotBlank()) {
+                                                coroutineScope.launch {
+                                                    FlowNeuroEngine.addPreferredTopic(context, newInterestTopic.trim())
+                                                    preferredTopics = FlowNeuroEngine.getPreferredTopics()
+                                                    newInterestTopic = ""
+                                                    focusManager.clearFocus()
+                                                }
+                                            }
+                                        })
+                                    )
+                                }
+                            }
+                        }
+
                         item {
                             PreferencesSectionHeader(
                                 title = stringResource(R.string.add_topics),

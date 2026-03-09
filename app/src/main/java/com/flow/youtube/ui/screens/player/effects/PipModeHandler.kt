@@ -68,7 +68,8 @@ fun PipBroadcastReceiverEffect(context: Context) {
     DisposableEffect(Unit) {
         val receiver = PictureInPictureHelper.createPipActionReceiver(
             onPlay = { EnhancedPlayerManager.getInstance().play() },
-            onPause = { EnhancedPlayerManager.getInstance().pause() }
+            onPause = { EnhancedPlayerManager.getInstance().pause() },
+            onClose = { EnhancedPlayerManager.getInstance().pause() }
         )
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
