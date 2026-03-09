@@ -104,7 +104,7 @@ class MusicPlayerViewModel @Inject constructor(
                 ) }
                 track?.let { 
                     checkIfFavorite(it.videoId)
-                    fetchLyrics(it.videoId, it.artist, it.title, it.duration)
+                    fetchLyrics(it.videoId, it.artist, it.title, it.duration, it.album)
                     fetchRelatedContent(it.videoId)
                 }
             }
@@ -483,7 +483,7 @@ class MusicPlayerViewModel @Inject constructor(
             .trim()
     }
 
-    fun fetchLyrics(videoId: String, artist: String, title: String, duration: Int? = null) {
+    fun fetchLyrics(videoId: String, artist: String, title: String, duration: Int? = null, album: String? = null) {
         lyricsJob?.cancel()
         lyricsJob = viewModelScope.launch {
             _uiState.update { it.copy(
@@ -504,7 +504,7 @@ class MusicPlayerViewModel @Inject constructor(
                     lyricsHelper = LyricsHelper(preferredProvider)
                 }
                 
-                val result = lyricsHelper.getLyrics(videoId, cleanTitle, cleanArtist, targetDuration)
+                val result = lyricsHelper.getLyrics(videoId, cleanTitle, cleanArtist, targetDuration, album)
                 
                 if (result != null) {
                     val (entries, providerName) = result
@@ -550,7 +550,7 @@ class MusicPlayerViewModel @Inject constructor(
         if (state.isLyricsLoading) return
         if (!state.syncedLyrics.isNullOrEmpty()) return
         if (!state.lyrics.isNullOrEmpty()) return
-        fetchLyrics(track.videoId, track.artist, track.title, track.duration)
+        fetchLyrics(track.videoId, track.artist, track.title, track.duration, track.album)
     }
 
     fun updateProgress() {

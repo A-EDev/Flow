@@ -18,3 +18,7 @@ FIXES AND STABILITY
 - Fix search screen crash — resolved issue when infinite scrolling through identical playlists
 - Fix swipe gesture sensitivity — increased thresholds on video player to prevent accidental skipping
 - Fix music playlist track count — UI now updates instantly when adding songs to local playlists
+- Fix fullscreen brightness persistence — brightness now correctly resets to system default after exiting fullscreen playback
+- Fix video replay timecode — videos now automatically seek back to 0 when replaying from the end
+- Fix watch history resume — resolved issue where videos occasionally resumed from 0 due to a race condition during player cleanup
+- Fix video title localization — video titles now appear in their original language based on system locale instead of defaulting to English (#124)

@@ -15,8 +15,9 @@ class BetterLyricsProvider : LyricsProvider {
         id: String,
         title: String,
         artist: String,
-        duration: Int
+        duration: Int,
+        album: String?
     ): Result<List<LyricsEntry>> {
-        return BetterLyrics.getLyrics(title, artist, duration)
+        return BetterLyrics.getLyrics(title, artist, duration, album)
     }
 }

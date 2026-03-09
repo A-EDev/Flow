@@ -1,4 +1,4 @@
-﻿package com.flow.youtube.ui.screens.music
+package com.flow.youtube.ui.screens.music
 
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
@@ -75,9 +75,11 @@ fun PlaylistPage(
     val isSearchingTracks by playlistsViewModel.isSearchingTracks.collectAsState()
     val addedTrackIds by playlistsViewModel.addedTrackIds.collectAsState()
     val locallyAddedTracks by playlistsViewModel.locallyAddedTracks.collectAsState()
-    val displayTracks = remember(playlistDetails.tracks, locallyAddedTracks) {
+    val deletedTrackIds = remember { mutableStateOf(emptySet<String>()) }
+    val displayTracks = remember(playlistDetails.tracks, locallyAddedTracks, deletedTrackIds.value) {
         val existing = playlistDetails.tracks.map { it.videoId }.toHashSet()
-        playlistDetails.tracks + locallyAddedTracks.filter { it.videoId !in existing }
+        val all = playlistDetails.tracks + locallyAddedTracks.filter { it.videoId !in existing }
+        all.filter { it.videoId !in deletedTrackIds.value }
     }
 
     var showSearchPanel by remember { mutableStateOf(false) }
@@ -312,12 +314,16 @@ fun PlaylistPage(
                             color = Color.White.copy(alpha = 0.08f)
                         )
                     }
-                    itemsIndexed(displayTracks) { index, track ->
+                    itemsIndexed(displayTracks, key = { _, t -> t.videoId }) { index, track ->
                         PlaylistTrackRow(
                             index = index + 1,
                             track = track,
                             onClick = { onTrackClick(track, displayTracks) },
-                            onMenuClick = { selectedTrack = track; showBottomSheet = true }
+                            onMenuClick = { selectedTrack = track; showBottomSheet = true },
+                            onDeleteClick = if (isUserPlaylist) {{
+                                deletedTrackIds.value = deletedTrackIds.value + track.videoId
+                                playlistsViewModel.removeTrackFromPlaylist(playlistDetails.id, track.videoId)
+                            }} else null
                         )
                     }
                     item {
@@ -672,7 +678,8 @@ private fun PlaylistTrackRow(
     index: Int,
     track: MusicTrack,
     onClick: () -> Unit,
-    onMenuClick: () -> Unit
+    onMenuClick: () -> Unit,
+    onDeleteClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -726,13 +733,26 @@ private fun PlaylistTrackRow(
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
             )
         }
-        IconButton(onClick = onMenuClick, modifier = Modifier.size(32.dp)) {
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = "More",
-                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
-                modifier = Modifier.size(18.dp)
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (onDeleteClick != null) {
+                IconButton(onClick = onDeleteClick, modifier = Modifier.size(32.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete from playlist",
+                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.8f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+            }
+            IconButton(onClick = onMenuClick, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More",
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }

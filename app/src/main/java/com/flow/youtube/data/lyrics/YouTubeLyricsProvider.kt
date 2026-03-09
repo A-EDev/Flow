@@ -14,7 +14,8 @@ class YouTubeLyricsProvider : LyricsProvider {
         id: String,
         title: String,
         artist: String,
-        duration: Int
+        duration: Int,
+        album: String?
     ): Result<List<LyricsEntry>> = withContext(Dispatchers.IO) {
         try {
             val lyrics = com.flow.youtube.data.newmusic.InnertubeMusicService.fetchLyrics(id)

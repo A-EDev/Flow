@@ -334,6 +334,22 @@ class MusicPlaylistsViewModel @Inject constructor(
         }
     }
 
+    fun removeTrackFromPlaylist(playlistId: String, videoId: String) {
+        viewModelScope.launch {
+            try {
+                playlistRepository.removeVideoFromPlaylist(playlistId, videoId)
+                
+                _addedTrackIds.update { it - videoId }
+                _locallyAddedTracks.update { list -> list.filter { it.videoId != videoId } }
+                
+                Toast.makeText(context, "Removed from playlist", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e("MusicPlaylistsVM", "removeTrackFromPlaylist failed", e)
+                Toast.makeText(context, "Failed to remove track", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     fun clearTrackSearch() {
         _trackSearchResults.value = emptyList()
         _addedTrackIds.value = emptySet()

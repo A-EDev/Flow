@@ -1,163 +1,214 @@
-// ============================================================================
-// THIS IMPLEMENTATION WAS INSPIRED BY METROLIST
-// ============================================================================
-
 package com.flow.youtube.data.lyrics
 
-import org.w3c.dom.Element
-import org.w3c.dom.NodeList
-import java.io.ByteArrayInputStream
-import javax.xml.parsers.DocumentBuilderFactory
+import android.util.Xml
+import org.xmlpull.v1.XmlPullParser
+import java.io.StringReader
 
-/**
- * Parser for TTML (Timed Text Markup Language) lyrics format.
- * Extracts text, timestamps, and word-level timings from TTML documents.
- * Adapted from Metrolist's TTMLParser.
- */
 object TTMLParser {
 
-    data class TTMLLine(
+    data class ParsedLine(
+        val startTimeMs: Long,
+        val endTimeMs: Long,
+        val syllables: List<ParsedSyllable>,
+        val isBackground: Boolean = false // e.g. "role=x-bg"
+    )
+
+    data class ParsedSyllable(
         val text: String,
         val startTimeMs: Long,
         val endTimeMs: Long,
-        val words: List<TTMLWord>? = null,
-        val agent: String? = null,
-        val isBackground: Boolean = false
+        val hasTrailingSpace: Boolean
     )
 
-    data class TTMLWord(
-        val text: String,
-        val startTimeMs: Long,
-        val endTimeMs: Long
-    )
+    fun toLRC(lines: List<ParsedLine>): String {
+        return buildString {
+            lines.forEach { line ->
+                val finalWords = mutableListOf<ParsedSyllable>()
+                var currentWordText = ""
+                var currentWordStart = -1L
+                var currentWordEnd = -1L
 
-    /**
-     * Parse TTML XML into structured TTMLLine objects with word-level timing.
-     */
-    fun parseTTMLToLines(ttml: String): List<TTMLLine> {
-        val factory = DocumentBuilderFactory.newInstance()
-        factory.isNamespaceAware = true
-        val builder = factory.newDocumentBuilder()
-        val doc = builder.parse(ByteArrayInputStream(ttml.toByteArray(Charsets.UTF_8)))
+                line.syllables.forEach { syl ->
+                    if (currentWordStart == -1L) {
+                        currentWordStart = syl.startTimeMs
+                    }
+                    currentWordText += syl.text
+                    currentWordEnd = syl.endTimeMs
 
-        val result = mutableListOf<TTMLLine>()
-
-        val paragraphs = doc.getElementsByTagNameNS("*", "p")
-        if (paragraphs.length == 0) return result
-
-        val agents = mutableMapOf<String, String>()
-        val divElements = doc.getElementsByTagNameNS("*", "div")
-        for (i in 0 until divElements.length) {
-            val div = divElements.item(i) as? Element ?: continue
-            val agentAttr = div.getAttribute("ttm:agent") ?: div.getAttribute("agent")
-            if (agentAttr.isNotEmpty()) {
-                agents[agentAttr] = agentAttr
-            }
-        }
-
-        for (i in 0 until paragraphs.length) {
-            val p = paragraphs.item(i) as? Element ?: continue
-
-            val beginStr = p.getAttribute("begin") ?: continue
-            val endStr = p.getAttribute("end") ?: p.getAttribute("dur") ?: continue
-
-            val startMs = parseTimeToMs(beginStr) ?: continue
-            val endMs = if (p.hasAttribute("end")) {
-                parseTimeToMs(endStr) ?: continue
-            } else {
-                startMs + (parseTimeToMs(endStr) ?: continue)
-            }
-
-            val agent = p.getAttribute("ttm:agent")?.takeIf { it.isNotEmpty() }
-                ?: p.getAttribute("agent")?.takeIf { it.isNotEmpty() }
-
-            val role = p.getAttribute("ttm:role")?.takeIf { it.isNotEmpty() }
-                ?: p.getAttribute("role")?.takeIf { it.isNotEmpty() }
-            val isBackground = role?.contains("x-bg", ignoreCase = true) == true
-
-            val words = mutableListOf<TTMLWord>()
-            val spans = p.getElementsByTagNameNS("*", "span")
-
-            if (spans.length > 0) {
-                for (j in 0 until spans.length) {
-                    val span = spans.item(j) as? Element ?: continue
-                    val spanText = span.textContent?.trim() ?: continue
-                    if (spanText.isEmpty()) continue
-
-                    val spanBegin = span.getAttribute("begin")?.let { parseTimeToMs(it) } ?: startMs
-                    val spanEnd = span.getAttribute("end")?.let { parseTimeToMs(it) } ?: endMs
-
-                    words.add(TTMLWord(spanText, spanBegin, spanEnd))
+                    if (syl.hasTrailingSpace) {
+                        finalWords.add(
+                            ParsedSyllable(
+                                currentWordText,
+                                currentWordStart,
+                                currentWordEnd,
+                                true
+                            )
+                        )
+                        currentWordText = ""
+                        currentWordStart = -1L
+                    }
                 }
-            }
-
-            val fullText = if (words.isNotEmpty()) {
-                words.joinToString(" ") { it.text }
-            } else {
-                p.textContent?.trim() ?: continue
-            }
-
-            if (fullText.isNotEmpty()) {
-                result.add(
-                    TTMLLine(
-                        text = fullText,
-                        startTimeMs = startMs,
-                        endTimeMs = endMs,
-                        words = words.takeIf { it.isNotEmpty() },
-                        agent = agent,
-                        isBackground = isBackground
+                
+                if (currentWordText.isNotEmpty()) {
+                    finalWords.add(
+                        ParsedSyllable(
+                            currentWordText,
+                            currentWordStart,
+                            currentWordEnd,
+                            false
+                        )
                     )
-                )
+                }
+
+                val fullLineText = finalWords.joinToString(separator = " ") { it.text }.trim()
+                if (fullLineText.isEmpty()) return@forEach
+
+                val mm = line.startTimeMs / 60000
+                val ss = (line.startTimeMs % 60000) / 1000
+                val ms = line.startTimeMs % 1000
+                val lineTimeStr = String.format("[%02d:%02d.%03d]", mm, ss, ms)
+                
+                appendLine("$lineTimeStr $fullLineText")
+
+                val wordsStr = finalWords.joinToString("|") { w ->
+                    val wStartSec = w.startTimeMs / 1000.0
+                    val wEndSec = w.endTimeMs / 1000.0
+                    "${w.text}:$wStartSec:$wEndSec"
+                }
+                appendLine("<$wordsStr>")
             }
         }
-
-        return result.sortedBy { it.startTimeMs }
     }
 
-    /**
-     * Parse TTML time string to milliseconds.
-     * Supports formats: "HH:MM:SS.mmm", "MM:SS.mmm", "SS.mmm", "123456ms", "123.456s"
-     */
-    private fun parseTimeToMs(time: String): Long? {
-        if (time.isEmpty()) return null
+    fun parseTTML(xmlData: String): List<ParsedLine> {
+        val result = mutableListOf<ParsedLine>()
+        if (xmlData.isBlank()) return result
 
-        if (time.endsWith("ms")) {
-            return time.removeSuffix("ms").toLongOrNull()
-        }
+        try {
+            val parser = Xml.newPullParser()
+            parser.setInput(StringReader(xmlData))
 
-        if (time.endsWith("s") && !time.contains(":")) {
-            return time.removeSuffix("s").toDoubleOrNull()?.let { (it * 1000).toLong() }
-        }
+            var eventType = parser.eventType
+            var inBody = false
+            var inDiv = false
 
-        val parts = time.split(":")
-        return try {
-            when (parts.size) {
-                3 -> {
-                    val hours = parts[0].toLong()
-                    val minutes = parts[1].toLong()
-                    val secParts = parts[2].split(".")
-                    val seconds = secParts[0].toLong()
-                    val millis = if (secParts.size > 1) {
-                        val fracStr = secParts[1].take(3).padEnd(3, '0')
-                        fracStr.toLong()
-                    } else 0L
-                    hours * 3600000 + minutes * 60000 + seconds * 1000 + millis
+            var currentLine: MutableList<ParsedSyllable>? = null
+            var currentLineStart = -1L
+            var currentLineEnd = -1L
+            var currentLineIsBackground = false
+
+            while (eventType != XmlPullParser.END_DOCUMENT) {
+                when (eventType) {
+                    XmlPullParser.START_TAG -> {
+                        when (parser.name) {
+                            "body" -> inBody = true
+                            "div" -> {
+                                if (inBody) inDiv = true
+                            }
+                            "p" -> {
+                                if (inBody && inDiv) {
+                                    currentLine = mutableListOf()
+                                    val bgnStr = parser.getAttributeValue(null, "begin")
+                                    val endStr = parser.getAttributeValue(null, "end")
+                                    val roleStr = parser.getAttributeValue(null, "role")
+
+                                    currentLineStart = parseTime(bgnStr)
+                                    currentLineEnd = parseTime(endStr)
+                                    currentLineIsBackground = (roleStr == "x-bg")
+                                }
+                            }
+                            "span" -> {
+                                if (currentLine != null) {
+                                    val bgnStr = parser.getAttributeValue(null, "begin")
+                                    val endStr = parser.getAttributeValue(null, "end")
+                                    val text = parser.nextText() // typically <span ...>text</span>
+
+                                    var hasSpace = false
+                                    var cleanText = text
+                                    if (text.endsWith(" ")) {
+                                        hasSpace = true
+                                        cleanText = text.dropLast(1)
+                                    }
+
+                                    if (cleanText.isNotEmpty() || hasSpace) {
+                                        val sStart = parseTime(bgnStr)
+                                        val sEnd = parseTime(endStr)
+                                        currentLine.add(
+                                            ParsedSyllable(
+                                                cleanText,
+                                                sStart,
+                                                sEnd,
+                                                hasTrailingSpace = hasSpace
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    XmlPullParser.END_TAG -> {
+                         when (parser.name) {
+                            "body" -> inBody = false
+                            "div" -> inDiv = false
+                            "p" -> {
+                                if (currentLine != null) {
+                                    if (currentLine.isNotEmpty()) {
+                                        result.add(
+                                            ParsedLine(
+                                                startTimeMs = currentLineStart,
+                                                endTimeMs = currentLineEnd,
+                                                syllables = currentLine,
+                                                isBackground = currentLineIsBackground
+                                            )
+                                        )
+                                    }
+                                    currentLine = null
+                                }
+                            }
+                         }
+                    }
                 }
-                2 -> {
-                    val minutes = parts[0].toLong()
-                    val secParts = parts[1].split(".")
-                    val seconds = secParts[0].toLong()
-                    val millis = if (secParts.size > 1) {
-                        val fracStr = secParts[1].take(3).padEnd(3, '0')
-                        fracStr.toLong()
-                    } else 0L
-                    minutes * 60000 + seconds * 1000 + millis
+                eventType = parser.next()
+            }
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return result
+    }
+
+    private fun parseTime(timeStr: String?): Long {
+        if (timeStr.isNullOrBlank()) return 0L
+        try {
+            if (timeStr.endsWith("ms")) {
+                return timeStr.replace("ms", "").toLongOrNull() ?: 0L
+            }
+            if (timeStr.endsWith("s")) {
+                val secStr = timeStr.replace("s", "")
+                val secDouble = secStr.toDoubleOrNull() ?: 0.0
+                return (secDouble * 1000).toLong()
+            }
+            if (timeStr.contains(":")) {
+                val parts = timeStr.trim().split(":")
+                if (parts.size == 3) {
+                    val h = parts[0].toLongOrNull() ?: 0L
+                    val m = parts[1].toLongOrNull() ?: 0L
+                    
+                    val sParts = parts[2].split(".")
+                    val s = sParts[0].toLongOrNull() ?: 0L
+                    var ms = 0L
+                    if (sParts.size > 1) {
+                         var msStr = sParts[1]
+                         if (msStr.length > 3) msStr = msStr.substring(0, 3)
+                         while (msStr.length < 3) msStr += "0"
+                         ms = msStr.toLongOrNull() ?: 0L
+                    }
+                    return (h * 3600000) + (m * 60000) + (s * 1000) + ms
                 }
-                else -> null
             }
         } catch (e: Exception) {
-            null
+            e.printStackTrace()
         }
+        return 0L
     }
 }
-

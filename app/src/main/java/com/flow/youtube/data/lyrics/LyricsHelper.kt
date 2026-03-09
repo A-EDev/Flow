@@ -54,14 +54,15 @@ class LyricsHelper(
         videoId: String,
         title: String,
         artist: String,
-        duration: Int
+        duration: Int,
+        album: String? = null
     ): Pair<List<LyricsEntry>, String>? {
         cache[videoId]?.let { cached ->
             Log.d(TAG, "Returning cached lyrics for $videoId")
             return cached to "Cache"
         }
 
-        val wordSyncResult = fetchWordSyncParallel(videoId, title, artist, duration)
+        val wordSyncResult = fetchWordSyncParallel(videoId, title, artist, duration, album)
         if (wordSyncResult != null) {
             cache[videoId] = wordSyncResult.first
             Log.d(TAG, "Word-sync lyrics from ${wordSyncResult.second}")
@@ -73,7 +74,7 @@ class LyricsHelper(
             try {
                 Log.d(TAG, "Fallback: trying ${provider.name}")
                 val result = withTimeoutOrNull(FALLBACK_TIMEOUT_MS) {
-                    provider.getLyrics(videoId, title, artist, duration)
+                    provider.getLyrics(videoId, title, artist, duration, album)
                 } ?: continue
 
                 if (result.isSuccess) {
@@ -102,7 +103,8 @@ class LyricsHelper(
         videoId: String,
         title: String,
         artist: String,
-        duration: Int
+        duration: Int,
+        album: String? = null
     ): Pair<List<LyricsEntry>, String>? = coroutineScope {
         val providers = buildList {
             if (preferredProvider == PreferredLyricsProvider.SIMPMUSIC) {
@@ -121,7 +123,7 @@ class LyricsHelper(
                 try {
                     Log.d(TAG, "Parallel fetch: ${provider.name}")
                     val result = withTimeoutOrNull(WORD_SYNC_TIMEOUT_MS) {
-                        provider.getLyrics(videoId, title, artist, duration)
+                        provider.getLyrics(videoId, title, artist, duration, album)
                     }
                     val entries = result?.getOrNull()
                     ProviderResult(provider, entries?.takeIf { it.isNotEmpty() })

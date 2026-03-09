@@ -20,6 +20,7 @@ interface LyricsProvider {
         id: String,
         title: String,
         artist: String,
-        duration: Int
+        duration: Int,
+        album: String? = null
     ): Result<List<LyricsEntry>>
 }

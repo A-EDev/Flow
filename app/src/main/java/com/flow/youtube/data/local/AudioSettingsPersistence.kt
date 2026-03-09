@@ -34,7 +34,7 @@ class AudioSettingsPersistence private constructor(private val context: Context)
     }
 
     data class AudioSettings(
-        val pitch: Float = 1.0f,
+        val pitch: Float = 0.0f,
         val speed: Float = 1.0f,
         val eqProfile: String = "Flat",
         val bassBoost: Float = 0f,
@@ -45,7 +45,7 @@ class AudioSettingsPersistence private constructor(private val context: Context)
     val settingsFlow: Flow<AudioSettings> = context.audioSettingsDataStore.data
         .map { preferences ->
             AudioSettings(
-                pitch = preferences[PITCH_KEY] ?: 1.0f,
+                pitch = preferences[PITCH_KEY] ?: 0.0f,
                 speed = preferences[SPEED_KEY] ?: 1.0f,
                 eqProfile = preferences[EQ_PROFILE_KEY] ?: "Flat",
                 bassBoost = preferences[BASS_BOOST_KEY] ?: 0f,

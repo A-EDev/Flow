@@ -45,7 +45,8 @@ object BetterLyrics {
     suspend fun getLyrics(
         title: String,
         artist: String,
-        duration: Int
+        duration: Int,
+        album: String? = null
     ): Result<List<LyricsEntry>> = withContext(Dispatchers.IO) {
         try {
             val encodedTitle = URLEncoder.encode(title, "UTF-8")
@@ -55,6 +56,9 @@ object BetterLyrics {
                 append("$BASE_URL/getLyrics")
                 append("?s=$encodedTitle")
                 append("&a=$encodedArtist")
+                if (!album.isNullOrBlank()) {
+                    append("&al=${URLEncoder.encode(album, "UTF-8")}")
+                }
                 if (duration > 0) {
                     append("&d=$duration")
                 }
@@ -64,7 +68,8 @@ object BetterLyrics {
 
             val request = Request.Builder()
                 .url(url)
-                .header("User-Agent", "FlowMusic/1.0")
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36")
+                .header("Accept", "application/json")
                 .build()
 
             client.newCall(request).execute().use { response ->
@@ -92,30 +97,17 @@ object BetterLyrics {
                 }
 
                 val ttmlLines = try {
-                    TTMLParser.parseTTMLToLines(ttml)
+                    val parsedLines = TTMLParser.parseTTML(ttml)
+                    val lrcStr = TTMLParser.toLRC(parsedLines)
+                    LyricsUtils.parseLyrics(lrcStr)
                 } catch (e: Exception) {
                     Log.e(TAG, "TTML parse failed", e)
                     emptyList()
                 }
 
                 if (ttmlLines.isNotEmpty()) {
-                    val entries = ttmlLines.map { line ->
-                        LyricsEntry(
-                            time = line.startTimeMs,
-                            text = line.text,
-                            words = line.words?.map { word ->
-                                WordTimestamp(
-                                    text = word.text,
-                                    startTime = word.startTimeMs,
-                                    endTime = word.endTimeMs
-                                )
-                            },
-                            agent = line.agent,
-                            isBackground = line.isBackground
-                        )
-                    }
-                    Log.d(TAG, "Parsed ${entries.size} lines, ${entries.count { it.words != null }} with word sync")
-                    return@withContext Result.success(entries)
+                    Log.d(TAG, "Parsed ${ttmlLines.size} lines, ${ttmlLines.count { it.words != null }} with word sync")
+                    return@withContext Result.success(ttmlLines)
                 }
 
                 Result.failure(Exception("Failed to parse BetterLyrics TTML"))
