@@ -10,6 +10,7 @@ NEW FEATURES
 - Add a Related Videos section Toggle in Content Display Settings
 - Add a Remove button to songs in playlists
 - Add a Custom Interest input in Content Preferences — type any topic to follow it directly
+- 2D Free-Floating Mini Player — the video mini-player now floats freely across the screen. Drag it anywhere, and it seamlessly snaps to any of the 4 corners, or swipe to dismiss it entirely.
 
 IMPROVEMENTS
 - Improve thumbnail quality — higher resolution thumbnails are now automatically fetched for videos, channels, and playlists

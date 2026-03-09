@@ -102,21 +102,8 @@ fun FlowApp(
         val bottomNavContentHeightDp = 48.dp
         val bottomNavContentHeightPx = with(density) { bottomNavContentHeightDp.toPx() }
         
-        val bottomNavHeightPx = bottomNavContentHeightPx + navBarBottomInset
-        
-        // Mini Player Floating Dimensions (Capped at 320dp, otherwise 55% width)
-        val screenWidthPx = constraints.maxWidth.toFloat()
-        val maxMiniWidthPx = with(density) { 320.dp.toPx() }
-        val miniPlayerWidthPx = (screenWidthPx * 0.55f).coerceAtMost(maxMiniWidthPx)
-        
-        // Used float division for aspect ratio calculation
-        val miniPlayerHeightPx = miniPlayerWidthPx * (9f / 16f)
-        val marginPx = with(density) { 12.dp.toPx() }
-        
-        val maxOffset = screenHeightPx - bottomNavHeightPx - miniPlayerHeightPx - marginPx
-        
         // Draggable player state
-        val playerSheetState = rememberPlayerDraggableState(maxOffset = maxOffset)
+        val playerSheetState = rememberPlayerDraggableState()
         val playerVisibleState = remember { mutableStateOf(false) }
         var playerVisible by playerVisibleState
     
@@ -276,11 +263,23 @@ fun FlowApp(
         }
     }
     
+    val animatedBottomPaddingRaw by animateDpAsState(
+        targetValue = if (!isInPipMode && showBottomNav.value && isNavScrolledVisible) {
+            bottomNavContentHeightDp + with(density) { navBarBottomInset.toDp() }
+        } else {
+            with(density) { navBarBottomInset.toDp() }
+        },
+        animationSpec = tween(220),
+        label = "globalBottomPadding"
+    )
+    val animatedBottomPadding = animatedBottomPaddingRaw.coerceAtLeast(0.dp)
+
     // ===== GLOBAL PLAYER OVERLAY =====
     GlobalPlayerOverlay(
         video = activeVideo,
         isVisible = playerVisible,
         playerSheetState = playerSheetState,
+        bottomPadding = animatedBottomPadding,
         onClose = { 
             playerVisible = false 
             playerViewModel.clearVideo()
@@ -301,17 +300,6 @@ fun FlowApp(
     )
     
     // ===== GLOBAL MUSIC PLAYER OVERLAY =====
-    val animatedBottomPaddingRaw by animateDpAsState(
-        targetValue = if (!isInPipMode && showBottomNav.value && isNavScrolledVisible) {
-            bottomNavContentHeightDp + with(density) { navBarBottomInset.toDp() }
-        } else {
-            with(density) { navBarBottomInset.toDp() }
-        },
-        animationSpec = tween(220),
-        label = "musicPlayerBottomPadding"
-    )
-    val animatedBottomPadding = animatedBottomPaddingRaw.coerceAtLeast(0.dp)
-
     Box(
         modifier = Modifier
             .fillMaxSize()

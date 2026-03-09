@@ -3,14 +3,10 @@ package com.flow.youtube.ui.components
 import android.content.res.Configuration
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LinearProgressIndicator
@@ -19,93 +15,102 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
-private fun lerpFloat(start: Float, stop: Float, fraction: Float): Float {
-    return start + (stop - start) * fraction
-}
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+private fun lerpFloat(start: Float, stop: Float, fraction: Float): Float =
+    start + (stop - start) * fraction.coerceIn(0f, 1f)
 
 enum class PlayerSheetValue { Expanded, Collapsed }
+enum class MiniPlayerCorner { TopLeft, TopRight, BottomLeft, BottomRight }
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
 
 class PlayerDraggableState(
+    val offsetX: Animatable<Float, AnimationVector1D>,
     val offsetY: Animatable<Float, AnimationVector1D>,
-    val maxOffset: Float,
+    val expandFraction: Animatable<Float, AnimationVector1D>,
     val scope: CoroutineScope
 ) {
+    var corner by mutableStateOf(MiniPlayerCorner.BottomRight)
+
+    /** True when the player is fully or mostly collapsed into mini-player mode. */
     val currentValue: PlayerSheetValue
-        get() = if (offsetY.value > maxOffset * 0.5f) PlayerSheetValue.Collapsed else PlayerSheetValue.Expanded
+        get() = if (expandFraction.targetValue > 0.5f) PlayerSheetValue.Collapsed else PlayerSheetValue.Expanded
 
-    val fraction: Float
-        get() = (offsetY.value / maxOffset).coerceIn(0f, 1f)
+    val fraction: Float get() = expandFraction.value
 
+    /** Animate to fully expanded / full-screen. */
     fun expand() {
+        corner = MiniPlayerCorner.BottomRight // Reset corner so next collapse goes to default position
         scope.launch {
-            offsetY.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 300f))
+            launch { expandFraction.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = 250f)) }
+            launch { offsetX.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = 250f)) }
+            launch { offsetY.animateTo(0f, spring(dampingRatio = 0.85f, stiffness = 250f)) }
         }
     }
 
+    /** Animate to the tracked mini-player corner. Coordinates calculated in layout. */
     fun collapse() {
         scope.launch {
-            offsetY.animateTo(maxOffset, spring(dampingRatio = 0.82f, stiffness = 300f))
+            expandFraction.animateTo(1f, spring(dampingRatio = 0.85f, stiffness = 250f))
+            // Note: X and Y are animated continuously in DraggablePlayerLayout's LaunchedEffect
+            // when it detects expandFraction goes to 1f, to ensure accurate dynamic inset tracking.
         }
     }
-    
+
+    /** Instantly snap to a target value (e.g. on orientation change). */
     fun snapTo(target: PlayerSheetValue) {
         scope.launch {
-            val targetOffset = if (target == PlayerSheetValue.Collapsed) maxOffset else 0f
-            offsetY.snapTo(targetOffset)
+            val targetF = if (target == PlayerSheetValue.Collapsed) 1f else 0f
+            expandFraction.snapTo(targetF)
+            if (target == PlayerSheetValue.Expanded) {
+                offsetX.snapTo(0f)
+                offsetY.snapTo(0f)
+            }
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Remember helper
+// ---------------------------------------------------------------------------
 
 @Composable
-fun rememberPlayerDraggableState(maxOffset: Float): PlayerDraggableState {
+fun rememberPlayerDraggableState(): PlayerDraggableState {
     val scope = rememberCoroutineScope()
-    // Use remember with keys removed for Animatable creation to avoid recreation on maxOffset change
-    // We want to KEEP the current offset value but respect the NEW maxOffset constraints
-    val offsetY = remember { Animatable(maxOffset) }
+    val offsetX = remember { Animatable(0f) }
+    val offsetY = remember { Animatable(0f) }
+    val expandFraction = remember { Animatable(1f) } // Default minimized
 
-    // If maxOffset changes (e.g. orientation change), we need to decide where to snap
-    // If we were collapsed (near old MaxOffset), snap to new MaxOffset.
-    // If we were expanded (near 0), stay near 0.
-    LaunchedEffect(maxOffset) {
-        val current = offsetY.value
-        // Heuristic: If we are closer to the "bottom" (> 50% down), snap to new bottom. (Collapsed)
-        // Otherwise, stay at top. (Expanded)
-        if (current > maxOffset * 0.25f) { // Using 25% to be safer for "stuck" scenarios 
-             // We use a broader threshold because the "old maxOffset" (Landscape) might be small
-             // compared to "new maxOffset" (Portrait).
-             // Actually, if we are switching Landscape -> Portrait:
-             // Old Max (e.g. 300) -> New Max (e.g. 1000).
-             // If we were at 300 (Collapsed), 300 is < 1000 * 0.5. So simple thresholding fails.
-             // We need to know if we were "Collapsed" based on previous state logic.
-             // But we only have current value.
-             // Let's assume if value > 0 and not explicitly expanded, we snap to bottom.
-             if (current > 50f) { // arbitrary small threshold
-                 offsetY.snapTo(maxOffset) 
-             }
-        } else {
-             offsetY.snapTo(0f)
-        }
-    }
-
-    return remember(maxOffset) {
-        PlayerDraggableState(offsetY, maxOffset, scope)
+    return remember {
+        PlayerDraggableState(offsetX, offsetY, expandFraction, scope)
     }
 }
+
+// ---------------------------------------------------------------------------
+// Main composable
+// ---------------------------------------------------------------------------
 
 @Composable
 fun DraggablePlayerLayout(
@@ -115,6 +120,8 @@ fun DraggablePlayerLayout(
     miniControls: @Composable (Float) -> Unit,
     progress: Float,
     isFullscreen: Boolean,
+    bottomPadding: Dp = 0.dp,
+    onDismiss: () -> Unit = {},
     videoAspectRatio: Float = 16f / 9f
 ) {
     val density = LocalDensity.current
@@ -123,29 +130,19 @@ fun DraggablePlayerLayout(
     val isTablet = config.smallestScreenWidthDp >= 600
 
     var playerHeightFraction by remember { mutableFloatStateOf(1f) }
-    val animatedPlayerHeightFraction by animateFloatAsState(
-        targetValue = playerHeightFraction,
-        animationSpec = spring(dampingRatio = 0.75f, stiffness = 350f),
-        label = "playerHeightFraction"
-    )
 
-    LaunchedEffect(videoAspectRatio) {
-        playerHeightFraction = 1f
-    }
+    LaunchedEffect(videoAspectRatio) { playerHeightFraction = 1f }
 
-    // Get Status Bar Height
     val statusBarHeight = WindowInsets.statusBars.getTop(density).toFloat()
 
-    BoxWithConstraints(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        val fullScreenWidth = constraints.maxWidth.toFloat()
-        val fullScreenHeight = constraints.maxHeight.toFloat()
-        
-        // --- 1. IMMERSIVE FULLSCREEN MODE ---
-        val showImmersiveFullscreen = state.currentValue == PlayerSheetValue.Expanded && 
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val screenWidth  = constraints.maxWidth.toFloat()
+        val screenHeight = constraints.maxHeight.toFloat()
+
+        // ── 1. Immersive Fullscreen ───────────────────────────────────────────
+        val showImmersiveFullscreen = state.currentValue == PlayerSheetValue.Expanded &&
                 (isFullscreen || (isLandscape && !isTablet))
-        
+
         if (showImmersiveFullscreen) {
             Box(
                 modifier = Modifier
@@ -153,30 +150,51 @@ fun DraggablePlayerLayout(
                     .background(Color.Black)
             ) {
                 videoContent(Modifier.fillMaxSize())
-            }  
+            }
             return@BoxWithConstraints
         }
 
-        // --- 2. STANDARD / SPLIT MODE ---
+        // ── 2. Derive dimensions ──────────────────────────────────────────────
         val isSplitLayout = isLandscape && isTablet
 
-        val fraction = state.fraction
-        
-        // Target Dimensions for Mini Player
-        val maxMiniWidth = with(density) { 320.dp.toPx() } 
-        val targetMiniWidth = (fullScreenWidth * 0.55f).coerceAtMost(maxMiniWidth)
-        val miniScale = targetMiniWidth / fullScreenWidth
-        val miniWidth = targetMiniWidth
-        // Mini player aspect ratio
+        // Mini-player target size (45 % of screen width)
+        val miniWidth  = screenWidth * 0.45f
         val miniHeight = miniWidth * (9f / 16f)
-        val margin = with(density) { 12.dp.toPx() }
-        
-        val expandedVideoWidth = if (isSplitLayout) fullScreenWidth * 0.65f else fullScreenWidth
-        val baseVideoHeight = expandedVideoWidth * (9f / 16f)
-        val clampedAspectRatio = videoAspectRatio.coerceAtMost(2.0f)
-        val fullVideoHeight = expandedVideoWidth / clampedAspectRatio
-        val expandedVideoHeight = lerpFloat(baseVideoHeight, fullVideoHeight, animatedPlayerHeightFraction)
+        val margin     = with(density) { 12.dp.toPx() }
+        val bottomNavPad = with(density) { bottomPadding.toPx() }
 
+        // Expanded video size
+        val expandedVideoWidth  = if (isSplitLayout) screenWidth * 0.65f else screenWidth
+        val baseVideoHeight     = expandedVideoWidth * (9f / 16f)
+        val clampedAspect       = videoAspectRatio.coerceAtMost(2.0f)
+        val fullVideoHeight     = expandedVideoWidth / clampedAspect
+        val expandedVideoHeight = fullVideoHeight
+
+        // 4 corners
+        val minX = margin
+        val maxX = screenWidth - miniWidth - margin
+        val minY = statusBarHeight + margin
+        val maxY = screenHeight - miniHeight - bottomNavPad - margin
+
+        val targetMiniX = when (state.corner) {
+            MiniPlayerCorner.TopLeft, MiniPlayerCorner.BottomLeft -> minX
+            MiniPlayerCorner.TopRight, MiniPlayerCorner.BottomRight -> maxX
+        }
+        val targetMiniY = when (state.corner) {
+            MiniPlayerCorner.TopLeft, MiniPlayerCorner.TopRight -> minY
+            MiniPlayerCorner.BottomLeft, MiniPlayerCorner.BottomRight -> maxY
+        }
+
+        // Animate continuously to the corner when collapsed
+        // (This handles dynamic bottom nav popping in and out)
+        LaunchedEffect(state.expandFraction.targetValue, targetMiniX, targetMiniY) {
+            if (state.expandFraction.targetValue > 0.5f && !state.offsetX.isRunning && !state.offsetY.isRunning) {
+                launch { state.offsetX.animateTo(targetMiniX, spring(dampingRatio = 0.85f, stiffness = 250f)) }
+                launch { state.offsetY.animateTo(targetMiniY, spring(dampingRatio = 0.85f, stiffness = 250f)) }
+            }
+        }
+
+        // ── 3. Nested scroll for in-video aspect-ratio resizing ───────────────
         val nestedScrollConnection = remember(fullVideoHeight, baseVideoHeight) {
             object : NestedScrollConnection {
                 override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -185,7 +203,8 @@ fun DraggablePlayerLayout(
                     if (delta < 0 && playerHeightFraction > 0f && playerDelta > 1f) {
                         val maxConsumable = playerHeightFraction * playerDelta
                         val consumed = maxOf(delta, -maxConsumable)
-                        playerHeightFraction = (playerHeightFraction + consumed / playerDelta).coerceIn(0f, 1f)
+                        playerHeightFraction =
+                            (playerHeightFraction + consumed / playerDelta).coerceIn(0f, 1f)
                         return Offset(0f, consumed)
                     }
                     return Offset.Zero
@@ -201,7 +220,8 @@ fun DraggablePlayerLayout(
                     if (delta > 0 && playerHeightFraction < 1f && playerDelta > 1f) {
                         val maxConsumable = (1f - playerHeightFraction) * playerDelta
                         val consumable = minOf(delta, maxConsumable)
-                        playerHeightFraction = (playerHeightFraction + consumable / playerDelta).coerceIn(0f, 1f)
+                        playerHeightFraction =
+                            (playerHeightFraction + consumable / playerDelta).coerceIn(0f, 1f)
                         return Offset(0f, consumable)
                     }
                     return Offset.Zero
@@ -209,19 +229,17 @@ fun DraggablePlayerLayout(
             }
         }
 
-        // Calculate Positions
-        val currentTopPadding = lerpFloat(statusBarHeight, 0f, fraction)
-        
-        val targetMiniX = fullScreenWidth - miniWidth - margin
-        
-        // Main Background (Scrim)
-        if (fraction < 1f) {
+        // ── 4. Background scrim ───────────────────────────────────────────────
+        val expandedScrimAlpha by remember {
+            derivedStateOf { (1f - state.expandFraction.value).coerceIn(0f, 1f) }
+        }
+
+        if (expandedScrimAlpha > 0f) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .alpha(1f - fraction)
+                    .alpha(expandedScrimAlpha)
             ) {
-                // Top Black Bar
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -237,79 +255,178 @@ fun DraggablePlayerLayout(
             }
         }
 
-        // Body Content (Scrollable info)
-        if (fraction < 0.8f) {            
-            val videoHeightPlaceholder = if (isSplitLayout) with(density) { expandedVideoHeight.toDp() } else 0.dp
-            
-            val bodyModifier = if (isSplitLayout) {
-                Modifier
-                    .fillMaxSize()
-                    .padding(top = with(density) { statusBarHeight.toDp() })
-            } else {
-                Modifier
-                    .fillMaxSize()
-                    .padding(top = with(density) { (expandedVideoHeight + statusBarHeight).toDp() })
-            }
+        // ── 5. Body content (info, comments, related) ─────────────────────────
+        val bodyAlpha by remember { derivedStateOf { (1f - state.expandFraction.value * 1.25f).coerceIn(0f, 1f) } }
+
+        if (bodyAlpha > 0f) {
+            val videoHeightPlaceholder =
+                if (isSplitLayout) with(density) { expandedVideoHeight.toDp() } else 0.dp
+
+            val bodyPaddingTop =
+                if (isSplitLayout) statusBarHeight
+                else expandedVideoHeight + statusBarHeight
 
             Box(
-                modifier = bodyModifier
-                    .alpha(1f - fraction)
-                    .graphicsLayer { translationY = fraction * 100f }
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = with(density) { bodyPaddingTop.toDp() })
+                    .graphicsLayer {
+                        alpha = bodyAlpha
+                        translationY = state.expandFraction.value * 80f
+                    }
                     .nestedScroll(nestedScrollConnection)
             ) {
-                bodyContent(1f - fraction, videoHeightPlaceholder)
+                bodyContent(bodyAlpha, videoHeightPlaceholder)
             }
         }
 
-        // THE DRAGGABLE VIDEO PLAYER
-        
-        val currentWidth = lerpFloat(expandedVideoWidth, miniWidth, fraction)
-        val currentHeight = lerpFloat(expandedVideoHeight, miniHeight, fraction)
-        
-        val currentX = lerpFloat(0f, targetMiniX, fraction)
-        
-        val currentY = state.offsetY.value + currentTopPadding
-
+        // ── 6. Draggable Video Player ─────────────────────────────────────────
         Box(
             modifier = Modifier
-                .width(with(density) { currentWidth.toDp() })
-                .height(with(density) { currentHeight.toDp() })
-                .graphicsLayer(
-                    translationX = currentX,
-                    translationY = currentY,
-                    shadowElevation = with(density) { if (fraction > 0f) 16.dp.toPx() else 0f },
-                    shape = RoundedCornerShape(if (fraction > 0.1f) 12.dp else 0.dp),
-                    clip = true
-                )
+                .layout { measurable, constraints ->
+                    val fraction = state.expandFraction.value
+                    val targetW = lerpFloat(expandedVideoWidth, miniWidth, fraction).toInt()
+                        .coerceIn(1, constraints.maxWidth)
+                    val targetH = lerpFloat(expandedVideoHeight, miniHeight, fraction).toInt()
+                        .coerceIn(1, constraints.maxHeight)
+                    val placeable = measurable.measure(
+                        constraints.copy(
+                            minWidth  = targetW, maxWidth  = targetW,
+                            minHeight = targetH, maxHeight = targetH
+                        )
+                    )
+                    layout(targetW, targetH) { placeable.place(0, 0) }
+                }
+                .graphicsLayer {
+                    val fraction = state.expandFraction.value
+
+                    val rawX = lerpFloat(
+                        0f, // Expanded X is always 0
+                        state.offsetX.value, // Collapsed X is dragged position
+                        fraction
+                    )
+                    translationX = rawX
+
+                    val topPadExpanded = statusBarHeight
+                    val rawY = lerpFloat(
+                        topPadExpanded, 
+                        state.offsetY.value, 
+                        fraction
+                    )
+                    translationY = rawY
+
+                    shadowElevation  = if (fraction > 0f) with(density) { 16.dp.toPx() } else 0f
+                    shape            = RoundedCornerShape(if (fraction > 0.1f) 12.dp else 0.dp)
+                    clip             = true
+                }
                 .background(Color.Black)
-                .draggable(
-                    state = rememberDraggableState { delta ->
-                        state.scope.launch {
-                            val newOffset = (state.offsetY.value + delta).coerceIn(0f, state.maxOffset)
-                            state.offsetY.snapTo(newOffset)
+                // ── Drag gesture ──────────────────────────────────────────────
+                .pointerInput(minX, maxX, minY, maxY) {
+                    val velocityTracker = VelocityTracker()
+                    detectDragGestures(
+                        onDragStart = { velocityTracker.resetTracking() },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            velocityTracker.addPosition(
+                                change.uptimeMillis,
+                                change.position
+                            )
+
+                            // Only allow dragging when mostly collapsed
+                            if (state.expandFraction.value > 0.8f) {
+                                val newY = (state.offsetY.value + dragAmount.y).coerceIn(minY, maxY)
+                                val newX = (state.offsetX.value + dragAmount.x).coerceIn(minX, maxX)
+
+                                state.scope.launch {
+                                    state.offsetY.snapTo(newY)
+                                    state.offsetX.snapTo(newX)
+                                }
+                            }
+                        },
+                        onDragEnd = {
+                            if (state.expandFraction.value <= 0.8f) return@detectDragGestures
+
+                            val velocity  = velocityTracker.calculateVelocity()
+                            val velY      = velocity.y
+                            val velX      = velocity.x
+
+                            val dismissThreshold = 1200f
+                            val currentX = state.offsetX.value
+                            val currentY = state.offsetY.value
+
+                            // Determine closest corner based on current position and velocity
+                            val projectedX = currentX + (velX / 5f)
+                            val projectedY = currentY + (velY / 5f)
+
+                            val goLeft = projectedX < screenWidth / 2f
+                            val goTop = projectedY < screenHeight / 2f
+
+                            val newCorner = when {
+                                goLeft && goTop -> MiniPlayerCorner.TopLeft
+                                goLeft && !goTop -> MiniPlayerCorner.BottomLeft
+                                !goLeft && goTop -> MiniPlayerCorner.TopRight
+                                else -> MiniPlayerCorner.BottomRight
+                            }
+
+                            state.scope.launch {
+                                // Dismiss check:
+                                // - on right side & swiped right prominently
+                                // - on left side & swiped left prominently
+                                // Crucially, ensure horizontal speed dominates vertical speed
+                                val isRightSide = !goLeft
+                                val isLeftSide = goLeft
+                                val isHorizontalFling = abs(velX) > abs(velY) * 1.5f
+
+                                if (isHorizontalFling && 
+                                    ((isRightSide && velX > dismissThreshold) || 
+                                     (isLeftSide && velX < -dismissThreshold))) {
+                                    
+                                    val offScreenX = if (isRightSide) screenWidth + miniWidth
+                                                     else -(miniWidth + margin)
+                                    launch {
+                                        state.offsetX.animateTo(
+                                            offScreenX,
+                                            spring(dampingRatio = 0.85f, stiffness = 200f)
+                                        )
+                                    }
+                                    kotlinx.coroutines.delay(250)
+                                    onDismiss()
+                                } else {
+                                    // Snap to closest corner
+                                    state.corner = newCorner
+                                    val snapX = if (goLeft) minX else maxX
+                                    val snapY = if (goTop) minY else maxY
+                                    
+                                    launch { state.offsetX.animateTo(snapX, spring(dampingRatio = 0.85f, stiffness = 250f)) }
+                                    launch { state.offsetY.animateTo(snapY, spring(dampingRatio = 0.85f, stiffness = 250f)) }
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            if (state.expandFraction.value > 0.8f) {
+                                val snapX = if (state.corner == MiniPlayerCorner.TopLeft || state.corner == MiniPlayerCorner.BottomLeft) minX else maxX
+                                val snapY = if (state.corner == MiniPlayerCorner.TopLeft || state.corner == MiniPlayerCorner.TopRight) minY else maxY
+                                state.scope.launch {
+                                    launch { state.offsetX.animateTo(snapX, spring(dampingRatio = 0.85f, stiffness = 250f)) }
+                                    launch { state.offsetY.animateTo(snapY, spring(dampingRatio = 0.85f, stiffness = 250f)) }
+                                }
+                            }
                         }
-                    },
-                    orientation = Orientation.Vertical,
-                    onDragStopped = { velocity ->
-                        val target = when {
-                            velocity > 800f -> state.maxOffset
-                            velocity < -800f -> 0f
-                            state.offsetY.value > state.maxOffset * 0.5f -> state.maxOffset
-                            else -> 0f
+                    )
+                }
+                .then(
+                    if (state.expandFraction.value > 0.6f) {
+                        Modifier.pointerInput(Unit) {
+                            detectTapGestures { state.expand() }
                         }
-                        state.scope.launch {
-                            state.offsetY.animateTo(target, spring(dampingRatio = 0.8f, stiffness = 300f))
-                        }
-                    }
+                    } else Modifier
                 )
-                .then(if (fraction > 0.6f) Modifier.pointerInput(Unit) {
-                    detectTapGestures { state.expand() }
-                } else Modifier)
         ) {
-            // Video Surface
+            // ── Video surface
             videoContent(Modifier.fillMaxSize())
 
-            // Mini Controls Overlay
+            // ── Mini controls overlay
+            val fraction by remember { derivedStateOf { state.expandFraction.value } }
             if (fraction > 0.6f) {
                 Box(
                     modifier = Modifier
@@ -317,14 +434,14 @@ fun DraggablePlayerLayout(
                         .background(Color.Black.copy(alpha = 0.4f * fraction))
                         .alpha(fraction)
                 ) {
-                   miniControls(fraction)
+                    miniControls(fraction)
                 }
             }
-            
-            // Progress Bar 
+
+            // ── Progress bar (mini only)
             if (fraction > 0.8f) {
                 LinearProgressIndicator(
-                    progress = progress,
+                    progress = { progress },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()

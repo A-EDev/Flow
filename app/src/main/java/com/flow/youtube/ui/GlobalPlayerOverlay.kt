@@ -90,6 +90,7 @@ fun GlobalPlayerOverlay(
     video: Video?,
     isVisible: Boolean,
     playerSheetState: PlayerDraggableState,
+    bottomPadding: androidx.compose.ui.unit.Dp = 0.dp,
     onClose: () -> Unit,
     onMinimize: () -> Unit,
     onNavigateToChannel: (String) -> Unit,
@@ -345,6 +346,8 @@ fun GlobalPlayerOverlay(
                 progress = progress,
                 isFullscreen = screenState.isFullscreen,
                 videoAspectRatio = videoAspectRatio,
+                bottomPadding = bottomPadding,
+                onDismiss = onClose,
                 videoContent = { modifier ->
                     // ALWAYS use the same video surface
                     val gestureModifier = if (!isMinimized) {
