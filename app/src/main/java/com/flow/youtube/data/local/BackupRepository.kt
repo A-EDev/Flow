@@ -26,6 +26,7 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.util.concurrent.atomic.AtomicInteger
+import com.flow.youtube.data.recommendation.FlowNeuroEngine
 
 data class SettingsBackup(
     val strings: Map<String, String> = emptyMap(),
@@ -130,8 +131,18 @@ class BackupRepository(private val context: Context) {
             }
 
             // Import Subscriptions
-            backupData.subscriptions?.forEach { sub ->
-                subscriptionRepo.subscribe(sub)
+            backupData.subscriptions?.let { subs ->
+                subs.forEach { sub ->
+                    subscriptionRepo.subscribe(sub)
+                }
+                // V9.2: Seed recommendation engine from imported subscriptions
+                val channelNames = subs.map { it.channelName }.filter { it.isNotEmpty() }
+                if (channelNames.isNotEmpty()) {
+                    try {
+                        FlowNeuroEngine.bootstrapFromSubscriptions(context, channelNames)
+                    } catch (e: Exception) {
+                    }
+                }
             }
 
             // Import Room Data
@@ -226,6 +237,15 @@ class BackupRepository(private val context: Context) {
                 importedCount++
             }
 
+            // V9.2: Seed recommendation engine from imported subscriptions
+            val channelNames = subscriptionsWithAvatars.map { it.channelName }.filter { it.isNotEmpty() }
+            if (channelNames.isNotEmpty()) {
+                try {
+                    FlowNeuroEngine.bootstrapFromSubscriptions(context, channelNames)
+                } catch (e: Exception) {
+                }
+            }
+
             Result.success(importedCount)
         } catch (e: Exception) {
             Result.failure(e)
@@ -291,6 +311,15 @@ class BackupRepository(private val context: Context) {
             subscriptionsWithAvatars.forEach {
                 subscriptionRepo.subscribe(it)
                 importedCount++
+            }
+
+            // V9.2: Seed recommendation engine from imported subscriptions
+            val ytChannelNames = subscriptionsWithAvatars.map { it.channelName }.filter { it.isNotEmpty() }
+            if (ytChannelNames.isNotEmpty()) {
+                try {
+                    FlowNeuroEngine.bootstrapFromSubscriptions(context, ytChannelNames)
+                } catch (e: Exception) {
+                }
             }
             
             Result.success(importedCount)
@@ -587,6 +616,16 @@ class BackupRepository(private val context: Context) {
             }
 
             finalSubs.forEach { subscriptionRepo.subscribe(it) }
+
+            // V9.2: Seed recommendation engine from imported subscriptions
+            val ltChannelNames = finalSubs.map { it.channelName }.filter { it.isNotEmpty() }
+            if (ltChannelNames.isNotEmpty()) {
+                try {
+                    FlowNeuroEngine.bootstrapFromSubscriptions(context, ltChannelNames)
+                } catch (e: Exception) {
+                }
+            }
+
             Result.success(finalSubs.size)
         } catch (e: Exception) {
             Result.failure(e)

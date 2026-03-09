@@ -130,6 +130,13 @@ class FlowNeuroEngine(private val appContext: Context) {
         private const val ENGAGEMENT_FLOOR_MIN_VIEWS = 50_000L
         private const val ENGAGEMENT_FLOOR_PENALTY = 0.2
 
+        /** V9.2: Cold-start engagement floor — tighter thresholds during first 30 interactions.
+         *  Brainrot content typically has high views but very low engagement.
+         *  During cold start we can't rely on learned preferences, so we aggressively
+         *  filter on engagement quality instead. */
+        private const val COLD_START_ENGAGEMENT_FLOOR_RATE = 0.02
+        private const val COLD_START_ENGAGEMENT_FLOOR_MIN_VIEWS = 10_000L
+
         /** Binge detection: after this many videos, novelty gets extra weight */
         private const val BINGE_THRESHOLD = 20
         private const val BINGE_NOVELTY_FACTOR = 0.15
@@ -320,6 +327,11 @@ class FlowNeuroEngine(private val appContext: Context) {
             requireInstance().importBrainFromStream(input)
         suspend fun importBrainFromStream(context: Context, input: InputStream): Boolean =
             getInstance(context).importBrainFromStream(input)
+
+        suspend fun bootstrapFromSubscriptions(channelNames: List<String>) =
+            requireInstance().bootstrapFromSubscriptions(channelNames)
+        suspend fun bootstrapFromSubscriptions(context: Context, channelNames: List<String>) =
+            getInstance(context).bootstrapFromSubscriptions(channelNames)
 
         suspend fun resetBrain() = requireInstance().resetBrain()
         suspend fun resetBrain(context: Context) = getInstance(context).resetBrain()
@@ -1082,6 +1094,100 @@ class FlowNeuroEngine(private val appContext: Context) {
         return if (t1 < t2) "$t1|$t2" else "$t2|$t1"
     }
 
+    // =================================================
+    // SUBSCRIPTION BOOTSTRAP
+    // =================================================
+
+    /**
+     * V9.2: Seeds the recommendation brain from imported subscription channel names.
+     *
+     * When a user imports subscriptions (e.g. from NewPipe), the recommendation engine
+     * previously had no knowledge of them — globalVector was empty, topicAffinities was
+     * empty, and totalInteractions was 0. This caused the engine to fall back to generic
+     * "Trending" queries which surfaced brainrot content.
+     *
+     * This method tokenizes channel names, extracts keywords, and seeds globalVector
+     * with mild weights (0.25) — enough to influence discovery queries without
+     * overwhelming real interaction signal.
+     *
+     * Weight is intentionally lower than onboarding (0.45–0.75) so real user
+     * interactions override quickly.
+     */
+    suspend fun bootstrapFromSubscriptions(channelNames: List<String>) {
+        if (channelNames.isEmpty()) return
+
+        brainMutex.withLock {
+            if (currentUserBrain.totalInteractions > 5 &&
+                currentUserBrain.globalVector.topics.isNotEmpty()
+            ) {
+                Log.i(TAG, "Bootstrap skipped: brain already has learned data")
+                return
+            }
+
+            val topicWeights = mutableMapOf<String, Double>()
+            val bootstrapWeight = 0.25
+
+            channelNames.forEach { name ->
+                val tokens = tokenize(name)
+                tokens.forEach { token ->
+                    val current = topicWeights[token] ?: 0.0
+                    topicWeights[token] = (current + bootstrapWeight)
+                        .coerceAtMost(0.60)
+                }
+            }
+
+            if (topicWeights.isEmpty()) {
+                Log.i(TAG, "Bootstrap: no usable keywords from ${channelNames.size} channels")
+                return
+            }
+
+            val mergedTopics = currentUserBrain.globalVector.topics.toMutableMap()
+            topicWeights.forEach { (key, weight) ->
+                val existing = mergedTopics[key] ?: 0.0
+                mergedTopics[key] = maxOf(existing, weight)
+            }
+
+            val topKeywords = topicWeights.entries
+                .sortedByDescending { it.value }
+                .take(15)
+                .map { it.key }
+
+            val newAffinities = currentUserBrain.topicAffinities.toMutableMap()
+            for (i in topKeywords.indices) {
+                for (j in i + 1 until topKeywords.size) {
+                    val key = makeAffinityKey(topKeywords[i], topKeywords[j])
+                    val current = newAffinities[key] ?: 0.0
+                    newAffinities[key] = (current + 0.15).coerceAtMost(AFFINITY_MAX)
+                }
+            }
+
+            val preferredFromSubs = topicWeights.entries
+                .sortedByDescending { it.value }
+                .take(10)
+                .map { it.key }
+                .toSet()
+
+            val mergedPreferred = currentUserBrain.preferredTopics + preferredFromSubs
+
+            currentUserBrain = currentUserBrain.copy(
+                globalVector = currentUserBrain.globalVector.copy(
+                    topics = mergedTopics
+                ),
+                topicAffinities = newAffinities,
+                preferredTopics = mergedPreferred,
+                hasCompletedOnboarding = true
+            )
+
+            saveBrainToDataStore()
+            Log.i(
+                TAG,
+                "Bootstrap: seeded ${topicWeights.size} topics from " +
+                    "${channelNames.size} subscriptions " +
+                    "(top: ${topKeywords.take(5).joinToString()})" 
+            )
+        }
+    }
+
     suspend fun markNotInterested(video: Video) {
         val videoVector = getOrExtractFeatures(video, takeIdfSnapshotSafe())
 
@@ -1191,8 +1297,8 @@ class FlowNeuroEngine(private val appContext: Context) {
                     return@withLock preferred.shuffled().take(5)
                 }
                 return@withLock listOf(
-                    "Trending", "Music", "Gaming",
-                    "Technology", "Science"
+                    "Music", "Science", "Technology",
+                    "Education", "Nature"
                 )
             }
 
@@ -1372,7 +1478,15 @@ class FlowNeuroEngine(private val appContext: Context) {
             // V9.1: Engagement rate floor — clickbait filter.
             // Only applies to videos older than 24h with high views
             // but suspiciously low engagement (proxy for hidden dislikes).
-            if (video.viewCount > ENGAGEMENT_FLOOR_MIN_VIEWS &&
+            // V9.2: During cold start, use tighter thresholds to catch brainrot
+            // content that has inflated views but low engagement.
+            val isColdStart = brain.totalInteractions < COLD_START_THRESHOLD
+            val floorMinViews = if (isColdStart) COLD_START_ENGAGEMENT_FLOOR_MIN_VIEWS
+                                else ENGAGEMENT_FLOOR_MIN_VIEWS
+            val floorRate = if (isColdStart) COLD_START_ENGAGEMENT_FLOOR_RATE
+                            else ENGAGEMENT_FLOOR_RATE
+
+            if (video.viewCount > floorMinViews &&
                 video.likeCount >= 0 &&
                 TimeDecay.isOlderThan24Hours(video.uploadDate)
             ) {
@@ -1380,7 +1494,7 @@ class FlowNeuroEngine(private val appContext: Context) {
                     video.likeCount.toDouble() / video.viewCount.toDouble()
                 } else 0.0
 
-                if (engagementRate < ENGAGEMENT_FLOOR_RATE) {
+                if (engagementRate < floorRate) {
                     totalScore *= ENGAGEMENT_FLOOR_PENALTY
                 }
             }

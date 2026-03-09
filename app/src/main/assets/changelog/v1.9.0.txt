@@ -23,6 +23,8 @@ IMPROVEMENTS
 - Update Algorithm filters to block full category instead of individual keywords
 - Scrollable Blocked content section in Personality Screen
 - Channel name fetching using ID in Personality Screen
+- Improved Algorithm fallback — Exclude Trending to avoid the Brainrot content
+- Added Bootstrap from subscriptions — Tokenize channels to improve recommendations on cold start
 
 FIXES AND STABILITY
 - Fix search screen crash — resolved issue when infinite scrolling through identical playlists
