@@ -740,6 +740,13 @@ class PlaylistDetailViewModel @Inject constructor(
                                     aac?.content ?: aac?.url
                                 } else null
 
+                                // Detect codec so the service picks the correct container
+                                // (VP9 → .webm, AV1 → .mkv, H264 → .mp4).
+                                // Without this, VP9 content written into a .mp4 filename
+                                // causes MediaMuxer to fail during audio/video merging.
+                                val videoCodec = com.flow.youtube.ui.screens.player.util.VideoPlayerUtils
+                                    .codecKeyFromStream(selectedStream)
+
                                 val qualityLabel = "${selectedStream.height}p"
                                 val fullVideo = video.copy(
                                     thumbnailUrl = video.thumbnailUrl.ifBlank {
@@ -754,7 +761,8 @@ class PlaylistDetailViewModel @Inject constructor(
                                             video = fullVideo,
                                             url = videoUrl,
                                             quality = qualityLabel,
-                                            audioUrl = audioUrl
+                                            audioUrl = audioUrl,
+                                            videoCodec = videoCodec
                                         )
                                         successCount++
                                     }

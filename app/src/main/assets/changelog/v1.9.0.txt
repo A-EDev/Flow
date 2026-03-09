@@ -27,3 +27,4 @@ FIXES AND STABILITY
 - Fix video title localization — video titles now appear in their original language based on system locale instead of defaulting to English (#124)
 - Fix Helium Effect on songs
 - Fix PiP close button — tapping X on the PiP window now stops playback instead of leaving audio running in the background
+- Fix Playlist Download — added missing codec
