@@ -10,6 +10,7 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
@@ -132,6 +133,7 @@ class PlayerFactory {
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()
             .also {
+                it.setSeekParameters(SeekParameters.CLOSEST_SYNC)
                 Log.d(TAG, "ExoPlayer instance created")
             }
     }

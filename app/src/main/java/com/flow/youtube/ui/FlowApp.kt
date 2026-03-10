@@ -129,13 +129,15 @@ fun FlowApp(
         )
     }
     
-    LaunchedEffect(playerSheetState.currentValue) {
-        // Show bottom nav when player is collapsed OR no video is playing
-        showBottomNav.value = playerSheetState.currentValue != PlayerSheetValue.Expanded
-        // Sync with GlobalPlayerState
-        when (playerSheetState.currentValue) {
-            PlayerSheetValue.Expanded -> GlobalPlayerState.expandMiniPlayer()
-            PlayerSheetValue.Collapsed -> GlobalPlayerState.collapseMiniPlayer()
+    LaunchedEffect(playerSheetState.currentValue, playerSheetState.isDragging) {
+        if (!playerSheetState.isDragging) {
+            // Show bottom nav when player is collapsed OR no video is playing
+            showBottomNav.value = playerSheetState.currentValue != PlayerSheetValue.Expanded
+            // Sync with GlobalPlayerState
+            when (playerSheetState.currentValue) {
+                PlayerSheetValue.Expanded -> GlobalPlayerState.expandMiniPlayer()
+                PlayerSheetValue.Collapsed -> GlobalPlayerState.collapseMiniPlayer()
+            }
         }
     }
     

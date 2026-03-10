@@ -356,6 +356,9 @@ fun GlobalPlayerOverlay(
                 bottomPadding = bottomPadding,
                 miniPlayerScale = miniPlayerScale,
                 onDismiss = onClose,
+                onCollapseGesture = {
+                    screenState.isFullscreen = false
+                },
                 videoContent = { modifier ->
                     // ALWAYS use the same video surface
                     val gestureModifier = if (!isMinimized) {

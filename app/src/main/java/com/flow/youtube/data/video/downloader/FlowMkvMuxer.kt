@@ -8,6 +8,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -59,6 +60,19 @@ object FlowMkvMuxer {
     private val ID_CLUSTER_TC      = ba(0xE7)
     private val ID_SIMPLE_BLOCK    = ba(0xA3)
 
+    // SeekHead and Cues — provide fast random-access seeking without linear scan
+    private val ID_VOID                = ba(0xEC)
+    private val ID_SEEK_HEAD           = ba(0x11, 0x4D, 0x9B, 0x74)
+    private val ID_SEEK                = ba(0x4D, 0xBB)
+    private val ID_SEEK_ID             = ba(0x53, 0xAB)
+    private val ID_SEEK_POSITION       = ba(0x53, 0xAC)
+    private val ID_CUES                = ba(0x1C, 0x53, 0xBB, 0x6B)
+    private val ID_CUE_POINT           = ba(0xBB)
+    private val ID_CUE_TIME            = ba(0xB3)
+    private val ID_CUE_TRACK_POSITIONS = ba(0xB7)
+    private val ID_CUE_TRACK           = ba(0xF7)
+    private val ID_CUE_CLUSTER_POS     = ba(0xF1)
+
     /**
      * VINT "unknown / streaming" size marker for the top-level Segment element.
      * Using unknown size avoids a two-pass encode (we don't know total size up front).
@@ -67,6 +81,14 @@ object FlowMkvMuxer {
         0x01.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(),
         0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte()
     )
+
+    /**
+     * Exact byte size of the SeekHead element we always write.
+     * 3 Seek entries with 8-byte SeekPosition each:
+     *   3 × (ID_SEEK 2B + VINT 1B + (ID_SEEK_ID 2B + VINT 1B + 4B id) + (ID_SEEK_POSITION 2B + VINT 1B + 8B pos))
+     *   = 3 × 21 = 63B body  +  ID_SEEK_HEAD 4B + VINT 1B  = 68B total.
+     */
+    private const val SEEK_HEAD_SIZE = 68
 
     /**
      * Mux [videoPath] and [audioPath] into a Matroska file at [outputPath].
@@ -127,30 +149,61 @@ object FlowMkvMuxer {
 
             File(outputPath).parentFile?.mkdirs()
 
+            var segmentDataStart = 0L
+            var segInfoRelPos    = 0L
+            var tracksRelPos     = 0L
+            var cuesRelPos       = 0L
+            val cuePoints        = mutableListOf<Pair<Long, Long>>()
+
             FileOutputStream(outputPath).use { fos ->
-                val out = BufferedOutputStream(fos, 4 * 1024 * 1024)
+                val cos = CountingOutputStream(fos)
+                val out = BufferedOutputStream(cos, 4 * 1024 * 1024)
 
                 // 1. EBML file header
                 writeEbmlHeader(out)
 
-                // 2. Segment with unknown size (streaming / no two-pass needed)
+                // 2. Segment (unknown size)
                 out.write(ID_SEGMENT)
                 out.write(SEGMENT_UNKNOWN_SIZE)
+                out.flush()
+                segmentDataStart = cos.count 
 
-                // 3. SegmentInfo — duration in milliseconds (timescale = 1 ms)
+                // 3. Void placeholder — will be overwritten with SeekHead after Cues are known
+                writeVoid(out, SEEK_HEAD_SIZE)
+                out.flush()
+
+                // 4. SegmentInfo
+                segInfoRelPos = cos.count - segmentDataStart
                 writeSegmentInfo(out, durationMs)
+                out.flush()
 
-                // 4. Tracks
+                // 5. Tracks
+                tracksRelPos = cos.count - segmentDataStart
                 writeTracks(
                     out,
                     vCodecId, vCsd, width, height,
                     aCodecId, aCsd, sampleRate, channels
                 )
-
-                // 5. Clusters (interleaved video + audio samples)
-                writeClusters(out, videoEx, audioEx)
-
                 out.flush()
+
+                // 6. Clusters — also populates cuePoints with (timestampMs, segRelOffset)
+                writeClustersCollectCues(out, cos, segmentDataStart, videoEx, audioEx, cuePoints)
+                out.flush()
+
+                // 7. Cues element written after all clusters
+                cuesRelPos = cos.count - segmentDataStart
+                out.write(buildCues(cuePoints))
+                out.flush()
+            }
+
+            // 8. Seek back to the Void placeholder and overwrite it with the real SeekHead
+            RandomAccessFile(outputPath, "rw").use { raf ->
+                raf.seek(segmentDataStart)
+                val seekHeadBytes = buildSeekHead(segInfoRelPos, tracksRelPos, cuesRelPos)
+                check(seekHeadBytes.size == SEEK_HEAD_SIZE) {
+                    "SeekHead size mismatch: ${seekHeadBytes.size} != $SEEK_HEAD_SIZE"
+                }
+                raf.write(seekHeadBytes)
             }
 
             Log.d(TAG, "FlowMkvMuxer: success → $outputPath (${File(outputPath).length()} B)")
@@ -187,6 +240,38 @@ object FlowMkvMuxer {
             if (durationMs > 0L) el(buf, ID_DURATION, doubleBytes(durationMs.toDouble()))
         }.toByteArray()
         writeEl(out, ID_SEG_INFO, body)
+    }
+
+    private fun writeVoid(out: OutputStream, totalBytes: Int) {
+        require(totalBytes >= 2 && totalBytes - 2 <= 126)
+        out.write(0xEC)                            // ID_VOID
+        out.write(0x80 or (totalBytes - 2))        // VINT-encoded fill length
+        repeat(totalBytes - 2) { out.write(0) }
+    }
+
+    private fun buildSeekHead(segInfoRelPos: Long, tracksRelPos: Long, cuesRelPos: Long): ByteArray {
+        fun oneSeek(elementId: ByteArray, relPos: Long): ByteArray {
+            val idEl  = wrapEl(ID_SEEK_ID,       elementId)
+            val posEl = wrapEl(ID_SEEK_POSITION, intBytes(relPos, 8))
+            return wrapEl(ID_SEEK, idEl + posEl)
+        }
+        val body = oneSeek(ID_SEG_INFO, segInfoRelPos) +
+                   oneSeek(ID_TRACKS,   tracksRelPos)  +
+                   oneSeek(ID_CUES,     cuesRelPos)
+        return wrapEl(ID_SEEK_HEAD, body)
+    }
+
+    /** Build the Cues element from collected (timestampMs, segmentRelativeOffset) pairs. */
+    private fun buildCues(cuePoints: List<Pair<Long, Long>>): ByteArray {
+        val buf = ByteArrayOutputStream()
+        for ((timeMs, clusterSegRelPos) in cuePoints) {
+            val cueTimeEl     = wrapEl(ID_CUE_TIME,  intBytes(timeMs, 4))
+            val cueTrackEl    = wrapEl(ID_CUE_TRACK, intBytes(1L, 1))
+            val cuePosEl      = wrapEl(ID_CUE_CLUSTER_POS, intBytes(clusterSegRelPos, 8))
+            val cueTrackPosEl = wrapEl(ID_CUE_TRACK_POSITIONS, cueTrackEl + cuePosEl)
+            buf.write(wrapEl(ID_CUE_POINT, cueTimeEl + cueTrackPosEl))
+        }
+        return wrapEl(ID_CUES, buf.toByteArray())
     }
 
     private fun writeTracks(
@@ -235,10 +320,13 @@ object FlowMkvMuxer {
      * Produce interleaved Cluster → SimpleBlock output, sorted ascending by presentation time.
      * A new cluster is started every [CLUSTER_LIMIT_MS] at a video keyframe boundary.
      */
-    private fun writeClusters(
+    private fun writeClustersCollectCues(
         out: OutputStream,
+        cos: CountingOutputStream,
+        segDataStart: Long,
         videoEx: MediaExtractor,
-        audioEx: MediaExtractor
+        audioEx: MediaExtractor,
+        cuePoints: MutableList<Pair<Long, Long>>
     ) {
         videoEx.seekTo(0L, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
         audioEx.seekTo(0L, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
@@ -271,6 +359,8 @@ object FlowMkvMuxer {
 
         fun flushCluster() {
             if (clusterStartMs < 0L || clusterBodyBuf.size() == 0) return
+            out.flush()
+            cuePoints.add(Pair(clusterStartMs, cos.count - segDataStart))
             val tcEl      = wrapEl(ID_CLUSTER_TC, intBytes(clusterStartMs, 4))
             val body      = tcEl + clusterBodyBuf.toByteArray()
             writeEl(out, ID_CLUSTER, body)
@@ -463,4 +553,13 @@ object FlowMkvMuxer {
 
     /** Create a ByteArray from vararg Int values (only low byte of each is used). */
     private fun ba(vararg v: Int): ByteArray = ByteArray(v.size) { v[it].toByte() }
+
+    private class CountingOutputStream(private val delegate: OutputStream) : OutputStream() {
+        var count = 0L
+        override fun write(b: Int)                           { delegate.write(b);           count++        }
+        override fun write(b: ByteArray)                     { delegate.write(b);           count += b.size }
+        override fun write(b: ByteArray, off: Int, len: Int) { delegate.write(b, off, len); count += len   }
+        override fun flush()  = delegate.flush()
+        override fun close()  = delegate.close()
+    }
 }

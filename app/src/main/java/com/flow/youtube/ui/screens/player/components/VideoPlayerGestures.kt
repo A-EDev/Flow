@@ -3,12 +3,9 @@ package com.flow.youtube.ui.screens.player.components
 import android.app.Activity
 import android.media.AudioManager
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.IntSize
 import com.flow.youtube.player.EnhancedPlayerManager
-import com.flow.youtube.player.GlobalPlayerState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -272,20 +269,6 @@ fun Modifier.videoPlayerControls(
                                 totalDragX = 0f
                             }
                         }
-                    }
-                )
-            } else {
-                detectVerticalDragGestures(
-                    onDragEnd = {
-                        if (totalDragY > dragThreshold) {
-                            GlobalPlayerState.showMiniPlayer()
-                            currentOnBack()
-                        }
-                        totalDragY = 0f
-                    },
-                    onVerticalDrag = { change, dragAmount ->
-                        change.consume()
-                        totalDragY += dragAmount
                     }
                 )
             }

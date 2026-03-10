@@ -27,6 +27,7 @@ IMPROVEMENTS
 - Improved Algorithm fallback — Exclude Trending to avoid the Brainrot content
 - Added Bootstrap from subscriptions — Tokenize channels to improve recommendations on cold start
 - Refine UI interactions and Animation — Add on press scale modifier, thumbnail gradients and more...
+- Set Dark Theme as default
 
 FIXES AND STABILITY
 - Fix search screen crash — resolved issue when infinite scrolling through identical playlists
@@ -40,3 +41,4 @@ FIXES AND STABILITY
 - Fix PiP close button — tapping X on the PiP window now stops playback instead of leaving audio running in the background
 - Fix Playlist Download — added missing codec
 - Fix Download Deletion process 
+- Fix Fast-Forward and Seek issue for downloaded videos — Add better seek and forward signals for downloaded videos

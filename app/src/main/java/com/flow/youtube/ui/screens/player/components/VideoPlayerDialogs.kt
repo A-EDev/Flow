@@ -386,7 +386,7 @@ fun QualitySelectorDialog(
                     val isSelected = quality.height == currentQuality
                     Surface(
                         onClick = { onQualitySelected(quality.height); onDismiss() },
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -463,7 +463,7 @@ fun AudioTrackSelectorDialog(
                     val isSelected = index == currentAudioTrack
                     Surface(
                         onClick = { onTrackSelected(index); onDismiss() },
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -551,7 +551,7 @@ fun SubtitleSelectorDialog(
                     val isSelected = !subtitlesEnabled
                     Surface(
                         onClick = { onDisableSubtitles(); onDismiss() },
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -583,7 +583,7 @@ fun SubtitleSelectorDialog(
                     val isSelected = subtitle.url == selectedSubtitleUrl && subtitlesEnabled
                     Surface(
                         onClick = { onSubtitleSelected(index, subtitle.url); onDismiss() },
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -875,7 +875,7 @@ fun PlaybackSpeedSelectorDialog(
                     val isSelected = speed == currentSpeed
                     Surface(
                         onClick = { onSpeedSelected(speed); onDismiss() },
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
