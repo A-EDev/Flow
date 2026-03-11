@@ -34,10 +34,6 @@ import coil.compose.AsyncImage
 import com.flow.youtube.data.local.*
 import com.flow.youtube.data.local.SearchFilter
 import com.flow.youtube.data.local.SearchHistoryItem
-import com.flow.youtube.data.local.UploadDate
-import com.flow.youtube.data.local.Duration
-import com.flow.youtube.data.local.SortBy
-import com.flow.youtube.data.local.Feature
 import com.flow.youtube.data.local.ContentType
 import com.flow.youtube.data.model.*
 import com.flow.youtube.data.paging.SearchResultItem
@@ -66,7 +62,6 @@ fun SearchScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var isSearchFocused by remember { mutableStateOf(false) }
-    var showFilters by remember { mutableStateOf(false) }
     var isGridMode by remember { mutableStateOf(false) }
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
@@ -124,6 +119,25 @@ fun SearchScreen(
                     isSearchFocused = false
                     liveSuggestions = emptyList()
                     selectedTabIndex = 0
+                    
+                    val videoId = extractVideoId(searchQuery)
+                    if (videoId != null) {
+                        onVideoClick(
+                            Video(
+                                id = videoId,
+                                title = "Shared Video", 
+                                channelName = "Shared Video",
+                                channelId = "", 
+                                thumbnailUrl = "https://img.youtube.com/vi/$videoId/maxresdefault.jpg",
+                                duration = 0, 
+                                viewCount = 0L, 
+                                uploadDate = "",
+                                channelThumbnailUrl = ""
+                            )
+                        )
+                        return@SearchBarRow
+                    }
+
                     viewModel.search(searchQuery)
                 }
             },
@@ -132,25 +146,13 @@ fun SearchScreen(
                 liveSuggestions = emptyList()
                 viewModel.clearSearch()
             },
-            onFilterClick = { showFilters = !showFilters },
-            hasActiveFilters = uiState.filters != null && viewModel.hasActiveFilters(uiState.filters),
+            isGridMode = isGridMode,
+            onToggleGridMode = { isGridMode = !isGridMode },
             isSearchFocused = isSearchFocused,
             onFocusChange = { isSearchFocused = it },
             focusRequester = focusRequester,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
         )
-
-        AnimatedVisibility(
-            visible = showFilters,
-            enter = expandVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeIn(),
-            exit = shrinkVertically(spring(stiffness = Spring.StiffnessMediumLow)) + fadeOut()
-        ) {
-            SearchFiltersRow(
-                filters = uiState.filters,
-                onFiltersChange = { viewModel.updateFilters(it) },
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-        }
 
         AnimatedVisibility(
             visible = isSearchFocused && searchQuery.isNotEmpty() &&
@@ -167,7 +169,25 @@ fun SearchScreen(
                     isSearchFocused = false
                     liveSuggestions = emptyList()
                     selectedTabIndex = 0
-                    viewModel.search(s)
+                    
+                    val videoId = extractVideoId(s)
+                    if (videoId != null) {
+                        onVideoClick(
+                            Video(
+                                id = videoId,
+                                title = "Shared Video", 
+                                channelName = "Shared Video",
+                                channelId = "", 
+                                thumbnailUrl = "https://img.youtube.com/vi/$videoId/maxresdefault.jpg",
+                                duration = 0, 
+                                viewCount = 0L, 
+                                uploadDate = "",
+                                channelThumbnailUrl = ""
+                            )
+                        )
+                    } else {
+                        viewModel.search(s)
+                    }
                 },
                 onFillClick = { searchQuery = it },
                 modifier = Modifier.padding(horizontal = 16.dp)
@@ -187,9 +207,7 @@ fun SearchScreen(
             SearchTabRow(
                 selectedTabIndex = selectedTabIndex,
                 tabLabels = listOf("All", "Videos", "Channels", "Playlists"),
-                onTabSelected = { selectedTabIndex = it },
-                isGridMode = isGridMode,
-                onToggleGridMode = { isGridMode = !isGridMode }
+                onTabSelected = { selectedTabIndex = it }
             )
 
             val isInitialLoading = pagingItems.loadState.refresh is LoadState.Loading
@@ -216,14 +234,30 @@ fun SearchScreen(
     }
 }
 
+private fun extractVideoId(url: String): String? {
+    if (!url.contains("youtube.com") && !url.contains("youtu.be")) return null
+    val patterns = listOf(
+        Regex("v=([^&]+)"),
+        Regex("shorts/([^/?]+)"),
+        Regex("youtu.be/([^/?]+)"),
+        Regex("embed/([^/?]+)"),
+        Regex("v/([^/?]+)")
+    )
+    for (pattern in patterns) {
+        val match = pattern.find(url)
+        if (match != null) return match.groupValues[1]
+    }
+    return url.substringAfterLast("/").substringBefore("?").ifEmpty { null }
+}
+
 @Composable
 private fun SearchBarRow(
     query: String,
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     onClear: () -> Unit,
-    onFilterClick: () -> Unit,
-    hasActiveFilters: Boolean,
+    isGridMode: Boolean,
+    onToggleGridMode: () -> Unit,
     isSearchFocused: Boolean,
     onFocusChange: (Boolean) -> Unit,
     focusRequester: FocusRequester,
@@ -323,29 +357,16 @@ private fun SearchBarRow(
             modifier = Modifier
                 .size(52.dp)
                 .clip(CircleShape)
-                .background(
-                    if (hasActiveFilters) primary.copy(alpha = 0.15f)
-                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                )
-                .clickable(onClick = onFilterClick),
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                .clickable(onClick = onToggleGridMode),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                Icons.Filled.FilterList,
-                contentDescription = "Filters",
-                tint = if (hasActiveFilters) primary
-                else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(22.dp)
+                if (isGridMode) Icons.Outlined.ViewList else Icons.Outlined.GridView,
+                contentDescription = "Toggle view",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
             )
-            if (hasActiveFilters) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .background(primary, CircleShape)
-                        .align(Alignment.TopEnd)
-                        .offset((-12).dp, 12.dp)
-                )
-            }
         }
     }
 }
@@ -354,9 +375,7 @@ private fun SearchBarRow(
 private fun SearchTabRow(
     selectedTabIndex: Int,
     tabLabels: List<String>,
-    onTabSelected: (Int) -> Unit,
-    isGridMode: Boolean,
-    onToggleGridMode: () -> Unit
+    onTabSelected: (Int) -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -399,22 +418,6 @@ private fun SearchTabRow(
             }
         }
 
-        Spacer(Modifier.width(8.dp))
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                .clickable(onClick = onToggleGridMode),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                if (isGridMode) Icons.Outlined.ViewList else Icons.Outlined.GridView,
-                contentDescription = "Toggle view",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
-        }
     }
 }
 
@@ -1055,105 +1058,10 @@ private fun SearchErrorState(message: String, onRetry: () -> Unit) {
     }
 }
 
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SearchFiltersRow(
-    filters: SearchFilter?,
-    onFiltersChange: (SearchFilter) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val cur = filters ?: SearchFilter()
-    LazyRow(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        item {
-            var show by remember { mutableStateOf(false) }
-            Box {
-                FilterChip(cur.uploadDate != UploadDate.ANY, { show = true },
-                    label = { Text(cur.uploadDate.label()) },
-                    leadingIcon = { Icon(Icons.Outlined.CalendarToday, null, Modifier.size(16.dp)) })
-                DropdownMenu(show, { show = false }) {
-                    UploadDate.values().forEach { d ->
-                        DropdownMenuItem({ Text(d.label()) },
-                            { onFiltersChange(cur.copy(uploadDate = d)); show = false })
-                    }
-                }
-            }
-        }
-        item {
-            var show by remember { mutableStateOf(false) }
-            Box {
-                FilterChip(cur.duration != Duration.ANY, { show = true },
-                    label = { Text(cur.duration.label()) },
-                    leadingIcon = { Icon(Icons.Outlined.Timer, null, Modifier.size(16.dp)) })
-                DropdownMenu(show, { show = false }) {
-                    Duration.values().forEach { d ->
-                        DropdownMenuItem({ Text(d.label()) },
-                            { onFiltersChange(cur.copy(duration = d)); show = false })
-                    }
-                }
-            }
-        }
-        item {
-            var show by remember { mutableStateOf(false) }
-            Box {
-                FilterChip(cur.sortBy != SortBy.RELEVANCE, { show = true },
-                    label = { Text(cur.sortBy.label()) },
-                    leadingIcon = { Icon(Icons.Outlined.Sort, null, Modifier.size(16.dp)) })
-                DropdownMenu(show, { show = false }) {
-                    SortBy.values().forEach { s ->
-                        DropdownMenuItem({ Text(s.label()) },
-                            { onFiltersChange(cur.copy(sortBy = s)); show = false })
-                    }
-                }
-            }
-        }
-        item {
-            FilterChip(cur.features.contains(Feature.HD), {
-                onFiltersChange(cur.copy(features = cur.features.toggle(Feature.HD)))
-            }, label = { Text("HD") }, leadingIcon = { Icon(Icons.Outlined.HighQuality, null, Modifier.size(16.dp)) })
-        }
-        item {
-            FilterChip(cur.features.contains(Feature.FOUR_K), {
-                onFiltersChange(cur.copy(features = cur.features.toggle(Feature.FOUR_K)))
-            }, label = { Text("4K") }, leadingIcon = { Icon(Icons.Outlined.HighQuality, null, Modifier.size(16.dp)) })
-        }
-        item {
-            FilterChip(cur.features.contains(Feature.SUBTITLES), {
-                onFiltersChange(cur.copy(features = cur.features.toggle(Feature.SUBTITLES)))
-            }, label = { Text("Subtitles") }, leadingIcon = { Icon(Icons.Outlined.Subtitles, null, Modifier.size(16.dp)) })
-        }
-    }
-}
-
 @Composable
 private fun Dot() {
     Text("\u00B7", style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f))
-}
-
-private fun <T> Set<T>.toggle(item: T): Set<T> = if (contains(item)) this - item else this + item
-
-private fun UploadDate.label() = when (this) {
-    UploadDate.ANY -> "Date"
-    UploadDate.LAST_HOUR -> "Last hour"
-    UploadDate.TODAY -> "Today"
-    UploadDate.THIS_WEEK -> "This week"
-    UploadDate.THIS_MONTH -> "This month"
-    UploadDate.THIS_YEAR -> "This year"
-}
-
-private fun Duration.label() = when (this) {
-    Duration.ANY -> "Duration"
-    Duration.UNDER_4_MINUTES -> "< 4 min"
-    Duration.FOUR_TO_20_MINUTES -> "4\u201320 min"
-    Duration.OVER_20_MINUTES -> "> 20 min"
-}
-
-private fun SortBy.label() = when (this) {
-    SortBy.RELEVANCE -> "Sort"
-    SortBy.UPLOAD_DATE -> "Upload date"
-    SortBy.VIEW_COUNT -> "View count"
-    SortBy.RATING -> "Rating"
 }
 
 private fun formatSubs(count: Long): String = when {

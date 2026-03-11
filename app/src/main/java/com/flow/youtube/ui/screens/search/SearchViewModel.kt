@@ -7,10 +7,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.flow.youtube.data.local.ContentType
-import com.flow.youtube.data.local.Duration
 import com.flow.youtube.data.local.SearchFilter
-import com.flow.youtube.data.local.SortBy
-import com.flow.youtube.data.local.UploadDate
 import com.flow.youtube.data.paging.SearchPagingSource
 import com.flow.youtube.data.paging.SearchResultItem
 import com.flow.youtube.data.repository.YouTubeRepository
@@ -71,14 +68,14 @@ class SearchViewModel(
             return
         }
         _uiState.value = SearchUiState(query = query, filters = filters)
-        _searchKey.value = SearchKey(query, buildContentFilters(filters?.contentType))
+        _searchKey.value = SearchKey(query, buildContentFilters(filters))
     }
 
     fun updateFilters(filters: SearchFilter) {
         val currentQuery = _uiState.value.query
         _uiState.value = _uiState.value.copy(filters = filters)
         if (currentQuery.isNotBlank()) {
-            _searchKey.value = SearchKey(currentQuery, buildContentFilters(filters.contentType))
+            _searchKey.value = SearchKey(currentQuery, buildContentFilters(filters))
         }
     }
 
@@ -89,10 +86,7 @@ class SearchViewModel(
 
     fun hasActiveFilters(filters: SearchFilter?): Boolean {
         if (filters == null) return false
-        return filters.uploadDate != UploadDate.ANY ||
-                filters.duration != Duration.ANY ||
-                filters.sortBy != SortBy.RELEVANCE ||
-                filters.features.isNotEmpty()
+        return filters.contentType != ContentType.ALL
     }
 
     suspend fun getSearchSuggestions(query: String): List<String> {
@@ -106,11 +100,18 @@ class SearchViewModel(
 
     // ── helpers ───────────────────────────────────────────────────────────────
 
-    private fun buildContentFilters(contentType: ContentType?): List<String> = when (contentType) {
-        ContentType.VIDEOS -> listOf("videos")
-        ContentType.CHANNELS -> listOf("channels")
-        ContentType.PLAYLISTS -> listOf("playlists")
-        ContentType.ALL, null -> emptyList()
+    private fun buildContentFilters(filters: SearchFilter?): List<String> {
+        val list = mutableListOf<String>()
+        if (filters == null) return list
+        
+        when (filters.contentType) {
+            ContentType.VIDEOS -> list.add("videos")
+            ContentType.CHANNELS -> list.add("channels")
+            ContentType.PLAYLISTS -> list.add("playlists")
+            else -> {} 
+        }
+        
+        return list
     }
 }
 

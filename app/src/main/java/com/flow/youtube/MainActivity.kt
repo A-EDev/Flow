@@ -216,6 +216,14 @@ class MainActivity : ComponentActivity() {
                 _isDeeplinkShort.value = true
             }
             extractVideoId(urlString)
+        } else if (intent.action == Intent.ACTION_SEND && intent.type == "text/plain") {
+            val sharedText = intent.getStringExtra(Intent.EXTRA_TEXT)
+            if (sharedText != null) {
+                if (sharedText.contains("shorts/")) {
+                    _isDeeplinkShort.value = true
+                }
+                extractVideoId(sharedText)
+            } else null
         } else {
             notificationVideoId
         }

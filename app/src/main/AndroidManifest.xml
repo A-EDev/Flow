@@ -98,6 +98,13 @@
                 <data android:scheme="https" />
                 <data android:host="youtu.be" />
             </intent-filter>
+
+            <!-- Share Intent for text/plain -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
         </activity>
         
         <!-- Music Playback Service for notifications and media controls (Legacy) -->

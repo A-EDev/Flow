@@ -65,7 +65,7 @@ fun PersistentMiniMusicPlayer(
     LaunchedEffect(playerState.isPlaying) {
         if (playerState.isPlaying) {
             while (playerState.isPlaying) {
-                kotlinx.coroutines.delay(50)
+                kotlinx.coroutines.delay(250)
                 currentPosition = EnhancedMusicPlayerManager.getCurrentPosition()
             }
         }
@@ -137,7 +137,7 @@ fun PersistentMiniMusicPlayer(
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .blur(80.dp),
+                                .blur(40.dp),
                             contentScale = ContentScale.Crop,
                             alpha = 0.25f
                         )

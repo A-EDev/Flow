@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 1.9.0
-DATE: 2026-03-09
+DATE: 2026-03-11
 
 NEW FEATURES
 - Customizable Player Overlay — added settings to toggle visibility of Cast, CC, PiP, Autoplay, and Sleep Timer icons on the player
@@ -16,6 +16,8 @@ NEW FEATURES
 - Navigation Customization — added a toggle in Content Settings to show or hide the "Music" tab from the bottom navigation bar (similar to the Shorts tab)
 - Add a Settings Search Feature
 - Draggable Music Player — the music player is now a persistent bottom-sheet overlay. Drag it up to expand to full screen, drag down to collapse back to the mini player. Smooth spring animations and fling gestures throughout.
+- Add new share intent for videos
+- Add a open video from URL search
 
 IMPROVEMENTS
 - Improve thumbnail quality — higher resolution thumbnails are now automatically fetched for videos, channels, and playlists
@@ -32,6 +34,7 @@ IMPROVEMENTS
 - Music player full-screen view now respects the status bar with proper top padding for an immersive edge-to-edge look
 - Restored system-wide edge-to-edge display — the app now correctly maintains edge-to-edge after exiting video fullscreen mode
 - Improved Music player screen UI - Added more spacing, padding and bigger action button
+- Clear broken search filters
 
 FIXES AND STABILITY
 - Fix search screen crash — resolved issue when infinite scrolling through identical playlists
