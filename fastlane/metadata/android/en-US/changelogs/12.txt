@@ -1,0 +1,11 @@
+#New
+- 2D free-floating, customizable mini-player
+- Draggable bottom-sheet music player
+- Background playback toggle & auto-fullscreen
+- Settings search & open video via URL
+- Custom player overlay & countdown timer
+
+#Improved & Fixed
+- Edge-to-edge UI & Dark theme default
+- High-res thumbnails & better recommendations
+- Fixed search crashes, PiP background bug, download seeking, watch history resume, and much more!

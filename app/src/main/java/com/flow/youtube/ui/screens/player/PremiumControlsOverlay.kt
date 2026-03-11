@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -82,6 +83,8 @@ fun PremiumControlsOverlay(
     isLive: Boolean = false,
     onSleepTimerClick: () -> Unit = {},
     isSleepTimerActive: Boolean = false,
+    showRemainingTime: Boolean = false,
+    onToggleRemainingTime: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -152,7 +155,7 @@ fun PremiumControlsOverlay(
                     // Quality Label Pill
                     if (qualityLabel != null) {
                         Surface(
-                            color = Color.White.copy(alpha = 0.2f),
+                            color = Color.Black.copy(alpha = 0.3f),
                             shape = RoundedCornerShape(4.dp),
                             modifier = Modifier.clickable { onSettingsClick() }
                         ) {
@@ -378,58 +381,66 @@ fun PremiumControlsOverlay(
                         .align(Alignment.BottomCenter)
                         .background(
                             brush = Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f))
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
                             )
                         )
-                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                        .padding(horizontal = 14.dp, vertical = 0.dp)
                 ) {
-                // Time and Chapter (Unified Pill Shape)
-                Surface(
-                    color = Color.White.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.clip(RoundedCornerShape(12.dp))
+                // Duration and Chapter pills row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 0.dp),
+                    horizontalArrangement = Arrangement.Start,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
+                    // Time Pill
+                    Surface(
+                        color = Color.Black.copy(alpha = 0.3f),
+                        shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
-                            .wrapContentWidth()
-                            .padding(horizontal = 12.dp, vertical = 4.dp),
-                        horizontalArrangement = Arrangement.Start,
-                        verticalAlignment = Alignment.CenterVertically
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onToggleRemainingTime() }
                     ) {
-                        if (isLive) {
-                            val dotAlpha by rememberInfiniteTransition(label = "liveDot").animateFloat(
-                                initialValue = 1f,
-                                targetValue = 0.2f,
-                                animationSpec = infiniteRepeatable(
-                                    animation = tween(800, easing = LinearEasing),
-                                    repeatMode = RepeatMode.Reverse
-                                ),
-                                label = "dotAlpha"
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Red.copy(alpha = dotAlpha))
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
+                        Row(
+                            modifier = Modifier
+                                .wrapContentWidth()
+                                .padding(horizontal = 12.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.Start,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (isLive) {
+                                val dotAlpha by rememberInfiniteTransition(label = "liveDot").animateFloat(
+                                    initialValue = 1f,
+                                    targetValue = 0.2f,
+                                    animationSpec = infiniteRepeatable(
+                                        animation = tween(800, easing = LinearEasing),
+                                        repeatMode = RepeatMode.Reverse
+                                    ),
+                                    label = "dotAlpha"
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Red.copy(alpha = dotAlpha))
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = stringResource(R.string.player_live_label),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color.Red,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = 1.sp
+                                )
+                            } else {
                             Text(
-                                text = stringResource(R.string.player_live_label),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = Color.Red,
-                                fontWeight = FontWeight.ExtraBold,
-                                letterSpacing = 1.sp
-                            )
-                        } else {
-                            // Current Position
-                            Text(
-                                text = formatTime(currentPosition),
+                                text = if (showRemainingTime) "-${formatTime((duration - currentPosition).coerceAtLeast(0))}" else formatTime(currentPosition),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
                             )
                             
-                            // Separator
                             Text(
                                 text = " / ",
                                 style = MaterialTheme.typography.labelMedium,
@@ -443,24 +454,26 @@ fun PremiumControlsOverlay(
                                 style = MaterialTheme.typography.labelMedium,
                                 color = Color.White.copy(alpha = 0.7f)
                             )
+                            }
                         }
+                    }
+
+                    // Chapter Display Pill
+                    if (currentChapter != null) {
+                        Spacer(modifier = Modifier.width(6.dp))
                         
-                        // Chapter Display (If available)
-                        if (currentChapter != null) {
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.3f),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { onChapterClick() }
+                        ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
-                                    .padding(start = 12.dp)
-                                    .clickable { onChapterClick() }
+                                    .padding(horizontal = 12.dp, vertical = 4.dp)
                             ) {
-                                // Tiny dot separator
-                                Box(
-                                    modifier = Modifier
-                                        .size(4.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White.copy(alpha = 0.4f))
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))                               
                                 Text(
                                     text = currentChapter.title,
                                     style = MaterialTheme.typography.labelSmall,
@@ -480,59 +493,50 @@ fun PremiumControlsOverlay(
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // Seekbar and Screen Size Controls
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Box(modifier = Modifier.weight(1f)) {
-                        if (isLive) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(3.dp)
-                                    .clip(RoundedCornerShape(2.dp))
-                                    .background(Color.Red)
-                            )
-                        } else {
-                            SeekbarWithPreview(
-                                value = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
-                                onValueChange = { progress ->
-                                    val newPosition = (progress * duration).toLong()
-                                    onSeek(newPosition)
-                                },
-                                seekbarPreviewHelper = seekbarPreviewHelper,
-                                chapters = chapters,
-                                sponsorSegments = sponsorSegments,
-                                duration = duration,
-                                bufferedValue = bufferedPercentage,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-
-                    // Fullscreen Button
-                    IconButton(
-                        onClick = onFullscreenClick,
-                        modifier = Modifier.size(36.dp)
+                    Spacer(modifier = Modifier.weight(1f))
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clickable(onClick = onFullscreenClick),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (isFullscreen) Icons.Rounded.FullscreenExit else Icons.Rounded.Fullscreen,
                             contentDescription = stringResource(R.string.fullscreen),
                             tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
-            }
-        }
-    }
-    }
+
+                if (isLive) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(Color.Red)
+                    )
+                } else {
+                    SeekbarWithPreview(
+                        value = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
+                        onValueChange = { progress ->
+                            val newPosition = (progress * duration).toLong()
+                            onSeek(newPosition)
+                        },
+                        seekbarPreviewHelper = seekbarPreviewHelper,
+                        chapters = chapters,
+                        sponsorSegments = sponsorSegments,
+                        duration = duration,
+                        bufferedValue = bufferedPercentage,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            } 
+        } 
+        } 
+    } 
 }
 
 @Composable

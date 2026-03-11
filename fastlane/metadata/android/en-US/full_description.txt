@@ -9,6 +9,7 @@ Features:
 - Background audio and Picture-in-Picture (PiP) video playback
 - Built-in SponsorBlock to automatically skip sponsored segments
 - Built-in DeArrow to replace clickbait titles and thumbnails
+- Built-in Return YouTube Dislike (RYD)
 - Download videos and audio for offline playback
 - Dedicated music player with synchronized live lyrics
 - Import subscriptions, playlists and history from YouTube, NewPipe and LibreTube
@@ -18,6 +19,5 @@ Features:
 - Adjust audio pitch and playback speed
 - Local playlist and queue management
 - Swipe gesture controls for volume and brightness
-- 11+ different app themes including pure OLED black
 - Modern Material 3 interface
 - Export and backup your local algorithm data

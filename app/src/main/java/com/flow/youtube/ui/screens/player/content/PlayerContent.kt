@@ -11,6 +11,10 @@ import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -193,6 +197,7 @@ fun PlayerContent(
         }
         
         // Custom Controls Overlay
+        var showRemainingTime by rememberSaveable { mutableStateOf(false) }
         PremiumControlsOverlay(
             isVisible = screenState.showControls && !screenState.isInPipMode,
             isPlaying = playerState.isPlaying,
@@ -288,7 +293,9 @@ fun PlayerContent(
             isCasting = com.flow.youtube.player.CastHelper.isCasting(context),
             isLive = !uiState.hlsUrl.isNullOrEmpty(),
             onSleepTimerClick = { screenState.showSleepTimerSheet = true },
-            isSleepTimerActive = com.flow.youtube.player.SleepTimerManager.isActive
+            isSleepTimerActive = com.flow.youtube.player.SleepTimerManager.isActive,
+            showRemainingTime = showRemainingTime,
+            onToggleRemainingTime = { showRemainingTime = !showRemainingTime }
         )
     }
 }

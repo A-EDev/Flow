@@ -18,6 +18,7 @@ NEW FEATURES
 - Draggable Music Player — the music player is now a persistent bottom-sheet overlay. Drag it up to expand to full screen, drag down to collapse back to the mini player. Smooth spring animations and fling gestures throughout.
 - Add new share intent for videos
 - Add a open video from URL search
+- Add a new Countdown timer — Clicking on the video duration pill will change it to a countdown
 
 IMPROVEMENTS
 - Improve thumbnail quality — higher resolution thumbnails are now automatically fetched for videos, channels, and playlists
@@ -35,6 +36,7 @@ IMPROVEMENTS
 - Restored system-wide edge-to-edge display — the app now correctly maintains edge-to-edge after exiting video fullscreen mode
 - Improved Music player screen UI - Added more spacing, padding and bigger action button
 - Clear broken search filters
+- Improved Video Player UI — reduced spacing and made it more compact for a cleaner look
 
 FIXES AND STABILITY
 - Fix search screen crash — resolved issue when infinite scrolling through identical playlists

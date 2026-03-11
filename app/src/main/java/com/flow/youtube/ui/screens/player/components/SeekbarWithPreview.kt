@@ -149,7 +149,7 @@ fun SeekbarWithPreview(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .height(32.dp)
             .onGloballyPositioned { coordinates ->
                 sliderWidth = coordinates.size.width.toFloat()
             },

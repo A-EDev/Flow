@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -539,6 +540,7 @@ fun GlobalPlayerOverlay(
                         }
                         
                         // Controls overlay - fully expanded only
+                        var showRemainingTime by rememberSaveable { mutableStateOf(false) }
                         if (!isMinimized && screenState.showControls) {
                             PremiumControlsOverlay(
                                 isVisible = true,
@@ -653,7 +655,9 @@ fun GlobalPlayerOverlay(
                                 isCasting = DlnaCastManager.isCasting,
                                 isLive = !playerUiState.hlsUrl.isNullOrEmpty(),
                                 onSleepTimerClick = { screenState.showSleepTimerSheet = true },
-                                isSleepTimerActive = com.flow.youtube.player.SleepTimerManager.isActive
+                                isSleepTimerActive = com.flow.youtube.player.SleepTimerManager.isActive,
+                                showRemainingTime = showRemainingTime,
+                                onToggleRemainingTime = { showRemainingTime = !showRemainingTime }
                             )
                         }
                     }
