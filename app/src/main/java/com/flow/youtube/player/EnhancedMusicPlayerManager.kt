@@ -448,7 +448,12 @@ object EnhancedMusicPlayerManager {
                 savedState.queue.find { it.videoId == id }
             } ?: savedState.queue.getOrNull(savedState.currentIndex)
             
-            currentTrack?.let { _currentTrack.value = it }
+            currentTrack?.let {
+                _currentTrack.value = it
+                if (it.duration > 0) {
+                    _playerState.value = _playerState.value.copy(duration = it.duration * 1000L)
+                }
+            }
             
         } catch (e: Exception) {
             Log.e("EnhancedMusicPlayer", "Failed to restore queue", e)
@@ -481,8 +486,16 @@ object EnhancedMusicPlayerManager {
 
     fun togglePlayPause() {
         scope.launch {
-            player?.let {
-                if (it.isPlaying) it.pause() else it.play()
+            player?.let { p ->
+                if (p.mediaItemCount == 0 && _currentTrack.value != null) {
+                    _currentTrack.value?.let { track ->
+                        _playerEvents.emit(PlayerEvent.RequestPlayTrack(track))
+                    }
+                } else if (p.isPlaying) {
+                    p.pause()
+                } else {
+                    p.play()
+                }
             }
         }
     }

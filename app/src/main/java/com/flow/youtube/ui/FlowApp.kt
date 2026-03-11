@@ -30,9 +30,13 @@ import com.flow.youtube.player.EnhancedMusicPlayerManager
 import com.flow.youtube.player.EnhancedPlayerManager
 import com.flow.youtube.player.GlobalPlayerState
 import com.flow.youtube.ui.components.FloatingBottomNavBar
+import com.flow.youtube.ui.components.MusicPlayerBottomSheet
+import com.flow.youtube.ui.components.MusicPlayerSheetState
 import com.flow.youtube.ui.components.PersistentMiniMusicPlayer
+import com.flow.youtube.ui.components.rememberMusicPlayerSheetState
 import com.flow.youtube.ui.components.PlayerSheetValue
 import com.flow.youtube.ui.components.rememberPlayerDraggableState
+import com.flow.youtube.ui.screens.music.EnhancedMusicPlayerScreen
 import com.flow.youtube.ui.screens.player.VideoPlayerViewModel
 import com.flow.youtube.ui.theme.ThemeMode
 
@@ -115,6 +119,13 @@ fun FlowApp(
         val playerSheetState = rememberPlayerDraggableState()
         val playerVisibleState = remember { mutableStateOf(false) }
         var playerVisible by playerVisibleState
+
+        // ── Music player sheet state ─────────────────────────────────────────
+        val miniPlayerHeightDp = 80.dp
+        val musicPlayerSheetState = rememberMusicPlayerSheetState(
+            expandedBound = with(density) { screenHeightPx.toDp() },
+            collapsedBound = miniPlayerHeightDp,
+        )
     
     val activeVideo = playerUiState.cachedVideo ?: playerUiState.streamInfo?.let { streamInfo ->
         Video(
@@ -157,6 +168,22 @@ fun FlowApp(
         if (currentMusicTrack != null && (musicPlayerState.isPlaying || musicPlayerState.isBuffering || musicPlayerState.isPreparing)) {
             playerViewModel.clearVideo()
             playerVisible = false
+        }
+    }
+
+    LaunchedEffect(currentMusicTrack) {
+        if (currentMusicTrack != null && musicPlayerSheetState.isDismissed) {
+            musicPlayerSheetState.collapse()
+        } else if (currentMusicTrack == null) {
+            musicPlayerSheetState.dismiss()
+        }
+    }
+
+    LaunchedEffect(musicPlayerSheetState.isExpanded) {
+        if (musicPlayerSheetState.isExpanded) {
+            showBottomNav.value = false
+        } else if (!musicPlayerSheetState.isDismissed && playerSheetState.currentValue != PlayerSheetValue.Expanded) {
+            showBottomNav.value = true
         }
     }
 
@@ -222,6 +249,7 @@ fun FlowApp(
                             showBottomNav = showBottomNav,
                             selectedBottomNavIndex = selectedBottomNavIndex,
                             playerSheetState = playerSheetState,
+                            musicPlayerSheetState = musicPlayerSheetState,
                             playerViewModel = playerViewModel,
                             playerUiStateResult = playerUiStateResult,
                             playerVisibleState = playerVisibleState,
@@ -323,25 +351,42 @@ fun FlowApp(
     )
     
     // ===== GLOBAL MUSIC PLAYER OVERLAY =====
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(bottom = animatedBottomPadding),
-        contentAlignment = Alignment.BottomCenter
+    if (currentMusicTrack != null &&
+        playerUiState.cachedVideo == null &&
+        playerUiState.streamInfo == null
     ) {
-        if (currentMusicTrack != null && !currentRoute.value.startsWith("musicPlayer") && playerUiState.cachedVideo == null && playerUiState.streamInfo == null) {
-            PersistentMiniMusicPlayer(
-                onExpandClick = {
-                    currentMusicTrack?.let { track ->
-                        navController.navigate("musicPlayer/${track.videoId}")
+        MusicPlayerBottomSheet(
+            state = musicPlayerSheetState,
+            bottomPadding = animatedBottomPadding,
+            onDismiss = {
+                EnhancedMusicPlayerManager.stop()
+                EnhancedMusicPlayerManager.clearCurrentTrack()
+            },
+            collapsedContent = {
+                PersistentMiniMusicPlayer(
+                    onExpandClick = { musicPlayerSheetState.expand() },
+                    onDismiss = {
+                        EnhancedMusicPlayerManager.stop()
+                        EnhancedMusicPlayerManager.clearCurrentTrack()
+                        musicPlayerSheetState.dismiss()
                     }
-                },
-                onDismiss = {
-                    EnhancedMusicPlayerManager.stop()
-                    EnhancedMusicPlayerManager.clearCurrentTrack()
-                }
-            )
-        }
+                )
+            },
+            expandedContent = {
+                EnhancedMusicPlayerScreen(
+                    track = currentMusicTrack!!,
+                    onBackClick = { musicPlayerSheetState.collapse() },
+                    onArtistClick = { channelId ->
+                        musicPlayerSheetState.collapse()
+                        navController.navigate("artist/$channelId")
+                    },
+                    onAlbumClick = { albumId ->
+                        musicPlayerSheetState.collapse()
+                        navController.navigate("album/$albumId")
+                    },
+                )
+            }
+        )
     }
   } 
 }

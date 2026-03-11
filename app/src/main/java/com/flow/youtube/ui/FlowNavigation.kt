@@ -19,6 +19,7 @@ import com.flow.youtube.player.EnhancedMusicPlayerManager
 import com.flow.youtube.player.GlobalPlayerState
 import com.flow.youtube.ui.components.PlayerSheetValue
 import com.flow.youtube.ui.components.PlayerDraggableState
+import com.flow.youtube.ui.components.MusicPlayerSheetState
 import com.flow.youtube.ui.screens.home.HomeScreen
 import com.flow.youtube.ui.screens.history.HistoryScreen
 import com.flow.youtube.ui.screens.library.LibraryScreen
@@ -28,7 +29,6 @@ import com.flow.youtube.ui.screens.playlists.PlaylistsScreen
 import com.flow.youtube.ui.screens.playlists.PlaylistDetailScreen
 import com.flow.youtube.ui.screens.notifications.NotificationScreen
 import com.flow.youtube.ui.screens.music.EnhancedMusicScreen
-import com.flow.youtube.ui.screens.music.EnhancedMusicPlayerScreen
 import com.flow.youtube.ui.screens.music.MusicTrack
 import com.flow.youtube.ui.screens.music.MusicPlayerViewModel
 import com.flow.youtube.ui.screens.music.ArtistPage
@@ -54,6 +54,7 @@ fun NavGraphBuilder.flowAppGraph(
     showBottomNav: MutableState<Boolean>,
     selectedBottomNavIndex: MutableIntState,
     playerSheetState: PlayerDraggableState,
+    musicPlayerSheetState: MusicPlayerSheetState,
     playerViewModel: VideoPlayerViewModel,
     playerUiStateResult: State<VideoPlayerUiState>, 
     playerVisibleState: MutableState<Boolean>, 
@@ -914,7 +915,7 @@ fun NavGraphBuilder.flowAppGraph(
         }
     }
 
-    // Music Player Screen - Enhanced
+    // Music Player Screen - now a global draggable overlay.
     composable(
         route = "musicPlayer/{trackId}?title={title}&artist={artist}&thumbnailUrl={thumbnailUrl}",
         arguments = listOf(
@@ -926,34 +927,11 @@ fun NavGraphBuilder.flowAppGraph(
     ) { backStackEntry ->
         currentRoute.value = "musicPlayer"
         showBottomNav.value = false
-        
-        val trackId = backStackEntry.arguments?.getString("trackId") ?: ""
-        val title = backStackEntry.arguments?.getString("title") ?: ""
-        val artist = backStackEntry.arguments?.getString("artist") ?: ""
-        val thumbnailUrl = backStackEntry.arguments?.getString("thumbnailUrl") ?: ""
-        
-        val managerTrack = EnhancedMusicPlayerManager.currentTrack.value
-        
-        val track = if (managerTrack?.videoId == trackId) {
-            managerTrack
-        } else {
-            MusicTrack(
-                videoId = trackId,
-                title = title,
-                artist = artist,
-                thumbnailUrl = thumbnailUrl,
-                duration = 0,
-                sourceUrl = ""
-            )
+
+        LaunchedEffect(Unit) {
+            musicPlayerSheetState.expand()
+            navController.popBackStack()
         }
-        
-        EnhancedMusicPlayerScreen(
-            track = track,
-            onBackClick = { navController.popBackStack() },
-            onArtistClick = { channelId ->
-                navController.navigate("artist/$channelId")
-            }
-        )
     }
 
     composable(

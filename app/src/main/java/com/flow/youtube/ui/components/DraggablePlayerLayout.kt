@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -26,11 +27,13 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -127,6 +130,7 @@ fun DraggablePlayerLayout(
     miniControls: @Composable (Float) -> Unit,
     progress: Float,
     isFullscreen: Boolean,
+    thumbnailUrl: String? = null,
     bottomPadding: Dp = 0.dp,
     miniPlayerScale: Float = 0.45f,
     onDismiss: () -> Unit = {},
@@ -158,6 +162,22 @@ fun DraggablePlayerLayout(
                     .fillMaxSize()
                     .background(Color.Black)
             ) {
+                if (!thumbnailUrl.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = thumbnailUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blur(60.dp),
+                        contentScale = ContentScale.Crop,
+                        alpha = 0.65f
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.45f))
+                    )
+                }
                 videoContent(Modifier.fillMaxSize())
             }
             return@BoxWithConstraints

@@ -70,7 +70,7 @@ fun PlayerArtwork(
             )
         } else {
             AsyncImage(
-                model = thumbnailUrl?.replace("w120-h120", "w1000-h1000"),
+                model = thumbnailUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit

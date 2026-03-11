@@ -74,7 +74,7 @@ fun PlayerPlaybackControls(
             contentDescription = stringResource(R.string.shuffle),
             onClick = onShuffleToggle,
             isActive = shuffleEnabled,
-            size = 24.dp,
+            size = 28.dp,
             activeColor = Color.White,
             inactiveColor = Color.White.copy(alpha = 0.4f)
         )
@@ -84,7 +84,7 @@ fun PlayerPlaybackControls(
             icon = Icons.Rounded.SkipPrevious,
             contentDescription = stringResource(R.string.previous),
             onClick = onPreviousClick,
-            size = 36.dp
+            size = 40.dp
         )
 
         // Play/Pause
@@ -99,7 +99,7 @@ fun PlayerPlaybackControls(
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
-                .size(72.dp)
+                .size(78.dp)
                 .graphicsLayer {
                     scaleX = scale
                     scaleY = scale
@@ -130,7 +130,7 @@ fun PlayerPlaybackControls(
                     imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = if (isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
                     tint = Color.Black,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(58.dp)
                 )
             }
         }
@@ -140,7 +140,7 @@ fun PlayerPlaybackControls(
             icon = Icons.Rounded.SkipNext,
             contentDescription = stringResource(R.string.next),
             onClick = onNextClick,
-            size = 36.dp
+            size = 40.dp
         )
 
         // Repeat
@@ -153,7 +153,7 @@ fun PlayerPlaybackControls(
             contentDescription = stringResource(R.string.repeat),
             onClick = onRepeatToggle,
             isActive = repeatMode != RepeatMode.OFF,
-            size = 24.dp,
+            size = 28.dp,
             activeColor = Color.White,
             inactiveColor = Color.White.copy(alpha = 0.4f)
         )

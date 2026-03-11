@@ -1,33 +1,39 @@
 package com.flow.youtube.ui.screens.music
 
 
-import androidx.compose.ui.draw.alpha
 import android.content.Intent
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -36,6 +42,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.min
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
@@ -47,12 +55,10 @@ import com.flow.youtube.player.EnhancedMusicPlayerManager
 import com.flow.youtube.player.SleepTimerManager
 import com.flow.youtube.ui.components.SleepTimerSheet
 import com.flow.youtube.ui.screens.music.player.*
-import com.flow.youtube.ui.components.MusicQuickActionsSheet 
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Download
-import androidx.compose.material.icons.rounded.PlaylistAdd
-import androidx.compose.material.icons.rounded.Share
+import com.flow.youtube.ui.components.MusicQuickActionsSheet
 import androidx.compose.foundation.clickable
+
+private val PlayerHorizontalPadding = 32.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,6 +72,7 @@ fun EnhancedMusicPlayerScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
     
     val isVideoMode = false 
     var showMoreOptions by remember { mutableStateOf(false) }
@@ -74,6 +81,7 @@ fun EnhancedMusicPlayerScreen(
     var showSleepTimer by remember { mutableStateOf(false) }
     var skipDirection by remember { mutableStateOf<SkipDirection?>(null) }
 
+    // ── Sleep Timer ──────────────────────────────────────────────────────
     LaunchedEffect(Unit) {
         SleepTimerManager.attachToPlayer(
             player = EnhancedMusicPlayerManager.player
@@ -89,13 +97,12 @@ fun EnhancedMusicPlayerScreen(
         }
     }
     
-    // Unified Sheet State
+    // ── Unified Sheet State ──────────────────────────────────────────────
     var currentTab by remember { mutableStateOf(PlayerTab.UP_NEXT) }
     
-    // Drag State - initialized lazily inside BoxWithConstraints
-    val density = LocalDensity.current
-    val peekHeight = with(density) { 60.dp.toPx() }
+    val queuePeekHeight = 64.dp
     
+    // ── Dialogs & Sheets ─────────────────────────────────────────────────
     if (uiState.showCreatePlaylistDialog) {
         CreatePlaylistDialog(
             onDismiss = { viewModel.showCreatePlaylistDialog(false) },
@@ -183,350 +190,339 @@ fun EnhancedMusicPlayerScreen(
             delay(100)
         }
     }
-    
+
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(Color.Black)
     ) {
-        val navBarInsets = WindowInsets.navigationBars.asPaddingValues()
-        val maxHeight = constraints.maxHeight.toFloat()
-        val navBarHeightPx = with(density) { navBarInsets.calculateBottomPadding().toPx() }
-        
-        val collapsedY = maxHeight - peekHeight - navBarHeightPx
-        val expandedY = with(density) { 100.dp.toPx() }
-        
-        var dragOffsetY by remember(collapsedY) { mutableFloatStateOf(collapsedY) }
-        
-        val sheetOffset = dragOffsetY.coerceIn(expandedY, collapsedY)
+        val screenWidth = maxWidth
+        val screenHeight = maxHeight
+        val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val navBarPx = with(density) { navBarPadding.toPx() }
 
-        val draggableState = rememberDraggableState { delta ->
-             val newOffset = (dragOffsetY + delta).coerceIn(expandedY, collapsedY)
-             dragOffsetY = newOffset
-        }
-        
-        val dragFraction = if (collapsedY != expandedY) {
-            (1f - ((sheetOffset - expandedY) / (collapsedY - expandedY))).coerceIn(0f, 1f)
+        val reservedHeight = statusBarPadding + 56.dp + 60.dp + 40.dp + 72.dp + 84.dp + queuePeekHeight + navBarPadding
+        val availableForArtwork = screenHeight - reservedHeight
+        val artworkMaxWidth = screenWidth - (PlayerHorizontalPadding * 2)
+        val artworkSize = min(availableForArtwork, artworkMaxWidth).coerceAtLeast(120.dp)
+
+        val maxHeightPx = constraints.maxHeight.toFloat()
+        val queuePeekPx = with(density) { queuePeekHeight.toPx() }
+        val queueCollapsedY = maxHeightPx - queuePeekPx - navBarPx
+        val queueExpandedY = with(density) { (statusBarPadding + 72.dp).toPx() }
+        val safeCollapsedY = queueCollapsedY.coerceAtLeast(queueExpandedY)
+
+        var queueOffsetY by remember(safeCollapsedY) { mutableFloatStateOf(safeCollapsedY) }
+        val clampedQueueOffset = queueOffsetY.coerceIn(queueExpandedY, safeCollapsedY)
+
+        val queueFraction = if (safeCollapsedY != queueExpandedY) {
+            (1f - ((clampedQueueOffset - queueExpandedY) / (safeCollapsedY - queueExpandedY))).coerceIn(0f, 1f)
         } else 0f
+
+        val mainAlpha = (1f - (queueFraction / 0.4f)).coerceIn(0f, 1f)
+        val artworkScale = 1f - (queueFraction * 0.10f)
         
-        // --- Animations ---
-        // Alpha for Main Content
-        val mainContentAlpha = (1f - (dragFraction / 0.6f)).coerceIn(0f, 1f)
-        
-        // Scale for Main Artwork
-        val mainArtworkScale = 1f - (dragFraction * 0.2f)
-        
-        // Mini Player Header
-        val miniPlayerProgress = ((dragFraction - 0.6f) / 0.4f).coerceIn(0f, 1f)
-        val miniPlayerAlpha = miniPlayerProgress
-        val miniPlayerTranslationY = with(density) { 20.dp.toPx() * (1f - miniPlayerProgress) }
-        
-        
-        // Blurred background
-        AsyncImage(
-            model = uiState.currentTrack?.thumbnailUrl,
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .blur(120.dp),
-            alpha = 0.65f,
-            contentScale = ContentScale.Crop
-        )
-        
+        val miniHeaderAlpha = ((queueFraction - 0.5f) / 0.5f).coerceIn(0f, 1f)
+        val miniHeaderTranslation = with(density) { 10.dp.toPx() * (1f - miniHeaderAlpha) }
+
+        AnimatedContent(
+            targetState = uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl,
+            transitionSpec = { fadeIn(tween(800)) togetherWith fadeOut(tween(800)) },
+            label = "bgArt"
+        ) { thumbnailUrl ->
+            AsyncImage(
+                model = thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(150.dp),
+                alpha = 0.55f,
+                contentScale = ContentScale.Crop
+            )
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.5f),
-                            Color.Black.copy(alpha = 0.3f),
-                            Color.Black.copy(alpha = 0.7f),
-                            Color.Black.copy(alpha = 0.95f),
-                            Color.Black
+                        colorStops = arrayOf(
+                            0.00f to Color.Black.copy(alpha = 0.40f),
+                            0.30f to Color.Black.copy(alpha = 0.20f),
+                            0.55f to Color.Black.copy(alpha = 0.40f),
+                            0.80f to Color.Black.copy(alpha = 0.80f),
+                            1.00f to Color.Black.copy(alpha = 0.95f)
                         )
                     )
                 )
         )
-       
+
+        // ══════════════════════════════════════════════════════════
+        //  MAIN PLAYER CONTENT
+        // ══════════════════════════════════════════════════════════
         Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .fillMaxSize()
-                .navigationBarsPadding()
+                .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .graphicsLayer { alpha = mainAlpha }
         ) {
-             // Top bar
+            // ── Top Bar ──
+            PlayerTopBar(
+                playingFrom = uiState.playingFrom,
+                onBackClick = onBackClick,
+                onSleepTimerClick = { showSleepTimer = true },
+                onMoreOptionsClick = { showMoreOptions = true }
+            )
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // ── Artwork ──
             Box(
+                contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .graphicsLayer { alpha = mainContentAlpha }
+                    .fillMaxWidth()
+                    .padding(horizontal = PlayerHorizontalPadding)
             ) {
-                PlayerTopBar(
-                    playingFrom = uiState.playingFrom,
-                    onBackClick = onBackClick,
-                    onSleepTimerClick = { showSleepTimer = true },
-                    onMoreOptionsClick = { showMoreOptions = true }
-                )
-            }
-            
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp)
-                    .graphicsLayer { alpha = mainContentAlpha } 
-            ) {
-                 val artworkContent: @Composable (Modifier) -> Unit = { modifier ->
+                Box(
+                    modifier = Modifier
+                        .size(artworkSize)
+                        .graphicsLayer {
+                            scaleX = artworkScale
+                            scaleY = artworkScale
+                        }
+                        .shadow(
+                            elevation = if (uiState.isPlaying) 32.dp else 12.dp,
+                            shape = RoundedCornerShape(8.dp),
+                            ambientColor = Color.Black.copy(alpha = 0.5f),
+                            spotColor = Color.Black.copy(alpha = 0.6f)
+                        )
+                        .clip(RoundedCornerShape(8.dp))
+                ) {
                     PlayerArtwork(
-                        thumbnailUrl = (uiState.currentTrack?.thumbnailUrl ?: track.thumbnailUrl),
+                        thumbnailUrl = (uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl),
                         isVideoMode = isVideoMode,
                         isLoading = uiState.isLoading,
                         player = EnhancedMusicPlayerManager.player,
-                        onSkipPrevious = { 
+                        onSkipPrevious = {
                             viewModel.skipToPrevious()
-                            skipDirection = SkipDirection.PREVIOUS 
+                            skipDirection = SkipDirection.PREVIOUS
                         },
-                        onSkipNext = { 
-                            viewModel.skipToNext() 
+                        onSkipNext = {
+                            viewModel.skipToNext()
                             skipDirection = SkipDirection.NEXT
                         },
-                        modifier = modifier
+                        modifier = Modifier.fillMaxSize()
                     )
-                }
-
-                val boxConstraints = this@BoxWithConstraints.constraints
-                val boxMaxWidth = this@BoxWithConstraints.maxWidth
-                val boxMaxHeight = this@BoxWithConstraints.maxHeight
-                
-                val contentModifier = if (boxMaxWidth > 600.dp) {
-                     Modifier.width(600.dp)
-                } else {
-                     Modifier.fillMaxWidth()
-                }
-                
-                // Artwork Sizing
-                val maxArtworkHeightDp = boxMaxHeight * 0.45f 
-                val artworkSize = if (boxMaxWidth > maxArtworkHeightDp) maxArtworkHeightDp else boxMaxWidth
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .then(contentModifier)
-                        .verticalScroll(rememberScrollState())
-                        .padding(bottom = with(density) { peekHeight.toDp() + 16.dp }),
-                    verticalArrangement = Arrangement.Top,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Spacer(modifier = Modifier.height(8.dp)) 
-                    
-                    Box(
-                        modifier = Modifier
-                            .size(artworkSize)
-                            .aspectRatio(1f)
-                            .graphicsLayer {
-                                this.scaleX = mainArtworkScale
-                                this.scaleY = mainArtworkScale
-                            }
-                            .shadow(
-                                elevation = if (uiState.isPlaying) 32.dp else 12.dp,
-                                shape = RoundedCornerShape(24.dp),
-                                spotColor = Color.White.copy(alpha = 0.1f)
-                            )
-                            .clip(RoundedCornerShape(24.dp))
-                    ) {
-                        artworkContent(Modifier.fillMaxSize())
-                    }
-                    
-                    Spacer(modifier = Modifier.height(36.dp))
-                    
-                    // Title and Artist Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f).padding(end = 16.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = uiState.currentTrack?.title ?: track.title,
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
-                                )
-                                
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = uiState.currentTrack?.artist ?: track.artist,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = Color.White.copy(alpha = 0.8f),
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier
-                                    .clickable {
-                                        uiState.currentTrack?.channelId?.takeIf { it.isNotEmpty() }?.let { onArtistClick(it) }
-                                    }
-                            )
-                        }
-                        
-                        PlayerMainActionButtons(
-                            isLiked = uiState.isLiked,
-                            isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId),
-                            onLikeClick = { viewModel.toggleLike() },
-                            onDownloadClick = { viewModel.downloadTrack() },
-                            onAddToPlaylist = { viewModel.showAddToPlaylistDialog(true) }
-                        )
-                    }
-        
-                    Spacer(modifier = Modifier.height(40.dp))
-
-                    // Seekbar
-                    PlayerProgressSlider(
-                        currentPosition = uiState.currentPosition,
-                        duration = uiState.duration,
-                        onSeekTo = { viewModel.seekTo(it) },
-                        isPlaying = uiState.isPlaying
-                    )
-                
-                    Spacer(modifier = Modifier.height(36.dp)) 
-
-                    // Playback Controls
-                    PlayerPlaybackControls(
-                        isPlaying = uiState.isPlaying,
-                        isBuffering = uiState.isBuffering,
-                        shuffleEnabled = uiState.shuffleEnabled,
-                        repeatMode = uiState.repeatMode,
-                        onShuffleToggle = { viewModel.toggleShuffle() },
-                        onPreviousClick = { viewModel.skipToPrevious() },
-                        onPlayPauseToggle = { viewModel.togglePlayPause() },
-                        onNextClick = { viewModel.skipToNext() },
-                        onRepeatToggle = { viewModel.toggleRepeat() }
-                    )
-
-                    Spacer(modifier = Modifier.height(48.dp))
                 }
             }
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // ── Title & Artist + Action Buttons ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = PlayerHorizontalPadding),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                    AnimatedContent(
+                        targetState = uiState.currentTrack?.title ?: track.title,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "title"
+                    ) { title ->
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.basicMarquee(
+                                iterations = 1,
+                                initialDelayMillis = 3000,
+                                velocity = 30.dp
+                            )
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = uiState.currentTrack?.artist ?: track.artist,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable {
+                            uiState.currentTrack?.channelId?.takeIf { it.isNotEmpty() }?.let { onArtistClick(it) }
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                PlayerMainActionButtons(
+                    isLiked = uiState.isLiked,
+                    isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId),
+                    onLikeClick = { viewModel.toggleLike() },
+                    onDownloadClick = { viewModel.downloadTrack() },
+                    onAddToPlaylist = { viewModel.showAddToPlaylistDialog(true) }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // ── Progress Slider ──
+            PlayerProgressSlider(
+                currentPosition = uiState.currentPosition,
+                duration = uiState.duration,
+                onSeekTo = { viewModel.seekTo(it) },
+                isPlaying = uiState.isPlaying,
+                modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
+            )
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // ── Playback Controls ──
+            PlayerPlaybackControls(
+                isPlaying = uiState.isPlaying,
+                isBuffering = uiState.isBuffering,
+                shuffleEnabled = uiState.shuffleEnabled,
+                repeatMode = uiState.repeatMode,
+                onShuffleToggle = { viewModel.toggleShuffle() },
+                onPreviousClick = { viewModel.skipToPrevious() },
+                onPlayPauseToggle = { viewModel.togglePlayPause() },
+                onNextClick = { viewModel.skipToNext() },
+                onRepeatToggle = { viewModel.toggleRepeat() },
+                modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
+            )
+
+            Spacer(modifier = Modifier.height(queuePeekHeight + navBarPadding + 20.dp))
         }
-        
-        // Mini Player Header 
-        if (dragFraction > 0.4f) {
-           Row(
-               modifier = Modifier
-                   .fillMaxWidth()
-                   .height(80.dp) 
-                   .padding(horizontal = 20.dp)
-                   .graphicsLayer { 
-                       alpha = miniPlayerAlpha 
-                       translationY = miniPlayerTranslationY
-                   },
-               verticalAlignment = Alignment.CenterVertically,
-               horizontalArrangement = Arrangement.SpaceBetween
-           ) {
-               Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
-                   // Mini Artwork
-                   Card(
-                       shape = MaterialTheme.shapes.small,
-                       modifier = Modifier.size(48.dp) 
-                   ) {
+
+        if (queueFraction > 0.3f) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .height(64.dp)
+                    .padding(horizontal = 20.dp)
+                    .graphicsLayer {
+                        alpha = miniHeaderAlpha
+                        translationY = miniHeaderTranslation
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Card(
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.size(42.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
                         AsyncImage(
-                            model = uiState.currentTrack?.thumbnailUrl,
+                            model = uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl,
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
-                   }
-                   Spacer(modifier = Modifier.width(16.dp))
-                   Column {
-                       Text(
-                           text = uiState.currentTrack?.title ?: "",
-                           style = MaterialTheme.typography.titleMedium,
-                           fontWeight = FontWeight.Bold,
-                           color = Color.White,
-                           maxLines = 1,
-                           overflow = TextOverflow.Ellipsis
-                       )
-                       Text(
-                           text = uiState.currentTrack?.artist ?: "",
-                           style = MaterialTheme.typography.bodySmall,
-                           color = Color.White.copy(alpha = 0.7f),
-                           maxLines = 1,
-                           overflow = TextOverflow.Ellipsis
-                       )
-                   }
-               }
-               
-               IconButton(
-                   onClick = { viewModel.togglePlayPause() },
-                   colors = IconButtonDefaults.iconButtonColors(
-                       containerColor = Color.White,
-                       contentColor = Color.Black
-                   ),
-                   modifier = Modifier.size(40.dp)
-               ) {
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = uiState.currentTrack?.title ?: "",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = uiState.currentTrack?.artist ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.6f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                FilledIconButton(
+                    onClick = { viewModel.togglePlayPause() },
+                    colors = IconButtonDefaults.filledIconButtonColors(
+                        containerColor = Color.White,
+                        contentColor = Color.Black
+                    ),
+                    shape = CircleShape,
+                    modifier = Modifier.size(36.dp)
+                ) {
                     Icon(
                         imageVector = if (uiState.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                         contentDescription = null,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(20.dp)
                     )
-               }
-           }
-        }
-        
-        // Unified Bottom Sheet
-        
-        fun animateSheet(target: Float) {
-            scope.launch {
-                animate(
-                    initialValue = dragOffsetY,
-                    targetValue = target,
-                    animationSpec = tween(
-                        durationMillis = 400,
-                        easing = FastOutSlowInEasing
-                    )
-                ) { value, _ ->
-                    dragOffsetY = value
                 }
             }
         }
 
-        val sheetCornerRadius = 16.dp + (16.dp * dragFraction)
+        fun animateQueueSheet(target: Float) {
+            scope.launch {
+                animate(
+                    initialValue = queueOffsetY,
+                    targetValue = target,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                ) { value, _ ->
+                    queueOffsetY = value
+                }
+            }
+        }
+
+        val queueCornerRadius = 24.dp * (1f - queueFraction)
+
+        val queueDraggableState = rememberDraggableState { delta ->
+            queueOffsetY = (queueOffsetY + delta).coerceIn(queueExpandedY, safeCollapsedY)
+        }
 
         Box(
             modifier = Modifier
-                .offset { IntOffset(0, sheetOffset.roundToInt()) }
+                .offset { IntOffset(0, clampedQueueOffset.roundToInt()) }
                 .fillMaxWidth()
-                .height(with(density) { (maxHeight - expandedY).toDp() })
+                .fillMaxHeight()
                 .shadow(
-                    elevation = 20.dp,
-                    shape = RoundedCornerShape(topStart = sheetCornerRadius, topEnd = sheetCornerRadius),
+                    elevation = (16.dp * queueFraction),
+                    shape = RoundedCornerShape(topStart = queueCornerRadius, topEnd = queueCornerRadius),
                     clip = false
-                )
-                .background(
-                    color = Color.Transparent,
-                    shape = RoundedCornerShape(topStart = sheetCornerRadius, topEnd = sheetCornerRadius)
                 )
                 .draggable(
                     orientation = Orientation.Vertical,
-                    state = draggableState,
+                    state = queueDraggableState,
                     onDragStopped = { velocity ->
-                        val target = if (velocity < -1000f || (velocity < 0f && dragOffsetY < (collapsedY + expandedY) * 0.6)) {
-                            expandedY
-                        } else if (velocity > 1000f) {
-                            collapsedY
-                        } else {
-                            if (dragOffsetY < (collapsedY + expandedY) / 2) expandedY else collapsedY
+                        val midPoint = (safeCollapsedY + queueExpandedY) / 2
+                        val target = when {
+                            velocity < -800f -> queueExpandedY
+                            velocity > 800f -> safeCollapsedY
+                            clampedQueueOffset < midPoint -> queueExpandedY
+                            else -> safeCollapsedY
                         }
-                        animateSheet(target)
+                        animateQueueSheet(target)
                     }
                 )
         ) {
             UnifiedPlayerSheet(
                 currentTab = currentTab,
                 onTabSelect = { currentTab = it },
-                isExpanded = dragFraction > 0.5f,
-                onExpand = { animateSheet(expandedY) },
-                sheetCornerRadius = sheetCornerRadius,
+                isExpanded = queueFraction > 0.5f,
+                onExpand = { animateQueueSheet(queueExpandedY) },
+                sheetCornerRadius = queueCornerRadius,
                 queue = uiState.queue,
                 currentIndex = uiState.currentQueueIndex,
                 playingFrom = uiState.playingFrom,
@@ -546,7 +542,7 @@ fun EnhancedMusicPlayerScreen(
                 onRelatedTrackClick = { viewModel.loadAndPlayTrack(it) }
             )
         }
-        
+
         AnimatedSkipIndicators(
             direction = skipDirection,
             onAnimationComplete = { skipDirection = null }

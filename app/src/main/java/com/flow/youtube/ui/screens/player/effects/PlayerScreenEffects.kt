@@ -317,7 +317,7 @@ fun FullscreenEffect(
                 layoutParams.screenBrightness = WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
                 act.window.attributes = layoutParams
 
-                WindowCompat.setDecorFitsSystemWindows(act.window, true)
+                WindowCompat.setDecorFitsSystemWindows(act.window, false)
                 val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
             }
@@ -346,7 +346,7 @@ fun OrientationResetEffect(activity: Activity?) {
         onDispose {
             if (activity?.isInPictureInPictureMode == false) {
                 activity.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                WindowCompat.setDecorFitsSystemWindows(activity.window, true)
+                WindowCompat.setDecorFitsSystemWindows(activity.window, false)
                 val insetsController = WindowCompat.getInsetsController(activity.window, activity.window.decorView)
                 insetsController.show(WindowInsetsCompat.Type.systemBars())
             }

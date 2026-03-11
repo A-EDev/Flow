@@ -1,4 +1,4 @@
-﻿package com.flow.youtube.ui.components
+package com.flow.youtube.ui.components
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -133,7 +133,7 @@ fun PersistentMiniMusicPlayer(
                 ) {
                     Box(modifier = Modifier.fillMaxSize()) {
                         AsyncImage(
-                            model = track.thumbnailUrl,
+                            model = track.highResThumbnailUrl,
                             contentDescription = null,
                             modifier = Modifier
                                 .fillMaxSize()
@@ -189,7 +189,7 @@ fun PersistentMiniMusicPlayer(
                                         .clip(RoundedCornerShape(12.dp))
                                 ) {
                                     AsyncImage(
-                                        model = track.thumbnailUrl,
+                                        model = track.highResThumbnailUrl,
                                         contentDescription = stringResource(R.string.album_art),
                                         modifier = Modifier
                                             .fillMaxSize()
@@ -390,7 +390,7 @@ fun CompactMiniMusicPlayer(
                         ) {
                             Box {
                                 AsyncImage(
-                                    model = track.thumbnailUrl,
+                                    model = track.highResThumbnailUrl,
                                     contentDescription = null,
                                     modifier = Modifier
                                         .fillMaxSize()

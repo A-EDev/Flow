@@ -16,7 +16,11 @@ data class MusicTrack(
     val albumId: String? = null,
     val artists: List<MusicArtist> = emptyList(),
     val itemType: MusicItemType = MusicItemType.SONG
-)
+) {
+    val highResThumbnailUrl: String
+        get() = thumbnailUrl.replace(Regex("w\\d+-h\\d+"), "w1000-h1000")
+            .replace(Regex("(hqdefault|mqdefault|sddefault|default)\\.jpg"), "hq720.jpg")
+}
 
 data class MusicArtist(
     val name: String,

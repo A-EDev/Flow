@@ -84,7 +84,7 @@ fun UnifiedPlayerSheet(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                        .padding(horizontal = 24.dp)
                         .height(48.dp)
                         .background(
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
@@ -136,7 +136,7 @@ fun UnifiedPlayerSheet(
                 }
                 
                 HorizontalDivider(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
                 )
                 

@@ -352,6 +352,8 @@ fun GlobalPlayerOverlay(
                 state = playerSheetState,
                 progress = progress,
                 isFullscreen = screenState.isFullscreen,
+                thumbnailUrl = video.thumbnailUrl.takeIf { it.isNotEmpty() }
+                    ?: "https://i.ytimg.com/vi/${video.id}/hqdefault.jpg",
                 videoAspectRatio = videoAspectRatio,
                 bottomPadding = bottomPadding,
                 miniPlayerScale = miniPlayerScale,

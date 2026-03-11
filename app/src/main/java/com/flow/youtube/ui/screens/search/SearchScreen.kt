@@ -454,7 +454,18 @@ private fun SearchResultList(
                         VideoCardFullWidth(
                             video = item.video,
                             modifier = Modifier.padding(vertical = 6.dp),
-                            onClick = { onVideoClick(item.video) }
+                            onClick = { onVideoClick(item.video) },
+                            onChannelClick = { channelId ->
+                                onChannelClick(
+                                    Channel(
+                                        id = channelId,
+                                        name = item.video.channelName,
+                                        thumbnailUrl = item.video.channelThumbnailUrl ?: "",
+                                        subscriberCount = 0,
+                                        url = "https://www.youtube.com/channel/$channelId"
+                                    )
+                                )
+                            }
                         )
                     is SearchResultItem.ChannelResult ->
                         SearchChannelCard(item.channel, onClick = { onChannelClick(item.channel) })
@@ -501,7 +512,18 @@ private fun SearchResultGrid(
                 is SearchResultItem.VideoResult ->
                     CompactVideoCard(
                         video = item.video,
-                        onClick = { onVideoClick(item.video) }
+                        onClick = { onVideoClick(item.video) },
+                        onChannelClick = { channelId ->
+                            onChannelClick(
+                                Channel(
+                                    id = channelId,
+                                    name = item.video.channelName,
+                                    thumbnailUrl = item.video.channelThumbnailUrl ?: "",
+                                    subscriberCount = 0,
+                                    url = "https://www.youtube.com/channel/$channelId"
+                                )
+                            )
+                        }
                     )
                 is SearchResultItem.ChannelResult ->
                     SearchChannelCardCompact(item.channel, onClick = { onChannelClick(item.channel) })

@@ -15,6 +15,7 @@ NEW FEATURES
 - Custom Mini Player Controls — added the ability to show/hide "Skip Forward/Backward" and "Next/Previous" buttons directly on the floating player
 - Navigation Customization — added a toggle in Content Settings to show or hide the "Music" tab from the bottom navigation bar (similar to the Shorts tab)
 - Add a Settings Search Feature
+- Draggable Music Player — the music player is now a persistent bottom-sheet overlay. Drag it up to expand to full screen, drag down to collapse back to the mini player. Smooth spring animations and fling gestures throughout.
 
 IMPROVEMENTS
 - Improve thumbnail quality — higher resolution thumbnails are now automatically fetched for videos, channels, and playlists
@@ -28,6 +29,9 @@ IMPROVEMENTS
 - Added Bootstrap from subscriptions — Tokenize channels to improve recommendations on cold start
 - Refine UI interactions and Animation — Add on press scale modifier, thumbnail gradients and more...
 - Set Dark Theme as default
+- Music player full-screen view now respects the status bar with proper top padding for an immersive edge-to-edge look
+- Restored system-wide edge-to-edge display — the app now correctly maintains edge-to-edge after exiting video fullscreen mode
+- Improved Music player screen UI - Added more spacing, padding and bigger action button
 
 FIXES AND STABILITY
 - Fix search screen crash — resolved issue when infinite scrolling through identical playlists
@@ -42,3 +46,6 @@ FIXES AND STABILITY
 - Fix Playlist Download — added missing codec
 - Fix Download Deletion process 
 - Fix Fast-Forward and Seek issue for downloaded videos — Add better seek and forward signals for downloaded videos
+- Fix saved song showing 0:00 duration on restore — restored tracks now display their correct duration immediately on app launch
+- Fix play button doing nothing on restored music track — tapping play on a restored (unloaded) track now correctly fetches the stream and starts playback
+- Fix Go to channel issue in search screen
