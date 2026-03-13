@@ -12,8 +12,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.Replay10
@@ -372,6 +372,7 @@ fun GlobalPlayerOverlay(
                             onShowControlsChange = { screenState.showControls = it },
                             onShowSeekBackChange = { screenState.showSeekBackAnimation = it },
                             onShowSeekForwardChange = { screenState.showSeekForwardAnimation = it },
+                            onSeekAccumulate = { screenState.seekAccumulation = kotlin.math.abs(it) },
                             currentPosition = screenState.currentPosition,
                             duration = screenState.duration,
                             normalSpeed = screenState.normalSpeed,
@@ -421,7 +422,7 @@ fun GlobalPlayerOverlay(
                             SeekAnimationOverlay(
                                 showSeekBack = screenState.showSeekBackAnimation,
                                 showSeekForward = screenState.showSeekForwardAnimation,
-                                seekSeconds = doubleTapSeekSeconds,
+                                seekSeconds = screenState.seekAccumulation,
                                 modifier = Modifier.align(Alignment.Center)
                             )
                             
@@ -804,16 +805,16 @@ private fun MiniPlayerControls(
         ) {
             if (playerState.isBuffering) {
                 CircularProgressIndicator(
-                    modifier = Modifier.size(if (isTablet) 28.dp else 24.dp),
+                    modifier = Modifier.size(if (isTablet) 32.dp else 24.dp),
                     strokeWidth = 2.dp,
                     color = Color.White
                 )
             } else {
                 Icon(
-                    imageVector = if (playerState.playWhenReady) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    imageVector = if (playerState.playWhenReady) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = if (playerState.playWhenReady) "Pause" else "Play",
                     tint = Color.White,
-                    modifier = Modifier.size(if (isTablet) 28.dp else 24.dp)
+                    modifier = Modifier.size(if (isTablet) 32.dp else 28.dp)
                 )
             }
         }
@@ -962,9 +963,9 @@ private fun DlnaDevicePickerDialog(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.PlayArrow,
+                                    imageVector = Icons.Rounded.PlayArrow,
                                     contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(28.dp),
                                     tint = MaterialTheme.colorScheme.primary
                                 )
                                 Spacer(Modifier.width(12.dp))

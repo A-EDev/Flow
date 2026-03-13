@@ -70,6 +70,7 @@ fun PlayerContent(
                 onShowControlsChange = { screenState.showControls = it },
                 onShowSeekBackChange = { screenState.showSeekBackAnimation = it },
                 onShowSeekForwardChange = { screenState.showSeekForwardAnimation = it },
+                onSeekAccumulate = { screenState.seekAccumulation = kotlin.math.abs(it) },
                 currentPosition = screenState.currentPosition,
                 duration = screenState.duration,
                 normalSpeed = screenState.normalSpeed,
@@ -109,6 +110,7 @@ fun PlayerContent(
         SeekAnimationOverlay(
             showSeekBack = screenState.showSeekBackAnimation,
             showSeekForward = screenState.showSeekForwardAnimation,
+            seekSeconds = screenState.seekAccumulation,
             modifier = Modifier.align(Alignment.Center)
         )
         

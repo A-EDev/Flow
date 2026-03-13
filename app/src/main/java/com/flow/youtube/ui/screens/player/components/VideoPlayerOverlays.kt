@@ -14,11 +14,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun SeekAnimationOverlay(
@@ -30,60 +32,74 @@ fun SeekAnimationOverlay(
     Box(modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(
             visible = showSeekBack,
-            enter = fadeIn() + scaleIn(),
-            exit = fadeOut() + scaleOut(),
-            modifier = Modifier.align(Alignment.CenterStart).padding(start = 60.dp)
+            enter = fadeIn(tween(150)),
+            exit = fadeOut(tween(400)),
+            modifier = Modifier.align(Alignment.CenterStart).padding(start = 48.dp)
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.6f))
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.FastRewind,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp)
-                )
-                Text(
-                    text = "${seekSeconds}s",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            SeekChevronLabel(forward = false, seconds = seekSeconds)
         }
-        
+
         AnimatedVisibility(
             visible = showSeekForward,
-            enter = fadeIn() + scaleIn(),
-            exit = fadeOut() + scaleOut(),
-            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 60.dp)
+            enter = fadeIn(tween(150)),
+            exit = fadeOut(tween(400)),
+            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 48.dp)
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.6f))
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.FastForward,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp)
-                )
-                Text(
-                    text = "${seekSeconds}s",
-                    color = Color.White,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            SeekChevronLabel(forward = true, seconds = seekSeconds)
+        }
+    }
+}
+
+@Composable
+private fun SeekChevronLabel(forward: Boolean, seconds: Int) {
+    val infiniteTransition = rememberInfiniteTransition(label = "chevron")
+    
+    val progress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "chevronProgress"
+    )
+
+    val offsetProgress = LinearOutSlowInEasing.transform(progress)
+    val chevronOffset = if (forward) 24f * offsetProgress else -24f * offsetProgress
+    
+    val chevronAlpha = when {
+        progress < 0.2f -> progress * 5f
+        progress > 0.5f -> (1f - progress) * 2f
+        else -> 1f
+    }.coerceIn(0f, 1f)
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        if (!forward) {
+            Text(
+                text = "<",
+                color = Color.White.copy(alpha = chevronAlpha),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.offset(x = chevronOffset.dp)
+            )
+        }
+        Text(
+            text = if (forward) "+${seconds}s" else "${seconds}s",
+            color = Color.White,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold
+        )
+        if (forward) {
+            Text(
+                text = ">",
+                color = Color.White.copy(alpha = chevronAlpha),
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.offset(x = chevronOffset.dp)
+            )
         }
     }
 }

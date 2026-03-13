@@ -27,6 +27,7 @@ fun Modifier.videoPlayerControls(
     onShowControlsChange: (Boolean) -> Unit,
     onShowSeekBackChange: (Boolean) -> Unit,
     onShowSeekForwardChange: (Boolean) -> Unit,
+    onSeekAccumulate: (Int) -> Unit = {},
     currentPosition: Long,
     duration: Long,
     normalSpeed: Float,
@@ -67,6 +68,13 @@ fun Modifier.videoPlayerControls(
     val currentActivity by rememberUpdatedState(activity)
     val currentSwipeGesturesEnabled by rememberUpdatedState(swipeGesturesEnabled)
     val currentDoubleTapSeekMs by rememberUpdatedState(doubleTapSeekMs)
+    val currentOnSeekAccumulate by rememberUpdatedState(onSeekAccumulate)
+
+    var accumulatedForwardMs by remember { mutableStateOf(0L) }
+    var accumulatedBackMs by remember { mutableStateOf(0L) }
+    var lastForwardTapTime by remember { mutableStateOf(0L) }
+    var lastBackTapTime by remember { mutableStateOf(0L) }
+    val accumulationWindowMs = 1000L
 
     this
         .pointerInput(Unit) {
@@ -80,15 +88,30 @@ fun Modifier.videoPlayerControls(
                 onDoubleTap = { offset ->
                     val screenWidth = elementSize.width
                     val tapPosition = offset.x
+                    val now = System.currentTimeMillis()
                     
                     if (tapPosition < screenWidth * 0.4f) {
                         // Seek backward
+                        if (now - lastBackTapTime < accumulationWindowMs) {
+                            accumulatedBackMs += currentDoubleTapSeekMs
+                        } else {
+                            accumulatedBackMs = currentDoubleTapSeekMs
+                        }
+                        lastBackTapTime = now
+                        currentOnSeekAccumulate(-(accumulatedBackMs / 1000L).toInt())
                         currentOnShowSeekBackChange(true)
                         EnhancedPlayerManager.getInstance().seekTo(
                             (currentPositionValue - currentDoubleTapSeekMs).coerceAtLeast(0)
                         )
                     } else if (tapPosition > screenWidth * 0.6f) {
                         // Seek forward
+                        if (now - lastForwardTapTime < accumulationWindowMs) {
+                            accumulatedForwardMs += currentDoubleTapSeekMs
+                        } else {
+                            accumulatedForwardMs = currentDoubleTapSeekMs
+                        }
+                        lastForwardTapTime = now
+                        currentOnSeekAccumulate((accumulatedForwardMs / 1000L).toInt())
                         currentOnShowSeekForwardChange(true)
                         EnhancedPlayerManager.getInstance().seekTo(
                             (currentPositionValue + currentDoubleTapSeekMs).coerceAtMost(currentDuration)
@@ -141,7 +164,6 @@ fun Modifier.videoPlayerControls(
             var totalDragY = 0f
             var totalDragX = 0f
             var isDraggingVertical = false
-            var isDraggingHorizontal = false
             var shouldIgnoreGesture = false 
             val dragThreshold = 100f 
             val edgeIgnoreThreshold = 250f 
@@ -152,7 +174,6 @@ fun Modifier.videoPlayerControls(
                         totalDragY = 0f
                         totalDragX = 0f
                         isDraggingVertical = false
-                        isDraggingHorizontal = false
                         
                         val distanceFromTop = offset.y
                         val distanceFromBottom = elementSize.height - offset.y
@@ -174,7 +195,6 @@ fun Modifier.videoPlayerControls(
                             currentOnShowVolumeChange(false)
                         }
                         isDraggingVertical = false
-                        isDraggingHorizontal = false
                     },
                     onDragCancel = {
                         shouldIgnoreGesture = false
@@ -183,7 +203,6 @@ fun Modifier.videoPlayerControls(
                             currentOnShowVolumeChange(false)
                         }
                         isDraggingVertical = false
-                        isDraggingHorizontal = false
                     },
                     onDrag = { change, dragAmount ->
                         if (shouldIgnoreGesture) return@detectDragGestures
@@ -192,14 +211,12 @@ fun Modifier.videoPlayerControls(
                         totalDragX += dragAmount.x
                         totalDragY += dragAmount.y
                         
-                        if (!isDraggingVertical && !isDraggingHorizontal) {
+                        if (!isDraggingVertical) {
                             if (abs(totalDragY) > dragThreshold && abs(totalDragY) > abs(totalDragX)) {
                                 isDraggingVertical = true
-                            } else if (abs(totalDragX) > dragThreshold && abs(totalDragX) > abs(totalDragY)) {
-                                isDraggingHorizontal = true
                             }
                         }
-                        
+
                         if (isDraggingVertical) {
                              val screenHeight = elementSize.height.toFloat()
                              val screenWidth = elementSize.width
@@ -248,26 +265,6 @@ fun Modifier.videoPlayerControls(
                                      currentOnShowVolumeChange(true)
                                  }
                              }
-                        } else if (isDraggingHorizontal) {
-                            // Horizontal Seek 
-                            
-                            val seekSensitivity = 200f 
-                            
-                            if (totalDragX > seekSensitivity) {
-                                // Right - Forward
-                                currentOnShowSeekForwardChange(true)
-                                EnhancedPlayerManager.getInstance().seekTo(
-                                    (currentPositionValue + 5000).coerceAtMost(currentDuration)
-                                )
-                                totalDragX = 0f 
-                            } else if (totalDragX < -seekSensitivity) {
-                                // Left - Backward
-                                currentOnShowSeekBackChange(true)
-                                EnhancedPlayerManager.getInstance().seekTo(
-                                    (currentPositionValue - 5000).coerceAtLeast(0)
-                                )
-                                totalDragX = 0f
-                            }
                         }
                     }
                 )

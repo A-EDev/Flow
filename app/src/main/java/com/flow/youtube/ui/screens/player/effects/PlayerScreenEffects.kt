@@ -271,18 +271,19 @@ fun GestureOverlayAutoHideEffect(
         }
     }
     
-    // Seek animations auto-hide
-    LaunchedEffect(screenState.showSeekForwardAnimation) {
+    LaunchedEffect(screenState.seekAccumulation, screenState.showSeekForwardAnimation) {
         if (screenState.showSeekForwardAnimation) {
-            delay(500)
+            delay(800)
             screenState.showSeekForwardAnimation = false
+            screenState.seekAccumulation = 10
         }
     }
-    
-    LaunchedEffect(screenState.showSeekBackAnimation) {
+
+    LaunchedEffect(screenState.seekAccumulation, screenState.showSeekBackAnimation) {
         if (screenState.showSeekBackAnimation) {
-            delay(500)
+            delay(800)
             screenState.showSeekBackAnimation = false
+            screenState.seekAccumulation = 10
         }
     }
 }

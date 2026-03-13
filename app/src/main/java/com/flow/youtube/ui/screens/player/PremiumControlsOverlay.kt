@@ -332,7 +332,7 @@ fun PremiumControlsOverlay(
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .size(72.dp)
+                            .size(62.dp)
                             .pressScale(playPauseInteractionSource, pressedScale = 0.88f)
                             .clip(CircleShape)
                             .background(Color.Black.copy(alpha = 0.4f))
@@ -348,7 +348,7 @@ fun PremiumControlsOverlay(
                                 imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                                 contentDescription = if (isPlaying) stringResource(R.string.pause) else stringResource(R.string.play),
                                 tint = Color.White,
-                                modifier = Modifier.size(40.dp)
+                                modifier = Modifier.size(54.dp)
                             )
                         }
                     }
@@ -497,15 +497,18 @@ fun PremiumControlsOverlay(
                     Spacer(modifier = Modifier.weight(1f))
                     Box(
                         modifier = Modifier
+                            .padding(4.dp)
                             .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.3f))
                             .clickable(onClick = onFullscreenClick),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (isFullscreen) Icons.Rounded.FullscreenExit else Icons.Rounded.Fullscreen,
+                            imageVector = if (isFullscreen) Icons.Rounded.CloseFullscreen else Icons.Rounded.OpenInFull,
                             contentDescription = stringResource(R.string.fullscreen),
                             tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }

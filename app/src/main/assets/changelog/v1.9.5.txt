@@ -1,0 +1,11 @@
+FLOW CHANGE LOG
+VERSION: 1.9.0
+DATE: 2026-03-11
+
+IMPROVEMENTS
+- Improved video player action buttons design and sizes.
+- Remove swipe to seek guesture and redesigned double tap seek
+
+FIXES AND STABILITY
+- Fix Unresponsive player when clicking
+- Fix auto quality stuck at 4k and improved thresholds

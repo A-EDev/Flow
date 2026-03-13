@@ -48,6 +48,8 @@ class PlayerScreenState {
     
     // Seek Animation States
     var showSeekForwardAnimation by mutableStateOf(false)
+    var seekAccumulation by mutableIntStateOf(10)
+    var lastSeekTime by mutableLongStateOf(0L)
     var showSeekBackAnimation by mutableStateOf(false)
     
     // Subtitle States
