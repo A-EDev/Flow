@@ -45,7 +45,7 @@ class HistoryViewModel : ViewModel() {
                         e = e.copy(
                             thumbnailUrl = dbVideo?.thumbnailUrl
                                 ?.takeIf { it.isNotEmpty() }
-                                ?: "https://i.ytimg.com/vi/${e.videoId}/hqdefault.jpg"
+                                ?: "https://i.ytimg.com/vi/${e.videoId}/hq720.jpg"
                         )
                     }
 
@@ -107,7 +107,7 @@ class HistoryViewModel : ViewModel() {
                                     timestamp    = stub.timestamp,
                                     title        = video.title,
                                     thumbnailUrl = video.thumbnailUrl.ifEmpty {
-                                        "https://i.ytimg.com/vi/${stub.videoId}/hqdefault.jpg"
+                                        "https://i.ytimg.com/vi/${stub.videoId}/hq720.jpg"
                                     },
                                     channelName  = video.channelName,
                                     channelId    = video.channelId,

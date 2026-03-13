@@ -10,8 +10,8 @@ val YouTubeGray = Color(0xFF282828)
 // Dark Theme Colors
 val Black = Color(0xFF000000)
 val DarkBackground = Color(0xFF0F0F0F)
-val DarkSurface = Color(0xFF212121)
-val DarkSurfaceVariant = Color(0xFF3A3A3A)
+val DarkSurface = Color(0xFF161616)
+val DarkSurfaceVariant = Color(0xFF282828)
 
 // Light Theme Colors
 val White = Color(0xFFFFFFFF)

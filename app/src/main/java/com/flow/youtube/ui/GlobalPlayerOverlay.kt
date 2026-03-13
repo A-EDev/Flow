@@ -311,7 +311,7 @@ fun GlobalPlayerOverlay(
             val channelName = streamInfo?.uploaderName ?: video.channelName
             val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
                 ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                ?: "https://i.ytimg.com/vi/${video.id}/hqdefault.jpg"
+                ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
             
             val title = streamInfo?.name ?: video.title
             if (title.isNotEmpty()) {
@@ -354,7 +354,7 @@ fun GlobalPlayerOverlay(
                 progress = progress,
                 isFullscreen = screenState.isFullscreen,
                 thumbnailUrl = video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                    ?: "https://i.ytimg.com/vi/${video.id}/hqdefault.jpg",
+                    ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg",
                 videoAspectRatio = videoAspectRatio,
                 bottomPadding = bottomPadding,
                 miniPlayerScale = miniPlayerScale,

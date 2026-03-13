@@ -523,12 +523,6 @@ class EnhancedPlayerManager private constructor() {
     }
 
     fun playPrevious(): Boolean {
-        // If we are more than 3 seconds into the video, restart it
-        if ((player?.currentPosition ?: 0) > 3000) {
-            player?.seekTo(0)
-            return true
-        }
-
         if (currentQueueIndex > 0) {
             currentQueueIndex--
             _currentQueueIndex.value = currentQueueIndex

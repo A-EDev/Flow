@@ -247,8 +247,9 @@ class YouTubeRepository @Inject constructor() {
                 .firstOrNull()?.let { url ->
                     if (url.contains("i.ytimg.com/vi/") || url.contains("img.youtube.com/vi/")) {
                         when {
-                            url.endsWith("/mqdefault.jpg") -> url.replace("/mqdefault.jpg", "/hqdefault.jpg")
-                            url.endsWith("/default.jpg") -> url.replace("/default.jpg", "/hqdefault.jpg")
+                            url.endsWith("/mqdefault.jpg") -> url.replace("/mqdefault.jpg", "/hq720.jpg")
+                            url.endsWith("/default.jpg") -> url.replace("/default.jpg", "/hq720.jpg")
+                            url.endsWith("/hqdefault.jpg") -> url.replace("/hqdefault.jpg", "/hq720.jpg")
                             else -> url
                         }
                     } else url
@@ -613,8 +614,9 @@ class YouTubeRepository @Inject constructor() {
                 // YouTube thumbnail quality promotion logic
                 if (url.contains("i.ytimg.com/vi/") || url.contains("img.youtube.com/vi/")) {
                     when {
-                        url.endsWith("/mqdefault.jpg") -> url.replace("/mqdefault.jpg", "/hqdefault.jpg")
-                        url.endsWith("/default.jpg") -> url.replace("/default.jpg", "/hqdefault.jpg")
+                        url.endsWith("/mqdefault.jpg") -> url.replace("/mqdefault.jpg", "/hq720.jpg")
+                        url.endsWith("/default.jpg") -> url.replace("/default.jpg", "/hq720.jpg")
+                        url.endsWith("/hqdefault.jpg") -> url.replace("/hqdefault.jpg", "/hq720.jpg")
                         else -> url
                     }
                 } else url
@@ -714,8 +716,9 @@ class YouTubeRepository @Inject constructor() {
             .firstOrNull()?.let { url ->
                 if (url.contains("i.ytimg.com/vi/") || url.contains("img.youtube.com/vi/")) {
                     when {
-                        url.endsWith("/mqdefault.jpg") -> url.replace("/mqdefault.jpg", "/hqdefault.jpg")
-                        url.endsWith("/default.jpg") -> url.replace("/default.jpg", "/hqdefault.jpg")
+                        url.endsWith("/mqdefault.jpg") -> url.replace("/mqdefault.jpg", "/hq720.jpg")
+                        url.endsWith("/default.jpg") -> url.replace("/default.jpg", "/hq720.jpg")
+                        url.endsWith("/hqdefault.jpg") -> url.replace("/hqdefault.jpg", "/hq720.jpg")
                         else -> url
                     }
                 } else url

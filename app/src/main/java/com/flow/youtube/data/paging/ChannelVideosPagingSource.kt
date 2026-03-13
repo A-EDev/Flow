@@ -90,7 +90,7 @@ class ChannelVideosPagingSource(
         val videoId = extractVideoId(this.url)
         // Use highest resolution thumbnail for better quality
         val thumbnail = this.thumbnails.maxByOrNull { it.width }?.url 
-            ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+            ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
         
         return Video(
             id = videoId,

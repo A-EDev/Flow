@@ -160,7 +160,7 @@ class QuickActionsViewModel @Inject constructor(
                 
                 val durationMs = if (video.duration > 0) video.duration * 1000L else 1000L
                 val thumbnailUrl = video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                    ?: "https://i.ytimg.com/vi/${video.id}/hqdefault.jpg"
+                    ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
                 com.flow.youtube.data.local.ViewHistory.getInstance(context).savePlaybackPosition(
                     videoId = video.id,
                     position = durationMs,

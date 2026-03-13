@@ -6,6 +6,10 @@ IMPROVEMENTS
 - Improved video player action buttons design and sizes.
 - Remove swipe to seek guesture and redesigned double tap seek
 - Improved edge-to-edge display
+- Redesigned Search bars
+- Improved video thumbnail quality
+- Slimmed down the channel header size
+- Removed rewind video on privious click feature
 
 FIXES AND STABILITY
 - Fix Unresponsive player when clicking

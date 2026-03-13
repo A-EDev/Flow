@@ -753,7 +753,7 @@ class VideoPlayerViewModel @Inject constructor(
                 duration    = if (video.duration > 0) video.duration * 1000L else 0L,
                 title       = video.title,
                 thumbnailUrl = video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                    ?: "https://i.ytimg.com/vi/${video.id}/hqdefault.jpg",
+                    ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg",
                 channelName = video.channelName,
                 channelId   = video.channelId
             )

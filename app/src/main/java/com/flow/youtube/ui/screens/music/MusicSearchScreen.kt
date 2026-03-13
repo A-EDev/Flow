@@ -350,10 +350,10 @@ fun MusicSearchBar(
         Row(
             modifier = Modifier
                 .weight(1f)
-                .height(48.dp)
-                .clip(RoundedCornerShape(24.dp))
+                .height(46.dp)
+                .clip(RoundedCornerShape(23.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                .padding(horizontal = 16.dp),
+                .padding(start = 16.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             BasicTextField(
@@ -362,24 +362,29 @@ fun MusicSearchBar(
                 modifier = Modifier.weight(1f),
                 textStyle = androidx.compose.ui.text.TextStyle(
                     color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 18.sp
+                    fontSize = 16.sp
                 ),
                 cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { onSearch() }),
                 singleLine = true,
                 decorationBox = { innerTextField ->
-                    if (query.isEmpty()) {
-                        Text(stringResource(R.string.search_music_placeholder), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 18.sp)
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (query.isEmpty()) {
+                            Text(stringResource(R.string.search_music_placeholder), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 16.sp)
+                        }
+                        innerTextField()
                     }
-                    innerTextField()
                 }
             )
 
             if (query.isNotEmpty()) {
                 IconButton(
                     onClick = onClearClick,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
                         Icons.Default.Close,
@@ -389,16 +394,18 @@ fun MusicSearchBar(
                     )
                 }
             }
-        }
 
-        Spacer(modifier = Modifier.width(8.dp))
-
-        IconButton(onClick = onVoiceSearchClick) {
-            Icon(
-                Icons.Default.Mic,
-                contentDescription = stringResource(R.string.voice_search_cd),
-                tint = MaterialTheme.colorScheme.onBackground
-            )
+            IconButton(
+                onClick = onVoiceSearchClick,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    Icons.Default.Mic,
+                    contentDescription = stringResource(R.string.voice_search_cd),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }

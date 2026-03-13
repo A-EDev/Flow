@@ -64,7 +64,7 @@ class SearchPagingSource(
                         is StreamInfoItem -> {
                             val videoId = extractVideoId(item.url)
                             val thumbnail = item.thumbnails.maxByOrNull { it.width }?.url
-                                ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+                                ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
                             val channelThumb = try {
                                 item.uploaderAvatars.maxByOrNull { it.width }?.url ?: ""
                             } catch (_: Exception) { "" }

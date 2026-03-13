@@ -191,7 +191,7 @@ private fun ChannelContent(
                         contentDescription = stringResource(R.string.channel_banner),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .aspectRatio(3f)
+                            .aspectRatio(2.2f)
                             .background(MaterialTheme.colorScheme.surfaceVariant),
                         contentScale = ContentScale.Crop
                     )
@@ -199,7 +199,7 @@ private fun ChannelContent(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .aspectRatio(3f)
+                            .aspectRatio(2.2f)
                             .background(MaterialTheme.colorScheme.primaryContainer)
                     )
                 }
@@ -208,7 +208,7 @@ private fun ChannelContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(3f)
+                        .aspectRatio(2.2f)
                         .background(
                             androidx.compose.ui.graphics.Brush.verticalGradient(
                                 colors = listOf(Color.Transparent, MaterialTheme.colorScheme.background),

@@ -270,103 +270,106 @@ private fun SearchBarRow(
     )
     val primary = MaterialTheme.colorScheme.primary
 
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(52.dp)
-                .clip(RoundedCornerShape(26.dp))
-                .drawBehind {
-                    if (focusAnim > 0f) {
-                        drawRoundRect(
-                            brush = Brush.sweepGradient(
-                                listOf(
-                                    primary.copy(alpha = focusAnim * 0.9f),
-                                    primary.copy(alpha = focusAnim * 0.3f),
-                                    primary.copy(alpha = focusAnim * 0.9f)
-                                )
-                            ),
-                            cornerRadius = androidx.compose.ui.geometry.CornerRadius(26.dp.toPx()),
-                            style = Stroke(width = (2.5f * focusAnim).dp.toPx())
-                        )
-                    }
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(46.dp)
+            .clip(RoundedCornerShape(23.dp))
+            .drawBehind {
+                if (focusAnim > 0f) {
+                    drawRoundRect(
+                        brush = Brush.sweepGradient(
+                            listOf(
+                                primary.copy(alpha = focusAnim * 0.9f),
+                                primary.copy(alpha = focusAnim * 0.3f),
+                                primary.copy(alpha = focusAnim * 0.9f)
+                            )
+                        ),
+                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(23.dp.toPx()),
+                        style = Stroke(width = (2.5f * focusAnim).dp.toPx())
+                    )
                 }
-                .background(
-                    color = if (isSearchFocused)
-                        MaterialTheme.colorScheme.surface
-                    else
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                    shape = RoundedCornerShape(26.dp)
-                )
+            }
+            .background(
+                color = if (isSearchFocused)
+                    MaterialTheme.colorScheme.surface
+                else
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                shape = RoundedCornerShape(23.dp)
+            )
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(start = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            TextField(
+            Icon(
+                Icons.Outlined.Search,
+                contentDescription = null,
+                tint = if (isSearchFocused) primary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+
+            BasicTextField(
                 value = query,
                 onValueChange = onQueryChange,
                 modifier = Modifier
-                    .fillMaxSize()
+                    .weight(1f)
                     .focusRequester(focusRequester)
                     .onFocusChanged { onFocusChange(it.isFocused) },
-                placeholder = {
-                    Text(
-                        "Search videos, channels\u2026",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        Icons.Outlined.Search,
-                        contentDescription = null,
-                        tint = if (isSearchFocused) primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                },
-                trailingIcon = {
-                    if (query.isNotEmpty()) {
-                        IconButton(onClick = onClear, modifier = Modifier.size(36.dp)) {
-                            Icon(
-                                Icons.Filled.Close,
-                                contentDescription = "Clear",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 16.sp
                 ),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = { if (query.isNotBlank()) onSearch() }),
-                textStyle = MaterialTheme.typography.bodyMedium.copy(
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                cursorBrush = SolidColor(primary),
+                decorationBox = { innerTextField ->
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (query.isEmpty()) {
+                            Text(
+                                "Search videos, channels\u2026",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                                fontSize = 16.sp
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
             )
-        }
 
-        Box(
-            modifier = Modifier
-                .size(52.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                .clickable(onClick = onToggleGridMode),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                if (isGridMode) Icons.Outlined.ViewList else Icons.Outlined.GridView,
-                contentDescription = "Toggle view",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(24.dp)
-            )
+            if (query.isNotEmpty()) {
+                IconButton(onClick = onClear, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        Icons.Filled.Close,
+                        contentDescription = "Clear",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .padding(end = 6.dp)
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onToggleGridMode),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    if (isGridMode) Icons.Outlined.ViewList else Icons.Outlined.GridView,
+                    contentDescription = "Toggle view",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
