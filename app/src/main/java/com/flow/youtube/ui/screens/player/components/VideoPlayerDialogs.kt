@@ -397,7 +397,7 @@ fun QualitySelectorDialog(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = quality.label,
+                                text = if (quality.height == 0) stringResource(R.string.quality_auto) else quality.label,
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = if (isSelected) MaterialTheme.colorScheme.primary
                                         else MaterialTheme.colorScheme.onSurface

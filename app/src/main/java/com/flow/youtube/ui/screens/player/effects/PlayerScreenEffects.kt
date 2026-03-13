@@ -451,6 +451,42 @@ fun PlayerInitEffect(
             )
             
             EnhancedPlayerManager.getInstance().play()
+        } else if (uiState.isAdaptiveMode && audioStream != null && uiState.streamInfo != null) {
+            val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
+            
+            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) {
+                Log.d(TAG, "Player already prepared for $videoId (AUTO mode), skipping setStreams")
+                return@LaunchedEffect
+            }
+
+            if (currentPlayerState.currentVideoId != null && currentPlayerState.currentVideoId != videoId) {
+                Log.d(TAG, "Switching from ${currentPlayerState.currentVideoId} to $videoId (AUTO mode)")
+                EnhancedPlayerManager.getInstance().clearCurrentVideo()
+            }
+
+            EnhancedPlayerManager.getInstance().initialize(context)
+
+            val streamInfo = uiState.streamInfo
+            val videoStreams = streamInfo.videoStreams.plus(streamInfo.videoOnlyStreams ?: emptyList())
+            val audioStreams = streamInfo.audioStreams
+            val subtitles = streamInfo.subtitles ?: emptyList()
+            val savedPos = uiState.savedPosition?.first() ?: 0L
+
+            EnhancedPlayerManager.getInstance().setStreams(
+                videoId = videoId,
+                videoStream = null, 
+                audioStream = audioStream,
+                videoStreams = videoStreams.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>(),
+                audioStreams = audioStreams,
+                subtitles = subtitles,
+                durationSeconds = streamInfo.duration,
+                dashManifestUrl = streamInfo.dashMpdUrl,
+                localFilePath = uiState.localFilePath,
+                hlsUrl = uiState.hlsUrl,
+                startPosition = savedPos
+            )
+
+            EnhancedPlayerManager.getInstance().play()
         }
     }
 }

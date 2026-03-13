@@ -111,7 +111,7 @@ fun MusicQuickActionsSheet(
                 MusicTrackRow(
                     track = track,
                     onClick = {}, // No action on click in header
-                    onMenuClick = {} // No menu in header
+                    trailingContent = {}
                 )
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
             }

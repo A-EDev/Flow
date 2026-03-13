@@ -987,13 +987,13 @@ class VideoPlayerViewModel @Inject constructor(
             }
         
         val videoStream = when (preferredQuality) {
-            VideoQuality.AUTO -> allVideoStreams.maxByOrNull { it.height }
+            VideoQuality.AUTO -> null // null signals EnhancedPlayerManager to use adaptive/smart quality
             else -> allVideoStreams
                 .sortedBy { kotlin.math.abs(it.height - preferredQuality.height) }
                 .firstOrNull()
         }
         
-        val actualQuality = videoStream?.let { VideoQuality.fromHeight(it.height) } ?: VideoQuality.Q_720p
+        val actualQuality = videoStream?.let { VideoQuality.fromHeight(it.height) } ?: VideoQuality.AUTO
         val safeAudio = audioStream ?: streamInfo.audioStreams.firstOrNull()
 
         return Triple(videoStream, safeAudio, actualQuality)
@@ -1006,9 +1006,9 @@ class VideoPlayerViewModel @Inject constructor(
             .distinct()
             .sorted()
         
-        return heights.mapNotNull { height ->
-            VideoQuality.values().find { it.height == height }
-        } + VideoQuality.AUTO
+        return heights.map { height ->
+            VideoQuality.fromHeight(height)
+        }.distinct() + listOf(VideoQuality.AUTO)
     }
     
     private fun extractSubtitles(streamInfo: StreamInfo): List<SubtitleInfo> {

@@ -903,7 +903,7 @@ enum class VideoQuality(val label: String, val height: Int) {
     
     companion object {
         fun fromString(label: String): VideoQuality {
-            return values().find { it.label == label } ?: Q_720p
+            return values().find { it.label == label } ?: AUTO
         }
         
         fun fromHeight(height: Int): VideoQuality {

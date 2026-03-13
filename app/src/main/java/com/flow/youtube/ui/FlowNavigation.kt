@@ -502,9 +502,11 @@ fun NavGraphBuilder.flowAppGraph(
     composable("likedMusic") {
         currentRoute.value = "likedMusic"
         showBottomNav.value = false
+        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
         LikedVideosScreen(
             onBackClick = { navController.popBackStack() },
             onVideoClick = { track ->
+                musicPlayerViewModel.loadAndPlayTrack(track, emptyList(), "Liked Music")
                 val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
                 val encodedTitle = android.net.Uri.encode(track.title)
                 val encodedArtist = android.net.Uri.encode(track.artist)
@@ -520,9 +522,11 @@ fun NavGraphBuilder.flowAppGraph(
     composable("musicHistory") {
         currentRoute.value = "musicHistory"
         showBottomNav.value = false
+        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
         HistoryScreen(
             onBackClick = { navController.popBackStack() },
             onVideoClick = { track ->
+                musicPlayerViewModel.loadAndPlayTrack(track, emptyList(), "Music History")
                 val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
                 val encodedTitle = android.net.Uri.encode(track.title)
                 val encodedArtist = android.net.Uri.encode(track.artist)
