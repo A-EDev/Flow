@@ -37,6 +37,7 @@ import com.flow.youtube.utils.UpdateManager
 import com.flow.youtube.utils.UpdateInfo
 import com.flow.youtube.ui.components.UpdateDialog
 import com.flow.youtube.BuildConfig
+import androidx.activity.SystemBarStyle
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -56,8 +57,16 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Enable edge-to-edge display
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            ),
+            navigationBarStyle = SystemBarStyle.auto(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            )
+        )
         
         // Initialize global player state
         GlobalPlayerState.initialize(applicationContext)
