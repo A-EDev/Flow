@@ -511,20 +511,22 @@ class EnhancedPlayerManager private constructor() {
         }
     }
 
-    fun playNext() {
+    fun playNext(): Boolean {
         if (currentQueueIndex < playbackQueue.size - 1) {
             currentQueueIndex++
             _currentQueueIndex.value = currentQueueIndex
             startPlaybackFromQueue(playbackQueue[currentQueueIndex])
             updateQueueState()
+            return true
         }
+        return false
     }
 
-    fun playPrevious() {
+    fun playPrevious(): Boolean {
         // If we are more than 3 seconds into the video, restart it
         if ((player?.currentPosition ?: 0) > 3000) {
             player?.seekTo(0)
-            return
+            return true
         }
 
         if (currentQueueIndex > 0) {
@@ -532,7 +534,9 @@ class EnhancedPlayerManager private constructor() {
             _currentQueueIndex.value = currentQueueIndex
             startPlaybackFromQueue(playbackQueue[currentQueueIndex])
             updateQueueState()
+            return true
         }
+        return false
     }
 
     fun hasNext(): Boolean = currentQueueIndex < playbackQueue.size - 1

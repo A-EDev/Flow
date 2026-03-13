@@ -251,11 +251,33 @@ class VideoPlayerViewModel @Inject constructor(
     }
 
     fun playNext() {
-        EnhancedPlayerManager.getInstance().playNext()
+        val handledByPlayer = EnhancedPlayerManager.getInstance().playNext()
+        if (!handledByPlayer) {
+            _uiState.value.relatedVideos.firstOrNull()?.let { nextVideo ->
+                playVideo(nextVideo)
+                com.flow.youtube.player.GlobalPlayerState.setCurrentVideo(nextVideo)
+            }
+        }
     }
 
     fun playPrevious() {
-        EnhancedPlayerManager.getInstance().playPrevious()
+        val handledByPlayer = EnhancedPlayerManager.getInstance().playPrevious()
+        if (!handledByPlayer) {
+            getPreviousVideoId()?.let { prevId ->
+                val prevVideo = Video(
+                    id = prevId, 
+                    title = "", 
+                    channelName = "", 
+                    channelId = "", 
+                    thumbnailUrl = "", 
+                    duration = 0, 
+                    viewCount = 0, 
+                    uploadDate = ""
+                )
+                playVideo(prevVideo)
+                com.flow.youtube.player.GlobalPlayerState.setCurrentVideo(prevVideo)
+            }
+        }
     }
 
     fun addVideoToQueueNext(video: Video) {

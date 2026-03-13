@@ -23,19 +23,19 @@ object PlayerConfig {
     const val INITIAL_BANDWIDTH_ESTIMATE = 5_000_000L
     
     /** Bandwidth threshold for 4K quality (15 Mbps) */
-    const val BANDWIDTH_4K = 15_000_000L
+    const val BANDWIDTH_4K = 25_000_000L
     
     /** Bandwidth threshold for 1440p quality (10 Mbps) */
-    const val BANDWIDTH_1440P = 10_000_000L
+    const val BANDWIDTH_1440P = 15_000_000L
     
     /** Bandwidth threshold for 1080p quality (6 Mbps) */
-    const val BANDWIDTH_1080P = 6_000_000L
+    const val BANDWIDTH_1080P = 8_000_000L
     
     /** Bandwidth threshold for 720p quality (3 Mbps) */
-    const val BANDWIDTH_720P = 3_000_000L
+    const val BANDWIDTH_720P = 4_000_000L
     
     /** Bandwidth threshold for 480p quality (1.5 Mbps) */
-    const val BANDWIDTH_480P = 1_500_000L
+    const val BANDWIDTH_480P = 2_000_000L
     
     /** Bandwidth threshold for 360p quality (800 Kbps) */
     const val BANDWIDTH_360P = 800_000L
@@ -121,10 +121,10 @@ object PlayerConfig {
      */
     fun calculateInitialQualityTarget(estimatedBandwidth: Long): Int {
         return when {
-            estimatedBandwidth > 10_000_000 -> 1080 // 10+ Mbps = 1080p
-            estimatedBandwidth > 5_000_000 -> 720   // 5+ Mbps = 720p  
-            estimatedBandwidth > 2_000_000 -> 480   // 2+ Mbps = 480p
-            estimatedBandwidth > 1_000_000 -> 360   // 1+ Mbps = 360p
+            estimatedBandwidth > 20_000_000 -> 1080 // Need very high bandwidth for default 1080p
+            estimatedBandwidth > 10_000_000 -> 720  
+            estimatedBandwidth > 3_000_000 -> 480   
+            estimatedBandwidth > 1_500_000 -> 360   
             else -> 240                              // Low bandwidth = 240p
         }
     }

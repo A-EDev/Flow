@@ -391,9 +391,6 @@ fun DraggablePlayerLayout(
                         val isCollapseDrag = state.expandFraction.value < 0.4f
                         val isMiniDrag     = state.expandFraction.value > 0.8f
 
-                        if (isCollapseDrag) {
-                            down.consume()
-                        }
 
                         velocityTracker.resetTracking()
                         velocityTracker.addPosition(down.uptimeMillis, down.position)
@@ -413,41 +410,83 @@ fun DraggablePlayerLayout(
                             }
                         }
 
-                        state.isDragging = true
-                        var cumulativeDragY = 0f
-                        val startFraction   = state.expandFraction.value
-                        val collapseTravel  = (targetMiniY - statusBarHeight).coerceAtLeast(1f)
-                        try {
-                            drag(down.id) { change ->
-                                val delta = change.positionChange()
-                                change.consume()
+                        var dragPointerId = down.id
+                        var hasCrossedSlop = !isCollapseDrag
+                        var startDragY = 0f
+                        
+                        if (isCollapseDrag) {
+                            val slop = viewConfiguration.touchSlop
+                            while (!hasCrossedSlop) {
+                                val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Main)
+                                val change = event.changes.firstOrNull { it.id == dragPointerId }
+                                if (change == null || !change.pressed || change.isConsumed) break
                                 velocityTracker.addPosition(change.uptimeMillis, change.position)
-
-                                if (isCollapseDrag) {
-                                    cumulativeDragY += delta.y
-                                    val rawFraction =
-                                        (startFraction + cumulativeDragY / collapseTravel).coerceIn(0f, 1f)
-                                    snapJob?.cancel()
-                                    snapJob = state.scope.launch {
-                                        state.expandFraction.snapTo(rawFraction)
-                                    }
-                                } else if (isMiniDrag) {
-                                    val newY = (state.offsetY.value + delta.y).coerceIn(minY, maxY)
-                                    val newX = (state.offsetX.value + delta.x).coerceIn(minX, maxX)
-                                    snapJob?.cancel()
-                                    snapJob = state.scope.launch {
-                                        state.offsetY.snapTo(newY)
-                                        state.offsetX.snapTo(newX)
-                                    }
+                                
+                                val delta = change.position - down.position
+                                if (delta.y > slop && delta.y > kotlin.math.abs(delta.x)) {
+                                    hasCrossedSlop = true
+                                    startDragY = delta.y
+                                    change.consume()
+                                } else if (kotlin.math.abs(delta.x) > slop || delta.y < -slop) {
+                                    break 
                                 }
                             }
-                        } finally {
-                            // ── Pointer lifted OR gesture cancelled ───────────────────────────
-                            snapJob?.cancel(); snapJob = null
-                            state.isDragging = false
-                            state.scope.launch {
-                                state.dragScale.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = 380f))
+                        }
+
+                        state.isDragging = true
+                        var cumulativeDragY = startDragY
+                        var totalMovement = 0f
+                        val startFraction   = state.expandFraction.value
+                        val collapseTravel  = (targetMiniY - statusBarHeight).coerceAtLeast(1f)
+                        
+                        if (hasCrossedSlop) {
+                            try {
+                                drag(dragPointerId) { change ->
+                                    val delta = change.positionChange()
+                                    totalMovement += delta.getDistance()
+                                    change.consume()
+                                    velocityTracker.addPosition(change.uptimeMillis, change.position)
+
+                                    if (isCollapseDrag) {
+                                        cumulativeDragY += delta.y
+                                        val rawFraction =
+                                            (startFraction + cumulativeDragY / collapseTravel).coerceIn(0f, 1f)
+                                        snapJob?.cancel()
+                                        snapJob = state.scope.launch {
+                                            state.expandFraction.snapTo(rawFraction)
+                                        }
+                                    } else if (isMiniDrag) {
+                                        val newY = (state.offsetY.value + delta.y).coerceIn(minY, maxY)
+                                        val newX = (state.offsetX.value + delta.x).coerceIn(minX, maxX)
+                                        snapJob?.cancel()
+                                        snapJob = state.scope.launch {
+                                            state.offsetY.snapTo(newY)
+                                            state.offsetX.snapTo(newX)
+                                        }
+                                    }
+                                }
+                            } finally {
+                                // ── Pointer lifted OR gesture cancelled ───────────────────────────
+                                snapJob?.cancel(); snapJob = null
+                                state.isDragging = false
+                                state.scope.launch {
+                                    state.dragScale.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = 380f))
+                                }
                             }
+                        } else {
+                            try {
+                                while (true) {
+                                    val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Main)
+                                    if (event.changes.all { !it.pressed }) break
+                                }
+                            } finally {
+                                state.isDragging = false
+                            }
+                        }
+
+                        if (isMiniDrag && totalMovement < 15f) { // Tap threshold
+                            state.expand()
+                            return@awaitEachGesture
                         }
 
                         if (isCollapseDrag) {
@@ -506,13 +545,6 @@ fun DraggablePlayerLayout(
                         }
                     }
                 }
-                .then(
-                    if (state.expandFraction.value > 0.6f) {
-                        Modifier.pointerInput(Unit) {
-                            detectTapGestures { state.expand() }
-                        }
-                    } else Modifier
-                )
         ) {
             // ── Video surface
             videoContent(Modifier.fillMaxSize())

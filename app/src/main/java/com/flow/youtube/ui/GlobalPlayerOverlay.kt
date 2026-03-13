@@ -608,36 +608,10 @@ fun GlobalPlayerOverlay(
                                 autoplayEnabled = playerUiState.autoplayEnabled,
                                 onAutoplayToggle = { playerViewModel.toggleAutoplay(it) },
                                 onPrevious = {
-                                    if (playerState.hasPrevious) {
-                                        // Queue is active — use queue-based previous
-                                        playerViewModel.playPrevious()
-                                    } else {
-                                        // No queue — fall back to navigation history
-                                        playerViewModel.getPreviousVideoId()?.let { prevId ->
-                                            GlobalPlayerState.setCurrentVideo(Video(
-                                                id = prevId, 
-                                                title = "", 
-                                                channelName = "", 
-                                                channelId = "", 
-                                                thumbnailUrl = "", 
-                                                duration = 0, 
-                                                viewCount = 0, 
-                                                uploadDate = ""
-                                            ))
-                                        }
-                                    }
+                                    playerViewModel.playPrevious()
                                 },
                                 onNext = {
-                                    if (playerState.hasNext) {
-                                        // Queue is active — advance to next queue item
-                                        playerViewModel.playNext()
-                                    } else {
-                                        // No queue — fall back to first related video
-                                        playerUiState.relatedVideos.firstOrNull()?.let { nextVideo ->
-                                            playerViewModel.playVideo(nextVideo)
-                                            GlobalPlayerState.setCurrentVideo(nextVideo)
-                                        }
-                                    }
+                                    playerViewModel.playNext()
                                 },
                                 hasPrevious = playerState.hasPrevious || canGoPrevious,
                                 hasNext = playerState.hasNext || playerUiState.relatedVideos.isNotEmpty(),
@@ -703,23 +677,10 @@ fun GlobalPlayerOverlay(
                         EnhancedPlayerManager.getInstance().seekTo(screenState.currentPosition - 10000)
                     },
                     onNext = {
-                        if (playerState.hasNext) {
-                            playerViewModel.playNext()
-                        } else {
-                            playerUiState.relatedVideos.firstOrNull()?.let { nextVideo ->
-                                playerViewModel.playVideo(nextVideo)
-                                GlobalPlayerState.setCurrentVideo(nextVideo)
-                            }
-                        }
+                        playerViewModel.playNext()
                     },
                     onPrevious = {
-                        if (playerState.hasPrevious) {
-                            playerViewModel.playPrevious()
-                        } else {
-                            playerViewModel.getPreviousVideoId()?.let { prevId ->
-                                GlobalPlayerState.setCurrentVideo(Video(id = prevId, title = "", channelName = "", channelId = "", thumbnailUrl = "", duration = 0, viewCount = 0, uploadDate = ""))
-                            }
-                        }
+                        playerViewModel.playPrevious()
                     },
                     onClose = onClose
                 )
