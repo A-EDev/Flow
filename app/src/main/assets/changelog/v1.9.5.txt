@@ -1,6 +1,9 @@
 FLOW CHANGE LOG
-VERSION: 1.9.0
-DATE: 2026-03-11
+VERSION: 1.9.5
+DATE: 2026-03-14
+
+NEW FEATURES
+- Content sorting in channel screen
 
 IMPROVEMENTS
 - Improved video player action buttons design and sizes.
@@ -8,7 +11,7 @@ IMPROVEMENTS
 - Improved edge-to-edge display
 - Redesigned Search bars
 - Improved video thumbnail quality
-- Slimmed down the channel header size
+- Channel screen Redesign
 - Removed rewind video on privious click feature
 - Removed redudant 3-dot menu buttons in the music quick actions menu
 - More responsive video player dragging
