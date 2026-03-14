@@ -34,11 +34,21 @@ enum class SuggestionType {
 }
 
 data class SearchFilter(
-    val contentType: ContentType = ContentType.ALL
+    val contentType: ContentType = ContentType.ALL,
+    val duration: Duration = Duration.ANY,
+    val uploadDate: UploadDate = UploadDate.ANY
 )
 
 enum class ContentType {
     ALL, VIDEOS, CHANNELS, PLAYLISTS
+}
+
+enum class Duration {
+    ANY, UNDER_4_MINUTES, FROM_4_TO_20_MINUTES, OVER_20_MINUTES
+}
+
+enum class UploadDate {
+    ANY, TODAY, THIS_WEEK, THIS_MONTH, THIS_YEAR
 }
 
 class SearchHistoryRepository(private val context: Context) {

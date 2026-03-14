@@ -4,6 +4,7 @@ DATE: 2026-03-14
 
 NEW FEATURES
 - Content sorting in channel screen
+- Search filters
 
 IMPROVEMENTS
 - Improved video player action buttons design and sizes.

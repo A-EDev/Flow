@@ -35,11 +35,10 @@ class SearchViewModel(
      * Internal trigger: emitting a new value here restarts the pager from page 0.
      * Holds (query, contentFilters) so the PagingSource gets fresh arguments.
      */
-    private data class SearchKey(val query: String, val contentFilters: List<String>)
+    private data class SearchKey(val query: String, val contentFilters: List<String>, val searchFilter: SearchFilter?)
     private val _searchKey = MutableStateFlow<SearchKey?>(null)
 
     /**
-     * Paging3 stream – the infinite-scroll source of truth for the search list.
      * flatMapLatest restarts the pager whenever [_searchKey] changes (new search
      * or filter change), and cachedIn survives configuration changes.
      */
@@ -54,7 +53,7 @@ class SearchViewModel(
                     enablePlaceholders = false,
                     initialLoadSize = 20
                 ),
-                pagingSourceFactory = { SearchPagingSource(key.query, key.contentFilters) }
+                pagingSourceFactory = { SearchPagingSource(key.query, key.contentFilters, key.searchFilter) }
             ).flow
         }
         .cachedIn(viewModelScope)
@@ -68,14 +67,14 @@ class SearchViewModel(
             return
         }
         _uiState.value = SearchUiState(query = query, filters = filters)
-        _searchKey.value = SearchKey(query, buildContentFilters(filters))
+        _searchKey.value = SearchKey(query, buildContentFilters(filters), filters)
     }
 
     fun updateFilters(filters: SearchFilter) {
         val currentQuery = _uiState.value.query
         _uiState.value = _uiState.value.copy(filters = filters)
         if (currentQuery.isNotBlank()) {
-            _searchKey.value = SearchKey(currentQuery, buildContentFilters(filters))
+            _searchKey.value = SearchKey(currentQuery, buildContentFilters(filters), filters)
         }
     }
 
@@ -86,7 +85,7 @@ class SearchViewModel(
 
     fun hasActiveFilters(filters: SearchFilter?): Boolean {
         if (filters == null) return false
-        return filters.contentType != ContentType.ALL
+        return filters.contentType != ContentType.ALL || filters.duration != com.flow.youtube.data.local.Duration.ANY || filters.uploadDate != com.flow.youtube.data.local.UploadDate.ANY
     }
 
     suspend fun getSearchSuggestions(query: String): List<String> {

@@ -3,6 +3,9 @@ package com.flow.youtube.data.paging
 import android.util.Log
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
+import com.flow.youtube.data.local.Duration
+import com.flow.youtube.data.local.UploadDate
+import com.flow.youtube.data.local.SearchFilter
 import com.flow.youtube.data.model.Channel
 import com.flow.youtube.data.model.Playlist
 import com.flow.youtube.data.model.Video
@@ -34,7 +37,8 @@ sealed class SearchResultItem {
  */
 class SearchPagingSource(
     private val query: String,
-    private val contentFilters: List<String> = emptyList()
+    private val contentFilters: List<String> = emptyList(),
+    private val searchFilter: SearchFilter? = null
 ) : PagingSource<Page, SearchResultItem>() {
 
     companion object {
@@ -62,6 +66,34 @@ class SearchPagingSource(
                 val items: List<SearchResultItem> = infoPage.items.mapNotNull { item ->
                     when (item) {
                         is StreamInfoItem -> {
+                            val duration = item.duration.toInt()
+                            val uploadDate = item.textualUploadDate ?: ""
+
+                            if (searchFilter != null) {
+                                if (searchFilter.duration == Duration.UNDER_4_MINUTES && duration >= 240) return@mapNotNull null
+                                if (searchFilter.duration == Duration.FROM_4_TO_20_MINUTES && (duration < 240 || duration > 1200)) return@mapNotNull null
+                                if (searchFilter.duration == Duration.OVER_20_MINUTES && duration <= 1200) return@mapNotNull null
+
+                                if (searchFilter.uploadDate != UploadDate.ANY && uploadDate.isNotEmpty()) {
+                                    val loweredDate = uploadDate.lowercase()
+                                    val isHoursOrLess = loweredDate.contains("second") || loweredDate.contains("minute") || loweredDate.contains("hour")
+                                    val isDays = loweredDate.contains("day")
+                                    val isWeeks = loweredDate.contains("week")
+                                    val isMonths = loweredDate.contains("month")
+                                    val isYears = loweredDate.contains("year")
+
+                                    val isOne = loweredDate.contains("1 day") || loweredDate.contains("1 week") || loweredDate.contains("1 month") || loweredDate.contains("1 year")
+
+                                    when (searchFilter.uploadDate) {
+                                        UploadDate.TODAY -> if (!isHoursOrLess && !(isDays && loweredDate.contains("1 day"))) return@mapNotNull null
+                                        UploadDate.THIS_WEEK -> if (isYears || isMonths || (isWeeks && !loweredDate.contains("1 week"))) return@mapNotNull null
+                                        UploadDate.THIS_MONTH -> if (isYears || (isMonths && !loweredDate.contains("1 month"))) return@mapNotNull null
+                                        UploadDate.THIS_YEAR -> if (isYears && !loweredDate.contains("1 year")) return@mapNotNull null
+                                        else -> {}
+                                    }
+                                }
+                            }
+
                             val videoId = extractVideoId(item.url)
                             val thumbnail = item.thumbnails.maxByOrNull { it.width }?.url
                                 ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"

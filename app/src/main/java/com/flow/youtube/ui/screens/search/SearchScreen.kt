@@ -1,4 +1,4 @@
-package com.flow.youtube.ui.screens.search
+﻿package com.flow.youtube.ui.screens.search
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -209,6 +209,21 @@ fun SearchScreen(
                 tabLabels = listOf("All", "Videos", "Channels", "Playlists"),
                 onTabSelected = { selectedTabIndex = it }
             )
+
+            if (selectedTabIndex == 0 || selectedTabIndex == 1) {
+                SearchFilterRow(
+                    selectedDuration = uiState.filters?.duration ?: Duration.ANY,
+                    onDurationSelected = { dur ->
+                        val base = uiState.filters ?: SearchFilter()
+                        viewModel.updateFilters(base.copy(duration = dur))
+                    },
+                    selectedUploadDate = uiState.filters?.uploadDate ?: UploadDate.ANY,
+                    onUploadDateSelected = { date ->
+                        val base = uiState.filters ?: SearchFilter()
+                        viewModel.updateFilters(base.copy(uploadDate = date))
+                    }
+                )
+            }
 
             val isInitialLoading = pagingItems.loadState.refresh is LoadState.Loading
             val isInitialError = pagingItems.loadState.refresh is LoadState.Error && pagingItems.itemCount == 0
@@ -1072,4 +1087,84 @@ private fun formatSubs(count: Long): String = when {
     count >= 1_000 -> "${"%.1f".format(count / 1_000.0)}K subscribers"
     count > 0 -> "$count subscribers"
     else -> ""
+}
+
+@Composable
+private fun SearchFilterRow(
+    selectedDuration: Duration,
+    onDurationSelected: (Duration) -> Unit,
+    selectedUploadDate: UploadDate,
+    onUploadDateSelected: (UploadDate) -> Unit
+) {
+    val durationLabels = listOf(
+        Duration.ANY to "Any Length",
+        Duration.UNDER_4_MINUTES to "< 4 mins",
+        Duration.FROM_4_TO_20_MINUTES to "4-20 mins",
+        Duration.OVER_20_MINUTES to "> 20 mins"
+    )
+    val uploadDateLabels = listOf(
+        UploadDate.ANY to "Any Time",
+        UploadDate.TODAY to "Today",
+        UploadDate.THIS_WEEK to "This Week",
+        UploadDate.THIS_MONTH to "This Month",
+        UploadDate.THIS_YEAR to "This Year"
+    )
+
+    LazyRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        item {
+            Icon(
+                imageVector = Icons.Default.FilterList,
+                contentDescription = "Filters",
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.width(4.dp))
+        }
+
+        item {
+            var durationExpanded by remember { mutableStateOf(false) }
+            Box {
+                FilterChip(
+                    selected = selectedDuration != Duration.ANY,
+                    onClick = { durationExpanded = true },
+                    label = { Text(durationLabels.first { it.first == selectedDuration }.second) },
+                    trailingIcon = { Icon(Icons.Default.ArrowDropDown, null) }
+                )
+                DropdownMenu(expanded = durationExpanded, onDismissRequest = { durationExpanded = false }) {
+                    durationLabels.forEach { (dur, label) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = { onDurationSelected(dur); durationExpanded = false }
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            var dateExpanded by remember { mutableStateOf(false) }
+            Box {
+                FilterChip(
+                    selected = selectedUploadDate != UploadDate.ANY,
+                    onClick = { dateExpanded = true },
+                    label = { Text(uploadDateLabels.first { it.first == selectedUploadDate }.second) },
+                    trailingIcon = { Icon(Icons.Default.ArrowDropDown, null) }
+                )
+                DropdownMenu(expanded = dateExpanded, onDismissRequest = { dateExpanded = false }) {
+                    uploadDateLabels.forEach { (date, label) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = { onUploadDateSelected(date); dateExpanded = false }
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
