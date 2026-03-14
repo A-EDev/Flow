@@ -11,9 +11,11 @@ IMPROVEMENTS
 - Slimmed down the channel header size
 - Removed rewind video on privious click feature
 - Removed redudant 3-dot menu buttons in the music quick actions menu
+- More responsive video player dragging
 
 FIXES AND STABILITY
 - Fix Unresponsive player when clicking
 - Fix Default Auto Quality stuck at highest quality and improved thresholds
 - Fix previous video rewind issue in queue
 - Fix music playback issues from Music History & Likes
+- Fix video playback issue on Fullscreen expansion
