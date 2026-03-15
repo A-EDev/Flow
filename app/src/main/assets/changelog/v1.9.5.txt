@@ -1,10 +1,11 @@
 FLOW CHANGE LOG
 VERSION: 1.9.5
-DATE: 2026-03-14
+DATE: 2026-03-15
 
 NEW FEATURES
 - Content sorting in channel screen
 - Search filters
+- Clear video from feed when marked by "Not Interested" or "Don't Recommend.."
 
 IMPROVEMENTS
 - Improved video player action buttons design and sizes.
@@ -16,6 +17,19 @@ IMPROVEMENTS
 - Removed rewind video on privious click feature
 - Removed redudant 3-dot menu buttons in the music quick actions menu
 - More responsive video player dragging
+
+RECOMMENDATION ENGINE
+- Fixed cross-topic contamination
+- Removed dangerous lemma mappings
+- Smoother scoring
+- Consolidated 19 inline scoring factors into grouped helper functions for cleaner ranking logic
+- Description keywords now skip sponsor copy, social media links, hashtags, and URLs before extraction
+- Expanded blocked topic filtering 
+- New bootstrapFromWatchHistory()
+- Shorts from subscribed channels get 3x subscription boost
+- All feed paths (trending, Shorts shelf, home feed) now pass through the ranking engine
+- Instant feed invalidation
+- New Shorts discovery engine
 
 FIXES AND STABILITY
 - Fix Unresponsive player when clicking

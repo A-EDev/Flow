@@ -13,14 +13,34 @@ import com.flow.youtube.data.repository.YouTubeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+
+/**
+ * Lightweight singleton event bus for feed-visible state changes.
+ * Emitted by QuickActionsViewModel, observed by HomeViewModel / ShortsViewModel
+ * to instantly strip blocked/disliked content from the cached feed.
+ */
+object FeedInvalidationBus {
+    sealed class Event {
+        data class ChannelBlocked(val channelId: String) : Event()
+        data class NotInterested(val videoId: String, val channelId: String) : Event()
+    }
+
+    private val _events = MutableSharedFlow<Event>(extraBufferCapacity = 8)
+    val events: SharedFlow<Event> = _events.asSharedFlow()
+
+    fun emit(event: Event) { _events.tryEmit(event) }
+}
 
 @HiltViewModel
 class QuickActionsViewModel @Inject constructor(
@@ -113,6 +133,7 @@ class QuickActionsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 FlowNeuroEngine.blockChannel(context, video.channelId)
+                FeedInvalidationBus.emit(FeedInvalidationBus.Event.ChannelBlocked(video.channelId))
                 Toast.makeText(
                     context,
                     context.getString(com.flow.youtube.R.string.channel_blocked_toast, video.channelName),
@@ -132,9 +153,12 @@ class QuickActionsViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 FlowNeuroEngine.markNotInterested(context, video)
+                FeedInvalidationBus.emit(
+                    FeedInvalidationBus.Event.NotInterested(video.id, video.channelId)
+                )
                 Toast.makeText(
-                    context, 
-                    "Got it! You'll see less content like this.", 
+                    context,
+                    "Got it! You'll see less content like this.",
                     Toast.LENGTH_SHORT
                 ).show()
             } catch (e: Exception) {

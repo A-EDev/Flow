@@ -10,6 +10,7 @@ import com.flow.youtube.data.model.Video
 import com.flow.youtube.data.model.toVideo
 import com.flow.youtube.data.repository.YouTubeRepository
 import com.flow.youtube.data.shorts.ShortsRepository
+import com.flow.youtube.ui.components.FeedInvalidationBus
 import com.flow.youtube.utils.PerformanceDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -88,6 +89,34 @@ class HomeViewModel @Inject constructor(
         
         viewModelScope.launch {
             FlowNeuroEngine.initialize(context)
+        }
+
+        viewModelScope.launch {
+            FeedInvalidationBus.events.collect { event ->
+                when (event) {
+                    is FeedInvalidationBus.Event.ChannelBlocked -> {
+                        HomeFeedCache.filterOut(channelId = event.channelId)
+                        _uiState.update { state ->
+                            state.copy(
+                                videos = state.videos.filter { it.channelId != event.channelId },
+                                shorts = state.shorts.filter { it.channelId != event.channelId }
+                            )
+                        }
+                        // Targeted eviction — preserves other channel caches in discovery engine
+                        shortsRepository.evictChannel(event.channelId)
+                    }
+                    is FeedInvalidationBus.Event.NotInterested -> {
+                        HomeFeedCache.filterOut(videoId = event.videoId)
+                        _uiState.update { state ->
+                            state.copy(
+                                videos = state.videos.filter { it.id != event.videoId }
+                            )
+                        }
+                        // Full clear — topic signals changed, discovery queries will differ
+                        shortsRepository.clearCaches()
+                    }
+                }
+            }
         }
 
         viewModelScope.launch {
@@ -218,12 +247,13 @@ class HomeViewModel @Inject constructor(
                 
                 val (rawSubs, rawDiscovery, rawViral) = results
                 
-                // Extract shorts from all sources for the shelf
+                // Extract shorts from all sources for the shelf, ranked by FlowNeuro
                 val feedShorts = (rawSubs.extractShorts() + rawDiscovery.extractShorts() + rawViral.extractShorts())
                     .distinctBy { it.id }
                 if (feedShorts.isNotEmpty() && playerPreferences.homeShortsShelfEnabled.first()) {
+                    val rankedShorts = FlowNeuroEngine.rank(feedShorts, userSubs)
                     _uiState.update { state ->
-                        state.copy(shorts = (state.shorts + feedShorts).distinctBy { it.id })
+                        state.copy(shorts = (state.shorts + rankedShorts).distinctBy { it.id })
                     }
                 }
                 
@@ -315,11 +345,13 @@ class HomeViewModel @Inject constructor(
                    }
                 }.awaitAll().flatten()
                 
-                // Extract shorts for shelf
+                // Extract shorts for shelf — rank through FlowNeuro
                 val moreShorts = rawVideos.extractShorts()
                 if (moreShorts.isNotEmpty() && playerPreferences.homeShortsShelfEnabled.first()) {
+                    val subs = subscriptionRepository.getAllSubscriptionIds()
+                    val rankedMore = FlowNeuroEngine.rank(moreShorts, subs)
                     _uiState.update { state ->
-                        state.copy(shorts = (state.shorts + moreShorts).distinctBy { it.id })
+                        state.copy(shorts = (state.shorts + rankedMore).distinctBy { it.id })
                     }
                 }
                 
@@ -356,18 +388,20 @@ class HomeViewModel @Inject constructor(
     fun loadTrendingVideos(region: String = "US") {
         if (_uiState.value.isLoading && _uiState.value.videos.isEmpty()) return
         _uiState.update { it.copy(isLoading = true, error = null) }
-        
+
         viewModelScope.launch {
             try {
                 val (videos, nextPage) = repository.getTrendingVideos(region, null)
                 currentPage = nextPage
-                
-                updateVideosAndShorts(videos, append = false)
-                
+
+                val userSubs = subscriptionRepository.getAllSubscriptionIds()
+                val ranked = FlowNeuroEngine.rank(videos, userSubs)
+                updateVideosAndShorts(ranked, append = false)
+
                 _uiState.update { it.copy(
                     isLoading = false,
                     hasMorePages = nextPage != null,
-                    isFlowFeed = false 
+                    isFlowFeed = false
                 )}
             } catch (e: Exception) {
                 _uiState.update { it.copy(
@@ -382,8 +416,10 @@ class HomeViewModel @Inject constructor(
         val region = playerPreferences.trendingRegion.first()
         val (videos, nextPage) = repository.getTrendingVideos(region, null)
         currentPage = nextPage
-        
-        updateVideosAndShorts(videos, append = false)
+
+        val userSubs = subscriptionRepository.getAllSubscriptionIds()
+        val ranked = FlowNeuroEngine.rank(videos, userSubs)
+        updateVideosAndShorts(ranked, append = false)
         _uiState.update { it.copy(
             isLoading = false,
             hasMorePages = nextPage != null,
@@ -477,6 +513,21 @@ internal object HomeFeedCache {
         videos = emptyList()
         shorts = emptyList()
         timestamp = 0L
+    }
+
+    /**
+     * Remove videos by blocked channel/topic from the cached feed without
+     * requiring a network refetch, keeping the cache TTL alive.
+     */
+    fun filterOut(channelId: String? = null, videoId: String? = null) {
+        if (channelId != null) {
+            videos = videos.filter { it.channelId != channelId }
+            shorts = shorts.filter { it.channelId != channelId }
+        }
+        if (videoId != null) {
+            videos = videos.filter { it.id != videoId }
+            shorts = shorts.filter { it.id != videoId }
+        }
     }
 }
 

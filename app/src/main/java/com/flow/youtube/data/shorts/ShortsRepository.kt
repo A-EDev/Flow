@@ -3,6 +3,7 @@ package com.flow.youtube.data.shorts
 import android.content.Context
 import android.util.Log
 import android.util.LruCache
+import com.flow.youtube.data.local.SubscriptionRepository
 import com.flow.youtube.data.model.ShortVideo
 import com.flow.youtube.data.model.ShortsSequenceResult
 import com.flow.youtube.data.model.toShortVideo
@@ -14,35 +15,43 @@ import com.flow.youtube.innertube.models.YouTubeClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.stream.StreamInfo
 
 /**
- * Shorts Repository — InnerTube Reel API Primary, NewPipe Fallback
- * 
+ * Shorts Repository — Discovery-First Architecture
+ *
  * Architecture:
- * 1. PRIMARY: YouTube InnerTube reel/reel_watch_sequence endpoint
- *    - Returns algorithmically-ordered shorts from YouTube's recommendation engine
- *    - Supports continuation-based infinite scroll
- *    - Provides sequenceParams/playerParams for optimal playback
- * 
- * 2. FALLBACK: NewPipe Extractor search-based discovery
- *    - Used when InnerTube fails (rate limits, API changes, network issues)
- *    - Searches "#shorts" and filters by duration ≤ 60s
- * 
- * 3. CACHING:
+ * 1. PRIMARY (seedVideoId == null):
+ *    ShortsDiscoveryEngine builds a topic-aware candidate pool from:
+ *      a) Subscribed channel recent uploads filtered to ≤60s
+ *      b) Topic-driven searches using FlowNeuroEngine's learned interests
+ *    This ensures the candidate pool is already ~80% relevant before ranking.
+ *
+ * 2. SEED (seedVideoId != null):
+ *    InnerTube reel_watch_sequence endpoint — related content from a specific video.
+ *    Kept as-is because the user explicitly started from a video they wanted.
+ *
+ * 3. FALLBACK: NewPipe Extractor search-based discovery
+ *    Used when all primary sources fail.
+ *
+ * 4. CACHING:
  *    - Stream URL cache (LRU, 50 entries) — avoids re-resolving on swipe-back
  *    - StreamInfo cache (LRU, 30 entries) — full stream metadata for player setup
- *    - Shorts feed is NOT disk-cached (InnerTube provides fresh algorithmic content)
+ *    - Discovery engine has its own per-channel + per-query caches
  */
 class ShortsRepository private constructor(private val context: Context) {
-    
+
     private val youtubeRepository = YouTubeRepository.getInstance()
+    private val subscriptionRepository = SubscriptionRepository.getInstance(context)
+    private val shortsDiscovery = ShortsDiscoveryEngine.getInstance(context)
     
     // In-memory caches — ephemeral, cleared when app process dies
     private val streamInfoCache = LruCache<String, StreamInfo>(30)
@@ -66,8 +75,9 @@ class ShortsRepository private constructor(private val context: Context) {
         private const val INNERTUBE_TIMEOUT_MS = 8_000L
         private const val NEWPIPE_TIMEOUT_MS = 8_000L
         private const val STREAM_RESOLVE_TIMEOUT_MS = 8_000L
-        private const val ENRICHMENT_TIMEOUT_MS = 12_000L // Dedicated timeout for metadata enrichment
+        private const val ENRICHMENT_TIMEOUT_MS = 12_000L
         private const val MAX_RECENTLY_SHOWN = 100
+        private const val MIN_POOL_SIZE = 10
         
         @Volatile
         private var INSTANCE: ShortsRepository? = null
@@ -79,89 +89,124 @@ class ShortsRepository private constructor(private val context: Context) {
         }
     }
     
-    // FEED FETCHING — InnerTube Primary, NewPipe Fallback
-    /**
-     * Fetch the initial Shorts feed.
-     * 
-     * @param seedVideoId Optional video ID to start the reel sequence from.
-     *                    If null, returns YouTube's default algorithmic feed.
-     * @return [ShortsSequenceResult] with shorts list and continuation token.
-     */
     suspend fun getShortsFeed(
         seedVideoId: String? = null
     ): ShortsSequenceResult = withContext(Dispatchers.IO) {
         Log.d(TAG, "━━━ Fetching Shorts Feed (seed=$seedVideoId) ━━━")
-        
         if (seedVideoId == null) {
             val cached = cachedInitialFeed
-            if (cached != null && System.currentTimeMillis() - cachedFeedTimestamp < CACHE_TTL_MS && cached.shorts.isNotEmpty()) {
+            if (cached != null &&
+                System.currentTimeMillis() - cachedFeedTimestamp < CACHE_TTL_MS &&
+                cached.shorts.isNotEmpty()
+            ) {
                 Log.d(TAG, "♻ Using cached feed (${cached.shorts.size} shorts)")
                 return@withContext cached
             }
+            return@withContext fetchDiscoveryFeed()
         }
-        
+
         val rawResult = try {
-            withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) {
-                fetchFromInnerTubeRaw(seedVideoId)
-            }
+            withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) { fetchFromInnerTubeRaw(seedVideoId) }
         } catch (e: Exception) {
-            Log.w(TAG, "InnerTube feed failed: ${e.message}")
+            Log.w(TAG, "InnerTube seed feed failed: ${e.message}")
             null
         }
-        
+
         if (rawResult != null && rawResult.shorts.isNotEmpty()) {
-            Log.d(TAG, "✓ InnerTube returned ${rawResult.shorts.size} shorts (pre-enrichment)")
-            val reRanked = if (seedVideoId == null) reRankWithFlowNeuro(rawResult.shorts) else rawResult.shorts
-            val result = rawResult.copy(shorts = reRanked)
-            
-            result.shorts.forEach { shortsCache.put(it.id, it) }
-            markAsShown(result.shorts.map { it.id })
-            
-            val enriched = try {
-                withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) {
-                    enrichMissingMetadata(result.shorts)
+            Log.d(TAG, "✓ InnerTube seed returned ${rawResult.shorts.size} shorts")
+            rawResult.shorts.forEach { shortsCache.put(it.id, it) }
+            markAsShown(rawResult.shorts.map { it.id })
+            return@withContext rawResult
+        }
+
+        Log.w(TAG, "InnerTube seed failed — falling back to discovery feed")
+        fetchDiscoveryFeed()
+    }
+
+    private suspend fun fetchDiscoveryFeed(): ShortsSequenceResult {
+        val userSubs = subscriptionRepository.getAllSubscriptionIds()
+
+        val (innerTubeResult, rawDiscovery) = coroutineScope {
+            val itJob = async {
+                try {
+                    withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) { fetchFromInnerTubeRaw(null) }
+                } catch (e: Exception) { null }
+            }
+            val discJob = async {
+                try {
+                    shortsDiscovery.getDiscoveryShorts(userSubs = userSubs, trending = emptyList())
+                } catch (e: Exception) {
+                    Log.e(TAG, "ShortsDiscoveryEngine failed", e)
+                    null
                 }
+            }
+            Pair(itJob.await(), discJob.await())
+        }
+
+        val continuationToken = innerTubeResult?.continuation
+
+        val discoveryVideos: List<com.flow.youtube.data.model.Video> = when {
+            !rawDiscovery.isNullOrEmpty() -> rawDiscovery
+            innerTubeResult != null && innerTubeResult.shorts.isNotEmpty() -> {
+                Log.w(TAG, "Discovery empty — ranking InnerTube result")
+                innerTubeResult.shorts.map { it.toVideo() }.let { videos ->
+                    FlowNeuroEngine.rank(videos, userSubs)
+                }
+            }
+            else -> emptyList()
+        }.let { videos ->
+            if (videos.size in 1 until MIN_POOL_SIZE &&
+                innerTubeResult != null &&
+                innerTubeResult.shorts.isNotEmpty()
+            ) {
+                val itVideos = innerTubeResult.shorts.map { it.toVideo() }
+                val seenIds = videos.map { it.id }.toHashSet()
+                val supplement = itVideos.filter { it.id !in seenIds }
+                FlowNeuroEngine.rank(videos + supplement, userSubs)
+            } else videos
+        }
+
+        if (discoveryVideos.isEmpty()) {
+            Log.w(TAG, "⟳ All sources empty — falling back to NewPipe")
+            val newPipeResult = try {
+                withTimeoutOrNull(NEWPIPE_TIMEOUT_MS) { fetchFromNewPipe() }
             } catch (e: Exception) {
-                Log.w(TAG, "Enrichment failed, using raw data: ${e.message}")
+                Log.e(TAG, "NewPipe fallback failed: ${e.message}")
                 null
-            } ?: result.shorts
-            
-            val finalResult = result.copy(shorts = enriched)
-            // Update cache with enriched data
-            finalResult.shorts.forEach { shortsCache.put(it.id, it) }
-            
-            if (seedVideoId == null) {
-                cachedInitialFeed = finalResult
+            }
+            if (newPipeResult != null && newPipeResult.shorts.isNotEmpty()) {
+                val reRanked = reRankWithFlowNeuro(newPipeResult.shorts, userSubs)
+                val result = newPipeResult.copy(shorts = reRanked)
+                result.shorts.forEach { shortsCache.put(it.id, it) }
+                markAsShown(result.shorts.map { it.id })
+                cachedInitialFeed = result
                 cachedFeedTimestamp = System.currentTimeMillis()
+                return result
             }
-            
-            return@withContext finalResult
+            Log.e(TAG, "✗ All Shorts sources failed — returning empty")
+            return ShortsSequenceResult(emptyList(), null)
         }
-        
-        // Fallback to NewPipe
-        Log.d(TAG, "⟳ Falling back to NewPipe...")
-        val newPipeResult = try {
-            withTimeoutOrNull(NEWPIPE_TIMEOUT_MS) {
-                fetchFromNewPipe()
-            }
+
+        val candidateShorts = discoveryVideos
+            .filter { it.id !in recentlyShownIds }
+            .map { it.toShortVideo() }
+
+        markAsShown(candidateShorts.map { it.id })
+        candidateShorts.forEach { shortsCache.put(it.id, it) }
+
+        val enriched = try {
+            withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) { enrichMissingMetadata(candidateShorts) }
         } catch (e: Exception) {
-            Log.e(TAG, "NewPipe fallback also failed: ${e.message}")
+            Log.w(TAG, "Enrichment failed, using raw data: ${e.message}")
             null
-        }
-        
-        if (newPipeResult != null && newPipeResult.shorts.isNotEmpty()) {
-            Log.d(TAG, "✓ NewPipe returned ${newPipeResult.shorts.size} shorts")
-            newPipeResult.shorts.forEach { shortsCache.put(it.id, it) }
-            markAsShown(newPipeResult.shorts.map { it.id })
-            if (seedVideoId == null) {
-                cachedInitialFeed = newPipeResult
-                cachedFeedTimestamp = System.currentTimeMillis()
-            }
-            return@withContext newPipeResult
-        }
-        
-        Log.e(TAG, "✗ Both sources failed — returning empty")
-        ShortsSequenceResult(emptyList(), null)
+        } ?: candidateShorts
+        enriched.forEach { shortsCache.put(it.id, it) }
+
+        val result = ShortsSequenceResult(enriched, continuationToken)
+        cachedInitialFeed = result
+        cachedFeedTimestamp = System.currentTimeMillis()
+        Log.i(TAG, "✓ Discovery feed: ${enriched.size} shorts (continuation=${continuationToken != null})")
+        return result
     }
     
     /**
@@ -179,7 +224,9 @@ class ShortsRepository private constructor(private val context: Context) {
         }
         
         Log.d(TAG, "━━━ Loading More Shorts (continuation) ━━━")
-        
+
+        val userSubs = subscriptionRepository.getAllSubscriptionIds()
+
         // InnerTube continuation
         val result = try {
             withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) {
@@ -209,12 +256,13 @@ class ShortsRepository private constructor(private val context: Context) {
                 null
             } ?: result.shorts
             
-            val enrichedResult = result.copy(shorts = enriched)
+            val reRanked = reRankWithFlowNeuro(enriched, userSubs)
+            val enrichedResult = result.copy(shorts = reRanked)
             enrichedResult.shorts.forEach { shortsCache.put(it.id, it) }
             markAsShown(enrichedResult.shorts.map { it.id })
             return@withContext enrichedResult
         }
-        
+
         // Fallback: fresh NewPipe fetch
         Log.d(TAG, "⟳ Continuation failed, fetching fresh from NewPipe")
         try {
@@ -222,9 +270,11 @@ class ShortsRepository private constructor(private val context: Context) {
                 fetchFromNewPipe()
             }
             if (fallback != null) {
-                fallback.shorts.forEach { shortsCache.put(it.id, it) }
-                markAsShown(fallback.shorts.map { it.id })
-                return@withContext fallback
+                val reRanked = reRankWithFlowNeuro(fallback.shorts, userSubs)
+                val rankedFallback = fallback.copy(shorts = reRanked)
+                rankedFallback.shorts.forEach { shortsCache.put(it.id, it) }
+                markAsShown(rankedFallback.shorts.map { it.id })
+                return@withContext rankedFallback
             }
         } catch (e: Exception) {
             Log.e(TAG, "NewPipe pagination fallback failed", e)
@@ -243,36 +293,28 @@ class ShortsRepository private constructor(private val context: Context) {
      * 
      * The first item is pinned (YouTube chose it for a reason), rest are re-ranked.
      */
-    private suspend fun reRankWithFlowNeuro(shorts: List<ShortVideo>): List<ShortVideo> {
+    private suspend fun reRankWithFlowNeuro(
+        shorts: List<ShortVideo>,
+        userSubs: Set<String> = emptySet()
+    ): List<ShortVideo> {
         if (shorts.size <= 2) return shorts
-        
         return try {
-            // Initialize engine if needed
             FlowNeuroEngine.initialize(context)
-            
-            // Pin the first short (YouTube's top pick), re-rank the rest
             val pinned = shorts.first()
             val candidates = shorts.drop(1)
-            
-            // Convert to Video for FlowNeuro
             val videosCandidates = candidates.map { it.toVideo() }
-            
-            // Re-rank with FlowNeuro
             val ranked = FlowNeuroEngine.rank(
                 candidates = videosCandidates,
-                userSubs = emptySet()
+                userSubs = userSubs
             )
-            
             val rankedIds = ranked.map { it.id }
             val shortById = candidates.associateBy { it.id }
             val reRanked = rankedIds.mapNotNull { shortById[it] }
-            
-            val result = listOf(pinned) + reRanked
             Log.d(TAG, "✓ FlowNeuro re-ranked ${reRanked.size} shorts")
-            result
+            listOf(pinned) + reRanked
         } catch (e: Exception) {
-            Log.w(TAG, "FlowNeuro re-ranking failed, using YouTube order: ${e.message}")
-            shorts 
+            Log.w(TAG, "FlowNeuro re-ranking failed, using original order: ${e.message}")
+            shorts
         }
     }
     
@@ -471,7 +513,18 @@ class ShortsRepository private constructor(private val context: Context) {
         recentlyShownIds.clear()
         cachedInitialFeed = null
         cachedFeedTimestamp = 0L
+        shortsDiscovery.clearCaches()
         Log.d(TAG, "All caches cleared")
+    }
+
+    fun evictChannel(channelId: String) {
+        shortsDiscovery.evictChannel(channelId)
+        val current = cachedInitialFeed
+        if (current != null) {
+            val filtered = current.shorts.filter { it.channelId != channelId }
+            cachedInitialFeed = current.copy(shorts = filtered)
+        }
+        Log.d(TAG, "Evicted channel $channelId from Shorts caches")
     }
     
     /**

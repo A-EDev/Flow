@@ -478,8 +478,8 @@ fun DraggablePlayerLayout(
 
                             if (isCollapseDrag) {
                                 val velY = velocityTracker.calculateVelocity().y
-                                val shouldCollapse = state.expandFraction.value > 0.25f || velY > 500f ||
-                                (velY > 300f && state.expandFraction.value > 0.1f)
+                                val shouldCollapse = state.expandFraction.value > 0.1f || velY > 300f ||
+                                (velY > 200f && state.expandFraction.value > 0.05f)
                                 if (shouldCollapse) {
                                     onCollapseGesture?.invoke()
                                     GlobalPlayerState.showMiniPlayer()

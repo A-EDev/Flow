@@ -211,25 +211,18 @@ class ShortsViewModel @Inject constructor(
                         hasMorePages = result.continuation != null || result.shorts.isNotEmpty()
                     )
                 } else {
-                    // Try NewPipe fallback for more content — clear stale continuation
-                    val fallback = withTimeoutOrNull(10_000L) {
-                        repository.getShorts(_uiState.value.newPipePage)
+                    val fresh = withTimeoutOrNull(12_000L) {
+                        shortsRepository.forceRefresh()
                     }
-                    
-                    if (fallback != null) {
-                        val (newVideos, nextPage) = fallback
-                        val newShorts = newVideos
-                            .filter { it.duration in 1..60 }
-                            .map { it.toShortVideo() }
+
+                    if (fresh != null && fresh.shorts.isNotEmpty()) {
                         val currentShorts = _uiState.value.shorts
-                        val updatedShorts = (currentShorts + newShorts).distinctBy { it.id }
-                        
+                        val updatedShorts = (currentShorts + fresh.shorts).distinctBy { it.id }
                         _uiState.value = _uiState.value.copy(
                             shorts = updatedShorts,
-                            newPipePage = nextPage,
-                            continuation = null, 
+                            continuation = fresh.continuation,
                             isLoadingMore = false,
-                            hasMorePages = nextPage != null
+                            hasMorePages = fresh.continuation != null || fresh.shorts.isNotEmpty()
                         )
                     } else {
                         _uiState.value = _uiState.value.copy(
