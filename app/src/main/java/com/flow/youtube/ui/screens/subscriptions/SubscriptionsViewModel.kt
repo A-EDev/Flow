@@ -161,9 +161,7 @@ class SubscriptionsViewModel : ViewModel() {
     private suspend fun updateVideos(videos: List<Video>) {
         val sortedVideos = videos.sortedByDescending { it.timestamp }
 
-        val (shorts, regular) = sortedVideos.partition { video ->
-            video.isShort || (video.duration in 1..120 && !video.isLive)
-        }
+        val (shorts, regular) = sortedVideos.partition { video -> video.isShort }
         Log.i(TAG, "updateVideos: total=${sortedVideos.size} → regular=${regular.size}, shorts=${shorts.size}")
 
         // ── Watched-shorts filter ──────────────────────────────────────────

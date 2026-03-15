@@ -14,6 +14,7 @@ import com.flow.youtube.data.paging.ChannelVideosPagingSource
 import com.flow.youtube.data.paging.ChannelPlaylistsPagingSource
 import com.flow.youtube.utils.PerformanceDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -26,22 +27,27 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler
 
 class ChannelViewModel : ViewModel() {
-    
     private val _uiState = MutableStateFlow(ChannelUiState())
     val uiState: StateFlow<ChannelUiState> = _uiState.asStateFlow()
-    
     // Paging flow for channel videos with infinite scroll
     private val _videosPagingFlow = MutableStateFlow<Flow<PagingData<Video>>?>(null)
     val videosPagingFlow: StateFlow<Flow<PagingData<Video>>?> = _videosPagingFlow.asStateFlow()
-    
     private val _shortsPagingFlow = MutableStateFlow<Flow<PagingData<Video>>?>(null)
     val shortsPagingFlow: StateFlow<Flow<PagingData<Video>>?> = _shortsPagingFlow.asStateFlow()
-    
     private val _livePagingFlow = MutableStateFlow<Flow<PagingData<Video>>?>(null)
     val livePagingFlow: StateFlow<Flow<PagingData<Video>>?> = _livePagingFlow.asStateFlow()
-    
     private val _playlistsPagingFlow = MutableStateFlow<Flow<PagingData<com.flow.youtube.data.model.Playlist>>?>(null)
     val playlistsPagingFlow: StateFlow<Flow<PagingData<com.flow.youtube.data.model.Playlist>>?> = _playlistsPagingFlow.asStateFlow()
+
+    // Eagerly loaded full video lists (all pages) for filter support
+    private val _videosAll = MutableStateFlow<List<Video>>(emptyList())
+    val videosAll: StateFlow<List<Video>> = _videosAll.asStateFlow()
+
+    private val _liveAll = MutableStateFlow<List<Video>>(emptyList())
+    val liveAll: StateFlow<List<Video>> = _liveAll.asStateFlow()
+
+    private val _isLoadingAllVideos = MutableStateFlow(false)
+    val isLoadingAllVideos: StateFlow<Boolean> = _isLoadingAllVideos.asStateFlow()
     
     private var subscriptionRepository: SubscriptionRepository? = null
     private var currentVideosTab: ListLinkHandler? = null
@@ -51,6 +57,10 @@ class ChannelViewModel : ViewModel() {
     
     companion object {
         private const val TAG = "ChannelViewModel"
+        /** Delay between page fetches — keeps request pattern human-like, avoids 429s */
+        private const val PAGE_DELAY_MS = 800L
+        /** Safety cap: stops loading beyond this many pages (~1500 videos) */
+        private const val MAX_PAGES = 50
     }
     
     fun initialize(context: android.content.Context) {
@@ -201,14 +211,14 @@ class ChannelViewModel : ViewModel() {
                     }
                 }
                 
-                // Create the paging flow for Videos
-                if (currentVideosTab != null) {
-                    _videosPagingFlow.value = Pager(
-                        config = PagingConfig(pageSize = 20, enablePlaceholders = false),
-                        pagingSourceFactory = { ChannelVideosPagingSource(channelInfo, currentVideosTab) }
-                    ).flow.cachedIn(viewModelScope)
+                // Load all pages for Videos tab (enables full-list filtering)
+                val videosTab = currentVideosTab
+                if (videosTab != null) {
+                    viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                        loadAllPages(videosTab, channelInfo, _videosAll)
+                    }
                 }
-                
+
                 // Create the paging flow for Shorts
                 if (currentShortsTab != null) {
                     _shortsPagingFlow.value = Pager(
@@ -216,15 +226,14 @@ class ChannelViewModel : ViewModel() {
                         pagingSourceFactory = { ChannelVideosPagingSource(channelInfo, currentShortsTab) }
                     ).flow.cachedIn(viewModelScope)
                 }
-                
-                // Create the paging flow for Live
-                if (currentLiveTab != null) {
-                    _livePagingFlow.value = Pager(
-                        config = PagingConfig(pageSize = 20, enablePlaceholders = false),
-                        pagingSourceFactory = { ChannelVideosPagingSource(channelInfo, currentLiveTab) }
-                    ).flow.cachedIn(viewModelScope)
+
+                val liveTab = currentLiveTab
+                if (liveTab != null) {
+                    viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                        loadAllPages(liveTab, channelInfo, _liveAll)
+                    }
                 }
-                
+
                 // Create the paging flow for Playlists
                 if (currentPlaylistsTab != null) {
                     _playlistsPagingFlow.value = Pager(
@@ -313,6 +322,71 @@ class ChannelViewModel : ViewModel() {
     
     fun selectTab(tabIndex: Int) {
         _uiState.update { it.copy(selectedTab = tabIndex) }
+    }
+
+    /**
+     * Fetches all pages for a channel tab sequentially and emits results
+     * incrementally into [target]. This allows filters (Popular/Latest/Oldest)
+     * to operate on the full video list rather than just the first batch.
+     */
+    private suspend fun loadAllPages(
+        tab: ListLinkHandler,
+        channelInfo: ChannelInfo,
+        target: MutableStateFlow<List<Video>>
+    ) {
+        _isLoadingAllVideos.value = true
+        try {
+            val service = NewPipe.getService(0)
+            val accumulated = mutableListOf<Video>()
+
+            // First page — no delay, show content immediately
+            val initial = ChannelTabInfo.getInfo(service, tab)
+            initial.relatedItems.filterIsInstance<StreamInfoItem>()
+                .mapTo(accumulated) { it.toChannelVideo(channelInfo) }
+            target.value = accumulated.toList()
+
+            var nextPage = initial.nextPage
+            var pagesLoaded = 1
+            while (nextPage != null && pagesLoaded < MAX_PAGES) {
+                // Throttle subsequent pages — keeps the request pattern human-like
+                // and avoids triggering YouTube's burst rate-limiting (429s)
+                delay(PAGE_DELAY_MS)
+                val more = ChannelTabInfo.getMoreItems(service, tab, nextPage)
+                more.items.filterIsInstance<StreamInfoItem>()
+                    .mapTo(accumulated) { it.toChannelVideo(channelInfo) }
+                target.value = accumulated.toList()
+                nextPage = more.nextPage
+                pagesLoaded++
+            }
+        } catch (e: Exception) {
+            // Rate-limited or network error — user keeps whatever loaded so far
+            Log.w(TAG, "Page loading stopped after rate limit or error", e)
+        } finally {
+            _isLoadingAllVideos.value = false
+        }
+    }
+
+    private fun StreamInfoItem.toChannelVideo(channelInfo: ChannelInfo): Video {
+        val videoId = when {
+            url.contains("v=") -> url.substringAfter("v=").substringBefore("&")
+            url.contains("/watch/") -> url.substringAfter("/watch/").substringBefore("?")
+            url.contains("/shorts/") -> url.substringAfter("/shorts/").substringBefore("?")
+            else -> url.substringAfterLast("/").substringBefore("?")
+        }
+        val thumbnail = thumbnails.maxByOrNull { it.width }?.url
+            ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
+        return Video(
+            id = videoId,
+            title = name,
+            thumbnailUrl = thumbnail,
+            channelName = uploaderName ?: channelInfo.name,
+            channelId = channelInfo.id,
+            channelThumbnailUrl = channelInfo.avatars.firstOrNull()?.url ?: "",
+            viewCount = viewCount,
+            duration = duration.toInt(),
+            uploadDate = com.flow.youtube.utils.formatTimeAgo(uploadDate?.offsetDateTime()?.toString()),
+            description = ""
+        )
     }
 }
 

@@ -34,6 +34,7 @@ object FeedInvalidationBus {
     sealed class Event {
         data class ChannelBlocked(val channelId: String) : Event()
         data class NotInterested(val videoId: String, val channelId: String) : Event()
+        data class MarkedWatched(val videoId: String) : Event()
     }
 
     private val _events = MutableSharedFlow<Event>(extraBufferCapacity = 8)
@@ -197,6 +198,7 @@ class QuickActionsViewModel @Inject constructor(
                 )
 
                 _watchedVideoIds.update { it + video.id }
+                FeedInvalidationBus.emit(FeedInvalidationBus.Event.MarkedWatched(video.id))
                 Toast.makeText(
                     context,
                     context.getString(com.flow.youtube.R.string.mark_as_watched_toast),

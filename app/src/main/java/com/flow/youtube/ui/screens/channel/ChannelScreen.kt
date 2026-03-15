@@ -62,14 +62,13 @@ fun ChannelScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
-    val videosPagingFlow by viewModel.videosPagingFlow.collectAsState()
     val shortsPagingFlow by viewModel.shortsPagingFlow.collectAsState()
-    val livePagingFlow by viewModel.livePagingFlow.collectAsState()
     val playlistsPagingFlow by viewModel.playlistsPagingFlow.collectAsState()
+    val allVideos by viewModel.videosAll.collectAsState()
+    val allLiveVideos by viewModel.liveAll.collectAsState()
+    val isLoadingAllVideos by viewModel.isLoadingAllVideos.collectAsState()
 
-    val videosLazyPagingItems = videosPagingFlow?.collectAsLazyPagingItems()
     val shortsLazyPagingItems = shortsPagingFlow?.collectAsLazyPagingItems()
-    val liveLazyPagingItems = livePagingFlow?.collectAsLazyPagingItems()
     val playlistsLazyPagingItems = playlistsPagingFlow?.collectAsLazyPagingItems()
 
     LaunchedEffect(Unit) { viewModel.initialize(context) }
@@ -112,9 +111,10 @@ fun ChannelScreen(
                 uiState.channelInfo != null -> {
                     ChannelContent(
                         uiState = uiState,
-                        videosLazyPagingItems = videosLazyPagingItems,
+                        allVideos = allVideos,
+                        isLoadingAllVideos = isLoadingAllVideos,
                         shortsLazyPagingItems = shortsLazyPagingItems,
-                        liveLazyPagingItems = liveLazyPagingItems,
+                        allLiveVideos = allLiveVideos,
                         playlistsLazyPagingItems = playlistsLazyPagingItems,
                         onVideoClick = onVideoClick,
                         onShortClick = onShortClick,
@@ -128,14 +128,14 @@ fun ChannelScreen(
     }
 }
 
-// Main content
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun ChannelContent(
     uiState: ChannelUiState,
-    videosLazyPagingItems: LazyPagingItems<Video>?,
+    allVideos: List<Video>,
+    isLoadingAllVideos: Boolean,
     shortsLazyPagingItems: LazyPagingItems<Video>?,
-    liveLazyPagingItems: LazyPagingItems<Video>?,
+    allLiveVideos: List<Video>,
     playlistsLazyPagingItems: LazyPagingItems<com.flow.youtube.data.model.Playlist>?,
     onVideoClick: (Video) -> Unit,
     onShortClick: (String) -> Unit,
@@ -149,19 +149,15 @@ private fun ChannelContent(
     var selectedFilter by rememberSaveable { mutableStateOf(VideoFilter.Latest) }
 
     val showFilterBar = uiState.selectedTab == 0 || uiState.selectedTab == 2
-    val sortedVideos: SortedVideos = when (selectedFilter) {
-        VideoFilter.Latest -> null
-        VideoFilter.Popular -> videosLazyPagingItems?.itemSnapshotList?.items
-            ?.filterNotNull()?.sortedByDescending { it.viewCount }
-        VideoFilter.Oldest -> videosLazyPagingItems?.itemSnapshotList?.items
-            ?.filterNotNull()?.reversed()
+    val sortedVideos: List<Video> = when (selectedFilter) {
+        VideoFilter.Latest -> allVideos
+        VideoFilter.Popular -> allVideos.sortedByDescending { it.viewCount }
+        VideoFilter.Oldest -> allVideos.reversed()
     }
-    val sortedLive: SortedVideos = when (selectedFilter) {
-        VideoFilter.Latest -> null
-        VideoFilter.Popular -> liveLazyPagingItems?.itemSnapshotList?.items
-            ?.filterNotNull()?.sortedByDescending { it.viewCount }
-        VideoFilter.Oldest -> liveLazyPagingItems?.itemSnapshotList?.items
-            ?.filterNotNull()?.reversed()
+    val sortedLive: List<Video> = when (selectedFilter) {
+        VideoFilter.Latest -> allLiveVideos
+        VideoFilter.Popular -> allLiveVideos.sortedByDescending { it.viewCount }
+        VideoFilter.Oldest -> allLiveVideos.reversed()
     }
 
     val tabTitles = listOf(
@@ -205,9 +201,31 @@ private fun ChannelContent(
 
         // ── Tab content ────────────────────────────────────────────────────────
         when (uiState.selectedTab) {
-            0 -> videosContent(videosLazyPagingItems, sortedVideos, isGridView, onVideoClick)
+            0 -> {
+                if (isLoadingAllVideos && sortedVideos.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(top = 64.dp),
+                            contentAlignment = Alignment.Center
+                        ) { CircularProgressIndicator() }
+                    }
+                } else {
+                    videosContent(null, sortedVideos, isGridView, onVideoClick)
+                }
+            }
             1 -> shortsContent(shortsLazyPagingItems, onShortClick)
-            2 -> liveContent(liveLazyPagingItems, sortedLive, isGridView, onVideoClick)
+            2 -> {
+                if (isLoadingAllVideos && sortedLive.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(top = 64.dp),
+                            contentAlignment = Alignment.Center
+                        ) { CircularProgressIndicator() }
+                    }
+                } else {
+                    liveContent(null, sortedLive, isGridView, onVideoClick)
+                }
+            }
             3 -> playlistsContent(playlistsLazyPagingItems, onPlaylistClick)
             4 -> item { AboutSection(channelInfo = channelInfo) }
         }

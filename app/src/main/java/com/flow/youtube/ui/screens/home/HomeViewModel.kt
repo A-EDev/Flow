@@ -115,6 +115,14 @@ class HomeViewModel @Inject constructor(
                         // Full clear — topic signals changed, discovery queries will differ
                         shortsRepository.clearCaches()
                     }
+                    is FeedInvalidationBus.Event.MarkedWatched -> {
+                        HomeFeedCache.filterOut(videoId = event.videoId)
+                        _uiState.update { state ->
+                            state.copy(
+                                videos = state.videos.filter { it.id != event.videoId }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -455,8 +463,6 @@ class HomeViewModel @Inject constructor(
     
     private fun List<Video>.filterValid(): List<Video> {
         return this.filter { 
-            // Keep regular videos (>120s or live streams)
-            // Shorts are handled separately by loadHomeShorts()
             !it.isShort && 
             ((it.duration > 120) || (it.duration == 0 && it.isLive)) 
         }

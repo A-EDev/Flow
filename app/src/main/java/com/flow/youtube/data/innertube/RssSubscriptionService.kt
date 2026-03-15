@@ -240,7 +240,7 @@ object RssSubscriptionService {
             ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
 
         val uploadTimeMillis = item.uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli()
-            ?: System.currentTimeMillis()
+            ?: 0L
 
         val rawDate = item.textualUploadDate
         val uploadDateStr = when {
