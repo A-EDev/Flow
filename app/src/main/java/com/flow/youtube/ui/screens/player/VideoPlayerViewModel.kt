@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flow.youtube.data.local.*
 import com.flow.youtube.data.model.Video
+import com.flow.youtube.data.local.entity.WatchHistoryEntity
 import com.flow.youtube.data.recommendation.InterestProfile
 import com.flow.youtube.data.recommendation.FlowNeuroEngine
 import com.flow.youtube.data.recommendation.FlowNeuroEngine.InteractionType
@@ -28,6 +29,8 @@ import com.flow.youtube.ui.screens.player.util.VideoPlayerUtils
 import com.flow.youtube.ui.screens.player.util.VideoErrorMapper
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -97,7 +100,7 @@ class VideoPlayerViewModel @Inject constructor(
 
         viewModelScope.launch {
             EnhancedPlayerManager.getInstance().playerState.collect { playerState ->
-                _uiState.update { 
+                _uiState.update {
                     it.copy(
                         hasNext = playerState.hasNext,
                         hasPrevious = playerState.hasPrevious,
@@ -107,12 +110,24 @@ class VideoPlayerViewModel @Inject constructor(
 
                 // Handle external video id changes (e.g. from queue auto-advance)
                 playerState.currentVideoId?.let { videoId ->
-                    if (videoId != _uiState.value.streamInfo?.id && 
+                    if (videoId != _uiState.value.streamInfo?.id &&
                         videoId != _uiState.value.cachedVideo?.id &&
-                        !_uiState.value.isLoading) {
+                        !_uiState.value.isLoading &&
+                        !_uiState.value.isRestoredSession) {
                          loadVideoInfo(videoId, isWifi = detectIsWifi())
                     }
                 }
+            }
+        }
+
+        // Restore last watched video session so the mini player appears on launch
+        viewModelScope.launch {
+            val lastVideo = withContext(Dispatchers.IO) { viewHistory.getLatestUnfinishedVideo() }
+            if (lastVideo != null && _uiState.value.cachedVideo == null) {
+                _uiState.update { it.copy(
+                    cachedVideo = lastVideo.toVideo(),
+                    isRestoredSession = true
+                ) }
             }
         }
     }
@@ -121,6 +136,22 @@ class VideoPlayerViewModel @Inject constructor(
         // Handled by Hilt
     }
     
+    /**
+     * Called when the user interacts with the restored-session mini player (taps play
+     * or expands the sheet). Starts loading streams and transitions to active playback.
+     * @param stayMini if true, the player will keep playing in mini mode (don't auto-expand)
+     */
+    fun resumeRestoredSession(stayMini: Boolean = false) {
+        val video = _uiState.value.cachedVideo ?: return
+        if (!_uiState.value.isRestoredSession) return
+        _uiState.update { it.copy(isRestoredSession = false, resumedInMiniPlayer = stayMini) }
+        playVideo(video)
+    }
+
+    fun clearResumedInMiniPlayer() {
+        _uiState.update { it.copy(resumedInMiniPlayer = false) }
+    }
+
     /**
      * Plays a video by immediately caching metadata and triggering stream load.
      * This ensures the UI shows video info immediately while streams are fetched.
@@ -139,6 +170,8 @@ class VideoPlayerViewModel @Inject constructor(
         // Cache video metadata for immediate UI display
         _uiState.value = _uiState.value.copy(
             cachedVideo = video,
+            isRestoredSession = false,
+            resumedInMiniPlayer = _uiState.value.resumedInMiniPlayer,
             isLoading = true,
             error = null,
             errorHint = null,
@@ -1101,7 +1134,9 @@ data class VideoPlayerUiState(
     val hasPrevious: Boolean = false,
     val queueTitle: String? = null,
     val hlsUrl: String? = null,
-    val shouldDismissPlayer: Boolean = false
+    val shouldDismissPlayer: Boolean = false,
+    val isRestoredSession: Boolean = false,
+    val resumedInMiniPlayer: Boolean = false
 )
 
 data class SubtitleInfo(

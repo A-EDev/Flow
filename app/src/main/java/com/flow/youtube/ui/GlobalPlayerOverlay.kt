@@ -11,7 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.filled.SkipPrevious
@@ -177,11 +177,20 @@ fun GlobalPlayerOverlay(
     }
     
     LaunchedEffect(playerUiState.isLoading) {
-        if (playerUiState.isLoading) {
+        if (playerUiState.isLoading && !playerUiState.isRestoredSession && !playerUiState.resumedInMiniPlayer) {
             playerSheetState.expand()
         }
+        if (!playerUiState.isLoading && playerUiState.resumedInMiniPlayer) {
+            playerViewModel.clearResumedInMiniPlayer()
+        }
     }
-    
+
+    LaunchedEffect(playerSheetState.currentValue) {
+        if (playerSheetState.currentValue == PlayerSheetValue.Expanded && playerUiState.isRestoredSession) {
+            playerViewModel.resumeRestoredSession()
+        }
+    }
+
     BackHandler(enabled = playerSheetState.fraction < 0.5f && !localIsInPipMode) {
         playerSheetState.collapse()
     }
@@ -246,20 +255,21 @@ fun GlobalPlayerOverlay(
         }
     )
     
-    VideoLoadEffect(
-        videoId = video.id,
-        context = context,
-        screenState = screenState,
-        viewModel = playerViewModel
-    )
-    
-    // Player initialization
-    PlayerInitEffect(
-        videoId = video.id,
-        uiState = playerUiState,
-        context = context,
-        screenState = screenState
-    )
+    if (!playerUiState.isRestoredSession) {
+        VideoLoadEffect(
+            videoId = video.id,
+            context = context,
+            screenState = screenState,
+            viewModel = playerViewModel
+        )
+
+        PlayerInitEffect(
+            videoId = video.id,
+            uiState = playerUiState,
+            context = context,
+            screenState = screenState
+        )
+    }
     
     // Seekbar preview
     SeekbarPreviewEffectWithState(
@@ -270,8 +280,10 @@ fun GlobalPlayerOverlay(
     
     SubtitleLoadEffectWithState(screenState)
     
-    LaunchedEffect(video.id) {
-        playerViewModel.loadComments(video.id)
+    LaunchedEffect(video.id, playerUiState.isRestoredSession) {
+        if (!playerUiState.isRestoredSession) {
+            playerViewModel.loadComments(video.id)
+        }
     }
     
     SubscriptionAndLikeEffect(
@@ -314,7 +326,7 @@ fun GlobalPlayerOverlay(
                 ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
             
             val title = streamInfo?.name ?: video.title
-            if (title.isNotEmpty()) {
+            if (title.isNotEmpty() && screenState.duration > 0) {
                 playerViewModel.savePlaybackPosition(
                     videoId = video.id,
                     position = screenState.currentPosition,
@@ -358,6 +370,7 @@ fun GlobalPlayerOverlay(
                 videoAspectRatio = videoAspectRatio,
                 bottomPadding = bottomPadding,
                 miniPlayerScale = miniPlayerScale,
+                tapToExpand = !playerUiState.isRestoredSession,
                 onDismiss = onClose,
                 onCollapseGesture = {
                     screenState.isFullscreen = false
@@ -399,12 +412,23 @@ fun GlobalPlayerOverlay(
                     }
                     
                     Box(modifier = gestureModifier) {
-                        VideoPlayerSurface(
-                            video = video,
-                            resizeMode = screenState.resizeMode,
-                            modifier = Modifier.fillMaxSize(),
-                            onVideoAspectRatioChanged = { videoAspectRatio = it }
-                        )
+                        if (playerUiState.isRestoredSession) {
+                            val thumbUrl = video.thumbnailUrl.takeIf { it.isNotEmpty() }
+                                ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
+                            coil.compose.AsyncImage(
+                                model = thumbUrl,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            )
+                        } else {
+                            VideoPlayerSurface(
+                                video = video,
+                                resizeMode = screenState.resizeMode,
+                                modifier = Modifier.fillMaxSize(),
+                                onVideoAspectRatioChanged = { videoAspectRatio = it }
+                            )
+                        }
                         
                         // Show subtitles only when expanded
                         if (!isMinimized) {
@@ -660,31 +684,50 @@ fun GlobalPlayerOverlay(
                 )
             },
             miniControls = { _ ->
-                MiniPlayerControls(
-                    playerState = playerState,
-                    showSkipControls = miniPlayerShowSkipControls,
-                    showNextPrevControls = miniPlayerShowNextPrevControls,
-                    onPlayPause = {
-                        if (playerState.playWhenReady) {
-                            EnhancedPlayerManager.getInstance().pause()
-                        } else {
-                            EnhancedPlayerManager.getInstance().play()
-                        }
-                    },
-                    onSkipForward = {
-                        EnhancedPlayerManager.getInstance().seekTo(screenState.currentPosition + 10000)
-                    },
-                    onSkipBack = {
-                        EnhancedPlayerManager.getInstance().seekTo(screenState.currentPosition - 10000)
-                    },
-                    onNext = {
-                        playerViewModel.playNext()
-                    },
-                    onPrevious = {
-                        playerViewModel.playPrevious()
-                    },
-                    onClose = onClose
-                )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    MiniPlayerControls(
+                        playerState = playerState,
+                        showSkipControls = miniPlayerShowSkipControls,
+                        showNextPrevControls = miniPlayerShowNextPrevControls,
+                        onPlayPause = {
+                            if (playerUiState.isRestoredSession) {
+                                playerViewModel.resumeRestoredSession(stayMini = true)
+                            } else if (playerState.playWhenReady) {
+                                EnhancedPlayerManager.getInstance().pause()
+                            } else {
+                                EnhancedPlayerManager.getInstance().play()
+                            }
+                        },
+                        onSkipForward = {
+                            EnhancedPlayerManager.getInstance().seekTo(screenState.currentPosition + 10000)
+                        },
+                        onSkipBack = {
+                            EnhancedPlayerManager.getInstance().seekTo(screenState.currentPosition - 10000)
+                        },
+                        onNext = {
+                            playerViewModel.playNext()
+                        },
+                        onPrevious = {
+                            playerViewModel.playPrevious()
+                        },
+                        onClose = onClose
+                    )
+                    if (playerUiState.isRestoredSession) {
+                        Text(
+                            text = "Continue watching",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = 4.dp)
+                                .background(
+                                    Color(0xBB000000),
+                                    RoundedCornerShape(3.dp)
+                                )
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
             }
         )
         
@@ -799,9 +842,9 @@ private fun MiniPlayerControls(
             onClick = onPlayPause,
             modifier = Modifier
                 .align(Alignment.TopStart)
-                .padding(8.dp)
+                .padding(4.dp)
                 .size(if (isTablet) 48.dp else 40.dp)
-                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                .background(Color.Black.copy(alpha = 0.3f), CircleShape)
         ) {
             if (playerState.isBuffering) {
                 CircularProgressIndicator(
@@ -814,7 +857,7 @@ private fun MiniPlayerControls(
                     imageVector = if (playerState.playWhenReady) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                     contentDescription = if (playerState.playWhenReady) "Pause" else "Play",
                     tint = Color.White,
-                    modifier = Modifier.size(if (isTablet) 32.dp else 28.dp)
+                    modifier = Modifier.size(if (isTablet) 40.dp else 32.dp)
                 )
             }
         }
@@ -897,15 +940,15 @@ private fun MiniPlayerControls(
             },
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(8.dp)
+                .padding(4.dp)
                 .size(if (isTablet) 48.dp else 40.dp)
-                .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                .background(Color.Black.copy(alpha = 0.3f), CircleShape)
         ) {
             Icon(
-                imageVector = Icons.Default.Close,
+                imageVector = Icons.Rounded.Close,
                 contentDescription = "Close",
                 tint = Color.White,
-                modifier = Modifier.size(if (isTablet) 28.dp else 24.dp)
+                modifier = Modifier.size(if (isTablet) 32.dp else 28.dp)
             )
         }
     }

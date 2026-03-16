@@ -176,6 +176,12 @@ class ViewHistory private constructor(private val context: Context) {
     /** Efficient count without loading all rows — use this instead of list.size. */
     fun getVideoCount(): Flow<Int> = dao.getVideoCount()
 
+    /**
+     * Returns the most recently watched unfinished video (<95% complete).
+     * Used to restore the "resume" mini player on app launch.
+     */
+    suspend fun getLatestUnfinishedVideo() = dao.getLatestUnfinishedVideo()
+
 
     /**
      * On the first launch after the 10→11 DB migration the Room table is empty

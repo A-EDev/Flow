@@ -6,6 +6,7 @@ NEW FEATURES
 - Content sorting in channel screen
 - Search filters
 - Clear video from feed when marked by "Not Interested", "Don't show channel", or "Mark as Watched"
+- Continue watching mini-player
 
 IMPROVEMENTS
 - Improved video player action buttons design and sizes.

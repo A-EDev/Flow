@@ -155,7 +155,11 @@ fun FlowApp(
     LaunchedEffect(playerUiState.cachedVideo) {
         if (playerUiState.cachedVideo != null) {
             playerVisible = true
-            playerSheetState.expand()
+            if (playerUiState.isRestoredSession || playerUiState.resumedInMiniPlayer) {
+                playerSheetState.collapse()
+            } else {
+                playerSheetState.expand()
+            }
         }
     }
     

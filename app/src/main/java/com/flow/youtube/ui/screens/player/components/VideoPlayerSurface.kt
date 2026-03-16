@@ -40,19 +40,14 @@ fun VideoPlayerSurface(
         }
     }
     
-    DisposableEffect(Unit) {
-        val player = EnhancedPlayerManager.getInstance().getPlayer()
-        val listener = object : Player.Listener {
+    val videoSizeListener = remember {
+        object : Player.Listener {
             override fun onVideoSizeChanged(videoSize: VideoSize) {
                 if (videoSize.width > 0 && videoSize.height > 0) {
                     val ratio = videoSize.width.toFloat() / videoSize.height.toFloat()
                     onVideoAspectRatioChanged?.invoke(ratio.coerceIn(0.56f, 2.5f))
                 }
             }
-        }
-        player?.addListener(listener)
-        onDispose {
-            player?.removeListener(listener)
         }
     }
 
@@ -64,7 +59,7 @@ fun VideoPlayerSurface(
                     Log.d("EnhancedVideoPlayer", "Surface created for video ${video.id}")
                     EnhancedPlayerManager.getInstance().attachVideoSurface(holder, forceAttach = true)
                 }
-                
+
                 override fun surfaceChanged(
                     holder: android.view.SurfaceHolder,
                     format: Int,
@@ -73,23 +68,30 @@ fun VideoPlayerSurface(
                 ) {
                     // Surface resized but still valid
                 }
-                
+
                 override fun surfaceDestroyed(holder: android.view.SurfaceHolder) {
                     Log.d("EnhancedVideoPlayer", "Surface destroyed for video ${video.id}")
                     EnhancedPlayerManager.getInstance().detachVideoSurface(holder)
                 }
             }.also { surfaceView.holder.addCallback(it) }
         } else null
-        
+
         onDispose {
             callback?.let { surfaceView?.holder?.removeCallback(it) }
         }
     }
-    
+
     AndroidView(
         factory = { playerView },
         update = { view ->
-            view.player = EnhancedPlayerManager.getInstance().getPlayer()
+            val newPlayer = EnhancedPlayerManager.getInstance().getPlayer()
+            val oldPlayer = view.player
+            if (oldPlayer !== newPlayer) {
+                oldPlayer?.removeListener(videoSizeListener)
+                newPlayer?.addListener(videoSizeListener)
+            }
+
+            view.player = newPlayer
 
             // Apply resize mode
             view.resizeMode = when (resizeMode) {

@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.flow.youtube.data.local.VideoHistoryEntry
+import com.flow.youtube.data.model.Video
 
 /**
  * Room entity that replaces the previous DataStore-based watch history.
@@ -42,6 +43,18 @@ data class WatchHistoryEntity(
         channelName = channelName,
         channelId = channelId,
         isMusic = isMusic
+    )
+
+    /** Reconstruct a lightweight [Video] from history metadata (no stream info). */
+    fun toVideo() = Video(
+        id = videoId,
+        title = title,
+        channelName = channelName,
+        channelId = channelId,
+        thumbnailUrl = thumbnailUrl,
+        duration = if (duration > 0) (duration / 1000).toInt() else 0,
+        viewCount = 0,
+        uploadDate = ""
     )
 
     companion object {

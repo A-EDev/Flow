@@ -60,4 +60,19 @@ interface WatchHistoryDao {
      */
     @Query("SELECT videoId FROM watch_history WHERE isMusic = 0")
     suspend fun getAllWatchedVideoIds(): List<String>
+
+    /**
+     * Returns the most recently watched non-music video that is not yet finished
+     * (position > 0 and less than 95% of duration). Used for the "resume" mini player.
+     */
+    @Query("""
+        SELECT * FROM watch_history
+        WHERE isMusic = 0
+        AND duration > 0
+        AND position > 0
+        AND (CAST(position AS REAL) / CAST(duration AS REAL)) < 0.95
+        ORDER BY timestamp DESC
+        LIMIT 1
+    """)
+    suspend fun getLatestUnfinishedVideo(): WatchHistoryEntity?
 }

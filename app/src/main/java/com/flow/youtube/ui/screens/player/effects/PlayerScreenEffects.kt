@@ -181,7 +181,7 @@ fun WatchProgressSaveEffect(
             ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
             ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
         val title = streamInfo?.name ?: video.title
-        if (title.isNotEmpty()) {
+        if (title.isNotEmpty() && currentDur > 0) {
             viewModel.savePlaybackPosition(
                 videoId = videoId,
                 position = currentPos,
@@ -363,16 +363,16 @@ fun VideoLoadEffect(
     viewModel: VideoPlayerViewModel
 ) {
     LaunchedEffect(videoId) {
-        // Reset UI state for new video
-        screenState.resetForNewVideo()
-
+        val currentState = viewModel.uiState.value
+        if (!currentState.isLoading || currentState.cachedVideo?.id != videoId) {
+            screenState.resetForNewVideo()
+        }
 
         // Detect if on Wifi for preferred quality
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val activeNetwork = connectivityManager.activeNetwork
         val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)
         val isWifi = capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ?: true
-        
         viewModel.loadVideoInfo(videoId, isWifi)
     }
 }
@@ -411,9 +411,8 @@ fun PlayerInitEffect(
 
         if (videoStream != null && audioStream != null) {
             val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
-            
-            // Guard: Don't reset if already prepared for this video
-            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) {
+            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared
+                && EnhancedPlayerManager.getInstance().isSurfaceReady) {
                 Log.d(TAG, "Player already prepared for $videoId, skipping setStreams")
                 return@LaunchedEffect
             }
@@ -454,7 +453,8 @@ fun PlayerInitEffect(
         } else if (uiState.isAdaptiveMode && audioStream != null && uiState.streamInfo != null) {
             val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
             
-            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) {
+            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared
+                && EnhancedPlayerManager.getInstance().isSurfaceReady) {
                 Log.d(TAG, "Player already prepared for $videoId (AUTO mode), skipping setStreams")
                 return@LaunchedEffect
             }

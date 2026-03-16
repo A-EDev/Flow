@@ -419,7 +419,7 @@ class EnhancedPlayerManager private constructor() {
 
         // Wait for surface to be ready
         val timeout = appContext?.let { ctx ->
-            kotlinx.coroutines.runBlocking { PlayerPreferences(ctx).surfaceReadyTimeoutMs.first() }
+            PlayerPreferences(ctx).surfaceReadyTimeoutMs.first()
         } ?: PlayerConfig.DEFAULT_SURFACE_TIMEOUT_MS
         
         surfaceManager?.awaitSurfaceReady(timeout)
