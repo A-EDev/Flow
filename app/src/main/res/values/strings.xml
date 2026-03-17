@@ -1130,5 +1130,7 @@
     <string name="player_action_background">Background</string>
     <string name="player_live_label">LIVE</string>
     <string name="player_action_dislike">Dislike</string>
+    <string name="action_want_more">Want more like this</string>
+    <string name="action_not_interested">Not interested</string>
 </resources>
 

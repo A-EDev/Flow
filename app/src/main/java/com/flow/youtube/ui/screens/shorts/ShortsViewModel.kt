@@ -25,6 +25,8 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
+import com.flow.youtube.data.recommendation.FlowNeuroEngine
+import com.flow.youtube.ui.components.FeedInvalidationBus
 
 /**
  * ShortsViewModel — Hilt-injected, InnerTube-first Shorts engine.
@@ -58,6 +60,12 @@ class ShortsViewModel @Inject constructor(
 
     private val _savedShortIds = MutableStateFlow<Set<String>>(emptySet())
 
+    private val _snackbarMessage = MutableStateFlow<String?>(null)
+    val snackbarMessage: StateFlow<String?> = _snackbarMessage.asStateFlow()
+
+    fun clearSnackbar() {
+        _snackbarMessage.value = null
+    }
     init {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             playlistRepository.getSavedShortsFlow().collect { savedVideos ->
@@ -370,6 +378,47 @@ class ShortsViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading replies", e)
+            }
+        }
+    }
+
+    fun wantMoreLikeThis(short: ShortVideo) {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            try {
+                val video = short.toVideo()
+                FlowNeuroEngine.onVideoInteraction(
+                    video,
+                    FlowNeuroEngine.InteractionType.LIKED
+                )
+                _snackbarMessage.value = "We'll show more like this"
+                Log.d(TAG, "Want more like this: ${short.title}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error signaling want more", e)
+            }
+        }
+    }
+
+    fun notInterested(short: ShortVideo) {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            try {
+                val video = short.toVideo()
+                FlowNeuroEngine.markNotInterested(video)
+                FeedInvalidationBus.emit(FeedInvalidationBus.Event.NotInterested(video.id, video.channelId))
+
+                val currentShorts = _uiState.value.shorts
+                val updatedShorts = currentShorts.filter { it.id != short.id }
+
+                _uiState.value = _uiState.value.copy(
+                    shorts = updatedShorts,
+                    currentIndex = _uiState.value.currentIndex.coerceAtMost(
+                        (updatedShorts.size - 1).coerceAtLeast(0)
+                    )
+                )
+
+                _snackbarMessage.value = "Got it, showing less of this"
+                Log.d(TAG, "Not interested: ${short.title}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error marking not interested", e)
             }
         }
     }

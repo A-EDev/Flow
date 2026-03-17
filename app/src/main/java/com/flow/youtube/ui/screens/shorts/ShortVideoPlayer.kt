@@ -64,6 +64,8 @@ fun ShortVideoPage(
     onCommentsClick: () -> Unit,
     onDescriptionClick: () -> Unit,
     onShareClick: () -> Unit,
+    onWantMore: () -> Unit = {},
+    onNotInterested: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -147,12 +149,12 @@ fun ShortVideoPage(
                     currentPosition = p.currentPosition
                     duration = p.duration.coerceAtLeast(0)
                     isBuffering = p.playbackState == androidx.media3.common.Player.STATE_BUFFERING
-                    
+
                     val playerIsPlaying = p.isPlaying
                     if (isPlaying != playerIsPlaying) {
                         isPlaying = playerIsPlaying
                     }
-                    
+
                     if (playerIsPlaying && !hasStartedPlaying) {
                         hasStartedPlaying = true
                     }
@@ -269,7 +271,6 @@ fun ShortVideoPage(
             )
         }
 
-        // ── Center Pause/Play Indicator (appears briefly on tap) ──
         AnimatedVisibility(
             visible = showPauseIndicator && !isBuffering,
             enter = scaleIn(initialScale = 0.6f, animationSpec = tween(150)) + fadeIn(animationSpec = tween(100)),
@@ -502,7 +503,6 @@ fun ShortVideoPage(
                     onClick = onShareClick
                 )
 
-                // Three-dot menu for Audio Track / Quality
                 ShortsActionButton(
                     icon = Icons.Default.MoreVert,
                     text = stringResource(R.string.cd_more_options),
@@ -545,13 +545,13 @@ fun ShortVideoPage(
         // ── Scrubbable Progress Bar ──
         if (duration > 0) {
             val progress = if (isDragging) dragProgress else (currentPosition.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
-            
+
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .height(20.dp) 
-                    .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { /* Consumes clicks to prevent pausing */ }
+                    .height(20.dp)
+                    .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { }
             ) {
                 Canvas(
                     modifier = Modifier
@@ -582,19 +582,19 @@ fun ShortVideoPage(
                     val barHeight = 2.dp.toPx()
                     val activeHeight = if (isDragging) 4.dp.toPx() else 2.dp.toPx()
                     val y = size.height - barHeight
-                    
+
                     drawRect(
                         color = Color.White.copy(alpha = 0.3f),
                         topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - barHeight),
                         size = androidx.compose.ui.geometry.Size(size.width, barHeight)
                     )
-                    
+
                     drawRect(
                         color = primaryColor,
                         topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - activeHeight),
                         size = androidx.compose.ui.geometry.Size(size.width * progress, activeHeight)
                     )
-                    
+
                     if (isDragging) {
                         drawCircle(
                             color = primaryColor,
@@ -607,10 +607,19 @@ fun ShortVideoPage(
         }
     }
 
-    // ── Three-dot Options Sheet ──
     if (showShortsOptionsSheet) {
         ShortsOptionsSheet(
             isLoadingStreams = isLoadingStreams,
+            onWantMore = {
+                showShortsOptionsSheet = false
+                onWantMore()
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            },
+            onNotInterested = {
+                showShortsOptionsSheet = false
+                onNotInterested()
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            },
             onAudioTrackClick = {
                 showShortsOptionsSheet = false
                 if (!isLoadingStreams) {
@@ -691,6 +700,8 @@ fun ShortVideoPage(
 @Composable
 private fun ShortsOptionsSheet(
     isLoadingStreams: Boolean,
+    onWantMore: () -> Unit,
+    onNotInterested: () -> Unit,
     onAudioTrackClick: () -> Unit,
     onQualityClick: () -> Unit,
     onDismiss: () -> Unit
@@ -708,7 +719,57 @@ private fun ShortsOptionsSheet(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
             )
             HorizontalDivider()
-            // Audio Track option
+            Surface(
+                onClick = onWantMore,
+                color = Color.Transparent,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.ThumbUp,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.action_want_more),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+            Surface(
+                onClick = onNotInterested,
+                color = Color.Transparent,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.NotInterested,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.action_not_interested),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp))
             Surface(
                 onClick = onAudioTrackClick,
                 color = Color.Transparent,
@@ -741,7 +802,6 @@ private fun ShortsOptionsSheet(
                 }
             }
             HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp))
-            // Quality option
             Surface(
                 onClick = onQualityClick,
                 color = Color.Transparent,
@@ -984,7 +1044,7 @@ fun ShortsActionButton(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier.clickable(
             interactionSource = remember { MutableInteractionSource() },
-            indication = null, 
+            indication = null,
             onClick = onClick
         )
     ) {

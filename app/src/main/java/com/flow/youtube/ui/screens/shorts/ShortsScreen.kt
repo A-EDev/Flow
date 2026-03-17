@@ -25,6 +25,7 @@ import com.flow.youtube.ui.components.FlowCommentsBottomSheet
 import com.flow.youtube.ui.components.FlowDescriptionBottomSheet
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
@@ -43,6 +44,19 @@ fun ShortsScreen(
     val audioLangPref = remember(context) { PlayerPreferences(context) }
     val uiState by viewModel.uiState.collectAsState()
     val scope = rememberCoroutineScope()
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarMessage by viewModel.snackbarMessage.collectAsState()
+
+    LaunchedEffect(snackbarMessage) {
+        snackbarMessage?.let { message ->
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.clearSnackbar()
+        }
+    }
 
     val isWifi = remember(context) {
         val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
@@ -67,7 +81,7 @@ fun ShortsScreen(
         else comments
     }
 
-    // Load shorts — no initialize() needed, Hilt injects all deps
+    // Load shorts
     LaunchedEffect(Unit) {
         if (isSavedMode) {
             viewModel.loadSavedShorts(startVideoId)
@@ -90,12 +104,10 @@ fun ShortsScreen(
     ) {
         when {
             uiState.isLoading && uiState.shorts.isEmpty() -> {
-                // Initial loading
                 ShortsLoadingState(modifier = Modifier.align(Alignment.Center))
             }
 
             uiState.error != null && uiState.shorts.isEmpty() -> {
-                // Error state 
                 ShortsErrorState(
                     error = uiState.error,
                     onRetry = { viewModel.loadShorts() },
@@ -137,89 +149,87 @@ fun ShortsScreen(
                 LaunchedEffect(pagerState.settledPage) {
                     val settled = pagerState.settledPage
                     val playerPool = ShortsPlayerPool.getInstance()
-                    
+
                     suspend fun getStreams(id: String, preferredAudioUrl: String? = null): Pair<String?, String?>? {
-                         val streamInfo = viewModel.getVideoStreamInfo(id) ?: return null
-                         val targetH = shortsTargetHeight
-                         val videoStream = if (targetH == 0) {
-                             streamInfo.videoStreams?.maxByOrNull { it.height }
-                                 ?: streamInfo.videoOnlyStreams?.maxByOrNull { it.height }
-                         } else {
-                             streamInfo.videoStreams
-                                 ?.filter { it.height <= targetH }
-                                 ?.maxByOrNull { it.height }
-                                 ?: streamInfo.videoStreams?.minByOrNull { it.height }
-                                 ?: streamInfo.videoOnlyStreams
-                                     ?.filter { it.height <= targetH }
-                                     ?.maxByOrNull { it.height }
-                                 ?: streamInfo.videoOnlyStreams?.firstOrNull()
-                         }
-                         
-                         val preferredLang = audioLangPref.preferredAudioLanguage.first()
-                         val audioCandidates = streamInfo.audioStreams
-                             ?.sortedByDescending { it.averageBitrate } ?: emptyList()
-                         
-                         val audioStream = when (preferredLang) {
-                             "original" -> {
-                                 audioCandidates.firstOrNull { stream ->
-                                     stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
-                                 } ?: audioCandidates.firstOrNull { stream ->
-                                     stream.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED
-                                 } ?: audioCandidates.firstOrNull()
-                             }
-                             else -> {
-                                 audioCandidates.firstOrNull { a ->
-                                     val lang = a.audioLocale?.language ?: ""
-                                     lang.startsWith(preferredLang, true)
-                                 } ?: audioCandidates.firstOrNull { stream ->
-                                     stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
-                                 } ?: audioCandidates.firstOrNull()
-                             }
-                         }
-                         
-                         return (videoStream?.content ?: videoStream?.url) to (audioStream?.content ?: audioStream?.url)
+                        val streamInfo = viewModel.getVideoStreamInfo(id) ?: return null
+                        val targetH = shortsTargetHeight
+                        val videoStream = if (targetH == 0) {
+                            streamInfo.videoStreams?.maxByOrNull { it.height }
+                                ?: streamInfo.videoOnlyStreams?.maxByOrNull { it.height }
+                        } else {
+                            streamInfo.videoStreams
+                                ?.filter { it.height <= targetH }
+                                ?.maxByOrNull { it.height }
+                                ?: streamInfo.videoStreams?.minByOrNull { it.height }
+                                ?: streamInfo.videoOnlyStreams
+                                    ?.filter { it.height <= targetH }
+                                    ?.maxByOrNull { it.height }
+                                ?: streamInfo.videoOnlyStreams?.firstOrNull()
+                        }
+
+                        val preferredLang = audioLangPref.preferredAudioLanguage.first()
+                        val audioCandidates = streamInfo.audioStreams
+                            ?.sortedByDescending { it.averageBitrate } ?: emptyList()
+
+                        val audioStream = when (preferredLang) {
+                            "original" -> {
+                                audioCandidates.firstOrNull { stream ->
+                                    stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
+                                } ?: audioCandidates.firstOrNull { stream ->
+                                    stream.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED
+                                } ?: audioCandidates.firstOrNull()
+                            }
+                            else -> {
+                                audioCandidates.firstOrNull { a ->
+                                    val lang = a.audioLocale?.language ?: ""
+                                    lang.startsWith(preferredLang, true)
+                                } ?: audioCandidates.firstOrNull { stream ->
+                                    stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
+                                } ?: audioCandidates.firstOrNull()
+                            }
+                        }
+
+                        return (videoStream?.content ?: videoStream?.url) to (audioStream?.content ?: audioStream?.url)
                     }
 
-                    // 1. Activate Current logic
-                    // Ensure the player for this index is the active one (audio focus etc)
+                    // 1. Activate Current
                     playerPool.activatePlayer(settled)
 
-                    // Load current if needed
                     val currentShort = uiState.shorts.getOrNull(settled)
                     if (currentShort != null) {
-                         launch {
-                             val streams = getStreams(currentShort.id)
-                             val vUrl = streams?.first
-                             if (vUrl != null) {
-                                  playerPool.prepare(settled, currentShort.id, vUrl, streams?.second, true)
-                             }
-                         }
+                        launch {
+                            val streams = getStreams(currentShort.id)
+                            val vUrl = streams?.first
+                            if (vUrl != null) {
+                                playerPool.prepare(settled, currentShort.id, vUrl, streams?.second, true)
+                            }
+                        }
                     }
 
                     // 2. Preload Next
                     val nextShort = uiState.shorts.getOrNull(settled + 1)
                     if (nextShort != null) {
-                         launch {
-                             val streams = getStreams(nextShort.id)
-                             val vUrl = streams?.first
-                             if (vUrl != null) {
-                                  playerPool.prepare(settled + 1, nextShort.id, vUrl, streams?.second, false)
-                             }
-                         }
+                        launch {
+                            val streams = getStreams(nextShort.id)
+                            val vUrl = streams?.first
+                            if (vUrl != null) {
+                                playerPool.prepare(settled + 1, nextShort.id, vUrl, streams?.second, false)
+                            }
+                        }
                     }
 
                     // 3. Preload Previous
                     val prevShort = uiState.shorts.getOrNull(settled - 1)
-                     if (prevShort != null) {
-                         launch {
-                             val streams = getStreams(prevShort.id)
-                             val vUrl = streams?.first
-                             if (vUrl != null) {
-                                  playerPool.prepare(settled - 1, prevShort.id, vUrl, streams?.second, false)
-                             }
-                         }
+                    if (prevShort != null) {
+                        launch {
+                            val streams = getStreams(prevShort.id)
+                            val vUrl = streams?.first
+                            if (vUrl != null) {
+                                playerPool.prepare(settled - 1, prevShort.id, vUrl, streams?.second, false)
+                            }
+                        }
                     }
-                    
+
                     // 4. Cleanup distant players
                     playerPool.releaseUnusedPlayers(settled)
                 }
@@ -227,7 +237,7 @@ fun ShortsScreen(
                 VerticalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize(),
-                    beyondViewportPageCount = 1, 
+                    beyondViewportPageCount = 1,
                     key = { uiState.shorts[it].id }
                 ) { page ->
                     val short = uiState.shorts[page]
@@ -255,7 +265,9 @@ fun ShortsScreen(
                                 type = "text/plain"
                             }
                             context.startActivity(Intent.createChooser(sendIntent, null))
-                        }
+                        },
+                        onWantMore = { viewModel.wantMoreLikeThis(short) },
+                        onNotInterested = { viewModel.notInterested(short) }
                     )
                 }
 
@@ -300,6 +312,20 @@ fun ShortsScreen(
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter)
         )
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 80.dp)
+        ) { data ->
+            Snackbar(
+                snackbarData = data,
+                containerColor = Color.DarkGray,
+                contentColor = Color.White,
+                shape = RoundedCornerShape(12.dp)
+            )
+        }
     }
 }
 
@@ -311,7 +337,7 @@ private fun ShortsTopBar(
     modifier: Modifier = Modifier
 ) {
     if (!visible) return
-    
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -328,7 +354,7 @@ private fun ShortsTopBar(
                 )
             }
         } else {
-             Text(
+            Text(
                 text = "Shorts",
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
@@ -338,7 +364,6 @@ private fun ShortsTopBar(
     }
 }
 
-// Loading & Error States
 @Composable
 private fun ShortsLoadingState(modifier: Modifier = Modifier) {
     Column(
