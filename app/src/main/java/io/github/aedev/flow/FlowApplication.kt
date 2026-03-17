@@ -1,0 +1,115 @@
+package io.github.aedev.flow
+
+import android.app.Application
+import android.util.Log
+import io.github.aedev.flow.notification.SubscriptionCheckWorker
+import io.github.aedev.flow.data.repository.NewPipeDownloader
+import io.github.aedev.flow.notification.NotificationHelper
+import io.github.aedev.flow.utils.FlowCrashHandler
+import io.github.aedev.flow.utils.PerformanceDispatcher
+import org.schabi.newpipe.extractor.NewPipe
+// Import Localization and ContentCountry
+import org.schabi.newpipe.extractor.localization.ContentCountry
+import org.schabi.newpipe.extractor.localization.Localization
+import kotlinx.coroutines.launch
+
+import dagger.hilt.android.HiltAndroidApp
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import javax.inject.Inject
+import java.security.Security
+import org.conscrypt.Conscrypt
+
+@HiltAndroidApp
+class FlowApplication : Application(), ImageLoaderFactory {
+    
+    @Inject
+    lateinit var imageLoader: ImageLoader
+
+    override fun newImageLoader(): ImageLoader = imageLoader
+    
+    companion object {
+        private const val TAG = "FlowApplication"
+    }
+    
+    override fun onCreate() {
+        super.onCreate()
+        
+        // Injects modern TLS/SSL certificates so OkHttp and Ktor don't crash
+        if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.N_MR1) {
+            Security.insertProviderAt(Conscrypt.newProvider(), 1)
+        }
+
+        // Install crash handler for real-time monitoring
+        FlowCrashHandler.install(this)
+        
+        try {
+            val country = ContentCountry("US")
+            val localization = Localization("en", "US")
+            NewPipe.init(NewPipeDownloader.getInstance(this), localization, country)
+            Log.d(TAG, "NewPipe initialized successfully with en-US settings")
+        } catch (e: Exception) {
+            // Log error but don't crash the app
+            Log.e(TAG, "Failed to initialize NewPipe", e)
+        }
+        
+        // Initialize notification channels
+        NotificationHelper.createNotificationChannels(this)
+        Log.d(TAG, "Notification channels created")
+        
+        // PERFORMANCE: Warm up connection pools in background
+        // This pre-establishes connections to reduce first-load latency
+        warmUpNetworkConnections()
+        
+        /*
+        try {
+            // Initialize YoutubeDL
+            com.yausername.youtubedl_android.YoutubeDL.getInstance().init(this)
+            Log.d(TAG, "YoutubeDL initialized")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize YoutubeDL", e)
+        }
+        */
+        
+        // Schedule periodic subscription checks for new videos
+        // This will check subscribed channels every 30 minutes
+        SubscriptionCheckWorker.schedulePeriodicCheck(this, intervalMinutes = 30)
+        
+        // Schedule periodic update checks (every 12 hours)
+        io.github.aedev.flow.notification.UpdateCheckWorker.schedulePeriodicCheck(this)
+        
+        Log.d(TAG, "Workers scheduled successfully")
+    }
+    
+    /**
+     * PERFORMANCE: Pre-warm network connections
+     * Establishes HTTP connections early so they're ready when the user needs content
+     */
+    private fun warmUpNetworkConnections() {
+        PerformanceDispatcher.backgroundScope.launch {
+            try {
+                // Simple HEAD request to establish connection pools
+                // This warms up DNS resolution, TLS handshake, and connection pooling
+                okhttp3.OkHttpClient.Builder()
+                    .build()
+                    .newCall(
+                        okhttp3.Request.Builder()
+                            .url("https://www.youtube.com")
+                            .head()
+                            .build()
+                    ).execute().close()
+                    
+                Log.d(TAG, "Network connections warmed up successfully")
+            } catch (e: Exception) {
+                // Non-critical, just log
+                Log.d(TAG, "Network warmup skipped: ${e.message}")
+            }
+        }
+    }
+    
+    override fun onTerminate() {
+        super.onTerminate()
+        // Clean up performance dispatcher resources
+        PerformanceDispatcher.shutdown()
+    }
+}

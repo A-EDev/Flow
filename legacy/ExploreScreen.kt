@@ -1,4 +1,4 @@
-package com.flow.youtube.ui.screens.explore
+package io.github.aedev.flow.ui.screens.explore
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,12 +20,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import com.flow.youtube.data.model.Video
-import com.flow.youtube.ui.components.VideoCard
-import com.flow.youtube.ui.components.ShimmerVideoCard
-import com.flow.youtube.ui.theme.extendedColors
-import com.flow.youtube.utils.formatDuration
-import com.flow.youtube.utils.formatViewCount
+import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.VideoCard
+import io.github.aedev.flow.ui.components.ShimmerVideoCard
+import io.github.aedev.flow.ui.theme.extendedColors
+import io.github.aedev.flow.utils.formatDuration
+import io.github.aedev.flow.utils.formatViewCount
 
 @Composable
 fun ExploreScreen(

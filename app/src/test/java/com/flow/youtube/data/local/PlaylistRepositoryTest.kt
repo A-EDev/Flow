@@ -1,10 +1,10 @@
-package com.flow.youtube.data.local
+package io.github.aedev.flow.data.local
 
-import com.flow.youtube.data.local.dao.PlaylistDao
-import com.flow.youtube.data.local.dao.VideoDao
-import com.flow.youtube.data.local.entity.PlaylistEntity
-import com.flow.youtube.data.local.entity.VideoEntity
-import com.flow.youtube.data.model.Video
+import io.github.aedev.flow.data.local.dao.PlaylistDao
+import io.github.aedev.flow.data.local.dao.VideoDao
+import io.github.aedev.flow.data.local.entity.PlaylistEntity
+import io.github.aedev.flow.data.local.entity.VideoEntity
+import io.github.aedev.flow.data.model.Video
 import com.google.common.truth.Truth.assertThat
 import io.mockk.*
 import kotlinx.coroutines.test.runTest

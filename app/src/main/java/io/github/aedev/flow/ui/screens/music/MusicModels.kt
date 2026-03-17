@@ -1,0 +1,74 @@
+package io.github.aedev.flow.ui.screens.music
+
+enum class MusicItemType { SONG, ALBUM, PLAYLIST, ARTIST }
+
+data class MusicTrack(
+    val videoId: String,
+    val title: String,
+    val artist: String,
+    val thumbnailUrl: String,
+    val duration: Int,
+    val views: Long = 0,
+    val sourceUrl: String = "", // Full URL for NewPipe extraction
+    val album: String = "",
+    val channelId: String = "",
+    val isExplicit: Boolean? = false,
+    val albumId: String? = null,
+    val artists: List<MusicArtist> = emptyList(),
+    val itemType: MusicItemType = MusicItemType.SONG
+) {
+    val highResThumbnailUrl: String
+        get() = thumbnailUrl.replace(Regex("w\\d+-h\\d+"), "w1000-h1000")
+            .replace(Regex("(hqdefault|mqdefault|sddefault|default)\\.jpg"), "hq720.jpg")
+}
+
+data class MusicArtist(
+    val name: String,
+    val id: String? = null
+)
+
+data class MusicPlaylist(
+    val id: String,
+    val title: String,
+    val thumbnailUrl: String,
+    val trackCount: Int = 0,
+    val author: String = ""
+)
+
+data class PlaylistDetails(
+    val id: String,
+    val title: String,
+    val thumbnailUrl: String,
+    val author: String,
+    val authorId: String? = null,
+    val authorAvatarUrl: String? = null,
+    val trackCount: Int,
+    val description: String? = null,
+    val views: Long? = null,
+    val durationText: String? = null,
+    val dateText: String? = null,
+    val tracks: List<MusicTrack> = emptyList(),
+    val continuation: String? = null
+)
+
+data class ArtistDetails(
+    val name: String,
+    val channelId: String,
+    val thumbnailUrl: String,
+    val subscriberCount: Long,
+    val description: String = "",
+    val bannerUrl: String = "",
+    val topTracks: List<MusicTrack> = emptyList(),
+    val albums: List<MusicPlaylist> = emptyList(),
+    val singles: List<MusicPlaylist> = emptyList(),
+    val videos: List<MusicTrack> = emptyList(),
+    val relatedArtists: List<ArtistDetails> = emptyList(),
+    val featuredOn: List<MusicPlaylist> = emptyList(),
+    val isSubscribed: Boolean = false,
+    val albumsBrowseId: String? = null,
+    val albumsParams: String? = null,
+    val singlesBrowseId: String? = null,
+    val singlesParams: String? = null,
+    val topTracksBrowseId: String? = null,
+    val topTracksParams: String? = null
+)

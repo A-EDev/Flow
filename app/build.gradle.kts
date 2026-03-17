@@ -9,17 +9,17 @@ plugins {
 }
 
 android {
-    namespace = "com.flow.youtube"
+    namespace = "io.github.aedev.flow"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.flow.youtube"
+        applicationId = "io.github.aedev.flow"
         minSdk = 21
         targetSdk = 34
         versionCode = 12
         versionName = "1.9.0"
 
-        testInstrumentationRunner = "com.flow.youtube.HiltTestRunner"
+        testInstrumentationRunner = "io.github.aedev.flow.HiltTestRunner"
         vectorDrawables {
             useSupportLibrary = true
         }

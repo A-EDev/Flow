@@ -31,8 +31,8 @@
 -dontwarn androidx.media3.**
 
 ## Keep application classes
--keep class com.flow.youtube.** { *; }
--keep class com.flow.youtube.FlowApplication { *; }
+-keep class io.github.aedev.flow.** { *; }
+-keep class io.github.aedev.flow.FlowApplication { *; }
 
 ## Rules for Jetpack Compose
 -keep class androidx.compose.** { *; }
@@ -48,8 +48,8 @@
 -keep class * implements com.google.gson.JsonDeserializer
 
 ## Keep data model classes
--keep class com.flow.youtube.**.models.** { *; }
--keep class com.flow.youtube.**.data.** { *; }
+-keep class io.github.aedev.flow.**.models.** { *; }
+-keep class io.github.aedev.flow.**.data.** { *; }
 
 ## Rules for Kotlin
 -keep class kotlin.Metadata { *; }

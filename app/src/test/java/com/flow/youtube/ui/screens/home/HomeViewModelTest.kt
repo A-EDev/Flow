@@ -1,11 +1,11 @@
-package com.flow.youtube.ui.screens.home
+package io.github.aedev.flow.ui.screens.home
 
-import com.flow.youtube.data.local.PlayerPreferences
-import com.flow.youtube.data.local.SubscriptionRepository
-import com.flow.youtube.data.model.Video
-import com.flow.youtube.data.recommendation.FlowNeuroEngine
-import com.flow.youtube.data.repository.YouTubeRepository
-import com.flow.youtube.data.shorts.ShortsRepository
+import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.SubscriptionRepository
+import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.shorts.ShortsRepository
 import com.google.common.truth.Truth.assertThat
 import io.mockk.*
 import kotlinx.coroutines.Dispatchers

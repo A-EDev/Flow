@@ -1,12 +1,12 @@
-package com.flow.youtube.data.local
+package io.github.aedev.flow.data.local
 
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
-import com.flow.youtube.data.local.dao.PlaylistDao
-import com.flow.youtube.data.local.dao.VideoDao
-import com.flow.youtube.data.local.entity.PlaylistEntity
-import com.flow.youtube.data.local.entity.VideoEntity
+import io.github.aedev.flow.data.local.dao.PlaylistDao
+import io.github.aedev.flow.data.local.dao.VideoDao
+import io.github.aedev.flow.data.local.entity.PlaylistEntity
+import io.github.aedev.flow.data.local.entity.VideoEntity
 import com.google.common.truth.Truth.assertThat
 import io.mockk.*
 import androidx.room.withTransaction

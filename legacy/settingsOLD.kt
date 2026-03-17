@@ -1,4 +1,4 @@
-package com.flow.youtube.ui.screens.settings
+package io.github.aedev.flow.ui.screens.settings
 
 import android.content.Intent
 import android.net.Uri
@@ -26,11 +26,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.flow.youtube.data.recommendation.FlowNeuroEngine
-import com.flow.youtube.ui.theme.ThemeMode
-import com.flow.youtube.ui.theme.extendedColors
-import com.flow.youtube.data.local.PlayerPreferences
-import com.flow.youtube.data.local.VideoQuality
+import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.ui.theme.ThemeMode
+import io.github.aedev.flow.ui.theme.extendedColors
+import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.VideoQuality
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -45,10 +45,10 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val searchHistoryRepo = remember { com.flow.youtube.data.local.SearchHistoryRepository(context) }
+    val searchHistoryRepo = remember { io.github.aedev.flow.data.local.SearchHistoryRepository(context) }
     val playerPreferences = remember { PlayerPreferences(context) }
-    val viewHistory = remember { com.flow.youtube.data.local.ViewHistory.getInstance(context) }
-    val backupRepo = remember { com.flow.youtube.data.local.BackupRepository(context) }
+    val viewHistory = remember { io.github.aedev.flow.data.local.ViewHistory.getInstance(context) }
+    val backupRepo = remember { io.github.aedev.flow.data.local.BackupRepository(context) }
     
     // Brain State
     var userBrain by remember { mutableStateOf<FlowNeuroEngine.UserBrain?>(null) }
@@ -561,10 +561,10 @@ fun SimpleConfirmDialog(title: String, text: String, onConfirm: () -> Unit, onDi
 }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val searchHistoryRepo = remember { com.flow.youtube.data.local.SearchHistoryRepository(context) }
+    val searchHistoryRepo = remember { io.github.aedev.flow.data.local.SearchHistoryRepository(context) }
     val playerPreferences = remember { PlayerPreferences(context) }
-    val viewHistory = remember { com.flow.youtube.data.local.ViewHistory.getInstance(context) }
-    val backupRepo = remember { com.flow.youtube.data.local.BackupRepository(context) }
+    val viewHistory = remember { io.github.aedev.flow.data.local.ViewHistory.getInstance(context) }
+    val backupRepo = remember { io.github.aedev.flow.data.local.BackupRepository(context) }
     
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json"),

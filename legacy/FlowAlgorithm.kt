@@ -1,7 +1,7 @@
-package com.flow.youtube.data.recommendation
+package io.github.aedev.flow.data.recommendation
 
 import android.util.Log
-import com.flow.youtube.data.model.Video
+import io.github.aedev.flow.data.model.Video
 import kotlin.random.Random
 
 /**

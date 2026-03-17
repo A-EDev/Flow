@@ -1,6 +1,6 @@
-package com.flow.youtube.data.recommendation
+package io.github.aedev.flow.data.recommendation
 
-import com.flow.youtube.data.model.Video
+import io.github.aedev.flow.data.model.Video
 import com.google.common.truth.Truth.assertThat
 import io.mockk.mockk
 import io.mockk.unmockkAll

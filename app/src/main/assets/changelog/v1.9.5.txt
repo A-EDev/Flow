@@ -2,6 +2,9 @@ FLOW CHANGE LOG
 VERSION: 1.9.5
 DATE: 2026-03-15
 
+!IMPORTANT!
+- UPDATE APP PACKAGE NAME TO io.github.aedev.flow FROM com.flow.youtube
+
 NEW FEATURES
 - Content sorting in channel screen
 - Search filters

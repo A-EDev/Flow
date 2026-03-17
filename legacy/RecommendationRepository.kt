@@ -1,4 +1,4 @@
-package com.flow.youtube.data.recommendation
+package io.github.aedev.flow.data.recommendation
 
 import android.content.Context
 import android.util.Log
@@ -8,16 +8,16 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.flow.youtube.data.local.ChannelSubscription
-import com.flow.youtube.data.local.LikedVideoInfo
-import com.flow.youtube.data.local.LikedVideosRepository
-import com.flow.youtube.data.local.PlaylistRepository
-import com.flow.youtube.data.local.SearchHistoryRepository
-import com.flow.youtube.data.local.SubscriptionRepository
-import com.flow.youtube.data.local.VideoHistoryEntry
-import com.flow.youtube.data.local.ViewHistory
-import com.flow.youtube.data.model.Video
-import com.flow.youtube.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.local.ChannelSubscription
+import io.github.aedev.flow.data.local.LikedVideoInfo
+import io.github.aedev.flow.data.local.LikedVideosRepository
+import io.github.aedev.flow.data.local.PlaylistRepository
+import io.github.aedev.flow.data.local.SearchHistoryRepository
+import io.github.aedev.flow.data.local.SubscriptionRepository
+import io.github.aedev.flow.data.local.VideoHistoryEntry
+import io.github.aedev.flow.data.local.ViewHistory
+import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.repository.YouTubeRepository
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers

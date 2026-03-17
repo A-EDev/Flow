@@ -1,4 +1,4 @@
-package com.flow.youtube.player
+package io.github.aedev.flow.player
 
 import android.content.Context
 import android.content.Intent
@@ -37,11 +37,11 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.audio.SilenceSkippingAudioProcessor
-import com.flow.youtube.service.VideoPlayerService
-import com.flow.youtube.player.datasource.YouTubeHttpDataSource
-import com.flow.youtube.player.renderer.CustomRenderersFactory
-import com.flow.youtube.player.resolver.VideoPlaybackResolver
-import com.flow.youtube.data.local.PlayerPreferences
+import io.github.aedev.flow.service.VideoPlayerService
+import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
+import io.github.aedev.flow.player.renderer.CustomRenderersFactory
+import io.github.aedev.flow.player.resolver.VideoPlaybackResolver
+import io.github.aedev.flow.data.local.PlayerPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -60,8 +60,8 @@ import okhttp3.Dispatcher
 import okhttp3.ConnectionPool
 import java.util.concurrent.TimeUnit
 
-import com.flow.youtube.data.repository.SponsorBlockRepository
-import com.flow.youtube.data.model.SponsorBlockSegment
+import io.github.aedev.flow.data.repository.SponsorBlockRepository
+import io.github.aedev.flow.data.model.SponsorBlockSegment
 
 @UnstableApi
 class EnhancedPlayerManager private constructor() {

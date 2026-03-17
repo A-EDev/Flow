@@ -1,4 +1,4 @@
-package com.flow.youtube
+package io.github.aedev.flow
 
 import android.app.Application
 import android.content.Context

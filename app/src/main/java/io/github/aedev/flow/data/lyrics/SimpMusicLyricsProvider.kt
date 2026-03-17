@@ -1,0 +1,23 @@
+// ============================================================================
+// THIS IMPLEMENTATION WAS INSPIRED BY METROLIST
+// ============================================================================
+
+package io.github.aedev.flow.data.lyrics
+
+/**
+ * LyricsProvider implementation for the SimpMusic service.
+ * Delegates to SimpMusicLyrics service which returns structured LyricsEntry with word timestamps.
+ */
+class SimpMusicLyricsProvider : LyricsProvider {
+    override val name = "SimpMusic"
+
+    override suspend fun getLyrics(
+        id: String,
+        title: String,
+        artist: String,
+        duration: Int,
+        album: String?
+    ): Result<List<LyricsEntry>> {
+        return SimpMusicLyrics.getLyrics(id, duration)
+    }
+}

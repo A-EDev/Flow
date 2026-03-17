@@ -1,10 +1,10 @@
-package com.flow.youtube.ui.screens.search
+package io.github.aedev.flow.ui.screens.search
 
-import com.flow.youtube.data.local.Duration
-import com.flow.youtube.data.local.SearchFilter
-import com.flow.youtube.data.model.Video
-import com.flow.youtube.data.model.SearchResult
-import com.flow.youtube.data.repository.YouTubeRepository
+import io.github.aedev.flow.data.local.Duration
+import io.github.aedev.flow.data.local.SearchFilter
+import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.model.SearchResult
+import io.github.aedev.flow.data.repository.YouTubeRepository
 import com.google.common.truth.Truth.assertThat
 import io.mockk.coEvery
 import io.mockk.mockk

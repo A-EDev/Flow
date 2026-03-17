@@ -1,8 +1,8 @@
-package com.flow.youtube.data.local
+package io.github.aedev.flow.data.local
 
 import android.content.Context
-import com.flow.youtube.data.model.Video
-import com.flow.youtube.ui.theme.ThemeMode
+import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.theme.ThemeMode
 import com.google.common.truth.Truth.assertThat
 import io.mockk.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -34,7 +34,7 @@ class LocalDataManagerTest {
         mockkStatic(android.util.Log::class)
         every { android.util.Log.d(any(), any()) } returns 0
         every { android.util.Log.e(any(), any()) } returns 0
-        mockkStatic("com.flow.youtube.data.local.LocalDataManagerKt")
+        mockkStatic("io.github.aedev.flow.data.local.LocalDataManagerKt")
     }
 
     @After

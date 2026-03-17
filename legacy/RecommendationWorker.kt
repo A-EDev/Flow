@@ -1,4 +1,4 @@
-package com.flow.youtube.data.recommendation
+package io.github.aedev.flow.data.recommendation
 
 import android.content.Context
 import android.util.Log
