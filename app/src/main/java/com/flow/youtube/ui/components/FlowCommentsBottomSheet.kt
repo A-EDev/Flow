@@ -59,7 +59,10 @@ fun FlowCommentsBottomSheet(
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = modifier
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+        val maxHeight = configuration.screenHeightDp.dp * 0.65f
+
+        Column(modifier = Modifier.fillMaxWidth().heightIn(max = maxHeight)) {
             
             // 1. Header & Filters
             Column(

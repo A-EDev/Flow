@@ -239,6 +239,16 @@ class FlowNeuroEngine(private val appContext: Context) {
         private val TIMESTAMP_PATTERN = Regex("""\d{1,2}:\d{2}""")
         private const val CHAPTER_TIMESTAMP_MIN = 3
 
+        // ── Seen Shorts History Constants ──
+        /** Max Short IDs to keep in persistent seen history */
+        private const val SEEN_SHORTS_MAX = 3000
+
+        /** Multiplier applied to Shorts seen very recently (effectively hides them) */
+        private const val SEEN_SHORT_PENALTY = 0.05
+
+        /** Days after which a seen Short fully recovers and can reappear */
+        private const val SEEN_SHORT_EXPIRY_DAYS = 7
+
         // ── Impression Fatigue Constants ──
         private const val IMPRESSION_CACHE_MAX = 500
         private const val IMPRESSION_DECAY_RATE = 0.1
@@ -420,6 +430,11 @@ class FlowNeuroEngine(private val appContext: Context) {
 
         suspend fun resetBrain() = requireInstance().resetBrain()
         suspend fun resetBrain(context: Context) = getInstance(context).resetBrain()
+
+        suspend fun recordSeenShorts(shortIds: List<String>) =
+            requireInstance().recordSeenShorts(shortIds)
+        suspend fun getRecentlySeenShorts(): Set<String> =
+            requireInstance().getRecentlySeenShorts()
 
         suspend fun getPreferredTopics(): Set<String> = requireInstance().getPreferredTopics()
         suspend fun getBlockedTopics(): Set<String> = requireInstance().getBlockedTopics()
@@ -797,6 +812,7 @@ class FlowNeuroEngine(private val appContext: Context) {
         val idfWordFrequency: Map<String, Int> = emptyMap(),
         val idfTotalDocuments: Int = 0,
         val watchHistoryMap: Map<String, Float> = emptyMap(),
+        val seenShortsHistory: Map<String, Long> = emptyMap(),
         val schemaVersion: Int = SCHEMA_VERSION
     )
 
@@ -1838,6 +1854,19 @@ class FlowNeuroEngine(private val appContext: Context) {
             )
             totalScore *= watchedPenalty
 
+            // ── Seen Shorts penalty ──
+            if (video.isShort) {
+                val seenTimestamp = brain.seenShortsHistory[video.id]
+                if (seenTimestamp != null) {
+                    val daysSinceSeen = (now - seenTimestamp) / (24.0 * 60 * 60 * 1000)
+                    if (daysSinceSeen < SEEN_SHORT_EXPIRY_DAYS) {
+                        val recovery = (daysSinceSeen / SEEN_SHORT_EXPIRY_DAYS).coerceIn(0.0, 1.0)
+                        val seenPenalty = SEEN_SHORT_PENALTY + (1.0 - SEEN_SHORT_PENALTY) * recovery
+                        totalScore *= seenPenalty
+                    }
+                }
+            }
+
             // ── Jitter ──
             val jitter = if (brain.totalInteractions <
                 ONBOARDING_WARMUP_INTERACTIONS
@@ -2549,7 +2578,8 @@ class FlowNeuroEngine(private val appContext: Context) {
         val personaStability: Int = 0,
         val idfWordFrequency: Map<String, Int> = emptyMap(),
         val idfTotalDocuments: Int = 0,
-        val watchHistoryMap: Map<String, Float> = emptyMap()
+        val watchHistoryMap: Map<String, Float> = emptyMap(),
+        val seenShortsHistory: Map<String, Long> = emptyMap()
     )
 
     private object BrainSerializer : Serializer<SerializableBrain> {
@@ -2614,7 +2644,8 @@ class FlowNeuroEngine(private val appContext: Context) {
         personaStability = personaStability,
         idfWordFrequency = idfWordFrequency,
         idfTotalDocuments = idfTotalDocuments,
-        watchHistoryMap = watchHistoryMap
+        watchHistoryMap = watchHistoryMap,
+        seenShortsHistory = seenShortsHistory
     )
 
     private fun SerializableBrain.toUserBrain(): UserBrain {
@@ -2638,8 +2669,47 @@ class FlowNeuroEngine(private val appContext: Context) {
             idfWordFrequency = idfWordFrequency,
             idfTotalDocuments = idfTotalDocuments,
             watchHistoryMap = watchHistoryMap,
+            seenShortsHistory = seenShortsHistory,
             schemaVersion = schemaVersion
         )
+    }
+
+    /**
+     * Records a batch of Short video IDs as "seen" by the user.
+     * Called after rank() returns results to the discovery engine.
+     * Persisted across app restarts so seen Shorts aren't immediately reshown.
+     */
+    suspend fun recordSeenShorts(shortIds: List<String>) {
+        if (shortIds.isEmpty()) return
+        brainMutex.withLock {
+            val now = System.currentTimeMillis()
+            val updated = currentUserBrain.seenShortsHistory.toMutableMap()
+            shortIds.forEach { id ->
+                if (!updated.containsKey(id)) updated[id] = now
+            }
+            if (updated.size > SEEN_SHORTS_MAX) {
+                val toRemove = updated.entries
+                    .sortedBy { it.value }
+                    .take(updated.size - SEEN_SHORTS_MAX)
+                toRemove.forEach { updated.remove(it.key) }
+            }
+            currentUserBrain = currentUserBrain.copy(seenShortsHistory = updated)
+            scheduleDebouncedSave()
+        }
+    }
+
+    /**
+     * Returns IDs of Shorts seen within the expiry window.
+     * Shorts older than SEEN_SHORT_EXPIRY_DAYS are eligible to reappear.
+     */
+    suspend fun getRecentlySeenShorts(): Set<String> {
+        return brainMutex.withLock {
+            val now = System.currentTimeMillis()
+            val expiryMs = SEEN_SHORT_EXPIRY_DAYS * 24L * 60 * 60 * 1000
+            currentUserBrain.seenShortsHistory
+                .filter { (_, ts) -> (now - ts) < expiryMs }
+                .keys
+        }
     }
 
     private suspend fun saveBrainToDataStore() =

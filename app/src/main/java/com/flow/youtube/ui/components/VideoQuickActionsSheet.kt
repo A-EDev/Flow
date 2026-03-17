@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -103,9 +104,13 @@ fun VideoQuickActionsBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState()
     ) {
+        val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+        val maxHeight = configuration.screenHeightDp.dp * 0.65f
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = maxHeight)
                 .padding(bottom = 24.dp)
         ) {
             // Video info header

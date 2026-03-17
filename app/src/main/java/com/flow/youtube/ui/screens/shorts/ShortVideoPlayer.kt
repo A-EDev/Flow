@@ -108,9 +108,13 @@ fun ShortVideoPage(
     var selectedAudioIndex by remember { mutableStateOf(0) }
     var selectedQualityHeight by remember { mutableStateOf(-1) }
     var isLoadingStreams by remember { mutableStateOf(false) }
+    
+    // ── Download State ──
+    var showDownloadDialog by remember { mutableStateOf(false) }
+    var currentStreamInfo by remember { mutableStateOf<org.schabi.newpipe.extractor.stream.StreamInfo?>(null) }
 
     // ── PlayerView instance ──
-    val playerView = remember(video.id) {
+    val playerView = remember {
         PlayerView(context).apply {
             useController = false
             layoutParams = FrameLayout.LayoutParams(
@@ -126,6 +130,7 @@ fun ShortVideoPage(
     // ── Initialize player pool and handle playback when visibility changes ──
     LaunchedEffect(isActive, video.id) {
         if (isActive) {
+            hasStartedPlaying = false
             playerPool.initialize(context)
             EnhancedMusicPlayerManager.pause()
 
@@ -181,6 +186,8 @@ fun ShortVideoPage(
                 detectTapGestures(
                     onTap = {
                         playerPool.togglePlayPause()
+                        val player = playerPool.getPlayerForIndex(pageIndex)
+                        if (player != null) isPlaying = player.isPlaying
                         showPauseIndicator = true
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     },
@@ -333,13 +340,13 @@ fun ShortVideoPage(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(350.dp)
+                .height(250.dp)
                 .align(Alignment.BottomCenter)
                 .background(
                     Brush.verticalGradient(
                         listOf(
                             Color.Transparent,
-                            Color.Black.copy(alpha = 0.85f)
+                            Color.Black.copy(alpha = 0.7f)
                         )
                     )
                 )
@@ -407,6 +414,33 @@ fun ShortVideoPage(
                                 style = MaterialTheme.typography.labelSmall
                             )
                         }
+                    } else {
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    viewModel.toggleSubscription(
+                                        video.channelId,
+                                        video.channelName,
+                                        video.channelThumbnailUrl
+                                    )
+                                }
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color.White
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp, Color.White.copy(alpha = 0.5f)
+                            ),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                            modifier = Modifier.height(28.dp)
+                        ) {
+                            Text(
+                                stringResource(R.string.subscribed),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White.copy(alpha = 0.8f)
+                            )
+                        }
                     }
                 }
 
@@ -433,17 +467,6 @@ fun ShortVideoPage(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val infiniteTransition = rememberInfiniteTransition(label = "disc_spin")
-                    val rotation by infiniteTransition.animateFloat(
-                        initialValue = 0f,
-                        targetValue = 360f,
-                        animationSpec = infiniteRepeatable(
-                            animation = tween(3000, easing = LinearEasing),
-                            repeatMode = RepeatMode.Restart
-                        ),
-                        label = "disc_rotation"
-                    )
-
                     Icon(
                         Icons.Default.MusicNote,
                         contentDescription = null,
@@ -463,7 +486,7 @@ fun ShortVideoPage(
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp) 
             ) {
                 ShortsActionButton(
                     icon = if (isLiked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -473,12 +496,6 @@ fun ShortVideoPage(
                         scope.launch { viewModel.toggleLike(video.toShortVideo()) }
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     }
-                )
-
-                ShortsActionButton(
-                    icon = Icons.Default.ThumbDown,
-                    text = stringResource(R.string.action_dislike),
-                    onClick = {}
                 )
 
                 ShortsActionButton(
@@ -522,9 +539,9 @@ fun ShortVideoPage(
 
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(36.dp) 
                         .background(Color.DarkGray, CircleShape)
-                        .padding(4.dp)
+                        .padding(3.dp)
                 ) {
                     AsyncImage(
                         model = video.channelThumbnailUrl,
@@ -533,7 +550,7 @@ fun ShortVideoPage(
                             .fillMaxSize()
                             .clip(CircleShape)
                             .then(
-                                if (isPlaying) Modifier.graphicsLayer { rotationZ = albumRotation }
+                                if (isActive && isPlaying) Modifier.graphicsLayer { rotationZ = albumRotation }
                                 else Modifier
                             ),
                         contentScale = ContentScale.Crop
@@ -620,6 +637,20 @@ fun ShortVideoPage(
                 onNotInterested()
                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             },
+            onDownloadClick = {
+                showShortsOptionsSheet = false
+                if (!isLoadingStreams) {
+                    isLoadingStreams = true
+                    scope.launch {
+                        val streamInfo = viewModel.getVideoStreamInfo(video.id)
+                        currentStreamInfo = streamInfo
+                        isLoadingStreams = false
+                        if (streamInfo != null) {
+                            showDownloadDialog = true
+                        }
+                    }
+                }
+            },
             onAudioTrackClick = {
                 showShortsOptionsSheet = false
                 if (!isLoadingStreams) {
@@ -694,6 +725,16 @@ fun ShortVideoPage(
             onDismiss = { showQualitySheet = false }
         )
     }
+
+    // ── Download Dialog ──
+    if (showDownloadDialog && currentStreamInfo != null) {
+        com.flow.youtube.ui.screens.player.components.DownloadQualityDialog(
+            streamInfo = currentStreamInfo,
+            streamSizes = emptyMap(),
+            video = video,
+            onDismiss = { showDownloadDialog = false }
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -702,6 +743,8 @@ private fun ShortsOptionsSheet(
     isLoadingStreams: Boolean,
     onWantMore: () -> Unit,
     onNotInterested: () -> Unit,
+    onDislikeClick: () -> Unit = {},
+    onDownloadClick: () -> Unit,
     onAudioTrackClick: () -> Unit,
     onQualityClick: () -> Unit,
     onDismiss: () -> Unit
@@ -766,6 +809,67 @@ private fun ShortsOptionsSheet(
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
+                }
+            }
+
+            Surface(
+                onClick = {
+                    onDismiss()
+                    onDislikeClick()
+                },
+                color = Color.Transparent,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.ThumbDown,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.action_dislike),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
+            // ── Download ──
+            Surface(
+                onClick = onDownloadClick,
+                color = Color.Transparent,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoadingStreams
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Download,
+                        contentDescription = null,
+                        tint = if (isLoadingStreams) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                               else MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.download_video),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = if (isLoadingStreams) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                else MaterialTheme.colorScheme.onSurface
+                    )
+                    if (isLoadingStreams) {
+                        Spacer(Modifier.weight(1f))
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    }
                 }
             }
 
@@ -1042,11 +1146,14 @@ fun ShortsActionButton(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null,
-            onClick = onClick
-        )
+        modifier = modifier
+            .sizeIn(minWidth = 44.dp, minHeight = 44.dp)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(horizontal = 4.dp)
     ) {
         Icon(
             imageVector = icon,

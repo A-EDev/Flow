@@ -20,6 +20,7 @@ IMPROVEMENTS
 - Removed redudant 3-dot menu buttons in the music quick actions menu
 - More responsive video player dragging
 - Sequantial content loading for channels
+- Shorts screen UI and anti-repetition
 
 RECOMMENDATION ENGINE
 - Fixed cross-topic contamination
@@ -42,3 +43,4 @@ FIXES AND STABILITY
 - Fix video playback issue on Fullscreen expansion
 - Fix Subs tab Shorts sort order — old Shorts no longer appear at top of subscription feed
 - Fix Non-Shorts videos under 2 minutes opening in shorts player
+- Fix Sheets opening in full screen

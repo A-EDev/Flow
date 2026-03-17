@@ -130,10 +130,13 @@ fun FlowDescriptionBottomSheet(
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = modifier
     ) {
+        val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+        val maxHeight = configuration.screenHeightDp.dp * 0.65f
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.85f)
+                .heightIn(max = maxHeight)
         ) {
             // Header
             Row(

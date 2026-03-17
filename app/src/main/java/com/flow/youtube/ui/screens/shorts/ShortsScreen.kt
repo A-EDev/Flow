@@ -198,10 +198,16 @@ fun ShortsScreen(
                     val currentShort = uiState.shorts.getOrNull(settled)
                     if (currentShort != null) {
                         launch {
-                            val streams = getStreams(currentShort.id)
-                            val vUrl = streams?.first
-                            if (vUrl != null) {
-                                playerPool.prepare(settled, currentShort.id, vUrl, streams?.second, true)
+                            try {
+                                val streams = getStreams(currentShort.id)
+                                val vUrl = streams?.first
+                                if (vUrl != null) {
+                                    playerPool.prepare(settled, currentShort.id, vUrl, streams?.second, true)
+                                } else {
+                                    Log.w("ShortsScreen", "No stream URL resolved for ${currentShort.id}")
+                                }
+                            } catch (e: Exception) {
+                                Log.e("ShortsScreen", "Failed to prepare player for ${currentShort.id}", e)
                             }
                         }
                     }

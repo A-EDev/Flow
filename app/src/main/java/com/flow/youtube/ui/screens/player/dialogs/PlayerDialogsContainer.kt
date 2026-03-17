@@ -23,7 +23,8 @@ fun PlayerDialogsContainer(
     // Download Quality Dialog
     if (screenState.showDownloadDialog) {
         DownloadQualityDialog(
-            uiState = uiState,
+            streamInfo = uiState.streamInfo,
+            streamSizes = uiState.streamSizes,
             video = video,
             onDismiss = { screenState.showDownloadDialog = false }
         )

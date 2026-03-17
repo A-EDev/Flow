@@ -189,6 +189,9 @@ class ShortsRepository private constructor(private val context: Context) {
 
         val candidateShorts = discoveryVideos
             .filter { it.id !in recentlyShownIds }
+            .let { videos ->
+                deduplicateByTitle(videos)
+            }
             .map { it.toShortVideo() }
 
         markAsShown(candidateShorts.map { it.id })
@@ -245,21 +248,39 @@ class ShortsRepository private constructor(private val context: Context) {
         
         if (result != null && result.shorts.isNotEmpty()) {
             Log.d(TAG, "✓ Loaded ${result.shorts.size} more shorts (pre-enrichment)")
-            
+
+            val recentlySeen = try {
+                FlowNeuroEngine.getRecentlySeenShorts()
+            } catch (e: Exception) { emptySet() }
+
+            val freshShorts = result.shorts.filter { it.id !in recentlySeen }
+
+            if (freshShorts.size < 3 && result.shorts.size > 3) {
+                Log.i(TAG, "loadMore: ${result.shorts.size - freshShorts.size} seen Shorts filtered, triggering discovery refresh")
+                return@withContext forceRefresh()
+            }
+
             // Enrich metadata OUTSIDE the InnerTube timeout
             val enriched = try {
                 withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) {
-                    enrichMissingMetadata(result.shorts)
+                    enrichMissingMetadata(freshShorts)
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Enrichment for continuation failed: ${e.message}")
                 null
-            } ?: result.shorts
-            
+            } ?: freshShorts
+
             val reRanked = reRankWithFlowNeuro(enriched, userSubs)
             val enrichedResult = result.copy(shorts = reRanked)
             enrichedResult.shorts.forEach { shortsCache.put(it.id, it) }
             markAsShown(enrichedResult.shorts.map { it.id })
+
+            try {
+                FlowNeuroEngine.recordSeenShorts(reRanked.map { it.id })
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to record seen Shorts in loadMore", e)
+            }
+
             return@withContext enrichedResult
         }
 
@@ -283,6 +304,52 @@ class ShortsRepository private constructor(private val context: Context) {
         ShortsSequenceResult(emptyList(), null)
     }
     
+    /**
+     * Removes near-duplicate Shorts based on Jaccard title similarity.
+     * Catches re-uploads and stolen content with different IDs but nearly
+     * identical titles. Keeps the video with more views (likely the original).
+     */
+    private fun deduplicateByTitle(
+        videos: List<com.flow.youtube.data.model.Video>
+    ): List<com.flow.youtube.data.model.Video> {
+        if (videos.size <= 1) return videos
+
+        val result = mutableListOf<com.flow.youtube.data.model.Video>()
+        val titleTokens = videos.map { video ->
+            video to video.title.lowercase()
+                .split(Regex("\\s+"))
+                .map { it.trim { c -> !c.isLetterOrDigit() } }
+                .filter { it.length > 2 }
+                .toSet()
+        }
+        val consumed = mutableSetOf<Int>()
+
+        for (i in titleTokens.indices) {
+            if (i in consumed) continue
+            var bestVideo = titleTokens[i].first
+            val bestTokens = titleTokens[i].second
+
+            for (j in i + 1 until titleTokens.size) {
+                if (j in consumed) continue
+                val otherTokens = titleTokens[j].second
+                if (bestTokens.isEmpty() || otherTokens.isEmpty()) continue
+
+                val intersection = bestTokens.intersect(otherTokens).size
+                val union = bestTokens.union(otherTokens).size
+                val similarity = if (union > 0) intersection.toDouble() / union else 0.0
+
+                if (similarity > 0.6) {
+                    val otherVideo = titleTokens[j].first
+                    if (otherVideo.viewCount > bestVideo.viewCount) bestVideo = otherVideo
+                    consumed.add(j)
+                }
+            }
+            result.add(bestVideo)
+            consumed.add(i)
+        }
+        return result
+    }
+
     // FLOWNEURO RE-RANKING — YouTube algo primary, FlowNeuro personalization    
     /**
      * Re-rank shorts using FlowNeuroEngine.

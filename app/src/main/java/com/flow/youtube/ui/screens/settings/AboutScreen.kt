@@ -192,8 +192,8 @@ fun AboutScreen(
                 AboutRow(
                     icon = Icons.Outlined.Public,
                     title = stringResource(R.string.about_website),
-                    subtitle = "flowapp-website.vercel.app",
-                    onClick = { openUrl(context, "https://flowapp-website.vercel.app") }
+                    subtitle = "flow.aedev.me",
+                    onClick = { openUrl(context, "https://flow.aedev.me") }
                 )
             }
             item { AboutRowDivider() }

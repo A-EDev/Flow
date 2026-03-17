@@ -38,7 +38,8 @@ import org.schabi.newpipe.extractor.stream.VideoStream
 
 @Composable
 fun DownloadQualityDialog(
-    uiState: VideoPlayerUiState,
+    streamInfo: org.schabi.newpipe.extractor.stream.StreamInfo?,
+    streamSizes: Map<String, Long>,
     video: Video,
     onDismiss: () -> Unit
 ) {
@@ -78,9 +79,9 @@ fun DownloadQualityDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.heightIn(max = 400.dp)
                 ) {
-                    val videoOnlyStreams = uiState.streamInfo?.videoOnlyStreams
+                    val videoOnlyStreams = streamInfo?.videoOnlyStreams
                         ?.filterIsInstance<VideoStream>() ?: emptyList()
-                    val muxedStreams = uiState.streamInfo?.videoStreams
+                    val muxedStreams = streamInfo?.videoStreams
                         ?.filterIsInstance<VideoStream>() ?: emptyList()
 
                     val codecPriority = mapOf("av1" to 0, "vp9" to 1, "h264" to 2, "hevc" to 3, "vp8" to 4)
@@ -102,7 +103,7 @@ fun DownloadQualityDialog(
                         val codecLabel = VideoPlayerUtils.codecLabelFromKey(codecKey)
                         val qualityLabel = "$codecLabel ${stream.height}p"
 
-                        val sizeInBytes = uiState.streamSizes[VideoPlayerUtils.streamSizeKey(stream.height, codecKey)]
+                        val sizeInBytes = streamSizes[VideoPlayerUtils.streamSizeKey(stream.height, codecKey)]
                         val sizeText = if (sizeInBytes != null && sizeInBytes > 0) {
                             val mb = sizeInBytes / (1024.0 * 1024.0)
                             String.format("~%.2f MB", mb)
@@ -124,7 +125,7 @@ fun DownloadQualityDialog(
                                     var audioUrl: String? = null
                                     if (stream.isVideoOnly) {
                                         val isMp4Container = codecKey != "vp9" && codecKey != "vp8"
-                                        val allAudio = uiState.streamInfo?.audioStreams ?: emptyList()
+                                        val allAudio = streamInfo?.audioStreams ?: emptyList()
 
                                         fun isAacCompatible(a: org.schabi.newpipe.extractor.stream.AudioStream): Boolean {
                                             val fmt  = (a.format?.name ?: "").lowercase()
@@ -245,7 +246,7 @@ fun DownloadQualityDialog(
                     }
 
                     // ===== Audio-Only Section =====
-                    val audioStreams = uiState.streamInfo?.audioStreams?.sortedByDescending { it.averageBitrate } ?: emptyList()
+                    val audioStreams = streamInfo?.audioStreams?.sortedByDescending { it.averageBitrate } ?: emptyList()
                     if (audioStreams.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(8.dp))
