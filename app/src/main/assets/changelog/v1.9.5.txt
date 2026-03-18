@@ -9,7 +9,7 @@ NEW FEATURES
 - Content sorting in channel screen
 - Search filters
 - Clear video from feed when marked by "Not Interested", "Don't show channel", or "Mark as Watched"
-- Continue watching mini-player
+- Continue watching mini-player with disable option in the Player Settings
 - Add a mark as "not interested" and "want more like this" to shorts
 
 IMPROVEMENTS

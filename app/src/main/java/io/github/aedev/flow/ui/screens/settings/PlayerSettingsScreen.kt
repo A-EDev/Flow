@@ -75,6 +75,7 @@ fun PlayerSettingsScreen(
     val preferredAudioLanguage by playerPreferences.preferredAudioLanguage.collectAsState(initial = "original")
     val currentLyricsProvider by playerPreferences.preferredLyricsProvider.collectAsState(initial = "LRCLIB")
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
+    val miniPlayerContinueWatchingEnabled by playerPreferences.miniPlayerContinueWatchingEnabled.collectAsState(initial = true)
     
     var showAudioLanguageDialog by remember { mutableStateOf(false) }
     var showLyricsProviderSheet by remember { mutableStateOf(false) }
@@ -162,6 +163,14 @@ fun PlayerSettingsScreen(
                         subtitle = stringResource(R.string.player_settings_overlay_sleep_timer_subtitle),
                         checked = overlaySleepTimerEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setOverlaySleepTimerEnabled(it) } }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.PlayCircleOutline,
+                        title = stringResource(R.string.player_settings_mini_player_continue_watching_title),
+                        subtitle = stringResource(R.string.player_settings_mini_player_continue_watching_subtitle),
+                        checked = miniPlayerContinueWatchingEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setMiniPlayerContinueWatchingEnabled(it) } }
                     )
                 }
             }

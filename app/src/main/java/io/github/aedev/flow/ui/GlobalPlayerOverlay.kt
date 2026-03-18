@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.res.stringResource
 import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -714,7 +715,7 @@ fun GlobalPlayerOverlay(
                     )
                     if (playerUiState.isRestoredSession) {
                         Text(
-                            text = "Continue watching",
+                            text = stringResource(R.string.player_mini_player_continue_watching_label),
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White,
                             modifier = Modifier

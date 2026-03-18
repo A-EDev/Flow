@@ -112,6 +112,7 @@ class PlayerPreferences(private val context: Context) {
         val MINI_PLAYER_SCALE = floatPreferencesKey("mini_player_scale")
         val MINI_PLAYER_SHOW_SKIP_CONTROLS = booleanPreferencesKey("mini_player_show_skip_controls")
         val MINI_PLAYER_SHOW_NEXT_PREV_CONTROLS = booleanPreferencesKey("mini_player_show_next_prev_controls")
+        val MINI_PLAYER_CONTINUE_WATCHING_ENABLED = booleanPreferencesKey("mini_player_continue_watching_enabled")
     }
     
     // Grid item size preference
@@ -800,6 +801,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setMiniPlayerScale(scale: Float) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MINI_PLAYER_SCALE] = scale
+        }
+    }
+
+
+    val miniPlayerContinueWatchingEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.MINI_PLAYER_CONTINUE_WATCHING_ENABLED] ?: true
+        }
+
+    suspend fun setMiniPlayerContinueWatchingEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MINI_PLAYER_CONTINUE_WATCHING_ENABLED] = enabled
         }
     }
 

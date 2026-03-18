@@ -122,12 +122,15 @@ class VideoPlayerViewModel @Inject constructor(
 
         // Restore last watched video session so the mini player appears on launch
         viewModelScope.launch {
-            val lastVideo = withContext(Dispatchers.IO) { viewHistory.getLatestUnfinishedVideo() }
-            if (lastVideo != null && _uiState.value.cachedVideo == null) {
-                _uiState.update { it.copy(
-                    cachedVideo = lastVideo.toVideo(),
-                    isRestoredSession = true
-                ) }
+            val isEnabled = playerPreferences.miniPlayerContinueWatchingEnabled.first()
+            if (isEnabled) {
+                val lastVideo = withContext(Dispatchers.IO) { viewHistory.getLatestUnfinishedVideo() }
+                if (lastVideo != null && _uiState.value.cachedVideo == null) {
+                    _uiState.update { it.copy(
+                        cachedVideo = lastVideo.toVideo(),
+                        isRestoredSession = true
+                    ) }
+                }
             }
         }
     }
