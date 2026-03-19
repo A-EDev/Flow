@@ -58,9 +58,9 @@ class LocalDataManager @Inject constructor(@ApplicationContext private val conte
     // Theme Settings
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
         try {
-            prefs[THEME_MODE]?.let { ThemeMode.valueOf(it) } ?: ThemeMode.DARK
+            prefs[THEME_MODE]?.let { ThemeMode.valueOf(it) } ?: ThemeMode.SYSTEM
         } catch (e: Exception) {
-            ThemeMode.DARK
+            ThemeMode.SYSTEM
         }
     }
 

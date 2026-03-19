@@ -71,6 +71,16 @@ private enum class ThemeCategory(@androidx.annotation.StringRes val labelRes: In
 }
 
 private val ALL_THEMES = listOf(
+    // System Theme
+    ThemeInfo(
+        ThemeMode.SYSTEM, io.github.aedev.flow.R.string.theme_name_system_default, io.github.aedev.flow.R.string.theme_desc_system_default,
+        ThemeCategory.SPECIAL,
+        primaryColor = YouTubeRed,
+        backgroundColor = Color.DarkGray,
+        surfaceColor = Color.Gray,
+        onSurfaceColor = Color.White,
+        surfaceVariantColor = Color.LightGray
+    ),
     // Light Themes
     ThemeInfo(
         ThemeMode.LIGHT, io.github.aedev.flow.R.string.theme_name_pure_light, io.github.aedev.flow.R.string.theme_desc_pure_light,

@@ -11,7 +11,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 enum class ThemeMode {
-    LIGHT, DARK, OLED, LAVENDER_MIST, OCEAN_BLUE, FOREST_GREEN, SUNSET_ORANGE, PURPLE_NEBULA, MIDNIGHT_BLACK,
+    LIGHT, DARK, OLED, SYSTEM, LAVENDER_MIST, OCEAN_BLUE, FOREST_GREEN, SUNSET_ORANGE, PURPLE_NEBULA, MIDNIGHT_BLACK,
     ROSE_GOLD, ARCTIC_ICE, CRIMSON_RED, MINTY_FRESH, COSMIC_VOID, SOLAR_FLARE, CYBERPUNK,
     ROYAL_GOLD, NORDIC_HORIZON, ESPRESSO, GUNMETAL,
     MINT_LIGHT, ROSE_LIGHT, SKY_LIGHT, CREAM_LIGHT
@@ -343,13 +343,22 @@ private val CreamLightColorScheme = lightColorScheme(
 
 @Composable
 fun FlowTheme(
-    themeMode: ThemeMode = ThemeMode.LIGHT,
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when (themeMode) {
+    val darkTheme = isSystemInDarkTheme()
+    
+    val effectiveThemeMode = if (themeMode == ThemeMode.SYSTEM) {
+        if (darkTheme) ThemeMode.DARK else ThemeMode.LIGHT
+    } else {
+        themeMode
+    }
+
+    val colorScheme = when (effectiveThemeMode) {
         ThemeMode.LIGHT -> LightColorScheme
         ThemeMode.DARK -> DarkColorScheme
         ThemeMode.OLED -> OLEDColorScheme
+        ThemeMode.SYSTEM -> if (darkTheme) DarkColorScheme else LightColorScheme
         ThemeMode.LAVENDER_MIST -> LavenderMistColorScheme
         ThemeMode.OCEAN_BLUE -> OceanBlueColorScheme
         ThemeMode.FOREST_GREEN -> ForestGreenColorScheme
@@ -373,12 +382,20 @@ fun FlowTheme(
         ThemeMode.CREAM_LIGHT -> CreamLightColorScheme
     }
 
-    val extendedColors = when (themeMode) {
-        ThemeMode.LIGHT -> ExtendedColors(
-            textSecondary = LightThemeColors.TextSecondary,
-            border = LightThemeColors.Border,
-            success = LightThemeColors.Success
-        )
+    val extendedColors = when (effectiveThemeMode) {
+        ThemeMode.LIGHT, ThemeMode.SYSTEM -> if (effectiveThemeMode == ThemeMode.SYSTEM && darkTheme) {
+            ExtendedColors(
+                textSecondary = DarkThemeColors.TextSecondary,
+                border = DarkThemeColors.Border,
+                success = DarkThemeColors.Success
+            )
+        } else {
+            ExtendedColors(
+                textSecondary = LightThemeColors.TextSecondary,
+                border = LightThemeColors.Border,
+                success = LightThemeColors.Success
+            )
+        }
         ThemeMode.DARK -> ExtendedColors(
             textSecondary = DarkThemeColors.TextSecondary,
             border = DarkThemeColors.Border,

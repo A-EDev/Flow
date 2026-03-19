@@ -12,6 +12,8 @@ NEW FEATURES
 - Continue watching mini-player with disable option in the Player Settings
 - Add a mark as "not interested" and "want more like this" to shorts
 - Audio Boost to 200% for supported codecs
+- Auto video loop toggle
+- Auto Theme based on system active Theme
 
 IMPROVEMENTS
 - Improved video player action buttons design and sizes.

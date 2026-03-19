@@ -76,6 +76,7 @@ fun PlayerSettingsScreen(
     val currentLyricsProvider by playerPreferences.preferredLyricsProvider.collectAsState(initial = "LRCLIB")
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
     val miniPlayerContinueWatchingEnabled by playerPreferences.miniPlayerContinueWatchingEnabled.collectAsState(initial = true)
+    val videoLoopEnabled by playerPreferences.videoLoopEnabled.collectAsState(initial = false)
     
     var showAudioLanguageDialog by remember { mutableStateOf(false) }
     var showLyricsProviderSheet by remember { mutableStateOf(false) }
@@ -171,6 +172,14 @@ fun PlayerSettingsScreen(
                         subtitle = stringResource(R.string.player_settings_mini_player_continue_watching_subtitle),
                         checked = miniPlayerContinueWatchingEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setMiniPlayerContinueWatchingEnabled(it) } }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Repeat,
+                        title = stringResource(R.string.global_loop),
+                        subtitle = stringResource(R.string.global_loop_subtitle),
+                        checked = videoLoopEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setVideoLoopEnabled(it) } }
                     )
                 }
             }

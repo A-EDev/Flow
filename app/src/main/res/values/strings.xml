@@ -384,6 +384,8 @@
 
 
     <!-- Theme Names & Descriptions -->
+    <string name="theme_name_system_default">System Default</string>
+    <string name="theme_desc_system_default">Synchronize with device theme</string>
     <string name="theme_name_pure_light">Pure Light</string>
     <string name="theme_desc_pure_light">Clean &amp; minimal</string>
     <string name="theme_name_mint_fresh">Mint Fresh</string>
@@ -483,7 +485,8 @@
     <string name="player_settings_dearrow">DeArrow</string>
     <string name="player_settings_dearrow_subtitle">Replace clickbait titles and thumbnails with community alternatives</string>
     <string name="dearrow_badge">DeArrow</string>
-
+    <string name="global_loop">Global Video Loop</string>
+    <string name="global_loop_subtitle">Loop all videos by default</string>
     <!-- SponsorBlock per-category segment actions (Player Appearance) -->
     <string name="sb_segments_header">SponsorBlock Segment Actions</string>
     <string name="sb_contribute_header">Contribute to SponsorBlock</string>

@@ -253,6 +253,13 @@ class EnhancedPlayerManager private constructor() {
         
         audioFeaturesManager?.setPlayer(player!!)
         
+        // Apply initial loop preference
+        scope.launch {
+            val prefs = PlayerPreferences(context)
+            val loopEnabled = prefs.videoLoopEnabled.first()
+            player?.repeatMode = if (loopEnabled) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+        }
+        
         surfaceManager?.reattachSurfaceIfValid(player)
     }
 
@@ -267,6 +274,12 @@ class EnhancedPlayerManager private constructor() {
         scope.launch {
             prefs.sponsorBlockEnabled.collect { isEnabled ->
                 sponsorBlockHandler?.setEnabled(isEnabled)
+            }
+        }
+
+        scope.launch {
+            prefs.videoLoopEnabled.collect { isEnabled ->
+                player?.repeatMode = if (isEnabled) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
             }
         }
 

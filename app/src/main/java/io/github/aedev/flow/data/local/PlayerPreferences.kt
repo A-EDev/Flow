@@ -17,6 +17,7 @@ class PlayerPreferences(private val context: Context) {
         val DEFAULT_QUALITY_CELLULAR = stringPreferencesKey("default_quality_cellular")
         val BACKGROUND_PLAY_ENABLED = booleanPreferencesKey("background_play_enabled")
         val AUTOPLAY_ENABLED = booleanPreferencesKey("autoplay_enabled")
+        val VIDEO_LOOP_ENABLED = booleanPreferencesKey("video_loop_enabled")
         val SUBTITLES_ENABLED = booleanPreferencesKey("subtitles_enabled")
         val PREFERRED_SUBTITLE_LANGUAGE = stringPreferencesKey("preferred_subtitle_language")
         val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
@@ -436,6 +437,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setAutoplayEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.AUTOPLAY_ENABLED] = enabled
+        }
+    }
+
+    // Video Loop
+    val videoLoopEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.VIDEO_LOOP_ENABLED] ?: false
+        }
+    
+    suspend fun setVideoLoopEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.VIDEO_LOOP_ENABLED] = enabled
         }
     }
 
