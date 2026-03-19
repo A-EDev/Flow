@@ -46,6 +46,9 @@ class VideoPlayerService : Service() {
     
     private var currentVideo: Video? = null
     private var isPlaying = false
+    private var cachedThumbnailUrl: String? = null
+    private var cachedThumbnailBitmap: Bitmap? = null
+    private var thumbnailLoadJob: Job? = null
     
     companion object {
         private const val NOTIFICATION_ID = 1002
@@ -119,8 +122,9 @@ class VideoPlayerService : Service() {
         serviceScope.launch {
             EnhancedPlayerManager.getInstance().playerState.collectLatest { state ->
                 isPlaying = state.isPlaying
+                val isPlaybackActive = state.isPlaying || state.isBuffering
                 
-                if (isPlaying) {
+                if (isPlaybackActive) {
                     lockReleaseJob?.cancel()
                     lockReleaseJob = null
                     acquireLocks()
@@ -146,9 +150,12 @@ class VideoPlayerService : Service() {
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // Android 12+ requires immediate startForeground to avoid crashes
-        if (Build.VERSION.SDK_INT >= 31 && intent != null) { // Build.VERSION_CODES.S is 31
-             startForeground(NOTIFICATION_ID, createPlaceholderNotification())
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && intent != null) {
+            try {
+                startForeground(NOTIFICATION_ID, createPlaceholderNotification())
+            } catch (e: Exception) {
+                Log.w("VideoPlayerService", "Immediate foreground start failed", e)
+            }
         }
         
         intent?.let { handleIntent(it) }
@@ -189,6 +196,12 @@ class VideoPlayerService : Service() {
                         viewCount = 0L,
                         uploadDate = ""
                     )
+                    if (cachedThumbnailUrl != thumbnail) {
+                        cachedThumbnailUrl = thumbnail
+                        cachedThumbnailBitmap = null
+                        thumbnailLoadJob?.cancel()
+                        thumbnailLoadJob = null
+                    }
                     updateNotification()
                 }
             }
@@ -216,6 +229,8 @@ class VideoPlayerService : Service() {
         Log.d("VideoPlayerService", "onDestroy() called")
         lockReleaseJob?.cancel()
         lockReleaseJob = null
+        thumbnailLoadJob?.cancel()
+        thumbnailLoadJob = null
         stopPlayback()
         releaseLocks()
         mediaSession.isActive = false
@@ -274,22 +289,28 @@ class VideoPlayerService : Service() {
             .build()
         
         mediaSession.setMetadata(metadata)
-        
-        // Load thumbnail asynchronously
-        serviceScope.launch(Dispatchers.IO) {
+
+        showNotification(video, cachedThumbnailBitmap)
+
+        val thumbnailUrl = video.thumbnailUrl
+        if (thumbnailUrl.isBlank()) return
+        if (cachedThumbnailBitmap != null && cachedThumbnailUrl == thumbnailUrl) return
+        if (thumbnailLoadJob?.isActive == true) return
+
+        cachedThumbnailUrl = thumbnailUrl
+        thumbnailLoadJob = serviceScope.launch(Dispatchers.IO) {
             val bitmap = try {
-                if (video.thumbnailUrl.isNotEmpty()) {
-                    val url = URL(video.thumbnailUrl)
-                    BitmapFactory.decodeStream(url.openConnection().getInputStream())
-                } else {
-                    null
-                }
-            } catch (e: Exception) {
+                val url = URL(thumbnailUrl)
+                BitmapFactory.decodeStream(url.openConnection().getInputStream())
+            } catch (_: Exception) {
                 null
             }
-            
+
             withContext(Dispatchers.Main) {
-                showNotification(video, bitmap)
+                cachedThumbnailBitmap = bitmap
+                if (currentVideo?.thumbnailUrl == thumbnailUrl) {
+                    showNotification(video, cachedThumbnailBitmap)
+                }
             }
         }
     }

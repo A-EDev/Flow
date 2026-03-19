@@ -23,6 +23,7 @@ import java.net.DatagramPacket
 import java.net.InetAddress
 import java.net.MulticastSocket
 import java.net.URL
+import java.net.URI
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -175,11 +176,12 @@ object DlnaCastManager {
      */
     private fun resolveDevice(device: DlnaDevice): DlnaDevice? {
         return try {
-            val baseUrl = URL(device.location).let { "${it.protocol}://${it.host}:${it.port}" }
+            val descriptionUrl = URL(device.location)
             val xml = http.newCall(Request.Builder().url(device.location).build())
                 .execute().use { it.body?.string() ?: "" }
 
             var friendlyName = device.friendlyName
+            var urlBaseFromXml: String? = null
             var avTransportControlPath: String? = null
             var inAVTransport = false
             var inServiceType = false
@@ -199,6 +201,10 @@ object DlnaCastManager {
                                 event = parser.next()
                                 if (event == XmlPullParser.TEXT) friendlyName = parser.text.trim()
                             }
+                            "urlbase" -> {
+                                event = parser.next()
+                                if (event == XmlPullParser.TEXT) urlBaseFromXml = parser.text.trim()
+                            }
                             "servicetype" -> inServiceType = true
                             "controlurl" -> if (inAVTransport) inControlUrl = true
                         }
@@ -206,7 +212,7 @@ object DlnaCastManager {
                     XmlPullParser.TEXT -> {
                         when {
                             inServiceType -> {
-                                if (parser.text.contains("AVTransport")) inAVTransport = true
+                                if (parser.text.lowercase().contains("avtransport")) inAVTransport = true
                                 inServiceType = false
                             }
                             inControlUrl -> {
@@ -226,11 +232,11 @@ object DlnaCastManager {
                 Log.w(TAG, "No AVTransport service found at ${device.location}")
                 return null
             }
-            val controlUrl = if (avTransportControlPath.startsWith("http")) {
-                avTransportControlPath
-            } else {
-                "$baseUrl${if (avTransportControlPath.startsWith("/")) "" else "/"}$avTransportControlPath"
-            }
+            val controlUrl = resolveControlUrl(
+                descriptionUrl = descriptionUrl,
+                urlBase = urlBaseFromXml,
+                controlPath = avTransportControlPath
+            )
             device.copy(friendlyName = friendlyName, avTransportUrl = controlUrl)
         } catch (e: Exception) {
             Log.e(TAG, "resolveDevice failed for ${device.location}: ${e.message}")
@@ -253,6 +259,7 @@ object DlnaCastManager {
                 _currentDevice.value = device
             } catch (e: Exception) {
                 Log.e(TAG, "castTo failed: ${e.message}")
+                _currentDevice.value = null
             }
         }
     }
@@ -323,9 +330,24 @@ object DlnaCastManager {
             .build()
         http.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                Log.w(TAG, "SOAP $action returned ${response.code}")
+                val responseBody = response.body?.string().orEmpty()
+                throw IllegalStateException("SOAP $action failed (${response.code}): $responseBody")
             }
         }
+    }
+
+    /** Resolve a control URL using URLBase (if present) and RFC3986 relative resolution. */
+    private fun resolveControlUrl(descriptionUrl: URL, urlBase: String?, controlPath: String): String {
+        if (controlPath.startsWith("http://") || controlPath.startsWith("https://")) {
+            return controlPath
+        }
+
+        val base = when {
+            !urlBase.isNullOrBlank() -> URI(urlBase)
+            else -> descriptionUrl.toURI()
+        }
+
+        return base.resolve(controlPath).toString()
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────

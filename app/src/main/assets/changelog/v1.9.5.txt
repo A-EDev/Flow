@@ -55,3 +55,5 @@ FIXES AND STABILITY
 - Fix Sheets opening in full screen
 - Fix Music Player "Up Next" Scrolling & End Indicator
 - Fix Video Upload Time incorrectly showing offset due to timezone parsing
+- Fix Notifications are faulty and videos lag at the beginning #156
+- Fix [BUG] screencasting not working #161
