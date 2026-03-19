@@ -41,16 +41,18 @@ fun formatTimeAgo(dateString: String?): String {
     val formats = listOf(
         "yyyy-MM-dd'T'HH:mm:ssXXX",
         "yyyy-MM-dd'T'HH:mm:ssX",
-        "yyyy-MM-dd'T'HH:mm:ss",
-        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
         "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss",
         "yyyy-MM-dd"
     )
-    
+
     var date: java.util.Date? = null
     for (format in formats) {
         try {
             val sdf = java.text.SimpleDateFormat(format, java.util.Locale.US)
+            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
             date = sdf.parse(dateString)
             if (date != null) break
         } catch (e: Exception) {}

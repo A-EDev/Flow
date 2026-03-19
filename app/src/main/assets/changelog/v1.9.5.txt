@@ -54,3 +54,4 @@ FIXES AND STABILITY
 - Fix Non-Shorts videos under 2 minutes opening in shorts player
 - Fix Sheets opening in full screen
 - Fix Music Player "Up Next" Scrolling & End Indicator
+- Fix Video Upload Time incorrectly showing offset due to timezone parsing
