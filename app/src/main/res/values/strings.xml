@@ -265,6 +265,7 @@
     <string name="tab_live">Live</string>
     <string name="tab_playlists">Playlists</string>
     <string name="tab_about">About</string>
+    <string name="end_of_queue">End of queue</string>
     <string name="no_videos_found">No videos found</string>
     <string name="no_shorts_found">No shorts found</string>
     <string name="no_playlists_found">No playlists found</string>
@@ -362,7 +363,7 @@
     <!-- Player Appearance -->
     <string name="player_appearance_title">Player Appearance</string>
     <string name="player_appearance_header">Customize Player Controls</string>
-    <string name="player_appearance_style_title">Progress Bar Style</string>
+    <string name="player_appearance_style_title"> Music Progress Bar Style</string>
     <string name="player_appearance_style_subtitle">Select the visual style of the seek bar</string>
     <string name="settings_item_player_appearance">Player Appearance</string>
     <string name="settings_item_player_appearance_subtitle">Customize progress bar style</string>
@@ -374,7 +375,15 @@
     <string name="player_appearance_gestures_header">Gestures</string>
     <string name="player_appearance_swipe_gestures_title">Brightness &amp; Volume Gestures</string>
     <string name="player_appearance_swipe_gestures_subtitle">Swipe left/right edge to adjust brightness and volume in fullscreen</string>
-
+    <string name="mini_player_header">Mini Player Customizations</string>
+    <string name="mini_player_size">Mini Player Size</string>
+    <string name="mini_player_small">Small</string>
+    <string name="mini_player_large">Large</string>
+    <string name="mini_player_normal">Normal</string>
+    <string name="skip_button_title">Show Skip Buttons</string>
+    <string name="skip_button_subtitle">Show rewind/forward 10s buttons on the mini player</string>
+    <string name="player_nav_btn_title">Show Next/Prev Buttons</string>
+    <string name="player_nav_btn_subtitle">Show next and previous video buttons on the mini player</string>
     <!-- Lyrics Provider -->
     <string name="lyrics_provider_title">Lyrics Provider</string>
     <string name="lyrics_provider_subtitle">Choose your preferred source for song lyrics</string>

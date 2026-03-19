@@ -25,6 +25,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -59,6 +61,13 @@ fun MusicSearchScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(100)
+        focusRequester.requestFocus()
+        keyboardController?.show()
+    }
     
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
@@ -116,7 +125,8 @@ fun MusicSearchScreen(
                         putExtra(RecognizerIntent.EXTRA_PROMPT, context.getString(R.string.voice_search_prompt))
                     }
                     voiceSearchLauncher.launch(intent)
-                }
+                },
+                focusRequester = focusRequester
             )
         },
         containerColor = MaterialTheme.colorScheme.background
@@ -331,7 +341,8 @@ fun MusicSearchBar(
     onSearch: () -> Unit,
     onBackClick: () -> Unit,
     onClearClick: () -> Unit,
-    onVoiceSearchClick: () -> Unit
+    onVoiceSearchClick: () -> Unit,
+    focusRequester: androidx.compose.ui.focus.FocusRequester = remember { androidx.compose.ui.focus.FocusRequester() }
 ) {
     Row(
         modifier = Modifier
@@ -359,7 +370,9 @@ fun MusicSearchBar(
             BasicTextField(
                 value = query,
                 onValueChange = onQueryChange,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .focusRequester(focusRequester),
                 textStyle = androidx.compose.ui.text.TextStyle(
                     color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp

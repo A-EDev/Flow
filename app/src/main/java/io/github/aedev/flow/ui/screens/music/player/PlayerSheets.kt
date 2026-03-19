@@ -163,7 +163,8 @@ fun UpNextContent(
         // Queue List
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(4.dp),
-            modifier = Modifier.fillMaxHeight()
+            modifier = Modifier.fillMaxHeight(),
+            contentPadding = PaddingValues(bottom = 100.dp)
         ) {
             itemsIndexed(queue) { index, track ->
                 UpNextTrackItem(
@@ -173,6 +174,36 @@ fun UpNextContent(
                     onMoveUp = { if (index > 0) onMoveTrack(index, index - 1) },
                     onMoveDown = { if (index < queue.size - 1) onMoveTrack(index, index + 1) }
                 )
+            }
+            
+            item {
+                if (autoplayEnabled) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 2.dp
+                        )
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.end_of_queue),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                    }
+                }
             }
         }
     }
@@ -382,7 +413,7 @@ fun RelatedContent(
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 24.dp, top = 16.dp)
+                contentPadding = PaddingValues(bottom = 100.dp, top = 16.dp)
             ) {
                 items(relatedTracks) { track ->
                     RelatedTrackItem(

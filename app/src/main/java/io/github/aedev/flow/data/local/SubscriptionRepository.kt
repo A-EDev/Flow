@@ -122,7 +122,7 @@ class SubscriptionRepository private constructor(private val context: Context) {
     }
     
     private fun serializeChannel(channel: ChannelSubscription): String {
-        return "${channel.channelId}|${channel.channelName}|${channel.channelThumbnail}|${channel.subscribedAt}|${channel.lastVideoId ?: ""}|${channel.lastCheckTime}"
+        return "${channel.channelId}|${channel.channelName}|${channel.channelThumbnail}|${channel.subscribedAt}|${channel.lastVideoId ?: ""}|${channel.lastCheckTime}|${channel.isNotificationEnabled}"
     }
     
     private fun deserializeChannel(data: String): ChannelSubscription? {
@@ -135,7 +135,8 @@ class SubscriptionRepository private constructor(private val context: Context) {
                     channelThumbnail = parts[2],
                     subscribedAt = parts[3].toLong(),
                     lastVideoId = if (parts.size > 4 && parts[4].isNotEmpty()) parts[4] else null,
-                    lastCheckTime = if (parts.size > 5 && parts[5].isNotEmpty()) parts[5].toLong() else 0L
+                    lastCheckTime = if (parts.size > 5 && parts[5].isNotEmpty()) parts[5].toLong() else 0L,
+                    isNotificationEnabled = if (parts.size > 6 && parts[6].isNotEmpty()) parts[6].toBoolean() else false
                 )
             } else {
                 null
@@ -145,6 +146,22 @@ class SubscriptionRepository private constructor(private val context: Context) {
         }
     }
     
+    /**
+     * Update the notification state for a channel
+     */
+    suspend fun updateNotificationState(channelId: String, enabled: Boolean) {
+        context.subscriptionsDataStore.edit { preferences ->
+            val channelData = preferences[channelKey(channelId)]
+            if (channelData != null) {
+                val subscription = deserializeChannel(channelData)
+                if (subscription != null) {
+                    val updated = subscription.copy(isNotificationEnabled = enabled)
+                    preferences[channelKey(channelId)] = serializeChannel(updated)
+                }
+            }
+        }
+    }
+
     /**
      * Update the last seen video for a channel
      */
@@ -171,5 +188,6 @@ data class ChannelSubscription(
     val channelThumbnail: String,
     val subscribedAt: Long = System.currentTimeMillis(),
     val lastVideoId: String? = null,
-    val lastCheckTime: Long = 0L
+    val lastCheckTime: Long = 0L,
+    val isNotificationEnabled: Boolean = false
 )

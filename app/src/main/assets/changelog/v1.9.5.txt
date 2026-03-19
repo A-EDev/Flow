@@ -14,6 +14,7 @@ NEW FEATURES
 - Audio Boost to 200% for supported codecs
 - Auto video loop toggle
 - Auto Theme based on system active Theme
+- Subscription Notification Filtering
 
 IMPROVEMENTS
 - Improved video player action buttons design and sizes.
@@ -28,6 +29,7 @@ IMPROVEMENTS
 - Sequantial content loading for channels
 - Shorts screen UI and anti-repetition
 - Improve player button clicks
+- Search Keyboard & Focus Improvements
 
 RECOMMENDATION ENGINE
 - Fixed cross-topic contamination
@@ -51,3 +53,4 @@ FIXES AND STABILITY
 - Fix Subs tab Shorts sort order — old Shorts no longer appear at top of subscription feed
 - Fix Non-Shorts videos under 2 minutes opening in shorts player
 - Fix Sheets opening in full screen
+- Fix Music Player "Up Next" Scrolling & End Indicator

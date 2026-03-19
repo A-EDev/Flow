@@ -100,10 +100,11 @@ class SubscriptionCheckWorker(
         
         try {
             val subscriptionRepository = SubscriptionRepository.getInstance(applicationContext)
-            val subscriptions = subscriptionRepository.getAllSubscriptions().first()
+            val allSubscriptions = subscriptionRepository.getAllSubscriptions().first()
+            val subscriptions = allSubscriptions.filter { it.isNotificationEnabled }
             
             if (subscriptions.isEmpty()) {
-                Log.d(TAG, "No subscriptions to check")
+                Log.d(TAG, "No subscriptions with notifications enabled to check")
                 return@withContext Result.success()
             }
             

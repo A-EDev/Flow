@@ -107,6 +107,7 @@ class SearchViewModel(
             ContentType.VIDEOS -> list.add("videos")
             ContentType.CHANNELS -> list.add("channels")
             ContentType.PLAYLISTS -> list.add("playlists")
+            ContentType.LIVE -> list.add("live")
             else -> {} 
         }
         

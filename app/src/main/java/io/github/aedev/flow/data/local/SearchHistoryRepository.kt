@@ -40,7 +40,7 @@ data class SearchFilter(
 )
 
 enum class ContentType {
-    ALL, VIDEOS, CHANNELS, PLAYLISTS
+    ALL, VIDEOS, CHANNELS, PLAYLISTS, LIVE
 }
 
 enum class Duration {

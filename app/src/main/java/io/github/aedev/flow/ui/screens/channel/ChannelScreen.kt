@@ -19,6 +19,10 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.NotificationsOff
+import androidx.compose.material.icons.rounded.PersonRemove
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
@@ -120,6 +124,8 @@ fun ChannelScreen(
                         onShortClick = onShortClick,
                         onPlaylistClick = onPlaylistClick,
                         onSubscribeClick = { viewModel.toggleSubscription() },
+                        onUnsubscribeClick = { viewModel.unsubscribe() },
+                        onNotificationChange = { viewModel.setNotificationState(it) },
                         onTabSelected = { viewModel.selectTab(it) }
                     )
                 }
@@ -141,6 +147,8 @@ private fun ChannelContent(
     onShortClick: (String) -> Unit,
     onPlaylistClick: (String) -> Unit,
     onSubscribeClick: () -> Unit,
+    onUnsubscribeClick: () -> Unit,
+    onNotificationChange: (Boolean) -> Unit,
     onTabSelected: (Int) -> Unit
 ) {
     val channelInfo = uiState.channelInfo ?: return
@@ -173,7 +181,10 @@ private fun ChannelContent(
             ChannelHeader(
                 channelInfo = channelInfo,
                 isSubscribed = uiState.isSubscribed,
-                onSubscribeClick = onSubscribeClick
+                isNotificationsEnabled = uiState.isNotificationsEnabled,
+                onSubscribeClick = onSubscribeClick,
+                onUnsubscribeClick = onUnsubscribeClick,
+                onNotificationChange = onNotificationChange
             )
         }
 
@@ -295,7 +306,10 @@ private fun FilterAndToggleBar(
 private fun ChannelHeader(
     channelInfo: org.schabi.newpipe.extractor.channel.ChannelInfo,
     isSubscribed: Boolean,
-    onSubscribeClick: () -> Unit
+    isNotificationsEnabled: Boolean,
+    onSubscribeClick: () -> Unit,
+    onUnsubscribeClick: () -> Unit,
+    onNotificationChange: (Boolean) -> Unit
 ) {
     val bannerUrl = try { channelInfo.banners.firstOrNull()?.url } catch (e: Exception) { null }
     val avatarUrl = try { channelInfo.avatars.firstOrNull()?.url } catch (e: Exception) { null }
@@ -357,7 +371,10 @@ private fun ChannelHeader(
 
             SubscribeButton(
                 isSubscribed = isSubscribed,
-                onClick = onSubscribeClick
+                isNotificationsEnabled = isNotificationsEnabled,
+                onSubscribeClick = onSubscribeClick,
+                onUnsubscribeClick = onUnsubscribeClick,
+                onNotificationChange = onNotificationChange
             )
         }
 
@@ -391,9 +408,14 @@ private fun ChannelHeader(
 @Composable
 fun SubscribeButton(
     isSubscribed: Boolean,
-    onClick: () -> Unit,
+    isNotificationsEnabled: Boolean,
+    onSubscribeClick: () -> Unit,
+    onUnsubscribeClick: () -> Unit,
+    onNotificationChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var expanded by remember { mutableStateOf(false) }
+
     val containerColor by animateColorAsState(
         targetValue = if (isSubscribed) MaterialTheme.colorScheme.surfaceVariant
                       else MaterialTheme.colorScheme.onSurface,
@@ -405,34 +427,87 @@ fun SubscribeButton(
         label = "subscribeFg"
     )
 
-    Button(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            contentColor = contentColor
-        ),
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 9.dp),
-        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.animateContentSize()
+    Box(modifier = modifier) {
+        Button(
+            onClick = {
+                if (isSubscribed) {
+                    expanded = true
+                } else {
+                    onSubscribeClick()
+                }
+            },
+            shape = RoundedCornerShape(20.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = containerColor,
+                contentColor = contentColor
+            ),
+            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 9.dp),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
         ) {
-            AnimatedVisibility(visible = isSubscribed) {
-                Icon(
-                    imageVector = Icons.Rounded.Check,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.animateContentSize()
+            ) {
+                AnimatedVisibility(visible = isSubscribed) {
+                    Icon(
+                        imageVector = if (isNotificationsEnabled) Icons.Rounded.NotificationsActive else Icons.Rounded.NotificationsOff,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Text(
+                    text = if (isSubscribed) stringResource(R.string.subscribed)
+                           else stringResource(R.string.subscribe),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
                 )
+                AnimatedVisibility(visible = isSubscribed) {
+                    Icon(
+                        imageVector = Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
+        }
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.width(200.dp)
+        ) {
             Text(
-                text = if (isSubscribed) stringResource(R.string.subscribed)
-                       else stringResource(R.string.subscribe),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold
+                text = "Notifications",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
+            DropdownMenuItem(
+                text = { Text("All") },
+                leadingIcon = { Icon(Icons.Rounded.NotificationsActive, null) },
+                onClick = {
+                    onNotificationChange(true)
+                    expanded = false
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("None") },
+                leadingIcon = { Icon(Icons.Rounded.NotificationsOff, null) },
+                onClick = {
+                    onNotificationChange(false)
+                    expanded = false
+                }
+            )
+            HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
+            DropdownMenuItem(
+                text = { Text("Unsubscribe") },
+                leadingIcon = { Icon(Icons.Rounded.PersonRemove, null) },
+                onClick = {
+                    onUnsubscribeClick()
+                    expanded = false
+                }
             )
         }
     }

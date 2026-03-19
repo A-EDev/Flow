@@ -287,8 +287,13 @@ class ChannelViewModel : ViewModel() {
     
     private fun loadSubscriptionState(channelId: String) {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
-            subscriptionRepository?.isSubscribed(channelId)?.collect { isSubscribed ->
-                _uiState.update { it.copy(isSubscribed = isSubscribed) }
+            subscriptionRepository?.getSubscription(channelId)?.collect { subscription ->
+                _uiState.update { 
+                    it.copy(
+                        isSubscribed = subscription != null,
+                        isNotificationsEnabled = subscription?.isNotificationEnabled ?: false
+                    ) 
+                }
             }
         }
     }
@@ -317,6 +322,22 @@ class ChannelViewModel : ViewModel() {
                 )
                 subscriptionRepository?.subscribe(subscription)
             }
+        }
+    }
+
+    fun unsubscribe() {
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            val state = _uiState.value
+            val channelId = state.channelId ?: return@launch
+            subscriptionRepository?.unsubscribe(channelId)
+        }
+    }
+
+    fun setNotificationState(enabled: Boolean) {
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            val state = _uiState.value
+            val channelId = state.channelId ?: return@launch
+            subscriptionRepository?.updateNotificationState(channelId, enabled)
         }
     }
     
@@ -399,6 +420,7 @@ data class ChannelUiState(
     val error: String? = null,
     val videosError: String? = null,
     val isSubscribed: Boolean = false,
+    val isNotificationsEnabled: Boolean = false,
     val selectedTab: Int = 0 // 0: Videos, 1: Shorts, 2: Live, 3: Playlists, 4: About
 )
 

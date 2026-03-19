@@ -277,7 +277,7 @@ fun PlayerAppearanceScreen(
             // Mini Player Preferences section
             item {
                 Spacer(modifier = Modifier.height(8.dp))
-                SectionHeader(text = "Mini Player Customizations")
+                SectionHeader(text = stringResource(R.string.mini_player_header))
             }
             
             item {
@@ -304,13 +304,13 @@ fun PlayerAppearanceScreen(
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Mini Player Size",
+                                text = stringResource(R.string.mini_player_size),
                                 style = MaterialTheme.typography.bodyLarge
                             )
                             val scaleLabel = when (miniPlayerScale) {
-                                0.35f -> "Small"
-                                0.55f -> "Large"
-                                else -> "Normal"
+                                0.35f -> stringResource(R.string.mini_player_small)
+                                0.55f -> stringResource(R.string.mini_player_large)
+                                else -> stringResource(R.string.mini_player_normal)
                             }
                             Text(
                                 text = scaleLabel,
@@ -330,9 +330,9 @@ fun PlayerAppearanceScreen(
                                 onDismissRequest = { expandedScale = false }
                             ) {
                                 listOf(
-                                    "Small" to 0.35f,
-                                    "Normal" to 0.45f,
-                                    "Large" to 0.55f
+                                    stringResource(R.string.mini_player_small) to 0.35f,
+                                    stringResource(R.string.mini_player_normal) to 0.45f,
+                                    stringResource(R.string.mini_player_large) to 0.55f
                                 ).forEach { (label, scale) ->
                                     DropdownMenuItem(
                                         text = { Text(label) },
@@ -352,9 +352,9 @@ fun PlayerAppearanceScreen(
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
                     
                     SettingsToggleItem(
-                        icon = painterResource(R.drawable.ic_swipe_gesture), // Placeholder icon
-                        title = "Show Skip Buttons",
-                        subtitle = "Show rewind/forward 10s buttons on the mini player",
+                        icon = painterResource(R.drawable.ic_swipe_gesture),
+                        title = stringResource(R.string.skip_button_title),
+                        subtitle = stringResource(R.string.skip_button_subtitle),
                         checked = miniPlayerShowSkip,
                         onCheckedChange = { enabled ->
                             coroutineScope.launch { playerPreferences.setMiniPlayerShowSkipControls(enabled) }
@@ -364,9 +364,9 @@ fun PlayerAppearanceScreen(
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
                     SettingsToggleItem(
-                        icon = painterResource(R.drawable.ic_swipe_gesture), // Placeholder icon
-                        title = "Show Next/Prev Buttons",
-                        subtitle = "Show next and previous video buttons on the mini player",
+                        icon = painterResource(R.drawable.ic_swipe_gesture), 
+                        title = stringResource(R.string.player_nav_btn_title),
+                        subtitle = stringResource(R.string.player_nav_btn_subtitle),
                         checked = miniPlayerShowNextPrev,
                         onCheckedChange = { enabled ->
                             coroutineScope.launch { playerPreferences.setMiniPlayerShowNextPrevControls(enabled) }

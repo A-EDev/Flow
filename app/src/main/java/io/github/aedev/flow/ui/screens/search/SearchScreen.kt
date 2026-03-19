@@ -27,6 +27,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -74,9 +75,16 @@ fun SearchScreen(
     val gridState = rememberLazyGridState()
     val scope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
 
     var liveSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var isLoadingSuggestions by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(100)
+        focusRequester.requestFocus()
+        keyboardController?.show()
+    }
 
     LaunchedEffect(searchQuery, isSearchFocused) {
         if (searchQuery.length >= 2 && isSearchFocused && suggestionsEnabled) {
@@ -98,7 +106,7 @@ fun SearchScreen(
         }
     }
 
-    val tabContentTypes = listOf(ContentType.ALL, ContentType.VIDEOS, ContentType.CHANNELS, ContentType.PLAYLISTS)
+    val tabContentTypes = listOf(ContentType.ALL, ContentType.VIDEOS, ContentType.CHANNELS, ContentType.PLAYLISTS, ContentType.LIVE)
     LaunchedEffect(selectedTabIndex) {
         if (uiState.query.isNotBlank()) {
             val base = uiState.filters ?: SearchFilter()
@@ -116,6 +124,7 @@ fun SearchScreen(
             onQueryChange = { searchQuery = it },
             onSearch = {
                 if (searchQuery.isNotBlank()) {
+                    keyboardController?.hide()
                     isSearchFocused = false
                     liveSuggestions = emptyList()
                     selectedTabIndex = 0
@@ -165,6 +174,7 @@ fun SearchScreen(
                 suggestions = liveSuggestions,
                 isLoading = isLoadingSuggestions,
                 onSuggestionClick = { s ->
+                    keyboardController?.hide()
                     searchQuery = s
                     isSearchFocused = false
                     liveSuggestions = emptyList()
@@ -199,18 +209,23 @@ fun SearchScreen(
         if (!hasQuery) {
             DiscoverScreen(
                 searchHistory = searchHistory,
-                onHistoryClick = { q -> searchQuery = q; selectedTabIndex = 0; viewModel.search(q) },
+                onHistoryClick = { q -> 
+                    keyboardController?.hide()
+                    searchQuery = q 
+                    selectedTabIndex = 0 
+                    viewModel.search(q) 
+                },
                 onHistoryDelete = { item -> scope.launch { searchHistoryRepo.deleteSearchItem(item.id) } },
                 onClearHistory = { scope.launch { searchHistoryRepo.clearSearchHistory() } }
             )
         } else {
             SearchTabRow(
                 selectedTabIndex = selectedTabIndex,
-                tabLabels = listOf("All", "Videos", "Channels", "Playlists"),
+                tabLabels = listOf("All", "Videos", "Channels", "Playlists", "Live"),
                 onTabSelected = { selectedTabIndex = it }
             )
 
-            if (selectedTabIndex == 0 || selectedTabIndex == 1) {
+            if (selectedTabIndex == 0 || selectedTabIndex == 1 || selectedTabIndex == 4) {
                 SearchFilterRow(
                     selectedDuration = uiState.filters?.duration ?: Duration.ANY,
                     onDurationSelected = { dur ->
