@@ -11,6 +11,7 @@ NEW FEATURES
 - Clear video from feed when marked by "Not Interested", "Don't show channel", or "Mark as Watched"
 - Continue watching mini-player with disable option in the Player Settings
 - Add a mark as "not interested" and "want more like this" to shorts
+- Audio Boost to 200% for supported codecs
 
 IMPROVEMENTS
 - Improved video player action buttons design and sizes.
@@ -24,6 +25,7 @@ IMPROVEMENTS
 - More responsive video player dragging
 - Sequantial content loading for channels
 - Shorts screen UI and anti-repetition
+- Improve player button clicks
 
 RECOMMENDATION ENGINE
 - Fixed cross-topic contamination

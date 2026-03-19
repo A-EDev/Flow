@@ -217,13 +217,20 @@ fun VolumeOverlay(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(animatedVolume)
+                        .fillMaxHeight(animatedVolume / 2f) 
                         .background(
                             brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                                )
+                                colors = if (volumeLevel > 1f) {
+                                    listOf(
+                                        Color(0xFFFF5252),
+                                        MaterialTheme.colorScheme.primary
+                                    )
+                                } else {
+                                    listOf(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.9f),
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                                    )
+                                }
                             )
                         )
                 )
@@ -236,17 +243,18 @@ fun VolumeOverlay(
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     Icon(
-                        imageVector = if (volumeLevel > 0.6f) Icons.Rounded.VolumeUp 
+                        imageVector = if (volumeLevel > 1.0f) Icons.Rounded.VolumeUp
+                                     else if (volumeLevel > 0.6f) Icons.Rounded.VolumeUp 
                                      else if (volumeLevel > 0.1f) Icons.Rounded.VolumeDown
                                      else Icons.Rounded.VolumeMute,
                         contentDescription = null,
-                        tint = if (animatedVolume > 0.8f) Color.Black.copy(alpha = 0.7f) else Color.White,
+                        tint = if (animatedVolume > 1.6f) Color.Black.copy(alpha = 0.7f) else Color.White,
                         modifier = Modifier.size(22.dp)
                     )
                     
                     Text(
-                        text = "${(volumeLevel * 100).toInt()}",
-                        color = if (animatedVolume > 0.1f) Color.Black.copy(alpha = 0.7f) else Color.White,
+                        text = "${(volumeLevel * 100).toInt()}%",
+                        color = if (animatedVolume > 0.2f) Color.Black.copy(alpha = 0.7f) else Color.White,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )

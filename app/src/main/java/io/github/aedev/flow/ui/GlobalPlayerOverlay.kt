@@ -394,7 +394,10 @@ fun GlobalPlayerOverlay(
                             isFullscreen = screenState.isFullscreen,
                             onBrightnessChange = { screenState.brightnessLevel = it },
                             onShowBrightnessChange = { screenState.showBrightnessOverlay = it },
-                            onVolumeChange = { screenState.volumeLevel = it },
+                            onVolumeChange = { 
+                                screenState.volumeLevel = it 
+                                EnhancedPlayerManager.getInstance().setVolumeBoost(it)
+                            },
                             onShowVolumeChange = { screenState.showVolumeOverlay = it },
                             onBack = { 
                                 screenState.isFullscreen = false
@@ -597,6 +600,7 @@ fun GlobalPlayerOverlay(
                                 },
                                 onBack = { playerSheetState.collapse() },
                                 onSettingsClick = { screenState.showSettingsMenu = true },
+                                onQualityClick = { screenState.showQualitySelector = true },
                                 onFullscreenClick = { screenState.toggleFullscreen() },
                                 isFullscreen = screenState.isFullscreen,
                                 isPipSupported = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && 

@@ -253,15 +253,17 @@ fun Modifier.videoPlayerControls(
                                      val sensitivity = 1.5f
                                      val delta = -dragAmount.y / screenHeight * sensitivity
                                      
-                                     val newVolumeLevel = (currentVolumeLevel + delta).coerceIn(0f, 1f)
+                                     val newVolumeLevel = (currentVolumeLevel + delta).coerceIn(0f, 2.0f)
                                      currentOnVolumeChange(newVolumeLevel)
                                      
-                                     val newVolume = (newVolumeLevel * currentMaxVolume).toInt()
-                                     currentAudioManager?.setStreamVolume(
-                                         AudioManager.STREAM_MUSIC,
-                                         newVolume,
-                                         0
-                                     )
+                                     if (newVolumeLevel <= 1.0f) {
+                                         val newVolume = (newVolumeLevel * currentMaxVolume).toInt()
+                                         currentAudioManager?.setStreamVolume(
+                                             AudioManager.STREAM_MUSIC,
+                                             newVolume,
+                                             0
+                                         )
+                                     }
                                      currentOnShowVolumeChange(true)
                                  }
                              }

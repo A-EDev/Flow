@@ -255,6 +255,10 @@ class EnhancedPlayerManager private constructor() {
         
         surfaceManager?.reattachSurfaceIfValid(player)
     }
+
+    fun setVolumeBoost(volume: Float) {
+        audioFeaturesManager?.setVolumeBoost(player, volume)
+    }
     
     private fun observePreferences(context: Context) {
         audioFeaturesManager?.observeSkipSilencePreference(context)

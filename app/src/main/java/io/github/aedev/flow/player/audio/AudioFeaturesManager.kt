@@ -104,6 +104,13 @@ class AudioFeaturesManager(
             Log.d(TAG, "Playback speed set to: ${speed}x")
         }
     }
+
+    fun setVolumeBoost(player: ExoPlayer?, volume: Float) {
+        player?.let { exoPlayer ->
+            exoPlayer.volume = volume
+            Log.d(TAG, "Digital volume set to: $volume")
+        }
+    }
     
     /**
      * Observe skip silence preference changes.

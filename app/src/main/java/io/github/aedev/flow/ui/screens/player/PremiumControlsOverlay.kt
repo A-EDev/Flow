@@ -58,6 +58,7 @@ fun PremiumControlsOverlay(
     onSeek: (Long) -> Unit,
     onBack: () -> Unit,
     onSettingsClick: () -> Unit,
+    onQualityClick: () -> Unit = {},
     onFullscreenClick: () -> Unit,
     isFullscreen: Boolean,
     isPipSupported: Boolean = false,
@@ -140,9 +141,16 @@ fun PremiumControlsOverlay(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Down Arrow (Minimize/Back)
-                    IconButton(
-                        onClick = onBack,
-                        modifier = Modifier.size(40.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(),
+                                onClick = { onBack() }
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.KeyboardArrowDown,
@@ -157,7 +165,9 @@ fun PremiumControlsOverlay(
                         Surface(
                             color = Color.Black.copy(alpha = 0.3f),
                             shape = RoundedCornerShape(4.dp),
-                            modifier = Modifier.clickable { onSettingsClick() }
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable { onQualityClick() }
                         ) {
                             Text(
                                 text = if (qualityLabel.all { it.isDigit() }) "${qualityLabel}p" else qualityLabel,
