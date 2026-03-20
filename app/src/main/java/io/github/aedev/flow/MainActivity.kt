@@ -21,7 +21,7 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.FlowApp
 import io.github.aedev.flow.ui.theme.FlowTheme
 import io.github.aedev.flow.ui.theme.ThemeMode
-import com.supersuman.apkupdater.ApkUpdater
+import io.github.aedev.flow.updater.FlowUpdater
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -81,10 +81,6 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
 
         
-        // Check for updates (only in release builds or if forced)
-        if (!BuildConfig.DEBUG) {
-            checkForUpdates(dataManager)
-        }
 
         setContent {
             val scope = rememberCoroutineScope()
@@ -98,6 +94,8 @@ class MainActivity : ComponentActivity() {
             // Check for updates ONCE on launch — skip debug builds, enforce 24h cooldown
             LaunchedEffect(Unit) {
                 if (BuildConfig.DEBUG) return@LaunchedEffect
+                if (!FlowUpdater(context).isUpdateCheckEnabled()) return@LaunchedEffect
+                
                 val lastCheck = dataManager.lastUpdateCheck.first()
                 val currentTime = System.currentTimeMillis()
                 if (currentTime - lastCheck < 24 * 60 * 60 * 1000L) return@LaunchedEffect
@@ -128,7 +126,7 @@ class MainActivity : ComponentActivity() {
                         updateInfo = updateInfo!!,
                         onDismiss = { updateInfo = null },
                         onUpdate = {
-                            UpdateManager.triggerDownload(context, updateInfo!!.downloadUrl)
+                            FlowUpdater(context).requestDownload()
                             updateInfo = null
                         }
                     )
@@ -327,76 +325,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun checkForUpdates(dataManager: LocalDataManager) {
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                // Check cooldown (24 hours)
-                val lastCheck = dataManager.lastUpdateCheck.first()
-                val currentTime = System.currentTimeMillis()
-                if (currentTime - lastCheck < 24 * 60 * 60 * 1000) {
-                    Log.d("MainActivity", "Skipping update check (cooldown)")
-                    return@launch
-                }
 
-                val client = OkHttpClient()
-                val request = Request.Builder()
-                    .url("https://api.github.com/repos/A-EDev/Flow/releases/latest")
-                    .header("Accept", "application/vnd.github.v3+json")
-                    .build()
-                
-                val response = client.newCall(request).execute()
-                if (response.isSuccessful) {
-                    val body = response.body?.string()
-                    if (body != null) {
-                        val json = JsonParser.parseString(body).asJsonObject
-                        val latestTag = json.get("tag_name").asString
-                        val currentVersion = BuildConfig.VERSION_NAME
-                        
-                        val cleanLatest = latestTag.removePrefix("v").split("-").first()
-                        val cleanCurrent = currentVersion.removePrefix("v").split("-").first()
-                        
-                        Log.d("MainActivity", "Latest tag: $latestTag, Current: $currentVersion, Comparing: $cleanLatest vs $cleanCurrent")
-                        
-                        if (isNewerVersion(cleanLatest, cleanCurrent)) {
-                            withContext(Dispatchers.Main) {
-                                val updater = ApkUpdater(this@MainActivity, "https://github.com/A-EDev/Flow/releases/latest")
-                                AlertDialog.Builder(this@MainActivity)
-                                    .setTitle("Update Available")
-                                    .setMessage("A new version of Flow is available ($latestTag). Download the latest APK?")
-                                    .setPositiveButton("Download") { _, _ ->
-                                        updater.requestDownload()
-                                    }
-                                    .setNegativeButton("Later", null)
-                                    .show()
-                            }
-                        }
-                    }
-                }
-                
-                // Update last check time
-                dataManager.setLastUpdateCheck(currentTime)
-                
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Failed to check for updates", e)
-            }
-        }
-    }
-
-    private fun isNewerVersion(latest: String, current: String): Boolean {
-        val cleanLatest = latest.split("-").first()
-        val cleanCurrent = current.split("-").first()
-        val latestParts = cleanLatest.split(".").mapNotNull { it.toIntOrNull() }
-        val currentParts = cleanCurrent.split(".").mapNotNull { it.toIntOrNull() }
-        
-        val size = maxOf(latestParts.size, currentParts.size)
-        for (i in 0 until size) {
-            val l = latestParts.getOrNull(i) ?: 0
-            val c = currentParts.getOrNull(i) ?: 0
-            if (l > c) return true
-            if (l < c) return false
-        }
-        return false
-    }
 
     /**
      * Ask Android to whitelist this app from battery optimization / Doze mode.

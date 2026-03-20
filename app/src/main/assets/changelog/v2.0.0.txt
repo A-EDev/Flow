@@ -4,6 +4,7 @@ DATE: 2026-03-20
 
 !IMPORTANT!
 - UPDATE APP PACKAGE NAME TO io.github.aedev.flow FROM com.flow.youtube
+- Add a new flavor for FOSS
 
 NEW FEATURES
 - Content sorting in channel screen

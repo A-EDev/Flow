@@ -16,8 +16,8 @@ android {
         applicationId = "io.github.aedev.flow"
         minSdk = 21
         targetSdk = 34
-        versionCode = 12
-        versionName = "1.9.0"
+        versionCode = 13
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "io.github.aedev.flow.HiltTestRunner"
         vectorDrawables {
@@ -142,6 +142,22 @@ android {
         checkReleaseBuilds = false
         abortOnError = false
     }
+
+    // ─── Product Flavors ────────────────────────────────────────────────────────
+    // `github`  → standard build uploaded to GitHub Releases; includes the
+    //             in-app update checker and REQUEST_INSTALL_PACKAGES permission.
+    // `foss`    → clean build for IzzyOnDroid / F-Droid; updater library and
+    //             the extra permission are completely stripped out.
+    flavorDimensions.add("distribution")
+
+    productFlavors {
+        create("github") {
+            dimension = "distribution"
+        }
+        create("foss") {
+            dimension = "distribution"
+        }
+    }
 }
 
 dependencies {
@@ -227,7 +243,9 @@ dependencies {
     implementation(libs.rxandroid)
 
     implementation(libs.androidx.work.runtime.ktx)
-    implementation(libs.apkupdater)
+    // ApkUpdater is ONLY included in the `github` flavor build.
+    // The `foss` flavor compiles the no-op FlowUpdater stub instead.
+    githubImplementation(libs.apkupdater)
     implementation(libs.androidx.multidex)
 
     implementation(libs.brotli) 
