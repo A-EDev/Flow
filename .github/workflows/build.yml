@@ -56,35 +56,25 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Rename APKs
-        run: |
-          # Rename output APKs from Gradle's default folder structure
-          mv app/build/outputs/apk/github/debug/app-github-debug.apk app/build/outputs/apk/flow-debug.apk
-          mv app/build/outputs/apk/github/release/app-github-release.apk app/build/outputs/apk/flow.apk
-          mv app/build/outputs/apk/foss/release/app-foss-release.apk app/build/outputs/apk/flow-foss.apk
-          mv app/build/outputs/apk/github/nightly/app-github-nightly.apk app/build/outputs/apk/flow-nightly.apk
-
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: flow-debug-apk
-          path: app/build/outputs/apk/flow-debug.apk
+          path: app/build/outputs/apk/debug/app-debug.apk
           retention-days: 7
 
-      - name: Upload Release APKs
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: flow-release-apks
-          path: |
-            app/build/outputs/apk/flow.apk
-            app/build/outputs/apk/flow-foss.apk
+          name: flow-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
           retention-days: 14
 
       - name: Upload Nightly APK
         uses: actions/upload-artifact@v4
         with:
           name: flow-nightly-apk
-          path: app/build/outputs/apk/flow-nightly.apk
+          path: app/build/outputs/apk/nightly/app-nightly.apk
           retention-days: 14
 
   release:
@@ -98,10 +88,10 @@ jobs:
         uses: actions/checkout@v4
 
       # Download pre-built APKs from the build job — no recompilation needed.
-      - name: Download Release APKs
+      - name: Download Release APK
         uses: actions/download-artifact@v4
         with:
-          name: flow-release-apks
+          name: flow-release-apk
           path: dist/
 
       - name: Download Nightly APK
@@ -109,6 +99,11 @@ jobs:
         with:
           name: flow-nightly-apk
           path: dist/
+
+      - name: Rename APKs for release
+        run: |
+          mv dist/app-release.apk dist/flow.apk
+          mv dist/app-nightly.apk dist/flow-nightly.apk
 
       - name: Get version from tag
         id: get_version
@@ -128,10 +123,6 @@ jobs:
             ### ⚠️ Note
             This is a signed release APK. Install directly on your Android device.
             
-            **Which version should I download?**
-            - **flow.apk:** Standard version. Includes an in-app update checker to automatically notify you of new GitHub releases. (Recommended)
-            - **flow-foss.apk:** Clean FOSS version. Strips out the update checker. Use this if you install the app via IzzyOnDroid, Obtainium, or F-Droid.
-
             ### 🆕 What's New
             <!-- Auto-generated changelog will appear here -->
 
@@ -142,7 +133,6 @@ jobs:
           generate_release_notes: true
           files: |
             dist/flow.apk
-            dist/flow-foss.apk
             dist/flow-nightly.apk
           draft: false
           prerelease: false
