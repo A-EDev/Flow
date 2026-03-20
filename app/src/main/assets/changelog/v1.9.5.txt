@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
-VERSION: 1.9.5
-DATE: 2026-03-15
+VERSION: 2.0.0
+DATE: 2026-03-20
 
 !IMPORTANT!
 - UPDATE APP PACKAGE NAME TO io.github.aedev.flow FROM com.flow.youtube
@@ -45,6 +45,11 @@ RECOMMENDATION ENGINE
 - All feed paths (trending, Shorts shelf, home feed) now pass through the ranking engine
 - Instant feed invalidation
 - New Shorts discovery engine
+- Channel Topic extraction
+- Anti-Recommendation
+- Watch Velocity
+- Engagement Momentum
+- Subscription Freshness
 
 FIXES AND STABILITY
 - Fix Unresponsive player when clicking

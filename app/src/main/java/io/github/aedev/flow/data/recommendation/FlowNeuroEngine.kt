@@ -42,7 +42,7 @@ import java.util.Calendar
 import kotlin.math.*
 
 /**
- * Flow Neuro Engine (V9.3 — Polysemy Fix + Smooth Scoring + Smart Descriptions)
+ * Flow Neuro Engine (V10.0 — Channel Intelligence + Shorts Vector + Anti-Rec + Momentum)
  *
  * Client-side hybrid recommendation: Vector Space Model + Heuristic Rules.
  *
@@ -73,7 +73,7 @@ class FlowNeuroEngine(private val appContext: Context) {
     companion object {
         private const val TAG = "FlowNeuroEngine"
         private const val BRAIN_FILENAME = "user_neuro_brain.json"
-        private const val SCHEMA_VERSION = 9
+        private const val SCHEMA_VERSION = 10
 
         // ── Pre-compiled Regex ──
         private val WHITESPACE_REGEX = Regex("\\s+")
@@ -268,6 +268,23 @@ class FlowNeuroEngine(private val appContext: Context) {
         private const val WATCHED_THRESHOLD_HALF = 0.50f
         private const val WATCHED_THRESHOLD_SAMPLED = 0.15f
         private const val WATCH_HISTORY_MAX = 2000
+
+        // ── Channel Topic Profile Constants ──
+        private const val CHANNEL_PROFILE_LEARNING_RATE = 0.1
+        private const val CHANNEL_PROFILE_MAX_TOPICS = 15
+        private const val CHANNEL_PROFILE_PRUNE_THRESHOLD = 0.05
+        private const val CHANNEL_PROFILE_MAX_CHANNELS = 200
+        private const val CHANNEL_PROFILE_BLEND_WEIGHT = 0.3
+        private const val CHANNEL_PROFILE_MIN_VIDEOS = 3
+
+        // ── Anti-Recommendation Constants ──
+        private const val ANTI_REC_PENALTY_THRESHOLD = 0.6
+        private const val ANTI_REC_PENALTY = 0.4
+
+        // ── Engagement Momentum Constants ──
+        private const val MOMENTUM_WINDOW = 10
+        private const val MOMENTUM_BOOST = 0.12
+        private const val MOMENTUM_THRESHOLD = 3
 
         // ══════════════════════════════════════════════
         // V9.3 Fix 1: Polysemy Protection Data
@@ -490,6 +507,10 @@ class FlowNeuroEngine(private val appContext: Context) {
     private var sessionStartTime: Long = System.currentTimeMillis()
     private var sessionVideoCount: Int = 0
     private val sessionTopicHistory = mutableListOf<String>()
+
+    // ── Engagement Momentum Tracking ──
+    private data class MomentumEntry(val topic: String, val positive: Boolean)
+    private val recentInteractions = mutableListOf<MomentumEntry>()
 
     // IDF tracking — persisted in brain state
     private var idfWordFrequency = mutableMapOf<String, Int>()
@@ -813,6 +834,8 @@ class FlowNeuroEngine(private val appContext: Context) {
         val idfTotalDocuments: Int = 0,
         val watchHistoryMap: Map<String, Float> = emptyMap(),
         val seenShortsHistory: Map<String, Long> = emptyMap(),
+        val channelTopicProfiles: Map<String, Map<String, Double>> = emptyMap(),
+        val shortsVector: ContentVector = ContentVector(),
         val schemaVersion: Int = SCHEMA_VERSION
     )
 
@@ -879,6 +902,7 @@ class FlowNeuroEngine(private val appContext: Context) {
         sessionVideoCount = 0
         sessionTopicHistory.clear()
         impressionCache.clear()
+        recentInteractions.clear()
     }
 
     fun getSessionDurationMinutes(): Long =
@@ -1476,11 +1500,26 @@ class FlowNeuroEngine(private val appContext: Context) {
     ): Double {
         var signal = 0.0
 
-        // Subscription boost
+        // Subscription boost with freshness amplifier
         val isSub = userSubs.contains(video.channelId)
         if (isSub) {
             val isShort = video.isShort || (video.duration in 1..120 && !video.isLive)
-            signal += if (isShort) SUBSCRIPTION_BOOST * 3.0 else SUBSCRIPTION_BOOST
+            val subBoost = if (isShort) SUBSCRIPTION_BOOST * 3.0 else SUBSCRIPTION_BOOST
+
+            val freshnessMultiplier = when {
+                !TimeDecay.isOlderThan24Hours(video.uploadDate) -> 2.0
+                video.uploadDate.lowercase().let { text ->
+                    text.contains("day") &&
+                    (text.filter { it.isDigit() }.toIntOrNull() ?: 99) <= 2
+                } -> 1.5
+                video.uploadDate.lowercase().let { text ->
+                    text.contains("week") &&
+                    (text.filter { it.isDigit() }.toIntOrNull() ?: 99) <= 1
+                } -> 1.2
+                else -> 1.0
+            }
+
+            signal += subBoost * freshnessMultiplier
         }
 
         // V9.3 Fix 4: Sigmoid channel boredom
@@ -1662,6 +1701,70 @@ class FlowNeuroEngine(private val appContext: Context) {
         }
     }
 
+    /**
+     * Anti-recommendation penalty for videos matching negatively-rated channel profiles.
+     * Returns a multiplier (1.0 = no penalty, ANTI_REC_PENALTY = heavy penalty).
+     *
+     * If a user marks 2-3 channels as Not Interested, this detects similar
+     * channels by topic profile overlap and preemptively penalizes them.
+     */
+    private fun calculateAntiRecommendationPenalty(
+        videoVector: ContentVector,
+        video: Video,
+        brain: UserBrain
+    ): Double {
+        val negativeChannels = brain.channelScores
+            .filter { (_, score) -> score < NOT_INTERESTED_CHANNEL_FLOOR }
+            .keys
+
+        if (negativeChannels.isEmpty()) return 1.0
+
+        val negativeProfiles = negativeChannels.mapNotNull { channelId ->
+            brain.channelTopicProfiles[channelId]
+        }
+
+        if (negativeProfiles.isEmpty()) return 1.0
+
+        var maxSimilarity = 0.0
+        negativeProfiles.forEach { negProfile ->
+            val negVector = ContentVector(topics = negProfile)
+            val similarity = calculateCosineSimilarity(negVector, videoVector)
+            if (similarity > maxSimilarity) {
+                maxSimilarity = similarity
+            }
+        }
+
+        return if (maxSimilarity > ANTI_REC_PENALTY_THRESHOLD) {
+            val penaltyStrength = ((maxSimilarity - ANTI_REC_PENALTY_THRESHOLD) /
+                (1.0 - ANTI_REC_PENALTY_THRESHOLD)).coerceIn(0.0, 1.0)
+            1.0 - (penaltyStrength * (1.0 - ANTI_REC_PENALTY))
+        } else 1.0
+    }
+
+    /**
+     * Session-level engagement momentum boost.
+     * Detects when the user is on a streak of positive interactions with
+     * a particular topic and gives matching videos a graduated boost.
+     */
+    private fun calculateMomentumBoost(
+        videoVector: ContentVector,
+        interactions: List<MomentumEntry>
+    ): Double {
+        if (interactions.size < MOMENTUM_THRESHOLD) return 0.0
+
+        val primaryTopic = videoVector.topics.maxByOrNull { it.value }?.key
+            ?: return 0.0
+
+        val recentPositiveCount = interactions
+            .takeLast(MOMENTUM_WINDOW)
+            .count { it.topic == primaryTopic && it.positive }
+
+        return if (recentPositiveCount >= MOMENTUM_THRESHOLD) {
+            (recentPositiveCount.toDouble() / MOMENTUM_WINDOW * MOMENTUM_BOOST)
+                .coerceAtMost(MOMENTUM_BOOST)
+        } else 0.0
+    }
+
     // =================================================
     // MAIN RANKING FUNCTION
     // V9.3 Fix 3: Consolidated scoring — ~12 grouped factors
@@ -1745,7 +1848,8 @@ class FlowNeuroEngine(private val appContext: Context) {
 
         // Extract all features with consistent IDF snapshot
         val videoVectors = filtered.map { video ->
-            video to getOrExtractFeatures(video, idfSnapshot)
+            val channelProfile = brain.channelTopicProfiles[video.channelId]
+            video to getOrExtractFeatures(video, idfSnapshot, channelProfile)
         }
 
         // Time context
@@ -1768,9 +1872,13 @@ class FlowNeuroEngine(private val appContext: Context) {
         } else 0.5
 
         val scored = videoVectors.map { (video, videoVector) ->
-            val personalityScore = calculateCosineSimilarity(
-                brain.globalVector, videoVector
-            )
+            val personalityScore = if (video.isShort && brain.shortsVector.topics.isNotEmpty()) {
+                val globalSim = calculateCosineSimilarity(brain.globalVector, videoVector)
+                val shortsSim = calculateCosineSimilarity(brain.shortsVector, videoVector)
+                globalSim * 0.4 + shortsSim * 0.6
+            } else {
+                calculateCosineSimilarity(brain.globalVector, videoVector)
+            }
             val contextScore = calculateCosineSimilarity(
                 timeContextVector, videoVector
             )
@@ -1854,6 +1962,15 @@ class FlowNeuroEngine(private val appContext: Context) {
             )
             totalScore *= watchedPenalty
 
+            // ── Anti-recommendation penalty ──
+            val antiRecPenalty = calculateAntiRecommendationPenalty(
+                videoVector, video, brain
+            )
+            totalScore *= antiRecPenalty
+
+            // ── Engagement momentum boost ──
+            totalScore += calculateMomentumBoost(videoVector, recentInteractions)
+
             // ── Seen Shorts penalty ──
             if (video.isShort) {
                 val seenTimestamp = brain.seenShortsHistory[video.id]
@@ -1935,10 +2052,40 @@ class FlowNeuroEngine(private val appContext: Context) {
         }
 
         brainMutex.withLock {
+            // 0. Watch velocity: adjust click learning rate based on impression timing
+            if (interactionType == InteractionType.CLICK) {
+                val impression = impressionCache[video.id]
+                if (impression != null) {
+                    val secondsSinceImpression =
+                        (System.currentTimeMillis() - impression.lastSeen) / 1000.0
+                    val clickVelocity = when {
+                        secondsSinceImpression < 5.0 -> 1.5   // instant click
+                        secondsSinceImpression < 30.0 -> 1.0  // normal
+                        secondsSinceImpression < 120.0 -> 0.8 // delayed
+                        else -> 0.6                            // much later
+                    }
+                    learningRate *= clickVelocity
+                }
+            }
+
             // 1. Update global vector
             val newGlobal = adjustVector(
                 currentUserBrain.globalVector, videoVector, learningRate
             )
+
+            // 1b. Shorts-specific vector (not dampened by SHORTS_LEARNING_PENALTY)
+            val newShortsVector = if (video.isShort) {
+                val shortsRate = when (interactionType) {
+                    InteractionType.CLICK -> 0.08
+                    InteractionType.LIKED -> 0.20
+                    InteractionType.WATCHED -> 0.10 * percentWatched
+                    InteractionType.SKIPPED -> -0.12
+                    InteractionType.DISLIKED -> -0.30
+                }
+                adjustVector(currentUserBrain.shortsVector, videoVector, shortsRate)
+            } else {
+                currentUserBrain.shortsVector
+            }
 
             // 2. Update time bucket
             val bucket = TimeBucket.current()
@@ -2045,6 +2192,62 @@ class FlowNeuroEngine(private val appContext: Context) {
             }
             sessionVideoCount++
 
+            // 9. Channel topic profile update
+            var newChannelProfiles = currentUserBrain.channelTopicProfiles
+            if (learningRate > 0) {
+                val channelId = video.channelId
+                val existingProfile = newChannelProfiles[channelId]?.toMutableMap()
+                    ?: mutableMapOf()
+
+                videoVector.topics.forEach { (topic, weight) ->
+                    val current = existingProfile[topic] ?: 0.0
+                    existingProfile[topic] = current +
+                        (weight - current) * CHANNEL_PROFILE_LEARNING_RATE
+                }
+
+                val profileIterator = existingProfile.iterator()
+                while (profileIterator.hasNext()) {
+                    val entry = profileIterator.next()
+                    if (!videoVector.topics.containsKey(entry.key)) {
+                        entry.setValue(entry.value * 0.98)
+                    }
+                    if (entry.value < CHANNEL_PROFILE_PRUNE_THRESHOLD) {
+                        profileIterator.remove()
+                    }
+                }
+
+                val pruned = if (existingProfile.size > CHANNEL_PROFILE_MAX_TOPICS) {
+                    existingProfile.entries
+                        .sortedByDescending { it.value }
+                        .take(CHANNEL_PROFILE_MAX_TOPICS)
+                        .associate { it.key to it.value }
+                } else existingProfile.toMap()
+
+                val mutableProfiles = newChannelProfiles.toMutableMap()
+                mutableProfiles[channelId] = pruned
+
+                if (mutableProfiles.size > CHANNEL_PROFILE_MAX_CHANNELS) {
+                    val channelScoreMap = currentUserBrain.channelScores
+                    val sorted = mutableProfiles.entries.sortedBy { (id, _) ->
+                        channelScoreMap[id] ?: 0.0
+                    }
+                    val toRemove = sorted.take(
+                        mutableProfiles.size - CHANNEL_PROFILE_MAX_CHANNELS
+                    )
+                    toRemove.forEach { mutableProfiles.remove(it.key) }
+                }
+
+                newChannelProfiles = mutableProfiles
+            }
+
+            // 10. Engagement momentum tracking
+            if (primaryTopic != null) {
+                recentInteractions.add(MomentumEntry(primaryTopic, learningRate > 0))
+                while (recentInteractions.size > MOMENTUM_WINDOW) {
+                    recentInteractions.removeFirst()
+                }
+            }
+
             if (learningRate > 0) {
                 impressionCache.remove(video.id)
             }
@@ -2082,7 +2285,9 @@ class FlowNeuroEngine(private val appContext: Context) {
                 personaStability = newStability,
                 idfWordFrequency = idfWordFrequency.toMap(),
                 idfTotalDocuments = idfTotalDocuments,
-                watchHistoryMap = watchHistoryMap
+                watchHistoryMap = watchHistoryMap,
+                channelTopicProfiles = newChannelProfiles,
+                shortsVector = newShortsVector
             )
 
             scheduleDebouncedSave()
@@ -2105,13 +2310,14 @@ class FlowNeuroEngine(private val appContext: Context) {
 
     private fun getOrExtractFeatures(
         video: Video,
-        idfSnapshot: IdfSnapshot
+        idfSnapshot: IdfSnapshot,
+        channelProfile: Map<String, Double>? = null
     ): ContentVector {
         val cacheKey = video.id
         synchronized(featureCache) {
             featureCache[cacheKey]?.let { return it }
         }
-        val vector = extractFeatures(video, idfSnapshot)
+        val vector = extractFeatures(video, idfSnapshot, channelProfile)
         synchronized(featureCache) {
             featureCache[cacheKey] = vector
         }
@@ -2139,7 +2345,8 @@ class FlowNeuroEngine(private val appContext: Context) {
 
     private fun extractFeatures(
         video: Video,
-        idfSnapshot: IdfSnapshot
+        idfSnapshot: IdfSnapshot,
+        channelTopicProfile: Map<String, Double>? = null
     ): ContentVector {
         val topics = mutableMapOf<String, Double>()
 
@@ -2192,6 +2399,20 @@ class FlowNeuroEngine(private val appContext: Context) {
         )
         descriptionTopics.forEach { (word, weight) ->
             topics[word] = (topics.getOrDefault(word, 0.0) + weight)
+        }
+
+        // ── Channel Topic Prior ──
+        // Blend in the channel's known topic profile as a prior so even
+        // a vaguely titled video from a known tech channel gets tech signals.
+        if (channelTopicProfile != null &&
+            channelTopicProfile.size >= CHANNEL_PROFILE_MIN_VIDEOS
+        ) {
+            channelTopicProfile.forEach { (topic, channelWeight) ->
+                val existing = topics[topic] ?: 0.0
+                if (existing == 0.0) {
+                    topics[topic] = channelWeight * CHANNEL_PROFILE_BLEND_WEIGHT
+                }
+            }
         }
 
         // Normalize topic vector
@@ -2579,7 +2800,9 @@ class FlowNeuroEngine(private val appContext: Context) {
         val idfWordFrequency: Map<String, Int> = emptyMap(),
         val idfTotalDocuments: Int = 0,
         val watchHistoryMap: Map<String, Float> = emptyMap(),
-        val seenShortsHistory: Map<String, Long> = emptyMap()
+        val seenShortsHistory: Map<String, Long> = emptyMap(),
+        val channelTopicProfiles: Map<String, Map<String, Double>> = emptyMap(),
+        val shortsVector: SerializableVector = SerializableVector()
     )
 
     private object BrainSerializer : Serializer<SerializableBrain> {
@@ -2612,7 +2835,7 @@ class FlowNeuroEngine(private val appContext: Context) {
 
     private val Context.brainDataStore: DataStore<SerializableBrain>
         by dataStore(
-            fileName = "flow_neuro_brain_v9.json",
+            fileName = "flow_neuro_brain_v10.json",
             serializer = BrainSerializer
         )
 
@@ -2645,7 +2868,9 @@ class FlowNeuroEngine(private val appContext: Context) {
         idfWordFrequency = idfWordFrequency,
         idfTotalDocuments = idfTotalDocuments,
         watchHistoryMap = watchHistoryMap,
-        seenShortsHistory = seenShortsHistory
+        seenShortsHistory = seenShortsHistory,
+        channelTopicProfiles = channelTopicProfiles,
+        shortsVector = shortsVector.toSerializable()
     )
 
     private fun SerializableBrain.toUserBrain(): UserBrain {
@@ -2670,6 +2895,8 @@ class FlowNeuroEngine(private val appContext: Context) {
             idfTotalDocuments = idfTotalDocuments,
             watchHistoryMap = watchHistoryMap,
             seenShortsHistory = seenShortsHistory,
+            channelTopicProfiles = channelTopicProfiles,
+            shortsVector = shortsVector.toContentVector(),
             schemaVersion = schemaVersion
         )
     }
@@ -2963,7 +3190,7 @@ class FlowNeuroEngine(private val appContext: Context) {
     }
 
     private suspend fun tryMigrateFromPreviousDataStore() {
-        val versions = listOf("v8", "v7")
+        val versions = listOf("v9", "v8", "v7")
         for (version in versions) {
             try {
                 val file = File(
