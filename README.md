@@ -1,5 +1,3 @@
-# Flow
-
 <div align="center">
   <img src="Assets/logo.png" alt="Flow Logo" width="140" height="140">
   <br><br>
@@ -69,6 +67,7 @@ Flow gives you both. The recommendation engine learns what you like by analyzing
 - High-quality playback via ExoPlayer (Media3) with resolution switching (1080p, 720p, 480p, 360p)
 - SponsorBlock — automatically skips sponsors, intros, outros, and filler
 - DeArrow — replaces clickbait thumbnails and titles with community-sourced alternatives
+- Return Youtube Dislike (RYD)
 - Background playback — listen to audio with the screen off
 - Picture-in-Picture — keep watching while using other apps
 - Casting to smart TVs and streaming devices
