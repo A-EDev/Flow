@@ -122,7 +122,7 @@ jobs:
 
             ### ⚠️ Note
             This is a signed release APK. Install directly on your Android device.
-            
+
             ### 🆕 What's New
             <!-- Auto-generated changelog will appear here -->
 
@@ -138,4 +138,3 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
