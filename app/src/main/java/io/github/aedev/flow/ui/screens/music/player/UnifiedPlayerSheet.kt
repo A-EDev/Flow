@@ -31,6 +31,7 @@ enum class PlayerTab {
 
 @Composable
 fun UnifiedPlayerSheet(
+    sheetBackgroundColor: Color = MaterialTheme.colorScheme.surface,
     currentTab: PlayerTab,
     onTabSelect: (PlayerTab) -> Unit,
     isExpanded: Boolean,
@@ -60,7 +61,7 @@ fun UnifiedPlayerSheet(
 ) {
     Surface(
         modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.surface,
+        color = sheetBackgroundColor,
         shape = RoundedCornerShape(topStart = sheetCornerRadius, topEnd = sheetCornerRadius),
         shadowElevation = 24.dp,
         tonalElevation = 6.dp

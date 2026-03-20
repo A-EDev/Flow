@@ -49,6 +49,12 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.compose.animation.animateColorAsState
+import androidx.palette.graphics.Palette
+import coil.imageLoader
+import coil.request.ImageRequest
+import coil.request.SuccessResult
+import androidx.core.graphics.drawable.toBitmap
 
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
@@ -58,7 +64,7 @@ import io.github.aedev.flow.ui.screens.music.player.*
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
 import androidx.compose.foundation.clickable
 
-private val PlayerHorizontalPadding = 32.dp
+private val PlayerHorizontalPadding = 28.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,6 +81,38 @@ fun EnhancedMusicPlayerScreen(
     val density = LocalDensity.current
     
     val isVideoMode = false 
+    var sheetColor by remember { mutableStateOf<Color?>(null) }
+    
+    val thumbnailUrl = uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl
+    LaunchedEffect(thumbnailUrl) {
+        if (thumbnailUrl.isNotEmpty()) {
+            val request = ImageRequest.Builder(context)
+                .data(thumbnailUrl)
+                .allowHardware(false)
+                .size(128)
+                .build()
+            val result = context.imageLoader.execute(request)
+            if (result is SuccessResult) {
+                val bitmap = result.drawable.toBitmap()
+                val palette = Palette.from(bitmap).generate()
+                val swatch = palette.darkMutedSwatch ?: palette.darkVibrantSwatch ?: palette.dominantSwatch
+                if (swatch != null) {
+                    sheetColor = Color(swatch.rgb)
+                } else {
+                    sheetColor = null
+                }
+            } else {
+                sheetColor = null
+            }
+        }
+    }
+    
+    val defaultSheetColor = MaterialTheme.colorScheme.surface
+    val animatedSheetColor by animateColorAsState(
+        targetValue = sheetColor ?: defaultSheetColor,
+        animationSpec = tween(1000),
+        label = "sheetColor"
+    )
     var showMoreOptions by remember { mutableStateOf(false) }
     var showAudioSettings by remember { mutableStateOf(false) }
     var showInfoDialog by remember { mutableStateOf(false) }
@@ -202,10 +240,10 @@ fun EnhancedMusicPlayerScreen(
         val statusBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
         val navBarPx = with(density) { navBarPadding.toPx() }
 
-        val reservedHeight = statusBarPadding + 56.dp + 60.dp + 40.dp + 72.dp + 84.dp + queuePeekHeight + navBarPadding
+        val reservedHeight = statusBarPadding + 56.dp + 32.dp + 32.dp + 20.dp + 72.dp + queuePeekHeight + navBarPadding
         val availableForArtwork = screenHeight - reservedHeight
         val artworkMaxWidth = screenWidth - (PlayerHorizontalPadding * 2)
-        val artworkSize = min(availableForArtwork, artworkMaxWidth).coerceAtLeast(120.dp)
+        val artworkSize = min(availableForArtwork, artworkMaxWidth).coerceAtLeast(160.dp)
 
         val maxHeightPx = constraints.maxHeight.toFloat()
         val queuePeekPx = with(density) { queuePeekHeight.toPx() }
@@ -276,7 +314,7 @@ fun EnhancedMusicPlayerScreen(
                 onSleepTimerClick = { showSleepTimer = true },
                 onMoreOptionsClick = { showMoreOptions = true }
             )
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             // ── Artwork ──
             Box(
@@ -384,7 +422,7 @@ fun EnhancedMusicPlayerScreen(
                 modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
             )
 
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             // ── Playback Controls ──
             PlayerPlaybackControls(
@@ -518,6 +556,7 @@ fun EnhancedMusicPlayerScreen(
                 )
         ) {
             UnifiedPlayerSheet(
+                sheetBackgroundColor = animatedSheetColor,
                 currentTab = currentTab,
                 onTabSelect = { currentTab = it },
                 isExpanded = queueFraction > 0.5f,

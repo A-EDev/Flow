@@ -32,6 +32,7 @@ IMPROVEMENTS
 - Improve player button clicks
 - Search Keyboard & Focus Improvements
 - Improve RSS service for Subscriptions
+- Immersive Music Player with dynamic color extraction from album art
 
 RECOMMENDATION ENGINE
 - Fixed cross-topic contamination

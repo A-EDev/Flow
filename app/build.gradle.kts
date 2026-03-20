@@ -16,8 +16,8 @@ android {
         applicationId = "io.github.aedev.flow"
         minSdk = 21
         targetSdk = 34
-        versionCode = 12
-        versionName = "1.9.0"
+        versionCode = 13
+        versionName = "2.0.0"
 
         testInstrumentationRunner = "io.github.aedev.flow.HiltTestRunner"
         vectorDrawables {
@@ -172,6 +172,7 @@ dependencies {
     // --- Image Loading ---
     implementation(libs.coil.compose) 
     implementation(libs.picasso)
+    implementation("androidx.palette:palette-ktx:1.0.0")
 
     // --- Dependency Injection ---
     implementation(libs.hilt.android)
