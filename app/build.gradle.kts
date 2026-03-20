@@ -245,7 +245,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     // ApkUpdater is ONLY included in the `github` flavor build.
     // The `foss` flavor compiles the no-op FlowUpdater stub instead.
-    githubImplementation(libs.apkupdater)
+    "githubImplementation"(libs.apkupdater)
     implementation(libs.androidx.multidex)
 
     implementation(libs.brotli) 
