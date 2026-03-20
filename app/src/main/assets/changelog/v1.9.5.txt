@@ -15,6 +15,7 @@ NEW FEATURES
 - Auto video loop toggle
 - Auto Theme based on system active Theme
 - Subscription Notification Filtering
+- Add a new StreamProxyServer for better Url handling during casting - This will avoid IP-locks and 403 errors
 
 IMPROVEMENTS
 - Improved video player action buttons design and sizes.
@@ -30,6 +31,7 @@ IMPROVEMENTS
 - Shorts screen UI and anti-repetition
 - Improve player button clicks
 - Search Keyboard & Focus Improvements
+- Improve RSS service for Subscriptions
 
 RECOMMENDATION ENGINE
 - Fixed cross-topic contamination

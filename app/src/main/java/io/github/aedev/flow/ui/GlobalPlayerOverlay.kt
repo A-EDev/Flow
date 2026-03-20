@@ -763,9 +763,22 @@ fun GlobalPlayerOverlay(
                 isCasting = DlnaCastManager.isCasting,
                 videoTitle = video.title,
                 onDeviceSelected = { device ->
-                    val streamUrl = EnhancedPlayerManager.getInstance().getPlayer()
-                        ?.currentMediaItem?.localConfiguration?.uri?.toString() ?: ""
-                    if (streamUrl.isNotEmpty()) {
+                    var streamUrl = ""
+                    val streamInfo = playerUiState.streamInfo
+                    if (streamInfo != null) {
+                        val castStream = streamInfo.videoStreams
+                            ?.filter { it.height <= 1080 }
+                            ?.maxByOrNull { it.height }
+                        if (castStream != null) {
+                            streamUrl = castStream.content ?: castStream.url ?: ""
+                        }
+                    }
+                    if (streamUrl.isEmpty()) {
+                        streamUrl = EnhancedPlayerManager.getInstance().getPlayer()
+                            ?.currentMediaItem?.localConfiguration?.uri?.toString() ?: ""
+                    }
+                    
+                    if (streamUrl.isNotEmpty() && !streamUrl.startsWith("local://")) {
                         DlnaCastManager.castTo(device, streamUrl, video.title)
                     }
                     showDlnaDialog = false

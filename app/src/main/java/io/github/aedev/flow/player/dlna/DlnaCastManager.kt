@@ -25,7 +25,6 @@ import java.net.MulticastSocket
 import java.net.URL
 import java.net.URI
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * DLNA/UPnP casting engine — zero Google Play Services dependencies.
@@ -69,6 +68,16 @@ object DlnaCastManager {
     private var discoveryJob: Job? = null
     private var multicastLock: WifiManager.MulticastLock? = null
 
+    private val proxy = StreamProxyServer.getInstance()
+
+    private val _castPosition = MutableStateFlow(0L)
+    val castPosition: StateFlow<Long> = _castPosition.asStateFlow()
+
+    private val _castDuration = MutableStateFlow(0L)
+    val castDuration: StateFlow<Long> = _castDuration.asStateFlow()
+
+    private var positionPollingJob: Job? = null
+
     // ── Discovery ──────────────────────────────────────────────────────────────
 
     /**
@@ -79,6 +88,10 @@ object DlnaCastManager {
     fun startDiscovery(context: Context) {
         discoveryJob?.cancel()
         _devices.value = emptyList()
+
+        // Start the proxy server when discovery begins
+        proxy.start(context)
+
         discoveryJob = scope.launch {
             _isDiscovering.value = true
             acquireMulticastLock(context)
@@ -151,7 +164,6 @@ object DlnaCastManager {
         }
     }
 
-    /** Parse an SSDP HTTP response into a raw [DlnaDevice] (no avTransportUrl yet). */
     private fun parseSSDP(response: String): DlnaDevice? {
         var location: String? = null
         var usn: String? = null
@@ -170,10 +182,6 @@ object DlnaCastManager {
         )
     }
 
-    /**
-     * Fetches the UPnP device description XML at [device.location] and fills in
-     * [DlnaDevice.friendlyName] and [DlnaDevice.avTransportUrl].  Returns null on failure.
-     */
     private fun resolveDevice(device: DlnaDevice): DlnaDevice? {
         return try {
             val descriptionUrl = URL(device.location)
@@ -247,16 +255,34 @@ object DlnaCastManager {
     // ── Control ────────────────────────────────────────────────────────────────
 
     /**
-     * Sends the video URL to the DLNA device and starts playback.
-     * Call this after the user has selected a device from [devices].
+     * YouTube's googlevideo.com URLs are IP-locked and session-bound.
+     * DLNA renderers can't fetch them directly (403 Forbidden).
+     * The proxy runs on the phone and relays the stream, so the renderer
+     * connects to the phone instead of YouTube.
+     *
+     * Also accepts an optional audioUrl for devices that support
+     * separate audio streams.
      */
-    fun castTo(device: DlnaDevice, videoUrl: String, title: String) {
+    fun castTo(
+        device: DlnaDevice,
+        videoUrl: String,
+        title: String,
+        audioUrl: String? = null
+    ) {
         scope.launch {
             try {
-                setAVTransportUri(device, videoUrl, title)
-                delay(500) 
+                val proxyVideoUrl = proxy.registerStream(
+                    realUrl = videoUrl,
+                    contentType = guessContentType(videoUrl, "video/mp4")
+                )
+
+                Log.i(TAG, "Casting via proxy: $proxyVideoUrl")
+
+                setAVTransportUri(device, proxyVideoUrl, title, guessContentType(videoUrl, "video/mp4"))
+                delay(500)
                 play(device)
                 _currentDevice.value = device
+                startPositionPolling(device)
             } catch (e: Exception) {
                 Log.e(TAG, "castTo failed: ${e.message}")
                 _currentDevice.value = null
@@ -277,7 +303,11 @@ object DlnaCastManager {
             } catch (e: Exception) {
                 Log.e(TAG, "stop failed: ${e.message}")
             } finally {
+                positionPollingJob?.cancel()
                 _currentDevice.value = null
+                _castPosition.value = 0
+                _castDuration.value = 0
+                proxy.stop()
             }
         }
     }
@@ -297,9 +327,97 @@ object DlnaCastManager {
             }
         }
     }
+    
+    fun seekTo(device: DlnaDevice, positionSeconds: Long) {
+        scope.launch {
+            try {
+                val hours = positionSeconds / 3600
+                val minutes = (positionSeconds % 3600) / 60
+                val seconds = positionSeconds % 60
+                val target = String.format("%02d:%02d:%02d", hours, minutes, seconds)
 
-    private fun setAVTransportUri(device: DlnaDevice, uri: String, title: String) {
-        val metadata = buildDidlLite(uri, title)
+                sendSoap(
+                    device.avTransportUrl,
+                    "urn:schemas-upnp-org:service:AVTransport:1#Seek",
+                    soapAction("Seek", "urn:schemas-upnp-org:service:AVTransport:1",
+                        "<InstanceID>0</InstanceID>" +
+                        "<Unit>REL_TIME</Unit>" +
+                        "<Target>$target</Target>")
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "seekTo failed: ${e.message}")
+            }
+        }
+    }
+
+    /**
+     * Guesses the content type from URL parameters.
+     * YouTube URLs often contain mime type info in the query string.
+     */
+    private fun guessContentType(url: String, fallback: String): String {
+        return when {
+            url.contains("mime=video/mp4") || url.contains("mime=video%2Fmp4") -> "video/mp4"
+            url.contains("mime=video/webm") || url.contains("mime=video%2Fwebm") -> "video/webm"
+            url.contains("mime=audio/mp4") || url.contains("mime=audio%2Fmp4") -> "audio/mp4"
+            url.contains("mime=audio/webm") || url.contains("mime=audio%2Fwebm") -> "audio/webm"
+            url.contains("itag=18") -> "video/mp4"
+            url.contains("itag=22") -> "video/mp4"
+            url.contains("itag=37") -> "video/mp4"
+            else -> fallback
+        }
+    }
+    
+    private fun startPositionPolling(device: DlnaDevice) {
+        positionPollingJob?.cancel()
+        positionPollingJob = scope.launch {
+            while (_currentDevice.value != null) {
+                try {
+                    val body = soapAction(
+                        "GetPositionInfo",
+                        "urn:schemas-upnp-org:service:AVTransport:1",
+                        "<InstanceID>0</InstanceID>"
+                    )
+                    val response = sendSoapWithResponse(
+                        device.avTransportUrl,
+                        "urn:schemas-upnp-org:service:AVTransport:1#GetPositionInfo",
+                        body
+                    )
+                    parsePositionInfo(response)
+                } catch (e: Exception) {
+                    Log.d(TAG, "Position poll error: ${e.message}")
+                }
+                delay(1000)
+            }
+        }
+    }
+
+    private fun parsePositionInfo(xml: String) {
+        val relTimeRegex = Regex("<RelTime>([^<]+)</RelTime>")
+        val durationRegex = Regex("<TrackDuration>([^<]+)</TrackDuration>")
+
+        relTimeRegex.find(xml)?.groupValues?.get(1)?.let { time ->
+            _castPosition.value = parseTimeToSeconds(time)
+        }
+        durationRegex.find(xml)?.groupValues?.get(1)?.let { time ->
+            _castDuration.value = parseTimeToSeconds(time)
+        }
+    }
+
+    private fun parseTimeToSeconds(time: String): Long {
+        val parts = time.split(":")
+        if (parts.size != 3) return 0
+        return try {
+            val hours = parts[0].toLong()
+            val minutes = parts[1].toLong()
+            val seconds = parts[2].split(".")[0].toLong()
+            hours * 3600 + minutes * 60 + seconds
+        } catch (e: Exception) {
+            0
+        }
+    }
+
+    private fun setAVTransportUri(device: DlnaDevice, uri: String, title: String, contentType: String = "video/mp4") {
+        val metadata = buildDidlLite(uri, title, contentType)
         val body = soapAction(
             "SetAVTransportURI",
             "urn:schemas-upnp-org:service:AVTransport:1",
@@ -335,22 +453,28 @@ object DlnaCastManager {
             }
         }
     }
+    
+    private fun sendSoapWithResponse(url: String, action: String, body: String): String {
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("SOAPAction", "\"$action\"")
+            .post(body.toRequestBody(SOAP_TYPE))
+            .build()
+        return http.newCall(request).execute().use { response ->
+            response.body?.string() ?: ""
+        }
+    }
 
-    /** Resolve a control URL using URLBase (if present) and RFC3986 relative resolution. */
     private fun resolveControlUrl(descriptionUrl: URL, urlBase: String?, controlPath: String): String {
         if (controlPath.startsWith("http://") || controlPath.startsWith("https://")) {
             return controlPath
         }
-
         val base = when {
             !urlBase.isNullOrBlank() -> URI(urlBase)
             else -> descriptionUrl.toURI()
         }
-
         return base.resolve(controlPath).toString()
     }
-
-    // ── Helpers ────────────────────────────────────────────────────────────────
 
     private fun soapAction(action: String, serviceType: String, args: String): String =
         """<?xml version="1.0"?>""" +
@@ -360,13 +484,13 @@ object DlnaCastManager {
         """<u:$action xmlns:u="$serviceType">$args</u:$action>""" +
         """</s:Body></s:Envelope>"""
 
-    private fun buildDidlLite(uri: String, title: String): String =
+    private fun buildDidlLite(uri: String, title: String, contentType: String = "video/mp4"): String =
         """<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" """ +
         """xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" """ +
         """xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">""" +
         """<item id="1" parentID="0" restricted="0">""" +
         """<dc:title>${escapeXml(title)}</dc:title>""" +
-        """<res protocolInfo="http-get:*:video/mp4:*">${escapeXml(uri)}</res>""" +
+        """<res protocolInfo="http-get:*:$contentType:*">${escapeXml(uri)}</res>""" +
         """<upnp:class>object.item.videoItem</upnp:class>""" +
         """</item></DIDL-Lite>"""
 
