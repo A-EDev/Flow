@@ -94,7 +94,7 @@ class MainActivity : ComponentActivity() {
             // Check for updates ONCE on launch — skip debug builds, enforce 24h cooldown
             LaunchedEffect(Unit) {
                 if (BuildConfig.DEBUG) return@LaunchedEffect
-                if (!FlowUpdater(context).isUpdateCheckEnabled()) return@LaunchedEffect
+                if (!FlowUpdater(context as android.app.Activity).isUpdateCheckEnabled()) return@LaunchedEffect
                 
                 val lastCheck = dataManager.lastUpdateCheck.first()
                 val currentTime = System.currentTimeMillis()
@@ -126,7 +126,7 @@ class MainActivity : ComponentActivity() {
                         updateInfo = updateInfo!!,
                         onDismiss = { updateInfo = null },
                         onUpdate = {
-                            FlowUpdater(context).requestDownload()
+                            FlowUpdater(context as android.app.Activity).requestDownload()
                             updateInfo = null
                         }
                     )

@@ -1,11 +1,11 @@
 package io.github.aedev.flow.updater
 
-import android.content.Context
+import android.app.Activity
 
 /**
  * FOSS-flavor stub — intentional no-op.
  */
-class FlowUpdater(private val context: Context) {
+class FlowUpdater(private val activity: Activity) {
 
     fun isUpdateCheckEnabled(): Boolean = false
 
