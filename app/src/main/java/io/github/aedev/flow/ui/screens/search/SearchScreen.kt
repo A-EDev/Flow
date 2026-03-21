@@ -1,4 +1,4 @@
-﻿package io.github.aedev.flow.ui.screens.search
+package io.github.aedev.flow.ui.screens.search
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
@@ -28,6 +28,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
@@ -75,6 +76,7 @@ fun SearchScreen(
     val gridState = rememberLazyGridState()
     val scope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
     var liveSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
@@ -125,6 +127,7 @@ fun SearchScreen(
             onSearch = {
                 if (searchQuery.isNotBlank()) {
                     keyboardController?.hide()
+                    focusManager.clearFocus()
                     isSearchFocused = false
                     liveSuggestions = emptyList()
                     selectedTabIndex = 0
@@ -175,6 +178,7 @@ fun SearchScreen(
                 isLoading = isLoadingSuggestions,
                 onSuggestionClick = { s ->
                     keyboardController?.hide()
+                    focusManager.clearFocus()
                     searchQuery = s
                     isSearchFocused = false
                     liveSuggestions = emptyList()
@@ -211,6 +215,7 @@ fun SearchScreen(
                 searchHistory = searchHistory,
                 onHistoryClick = { q -> 
                     keyboardController?.hide()
+                    focusManager.clearFocus()
                     searchQuery = q 
                     selectedTabIndex = 0 
                     viewModel.search(q) 
@@ -243,20 +248,38 @@ fun SearchScreen(
             val isInitialLoading = pagingItems.loadState.refresh is LoadState.Loading
             val isInitialError = pagingItems.loadState.refresh is LoadState.Error && pagingItems.itemCount == 0
 
-            when {
-                isInitialLoading -> ShimmerResultsScreen(isGridMode)
-                isInitialError -> {
-                    val err = (pagingItems.loadState.refresh as LoadState.Error).error
-                    SearchErrorState(
-                        message = err.localizedMessage ?: "Search failed",
-                        onRetry = pagingItems::retry
-                    )
+            BoxWithConstraints(modifier = Modifier.weight(1f)) {
+                val responsiveColumns = when {
+                    maxWidth < 700.dp -> 1
+                    maxWidth < 900.dp -> 2
+                    maxWidth < 1200.dp -> 3
+                    else -> 4
                 }
-                else -> {
-                    if (isGridMode) {
-                        SearchResultGrid(pagingItems, gridState, onVideoClick, onChannelClick, onPlaylistClick)
-                    } else {
-                        SearchResultList(pagingItems, listState, onVideoClick, onChannelClick, onPlaylistClick)
+                
+                val responsiveGridColumns = when {
+                    maxWidth < 600.dp -> 2
+                    maxWidth < 900.dp -> 3
+                    maxWidth < 1200.dp -> 4
+                    else -> 5
+                }
+                
+                val columns = if (isGridMode) responsiveGridColumns else responsiveColumns
+
+                when {
+                    isInitialLoading -> ShimmerResultsScreen(isGridMode, columns)
+                    isInitialError -> {
+                        val err = (pagingItems.loadState.refresh as LoadState.Error).error
+                        SearchErrorState(
+                            message = err.localizedMessage ?: "Search failed",
+                            onRetry = pagingItems::retry
+                        )
+                    }
+                    else -> {
+                        if (isGridMode) {
+                            SearchResultGrid(pagingItems, gridState, columns, onVideoClick, onChannelClick, onPlaylistClick)
+                        } else {
+                            SearchResultList(pagingItems, gridState, columns, onVideoClick, onChannelClick, onPlaylistClick)
+                        }
                     }
                 }
             }
@@ -457,15 +480,26 @@ private fun SearchTabRow(
 @Composable
 private fun SearchResultList(
     pagingItems: androidx.paging.compose.LazyPagingItems<SearchResultItem>,
-    listState: LazyListState,
+    gridState: LazyGridState,
+    columns: Int,
     onVideoClick: (Video) -> Unit,
     onChannelClick: (Channel) -> Unit,
     onPlaylistClick: (Playlist) -> Unit
 ) {
-    LazyColumn(
-        state = listState,
+    val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+
+    LazyVerticalGrid(
+        state = gridState,
+        columns = GridCells.Fixed(columns),
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 90.dp)
+        contentPadding = PaddingValues(
+            start = if (columns == 1) 0.dp else 16.dp,
+            end = if (columns == 1) 0.dp else 16.dp,
+            top = 8.dp, 
+            bottom = 90.dp
+        ),
+        horizontalArrangement = Arrangement.spacedBy(if (columns == 1) 0.dp else 12.dp),
+        verticalArrangement = Arrangement.spacedBy(if (columns == 1) 0.dp else 12.dp)
     ) {
         items(
             count = pagingItems.itemCount,
@@ -490,8 +524,12 @@ private fun SearchResultList(
                         VideoCardFullWidth(
                             video = item.video,
                             modifier = Modifier.padding(vertical = 6.dp),
-                            onClick = { onVideoClick(item.video) },
+                            onClick = { 
+                                keyboardController?.hide()
+                                onVideoClick(item.video) 
+                            },
                             onChannelClick = { channelId ->
+                                keyboardController?.hide()
                                 onChannelClick(
                                     Channel(
                                         id = channelId,
@@ -504,14 +542,20 @@ private fun SearchResultList(
                             }
                         )
                     is SearchResultItem.ChannelResult ->
-                        SearchChannelCard(item.channel, onClick = { onChannelClick(item.channel) })
+                        SearchChannelCard(item.channel, onClick = { 
+                            keyboardController?.hide()
+                            onChannelClick(item.channel) 
+                        })
                     is SearchResultItem.PlaylistResult ->
-                        SearchPlaylistCard(item.playlist, onClick = { onPlaylistClick(item.playlist) })
+                        SearchPlaylistCard(item.playlist, onClick = { 
+                            keyboardController?.hide()
+                            onPlaylistClick(item.playlist) 
+                        })
                 }
             }
         }
 
-        item { PagingFooter(pagingItems.loadState.append, pagingItems::retry, pagingItems.itemCount) }
+        item(span = { GridItemSpan(maxLineSpan) }) { PagingFooter(pagingItems.loadState.append, pagingItems::retry, pagingItems.itemCount) }
     }
 }
 
@@ -519,12 +563,15 @@ private fun SearchResultList(
 private fun SearchResultGrid(
     pagingItems: androidx.paging.compose.LazyPagingItems<SearchResultItem>,
     gridState: LazyGridState,
+    columns: Int,
     onVideoClick: (Video) -> Unit,
     onChannelClick: (Channel) -> Unit,
     onPlaylistClick: (Playlist) -> Unit
 ) {
+    val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+
     LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
+        columns = GridCells.Fixed(columns),
         state = gridState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(12.dp),
@@ -548,8 +595,12 @@ private fun SearchResultGrid(
                 is SearchResultItem.VideoResult ->
                     CompactVideoCard(
                         video = item.video,
-                        onClick = { onVideoClick(item.video) },
+                        onClick = { 
+                            keyboardController?.hide()
+                            onVideoClick(item.video) 
+                        },
                         onChannelClick = { channelId ->
+                            keyboardController?.hide()
                             onChannelClick(
                                 Channel(
                                     id = channelId,
@@ -562,9 +613,15 @@ private fun SearchResultGrid(
                         }
                     )
                 is SearchResultItem.ChannelResult ->
-                    SearchChannelCardCompact(item.channel, onClick = { onChannelClick(item.channel) })
+                    SearchChannelCardCompact(item.channel, onClick = { 
+                        keyboardController?.hide()
+                        onChannelClick(item.channel) 
+                    })
                 is SearchResultItem.PlaylistResult ->
-                    SearchPlaylistCardCompact(item.playlist, onClick = { onPlaylistClick(item.playlist) })
+                    SearchPlaylistCardCompact(item.playlist, onClick = { 
+                        keyboardController?.hide()
+                        onPlaylistClick(item.playlist) 
+                    })
             }
         }
 
@@ -636,10 +693,10 @@ private fun PagingFooter(
 }
 
 @Composable
-private fun ShimmerResultsScreen(isGrid: Boolean) {
+private fun ShimmerResultsScreen(isGrid: Boolean, columns: Int) {
     if (isGrid) {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
+            columns = GridCells.Fixed(columns),
             contentPadding = PaddingValues(12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -648,11 +705,21 @@ private fun ShimmerResultsScreen(isGrid: Boolean) {
             items(8) { ShimmerGridVideoCard() }
         }
     } else {
-        LazyColumn(
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(columns),
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 80.dp)
+            contentPadding = PaddingValues(
+                start = if (columns == 1) 0.dp else 16.dp,
+                end = if (columns == 1) 0.dp else 16.dp,
+                top = 8.dp, 
+                bottom = 80.dp
+            ),
+            horizontalArrangement = Arrangement.spacedBy(if (columns == 1) 0.dp else 12.dp),
+            verticalArrangement = Arrangement.spacedBy(if (columns == 1) 0.dp else 12.dp)
         ) {
-            items(8) { ShimmerVideoCardFullWidth() }
+            items(8) { 
+                if (columns == 1) ShimmerVideoCardFullWidth() else ShimmerGridVideoCard()
+            }
         }
     }
 }

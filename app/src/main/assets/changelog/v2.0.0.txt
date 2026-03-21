@@ -1,10 +1,9 @@
 FLOW CHANGE LOG
 VERSION: 2.0.0
-DATE: 2026-03-20
+DATE: 2026-03-21
 
 !IMPORTANT!
 - UPDATE APP PACKAGE NAME TO io.github.aedev.flow FROM com.flow.youtube
-- Add a new flavor for FOSS
 
 NEW FEATURES
 - Content sorting in channel screen
@@ -34,6 +33,7 @@ IMPROVEMENTS
 - Search Keyboard & Focus Improvements
 - Improve RSS service for Subscriptions
 - Immersive Music Player with dynamic color extraction from album art
+- Adaptive Grid layout for Search Screen
 
 RECOMMENDATION ENGINE
 - Fixed cross-topic contamination
@@ -66,3 +66,4 @@ FIXES AND STABILITY
 - Fix Video Upload Time incorrectly showing offset due to timezone parsing
 - Fix Notifications are faulty and videos lag at the beginning #156
 - Fix [BUG] screencasting not working #161
+- Fix Keyboard pop up & Focus in Search Screen

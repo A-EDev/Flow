@@ -171,6 +171,49 @@ fun LazyListScope.relatedVideosContent(
 }
 
 /**
+ * Related videos grid content for LazyListScope.
+ */
+fun LazyListScope.relatedVideosGridContent(
+    relatedVideos: List<Video>,
+    columns: Int,
+    onVideoClick: (Video) -> Unit
+) {
+    item {
+        if (relatedVideos.isNotEmpty()) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+               
+            }
+        }
+    }
+    
+    val chunkedVideos = relatedVideos.chunked(columns)
+    
+    items(
+        count = chunkedVideos.size,
+        key = { index -> chunkedVideos[index].joinToString { it.id } }
+    ) { index ->
+        val rowVideos = chunkedVideos[index]
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            for (video in rowVideos) {
+                Box(modifier = Modifier.weight(1f)) {
+                    CompactVideoCard(
+                        video = video,
+                        onClick = { onVideoClick(video) }
+                    )
+                }
+            }
+            val emptySpaces = columns - rowVideos.size
+            for (i in 0 until emptySpaces) {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/**
  * Creates a complete Video object from StreamInfo if available
  */
 fun createCompleteVideo(

@@ -115,17 +115,72 @@ jobs:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
           name: Flow ${{ steps.get_version.outputs.VERSION }}
           body: |
-            ## 🎬 Flow - Release ${{ steps.get_version.outputs.VERSION }}
+            >### IMPORTANT: Package Name Migration
+            >The application package name has been updated from `com.flow.youtube` to `io.github.aedev.flow`. This is a significant structural change. Please **Backup your data** before uninstalling the old version and download the new one
+            
+            ### NEW FEATURES
+            - Content sorting in channel screen
+            - Search filters
+            - Clear video from feed when marked by "Not Interested", "Don't show channel", or "Mark as Watched"
+            - Continue watching mini-player with disable option in the Player Settings
+            - Add a mark as "not interested" and "want more like this" to shorts
+            - Audio Boost to 200% for supported codecs
+            - Auto video loop toggle
+            - Auto Theme based on system active Theme
+            - Subscription Notification Filtering
+            - Add a new StreamProxyServer for better Url handling during casting - This will avoid IP-locks and 403 errors
+            
+            ### IMPROVEMENTS
+            - Improved video player action buttons design and sizes.
+            - Remove swipe to seek guesture and redesigned double tap seek
+            - Improved edge-to-edge display
+            - Redesigned Search bars
+            - Improved video thumbnail quality
+            - Channel screen Redesign
+            - Removed rewind video on privious click feature
+            - Removed redudant 3-dot menu buttons in the music quick actions menu
+            - More responsive video player dragging
+            - Sequantial content loading for channels
+            - Shorts screen UI and anti-repetition
+            - Improve player button clicks
+            - Search Keyboard & Focus Improvements
+            - Improve RSS service for Subscriptions
+            - Immersive Music Player with dynamic color extraction from album art
+            - Adaptive Grid layout for Search Screen
+            
+            ### RECOMMENDATION ENGINE
+            - Fixed cross-topic contamination
+            - Removed dangerous lemma mappings
+            - Smoother scoring
+            - Consolidated 19 inline scoring factors into grouped helper functions for cleaner ranking logic
+            - Description keywords now skip sponsor copy, social media links, hashtags, and URLs before extraction
+            - Expanded blocked topic filtering 
+            - New bootstrapFromWatchHistory()
+            - Shorts from subscribed channels get 3x subscription boost
+            - All feed paths (trending, Shorts shelf, home feed) now pass through the ranking engine
+            - Instant feed invalidation
+            - New Shorts discovery engine
+            - Channel Topic extraction
+            - Anti-Recommendation
+            - Watch Velocity
+            - Engagement Momentum
+            - Subscription Freshness
 
-            ### 📱 Download
-            Download the signed APK file below and install it on your Android device.
-
-            ### ⚠️ Note
-            This is a signed release APK. Install directly on your Android device.
-
-            ### 🆕 What's New
-            <!-- Auto-generated changelog will appear here -->
-
+            ### FIXES AND STABILITY
+            - Fix Unresponsive player when clicking
+            - Fix Default Auto Quality stuck at highest quality and improved thresholds
+            - Fix previous video rewind issue in queue
+            - Fix music playback issues from Music History & Likes
+            - Fix video playback issue on Fullscreen expansion
+            - Fix Subs tab Shorts sort order — old Shorts no longer appear at top of subscription feed
+            - Fix Non-Shorts videos under 2 minutes opening in shorts player
+            - Fix Sheets opening in full screen
+            - Fix Music Player "Up Next" Scrolling & End Indicator
+            - Fix Video Upload Time incorrectly showing offset due to timezone parsing
+            - Fix Notifications are faulty and videos lag at the beginning #156
+            - Fix [BUG] screencasting not working #161
+            - Fix Keyboard pop up & Focus in Search Screen
+            
             ### 📋 System Requirements
             - Android 5.0 (API 21) or higher
             - Minimum 2GB RAM recommended

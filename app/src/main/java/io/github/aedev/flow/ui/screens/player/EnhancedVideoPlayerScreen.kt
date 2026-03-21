@@ -22,6 +22,7 @@ import io.github.aedev.flow.data.local.PlayerPreferences
 // Modular components
 import io.github.aedev.flow.ui.screens.player.content.VideoInfoContent
 import io.github.aedev.flow.ui.screens.player.content.relatedVideosContent
+import io.github.aedev.flow.ui.screens.player.content.relatedVideosGridContent
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import io.github.aedev.flow.ui.screens.player.state.rememberPlayerScreenState
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -77,8 +78,11 @@ fun EnhancedVideoPlayerScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val isWideLayout = config.smallestScreenWidthDp >= 600 && 
-                              !screenState.isFullscreen && !screenState.isInPipMode
+            val isTablet = config.smallestScreenWidthDp >= 600
+            val isLandscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            
+            val isWideLayout = isTablet && isLandscape && !screenState.isFullscreen && !screenState.isInPipMode
+            val isTabletPortrait = isTablet && !isLandscape && !screenState.isFullscreen && !screenState.isInPipMode
 
             if (isWideLayout) {
                 val descriptionWeight = if (maxWidth < 840.dp) 0.55f else 0.65f
@@ -122,7 +126,7 @@ fun EnhancedVideoPlayerScreen(
                     }
                 }
             } else {
-                // Phone Portrait Layout
+                // Phone Portrait or Tablet Portrait Layout
                 Column(Modifier.fillMaxSize()) {
                     if (!screenState.isFullscreen && !screenState.isInPipMode) {
                         LazyColumn(
@@ -143,10 +147,18 @@ fun EnhancedVideoPlayerScreen(
                                 )
                             }
                             if (showRelatedVideos) {
-                                relatedVideosContent(
-                                    relatedVideos = uiState.relatedVideos,
-                                    onVideoClick = onVideoClick
-                                )
+                                if (isTabletPortrait) {
+                                    relatedVideosGridContent(
+                                        relatedVideos = uiState.relatedVideos,
+                                        columns = 2,
+                                        onVideoClick = onVideoClick
+                                    )
+                                } else {
+                                    relatedVideosContent(
+                                        relatedVideos = uiState.relatedVideos,
+                                        onVideoClick = onVideoClick
+                                    )
+                                }
                             }
                         }
                     }
