@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -61,6 +62,7 @@ fun MusicSearchScreen(
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
@@ -115,7 +117,7 @@ fun MusicSearchScreen(
                 onQueryChange = viewModel::onQueryChange,
                 onSearch = {
                     viewModel.performSearch()
-                    keyboardController?.hide()
+                    focusManager.clearFocus(force = true)
                 },
                 onBackClick = onBackClick,
                 onClearClick = viewModel::clearSearch,

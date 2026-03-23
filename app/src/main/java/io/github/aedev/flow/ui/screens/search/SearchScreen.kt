@@ -126,8 +126,7 @@ fun SearchScreen(
             onQueryChange = { searchQuery = it },
             onSearch = {
                 if (searchQuery.isNotBlank()) {
-                    keyboardController?.hide()
-                    focusManager.clearFocus()
+                    focusManager.clearFocus(force = true)
                     isSearchFocused = false
                     liveSuggestions = emptyList()
                     selectedTabIndex = 0
@@ -177,8 +176,7 @@ fun SearchScreen(
                 suggestions = liveSuggestions,
                 isLoading = isLoadingSuggestions,
                 onSuggestionClick = { s ->
-                    keyboardController?.hide()
-                    focusManager.clearFocus()
+                    focusManager.clearFocus(force = true)
                     searchQuery = s
                     isSearchFocused = false
                     liveSuggestions = emptyList()
@@ -214,8 +212,7 @@ fun SearchScreen(
             DiscoverScreen(
                 searchHistory = searchHistory,
                 onHistoryClick = { q -> 
-                    keyboardController?.hide()
-                    focusManager.clearFocus()
+                    focusManager.clearFocus(force = true)
                     searchQuery = q 
                     selectedTabIndex = 0 
                     viewModel.search(q) 
