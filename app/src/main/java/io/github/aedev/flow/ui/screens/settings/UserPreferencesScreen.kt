@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.recommendation.TopicCategory
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.ui.theme.extendedColors
 import kotlinx.coroutines.launch
@@ -538,7 +539,7 @@ private fun PreferencesSectionHeader(
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun TopicCategoryExpandableCard(
-    category: FlowNeuroEngine.TopicCategory,
+    category: TopicCategory,
     selectedTopics: Set<String>,
     onTopicToggle: (String) -> Unit
 ) {

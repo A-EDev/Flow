@@ -49,6 +49,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.recommendation.UserBrain
+import io.github.aedev.flow.data.recommendation.FlowPersona
+import io.github.aedev.flow.data.recommendation.ContentVector
+import io.github.aedev.flow.data.recommendation.TimeBucket
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
@@ -71,8 +75,8 @@ fun FlowPersonalityScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var userBrain by remember { mutableStateOf<FlowNeuroEngine.UserBrain?>(null) }
-    var persona by remember { mutableStateOf<FlowNeuroEngine.FlowPersona?>(null) }
+    var userBrain by remember { mutableStateOf<UserBrain?>(null) }
+    var persona by remember { mutableStateOf<FlowPersona?>(null) }
     var showResetDialog by remember { mutableStateOf(false) }
     var isLoaded by remember { mutableStateOf(false) }
 
@@ -487,10 +491,10 @@ private fun NeuralNetworkBackground() {
 
 @Composable
 private fun PersonaHeroCard(
-    brain: FlowNeuroEngine.UserBrain,
-    persona: FlowNeuroEngine.FlowPersona?
+    brain: UserBrain,
+    persona: FlowPersona?
 ) {
-    val displayPersona = persona ?: FlowNeuroEngine.FlowPersona.INITIATE
+    val displayPersona = persona ?: FlowPersona.INITIATE
     
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -609,7 +613,7 @@ private fun PersonaHeroCard(
 // ============================================================================
 
 @Composable
-private fun QuickStatsRow(brain: FlowNeuroEngine.UserBrain) {
+private fun QuickStatsRow(brain: UserBrain) {
     val currentVector = getCurrentContextVector(brain)
     
     Row(
@@ -701,7 +705,7 @@ private class BubbleState(
 )
 
 @Composable
-private fun NeuralBubbleCloud(brain: FlowNeuroEngine.UserBrain) {
+private fun NeuralBubbleCloud(brain: UserBrain) {
     val topics = brain.globalVector.topics.entries
         .sortedByDescending { it.value }
         .take(12)
@@ -973,7 +977,7 @@ private fun NeuralBubbleCloud(brain: FlowNeuroEngine.UserBrain) {
 // ============================================================================
 
 @Composable
-private fun AdvancedRadarChart(brain: FlowNeuroEngine.UserBrain) {
+private fun AdvancedRadarChart(brain: UserBrain) {
     val currentVector = getCurrentContextVector(brain)
     val personalityVector = brain.globalVector
     
@@ -1209,7 +1213,7 @@ private fun LegendChip(text: String, color: Color) {
 // ============================================================================
 
 @Composable
-private fun TopicStrengthChart(brain: FlowNeuroEngine.UserBrain) {
+private fun TopicStrengthChart(brain: UserBrain) {
     val topics = brain.globalVector.topics.entries
         .sortedByDescending { it.value }
         .take(15)
@@ -1303,7 +1307,7 @@ private fun TopicStrengthChart(brain: FlowNeuroEngine.UserBrain) {
 // ============================================================================
 
 @Composable
-private fun TimeContextCards(brain: FlowNeuroEngine.UserBrain) {
+private fun TimeContextCards(brain: UserBrain) {
     val currentHour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     val currentPeriod = when (currentHour) {
         in 6..11 -> 0
@@ -1312,12 +1316,12 @@ private fun TimeContextCards(brain: FlowNeuroEngine.UserBrain) {
         else -> 3
     }
     
-    val emptyVector = FlowNeuroEngine.ContentVector()
+    val emptyVector = ContentVector()
     val periods = listOf(
-        Triple("Morning", "6AM - 12PM", brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_MORNING] ?: emptyVector),
-        Triple("Afternoon", "12PM - 6PM", brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_AFTERNOON] ?: emptyVector),
-        Triple("Evening", "6PM - 12AM", brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_EVENING] ?: emptyVector),
-        Triple("Night", "12AM - 6AM", brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_NIGHT] ?: emptyVector)
+        Triple("Morning", "6AM - 12PM", brain.timeVectors[TimeBucket.WEEKDAY_MORNING] ?: emptyVector),
+        Triple("Afternoon", "12PM - 6PM", brain.timeVectors[TimeBucket.WEEKDAY_AFTERNOON] ?: emptyVector),
+        Triple("Evening", "6PM - 12AM", brain.timeVectors[TimeBucket.WEEKDAY_EVENING] ?: emptyVector),
+        Triple("Night", "12AM - 6AM", brain.timeVectors[TimeBucket.WEEKDAY_NIGHT] ?: emptyVector)
     )
     
     val icons = listOf("🌅", "☀️", "🌆", "🌙")
@@ -1423,7 +1427,7 @@ private fun TimeContextCards(brain: FlowNeuroEngine.UserBrain) {
 
 @Composable
 private fun ChannelAffinitySection(
-    brain: FlowNeuroEngine.UserBrain,
+    brain: UserBrain,
     channelNames: Map<String, String> = emptyMap() // channelId -> displayName (for future integration)
 ) {
     val channels = brain.channelScores.entries
@@ -1497,7 +1501,7 @@ private fun ChannelAffinitySection(
 // ============================================================================
 
 @Composable
-private fun AlgorithmInsightsCard(brain: FlowNeuroEngine.UserBrain) {
+private fun AlgorithmInsightsCard(brain: UserBrain) {
     val context = LocalContext.current
     var discoveryQueries by remember { mutableStateOf<List<String>>(emptyList()) }
     
@@ -1756,7 +1760,7 @@ private fun MaintenanceSection(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun BlockedContentSection(
-    brain: FlowNeuroEngine.UserBrain,
+    brain: UserBrain,
     channelNames: Map<String, String>,
     onUnblockTopic: (String) -> Unit,
     onUnblockChannel: (String) -> Unit
@@ -1852,7 +1856,7 @@ private fun BlockedContentSection(
 // ============================================================================
 
 @Composable
-private fun EngagementIndicator(brain: FlowNeuroEngine.UserBrain) {
+private fun EngagementIndicator(brain: UserBrain) {
     val (engagementLevel, engagementColor) = remember(brain.consecutiveSkips) {
         when {
             brain.consecutiveSkips < 5 -> Pair("Engaged", Color(0xFF4CAF50))
@@ -1968,12 +1972,12 @@ private fun EmptyStateCard(message: String) {
 }
 
 // Helper function to get the correct vector for "Now"
-private fun getCurrentContextVector(brain: FlowNeuroEngine.UserBrain): FlowNeuroEngine.ContentVector {
+private fun getCurrentContextVector(brain: UserBrain): ContentVector {
     val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
     return when (hour) {
-        in 6..11 -> brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_MORNING] ?: FlowNeuroEngine.ContentVector()
-        in 12..17 -> brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_AFTERNOON] ?: FlowNeuroEngine.ContentVector()
-        in 18..23 -> brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_EVENING] ?: FlowNeuroEngine.ContentVector()
-        else -> brain.timeVectors[FlowNeuroEngine.TimeBucket.WEEKDAY_NIGHT] ?: FlowNeuroEngine.ContentVector()
+        in 6..11 -> brain.timeVectors[TimeBucket.WEEKDAY_MORNING] ?: ContentVector()
+        in 12..17 -> brain.timeVectors[TimeBucket.WEEKDAY_AFTERNOON] ?: ContentVector()
+        in 18..23 -> brain.timeVectors[TimeBucket.WEEKDAY_EVENING] ?: ContentVector()
+        else -> brain.timeVectors[TimeBucket.WEEKDAY_NIGHT] ?: ContentVector()
     }
 }

@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.recommendation.UserBrain
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -84,7 +85,7 @@ fun SettingsScreen(
     val backupRepo = remember { io.github.aedev.flow.data.local.BackupRepository(context) }
     
     // Brain State
-    var userBrain by remember { mutableStateOf<FlowNeuroEngine.UserBrain?>(null) }
+    var userBrain by remember { mutableStateOf<UserBrain?>(null) }
     var refreshBrainTrigger by remember { mutableStateOf(0) }
 
     LaunchedEffect(refreshBrainTrigger) {

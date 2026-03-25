@@ -11,6 +11,7 @@ import android.util.Log
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.recommendation.FlowPersona
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -380,12 +381,12 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
             FlowNeuroEngine.getPersona(brain)
         } catch (e: Exception) { null }
         val personaSuffix = when (persona) {
-            FlowNeuroEngine.FlowPersona.AUDIOPHILE -> "music edit"
-            FlowNeuroEngine.FlowPersona.SCHOLAR -> "explained quick"
-            FlowNeuroEngine.FlowPersona.DEEP_DIVER -> "documentary clip"
-            FlowNeuroEngine.FlowPersona.SKIMMER -> "satisfying"
-            FlowNeuroEngine.FlowPersona.BINGER -> "series part"
-            FlowNeuroEngine.FlowPersona.SPECIALIST -> "deep dive"
+            FlowPersona.AUDIOPHILE -> "music edit"
+            FlowPersona.SCHOLAR -> "explained quick"
+            FlowPersona.DEEP_DIVER -> "documentary clip"
+            FlowPersona.SKIMMER -> "satisfying"
+            FlowPersona.BINGER -> "series part"
+            FlowPersona.SPECIALIST -> "deep dive"
             else -> null
         }
         if (personaSuffix != null && primaryTopics.isNotEmpty()) {

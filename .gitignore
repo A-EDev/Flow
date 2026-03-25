@@ -9,6 +9,7 @@ local.properties
 .cxx
 takeout
 /notes
+/legacy
 algo.md
 newpipe-dev
 # Signing keystore - NEVER COMMIT THIS FILE!

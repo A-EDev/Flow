@@ -55,6 +55,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.recommendation.TopicCategory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -920,7 +921,7 @@ private fun StepHeader(title: String, subtitle: String) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CategoryCard(
-    category: FlowNeuroEngine.TopicCategory,
+    category: TopicCategory,
     selectedTopics: Set<String>,
     initiallyExpanded: Boolean,
     onTopicToggle: (String) -> Unit

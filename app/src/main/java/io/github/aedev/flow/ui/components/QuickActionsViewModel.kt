@@ -9,6 +9,7 @@ import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.recommendation.InteractionType
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -179,7 +180,7 @@ class QuickActionsViewModel @Inject constructor(
                 FlowNeuroEngine.onVideoInteraction(
                     context,
                     video,
-                    FlowNeuroEngine.InteractionType.WATCHED,
+                    InteractionType.WATCHED,
                     percentWatched = 1.0f
                 )
                 
@@ -221,7 +222,7 @@ class QuickActionsViewModel @Inject constructor(
                 FlowNeuroEngine.onVideoInteraction(
                     context,
                     video,
-                    FlowNeuroEngine.InteractionType.LIKED,
+                    InteractionType.LIKED,
                     percentWatched = 0f
                 )
                 Toast.makeText(

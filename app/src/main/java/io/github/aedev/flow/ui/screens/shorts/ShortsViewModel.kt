@@ -26,6 +26,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.recommendation.InteractionType
 import io.github.aedev.flow.ui.components.FeedInvalidationBus
 
 /**
@@ -388,7 +389,7 @@ class ShortsViewModel @Inject constructor(
                 val video = short.toVideo()
                 FlowNeuroEngine.onVideoInteraction(
                     video,
-                    FlowNeuroEngine.InteractionType.LIKED
+                    InteractionType.LIKED
                 )
                 _snackbarMessage.value = "We'll show more like this"
                 Log.d(TAG, "Want more like this: ${short.title}")

@@ -1,6 +1,10 @@
 FLOW CHANGE LOG
 VERSION: 2.0.1
-DATE: 2026-03-23
+DATE: 2026-03-25
+
+IMPROVEMENTS
+- FlowNeuroEngine modularization
+- Smarter Discovery Query Generation
 
 FIXES AND STABILITY
 - Keyboard Focus and pop up
