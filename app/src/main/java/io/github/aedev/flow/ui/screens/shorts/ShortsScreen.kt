@@ -58,16 +58,28 @@ fun ShortsScreen(
         }
     }
 
-    val isWifi = remember(context) {
+    var isWifi by remember { mutableStateOf(false) }
+    DisposableEffect(context) {
         val cm = context.getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-        val cap = cm.getNetworkCapabilities(cm.activeNetwork)
-        cap?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
+        fun update() {
+            isWifi = cm.getNetworkCapabilities(cm.activeNetwork)
+                ?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) == true
+        }
+        update()
+        val networkCallback = object : android.net.ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(network: android.net.Network, caps: android.net.NetworkCapabilities) = update()
+            override fun onLost(network: android.net.Network) { update() }
+            override fun onAvailable(network: android.net.Network) { update() }
+        }
+        cm.registerDefaultNetworkCallback(networkCallback)
+        onDispose { cm.unregisterNetworkCallback(networkCallback) }
     }
     val shortsQualityWifi by audioLangPref.shortsQualityWifi.collectAsState(initial = io.github.aedev.flow.data.local.VideoQuality.Q_720p)
     val shortsQualityCellular by audioLangPref.shortsQualityCellular.collectAsState(initial = io.github.aedev.flow.data.local.VideoQuality.Q_480p)
     val shortsTargetHeight by remember(isWifi, shortsQualityWifi, shortsQualityCellular) {
         derivedStateOf { if (isWifi) shortsQualityWifi.height else shortsQualityCellular.height }
     }
+    val prevShortsTargetHeight = remember { mutableStateOf(shortsTargetHeight) }
 
     // Bottom sheet states
     var showCommentsSheet by remember { mutableStateOf(false) }
@@ -153,18 +165,12 @@ fun ShortsScreen(
                     suspend fun getStreams(id: String, preferredAudioUrl: String? = null): Pair<String?, String?>? {
                         val streamInfo = viewModel.getVideoStreamInfo(id) ?: return null
                         val targetH = shortsTargetHeight
+                        val allVideoStreams = (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
                         val videoStream = if (targetH == 0) {
-                            streamInfo.videoStreams?.maxByOrNull { it.height }
-                                ?: streamInfo.videoOnlyStreams?.maxByOrNull { it.height }
+                            allVideoStreams.maxByOrNull { it.height }
                         } else {
-                            streamInfo.videoStreams
-                                ?.filter { it.height <= targetH }
-                                ?.maxByOrNull { it.height }
-                                ?: streamInfo.videoStreams?.minByOrNull { it.height }
-                                ?: streamInfo.videoOnlyStreams
-                                    ?.filter { it.height <= targetH }
-                                    ?.maxByOrNull { it.height }
-                                ?: streamInfo.videoOnlyStreams?.firstOrNull()
+                            allVideoStreams.filter { it.height <= targetH }.maxByOrNull { it.height }
+                                ?: allVideoStreams.minByOrNull { it.height } 
                         }
 
                         val preferredLang = audioLangPref.preferredAudioLanguage.first()
@@ -238,6 +244,69 @@ fun ShortsScreen(
 
                     // 4. Cleanup distant players
                     playerPool.releaseUnusedPlayers(settled)
+                }
+
+                LaunchedEffect(shortsTargetHeight) {
+                    val newHeight = shortsTargetHeight
+                    if (newHeight == prevShortsTargetHeight.value) return@LaunchedEffect
+                    prevShortsTargetHeight.value = newHeight
+
+                    val settled = pagerState.settledPage
+                    val playerPool = ShortsPlayerPool.getInstance()
+
+                    val currentShort = uiState.shorts.getOrNull(settled) ?: return@LaunchedEffect
+                    try {
+                        val streamInfo = viewModel.getVideoStreamInfo(currentShort.id)
+                            ?: return@LaunchedEffect
+                        val allVideoStreams = (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
+                        val videoStream = if (newHeight == 0) {
+                            allVideoStreams.maxByOrNull { it.height }
+                        } else {
+                            allVideoStreams.filter { it.height <= newHeight }.maxByOrNull { it.height }
+                                ?: allVideoStreams.minByOrNull { it.height }
+                        }
+                        val vUrl = videoStream?.content ?: videoStream?.url
+                        if (vUrl != null) {
+                            playerPool.reloadWithVideoUrl(settled, currentShort.id, vUrl)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ShortsScreen", "Quality change: failed to reload ${currentShort.id}", e)
+                    }
+
+                    uiState.shorts.getOrNull(settled + 1)?.let { nextShort ->
+                        launch {
+                            runCatching {
+                                val streamInfo = viewModel.getVideoStreamInfo(nextShort.id)
+                                    ?: return@runCatching
+                                val allVideoStreams = (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
+                                val videoStream = if (newHeight == 0) {
+                                    allVideoStreams.maxByOrNull { it.height }
+                                } else {
+                                    allVideoStreams.filter { it.height <= newHeight }.maxByOrNull { it.height }
+                                        ?: allVideoStreams.minByOrNull { it.height }
+                                }
+                                val vUrl = videoStream?.content ?: videoStream?.url
+                                if (vUrl != null) playerPool.reloadWithVideoUrl(settled + 1, nextShort.id, vUrl)
+                            }
+                        }
+                    }
+                    uiState.shorts.getOrNull(settled - 1)?.let { prevShort ->
+                        launch {
+                            runCatching {
+                                val streamInfo = viewModel.getVideoStreamInfo(prevShort.id)
+                                    ?: return@runCatching
+                                val allVideoStreams = (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
+                                val videoStream = if (newHeight == 0) {
+                                    allVideoStreams.maxByOrNull { it.height }
+                                } else {
+                                    allVideoStreams.filter { it.height <= newHeight }.maxByOrNull { it.height }
+                                        ?: allVideoStreams.minByOrNull { it.height }
+                                }
+                                val vUrl = videoStream?.content ?: videoStream?.url
+                                if (vUrl != null) playerPool.reloadWithVideoUrl(settled - 1, prevShort.id, vUrl)
+                            }
+                        }
+                    }
                 }
 
                 VerticalPager(

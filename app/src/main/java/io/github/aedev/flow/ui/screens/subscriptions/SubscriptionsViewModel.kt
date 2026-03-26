@@ -164,6 +164,12 @@ class SubscriptionsViewModel : ViewModel() {
         val (shorts, regular) = sortedVideos.partition { video -> video.isShort }
         Log.i(TAG, "updateVideos: total=${sortedVideos.size} → regular=${regular.size}, shorts=${shorts.size}")
 
+        // ── One short per channel (most recent) ───────────────────────────
+        val latestShortPerChannel = shorts
+            .distinctBy { it.channelId }
+            .sortedByDescending { it.timestamp }
+        Log.i(TAG, "Shorts after per-channel dedup: ${latestShortPerChannel.size}/${shorts.size}")
+
         // ── Watched-shorts filter ──────────────────────────────────────────
         val watchedIds: Set<String> = try {
             watchHistoryDao.getAllWatchedVideoIds().toHashSet()
@@ -171,11 +177,11 @@ class SubscriptionsViewModel : ViewModel() {
             Log.w(TAG, "Could not read watch history for shorts filtering", e)
             emptySet()
         }
-        val unwatchedShorts = if (watchedIds.isEmpty()) shorts
-            else shorts.filter { it.id !in watchedIds }
+        val unwatchedShorts = if (watchedIds.isEmpty()) latestShortPerChannel
+            else latestShortPerChannel.filter { it.id !in watchedIds }
 
-        Log.i(TAG, "Shorts after watched filter: ${unwatchedShorts.size}/${shorts.size} " +
-                "(${shorts.size - unwatchedShorts.size} hidden as already watched)")
+        Log.i(TAG, "Shorts after watched filter: ${unwatchedShorts.size}/${latestShortPerChannel.size} " +
+                "(${latestShortPerChannel.size - unwatchedShorts.size} hidden as already watched)")
 
         _uiState.update { it.copy(recentVideos = regular, shorts = unwatchedShorts) }
     }
