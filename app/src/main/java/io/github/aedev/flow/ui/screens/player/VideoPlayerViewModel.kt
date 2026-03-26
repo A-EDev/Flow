@@ -9,6 +9,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 import io.github.aedev.flow.data.recommendation.InterestProfile
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.ui.components.FeedInvalidationBus
 import io.github.aedev.flow.data.recommendation.InteractionType
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.player.EnhancedPlayerManager
@@ -130,6 +131,28 @@ class VideoPlayerViewModel @Inject constructor(
                         cachedVideo = lastVideo.toVideo(),
                         isRestoredSession = true
                     ) }
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            FeedInvalidationBus.events.collect { event ->
+                when (event) {
+                    is FeedInvalidationBus.Event.NotInterested -> {
+                        _uiState.update { state ->
+                            state.copy(
+                                relatedVideos = state.relatedVideos.filter { it.id != event.videoId }
+                            )
+                        }
+                    }
+                    is FeedInvalidationBus.Event.ChannelBlocked -> {
+                        _uiState.update { state ->
+                            state.copy(
+                                relatedVideos = state.relatedVideos.filter { it.channelId != event.channelId }
+                            )
+                        }
+                    }
+                    else -> {}
                 }
             }
         }

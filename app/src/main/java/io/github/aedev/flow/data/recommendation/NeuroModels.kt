@@ -87,7 +87,18 @@ data class UserBrain(
     val seenShortsHistory: Map<String, Long> = emptyMap(),
     val channelTopicProfiles: Map<String, Map<String, Double>> = emptyMap(),
     val shortsVector: ContentVector = ContentVector(),
-    val schemaVersion: Int = 10
+    /**
+     * Hard suppression: video IDs that must NOT appear in ranked results.
+     * Maps videoId → timestamp when suppression was applied.
+     * Entries expire after VIDEO_SUPPRESSION_DAYS.
+     */
+    val suppressedVideoIds: Map<String, Long> = emptyMap(),
+    /**
+     * Hard channel suppression: channels the user explicitly marked not-interested on.
+     * Maps channelId → timestamp. Escalates to blockedChannels on second signal.
+     */
+    val suppressedChannels: Map<String, Long> = emptyMap(),
+    val schemaVersion: Int = 11
 )
 
 // ── Interaction Types ──

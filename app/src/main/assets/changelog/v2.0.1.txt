@@ -1,10 +1,12 @@
 FLOW CHANGE LOG
 VERSION: 2.0.1
-DATE: 2026-03-25
+DATE: 2026-03-26
 
 IMPROVEMENTS
 - FlowNeuroEngine modularization
 - Smarter Discovery Query Generation
+- Improved filtering on marked content #173
+- Hide related video when marked in the video player screen #172
 
 FIXES AND STABILITY
 - Keyboard Focus and pop up

@@ -198,9 +198,9 @@ internal object NeuroScoring {
         // V9.3 Fix 4: Sigmoid channel boredom
         if (brain.channelScores.containsKey(video.channelId)) {
             val channelClickRate = brain.channelScores[video.channelId] ?: 0.5
-            // Sigmoid: 0% → 0.4x, 5% → ~0.7x, 10% → ~0.9x, 20%+ → ~1.0x
-            val channelQuality = 1.0 / (1.0 + exp(-80.0 * (channelClickRate - 0.06)))
-            val channelMultiplier = 0.4 + 0.6 * channelQuality
+            // Sigmoid: 0.01→0.10x, 0.20→0.25x, 0.35→0.52x, 0.50→0.77x, 0.70→0.93x
+            val channelQuality = 1.0 / (1.0 + exp(-8.0 * (channelClickRate - 0.35)))
+            val channelMultiplier = 0.05 + 0.95 * channelQuality
             // Encode as additive penalty/bonus relative to 1.0
             signal += (channelMultiplier - 1.0)
         }

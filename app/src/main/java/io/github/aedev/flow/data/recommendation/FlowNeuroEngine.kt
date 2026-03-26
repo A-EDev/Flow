@@ -55,6 +55,16 @@ class FlowNeuroEngine(private val appContext: Context) {
         private const val SESSION_TOPIC_HISTORY_MAX = 50
         private const val SAVE_DEBOUNCE_MS = 5000L
 
+        // ── Suppression constants ──
+        /** How long a specific video stays hard-suppressed after "not interested" */
+        private const val VIDEO_SUPPRESSION_DAYS = 30L
+        /** How long a channel stays hard-suppressed before escalating to a full block */
+        private const val CHANNEL_SUPPRESSION_DAYS = 14L
+        /** Max suppressed video entries to prevent unbounded growth */
+        private const val MAX_SUPPRESSED_VIDEOS = 500
+        /** Max suppressed channel entries to prevent unbounded growth */
+        private const val MAX_SUPPRESSED_CHANNELS = 100
+
         @Volatile
         private var instance: FlowNeuroEngine? = null
 
@@ -731,35 +741,85 @@ class FlowNeuroEngine(private val appContext: Context) {
         val videoVector = getOrExtractFeatures(video, takeIdfSnapshotSafe())
 
         brainMutex.withLock {
-            val newGlobal = NeuroVectorMath.adjustVector(
-                currentUserBrain.globalVector, videoVector,
-                NeuroScoring.NOT_INTERESTED_GLOBAL_RATE
-            )
+            val now = System.currentTimeMillis()
 
+            // 1. Hard-suppress this specific video for VIDEO_SUPPRESSION_DAYS
+            val newSuppressedVideos = currentUserBrain.suppressedVideoIds.toMutableMap()
+            newSuppressedVideos[video.id] = now
+            if (newSuppressedVideos.size > MAX_SUPPRESSED_VIDEOS) {
+                val cutoff = now - (VIDEO_SUPPRESSION_DAYS * 86_400_000L)
+                newSuppressedVideos.entries.removeAll { it.value < cutoff }
+            }
+
+            // 2. Channel suppression — escalate to permanent block on 2nd signal
+            val newSuppressedChannels = currentUserBrain.suppressedChannels.toMutableMap()
+            var updatedBlockedChannels = currentUserBrain.blockedChannels
+            if (video.channelId.isNotBlank()) {
+                if (video.channelId in newSuppressedChannels) {
+                    updatedBlockedChannels = updatedBlockedChannels + video.channelId
+                    newSuppressedChannels.remove(video.channelId)
+                } else {
+                    newSuppressedChannels[video.channelId] = now
+                }
+                if (newSuppressedChannels.size > MAX_SUPPRESSED_CHANNELS) {
+                    val cutoff = now - (CHANNEL_SUPPRESSION_DAYS * 86_400_000L)
+                    newSuppressedChannels.entries.removeAll { it.value < cutoff }
+                }
+            }
+
+            // 3. Aggressive vector adjustment — halves matching topic scores instead of
+            val newGlobal = adjustVectorAggressive(currentUserBrain.globalVector, videoVector)
+
+            // 4. Channel score — halve the current score, floor at 0.01
             val newChannelScores = currentUserBrain.channelScores.toMutableMap()
-            newChannelScores[video.channelId] = NeuroScoring.NOT_INTERESTED_CHANNEL_FLOOR
+            if (video.channelId.isNotBlank()) {
+                val currentScore = newChannelScores[video.channelId] ?: 0.5
+                newChannelScores[video.channelId] = (currentScore * 0.5).coerceAtLeast(0.01)
+            }
 
+            // 5. Time bucket adjustment
             val bucket = TimeBucket.current()
-            val currentBucketVec = currentUserBrain.timeVectors[bucket]
-                ?: ContentVector()
+            val currentBucketVec = currentUserBrain.timeVectors[bucket] ?: ContentVector()
             val newBucketVec = NeuroVectorMath.adjustVector(
                 currentBucketVec, videoVector, NeuroScoring.NOT_INTERESTED_TIME_RATE
             )
 
+            // 6. Consecutive skips
             val newSkips = (currentUserBrain.consecutiveSkips +
                 NeuroScoring.NOT_INTERESTED_SKIP_INCREMENT)
                 .coerceAtMost(NeuroScoring.MAX_CONSECUTIVE_SKIPS)
 
             currentUserBrain = currentUserBrain.copy(
                 globalVector = newGlobal,
-                timeVectors = currentUserBrain.timeVectors +
-                    (bucket to newBucketVec),
+                timeVectors = currentUserBrain.timeVectors + (bucket to newBucketVec),
                 channelScores = newChannelScores,
+                blockedChannels = updatedBlockedChannels,
                 totalInteractions = currentUserBrain.totalInteractions + 1,
-                consecutiveSkips = newSkips
+                consecutiveSkips = newSkips,
+                suppressedVideoIds = newSuppressedVideos,
+                suppressedChannels = newSuppressedChannels
             )
             storage.save(currentUserBrain)
         }
+    }
+
+    /**
+     * Aggressive vector adjustment for "not interested" signals.
+     * Halves every matching topic score instead of the gentle proportional decay
+     */
+    private fun adjustVectorAggressive(
+        current: ContentVector,
+        target: ContentVector
+    ): ContentVector {
+        val newTopics = current.topics.toMutableMap()
+        target.topics.forEach { (key, _) ->
+            val currentVal = newTopics[key] ?: 0.0
+            if (currentVal > 0) {
+                newTopics[key] = (currentVal * 0.5).coerceAtMost(0.3)
+            }
+        }
+        newTopics.entries.removeAll { it.value < NeuroVectorMath.TOPIC_PRUNE_THRESHOLD }
+        return current.copy(topics = newTopics)
     }
 
     // =================================================
@@ -898,6 +958,14 @@ class FlowNeuroEngine(private val appContext: Context) {
         val random = java.util.Random()
         val now = System.currentTimeMillis()
 
+        // Hard suppression sets (time-bounded)
+        val videoSuppressionCutoff = now - (VIDEO_SUPPRESSION_DAYS * 24 * 60 * 60 * 1000L)
+        val channelSuppressionCutoff = now - (CHANNEL_SUPPRESSION_DAYS * 24 * 60 * 60 * 1000L)
+        val activeSuppressedVideos = brain.suppressedVideoIds
+            .filter { (_, ts) -> ts > videoSuppressionCutoff }.keys
+        val activeSuppressedChannels = brain.suppressedChannels
+            .filter { (_, ts) -> ts > channelSuppressionCutoff }.keys
+
         // Precompute blocked topic expansion ONCE
         val expandedBlockedKeywords: Set<String> = brain.blockedTopics.flatMapTo(
             mutableSetOf()
@@ -923,6 +991,8 @@ class FlowNeuroEngine(private val appContext: Context) {
 
         // Pre-filter blocked content
         val filtered = candidates.filter { video ->
+            if (video.id in activeSuppressedVideos) return@filter false
+            if (video.channelId in activeSuppressedChannels) return@filter false
             if (brain.blockedChannels.contains(video.channelId)) {
                 return@filter false
             }
@@ -940,6 +1010,20 @@ class FlowNeuroEngine(private val appContext: Context) {
         val videoVectors = filtered.map { video ->
             val channelProfile = brain.channelTopicProfiles[video.channelId]
             video to getOrExtractFeatures(video, idfSnapshot, channelProfile)
+        }
+
+        // Vector-level topic blocking: remove videos whose top topics match blocked topics
+        val blockedTopicLemmas = brain.blockedTopics.map { tokenizer.normalizeLemma(it) }.toSet()
+        val vectorFiltered = if (blockedTopicLemmas.isEmpty()) videoVectors else {
+            videoVectors.filter { (_, vector) ->
+                val topVideoTopics = vector.topics.entries
+                    .sortedByDescending { it.value }.take(3).map { it.key }
+                !topVideoTopics.any { topic ->
+                    blockedTopicLemmas.any { blocked ->
+                        topic.contains(blocked) || blocked.contains(topic)
+                    }
+                }
+            }
         }
 
         // Time context
@@ -961,7 +1045,7 @@ class FlowNeuroEngine(private val appContext: Context) {
                 NeuroScoring.ONBOARDING_WARMUP_INTERACTIONS.toDouble()) * 0.5
         } else 0.5
 
-        val scored = videoVectors.map { (video, videoVector) ->
+        val scored = vectorFiltered.map { (video, videoVector) ->
             val personalityScore = if (video.isShort && brain.shortsVector.topics.isNotEmpty()) {
                 val globalSim = NeuroVectorMath.calculateCosineSimilarity(brain.globalVector, videoVector)
                 val shortsSim = NeuroVectorMath.calculateCosineSimilarity(brain.shortsVector, videoVector)

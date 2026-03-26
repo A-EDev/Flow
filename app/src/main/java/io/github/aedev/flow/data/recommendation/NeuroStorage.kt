@@ -39,7 +39,7 @@ internal class NeuroStorage(private val appContext: Context) {
     companion object {
         private const val TAG = "FlowNeuroEngine"
         private const val BRAIN_FILENAME = "user_neuro_brain.json"
-        private const val SCHEMA_VERSION = 10
+        private const val SCHEMA_VERSION = 11
     }
 
     // ── Serializable models ──
@@ -73,7 +73,9 @@ internal class NeuroStorage(private val appContext: Context) {
         val watchHistoryMap: Map<String, Float> = emptyMap(),
         val seenShortsHistory: Map<String, Long> = emptyMap(),
         val channelTopicProfiles: Map<String, Map<String, Double>> = emptyMap(),
-        val shortsVector: SerializableVector = SerializableVector()
+        val shortsVector: SerializableVector = SerializableVector(),
+        val suppressedVideoIds: Map<String, Long> = emptyMap(),
+        val suppressedChannels: Map<String, Long> = emptyMap()
     )
 
     // ── DataStore setup ──
@@ -145,7 +147,9 @@ internal class NeuroStorage(private val appContext: Context) {
         watchHistoryMap = watchHistoryMap,
         seenShortsHistory = seenShortsHistory,
         channelTopicProfiles = channelTopicProfiles,
-        shortsVector = shortsVector.toSerializable()
+        shortsVector = shortsVector.toSerializable(),
+        suppressedVideoIds = suppressedVideoIds,
+        suppressedChannels = suppressedChannels
     )
 
     fun SerializableBrain.toUserBrain(): UserBrain {
@@ -172,7 +176,8 @@ internal class NeuroStorage(private val appContext: Context) {
             seenShortsHistory = seenShortsHistory,
             channelTopicProfiles = channelTopicProfiles,
             shortsVector = shortsVector.toContentVector(),
-            schemaVersion = schemaVersion
+            suppressedVideoIds = suppressedVideoIds,
+            suppressedChannels = suppressedChannels,
         )
     }
 
