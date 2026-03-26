@@ -27,19 +27,30 @@ object StreamProcessor {
     fun processAudioStreams(streams: List<AudioStream>): List<AudioStream> {
         return streams
             .sortedByDescending { it.averageBitrate }
-            .groupBy { stream ->
-                val trackIdLang = stream.audioTrackId
-                    ?.substringAfterLast(".")
-                    ?.takeIf { it.isNotBlank() && it != stream.audioTrackId }
-                val localeLang = stream.audioLocale?.language?.takeIf { it.isNotBlank() }
-                val trackName = stream.audioTrackName?.takeIf { it.isNotBlank() }
-                trackIdLang ?: localeLang ?: trackName ?: "default"
-            }
+            .groupBy { stream -> extractTrackLanguageKey(stream) }
             .map { (_, group) ->
                 group.first()
             }
             .sortedBy { stream -> languageDisplayName(stream, 0) }
             .also { Log.d(TAG, "Processed ${streams.size} audio streams -> ${it.size} unique tracks") }
+    }
+
+    /**
+     * Derive a unique grouping key for deduplication. Uses audioTrackName, audioLocale, or
+     * audioTrackId (trying both dot- and underscore-separated suffixes, then full ID) so that
+     * tracks with formats like "A_hi" are not all collapsed into a single "default" group.
+     */
+    private fun extractTrackLanguageKey(stream: AudioStream): String {
+        stream.audioTrackName?.takeIf { it.isNotBlank() }?.let { return it }
+        stream.audioLocale?.language?.takeIf { it.isNotBlank() }?.let { return it }
+        stream.audioTrackId?.let { id ->
+            val dotPart = id.substringAfterLast(".").takeIf { it.isNotBlank() && it != id }
+            if (dotPart != null) return dotPart
+            val underPart = id.substringAfterLast("_").takeIf { it.isNotBlank() && it != id }
+            if (underPart != null) return underPart
+            return id
+        }
+        return "default"
     }
 
     /**
@@ -56,9 +67,9 @@ object StreamProcessor {
         }
 
         stream.audioTrackId?.let { trackId ->
-            val langCode = trackId.substringAfterLast(".").takeIf {
-                it.isNotBlank() && it != trackId
-            }
+            val dotCode = trackId.substringAfterLast(".").takeIf { it.isNotBlank() && it != trackId }
+            val underCode = trackId.substringAfterLast("_").takeIf { it.isNotBlank() && it != trackId }
+            val langCode = dotCode ?: underCode
             if (langCode != null) {
                 val locale = java.util.Locale(langCode)
                 val name = locale.getDisplayLanguage(java.util.Locale.getDefault())

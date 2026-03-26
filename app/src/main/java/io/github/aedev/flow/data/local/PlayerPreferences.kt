@@ -114,6 +114,9 @@ class PlayerPreferences(private val context: Context) {
         val MINI_PLAYER_SHOW_SKIP_CONTROLS = booleanPreferencesKey("mini_player_show_skip_controls")
         val MINI_PLAYER_SHOW_NEXT_PREV_CONTROLS = booleanPreferencesKey("mini_player_show_next_prev_controls")
         val MINI_PLAYER_CONTINUE_WATCHING_ENABLED = booleanPreferencesKey("mini_player_continue_watching_enabled")
+
+        // Audio focus during calls
+        val PLAY_DURING_CALLS = booleanPreferencesKey("play_during_calls")
     }
     
     // Grid item size preference
@@ -826,6 +829,17 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setMiniPlayerContinueWatchingEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MINI_PLAYER_CONTINUE_WATCHING_ENABLED] = enabled
+        }
+    }
+
+    val playDuringCalls: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.PLAY_DURING_CALLS] ?: false
+        }
+
+    suspend fun setPlayDuringCalls(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PLAY_DURING_CALLS] = enabled
         }
     }
 

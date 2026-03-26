@@ -117,7 +117,9 @@ class PlayerFactory {
         dataSourceFactory: DataSource.Factory?
     ): ExoPlayer {
         val factory = dataSourceFactory ?: DefaultDataSource.Factory(context)
-        
+        val prefs = PlayerPreferences(context)
+        val playDuringCalls = runBlocking { prefs.playDuringCalls.first() }
+
         return ExoPlayer.Builder(context, renderersFactory)
             .setTrackSelector(trackSelector)
             .setAudioAttributes(
@@ -125,7 +127,7 @@ class PlayerFactory {
                     .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
                     .setUsage(C.USAGE_MEDIA)
                     .build(),
-                true
+                !playDuringCalls
             )
             .setHandleAudioBecomingNoisy(true)
             .setLoadControl(loadControl)

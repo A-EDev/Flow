@@ -73,6 +73,7 @@ fun PlayerSettingsScreen(
     val manualPipButtonEnabled by playerPreferences.manualPipButtonEnabled.collectAsState(initial = true)
     val backgroundPlayEnabled by playerPreferences.backgroundPlayEnabled.collectAsState(initial = false)
     val preferredAudioLanguage by playerPreferences.preferredAudioLanguage.collectAsState(initial = "original")
+    val playDuringCalls by playerPreferences.playDuringCalls.collectAsState(initial = false)
     val currentLyricsProvider by playerPreferences.preferredLyricsProvider.collectAsState(initial = "LRCLIB")
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
     val miniPlayerContinueWatchingEnabled by playerPreferences.miniPlayerContinueWatchingEnabled.collectAsState(initial = true)
@@ -243,6 +244,14 @@ fun PlayerSettingsScreen(
                         subtitle = audioLanguageOptions.find { it.first == preferredAudioLanguage }?.second 
                             ?: stringResource(R.string.player_settings_audio_original),
                         onClick = { showAudioLanguageDialog = true }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Call,
+                        title = stringResource(R.string.player_settings_play_during_calls),
+                        subtitle = stringResource(R.string.player_settings_play_during_calls_subtitle),
+                        checked = playDuringCalls,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setPlayDuringCalls(it) } }
                     )
                 }
             }

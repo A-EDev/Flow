@@ -544,6 +544,8 @@
     <string name="player_settings_show_pip">Show PiP Button</string>
     <string name="player_settings_show_pip_subtitle">Show manual PiP button in player controls</string>
     <string name="player_settings_header_audio">Audio</string>
+    <string name="player_settings_play_during_calls">Play During Calls</string>
+    <string name="player_settings_play_during_calls_subtitle">Continue playback during phone or VoIP calls (e.g. WhatsApp)</string>
     <string name="player_settings_audio_language">Preferred Audio Language</string>
     <string name="player_settings_audio_language_dialog_title">Audio Language</string>
     <string name="player_settings_audio_language_dialog_body">Select your preferred audio track language. If not available, the original language will be used.</string>
