@@ -374,10 +374,7 @@ fun VideoLoadEffect(
     viewModel: VideoPlayerViewModel
 ) {
     LaunchedEffect(videoId) {
-        val currentState = viewModel.uiState.value
-        if (!currentState.isLoading || currentState.cachedVideo?.id != videoId) {
-            screenState.resetForNewVideo()
-        }
+        screenState.resetForNewVideo()
 
         // Detect if on Wifi for preferred quality
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager

@@ -20,3 +20,5 @@ FIXES AND STABILITY
 - Fix orientation when re-entering video player #179
 - Fix continue watching mini-player #167
 - Fix seek to preview box shape #179
+- Fix video timestamps #192
+- Fix video delete issues #95

@@ -7,16 +7,12 @@ import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.DownloadedVideo
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import javax.inject.Inject
-
-private const val UNDO_WINDOW_MS = 4_000L
 
 @HiltViewModel
 class DownloadsViewModel @Inject constructor(
@@ -28,13 +24,10 @@ class DownloadsViewModel @Inject constructor(
     val uiState: StateFlow<DownloadsUiState> = _uiState.asStateFlow()
 
     /**
-     * IDs of items currently in the undo-window (optimistically hidden from the list).
-     * The real I/O deletion fires after [UNDO_WINDOW_MS] unless cancelled by [cancelDelete].
+     * IDs of items currently being deleted (optimistically hidden from the list).
      */
     private val _pendingDeleteIds = MutableStateFlow<Set<String>>(emptySet())
 
-    private val pendingDeleteJobs = mutableMapOf<String, Job>()
-    
     private val deletionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     init {
@@ -68,61 +61,19 @@ class DownloadsViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Begin a delete flow for a video download.
-     *
-     * The item is immediately hidden from the UI.  The actual I/O deletion fires after
-     * [UNDO_WINDOW_MS] unless the user calls [cancelDelete] within that window.
-     * Because the Job lives in [viewModelScope] it is **not** cancelled when the user
-     * navigates away — the deletion will always complete.
-     */
-    fun requestDeleteVideo(videoId: String) {
-        scheduleDelete(videoId) {
-            videoDownloadManager.deleteDownload(videoId)
-        }
-    }
-
-    /**
-     * Begin a delete flow for a music download.
-     * Same lifecycle guarantees as [requestDeleteVideo].
-     */
-    fun requestDeleteMusic(videoId: String) {
-        scheduleDelete(videoId) {
-            musicDownloadManager.deleteDownload(videoId)
-        }
-    }
-
-    /**
-     * Cancel a pending deletion within the undo window.
-     * The item reappears in the list immediately.
-     */
-    fun cancelDelete(videoId: String) {
-        pendingDeleteJobs.remove(videoId)?.cancel()
-        _pendingDeleteIds.update { it - videoId }
-    }
-
-    private fun scheduleDelete(id: String, doDelete: suspend () -> Unit) {
-        pendingDeleteJobs.remove(id)?.cancel()
-
-        _pendingDeleteIds.update { it + id }
-
-        val job = deletionScope.launch {
-            delay(UNDO_WINDOW_MS)
-            doDelete()
-            _pendingDeleteIds.update { it - id }
-        }
-        pendingDeleteJobs[id] = job
-    }
-
     fun deleteVideoDownload(videoId: String) {
+        _pendingDeleteIds.update { it + videoId }
         deletionScope.launch {
             videoDownloadManager.deleteDownload(videoId)
+            _pendingDeleteIds.update { it - videoId }
         }
     }
 
     fun deleteMusicDownload(videoId: String) {
+        _pendingDeleteIds.update { it + videoId }
         deletionScope.launch {
             musicDownloadManager.deleteDownload(videoId)
+            _pendingDeleteIds.update { it - videoId }
         }
     }
 

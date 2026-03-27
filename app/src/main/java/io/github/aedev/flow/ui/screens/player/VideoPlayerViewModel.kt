@@ -212,6 +212,7 @@ class VideoPlayerViewModel @Inject constructor(
             streamInfo = null,
             videoStream = null,
             audioStream = null,
+            savedPosition = null,
             relatedVideos = emptyList(),
             isSubscribed = false,
             likeState = null
@@ -395,6 +396,7 @@ class VideoPlayerViewModel @Inject constructor(
             streamInfo = null,
             videoStream = null,
             audioStream = null,
+            savedPosition = null,
             relatedVideos = emptyList(),
             dislikeCount = null,
             // Also reset subscription and like state for new video
