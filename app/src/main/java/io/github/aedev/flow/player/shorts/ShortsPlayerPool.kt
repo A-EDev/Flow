@@ -57,8 +57,8 @@ class ShortsPlayerPool private constructor() {
         // Tuned for Shorts: Faster start (1s min buffer), keep max buffer healthy
         private const val MIN_BUFFER_MS = 5_000 
         private const val MAX_BUFFER_MS = 25_000
-        private const val BUFFER_FOR_PLAYBACK_MS = 1_500
-        private const val BUFFER_FOR_REBUFFER_MS = 2_500
+        private const val BUFFER_FOR_PLAYBACK_MS = 1_000
+        private const val BUFFER_FOR_REBUFFER_MS = 2_000
         private const val BACK_BUFFER_MS = 5_000
 
         @Volatile

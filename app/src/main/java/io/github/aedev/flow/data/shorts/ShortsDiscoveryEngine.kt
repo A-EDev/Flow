@@ -52,13 +52,13 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
         private const val TAG = "ShortsDiscovery"
 
         /** Max uploads to pull per subscription channel (filter by ≤60s after) */
-        private const val UPLOADS_PER_CHANNEL = 20
+        private const val UPLOADS_PER_CHANNEL = 15
 
         /** Max subscription channels to hit per refresh cycle */
-        private const val MAX_SUB_CHANNELS = 15
+        private const val MAX_SUB_CHANNELS = 8
 
-        /** Max discovery search queries to run per refresh */
-        private const val MAX_DISCOVERY_QUERIES = 6
+        /** Max discovery search queries to run per refresh (3 = exactly one Semaphore(3) round) */
+        private const val MAX_DISCOVERY_QUERIES = 3
 
         /** Max results to take from each discovery search */
         private const val SHORTS_PER_SEARCH = 15
@@ -225,7 +225,7 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
                     }
 
                     val shorts = requestSemaphore.withPermit {
-                        withTimeoutOrNull(8_000L) {
+                        withTimeoutOrNull(4_000L) {
                             fetchShortsForChannel(channelId)
                         } ?: emptyList()
                     }
@@ -271,7 +271,7 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
                     }
 
                     val results = requestSemaphore.withPermit {
-                        withTimeoutOrNull(8_000L) {
+                        withTimeoutOrNull(4_000L) {
                             searchShorts(query)
                         } ?: emptyList()
                     }

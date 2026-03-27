@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.0.1
-DATE: 2026-03-26
+DATE: 2026-03-27
 
 FEATURES
 - New Audio focus toggle to continue playing videos while on a call #175 #177
@@ -11,6 +11,7 @@ IMPROVEMENTS
 - Improved filtering on marked content #173
 - Hide related video when marked in the video player screen #172
 - Add shorts deduplication in the subs screen shorts shelf #138 #162
+- Optimized shorts loading speeds
 
 FIXES AND STABILITY
 - Keyboard Focus and pop up

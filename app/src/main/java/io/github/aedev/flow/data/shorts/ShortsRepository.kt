@@ -12,14 +12,16 @@ import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -54,7 +56,7 @@ class ShortsRepository private constructor(private val context: Context) {
     private val shortsDiscovery = ShortsDiscoveryEngine.getInstance(context)
     
     // In-memory caches — ephemeral, cleared when app process dies
-    private val streamInfoCache = LruCache<String, StreamInfo>(30)
+    private val streamInfoCache = LruCache<String, StreamInfo>(50)
     private val shortsCache = LruCache<String, ShortVideo>(100)
     
     // Track recently shown to prevent immediate repeats within a session
@@ -69,6 +71,13 @@ class ShortsRepository private constructor(private val context: Context) {
     // Progressive enrichment events — UI observes this to update metadata live 
     private val _enrichmentUpdates = MutableSharedFlow<List<ShortVideo>>(extraBufferCapacity = 16)
     val enrichmentUpdates: SharedFlow<List<ShortVideo>> = _enrichmentUpdates.asSharedFlow()
+
+    // Discovery feed appendages — emitted when background discovery completes after InnerTube fast-path
+    private val _discoveryFeedUpdate = MutableSharedFlow<List<ShortVideo>>(replay = 1, extraBufferCapacity = 3)
+    val discoveryFeedUpdate: SharedFlow<List<ShortVideo>> = _discoveryFeedUpdate.asSharedFlow()
+
+    // Scope for background work (enrichment, pre-caching) that must outlive any single call
+    private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     
     companion object {
         private const val TAG = "ShortsRepository"
@@ -126,45 +135,73 @@ class ShortsRepository private constructor(private val context: Context) {
     private suspend fun fetchDiscoveryFeed(): ShortsSequenceResult {
         val userSubs = subscriptionRepository.getAllSubscriptionIds()
 
-        val (innerTubeResult, rawDiscovery) = coroutineScope {
-            val itJob = async {
-                try {
-                    withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) { fetchFromInnerTubeRaw(null) }
-                } catch (e: Exception) { null }
+        // Discovery starts immediately in the background — never blocks the return path
+        val discJob = repositoryScope.async {
+            try {
+                shortsDiscovery.getDiscoveryShorts(userSubs = userSubs, trending = emptyList())
+            } catch (e: Exception) {
+                Log.e(TAG, "ShortsDiscoveryEngine failed", e)
+                null
             }
-            val discJob = async {
+        }
+
+        // InnerTube is the fast path — typically returns in 1–3 s
+        val innerTubeResult = try {
+            withTimeoutOrNull(INNERTUBE_TIMEOUT_MS) { fetchFromInnerTubeRaw(null) }
+        } catch (e: Exception) {
+            Log.w(TAG, "InnerTube feed failed: ${e.message}")
+            null
+        }
+
+        if (innerTubeResult != null && innerTubeResult.shorts.isNotEmpty()) {
+            val itShorts = innerTubeResult.shorts
+            markAsShown(itShorts.map { it.id })
+            itShorts.forEach { shortsCache.put(it.id, it) }
+
+            repositoryScope.launch { preResolveStreams(itShorts.take(2).map { it.id }) }
+
+            val earlyResult = ShortsSequenceResult(itShorts, innerTubeResult.continuation)
+            cachedInitialFeed = earlyResult
+            cachedFeedTimestamp = System.currentTimeMillis()
+            Log.i(TAG, "✓ InnerTube fast-path: ${itShorts.size} shorts — returning immediately")
+
+            repositoryScope.launch {
+                val ranked = discJob.await()
+                val existingIds = itShorts.map { it.id }.toHashSet()
+                val newCandidates = ranked
+                    ?.filter { it.id !in recentlyShownIds && it.id !in existingIds }
+                    ?.let { deduplicateByTitle(it) }
+                    ?.map { it.toShortVideo() }
+                    .orEmpty()
+
+                if (newCandidates.isNotEmpty()) {
+                    markAsShown(newCandidates.map { it.id })
+                    newCandidates.forEach { shortsCache.put(it.id, it) }
+                    _discoveryFeedUpdate.tryEmit(newCandidates)
+                    cachedInitialFeed = ShortsSequenceResult(
+                        itShorts + newCandidates, innerTubeResult.continuation
+                    )
+                }
+
+                val allShorts = cachedInitialFeed?.shorts ?: itShorts
                 try {
-                    shortsDiscovery.getDiscoveryShorts(userSubs = userSubs, trending = emptyList())
+                    withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) {
+                        val enriched = enrichMissingMetadata(allShorts)
+                        enriched.forEach { shortsCache.put(it.id, it) }
+                    }
                 } catch (e: Exception) {
-                    Log.e(TAG, "ShortsDiscoveryEngine failed", e)
-                    null
+                    Log.w(TAG, "Background enrichment failed: ${e.message}")
                 }
             }
-            Pair(itJob.await(), discJob.await())
+
+            return earlyResult
         }
 
-        val continuationToken = innerTubeResult?.continuation
-
-        val discoveryVideos: List<io.github.aedev.flow.data.model.Video> = when {
-            !rawDiscovery.isNullOrEmpty() -> rawDiscovery
-            innerTubeResult != null && innerTubeResult.shorts.isNotEmpty() -> {
-                Log.w(TAG, "Discovery empty — ranking InnerTube result")
-                innerTubeResult.shorts.map { it.toVideo() }.let { videos ->
-                    FlowNeuroEngine.rank(videos, userSubs)
-                }
-            }
-            else -> emptyList()
-        }.let { videos ->
-            if (videos.size in 1 until MIN_POOL_SIZE &&
-                innerTubeResult != null &&
-                innerTubeResult.shorts.isNotEmpty()
-            ) {
-                val itVideos = innerTubeResult.shorts.map { it.toVideo() }
-                val seenIds = videos.map { it.id }.toHashSet()
-                val supplement = itVideos.filter { it.id !in seenIds }
-                FlowNeuroEngine.rank(videos + supplement, userSubs)
-            } else videos
-        }
+        // InnerTube unavailable — await discovery or NewPipe fallback
+        Log.w(TAG, "InnerTube failed — awaiting discovery result")
+        val rawDiscovery = discJob.await()
+        val discoveryVideos: List<io.github.aedev.flow.data.model.Video> =
+            if (!rawDiscovery.isNullOrEmpty()) rawDiscovery else emptyList()
 
         if (discoveryVideos.isEmpty()) {
             Log.w(TAG, "⟳ All sources empty — falling back to NewPipe")
@@ -189,26 +226,28 @@ class ShortsRepository private constructor(private val context: Context) {
 
         val candidateShorts = discoveryVideos
             .filter { it.id !in recentlyShownIds }
-            .let { videos ->
-                deduplicateByTitle(videos)
-            }
+            .let { deduplicateByTitle(it) }
             .map { it.toShortVideo() }
 
         markAsShown(candidateShorts.map { it.id })
         candidateShorts.forEach { shortsCache.put(it.id, it) }
 
-        val enriched = try {
-            withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) { enrichMissingMetadata(candidateShorts) }
-        } catch (e: Exception) {
-            Log.w(TAG, "Enrichment failed, using raw data: ${e.message}")
-            null
-        } ?: candidateShorts
-        enriched.forEach { shortsCache.put(it.id, it) }
-
-        val result = ShortsSequenceResult(enriched, continuationToken)
+        val result = ShortsSequenceResult(candidateShorts, null)
         cachedInitialFeed = result
         cachedFeedTimestamp = System.currentTimeMillis()
-        Log.i(TAG, "✓ Discovery feed: ${enriched.size} shorts (continuation=${continuationToken != null})")
+        Log.i(TAG, "✓ Discovery-only feed: ${candidateShorts.size} shorts")
+
+        repositoryScope.launch {
+            try {
+                withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) {
+                    val enriched = enrichMissingMetadata(candidateShorts)
+                    enriched.forEach { shortsCache.put(it.id, it) }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Background enrichment failed: ${e.message}")
+            }
+        }
+
         return result
     }
     

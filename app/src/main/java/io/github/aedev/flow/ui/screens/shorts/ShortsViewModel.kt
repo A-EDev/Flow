@@ -89,6 +89,19 @@ class ShortsViewModel @Inject constructor(
                 }
             }
         }
+
+        // Append discovery-ranked items when background discovery finishes after InnerTube fast-path
+        viewModelScope.launch {
+            shortsRepository.discoveryFeedUpdate.collect { newShorts ->
+                val current = _uiState.value.shorts
+                if (newShorts.isEmpty() || current.isEmpty()) return@collect
+                val existingIds = current.map { it.id }.toHashSet()
+                val toAppend = newShorts.filter { it.id !in existingIds }
+                if (toAppend.isNotEmpty()) {
+                    _uiState.value = _uiState.value.copy(shorts = current + toAppend)
+                }
+            }
+        }
     }
 
     // REACTIVE STATE — Single Source of Truth
@@ -170,6 +183,13 @@ class ShortsViewModel @Inject constructor(
                     }
                 }
                 
+                if (shorts.isNotEmpty()) {
+                    val idsToPreload = shorts.take(3).map { it.id }
+                    viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                        preResolveStreams(idsToPreload)
+                    }
+                }
+
                 _uiState.value = _uiState.value.copy(
                     shorts = shorts,
                     currentIndex = startIndex,
@@ -177,12 +197,6 @@ class ShortsViewModel @Inject constructor(
                     hasMorePages = result.continuation != null || shorts.size >= 5,
                     continuation = result.continuation
                 )
-                
-                // Pre-resolve streams for the first few shorts
-                if (shorts.isNotEmpty()) {
-                    val idsToPreload = shorts.take(3).map { it.id }
-                    preResolveStreams(idsToPreload)
-                }
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading shorts", e)
