@@ -65,6 +65,8 @@ fun VideoInfoSection(
     onDownloadClick: () -> Unit,
     onSaveClick: () -> Unit,
     onBackgroundPlayClick: () -> Unit,
+    onCopyLinkClick: () -> Unit = {},
+    onCopyLinkAtTimeClick: () -> Unit = {},
     onDescriptionClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -191,7 +193,9 @@ fun VideoInfoSection(
             onShareClick = onShareClick,
             onDownloadClick = onDownloadClick,
             onSaveClick = onSaveClick,
-            onBackgroundPlayClick = onBackgroundPlayClick
+            onBackgroundPlayClick = onBackgroundPlayClick,
+            onCopyLinkClick = onCopyLinkClick,
+            onCopyLinkAtTimeClick = onCopyLinkAtTimeClick
         )
     }
 }
@@ -337,7 +341,9 @@ fun VideoActionRow(
     onShareClick: () -> Unit,
     onDownloadClick: () -> Unit,
     onSaveClick: () -> Unit,
-    onBackgroundPlayClick: () -> Unit
+    onBackgroundPlayClick: () -> Unit,
+    onCopyLinkClick: () -> Unit = {},
+    onCopyLinkAtTimeClick: () -> Unit = {}
 ) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -382,6 +388,22 @@ fun VideoActionRow(
                 icon = Icons.Outlined.Share,
                 label = stringResource(R.string.share),
                 onClick = onShareClick
+            )
+        }
+
+        item {
+            ActionChip(
+                icon = Icons.Outlined.Link,
+                label = stringResource(R.string.player_action_copy_link),
+                onClick = onCopyLinkClick
+            )
+        }
+
+        item {
+            ActionChip(
+                icon = Icons.Outlined.Timer,
+                label = stringResource(R.string.player_action_copy_link_at_time),
+                onClick = onCopyLinkAtTimeClick
             )
         }
         

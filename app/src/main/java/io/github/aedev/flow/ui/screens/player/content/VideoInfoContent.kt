@@ -1,7 +1,10 @@
 package io.github.aedev.flow.ui.screens.player.content
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -13,6 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.components.CommentsPreview
 import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
@@ -121,6 +125,20 @@ fun VideoInfoContent(
         },
         onDownloadClick = { screenState.showDownloadDialog = true },
         onBackgroundPlayClick = { viewModel.startBackgroundService() },
+        onCopyLinkClick = {
+            val url = "https://www.youtube.com/watch?v=${video.id}"
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("video_link", url))
+            Toast.makeText(context, context.getString(R.string.link_copied), Toast.LENGTH_SHORT).show()
+        },
+        onCopyLinkAtTimeClick = {
+            val positionMs = EnhancedPlayerManager.getInstance().getCurrentPosition()
+            val positionSeconds = positionMs / 1000L
+            val url = "https://www.youtube.com/watch?v=${video.id}&t=${positionSeconds}s"
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("video_link_at_time", url))
+            Toast.makeText(context, context.getString(R.string.link_with_timestamp_copied), Toast.LENGTH_SHORT).show()
+        },
         onDescriptionClick = { screenState.showDescriptionSheet = true }
     )
 

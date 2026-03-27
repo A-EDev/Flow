@@ -4,6 +4,8 @@ DATE: 2026-03-27
 
 FEATURES
 - New Audio focus toggle to continue playing videos while on a call #175 #177
+- Add new copy video link at time stamps button #178
+- Add new direct video link copy button #178
 
 IMPROVEMENTS
 - FlowNeuroEngine modularization
@@ -12,6 +14,7 @@ IMPROVEMENTS
 - Hide related video when marked in the video player screen #172
 - Add shorts deduplication in the subs screen shorts shelf #138 #162
 - Optimized shorts loading speeds
+- Video quick actions menu
 
 FIXES AND STABILITY
 - Keyboard Focus and pop up
@@ -22,3 +25,4 @@ FIXES AND STABILITY
 - Fix seek to preview box shape #179
 - Fix video timestamps #192
 - Fix video delete issues #95
+- Fix share button issues #176
