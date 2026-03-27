@@ -174,6 +174,13 @@ class VideoPlayerViewModel @Inject constructor(
         playVideo(video)
     }
 
+    fun dismissContinueWatching() {
+        val videoId = _uiState.value.cachedVideo?.id ?: return
+        viewModelScope.launch {
+            viewHistory.markAsWatched(videoId)
+        }
+    }
+
     fun clearResumedInMiniPlayer() {
         _uiState.update { it.copy(resumedInMiniPlayer = false) }
     }

@@ -17,3 +17,6 @@ FIXES AND STABILITY
 - Keyboard Focus and pop up
 - Fix shorts quality preferences #170
 - Fix missing audio tracks #171
+- Fix orientation when re-entering video player #179
+- Fix continue watching mini-player #167
+- Fix seek to preview box shape #179

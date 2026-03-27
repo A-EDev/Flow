@@ -149,6 +149,14 @@ class ViewHistory private constructor(private val context: Context) {
         dao.deleteEntry(videoId)
     }
 
+    /**
+     * Marks the given video as fully watched (position = duration) so it no longer
+     * appears in the continue-watching mini-player popup on the next app launch.
+     */
+    suspend fun markAsWatched(videoId: String) {
+        dao.markAsWatched(videoId)
+    }
+
     suspend fun clearAllHistory() {
         dao.clearAll()
     }

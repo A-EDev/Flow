@@ -54,6 +54,7 @@ import io.github.aedev.flow.data.model.SponsorBlockSegment
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -63,6 +64,10 @@ import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.IntOffset
 import org.schabi.newpipe.extractor.stream.StreamSegment
 
 // Custom seekbar with preview thumbnails
@@ -133,7 +138,13 @@ fun SeekbarWithPreview(
             }
         }
     }
-    
+
+    LaunchedEffect(isInteracting) {
+        if (isInteracting && sliderWidth > 0f) {
+            previewPosition = with(density) { (internalValue * sliderWidth).toDp().value }
+        }
+    }
+
     val trackHeight by animateDpAsState(
         targetValue = if (isInteracting) 10.dp else 4.dp,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
@@ -149,13 +160,24 @@ fun SeekbarWithPreview(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(32.dp)
-            .onGloballyPositioned { coordinates ->
-                sliderWidth = coordinates.size.width.toFloat()
-            },
-        contentAlignment = Alignment.Center
+            .layout { measurable, constraints ->
+                val placeable = measurable.measure(constraints)
+                val reportedHeight = 32.dp.roundToPx()
+                layout(placeable.width, reportedHeight) {
+                    placeable.placeRelative(0, 0)
+                }
+            }
     ) {
-        // Custom Track with Segments
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(32.dp)
+                .onGloballyPositioned { coordinates ->
+                    sliderWidth = coordinates.size.width.toFloat()
+                },
+            contentAlignment = Alignment.Center
+        ) {
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
@@ -245,71 +267,6 @@ fun SeekbarWithPreview(
             }
         }
 
-        // Preview thumbnail overlay - BIGGER and SLEEKER
-        AnimatedVisibility(
-            visible = showPreview && previewBitmap != null,
-            enter = fadeIn(tween(200)) + scaleIn(initialScale = 0.9f, animationSpec = tween(200)) + slideInVertically(initialOffsetY = { 20 }),
-            exit = fadeOut(tween(200)) + scaleOut(targetScale = 0.9f, animationSpec = tween(200)) + slideOutVertically(targetOffsetY = { 20 }),
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .offset(x = (previewPosition - 110).dp, y = (-150).dp)
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Surface(
-                    modifier = Modifier
-                        .size(220.dp, 124.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color.Black,
-                    border = BorderStroke(2.dp, Color.White.copy(alpha = 0.9f)),
-                    shadowElevation = 12.dp
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        AndroidView(
-                            factory = { ctx ->
-                                android.widget.ImageView(ctx).apply {
-                                    scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
-                                    setImageBitmap(previewBitmap)
-                                }
-                            },
-                            update = { imageView ->
-                                imageView.setImageBitmap(previewBitmap)
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        
-                        // Time overlay on preview
-                        Surface(
-                            color = Color.Black.copy(alpha = 0.7f),
-                            shape = RoundedCornerShape(4.dp),
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 8.dp)
-                        ) {
-                            Text(
-                                text = VideoPlayerUtils.formatTime((internalValue * duration).toLong()),
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-                
-                // Triangle pointer
-                Box(
-                    modifier = Modifier
-                        .size(16.dp, 8.dp)
-                        .background(Color.White, shape = GenericShape { size, _ ->
-                            moveTo(0f, 0f)
-                            lineTo(size.width, 0f)
-                            lineTo(size.width / 2f, size.height)
-                            close()
-                        })
-                )
-            }
-        }
-
         // The actual slider
         @OptIn(ExperimentalMaterial3Api::class)
         Slider(
@@ -356,5 +313,85 @@ fun SeekbarWithPreview(
                 )
             }
         )
+        } 
+
+        val previewW = 200.dp
+        val previewH = 112.dp
+        val triangleH = 7.dp
+
+        AnimatedVisibility(
+            visible = isInteracting,
+            enter = fadeIn(tween(150)) + slideInVertically(
+                initialOffsetY = { it / 2 }, animationSpec = tween(150)
+            ),
+            exit = fadeOut(tween(200)) + slideOutVertically(
+                targetOffsetY = { it / 2 }, animationSpec = tween(200)
+            ),
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .offset {
+                    val previewWidthPx = previewW.toPx()
+                    val positionPx = previewPosition.dp.toPx()
+                    val rawX = positionPx - previewWidthPx / 2f
+                    val clampedX = rawX.coerceIn(0f, (sliderWidth - previewWidthPx).coerceAtLeast(0f))
+                    val yPx = (previewH + triangleH + 4.dp).toPx()
+                    IntOffset(clampedX.toInt(), -yPx.toInt())
+                }
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Surface(
+                    modifier = Modifier.size(previewW, previewH),
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Black,
+                    border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.85f)),
+                    shadowElevation = 8.dp
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        val bmp = previewBitmap
+                        if (bmp != null) {
+                            Image(
+                                bitmap = bmp.asImageBitmap(),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color(0xFF1C1C1C))
+                            )
+                        }
+
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.7f),
+                            shape = RoundedCornerShape(4.dp),
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 6.dp)
+                        ) {
+                            Text(
+                                text = VideoPlayerUtils.formatTime((internalValue * duration).toLong()),
+                                color = Color.White,
+                                style = MaterialTheme.typography.labelSmall,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(14.dp, triangleH)
+                        .background(Color.White.copy(alpha = 0.85f), shape = GenericShape { size, _ ->
+                            moveTo(0f, 0f)
+                            lineTo(size.width, 0f)
+                            lineTo(size.width / 2f, size.height)
+                            close()
+                        })
+                )
+            }
+        }
     }
 }

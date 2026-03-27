@@ -292,10 +292,21 @@ fun GestureOverlayAutoHideEffect(
 fun FullscreenEffect(
     isFullscreen: Boolean,
     activity: Activity?,
-    videoAspectRatio: Float = 16f / 9f
+    videoAspectRatio: Float = 16f / 9f,
+    lifecycleOwner: LifecycleOwner
 ) {
-    LaunchedEffect(isFullscreen, videoAspectRatio) {
+    var resumeTrigger by remember { mutableIntStateOf(0) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) resumeTrigger++
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(isFullscreen, videoAspectRatio, resumeTrigger) {
         activity?.let { act ->
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && act.isInPictureInPictureMode) return@let
             if (isFullscreen) {
                 val orientation = if (videoAspectRatio < 1f) {
                     ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT

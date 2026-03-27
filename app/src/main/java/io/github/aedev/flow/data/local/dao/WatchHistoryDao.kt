@@ -62,8 +62,16 @@ interface WatchHistoryDao {
     suspend fun getAllWatchedVideoIds(): List<String>
 
     /**
-     * Returns the most recently watched non-music video that is not yet finished
-     * (position > 0 and less than 95% of duration). Used for the "resume" mini player.
+     * Returns the most recently watched non-music video **only if that specific video
+     * is still in progress**.  By restricting to the maximum timestamp we avoid the
+     * "stack fallback" problem where finishing one video causes the previous unfinished
+     * video to pop up in the continue-watching mini-player instead.
+     *
+     * Criteria:
+     *  - Must be the absolute latest watched video (by timestamp)
+     *  - position saved (> 0)
+     *  - less than 95% watched
+     *  - more than 30 seconds of content remaining
      */
     @Query("""
         SELECT * FROM watch_history
@@ -71,8 +79,17 @@ interface WatchHistoryDao {
         AND duration > 0
         AND position > 0
         AND (CAST(position AS REAL) / CAST(duration AS REAL)) < 0.95
-        ORDER BY timestamp DESC
+        AND (duration - position) > 30000
+        AND timestamp = (SELECT MAX(timestamp) FROM watch_history WHERE isMusic = 0)
         LIMIT 1
     """)
     suspend fun getLatestUnfinishedVideo(): WatchHistoryEntity?
+
+    /**
+     * Marks a video as fully watched by setting position = duration.
+     * This excludes it from the continue-watching popup on the next launch.
+     * Called when the user explicitly dismisses the restored-session mini-player.
+     */
+    @Query("UPDATE watch_history SET position = duration WHERE videoId = :videoId")
+    suspend fun markAsWatched(videoId: String)
 }

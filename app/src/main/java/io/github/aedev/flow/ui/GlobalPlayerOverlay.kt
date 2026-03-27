@@ -157,8 +157,8 @@ fun GlobalPlayerOverlay(
     val isLandscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val isTablet = config.smallestScreenWidthDp >= 600
 
-    LaunchedEffect(isLandscape, isTablet) {
-        if (isLandscape && !isTablet && playerSheetState.currentValue == PlayerSheetValue.Expanded) {
+    LaunchedEffect(isLandscape, isTablet, localIsInPipMode) {
+        if (isLandscape && !isTablet && !localIsInPipMode && playerSheetState.currentValue == PlayerSheetValue.Expanded) {
             // Automatically enter fullscreen on phones when rotated to landscape
             screenState.isFullscreen = true
         }
@@ -230,7 +230,8 @@ fun GlobalPlayerOverlay(
     FullscreenEffect(
         isFullscreen = screenState.isFullscreen,
         activity = activity,
-        videoAspectRatio = videoAspectRatio
+        videoAspectRatio = videoAspectRatio,
+        lifecycleOwner = lifecycleOwner
     )
     
     OrientationResetEffect(activity)

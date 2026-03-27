@@ -336,7 +336,10 @@ fun FlowApp(
         miniPlayerShowSkipControls = miniPlayerShowSkipControls,
         miniPlayerShowNextPrevControls = miniPlayerShowNextPrevControls,
         onClose = { 
-            playerVisible = false 
+            playerVisible = false
+            if (playerUiState.isRestoredSession) {
+                playerViewModel.dismissContinueWatching()
+            }
             playerViewModel.clearVideo()
         },
         onMinimize = {
