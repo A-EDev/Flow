@@ -6,6 +6,8 @@ FEATURES
 - New Audio focus toggle to continue playing videos while on a call #175 #177
 - Add new copy video link at time stamps button #178
 - Add new direct video link copy button #178
+- Pinch-to-zoom gesture #184
+- Swipe up to enter fullscreen in the video player #183
 
 IMPROVEMENTS
 - FlowNeuroEngine modularization

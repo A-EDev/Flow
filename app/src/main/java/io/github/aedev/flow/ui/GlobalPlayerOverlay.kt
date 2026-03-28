@@ -68,6 +68,11 @@ import io.github.aedev.flow.ui.screens.player.components.BrightnessOverlay
 import io.github.aedev.flow.ui.screens.player.components.VolumeOverlay
 import io.github.aedev.flow.ui.screens.player.components.SpeedBoostOverlay
 import io.github.aedev.flow.player.PictureInPictureHelper
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.graphics.graphicsLayer
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.dlna.DlnaCastManager
@@ -133,6 +138,9 @@ fun GlobalPlayerOverlay(
 
     LaunchedEffect(video.id) {
         videoAspectRatio = 16f / 9f
+        screenState.zoomScale = 1f
+        screenState.zoomOffsetX = 0f
+        screenState.zoomOffsetY = 0f
     }
 
     var showSbSubmitDialog by remember { mutableStateOf(false) }
@@ -150,6 +158,9 @@ fun GlobalPlayerOverlay(
     LaunchedEffect(playerSheetState.currentValue) {
         if (playerSheetState.currentValue == PlayerSheetValue.Collapsed) {
             screenState.isFullscreen = false
+            screenState.zoomScale = 1f
+            screenState.zoomOffsetX = 0f
+            screenState.zoomOffsetY = 0f
         }
     }
 
@@ -377,8 +388,13 @@ fun GlobalPlayerOverlay(
                 onCollapseGesture = {
                     screenState.isFullscreen = false
                 },
+                onFullscreenGesture = {
+                    screenState.isFullscreen = true
+                },
                 videoContent = { modifier ->
                     // ALWAYS use the same video surface
+                    // Disable brightness/volume swipes when zoomed so pan gesture works cleanly
+                    val effectiveSwipeGesturesEnabled = swipeGesturesEnabled && screenState.zoomScale <= 1.02f
                     val gestureModifier = if (!isMinimized) {
                         modifier.videoPlayerControls(
                             isSpeedBoostActive = screenState.isSpeedBoostActive,
@@ -409,14 +425,83 @@ fun GlobalPlayerOverlay(
                             maxVolume = audioSystemInfo.maxVolume,
                             audioManager = audioSystemInfo.audioManager,
                             activity = activity,
-                            swipeGesturesEnabled = swipeGesturesEnabled,
+                            swipeGesturesEnabled = effectiveSwipeGesturesEnabled,
                             doubleTapSeekMs = doubleTapSeekSeconds * 1000L
                         )
+                        // Two-finger pinch-to-zoom gesture. Only activates for 2+ pointers,
+                        // so single-finger gestures (brightness/volume swipe, tap) are unaffected.
+                        .pointerInput("pinchZoom") {
+                            awaitEachGesture {
+                                val firstDown = awaitFirstDown(requireUnconsumed = false)
+                                var secondPtr: PointerInputChange? = null
+                                while (secondPtr == null) {
+                                    val event = awaitPointerEvent()
+                                    secondPtr = event.changes.firstOrNull {
+                                        it.id != firstDown.id && it.pressed && !it.previousPressed
+                                    }
+                                    val p1 = event.changes.firstOrNull { it.id == firstDown.id }
+                                    if (p1 == null || !p1.pressed) return@awaitEachGesture
+                                }
+                                val p2 = secondPtr!!
+                                p2.consume()
+                                val dx0 = firstDown.position.x - p2.position.x
+                                val dy0 = firstDown.position.y - p2.position.y
+                                var prevDist = kotlin.math.sqrt(dx0 * dx0 + dy0 * dy0).coerceAtLeast(1f)
+                                var prevCentroidX = (firstDown.position.x + p2.position.x) / 2f
+                                var prevCentroidY = (firstDown.position.y + p2.position.y) / 2f
+                                val p1Id = firstDown.id
+                                val p2Id = p2.id
+                                do {
+                                    val event = awaitPointerEvent()
+                                    val tp1 = event.changes.firstOrNull { it.id == p1Id }
+                                    val tp2 = event.changes.firstOrNull { it.id == p2Id }
+                                    if (tp1 == null || tp2 == null || !tp1.pressed || !tp2.pressed) break
+                                    tp1.consume()
+                                    tp2.consume()
+                                    val dx = tp1.position.x - tp2.position.x
+                                    val dy = tp1.position.y - tp2.position.y
+                                    val dist = kotlin.math.sqrt(dx * dx + dy * dy).coerceAtLeast(1f)
+                                    val centroidX = (tp1.position.x + tp2.position.x) / 2f
+                                    val centroidY = (tp1.position.y + tp2.position.y) / 2f
+                                    val panX = centroidX - prevCentroidX
+                                    val panY = centroidY - prevCentroidY
+                                    val factor = dist / prevDist
+                                    val newScale = (screenState.zoomScale * factor).coerceIn(1f, 6f)
+                                    if (newScale <= 1.02f) {
+                                        screenState.zoomScale = 1f
+                                        screenState.zoomOffsetX = 0f
+                                        screenState.zoomOffsetY = 0f
+                                    } else {
+                                        screenState.zoomScale = newScale
+                                        val maxPanX = (newScale - 1f) * size.width / 2f
+                                        val maxPanY = (newScale - 1f) * size.height / 2f
+                                        screenState.zoomOffsetX = (screenState.zoomOffsetX + panX).coerceIn(-maxPanX, maxPanX)
+                                        screenState.zoomOffsetY = (screenState.zoomOffsetY + panY).coerceIn(-maxPanY, maxPanY)
+                                    }
+                                    prevDist = dist
+                                    prevCentroidX = centroidX
+                                    prevCentroidY = centroidY
+                                } while (true)
+                            }
+                        }
                     } else {
                         modifier
                     }
                     
                     Box(modifier = gestureModifier) {
+                        // Zoomable layer: video + subtitles scale together with the pinch transform
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    if (!isMinimized) {
+                                        scaleX = screenState.zoomScale
+                                        scaleY = screenState.zoomScale
+                                        translationX = screenState.zoomOffsetX
+                                        translationY = screenState.zoomOffsetY
+                                    }
+                                }
+                        ) {
                         if (playerUiState.isRestoredSession) {
                             val thumbUrl = video.thumbnailUrl.takeIf { it.isNotEmpty() }
                                 ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
@@ -435,7 +520,7 @@ fun GlobalPlayerOverlay(
                             )
                         }
                         
-                        // Show subtitles only when expanded
+                        // Subtitles scale with the video when zoomed in
                         if (!isMinimized) {
                             SubtitleOverlay(
                                 currentPosition = screenState.currentPosition,
@@ -446,7 +531,11 @@ fun GlobalPlayerOverlay(
                                     .fillMaxWidth()
                                     .align(Alignment.BottomCenter)
                             )
-                            
+                        }
+                        } // end zoomable layer
+                        
+                        // Non-zoomable UI overlays (always at full-screen position)
+                        if (!isMinimized) {
                             // Seek animations
                             SeekAnimationOverlay(
                                 showSeekBack = screenState.showSeekBackAnimation,

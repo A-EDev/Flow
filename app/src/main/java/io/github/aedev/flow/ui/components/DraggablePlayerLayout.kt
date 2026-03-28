@@ -142,6 +142,7 @@ fun DraggablePlayerLayout(
     tapToExpand: Boolean = true,
     onDismiss: () -> Unit = {},
     onCollapseGesture: (() -> Unit)? = null,
+    onFullscreenGesture: (() -> Unit)? = null,
     videoAspectRatio: Float = 16f / 9f
 ) {
     val density = LocalDensity.current
@@ -335,6 +336,9 @@ fun DraggablePlayerLayout(
         val _miniWidth = rememberUpdatedState(miniWidth)
         val _margin = rememberUpdatedState(margin)
         val _tapToExpand = rememberUpdatedState(tapToExpand)
+        val _onFullscreenGesture = rememberUpdatedState(onFullscreenGesture)
+        val _isLandscape = rememberUpdatedState(isLandscape)
+        val _isFullscreen = rememberUpdatedState(isFullscreen)
 
         Box(
             modifier = if (showImmersiveFullscreen) {
@@ -403,6 +407,10 @@ fun DraggablePlayerLayout(
 
                             val isCollapseDrag = state.expandFraction.value < 0.4f
                             val isMiniDrag     = state.expandFraction.value > 0.8f
+                            val canSwipeToFullscreen = isCollapseDrag &&
+                                !_isLandscape.value &&
+                                !_isFullscreen.value &&
+                                _onFullscreenGesture.value != null
 
                             velocityTracker.resetTracking()
                             velocityTracker.addPosition(down.uptimeMillis, down.position)
@@ -425,6 +433,8 @@ fun DraggablePlayerLayout(
                             var dragPointerId = down.id
                             var hasCrossedSlop = !isCollapseDrag
                             var startDragY = 0f
+                            // 0 = undecided, 1 = down (collapse), -1 = up (fullscreen)
+                            var detectedDirection = 0
 
                             if (isCollapseDrag) {
                                 val slop = viewConfiguration.touchSlop
@@ -436,10 +446,21 @@ fun DraggablePlayerLayout(
 
                                     val delta = change.position - down.position
                                     if (delta.y > slop && delta.y > kotlin.math.abs(delta.x)) {
+                                        // Swipe DOWN → collapse
                                         hasCrossedSlop = true
                                         startDragY = delta.y
+                                        detectedDirection = 1
                                         change.consume()
-                                    } else if (kotlin.math.abs(delta.x) > slop || delta.y < -slop) {
+                                    } else if (canSwipeToFullscreen &&
+                                        delta.y < -slop &&
+                                        kotlin.math.abs(delta.y) > kotlin.math.abs(delta.x)
+                                    ) {
+                                        // Swipe UP → fullscreen (portrait only)
+                                        hasCrossedSlop = true
+                                        startDragY = delta.y
+                                        detectedDirection = -1
+                                        change.consume()
+                                    } else if (kotlin.math.abs(delta.x) > slop) {
                                         break
                                     }
                                 }
@@ -450,6 +471,7 @@ fun DraggablePlayerLayout(
                             var totalMovement = 0f
                             val startFraction   = state.expandFraction.value
                             val collapseTravel  = (targetMiniY - statusBarHeight).coerceAtLeast(1f)
+                            var totalUpwardDrag = 0f
 
                             if (hasCrossedSlop) {
                                 try {
@@ -458,7 +480,7 @@ fun DraggablePlayerLayout(
                                         totalMovement += delta.getDistance()
                                         velocityTracker.addPosition(change.uptimeMillis, change.position)
 
-                                        if (isCollapseDrag) {
+                                        if (isCollapseDrag && detectedDirection == 1) {
                                             change.consume()
                                             cumulativeDragY += delta.y
                                             val rawFraction =
@@ -467,6 +489,10 @@ fun DraggablePlayerLayout(
                                             snapJob = state.scope.launch {
                                                 state.expandFraction.snapTo(rawFraction)
                                             }
+                                        } else if (isCollapseDrag && detectedDirection == -1) {
+                                            // Track upward drag distance for fullscreen gesture
+                                            change.consume()
+                                            totalUpwardDrag += -delta.y
                                         } else if (isMiniDrag) {
                                             if (totalMovement > viewConfiguration.touchSlop * 0.5f) {
                                                 change.consume()
@@ -511,6 +537,16 @@ fun DraggablePlayerLayout(
 
                             if (isMiniDrag && totalMovement < 24f) {
                                 if (!downConsumedByChild && _tapToExpand.value) state.expand()
+                                return@awaitEachGesture
+                            }
+
+                            // Resolve swipe-up to fullscreen gesture
+                            if (isCollapseDrag && detectedDirection == -1) {
+                                val velY = velocityTracker.calculateVelocity().y
+                                val shouldFullscreen = totalUpwardDrag > 80f || velY < -800f
+                                if (shouldFullscreen) {
+                                    _onFullscreenGesture.value?.invoke()
+                                }
                                 return@awaitEachGesture
                             }
 

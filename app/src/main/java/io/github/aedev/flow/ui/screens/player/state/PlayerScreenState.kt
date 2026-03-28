@@ -61,7 +61,12 @@ class PlayerScreenState {
     
     // Video Display
     var resizeMode by mutableIntStateOf(0) // 0=Fit, 1=Fill, 2=Zoom
-    
+
+    // Pinch-to-Zoom State
+    var zoomScale by mutableFloatStateOf(1f)
+    var zoomOffsetX by mutableFloatStateOf(0f)
+    var zoomOffsetY by mutableFloatStateOf(0f)
+
     // Speed Control
     var isSpeedBoostActive by mutableStateOf(false)
     var normalSpeed by mutableFloatStateOf(1.0f)
@@ -104,6 +109,9 @@ class PlayerScreenState {
         showCommentsSheet = false
         showDescriptionSheet = false
         showChaptersSheet = false
+        zoomScale = 1f
+        zoomOffsetX = 0f
+        zoomOffsetY = 0f
     }
     
     fun cycleResizeMode() {
