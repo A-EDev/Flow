@@ -72,7 +72,9 @@ class DownloadsViewModel @Inject constructor(
 
     fun rescan() {
         viewModelScope.launch {
+            _uiState.update { it.copy(isScanning = true) }
             videoDownloadManager.scanAndRecoverDownloads()
+            _uiState.update { it.copy(isScanning = false) }
         }
     }
 }
@@ -80,5 +82,6 @@ class DownloadsViewModel @Inject constructor(
 data class DownloadsUiState(
     val downloadedVideos: List<DownloadedVideo> = emptyList(),
     val downloadedMusic: List<DownloadedTrack> = emptyList(),
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val isScanning: Boolean = false
 )

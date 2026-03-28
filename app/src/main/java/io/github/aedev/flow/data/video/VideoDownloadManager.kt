@@ -2,6 +2,7 @@ package io.github.aedev.flow.data.video
 
 import android.content.Context
 import android.content.Intent
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -17,8 +18,9 @@ import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.local.entity.DownloadWithItems
 import io.github.aedev.flow.data.model.Video
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -27,6 +29,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -70,9 +73,6 @@ class VideoDownloadManager @Inject constructor(
         const val VIDEO_DIR = "Flow"
         const val AUDIO_DIR = "Flow"
 
-        @Volatile
-        private var recentlyDeletedPaths: Set<String> = emptySet()
-
         /**
          * Legacy bridge — callers that still use getInstance() will get a crash
          * with a clear message telling them to switch to DI.
@@ -84,6 +84,12 @@ class VideoDownloadManager @Inject constructor(
             )
         }
     }
+
+   
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+   
+    private val recentlyDeletedPaths: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     // Progress updates emitted by FlowDownloadService
     private val _progressUpdates = MutableSharedFlow<DownloadProgressUpdate>(extraBufferCapacity = 64)
@@ -400,48 +406,48 @@ class VideoDownloadManager @Inject constructor(
         return downloadDao.getDownloadWithItems(videoId)
     }
 
-    /** Delete download and its files from disk */
+    /** Delete download and its files from disk.
+     *
+     * Based on NewPipe's deletion order:
+     *  1. Collect file paths                    (before DB removal)
+     *  2. Guard paths against scanner re-insert (ConcurrentHashMap set)
+     *  3. Delete DB entry                       (UI disappears instantly via Room Flow)
+     *  4. Delete files in app-scoped ioScope    (immune to ViewModel back-press cancellation)
+     *  5. Notify MediaScanner each file is gone (removes stale index on Android 10+)
+     */
     suspend fun deleteDownload(videoId: String): Boolean = withContext(Dispatchers.IO) {
         try {
             val download = downloadDao.getDownloadWithItems(videoId)
-            if (download != null) {
-                val filePaths = download.items.map { it.filePath }
-                val thumbPath = download.download.thumbnailPath
+                ?: return@withContext false
 
-                recentlyDeletedPaths = recentlyDeletedPaths + filePaths.toSet()
+            val filePaths = download.items.map { it.filePath }
+            val thumbPath = download.download.thumbnailPath
 
-                downloadDao.deleteDownload(videoId)
+            recentlyDeletedPaths.addAll(filePaths)
 
-                coroutineScope {
-                    filePaths.forEach { path ->
-                        launch {
-                            try {
-                                val file = File(path)
-                                if (file.exists()) {
-                                    file.delete()
-                                    Log.d(TAG, "Deleted file: $path")
-                                }
-                            } catch (e: Exception) {
-                                Log.w(TAG, "Failed to delete file: $path", e)
-                            } finally {
-                                recentlyDeletedPaths = recentlyDeletedPaths - path
-                            }
+            downloadDao.deleteDownload(videoId)
+
+            ioScope.launch {
+                filePaths.forEach { path ->
+                    try {
+                        val deleted = File(path).delete()
+                        if (deleted) {
+                            Log.d(TAG, "Deleted: $path")
+                        } else {
+                            Log.w(TAG, "File not deleted (missing or unwritable): $path")
                         }
-                    }
-                    thumbPath?.let { tp ->
-                        launch {
-                            try {
-                                File(tp).takeIf { it.exists() }?.delete()
-                            } catch (e: Exception) {
-                                Log.w(TAG, "Failed to delete thumbnail", e)
-                            }
-                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error deleting: $path", e)
+                    } finally {
+                        recentlyDeletedPaths.remove(path)
+                        MediaScannerConnection.scanFile(context, arrayOf(path), null, null)
                     }
                 }
-                true
-            } else {
-                false
+                thumbPath?.let { tp ->
+                    try { File(tp).takeIf { it.exists() }?.delete() } catch (_: Exception) {}
+                }
             }
+            true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to delete download: $videoId", e)
             false
@@ -531,7 +537,7 @@ class VideoDownloadManager @Inject constructor(
 
                     val filePath = file.absolutePath
                     if (downloadDao.existsByFilePath(filePath)) continue
-                    if (filePath in recentlyDeletedPaths) continue
+                    if (recentlyDeletedPaths.contains(filePath)) continue
 
                     val pseudoId = "recovered_${filePath.hashCode().toLong() and 0xFFFFFFFFL}"
 

@@ -21,6 +21,8 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,16 +72,12 @@ fun DownloadsScreen(
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) viewModel.rescan()
-    }
+    ) {  }
 
     LaunchedEffect(Unit) {
         val alreadyGranted = ContextCompat.checkSelfPermission(context, storagePermission) ==
             PackageManager.PERMISSION_GRANTED
-        if (alreadyGranted) {
-            viewModel.rescan()
-        } else {
+        if (!alreadyGranted) {
             permissionLauncher.launch(storagePermission)
         }
     }
@@ -148,6 +146,8 @@ fun DownloadsScreen(
                 when (targetIndex) {
                     0 -> VideosDownloadsList(
                         videos = uiState.downloadedVideos,
+                        isRefreshing = uiState.isScanning,
+                        onRefresh = { viewModel.rescan() },
                         onVideoClick = { videos, index -> onVideoClick(videos, index) },
                         onDeleteClick = { id ->
                             requestDelete(id, DeletionType.VIDEO)
@@ -156,6 +156,8 @@ fun DownloadsScreen(
                     )
                     1 -> MusicDownloadsList(
                         tracks = uiState.downloadedMusic,
+                        isRefreshing = uiState.isScanning,
+                        onRefresh = { viewModel.rescan() },
                         onMusicClick = onMusicClick,
                         onDeleteClick = { id ->
                             requestDelete(id, DeletionType.MUSIC)
@@ -290,44 +292,62 @@ private data class TabInfo(
 // VIDEO DOWNLOADS LIST
 // ═══════════════════════════════════════════════════════
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun VideosDownloadsList(
     videos: List<DownloadedVideo>,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onVideoClick: (List<DownloadedVideo>, Int) -> Unit,
     onDeleteClick: (String) -> Unit,
     onHomeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (videos.isEmpty()) {
-        EmptyDownloadsState(
-            type = stringResource(R.string.tab_videos),
-            icon = Icons.Outlined.VideoLibrary,
-            onHomeClick = onHomeClick,
-            modifier = modifier
-        )
-    } else {
-        LazyColumn(
-            modifier = modifier,
-            contentPadding = PaddingValues(vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+        val pullState = rememberPullToRefreshState()
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            state = pullState,
+            modifier = modifier.fillMaxSize()
         ) {
-            itemsIndexed(
-                items = videos,
-                key = { _, video -> video.video.id }
-            ) { index, video ->
-                VideoDownloadCard(
-                    video = video,
-                    onClick = { onVideoClick(videos, index) },
-                    onDeleteClick = { onDeleteClick(video.video.id) },
-                    modifier = Modifier.animateItem(
-                        fadeInSpec = tween(300, easing = EaseOutCubic),
-                        fadeOutSpec = tween(200, easing = EaseInCubic),
-                        placementSpec = spring(
-                            dampingRatio = 0.8f,
-                            stiffness = Spring.StiffnessLow
+            EmptyDownloadsState(
+                type = stringResource(R.string.tab_videos),
+                icon = Icons.Outlined.VideoLibrary,
+                onHomeClick = onHomeClick
+            )
+        }
+    } else {
+        val pullState = rememberPullToRefreshState()
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            state = pullState,
+            modifier = modifier.fillMaxSize()
+        ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                itemsIndexed(
+                    items = videos,
+                    key = { _, video -> video.video.id }
+                ) { index, video ->
+                    VideoDownloadCard(
+                        video = video,
+                        onClick = { onVideoClick(videos, index) },
+                        onDeleteClick = { onDeleteClick(video.video.id) },
+                        modifier = Modifier.animateItem(
+                            fadeInSpec = tween(300, easing = EaseOutCubic),
+                            fadeOutSpec = tween(200, easing = EaseInCubic),
+                            placementSpec = spring(
+                                dampingRatio = 0.8f,
+                                stiffness = Spring.StiffnessLow
+                            )
                         )
                     )
-                )
+                }
             }
         }
     }
@@ -439,46 +459,64 @@ private fun VideoDownloadCard(
 // MUSIC DOWNLOADS LIST
 // ═══════════════════════════════════════════════════════
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MusicDownloadsList(
     tracks: List<DownloadedTrack>,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit,
     onMusicClick: (List<DownloadedTrack>, Int) -> Unit,
     onDeleteClick: (String) -> Unit,
     onHomeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (tracks.isEmpty()) {
-        EmptyDownloadsState(
-            type = stringResource(R.string.tab_music),
-            icon = Icons.Outlined.MusicNote,
-            onHomeClick = onHomeClick,
-            modifier = modifier
-        )
-    } else {
-        LazyColumn(
-            modifier = modifier,
-            contentPadding = PaddingValues(vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+        val pullState = rememberPullToRefreshState()
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            state = pullState,
+            modifier = modifier.fillMaxSize()
         ) {
-            itemsIndexed(
-                items = tracks,
-                key = { _, track -> track.track.videoId }
-            ) { index, downloadedTrack ->
-                MusicTrackCard(
-                    downloadedTrack = downloadedTrack,
-                    onClick = { onMusicClick(tracks, index) },
-                    onDeleteClick = {
-                        onDeleteClick(downloadedTrack.track.videoId)
-                    },
-                    modifier = Modifier.animateItem(
-                        fadeInSpec = tween(300, easing = EaseOutCubic),
-                        fadeOutSpec = tween(200, easing = EaseInCubic),
-                        placementSpec = spring(
-                            dampingRatio = 0.8f,
-                            stiffness = Spring.StiffnessLow
+            EmptyDownloadsState(
+                type = stringResource(R.string.tab_music),
+                icon = Icons.Outlined.MusicNote,
+                onHomeClick = onHomeClick
+            )
+        }
+    } else {
+        val pullState = rememberPullToRefreshState()
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = onRefresh,
+            state = pullState,
+            modifier = modifier.fillMaxSize()
+        ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                itemsIndexed(
+                    items = tracks,
+                    key = { _, track -> track.track.videoId }
+                ) { index, downloadedTrack ->
+                    MusicTrackCard(
+                        downloadedTrack = downloadedTrack,
+                        onClick = { onMusicClick(tracks, index) },
+                        onDeleteClick = {
+                            onDeleteClick(downloadedTrack.track.videoId)
+                        },
+                        modifier = Modifier.animateItem(
+                            fadeInSpec = tween(300, easing = EaseOutCubic),
+                            fadeOutSpec = tween(200, easing = EaseInCubic),
+                            placementSpec = spring(
+                                dampingRatio = 0.8f,
+                                stiffness = Spring.StiffnessLow
+                            )
                         )
                     )
-                )
+                }
             }
         }
     }
