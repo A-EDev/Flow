@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.0.1
-DATE: 2026-03-27
+DATE: 2026-03-28
 
 FEATURES
 - New Audio focus toggle to continue playing videos while on a call #175 #177
@@ -15,6 +15,7 @@ IMPROVEMENTS
 - Add shorts deduplication in the subs screen shorts shelf #138 #162
 - Optimized shorts loading speeds
 - Video quick actions menu
+- Remove warmup connections and increase subs check to 6 hrs instead of 30 min #185
 
 FIXES AND STABILITY
 - Keyboard Focus and pop up

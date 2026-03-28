@@ -8,10 +8,8 @@ import io.github.aedev.flow.notification.NotificationHelper
 import io.github.aedev.flow.utils.FlowCrashHandler
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import org.schabi.newpipe.extractor.NewPipe
-// Import Localization and ContentCountry
 import org.schabi.newpipe.extractor.localization.ContentCountry
 import org.schabi.newpipe.extractor.localization.Localization
-import kotlinx.coroutines.launch
 
 import dagger.hilt.android.HiltAndroidApp
 import coil.ImageLoader
@@ -57,10 +55,6 @@ class FlowApplication : Application(), ImageLoaderFactory {
         NotificationHelper.createNotificationChannels(this)
         Log.d(TAG, "Notification channels created")
         
-        // PERFORMANCE: Warm up connection pools in background
-        // This pre-establishes connections to reduce first-load latency
-        warmUpNetworkConnections()
-        
         /*
         try {
             // Initialize YoutubeDL
@@ -72,39 +66,12 @@ class FlowApplication : Application(), ImageLoaderFactory {
         */
         
         // Schedule periodic subscription checks for new videos
-        // This will check subscribed channels every 30 minutes
-        SubscriptionCheckWorker.schedulePeriodicCheck(this, intervalMinutes = 30)
+        SubscriptionCheckWorker.schedulePeriodicCheck(this, intervalMinutes = 360)
         
         // Schedule periodic update checks (every 12 hours)
         io.github.aedev.flow.notification.UpdateCheckWorker.schedulePeriodicCheck(this)
         
         Log.d(TAG, "Workers scheduled successfully")
-    }
-    
-    /**
-     * PERFORMANCE: Pre-warm network connections
-     * Establishes HTTP connections early so they're ready when the user needs content
-     */
-    private fun warmUpNetworkConnections() {
-        PerformanceDispatcher.backgroundScope.launch {
-            try {
-                // Simple HEAD request to establish connection pools
-                // This warms up DNS resolution, TLS handshake, and connection pooling
-                okhttp3.OkHttpClient.Builder()
-                    .build()
-                    .newCall(
-                        okhttp3.Request.Builder()
-                            .url("https://www.youtube.com")
-                            .head()
-                            .build()
-                    ).execute().close()
-                    
-                Log.d(TAG, "Network connections warmed up successfully")
-            } catch (e: Exception) {
-                // Non-critical, just log
-                Log.d(TAG, "Network warmup skipped: ${e.message}")
-            }
-        }
     }
     
     override fun onTerminate() {

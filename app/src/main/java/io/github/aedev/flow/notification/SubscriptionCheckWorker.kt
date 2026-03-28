@@ -36,9 +36,9 @@ class SubscriptionCheckWorker(
         /**
          * Schedule periodic subscription checks
          * @param context Application context
-         * @param intervalMinutes How often to check (default: 15 minutes)
+         * @param intervalMinutes How often to check (default: 360 minutes / 6 hours)
          */
-        fun schedulePeriodicCheck(context: Context, intervalMinutes: Long = 15) {
+        fun schedulePeriodicCheck(context: Context, intervalMinutes: Long = 360) {
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .setRequiresBatteryNotLow(true)

@@ -7,11 +7,9 @@ import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.DownloadedVideo
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import javax.inject.Inject
 
 @HiltViewModel
@@ -28,13 +26,8 @@ class DownloadsViewModel @Inject constructor(
      */
     private val _pendingDeleteIds = MutableStateFlow<Set<String>>(emptySet())
 
-    private val deletionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
     init {
         observeDownloads()
-        viewModelScope.launch {
-            videoDownloadManager.scanAndRecoverDownloads()
-        }
     }
 
     private fun observeDownloads() {
@@ -63,7 +56,7 @@ class DownloadsViewModel @Inject constructor(
 
     fun deleteVideoDownload(videoId: String) {
         _pendingDeleteIds.update { it + videoId }
-        deletionScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             videoDownloadManager.deleteDownload(videoId)
             _pendingDeleteIds.update { it - videoId }
         }
@@ -71,7 +64,7 @@ class DownloadsViewModel @Inject constructor(
 
     fun deleteMusicDownload(videoId: String) {
         _pendingDeleteIds.update { it + videoId }
-        deletionScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             musicDownloadManager.deleteDownload(videoId)
             _pendingDeleteIds.update { it - videoId }
         }

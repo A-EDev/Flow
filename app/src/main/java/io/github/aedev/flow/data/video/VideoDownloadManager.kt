@@ -70,6 +70,9 @@ class VideoDownloadManager @Inject constructor(
         const val VIDEO_DIR = "Flow"
         const val AUDIO_DIR = "Flow"
 
+        @Volatile
+        private var recentlyDeletedPaths: Set<String> = emptySet()
+
         /**
          * Legacy bridge — callers that still use getInstance() will get a crash
          * with a clear message telling them to switch to DI.
@@ -402,31 +405,39 @@ class VideoDownloadManager @Inject constructor(
         try {
             val download = downloadDao.getDownloadWithItems(videoId)
             if (download != null) {
-                kotlinx.coroutines.coroutineScope {
-                    download.items.forEach { item ->
+                val filePaths = download.items.map { it.filePath }
+                val thumbPath = download.download.thumbnailPath
+
+                recentlyDeletedPaths = recentlyDeletedPaths + filePaths.toSet()
+
+                downloadDao.deleteDownload(videoId)
+
+                coroutineScope {
+                    filePaths.forEach { path ->
                         launch {
                             try {
-                                val file = File(item.filePath)
+                                val file = File(path)
                                 if (file.exists()) {
                                     file.delete()
-                                    Log.d(TAG, "Deleted file: ${item.filePath}")
+                                    Log.d(TAG, "Deleted file: $path")
                                 }
                             } catch (e: Exception) {
-                                Log.w(TAG, "Failed to delete file: ${item.filePath}", e)
+                                Log.w(TAG, "Failed to delete file: $path", e)
+                            } finally {
+                                recentlyDeletedPaths = recentlyDeletedPaths - path
                             }
                         }
                     }
-                    download.download.thumbnailPath?.let { thumbPath ->
+                    thumbPath?.let { tp ->
                         launch {
                             try {
-                                File(thumbPath).takeIf { it.exists() }?.delete()
+                                File(tp).takeIf { it.exists() }?.delete()
                             } catch (e: Exception) {
                                 Log.w(TAG, "Failed to delete thumbnail", e)
                             }
                         }
                     }
                 }
-                downloadDao.deleteDownload(videoId)
                 true
             } else {
                 false
@@ -520,6 +531,7 @@ class VideoDownloadManager @Inject constructor(
 
                     val filePath = file.absolutePath
                     if (downloadDao.existsByFilePath(filePath)) continue
+                    if (filePath in recentlyDeletedPaths) continue
 
                     val pseudoId = "recovered_${filePath.hashCode().toLong() and 0xFFFFFFFFL}"
 
