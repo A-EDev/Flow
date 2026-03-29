@@ -11,6 +11,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
@@ -311,11 +313,17 @@ private fun VideosDownloadsList(
             state = pullState,
             modifier = modifier.fillMaxSize()
         ) {
-            EmptyDownloadsState(
-                type = stringResource(R.string.tab_videos),
-                icon = Icons.Outlined.VideoLibrary,
-                onHomeClick = onHomeClick
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                EmptyDownloadsState(
+                    type = stringResource(R.string.tab_videos),
+                    icon = Icons.Outlined.VideoLibrary,
+                    onHomeClick = onHomeClick
+                )
+            }
         }
     } else {
         val pullState = rememberPullToRefreshState()
@@ -478,11 +486,17 @@ private fun MusicDownloadsList(
             state = pullState,
             modifier = modifier.fillMaxSize()
         ) {
-            EmptyDownloadsState(
-                type = stringResource(R.string.tab_music),
-                icon = Icons.Outlined.MusicNote,
-                onHomeClick = onHomeClick
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                EmptyDownloadsState(
+                    type = stringResource(R.string.tab_music),
+                    icon = Icons.Outlined.MusicNote,
+                    onHomeClick = onHomeClick
+                )
+            }
         }
     } else {
         val pullState = rememberPullToRefreshState()
