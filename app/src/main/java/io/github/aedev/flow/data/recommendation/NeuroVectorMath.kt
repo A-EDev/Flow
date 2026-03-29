@@ -62,10 +62,27 @@ internal object NeuroVectorMath {
         var hasIntersection = false
 
         for ((key, smallVal) in smallMap) {
-            val largeVal = largeMap[key]
-            if (largeVal != null) {
-                dotProduct += smallVal * largeVal
+            // Exact match (full weight)
+            val exactMatch = largeMap[key]
+            if (exactMatch != null) {
+                dotProduct += smallVal * exactMatch
                 hasIntersection = true
+                continue
+            }
+            // Migration compatibility: untagged ↔ tagged partial match (0.3x weight)
+            if (!key.contains(":")) {
+                val taggedMatch = largeMap.entries.firstOrNull { it.key.startsWith("$key:") }
+                if (taggedMatch != null) {
+                    dotProduct += smallVal * taggedMatch.value * 0.3
+                    hasIntersection = true
+                }
+            } else {
+                val baseWord = key.substringBefore(":")
+                val untaggedMatch = largeMap[baseWord]
+                if (untaggedMatch != null) {
+                    dotProduct += smallVal * untaggedMatch * 0.3
+                    hasIntersection = true
+                }
             }
         }
 

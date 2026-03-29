@@ -60,7 +60,7 @@ internal object NeuroScoring {
     const val ANTI_REC_PENALTY_THRESHOLD = 0.6
     const val ANTI_REC_PENALTY = 0.4
     const val MOMENTUM_WINDOW = 10
-    const val MOMENTUM_BOOST = 0.12
+    const val MOMENTUM_BOOST = 0.08
     const val MOMENTUM_THRESHOLD = 3
     const val IMPRESSION_CACHE_MAX = 500
     const val IMPRESSION_DECAY_RATE = 0.1
@@ -382,10 +382,13 @@ internal object NeuroScoring {
 
     /**
      * Session-level engagement momentum boost.
+     * personalityScore: if the topic already scores high, reduce momentum
+     * so dominant topics don't get double-boosted.
      */
     fun calculateMomentumBoost(
         videoVector: ContentVector,
-        interactions: List<MomentumEntry>
+        interactions: List<MomentumEntry>,
+        personalityScore: Double = 0.0
     ): Double {
         if (interactions.size < MOMENTUM_THRESHOLD) return 0.0
 
@@ -396,10 +399,25 @@ internal object NeuroScoring {
             .takeLast(MOMENTUM_WINDOW)
             .count { it.topic == primaryTopic && it.positive }
 
-        return if (recentPositiveCount >= MOMENTUM_THRESHOLD) {
-            (recentPositiveCount.toDouble() / MOMENTUM_WINDOW * MOMENTUM_BOOST)
-                .coerceAtMost(MOMENTUM_BOOST)
-        } else 0.0
+        if (recentPositiveCount < MOMENTUM_THRESHOLD) return 0.0
+
+        val rawBoost = (recentPositiveCount.toDouble() / MOMENTUM_WINDOW * MOMENTUM_BOOST)
+            .coerceAtMost(MOMENTUM_BOOST)
+
+        val dominancePenalty = if (personalityScore > 0.6) {
+            (1.0 - (personalityScore - 0.6) / 0.4).coerceIn(0.0, 1.0)
+        } else 1.0
+
+        return rawBoost * dominancePenalty
+    }
+
+    /**
+     * Strips the domain tag from a domain-disambiguated topic.
+     * e.g. "metal:music" → "metal", "rock:climbing" → "rock", "jazz" → "jazz"
+     */
+    fun stripDomainTag(topic: String): String {
+        val colonIndex = topic.indexOf(':')
+        return if (colonIndex > 0) topic.substring(0, colonIndex) else topic
     }
 
     /**
@@ -419,6 +437,7 @@ internal object NeuroScoring {
         val uniqueTopics = candidates
             .mapNotNull {
                 it.vector.topics.maxByOrNull { e -> e.value }?.key
+                    ?.let { k -> stripDomainTag(k) }
             }
             .distinct()
         val topicDiversity = uniqueTopics.size
@@ -437,7 +456,7 @@ internal object NeuroScoring {
 
         val userTopTopics = candidates
             .flatMap { it.vector.topics.entries }
-            .groupBy { it.key }
+            .groupBy { stripDomainTag(it.key) }
             .mapValues { (_, entries) -> entries.sumOf { it.value } }
             .entries
             .sortedByDescending { it.value }
@@ -457,7 +476,8 @@ internal object NeuroScoring {
         ) {
             val current = phase1Iterator.next()
             val primaryTopic = current.vector.topics
-                .maxByOrNull { it.value }?.key ?: ""
+                .maxByOrNull { it.value }?.key
+                ?.let { stripDomainTag(it) } ?: ""
 
             val channelCount = channelWindow
                 .count { it == current.video.channelId }

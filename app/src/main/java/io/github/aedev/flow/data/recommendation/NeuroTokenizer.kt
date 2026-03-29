@@ -207,7 +207,9 @@ internal class NeuroTokenizer {
         "bass", "bow", "clip", "dart", "fan",
         "gear", "jam", "kit", "lab", "log",
         "net", "pad", "port", "rig", "set",
-        "tap", "tip", "web"
+        "tap", "tip", "web",
+        // Music genres / material / nature terms with multiple meanings
+        "metal", "rock", "bar"
     )
 
     val COMPOUND_TERMS = hashSetOf(
@@ -327,14 +329,17 @@ internal class NeuroTokenizer {
         val topics = mutableMapOf<String, Double>()
 
         val titleWords = tokenize(video.title)
-        val chWords = tokenize(video.channelName)
 
-        // Channel keywords
+        // Use smart channel tokenization to filter names and branding
+        val chWords = tokenizeChannelName(video.channelName)
+
+        // Channel keywords — filtered for actual topic words only
         chWords.forEach {
-            topics[it] = calculateIdfWeight(
-                it, CHANNEL_KEYWORD_WEIGHT, idfSnapshot
-            )
+            topics[it] = calculateIdfWeight(it, CHANNEL_KEYWORD_WEIGHT, idfSnapshot)
         }
+
+        // Collect all words for domain disambiguation context BEFORE processing tokens
+        val fullContext = buildContextWordList(video)
 
         // ── V9.3 Fix 1: Extract bigrams FIRST, track which unigram indices are "claimed" ──
         val claimedByBigram = mutableSetOf<Int>()
@@ -345,7 +350,10 @@ internal class NeuroTokenizer {
 
                 val isMeaningful = COMPOUND_TERMS.contains(bigram) ||
                     POLYSEMOUS_WORDS.contains(titleWords[i]) ||
-                    POLYSEMOUS_WORDS.contains(titleWords[i + 1])
+                    POLYSEMOUS_WORDS.contains(titleWords[i + 1]) ||
+                    // Also treat domain-disambiguable words as meaningful for bigram protection
+                    titleWords[i] in DOMAIN_DISAMBIGUATION ||
+                    titleWords[i + 1] in DOMAIN_DISAMBIGUATION
 
                 if (isMeaningful) {
                     topics[bigram] = calculateIdfWeight(
@@ -364,8 +372,14 @@ internal class NeuroTokenizer {
         // ── Title unigrams: SKIP words claimed by meaningful bigrams ──
         titleWords.forEachIndexed { index, word ->
             if (index !in claimedByBigram) {
-                topics[word] = (topics.getOrDefault(word, 0.0) +
-                    calculateIdfWeight(word, TITLE_KEYWORD_WEIGHT, idfSnapshot))
+                // Domain-disambiguate polysemous words using full title+description context
+                val resolvedWord = if (word in DOMAIN_DISAMBIGUATION) {
+                    disambiguateWord(word, fullContext)
+                } else {
+                    word
+                }
+                topics[resolvedWord] = (topics.getOrDefault(resolvedWord, 0.0) +
+                    calculateIdfWeight(resolvedWord, TITLE_KEYWORD_WEIGHT, idfSnapshot))
             }
         }
 
@@ -374,7 +388,13 @@ internal class NeuroTokenizer {
             video.description, idfSnapshot
         )
         descriptionTopics.forEach { (word, weight) ->
-            topics[word] = (topics.getOrDefault(word, 0.0) + weight)
+            // Also disambiguate description words using the same full context
+            val resolved = if (word in DOMAIN_DISAMBIGUATION) {
+                disambiguateWord(word, fullContext)
+            } else {
+                word
+            }
+            topics[resolved] = (topics.getOrDefault(resolved, 0.0) + weight)
         }
 
         // ── Channel Topic Prior ──
@@ -485,5 +505,610 @@ internal class NeuroTokenizer {
                 calculateIdfWeight(word, DESCRIPTION_WORD_WEIGHT, idfSnapshot))
         }
         return result
+    }
+
+    // ══════════════════════════════════════════════
+    // DOMAIN CONTEXT SYSTEM
+    // Words can mean different things in different domains.
+    // We use surrounding words to determine which domain
+    // a polysemous word belongs to, then tag it accordingly.
+    //
+    // "metal" + music context → "metal:music" (won't match metalworking)
+    // "metal" + craft context → "metal:craft" (won't match music)
+    // "rock"  + music context → "rock:music"
+    // "rock"  + nature context → "rock:nature"
+    // ══════════════════════════════════════════════
+
+    private data class DomainContext(
+        val domain: String,
+        val contextWords: Set<String>
+    )
+
+    private val DOMAIN_DISAMBIGUATION: Map<String, List<DomainContext>> = mapOf(
+        "metal" to listOf(
+            DomainContext(
+                domain = "music",
+                contextWords = setOf(
+                    "song", "band", "album", "music", "concert", "guitar",
+                    "drum", "vocal", "sing", "lyric", "playlist", "tour",
+                    "riff", "solo", "anthem", "heavy", "death", "black",
+                    "thrash", "power", "symphonic", "progressive", "doom",
+                    "genre", "metalcore", "deathcore", "djent", "cover",
+                    "react", "reaction", "review", "rank", "tier"
+                )
+            ),
+            DomainContext(
+                domain = "craft",
+                contextWords = setOf(
+                    "weld", "forge", "fabricat", "sheet", "steel", "iron",
+                    "aluminum", "copper", "brass", "tin", "alloy",
+                    "workshop", "tool", "cut", "bend", "grind", "polish",
+                    "cast", "mold", "anvil", "hammer", "lathe", "cnc",
+                    "machin", "work", "shop", "build", "construct"
+                )
+            )
+        ),
+        "rock" to listOf(
+            DomainContext(
+                domain = "music",
+                contextWords = setOf(
+                    "song", "band", "album", "music", "concert", "guitar",
+                    "drum", "vocal", "sing", "lyric", "playlist", "tour",
+                    "classic", "punk", "indie", "alternative", "grunge",
+                    "blues", "roll", "genre", "cover", "anthem",
+                    "react", "reaction", "review", "rank", "tier"
+                )
+            ),
+            DomainContext(
+                domain = "nature",
+                contextWords = setOf(
+                    "geology", "mineral", "stone", "fossil", "gem",
+                    "crystal", "boulder", "cliff", "mountain", "cave",
+                    "collect", "specimen", "earth", "volcanic", "sediment",
+                    "igneous", "metamorphic", "quarry", "dig", "formation"
+                )
+            ),
+            DomainContext(
+                domain = "climbing",
+                contextWords = setOf(
+                    "climb", "boulder", "wall", "route", "belay",
+                    "rope", "harness", "crag", "send", "flash",
+                    "dyno", "crimp", "sloper"
+                )
+            )
+        ),
+        "bass" to listOf(
+            DomainContext(
+                domain = "music",
+                contextWords = setOf(
+                    "guitar", "song", "music", "band", "play", "riff",
+                    "slap", "fretless", "amp", "pedal", "tone",
+                    "groove", "funk", "jazz", "solo", "lesson",
+                    "boost", "drop", "sub", "speaker", "audio",
+                    "headphone", "equalizer", "frequency", "woofer"
+                )
+            ),
+            DomainContext(
+                domain = "fishing",
+                contextWords = setOf(
+                    "fish", "fishing", "lure", "bait", "catch",
+                    "lake", "river", "pond", "boat", "rod",
+                    "reel", "tackle", "tournament", "largemouth",
+                    "smallmouth", "striped"
+                )
+            )
+        ),
+        "spring" to listOf(
+            DomainContext(
+                domain = "tech",
+                contextWords = setOf(
+                    "boot", "java", "framework", "api", "microservice",
+                    "backend", "server", "code", "program", "develop",
+                    "application", "deploy", "config", "bean", "inject"
+                )
+            ),
+            DomainContext(
+                domain = "season",
+                contextWords = setOf(
+                    "summer", "winter", "fall", "autumn", "season",
+                    "flower", "garden", "bloom", "clean", "outfit",
+                    "fashion", "weather", "april", "march", "may"
+                )
+            )
+        ),
+        "cell" to listOf(
+            DomainContext(
+                domain = "biology",
+                contextWords = setOf(
+                    "biology", "science", "membrane", "nucleus",
+                    "mitosis", "dna", "rna", "protein", "organism",
+                    "tissue", "bacteria", "virus", "microscope"
+                )
+            ),
+            DomainContext(
+                domain = "tech",
+                contextWords = setOf(
+                    "phone", "mobile", "battery", "charge", "signal",
+                    "carrier", "data", "plan", "network", "sim"
+                )
+            ),
+            DomainContext(
+                domain = "energy",
+                contextWords = setOf(
+                    "solar", "fuel", "battery", "power", "energy",
+                    "electric", "hydrogen", "lithium", "volt"
+                )
+            )
+        ),
+        "plant" to listOf(
+            DomainContext(
+                domain = "botany",
+                contextWords = setOf(
+                    "grow", "garden", "flower", "seed", "soil",
+                    "water", "pot", "leaf", "root", "tree",
+                    "herb", "indoor", "outdoor", "succulent", "cactus",
+                    "propagat", "prune", "fertiliz", "bloom"
+                )
+            ),
+            DomainContext(
+                domain = "industrial",
+                contextWords = setOf(
+                    "power", "factory", "nuclear", "chemical",
+                    "manufacturing", "industrial", "facility",
+                    "process", "production", "refinery"
+                )
+            )
+        ),
+        "pitch" to listOf(
+            DomainContext(
+                domain = "music",
+                contextWords = setOf(
+                    "sing", "vocal", "note", "tune", "perfect",
+                    "music", "tone", "frequency", "ear", "train"
+                )
+            ),
+            DomainContext(
+                domain = "business",
+                contextWords = setOf(
+                    "startup", "investor", "shark", "tank", "business",
+                    "company", "funding", "venture", "present",
+                    "elevator", "idea", "million"
+                )
+            ),
+            DomainContext(
+                domain = "sport",
+                contextWords = setOf(
+                    "baseball", "cricket", "throw", "ball", "strike",
+                    "mound", "pitcher", "fastball", "curve", "slider"
+                )
+            )
+        ),
+        "jam" to listOf(
+            DomainContext(
+                domain = "music",
+                contextWords = setOf(
+                    "guitar", "band", "music", "session", "play",
+                    "improvise", "solo", "groove", "funk", "blues",
+                    "live", "concert"
+                )
+            ),
+            DomainContext(
+                domain = "food",
+                contextWords = setOf(
+                    "recipe", "fruit", "strawberry", "preserve",
+                    "spread", "toast", "jar", "cook", "homemade",
+                    "sugar", "berry", "grape"
+                )
+            )
+        ),
+        "bar" to listOf(
+            DomainContext(
+                domain = "music",
+                contextWords = setOf(
+                    "beat", "measure", "rhythm", "rap", "flow",
+                    "lyric", "verse", "hook", "produce", "music"
+                )
+            ),
+            DomainContext(
+                domain = "fitness",
+                contextWords = setOf(
+                    "pull", "deadlift", "squat", "bench", "weight",
+                    "gym", "workout", "exercise", "lift", "olympic"
+                )
+            )
+        ),
+        "wave" to listOf(
+            DomainContext(
+                domain = "music",
+                contextWords = setOf(
+                    "synth", "new", "retro", "synthwave", "vaporwave",
+                    "music", "genre", "aesthetic", "80s", "electronic"
+                )
+            ),
+            DomainContext(
+                domain = "science",
+                contextWords = setOf(
+                    "ocean", "sound", "light", "electromagnetic",
+                    "frequency", "physics", "energy", "radio",
+                    "seismic", "tsunami", "surf"
+                )
+            ),
+            DomainContext(
+                domain = "hair",
+                contextWords = setOf(
+                    "hair", "style", "curl", "360", "brush",
+                    "barber", "durag", "pattern", "pomade"
+                )
+            )
+        ),
+        "track" to listOf(
+            DomainContext(
+                domain = "music",
+                contextWords = setOf(
+                    "song", "album", "music", "beat", "produce",
+                    "mix", "master", "record", "artist", "release",
+                    "single", "feature", "lyric", "audio"
+                )
+            ),
+            DomainContext(
+                domain = "sport",
+                contextWords = setOf(
+                    "race", "run", "lap", "sprint", "field",
+                    "athlete", "relay", "hurdle", "meter", "olympic",
+                    "nascar", "formula", "circuit", "drift"
+                )
+            )
+        ),
+        "model" to listOf(
+            DomainContext(
+                domain = "ai",
+                contextWords = setOf(
+                    "train", "machine", "learn", "neural", "network",
+                    "data", "predict", "gpt", "llm", "parameter",
+                    "fine", "tune", "inference", "deploy", "weight"
+                )
+            ),
+            DomainContext(
+                domain = "fashion",
+                contextWords = setOf(
+                    "fashion", "runway", "pose", "photo", "shoot",
+                    "agency", "walk", "beauty", "vogue", "style"
+                )
+            ),
+            DomainContext(
+                domain = "hobby",
+                contextWords = setOf(
+                    "scale", "kit", "miniature", "paint", "hobby",
+                    "plastic", "glue", "detail", "build", "aircraft",
+                    "tank", "ship", "car", "diorama", "warhammer"
+                )
+            )
+        ),
+        "stream" to listOf(
+            DomainContext(
+                domain = "live",
+                contextWords = setOf(
+                    "live", "twitch", "chat", "viewer", "sub",
+                    "donation", "game", "play", "broadcast", "obs",
+                    "overlay", "alert", "raid", "clip"
+                )
+            ),
+            DomainContext(
+                domain = "nature",
+                contextWords = setOf(
+                    "river", "water", "creek", "brook", "fish",
+                    "nature", "mountain", "hike", "forest", "flow",
+                    "waterfall", "trout"
+                )
+            ),
+            DomainContext(
+                domain = "tech",
+                contextWords = setOf(
+                    "data", "kafka", "process", "real-time", "event",
+                    "pipeline", "api", "java", "reactive", "buffer"
+                )
+            )
+        ),
+        "build" to listOf(
+            DomainContext(
+                domain = "gaming",
+                contextWords = setOf(
+                    "game", "character", "class", "loadout", "weapon",
+                    "armor", "skill", "spec", "talent", "meta",
+                    "tier", "rank", "guide", "fortnite", "minecraft"
+                )
+            ),
+            DomainContext(
+                domain = "pc",
+                contextWords = setOf(
+                    "pc", "computer", "gpu", "cpu", "ram", "ssd",
+                    "motherboard", "case", "cooling", "rgb", "setup",
+                    "benchmark", "gaming", "workstation", "budget"
+                )
+            ),
+            DomainContext(
+                domain = "construction",
+                contextWords = setOf(
+                    "house", "cabin", "shed", "deck", "fence",
+                    "wood", "concrete", "brick", "foundation",
+                    "roof", "wall", "frame", "diy", "workshop"
+                )
+            ),
+            DomainContext(
+                domain = "car",
+                contextWords = setOf(
+                    "car", "truck", "engine", "swap", "turbo",
+                    "exhaust", "suspension", "wheel", "tire",
+                    "drift", "race", "jdm", "sema", "custom",
+                    "restore", "project", "garage", "wrench"
+                )
+            )
+        ),
+        "scale" to listOf(
+            DomainContext(
+                domain = "music",
+                contextWords = setOf(
+                    "major", "minor", "note", "practice", "piano",
+                    "guitar", "music", "theory", "mode", "pentatonic",
+                    "chord", "interval", "key"
+                )
+            ),
+            DomainContext(
+                domain = "hobby",
+                contextWords = setOf(
+                    "model", "miniature", "kit", "rc", "diorama",
+                    "detail", "paint", "replica"
+                )
+            ),
+            DomainContext(
+                domain = "business",
+                contextWords = setOf(
+                    "startup", "growth", "business", "company",
+                    "revenue", "customer", "market", "enterprise"
+                )
+            )
+        )
+    )
+
+    /**
+     * Resolves the domain of a polysemous word based on surrounding context.
+     *
+     * Returns the domain-tagged version (e.g. "metal:music") if context is
+     * sufficient, or the original word if ambiguous.
+     *
+     * Uses prefix matching on context words to catch morphological variants
+     * (e.g. "fabricat" matches "fabrication", "fabricated", "fabricating").
+     */
+    private fun disambiguateWord(word: String, allWords: List<String>): String {
+        val domains = DOMAIN_DISAMBIGUATION[word] ?: return word
+
+        var bestDomain: String? = null
+        var bestScore = 0
+        var secondBestScore = 0
+
+        for (domain in domains) {
+            var score = 0
+            for (contextWord in domain.contextWords) {
+                if (allWords.any { it.startsWith(contextWord) || contextWord.startsWith(it) }) {
+                    score++
+                }
+            }
+
+            if (score > bestScore) {
+                secondBestScore = bestScore
+                bestScore = score
+                bestDomain = domain.domain
+            } else if (score > secondBestScore) {
+                secondBestScore = score
+            }
+        }
+
+        // Only tag if we have clear signal: best > 0 and best clearly wins over second
+        return if (bestDomain != null &&
+            bestScore >= 1 &&
+            (secondBestScore == 0 || bestScore >= secondBestScore * 1.5 + 1)
+        ) {
+            "$word:$bestDomain"
+        } else {
+            word
+        }
+    }
+
+    // ══════════════════════════════════════════════
+    // CHANNEL NAME INTELLIGENCE
+    // Channel names contain a mix of:
+    // - Personal names ("John", "Sarah", "Mr Beast")
+    // - Topic keywords ("Tech", "Gaming", "Cooking")
+    // - Branding suffixes ("TV", "HQ", "Official")
+    //
+    // Only the topic keywords should enter the topic vector.
+    // Personal names and branding are noise.
+    // ══════════════════════════════════════════════
+
+    private val COMMON_FIRST_NAMES = hashSetOf(
+        // English male
+        "adam", "alan", "alex", "alexander", "andrew", "anthony",
+        "austin", "ben", "benjamin", "brandon", "brian", "bruce",
+        "caleb", "cameron", "carl", "charles", "charlie", "chris",
+        "christian", "colin", "connor", "corey", "craig", "dan",
+        "daniel", "dave", "david", "dean", "derek", "devon",
+        "dominic", "don", "donald", "drew", "dustin", "dylan",
+        "ed", "edward", "eli", "elijah", "eric", "erik", "ethan",
+        "evan", "felix", "frank", "fred", "gary", "george",
+        "grant", "greg", "gregory", "harry", "henry", "howard",
+        "hunter", "ian", "isaac", "jack", "jackson", "jacob",
+        "jake", "james", "jamie", "jared", "jason", "jeff",
+        "jeffrey", "jeremy", "jerry", "jesse", "jim", "jimmy",
+        "joe", "joel", "john", "johnny", "jon", "jonathan",
+        "jordan", "jose", "joseph", "josh", "joshua", "juan",
+        "julian", "justin", "keith", "ken", "kevin", "kyle",
+        "lance", "larry", "leo", "liam", "logan", "louis",
+        "lucas", "luke", "marcus", "mark", "martin", "mason",
+        "matt", "matthew", "max", "michael", "mike", "miles",
+        "nathan", "nicholas", "nick", "noah", "nolan", "oliver",
+        "oscar", "owen", "patrick", "paul", "peter", "phil",
+        "philip", "preston", "quentin", "ralph", "randy", "ray",
+        "raymond", "richard", "rick", "robert", "robin", "roger",
+        "ron", "ronald", "ross", "roy", "russell", "ryan",
+        "sam", "samuel", "scott", "sean", "seth", "shane",
+        "simon", "spencer", "stephen", "steve", "steven",
+        "stuart", "ted", "terry", "thomas", "tim", "timothy",
+        "todd", "tom", "tommy", "tony", "travis", "trevor",
+        "troy", "tyler", "victor", "vincent", "wade", "walter",
+        "warren", "wayne", "will", "william", "zach", "zachary",
+        // English female
+        "alice", "amanda", "amber", "amy", "andrea", "angela",
+        "anna", "ashley", "barbara", "beth", "betty", "brenda",
+        "brittany", "carmen", "carol", "caroline", "catherine",
+        "charlotte", "chelsea", "christina", "christine", "claire",
+        "courtney", "crystal", "cynthia", "daisy", "dana", "danielle",
+        "deborah", "diana", "donna", "dorothy", "elizabeth", "ellen",
+        "emily", "emma", "erica", "eva", "faith", "fiona",
+        "florence", "grace", "hailey", "hannah", "heather", "helen",
+        "holly", "irene", "isabel", "isabella", "jackie", "jane",
+        "janet", "janice", "jasmine", "jennifer", "jenny", "jessica",
+        "joan", "joanne", "julia", "julie", "karen", "kate",
+        "katherine", "kathleen", "katie", "kayla", "kelly", "kim",
+        "kimberly", "kristen", "kristin", "laura", "lauren", "leah",
+        "lillian", "lily", "linda", "lisa", "liz", "lori",
+        "lucy", "lynn", "madeline", "madison", "maria", "marie",
+        "martha", "mary", "megan", "melissa", "michelle", "miranda",
+        "molly", "monica", "nancy", "natalie", "natasha", "nicole",
+        "olivia", "paige", "pamela", "patricia", "rachel", "rebecca",
+        "renee", "rita", "robin", "rosa", "rose", "ruth",
+        "sabrina", "samantha", "sandra", "sara", "sarah", "sharon",
+        "sophia", "stephanie", "susan", "tamara", "tanya", "tara",
+        "teresa", "tiffany", "tina", "tracy", "valerie", "vanessa",
+        "veronica", "victoria", "virginia", "wendy", "whitney"
+    )
+
+    private val COMMON_LAST_NAMES = hashSetOf(
+        "smith", "johnson", "williams", "brown", "jones", "garcia",
+        "miller", "davis", "rodriguez", "martinez", "hernandez",
+        "lopez", "gonzalez", "wilson", "anderson", "thomas",
+        "taylor", "moore", "jackson", "martin", "lee", "perez",
+        "thompson", "white", "harris", "sanchez", "clark", "ramirez",
+        "lewis", "robinson", "walker", "young", "allen", "king",
+        "wright", "scott", "torres", "nguyen", "hill", "flores",
+        "green", "adams", "nelson", "baker", "hall", "rivera",
+        "campbell", "mitchell", "carter", "roberts", "turner",
+        "phillips", "parker", "evans", "edwards", "collins", "stewart",
+        "morris", "murphy", "cook", "rogers", "morgan", "peterson",
+        "cooper", "reed", "bailey", "bell", "gomez", "kelly",
+        "howard", "ward", "cox", "diaz", "richardson", "wood",
+        "watson", "brooks", "bennett", "gray", "james", "reyes",
+        "cruz", "hughes", "price", "myers", "long", "foster",
+        "sanders", "ross", "morales", "powell", "sullivan", "russell",
+        "ortiz", "jenkins", "gutierrez", "perry", "butler", "barnes",
+        "fisher", "henderson", "coleman", "simmons", "patterson",
+        "jordan", "reynolds", "hamilton", "graham", "kim", "gonzales"
+    )
+
+    private val CHANNEL_BRANDING = hashSetOf(
+        "tv", "hq", "official", "studios", "studio", "media",
+        "network", "show", "channel", "daily", "weekly",
+        "clips", "highlights", "productions", "entertainment",
+        "records", "label", "publishing", "digital", "online",
+        "plus", "extra", "prime", "live", "vlog", "vlogs",
+        "sensei", "guru", "master", "pro", "expert", "academy",
+        "zone", "hub", "spot", "world", "nation", "central",
+        "insider", "minute", "bytes", "bits"
+    )
+
+    private val ALWAYS_TOPICAL = hashSetOf(
+        "tech", "technology", "science", "music", "game", "gaming",
+        "cook", "cooking", "art", "code", "coding", "program",
+        "fitness", "health", "beauty", "fashion", "travel",
+        "food", "nature", "history", "math", "physics", "chemistry",
+        "biology", "engineering", "design", "photo", "photography",
+        "film", "cinema", "anime", "manga", "sports", "football",
+        "basketball", "soccer", "baseball", "hockey", "golf",
+        "tennis", "boxing", "mma", "wrestling", "yoga", "meditation",
+        "crypto", "finance", "investing", "business", "marketing",
+        "psychology", "philosophy", "education", "garden", "automotive",
+        "car", "motorcycle", "aviation", "space", "astronomy",
+        "woodworking", "metalworking", "electronics", "robotics",
+        "3d", "printing", "sewing", "knitting", "pottery"
+    )
+
+    /**
+     * Tokenizes a channel name, extracting ONLY topical keywords.
+     * Filters out personal names, branding suffixes, and other noise.
+     *
+     * "John Doe Gaming"          → ["game"]
+     * "TechWithTim"              → ["tech"]  (tim filtered as name)
+     * "Kurzgesagt – In a Nutshell" → ["kurzgesagt"]  (unique brand = kept)
+     * "Linus Tech Tips"          → ["tech"]  (linus = name, tips = stop word)
+     */
+    fun tokenizeChannelName(channelName: String): List<String> {
+        // Keep original casing for capitalization-based name detection
+        val rawOriginal = channelName
+            .split(WHITESPACE_REGEX)
+            .map { word -> word.trim { !it.isLetterOrDigit() } }
+            .filter { it.length > 1 }
+
+        // Single-word channel names are likely unique brands — keep if substantial
+        if (rawOriginal.size == 1) {
+            val word = rawOriginal[0].lowercase()
+            if (word.length > 3 && word !in CHANNEL_BRANDING && word !in STOP_WORDS) {
+                return listOf(normalizeLemma(word))
+            }
+            return emptyList()
+        }
+
+        val topical = mutableListOf<String>()
+        rawOriginal.forEach { originalWord ->
+            val lower = originalWord.lowercase()
+            val lemma = normalizeLemma(lower)
+
+            when {
+                lower in ALWAYS_TOPICAL || lemma in ALWAYS_TOPICAL -> topical.add(lemma)
+                lower in COMMON_FIRST_NAMES -> { /* skip — personal name */ }
+                lower in COMMON_LAST_NAMES -> { /* skip — surname */ }
+                lower in CHANNEL_BRANDING -> { /* skip — branding suffix */ }
+                lower in STOP_WORDS -> { /* skip — stop word */ }
+                lower.length <= 2 -> { /* skip — likely initials */ }
+                originalWord[0].isUpperCase() && lower.length <= 5 &&
+                    lower !in ALWAYS_TOPICAL -> { /* skip — likely a name */ }
+                else -> topical.add(lemma)
+            }
+        }
+        return topical
+    }
+
+    /**
+     * Builds a flat list of all meaningful words from the video's title,
+     * channel name, and description. Used as context for domain disambiguation.
+     *
+     * Does NOT lemmatize — we want raw word stems for prefix matching
+     * against domain context words.
+     */
+    private fun buildContextWordList(video: Video): List<String> {
+        val words = mutableListOf<String>()
+
+        video.title.lowercase()
+            .split(WHITESPACE_REGEX)
+            .map { it.trim { c -> !c.isLetterOrDigit() } }
+            .filter { it.length > 1 }
+            .forEach { words.add(it) }
+
+        video.channelName.lowercase()
+            .split(WHITESPACE_REGEX)
+            .map { it.trim { c -> !c.isLetterOrDigit() } }
+            .filter { it.length > 1 }
+            .forEach { words.add(it) }
+
+        if (!video.description.isNullOrBlank()) {
+            video.description.lines()
+                .take(3)
+                .joinToString(" ")
+                .lowercase()
+                .split(WHITESPACE_REGEX)
+                .map { it.trim { c -> !c.isLetterOrDigit() } }
+                .filter { it.length > 2 }
+                .forEach { words.add(it) }
+        }
+
+        return words
     }
 }

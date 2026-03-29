@@ -528,9 +528,9 @@ class FlowNeuroEngine(private val appContext: Context) {
 
             topicList.forEachIndexed { index, topic ->
                 val weight = when {
-                    index < 3 -> 0.75
-                    index < 6 -> 0.60
-                    else -> 0.45
+                    index < 3 -> 0.55
+                    index < 6 -> 0.40
+                    else -> 0.30
                 }
                 newTopics[tokenizer.normalizeLemma(topic)] = weight
             }
@@ -1064,7 +1064,8 @@ class FlowNeuroEngine(private val appContext: Context) {
                 (noveltyScore * wNovelty)
 
             // ── Topic affinity boost ──
-            val videoTopics = videoVector.topics.keys.toList()
+            val videoTopics = videoVector.topics.keys
+                .map { NeuroScoring.stripDomainTag(it) }.distinct()
             var affinityBoost = 0.0
             for (i in videoTopics.indices) {
                 for (j in i + 1 until videoTopics.size) {
@@ -1138,7 +1139,7 @@ class FlowNeuroEngine(private val appContext: Context) {
             )
 
             // ── Engagement momentum boost ──
-            totalScore += NeuroScoring.calculateMomentumBoost(videoVector, recentInteractions)
+            totalScore += NeuroScoring.calculateMomentumBoost(videoVector, recentInteractions, personalityScore)
 
             // ── Seen Shorts penalty ──
             if (video.isShort) {
@@ -1222,6 +1223,12 @@ class FlowNeuroEngine(private val appContext: Context) {
             learningRate *= NeuroScoring.SHORTS_LEARNING_PENALTY
         }
 
+        // Maturity-scaled learning: slow down positive learning as brain matures.
+        if (learningRate > 0) {
+            val maturityDamping = 1.0 / (1.0 + ln(1.0 + currentUserBrain.totalInteractions / 50.0))
+            learningRate *= maturityDamping.coerceIn(0.25, 1.0)
+        }
+
         brainMutex.withLock {
             // 0. Watch velocity: adjust click learning rate based on impression timing
             if (interactionType == InteractionType.CLICK) {
@@ -1265,7 +1272,7 @@ class FlowNeuroEngine(private val appContext: Context) {
             val currentBucketVec = currentUserBrain.timeVectors[bucket]
                 ?: ContentVector()
             val newBucketVec = NeuroVectorMath.adjustVector(
-                currentBucketVec, videoVector, learningRate * 1.5
+                currentBucketVec, videoVector, learningRate * 1.2
             )
 
             // 3. Channel score
@@ -1302,7 +1309,8 @@ class FlowNeuroEngine(private val appContext: Context) {
                 val topTopics = videoVector.topics.entries
                     .sortedByDescending { it.value }
                     .take(5)
-                    .map { it.key }
+                    .map { NeuroScoring.stripDomainTag(it.key) }
+                    .distinct()
                 if (topTopics.size >= 2) {
                     val mutableAffinities = newAffinities.toMutableMap()
                     for (i in topTopics.indices) {

@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.0.1
-DATE: 2026-03-28
+DATE: 2026-03-29
 
 FEATURES
 - New Audio focus toggle to continue playing videos while on a call #175 #177
@@ -12,6 +12,8 @@ FEATURES
 IMPROVEMENTS
 - FlowNeuroEngine modularization
 - Smarter Discovery Query Generation
+- Improved content tokenization - Domain based
+- Tuned engine learning rates
 - Improved filtering on marked content #173
 - Hide related video when marked in the video player screen #172
 - Add shorts deduplication in the subs screen shorts shelf #138 #162
