@@ -474,16 +474,14 @@ class YouTubeRepository @Inject constructor() {
     }
     
     /**
-     * Fetch comments for a video
+     * Fetch the first page of comments for a video.
+     * Returns the comments and a next-page token (null if no more pages).
      */
-    suspend fun getComments(videoId: String): List<io.github.aedev.flow.data.model.Comment> = withContext(Dispatchers.IO) {
+    suspend fun getComments(videoId: String): Pair<List<io.github.aedev.flow.data.model.Comment>, org.schabi.newpipe.extractor.Page?> = withContext(Dispatchers.IO) {
         try {
             val url = "https://www.youtube.com/watch?v=$videoId"
-            val commentsExtractor = org.schabi.newpipe.extractor.comments.CommentsInfo.getInfo(service, url)
-            val allComments = mutableListOf<io.github.aedev.flow.data.model.Comment>()
-            
-            // Map first page
-            allComments.addAll(commentsExtractor.relatedItems.map { item ->
+            val commentsInfo = org.schabi.newpipe.extractor.comments.CommentsInfo.getInfo(service, url)
+            val comments = commentsInfo.relatedItems.map { item ->
                 io.github.aedev.flow.data.model.Comment(
                     id = item.commentId ?: "",
                     author = item.uploaderName ?: "Unknown",
@@ -494,33 +492,41 @@ class YouTubeRepository @Inject constructor() {
                     replyCount = item.replyCount.toInt(),
                     repliesPage = item.replies
                 )
-            })
-            
-            // Try to fetch 3 more pages to get "all" (or at least 80-100)
-            var nextPage = commentsExtractor.nextPage
-            var pages = 0
-            while (nextPage != null && pages < 3) {
-                val moreItems = org.schabi.newpipe.extractor.comments.CommentsInfo.getMoreItems(service, url, nextPage)
-                allComments.addAll(moreItems.items.map { item ->
-                    io.github.aedev.flow.data.model.Comment(
-                        id = item.commentId ?: "",
-                        author = item.uploaderName ?: "Unknown",
-                        authorThumbnail = item.uploaderAvatars.firstOrNull()?.url ?: "",
-                        text = item.commentText?.content ?: "",
-                        likeCount = item.likeCount.toInt(),
-                        publishedTime = item.textualUploadDate ?: "",
-                        replyCount = item.replyCount.toInt(),
-                        repliesPage = item.replies
-                    )
-                })
-                nextPage = moreItems.nextPage
-                pages++
             }
-            
-            allComments
+            Pair(comments, commentsInfo.nextPage)
         } catch (e: Exception) {
             e.printStackTrace()
-            emptyList()
+            Pair(emptyList(), null)
+        }
+    }
+
+    /**
+     * Fetch the next page of top-level comments for a video.
+     * Returns the new comments and an updated next-page token.
+     */
+    suspend fun getMoreComments(
+        videoId: String,
+        nextPage: org.schabi.newpipe.extractor.Page
+    ): Pair<List<io.github.aedev.flow.data.model.Comment>, org.schabi.newpipe.extractor.Page?> = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://www.youtube.com/watch?v=$videoId"
+            val moreItems = org.schabi.newpipe.extractor.comments.CommentsInfo.getMoreItems(service, url, nextPage)
+            val comments = moreItems.items.map { item ->
+                io.github.aedev.flow.data.model.Comment(
+                    id = item.commentId ?: "",
+                    author = item.uploaderName ?: "Unknown",
+                    authorThumbnail = item.uploaderAvatars.firstOrNull()?.url ?: "",
+                    text = item.commentText?.content ?: "",
+                    likeCount = item.likeCount.toInt(),
+                    publishedTime = item.textualUploadDate ?: "",
+                    replyCount = item.replyCount.toInt(),
+                    repliesPage = item.replies
+                )
+            }
+            Pair(comments, moreItems.nextPage)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Pair(emptyList(), null)
         }
     }
 

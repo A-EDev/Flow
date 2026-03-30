@@ -33,6 +33,9 @@ fun PlayerBottomSheetsContainer(
     completeVideo: Video,
     comments: List<Comment>,
     isLoadingComments: Boolean,
+    isLoadingMoreComments: Boolean = false,
+    hasMoreComments: Boolean = false,
+    onLoadMoreComments: (videoId: String) -> Unit = {},
     context: Context,
     onPlayAsShort: (String) -> Unit,
     onPlayAsMusic: (String) -> Unit,
@@ -113,7 +116,6 @@ fun PlayerBottomSheetsContainer(
     if (screenState.showCommentsSheet) {
         FlowCommentsBottomSheet(
             comments = sortedComments,
-            commentCount = uiState.commentCountText,
             isLoading = isLoadingComments,
             isTopSelected = screenState.isTopComments,
             onFilterChanged = { isTop ->
@@ -121,6 +123,9 @@ fun PlayerBottomSheetsContainer(
             },
             onLoadReplies = onLoadReplies,
             onTimestampClick = handleTimestampClick,
+            isLoadingMore = isLoadingMoreComments,
+            hasMore = hasMoreComments,
+            onLoadMore = { onLoadMoreComments(video.id) },
             onDismiss = { screenState.showCommentsSheet = false }
         )
     }

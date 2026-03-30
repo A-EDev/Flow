@@ -60,9 +60,17 @@ class VideoPlayerViewModel @Inject constructor(
     
     private val _commentsState = MutableStateFlow<List<io.github.aedev.flow.data.model.Comment>>(emptyList())
     val commentsState: StateFlow<List<io.github.aedev.flow.data.model.Comment>> = _commentsState.asStateFlow()
-    
+
     private val _isLoadingComments = MutableStateFlow(false)
     val isLoadingComments: StateFlow<Boolean> = _isLoadingComments.asStateFlow()
+
+    private var commentsNextPage: org.schabi.newpipe.extractor.Page? = null
+
+    private val _hasMoreComments = MutableStateFlow(false)
+    val hasMoreComments: StateFlow<Boolean> = _hasMoreComments.asStateFlow()
+
+    private val _isLoadingMoreComments = MutableStateFlow(false)
+    val isLoadingMoreComments: StateFlow<Boolean> = _isLoadingMoreComments.asStateFlow()
     
     private val navigationHistory = mutableListOf<String>()
     private var currentHistoryIndex = -1
@@ -253,6 +261,9 @@ class VideoPlayerViewModel @Inject constructor(
         // Clear related content
         _commentsState.value = emptyList()
         _isLoadingComments.value = false
+        commentsNextPage = null
+        _hasMoreComments.value = false
+        _isLoadingMoreComments.value = false
     }
 
     /**
@@ -969,18 +980,35 @@ class VideoPlayerViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoadingComments.value = true
             _commentsState.value = emptyList()
+            commentsNextPage = null
+            _hasMoreComments.value = false
             try {
-                val comments = repository.getComments(videoId)
+                val (comments, nextPage) = repository.getComments(videoId)
                 _commentsState.value = comments
-                if (comments.isNotEmpty()) {
-                    _uiState.value = _uiState.value.copy(
-                        commentCountText = "${comments.size}+"
-                    )
-                }
+                commentsNextPage = nextPage
+                _hasMoreComments.value = nextPage != null
             } catch (e: Exception) {
                 Log.e("VideoPlayerViewModel", "Error loading comments", e)
             } finally {
                 _isLoadingComments.value = false
+            }
+        }
+    }
+
+    fun loadMoreComments(videoId: String) {
+        val nextPage = commentsNextPage ?: return
+        if (_isLoadingMoreComments.value) return
+        viewModelScope.launch {
+            _isLoadingMoreComments.value = true
+            try {
+                val (newComments, newNextPage) = repository.getMoreComments(videoId, nextPage)
+                _commentsState.value = _commentsState.value + newComments
+                commentsNextPage = newNextPage
+                _hasMoreComments.value = newNextPage != null
+            } catch (e: Exception) {
+                Log.e("VideoPlayerViewModel", "Error loading more comments", e)
+            } finally {
+                _isLoadingMoreComments.value = false
             }
         }
     }
@@ -1159,7 +1187,6 @@ data class VideoPlayerUiState(
     val channelAvatarUrl: String? = null,
     val chapters: List<StreamSegment> = emptyList(),
     val autoplayEnabled: Boolean = true,
-    val commentCountText: String = "0",
     val streamSizes: Map<String, Long> = emptyMap(),
     val localFilePath: String? = null,
     val localFileVideoId: String? = null,

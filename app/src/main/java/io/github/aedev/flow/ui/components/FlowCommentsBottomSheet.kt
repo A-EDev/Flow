@@ -42,15 +42,22 @@ import io.github.aedev.flow.utils.formatRichText
 @Composable
 fun FlowCommentsBottomSheet(
     comments: List<Comment>,
-    commentCount: String,
     isLoading: Boolean,
     onDismiss: () -> Unit,
-    onTimestampClick: (String) -> Unit = {}, 
+    onTimestampClick: (String) -> Unit = {},
     onFilterChanged: (Boolean) -> Unit = {},
     onLoadReplies: (Comment) -> Unit = {},
     isTopSelected: Boolean = true,
+    isLoadingMore: Boolean = false,
+    onLoadMore: () -> Unit = {},
+    hasMore: Boolean = false,
     modifier: Modifier = Modifier
 ) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val maxHeight = configuration.screenHeightDp.dp * 0.65f
+
+    val latestOnLoadMore by rememberUpdatedState(onLoadMore)
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState(),
@@ -59,81 +66,92 @@ fun FlowCommentsBottomSheet(
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = modifier
     ) {
-        val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-        val maxHeight = configuration.screenHeightDp.dp * 0.65f
-
-        Column(modifier = Modifier.fillMaxWidth().heightIn(max = maxHeight)) {
-            
-            // 1. Header & Filters
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 8.dp)
-            ) {
-                // Title Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = maxHeight),
+            contentPadding = PaddingValues(bottom = 32.dp)
+        ) {
+            item(key = "header") {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 8.dp)
                 ) {
-                    Text(
-                        text = stringResource(R.string.comments),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = commentCount,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.comments),
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.padding(top = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        FilterChip(
+                            selected = isTopSelected,
+                            onClick = { onFilterChanged(true) },
+                            label = { Text(stringResource(R.string.filter_top)) }
+                        )
+                        FilterChip(
+                            selected = !isTopSelected,
+                            onClick = { onFilterChanged(false) },
+                            label = { Text(stringResource(R.string.filter_newest)) }
+                        )
                     }
                 }
-
-                // Filter Chips
-                Row(
-                    modifier = Modifier.padding(top = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    FilterChip(
-                        selected = isTopSelected,
-                        onClick = { onFilterChanged(true) },
-                        label = { Text(stringResource(R.string.filter_top)) }
-                    )
-                    FilterChip(
-                        selected = !isTopSelected,
-                        onClick = { onFilterChanged(false) },
-                        label = { Text(stringResource(R.string.filter_newest)) }
-                    )
-                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
-
-            // 2. Content
+            // Loading skeleton
             if (isLoading) {
-                // Skeleton Loading Effect
-                Column(Modifier.padding(16.dp)) {
-                    repeat(6) { CommentSkeleton() }
+                item(key = "loading") {
+                    Column(Modifier.padding(16.dp)) {
+                        repeat(6) { CommentSkeleton() }
+                    }
                 }
             } else if (comments.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.no_comments_yet), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                item(key = "empty") {
+                    Box(
+                        modifier = Modifier.fillParentMaxWidth().height(120.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            stringResource(R.string.no_comments_yet),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 32.dp)
-                ) {
-                    items(comments) { comment ->
-                        FlowCommentItem(
-                            comment = comment,
-                            onTimestampClick = onTimestampClick,
-                            onLoadReplies = onLoadReplies
-                        )
+                items(comments) { comment ->
+                    FlowCommentItem(
+                        comment = comment,
+                        onTimestampClick = onTimestampClick,
+                        onLoadReplies = onLoadReplies
+                    )
+                }
+                if (hasMore) {
+                    item(key = "load_more_trigger") {
+                        LaunchedEffect(comments.size) {
+                            latestOnLoadMore()
+                        }
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isLoadingMore) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            }
+                        }
                     }
                 }
             }

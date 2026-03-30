@@ -24,6 +24,7 @@ IMPROVEMENTS
 - Add video card press and hold to open quick actions
 - Increase video title to 2 lines #197
 - Move SponsorBlock contribution setttings to player settings screen #193
+- Add load more feature for comments #204
 
 FIXES AND STABILITY
 - Keyboard Focus and pop up
@@ -36,3 +37,4 @@ FIXES AND STABILITY
 - Fix video delete issues #95
 - Fix share button issues #176
 - Fix video and gestures for RTL #187 #188
+- Fix comment sheet collapsing when scrolling #189

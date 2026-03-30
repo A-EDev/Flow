@@ -362,10 +362,10 @@ class ShortsViewModel @Inject constructor(
             _isLoadingComments.value = true
             _commentsState.value = emptyList()
             try {
-                val comments = withTimeoutOrNull(10_000L) {
+                val result = withTimeoutOrNull(10_000L) {
                     repository.getComments(videoId)
-                } ?: emptyList()
-                _commentsState.value = comments
+                }
+                _commentsState.value = result?.first ?: emptyList()
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading comments", e)
             } finally {

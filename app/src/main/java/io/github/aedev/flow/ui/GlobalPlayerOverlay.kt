@@ -128,6 +128,8 @@ fun GlobalPlayerOverlay(
     val canGoPrevious by playerViewModel.canGoPrevious.collectAsStateWithLifecycle()
     val comments by playerViewModel.commentsState.collectAsStateWithLifecycle()
     val isLoadingComments by playerViewModel.isLoadingComments.collectAsStateWithLifecycle()
+    val hasMoreComments by playerViewModel.hasMoreComments.collectAsStateWithLifecycle()
+    val isLoadingMoreComments by playerViewModel.isLoadingMoreComments.collectAsStateWithLifecycle()
 
     val playerPreferences = remember { PlayerPreferences(context) }
     val swipeGesturesEnabled by playerPreferences.swipeGesturesEnabled.collectAsState(initial = true)
@@ -892,6 +894,9 @@ fun GlobalPlayerOverlay(
             completeVideo = completeVideo,
             comments = comments,
             isLoadingComments = isLoadingComments,
+            isLoadingMoreComments = isLoadingMoreComments,
+            hasMoreComments = hasMoreComments,
+            onLoadMoreComments = { videoId -> playerViewModel.loadMoreComments(videoId) },
             context = context,
             onPlayAsShort = { videoId ->
                 onClose()

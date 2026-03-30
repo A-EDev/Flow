@@ -144,7 +144,6 @@ fun VideoInfoContent(
 
     // Comments Preview
     CommentsPreview(
-        commentCount = uiState.commentCountText,
         latestComment = comments.firstOrNull()?.text,
         authorAvatar = comments.firstOrNull()?.authorThumbnail,
         onClick = { screenState.showCommentsSheet = true }

@@ -362,7 +362,6 @@ fun ShortsScreen(
         if (showCommentsSheet) {
             FlowCommentsBottomSheet(
                 comments = sortedComments,
-                commentCount = if (comments.isNotEmpty()) "${comments.size}+" else "0",
                 isLoading = isLoadingComments,
                 isTopSelected = isTopComments,
                 onFilterChanged = { isTopComments = it },

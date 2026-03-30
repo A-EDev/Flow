@@ -202,7 +202,6 @@ fun VideoInfoSection(
 
 @Composable
 fun CommentsPreview(
-    commentCount: String,
     latestComment: String?,
     authorAvatar: String?,
     onClick: () -> Unit
@@ -222,12 +221,6 @@ fun CommentsPreview(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = commentCount,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             
