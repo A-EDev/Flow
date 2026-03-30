@@ -78,7 +78,6 @@ fun Modifier.videoPlayerControls(
 
     this
         .pointerInput(Unit) {
-            val elementSize = size
             detectTapGestures(
                 onTap = {
                     if (!currentIsSpeedBoostActive) {
@@ -86,12 +85,22 @@ fun Modifier.videoPlayerControls(
                     }
                 },
                 onDoubleTap = { offset ->
-                    val screenWidth = elementSize.width
+                    // Read size fresh on every tap — the player animates from mini to
+                    // full while this coroutine is already running, so a pre-captured
+                    // `elementSize` would be the halfway-animation size, not screen width.
+                    val screenWidth = size.width
                     val tapPosition = offset.x
                     val now = System.currentTimeMillis()
-                    
-                    if (tapPosition < screenWidth * 0.4f) {
-                        // Seek backward
+
+                    val leftThreshold  = screenWidth / 3f
+                    val rightThreshold = screenWidth * 2f / 3f
+
+                    if (tapPosition < leftThreshold) {
+                        // Seek backward — cancel any in-progress forward animation
+                        currentOnShowSeekForwardChange(false)
+                        accumulatedForwardMs = 0L
+                        lastForwardTapTime = 0L
+
                         if (now - lastBackTapTime < accumulationWindowMs) {
                             accumulatedBackMs += currentDoubleTapSeekMs
                         } else {
@@ -103,8 +112,12 @@ fun Modifier.videoPlayerControls(
                         EnhancedPlayerManager.getInstance().seekTo(
                             (currentPositionValue - currentDoubleTapSeekMs).coerceAtLeast(0)
                         )
-                    } else if (tapPosition > screenWidth * 0.6f) {
-                        // Seek forward
+                    } else if (tapPosition > rightThreshold) {
+                        // Seek forward — cancel any in-progress backward animation
+                        currentOnShowSeekBackChange(false)
+                        accumulatedBackMs = 0L
+                        lastBackTapTime = 0L
+
                         if (now - lastForwardTapTime < accumulationWindowMs) {
                             accumulatedForwardMs += currentDoubleTapSeekMs
                         } else {
@@ -129,18 +142,10 @@ fun Modifier.videoPlayerControls(
                     }
                 },
                 onLongPress = { offset ->
-                    val screenWidth = elementSize.width
+                    val screenWidth = size.width
                     val tapPosition = offset.x
                     
-                    // Allow speed boost in center area or edges if determined
-                    // Restricting usage to avoid conflict with edge swipes?
-                    // Let's keep it mostly everywhere but edges
                     if (tapPosition < screenWidth * 0.2f || tapPosition > screenWidth * 0.8f) {
-                         // Edge areas - maybe ignore to prevent conflict?
-                         // Actually original code was: < 0.3 or > 0.7 used for speed boost? 
-                         // No, original was: IF (tapPosition < 0.3 || tapPosition > 0.7) -> SpeedBoost. 
-                         // That's weird. Usually speed boost is center hold.
-                         // User asked to "Improve gestures". Speed boost on center hold is standard (like YouTube).
                     }
                     
                     val player = EnhancedPlayerManager.getInstance().getPlayer()
@@ -160,7 +165,6 @@ fun Modifier.videoPlayerControls(
             )
         }
         .pointerInput(currentIsFullscreen) {
-            val elementSize = size
             var totalDragY = 0f
             var totalDragX = 0f
             var isDraggingVertical = false
@@ -176,14 +180,14 @@ fun Modifier.videoPlayerControls(
                         isDraggingVertical = false
                         
                         val distanceFromTop = offset.y
-                        val distanceFromBottom = elementSize.height - offset.y
+                        val distanceFromBottom = size.height - offset.y
                         
                         shouldIgnoreGesture = distanceFromTop < edgeIgnoreThreshold || 
                                              distanceFromBottom < edgeIgnoreThreshold
                         
                         if (shouldIgnoreGesture) return@detectDragGestures
 
-                        val screenWidth = elementSize.width
+                        val screenWidth = size.width
                         val isEdge = offset.x < screenWidth * 0.2f || offset.x > screenWidth * 0.8f
                         
                     },
@@ -218,8 +222,8 @@ fun Modifier.videoPlayerControls(
                         }
 
                         if (isDraggingVertical) {
-                             val screenHeight = elementSize.height.toFloat()
-                             val screenWidth = elementSize.width
+                             val screenHeight = size.height.toFloat()
+                             val screenWidth = size.width
                              val dragPosition = change.position.x
                              
                              if (screenHeight > 0 && currentSwipeGesturesEnabled) {

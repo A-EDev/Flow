@@ -35,3 +35,4 @@ FIXES AND STABILITY
 - Fix video timestamps #192
 - Fix video delete issues #95
 - Fix share button issues #176
+- Fix video and gestures for RTL #187 #188

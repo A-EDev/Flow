@@ -31,6 +31,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -340,6 +342,7 @@ fun DraggablePlayerLayout(
         val _isLandscape = rememberUpdatedState(isLandscape)
         val _isFullscreen = rememberUpdatedState(isFullscreen)
 
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
         Box(
             modifier = if (showImmersiveFullscreen) {
                 Modifier.fillMaxSize()
@@ -672,5 +675,6 @@ fun DraggablePlayerLayout(
                 )
             }
         }
+        } 
     }
 }

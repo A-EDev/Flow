@@ -18,7 +18,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -29,23 +31,29 @@ fun SeekAnimationOverlay(
     seekSeconds: Int = 10,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
-        AnimatedVisibility(
-            visible = showSeekBack,
-            enter = fadeIn(tween(150)),
-            exit = fadeOut(tween(400)),
-            modifier = Modifier.align(Alignment.CenterStart).padding(start = 48.dp)
-        ) {
-            SeekChevronLabel(forward = false, seconds = seekSeconds)
-        }
+    // Force LTR so CenterStart/CenterEnd always map to physical left/right,
+    // regardless of the device's system language direction.
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+        Box(modifier = modifier.fillMaxSize()) {
+            AnimatedVisibility(
+                visible = showSeekBack,
+                enter = fadeIn(tween(150)),
+                // Exit instantly when switching to forward (no overlap), otherwise fade normally.
+                exit = fadeOut(tween(if (showSeekForward) 0 else 400)),
+                modifier = Modifier.align(Alignment.CenterStart).padding(start = 48.dp)
+            ) {
+                SeekChevronLabel(forward = false, seconds = seekSeconds)
+            }
 
-        AnimatedVisibility(
-            visible = showSeekForward,
-            enter = fadeIn(tween(150)),
-            exit = fadeOut(tween(400)),
-            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 48.dp)
-        ) {
-            SeekChevronLabel(forward = true, seconds = seekSeconds)
+            AnimatedVisibility(
+                visible = showSeekForward,
+                enter = fadeIn(tween(150)),
+                // Exit instantly when switching to backward (no overlap), otherwise fade normally.
+                exit = fadeOut(tween(if (showSeekBack) 0 else 400)),
+                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 48.dp)
+            ) {
+                SeekChevronLabel(forward = true, seconds = seekSeconds)
+            }
         }
     }
 }
@@ -87,7 +95,7 @@ private fun SeekChevronLabel(forward: Boolean, seconds: Int) {
             )
         }
         Text(
-            text = if (forward) "+${seconds}s" else "${seconds}s",
+            text = if (forward) "+${seconds}s" else "-${seconds}s",
             color = Color.White,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
