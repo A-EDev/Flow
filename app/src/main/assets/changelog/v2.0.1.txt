@@ -31,6 +31,7 @@ IMPROVEMENTS
 - Move SponsorBlock contribution setttings to player settings screen #193
 - Add load more feature for comments #204
 - Add channel screen position caching #196
+- Search screen filters and layout improvements #206
 
 FIXES AND STABILITY
 - Keyboard Focus and pop up

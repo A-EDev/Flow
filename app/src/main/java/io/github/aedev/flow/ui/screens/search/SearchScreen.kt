@@ -195,6 +195,13 @@ fun SearchScreen(
         if (uiState.query.isNotBlank()) {
             searchHistoryRepo.saveSearchQuery(uiState.query)
             interestProfile.recordSearch(uiState.query)
+            gridState.scrollToItem(0)
+        }
+    }
+
+    LaunchedEffect(isSearchFocused) {
+        if (isSearchFocused) {
+            keyboardController?.show()
         }
     }
 
@@ -254,8 +261,6 @@ fun SearchScreen(
                 viewModel.clearSearch()
             },
             onVoiceSearch = launchVoiceSearch,
-            isGridMode = isGridMode,
-            onToggleGridMode = { isGridMode = !isGridMode },
             isSearchFocused = isSearchFocused,
             onFocusChange = { focused ->
                 if (isNavigatingAway) return@SearchBarRow
@@ -329,26 +334,24 @@ fun SearchScreen(
                 }
             )
         } else {
-            SearchTabRow(
-                selectedTabIndex = selectedTabIndex,
-                tabLabels = listOf("All", "Videos", "Channels", "Playlists", "Live"),
-                onTabSelected = { selectedTabIndex = it }
+            SearchFiltersBar(
+                selectedContentType = tabContentTypes[selectedTabIndex],
+                onContentTypeSelected = { type ->
+                    selectedTabIndex = tabContentTypes.indexOf(type)
+                },
+                selectedDuration = uiState.filters?.duration ?: Duration.ANY,
+                onDurationSelected = { dur ->
+                    val base = uiState.filters ?: SearchFilter()
+                    viewModel.updateFilters(base.copy(duration = dur))
+                },
+                selectedUploadDate = uiState.filters?.uploadDate ?: UploadDate.ANY,
+                onUploadDateSelected = { date ->
+                    val base = uiState.filters ?: SearchFilter()
+                    viewModel.updateFilters(base.copy(uploadDate = date))
+                },
+                isGridMode = isGridMode,
+                onToggleGridMode = { isGridMode = !isGridMode }
             )
-
-            if (selectedTabIndex == 0 || selectedTabIndex == 1 || selectedTabIndex == 4) {
-                SearchFilterRow(
-                    selectedDuration = uiState.filters?.duration ?: Duration.ANY,
-                    onDurationSelected = { dur ->
-                        val base = uiState.filters ?: SearchFilter()
-                        viewModel.updateFilters(base.copy(duration = dur))
-                    },
-                    selectedUploadDate = uiState.filters?.uploadDate ?: UploadDate.ANY,
-                    onUploadDateSelected = { date ->
-                        val base = uiState.filters ?: SearchFilter()
-                        viewModel.updateFilters(base.copy(uploadDate = date))
-                    }
-                )
-            }
 
             val isInitialLoading =
                 pagingItems.loadState.refresh is LoadState.Loading
@@ -364,10 +367,10 @@ fun SearchScreen(
                 }
 
                 val responsiveGridColumns = when {
-                    maxWidth < 600.dp -> 2
-                    maxWidth < 900.dp -> 3
-                    maxWidth < 1200.dp -> 4
-                    else -> 5
+                    maxWidth < 600.dp -> 1
+                    maxWidth < 900.dp -> 2
+                    maxWidth < 1200.dp -> 3
+                    else -> 4
                 }
 
                 val columns = if (isGridMode) responsiveGridColumns else responsiveColumns
@@ -426,8 +429,6 @@ private fun SearchBarRow(
     onSearch: () -> Unit,
     onClear: () -> Unit,
     onVoiceSearch: () -> Unit,
-    isGridMode: Boolean,
-    onToggleGridMode: () -> Unit,
     isSearchFocused: Boolean,
     onFocusChange: (Boolean) -> Unit,
     focusRequester: FocusRequester,
@@ -451,7 +452,7 @@ private fun SearchBarRow(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(46.dp)
+            .height(48.dp)
             .clip(RoundedCornerShape(23.dp))
             .drawBehind {
                 if (focusAnim > 0f) {
@@ -581,72 +582,175 @@ private fun SearchBarRow(
                     )
                 }
             }
-
-            Box(
-                modifier = Modifier
-                    .padding(end = 6.dp)
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onToggleGridMode),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    if (isGridMode) Icons.Outlined.ViewList else Icons.Outlined.GridView,
-                    contentDescription = "Toggle view",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
         }
     }
 }
 
 @Composable
-private fun SearchTabRow(
-    selectedTabIndex: Int,
-    tabLabels: List<String>,
-    onTabSelected: (Int) -> Unit
+private fun SearchFiltersBar(
+    selectedContentType: ContentType,
+    onContentTypeSelected: (ContentType) -> Unit,
+    selectedDuration: Duration,
+    onDurationSelected: (Duration) -> Unit,
+    selectedUploadDate: UploadDate,
+    onUploadDateSelected: (UploadDate) -> Unit,
+    isGridMode: Boolean,
+    onToggleGridMode: () -> Unit
 ) {
+    val showVideoFilters = selectedContentType in listOf(
+        ContentType.ALL, ContentType.VIDEOS, ContentType.LIVE
+    )
+    val typeLabels = listOf(
+        ContentType.ALL to "All",
+        ContentType.VIDEOS to "Videos",
+        ContentType.CHANNELS to "Channels",
+        ContentType.PLAYLISTS to "Playlists",
+        ContentType.LIVE to "Live"
+    )
+    val durationLabels = listOf(
+        Duration.ANY to "Any Length",
+        Duration.UNDER_4_MINUTES to "< 4 min",
+        Duration.FROM_4_TO_20_MINUTES to "4–20 min",
+        Duration.OVER_20_MINUTES to "> 20 min"
+    )
+    val uploadDateLabels = listOf(
+        UploadDate.ANY to "Any Time",
+        UploadDate.TODAY to "Today",
+        UploadDate.THIS_WEEK to "This Week",
+        UploadDate.THIS_MONTH to "This Month",
+        UploadDate.THIS_YEAR to "This Year"
+    )
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         LazyRow(
             modifier = Modifier.weight(1f),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(horizontal = 4.dp)
+            contentPadding = PaddingValues(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            items(tabLabels.size) { i ->
-                val isSelected = selectedTabIndex == i
-                val bgColor by animateColorAsState(
-                    if (isSelected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    tween(200), label = "tabBg"
-                )
-                val txtColor by animateColorAsState(
-                    if (isSelected) MaterialTheme.colorScheme.onPrimary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    tween(200), label = "tabTxt"
-                )
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(bgColor)
-                        .clickable { onTabSelected(i) }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        tabLabels[i],
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = if (isSelected) FontWeight.Bold
-                        else FontWeight.Normal,
-                        color = txtColor
+            item {
+                var typeExpanded by remember { mutableStateOf(false) }
+                Box {
+                    FilterChip(
+                        selected = selectedContentType != ContentType.ALL,
+                        onClick = { typeExpanded = true },
+                        label = { Text(typeLabels.first { it.first == selectedContentType }.second) },
+                        leadingIcon = {
+                            Icon(Icons.Default.FilterList, null, Modifier.size(16.dp))
+                        },
+                        trailingIcon = {
+                            Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
+                        }
                     )
+                    DropdownMenu(
+                        expanded = typeExpanded,
+                        onDismissRequest = { typeExpanded = false }
+                    ) {
+                        typeLabels.forEach { (type, label) ->
+                            DropdownMenuItem(
+                                text = { Text(label) },
+                                leadingIcon = if (type == selectedContentType) {
+                                    { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                                } else null,
+                                onClick = {
+                                    onContentTypeSelected(type)
+                                    typeExpanded = false
+                                }
+                            )
+                        }
+                    }
                 }
             }
+
+            if (showVideoFilters) {
+                item {
+                    var durationExpanded by remember { mutableStateOf(false) }
+                    Box {
+                        FilterChip(
+                            selected = selectedDuration != Duration.ANY,
+                            onClick = { durationExpanded = true },
+                            label = { Text(durationLabels.first { it.first == selectedDuration }.second) },
+                            trailingIcon = {
+                                Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
+                            }
+                        )
+                        DropdownMenu(
+                            expanded = durationExpanded,
+                            onDismissRequest = { durationExpanded = false }
+                        ) {
+                            durationLabels.forEach { (dur, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    leadingIcon = if (dur == selectedDuration) {
+                                        { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                                    } else null,
+                                    onClick = {
+                                        onDurationSelected(dur)
+                                        durationExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    var dateExpanded by remember { mutableStateOf(false) }
+                    Box {
+                        FilterChip(
+                            selected = selectedUploadDate != UploadDate.ANY,
+                            onClick = { dateExpanded = true },
+                            label = { Text(uploadDateLabels.first { it.first == selectedUploadDate }.second) },
+                            trailingIcon = {
+                                Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
+                            }
+                        )
+                        DropdownMenu(
+                            expanded = dateExpanded,
+                            onDismissRequest = { dateExpanded = false }
+                        ) {
+                            uploadDateLabels.forEach { (date, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    leadingIcon = if (date == selectedUploadDate) {
+                                        { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                                    } else null,
+                                    onClick = {
+                                        onUploadDateSelected(date)
+                                        dateExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .padding(start = 2.dp, end = 6.dp)
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(
+                    if (isGridMode) MaterialTheme.colorScheme.primaryContainer
+                    else Color.Transparent
+                )
+                .clickable(onClick = onToggleGridMode),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                if (isGridMode) Icons.Outlined.ViewList else Icons.Outlined.GridView,
+                contentDescription = "Toggle view mode",
+                tint = if (isGridMode) MaterialTheme.colorScheme.onPrimaryContainer
+                       else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
@@ -713,10 +817,8 @@ private fun SearchResultList(
                     is SearchResultItem.VideoResult ->
                         VideoCardFullWidth(
                             video = item.video,
-                            modifier = Modifier.padding(vertical = 6.dp),
-                            onClick = {
-                                onVideoClick(item.video)
-                            },
+                            modifier = Modifier.padding(vertical = 4.dp),
+                            onClick = { onVideoClick(item.video) },
                             onChannelClick = { channelId ->
                                 onChannelClick(
                                     Channel(
@@ -1683,110 +1785,4 @@ private fun formatSubs(count: Long): String = when {
     count >= 1_000 -> "${"%.1f".format(count / 1_000.0)}K subscribers"
     count > 0 -> "$count subscribers"
     else -> ""
-}
-
-@Composable
-private fun SearchFilterRow(
-    selectedDuration: Duration,
-    onDurationSelected: (Duration) -> Unit,
-    selectedUploadDate: UploadDate,
-    onUploadDateSelected: (UploadDate) -> Unit
-) {
-    val durationLabels = listOf(
-        Duration.ANY to "Any Length",
-        Duration.UNDER_4_MINUTES to "< 4 mins",
-        Duration.FROM_4_TO_20_MINUTES to "4-20 mins",
-        Duration.OVER_20_MINUTES to "> 20 mins"
-    )
-    val uploadDateLabels = listOf(
-        UploadDate.ANY to "Any Time",
-        UploadDate.TODAY to "Today",
-        UploadDate.THIS_WEEK to "This Week",
-        UploadDate.THIS_MONTH to "This Month",
-        UploadDate.THIS_YEAR to "This Year"
-    )
-
-    LazyRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        item {
-            Icon(
-                imageVector = Icons.Default.FilterList,
-                contentDescription = "Filters",
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.width(4.dp))
-        }
-
-        item {
-            var durationExpanded by remember { mutableStateOf(false) }
-            Box {
-                FilterChip(
-                    selected = selectedDuration != Duration.ANY,
-                    onClick = { durationExpanded = true },
-                    label = {
-                        Text(
-                            durationLabels.first { it.first == selectedDuration }.second
-                        )
-                    },
-                    trailingIcon = {
-                        Icon(Icons.Default.ArrowDropDown, null)
-                    }
-                )
-                DropdownMenu(
-                    expanded = durationExpanded,
-                    onDismissRequest = { durationExpanded = false }
-                ) {
-                    durationLabels.forEach { (dur, label) ->
-                        DropdownMenuItem(
-                            text = { Text(label) },
-                            onClick = {
-                                onDurationSelected(dur)
-                                durationExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
-        }
-
-        item {
-            var dateExpanded by remember { mutableStateOf(false) }
-            Box {
-                FilterChip(
-                    selected = selectedUploadDate != UploadDate.ANY,
-                    onClick = { dateExpanded = true },
-                    label = {
-                        Text(
-                            uploadDateLabels.first {
-                                it.first == selectedUploadDate
-                            }.second
-                        )
-                    },
-                    trailingIcon = {
-                        Icon(Icons.Default.ArrowDropDown, null)
-                    }
-                )
-                DropdownMenu(
-                    expanded = dateExpanded,
-                    onDismissRequest = { dateExpanded = false }
-                ) {
-                    uploadDateLabels.forEach { (date, label) ->
-                        DropdownMenuItem(
-                            text = { Text(label) },
-                            onClick = {
-                                onUploadDateSelected(date)
-                                dateExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
 }
