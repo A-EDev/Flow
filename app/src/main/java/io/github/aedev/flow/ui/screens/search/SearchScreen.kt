@@ -25,6 +25,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -96,6 +98,34 @@ fun SearchScreen(
             keyboardController?.hide()
             isSearchFocused = false
         }
+    }
+
+    val voiceSearchLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val spokenText = result.data
+                ?.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+            if (!spokenText.isNullOrBlank()) {
+                searchQuery = spokenText
+                dismissKeyboard()
+                selectedTabIndex = 0
+                viewModel.search(spokenText)
+            }
+        }
+    }
+    val launchVoiceSearch: () -> Unit = {
+        val intent = android.content.Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(
+                android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
+            putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Speak to search…")
+        }
+        try {
+            voiceSearchLauncher.launch(intent)
+        } catch (_: android.content.ActivityNotFoundException) { }
     }
 
     val navigateToVideo: (Video) -> Unit = remember(dismissKeyboard, onVideoClick) {
@@ -223,6 +253,7 @@ fun SearchScreen(
                 liveSuggestions = emptyList()
                 viewModel.clearSearch()
             },
+            onVoiceSearch = launchVoiceSearch,
             isGridMode = isGridMode,
             onToggleGridMode = { isGridMode = !isGridMode },
             isSearchFocused = isSearchFocused,
@@ -394,6 +425,7 @@ private fun SearchBarRow(
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     onClear: () -> Unit,
+    onVoiceSearch: () -> Unit,
     isGridMode: Boolean,
     onToggleGridMode: () -> Unit,
     isSearchFocused: Boolean,
@@ -523,7 +555,23 @@ private fun SearchBarRow(
                 }
             )
 
-            if (query.isNotEmpty()) {
+            if (query.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .padding(end = 2.dp)
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onVoiceSearch),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Outlined.Mic,
+                        contentDescription = "Voice search",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            } else {
                 IconButton(onClick = onClear, modifier = Modifier.size(36.dp)) {
                     Icon(
                         Icons.Filled.Close,

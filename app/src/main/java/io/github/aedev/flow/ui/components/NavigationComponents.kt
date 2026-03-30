@@ -40,7 +40,8 @@ fun FloatingBottomNavBar(
     onItemSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
     isShortsEnabled: Boolean = true,
-    isMusicEnabled: Boolean = true
+    isMusicEnabled: Boolean = true,
+    isSearchEnabled: Boolean = false
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -76,6 +77,14 @@ fun FloatingBottomNavBar(
                     label = stringResource(R.string.nav_music),
                     selected = selectedIndex == 2,
                     onClick = { onItemSelected(2) }
+                )
+            }
+            if (isSearchEnabled) {
+                BottomNavItem(
+                    icon = if (selectedIndex == 5) Icons.Filled.Search else Icons.Outlined.Search,
+                    label = stringResource(R.string.nav_search),
+                    selected = selectedIndex == 5,
+                    onClick = { onItemSelected(5) }
                 )
             }
             BottomNavItem(

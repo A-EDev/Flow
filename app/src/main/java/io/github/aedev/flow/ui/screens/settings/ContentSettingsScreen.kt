@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material.icons.outlined.ViewQuilt
@@ -58,6 +59,7 @@ fun ContentSettingsScreen(
     val isHomeShortsShelfEnabled by preferences.homeShortsShelfEnabled.collectAsState(initial = true)
     val isShortsNavigationEnabled by preferences.shortsNavigationEnabled.collectAsState(initial = true)
     val isMusicNavigationEnabled by preferences.musicNavigationEnabled.collectAsState(initial = true)
+    val isSearchNavigationEnabled by preferences.searchNavigationEnabled.collectAsState(initial = false)
     val isContinueWatchingEnabled by preferences.continueWatchingEnabled.collectAsState(initial = true)
     val showRelatedVideos by preferences.showRelatedVideos.collectAsState(initial = true)
     
@@ -234,9 +236,9 @@ fun ContentSettingsScreen(
                 }
             }
 
-            // Dynamic Components Section
+            // Content Components Section
             item {
-                SectionHeader(text = stringResource(R.string.content_settings_dynamic_components))
+                SectionHeader(text = stringResource(R.string.content_settings_header_content_components))
                 SettingsGroup {
                     SettingsSwitchItem(
                         icon = Icons.Outlined.ViewQuilt,
@@ -249,7 +251,7 @@ fun ContentSettingsScreen(
                             }
                         }
                     )
-                    
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.DesktopWindows,
                         title = stringResource(R.string.settings_home_shorts_shelf_title),
@@ -261,7 +263,37 @@ fun ContentSettingsScreen(
                             }
                         }
                     )
-                    
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.ViewAgenda,
+                        title = stringResource(R.string.settings_continue_watching_title),
+                        subtitle = stringResource(R.string.settings_continue_watching_subtitle),
+                        checked = isContinueWatchingEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setContinueWatchingEnabled(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.List,
+                        title = stringResource(R.string.settings_show_related_videos_title),
+                        subtitle = stringResource(R.string.settings_show_related_videos_subtitle),
+                        checked = showRelatedVideos,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setShowRelatedVideos(enabled)
+                            }
+                        }
+                    )
+                }
+            }
+
+            // Navigation Tabs Section
+            item {
+                SectionHeader(text = stringResource(R.string.content_settings_header_nav_tabs))
+                SettingsGroup {
                     SettingsSwitchItem(
                         icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
                         title = stringResource(R.string.settings_shorts_nav_tab_title),
@@ -273,7 +305,7 @@ fun ContentSettingsScreen(
                             }
                         }
                     )
-
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.MusicNote,
                         title = stringResource(R.string.settings_music_nav_tab_title),
@@ -285,26 +317,15 @@ fun ContentSettingsScreen(
                             }
                         }
                     )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
-                        icon = Icons.Outlined.ViewQuilt,
-                        title = stringResource(R.string.settings_continue_watching_title),
-                        subtitle = stringResource(R.string.settings_continue_watching_subtitle),
-                        checked = isContinueWatchingEnabled,
+                        icon = Icons.Outlined.Search,
+                        title = stringResource(R.string.settings_search_nav_tab_title),
+                        subtitle = stringResource(R.string.settings_search_nav_tab_subtitle),
+                        checked = isSearchNavigationEnabled,
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
-                                preferences.setContinueWatchingEnabled(enabled)
-                            }
-                        }
-                    )
-                    
-                    SettingsSwitchItem(
-                        icon = Icons.Outlined.List,
-                        title = stringResource(R.string.settings_show_related_videos_title),
-                        subtitle = stringResource(R.string.settings_show_related_videos_subtitle),
-                        checked = showRelatedVideos,
-                        onCheckedChange = { enabled ->
-                            coroutineScope.launch {
-                                preferences.setShowRelatedVideos(enabled)
+                                preferences.setSearchNavigationEnabled(enabled)
                             }
                         }
                     )

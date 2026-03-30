@@ -479,6 +479,8 @@
     <string name="content_settings_related_card_compact_desc">Thumbnail and info side by side</string>
     <string name="content_settings_related_card_full_width">Full Width</string>
     <string name="content_settings_related_card_full_width_desc">Large thumbnail with title below</string>
+    <string name="content_settings_header_content_components">Content Components</string>
+    <string name="content_settings_header_nav_tabs">Navigation Tabs</string>
     <string name="settings_subs_shorts_shelf_title">Subscriptions shorts shelf</string>
     <string name="settings_subs_shorts_shelf_subtitle">Show the horizontal shorts shelf in the subscription feed grid.</string>
     <string name="settings_home_shorts_shelf_title">Home screen shorts shelf</string>
@@ -487,6 +489,9 @@
     <string name="settings_shorts_nav_tab_subtitle">Show the Shorts tab in the bottom navigation bar.</string>
     <string name="settings_music_nav_tab_title">Music tab in navigation</string>
     <string name="settings_music_nav_tab_subtitle">Show the Music tab in the bottom navigation bar.</string>
+    <string name="settings_search_nav_tab_title">Search tab in navigation</string>
+    <string name="settings_search_nav_tab_subtitle">Show a quick-access Search tab in the bottom navigation bar.</string>
+    <string name="nav_search">Search</string>
     <string name="settings_continue_watching_title">Continue Watching shelf</string>
     <string name="settings_continue_watching_subtitle">Show a shelf of in-progress videos on the home screen.</string>
     <string name="continue_watching_title">Continue Watching</string>

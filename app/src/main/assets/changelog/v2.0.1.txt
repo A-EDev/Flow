@@ -10,6 +10,8 @@ FEATURES
 - Swipe up to enter fullscreen in the video player #183
 - Add new disable home feed toggle #195
 - Add new related video card style toggle #191
+- Add new voice search for videos #203
+- Add new toggle to enable search icon from bottom nav #201
 
 IMPROVEMENTS
 - FlowNeuroEngine modularization

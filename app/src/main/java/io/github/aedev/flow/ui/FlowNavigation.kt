@@ -203,7 +203,7 @@ fun NavGraphBuilder.flowAppGraph(
     composable("search") {
         currentRoute.value = "search"
         showBottomNav.value = true
-        selectedBottomNavIndex.intValue = -1
+        selectedBottomNavIndex.intValue = 5
         SearchScreen(
             onVideoClick = { video ->
                 if (video.isShort) {

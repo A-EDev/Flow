@@ -62,6 +62,7 @@ fun FlowApp(
     val preferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
     val isShortsNavigationEnabled by preferences.shortsNavigationEnabled.collectAsState(initial = true)
     val isMusicNavigationEnabled by preferences.musicNavigationEnabled.collectAsState(initial = true)
+    val isSearchNavigationEnabled by preferences.searchNavigationEnabled.collectAsState(initial = false)
     
     // Mini Player Customizations
     val miniPlayerScale by preferences.miniPlayerScale.collectAsState(initial = 0.45f)
@@ -282,6 +283,7 @@ fun FlowApp(
                 selectedIndex = selectedBottomNavIndex.intValue,
                 isShortsEnabled = isShortsNavigationEnabled,
                 isMusicEnabled = isMusicNavigationEnabled,
+                isSearchEnabled = isSearchNavigationEnabled,
                 onItemSelected = { index ->
                     val route = when (index) {
                         0 -> "home"
@@ -289,6 +291,7 @@ fun FlowApp(
                         2 -> "music"
                         3 -> "subscriptions"
                         4 -> "library"
+                        5 -> "search"
                         else -> "home"
                     }
 

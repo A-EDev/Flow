@@ -132,7 +132,8 @@ fun EnhancedMusicScreen(
                 windowInsets = WindowInsets(0, 0, 0, 0)
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = MaterialTheme.colorScheme.background,
+        contentWindowInsets = WindowInsets(0.dp)
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -168,7 +169,9 @@ fun EnhancedMusicScreen(
                         LazyColumn(
                             state = musicListState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 16.dp)
+                            contentPadding = PaddingValues(
+                                bottom = 80.dp
+                            )
                         ) {
                             // Listen Again
                             if (uiState.listenAgain.isNotEmpty()) {
