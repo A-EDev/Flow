@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
 import androidx.compose.material.pullrefresh.pullRefresh
 import androidx.compose.material.pullrefresh.rememberPullRefreshState
@@ -115,6 +116,7 @@ fun HomeScreen(
     
     val preferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
     val homeViewMode by preferences.homeViewMode.collectAsState(initial = io.github.aedev.flow.data.local.HomeViewMode.GRID)
+    val homeFeedEnabled by preferences.homeFeedEnabled.collectAsState(initial = true)
     
     val gridState = rememberLazyGridState()
     
@@ -252,6 +254,10 @@ fun HomeScreen(
             val gridCells = if (isListView) GridCells.Fixed(1) else GridCells.Fixed(layoutConfig.columns)
 
             when {
+                !homeFeedEnabled -> {
+                    FeedDisabledState(modifier = Modifier.fillMaxSize())
+                }
+
                 uiState.isLoading && uiState.videos.isEmpty() -> {
                     // Initial loading state — matches grid layout
                     LazyVerticalGrid(
@@ -430,6 +436,38 @@ fun HomeScreen(
                 modifier = Modifier.align(Alignment.TopCenter),
                 backgroundColor = MaterialTheme.colorScheme.surface,
                 contentColor = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+@Composable
+private fun FeedDisabledState(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(32.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.SmartDisplay,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                modifier = Modifier.size(56.dp)
+            )
+            Text(
+                text = stringResource(R.string.content_settings_home_feed_disabled_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = stringResource(R.string.content_settings_home_feed_disabled_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
             )
         }
     }

@@ -12,8 +12,11 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.SmartDisplay
+import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material.icons.outlined.ViewQuilt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.ui.theme.GridItemSize
 import kotlinx.coroutines.launch
 
@@ -59,6 +63,9 @@ fun ContentSettingsScreen(
     
     val homeViewModeString by preferences.homeViewMode.collectAsState(initial = io.github.aedev.flow.data.local.HomeViewMode.GRID)
     val currentHomeViewMode = homeViewModeString ?: io.github.aedev.flow.data.local.HomeViewMode.GRID
+
+    val homeFeedEnabled by preferences.homeFeedEnabled.collectAsState(initial = true)
+    val currentRelatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.COMPACT)
     
     Scaffold(
         topBar = {
@@ -209,6 +216,24 @@ fun ContentSettingsScreen(
                 }
             }
             
+            // Home Feed Section
+            item {
+                SectionHeader(text = stringResource(R.string.content_settings_header_home_feed))
+                SettingsGroup {
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Home,
+                        title = stringResource(R.string.content_settings_home_feed_title),
+                        subtitle = stringResource(R.string.content_settings_home_feed_subtitle),
+                        checked = homeFeedEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setHomeFeedEnabled(enabled)
+                            }
+                        }
+                    )
+                }
+            }
+
             // Dynamic Components Section
             item {
                 SectionHeader(text = stringResource(R.string.content_settings_dynamic_components))
@@ -283,6 +308,62 @@ fun ContentSettingsScreen(
                             }
                         }
                     )
+                }
+            }
+
+            // Video Player Section
+            item {
+                SectionHeader(text = stringResource(R.string.content_settings_header_player))
+                SettingsGroup {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Outlined.SmartDisplay,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.content_settings_related_card_style_title),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    text = stringResource(R.string.content_settings_related_card_style_subtitle),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            GridSizeOption(
+                                title = stringResource(R.string.content_settings_related_card_compact),
+                                description = stringResource(R.string.content_settings_related_card_compact_desc),
+                                isSelected = currentRelatedCardStyle == PlayerRelatedCardStyle.COMPACT,
+                                onClick = {
+                                    coroutineScope.launch {
+                                        preferences.setPlayerRelatedCardStyle(PlayerRelatedCardStyle.COMPACT)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            GridSizeOption(
+                                title = stringResource(R.string.content_settings_related_card_full_width),
+                                description = stringResource(R.string.content_settings_related_card_full_width_desc),
+                                isSelected = currentRelatedCardStyle == PlayerRelatedCardStyle.FULL_WIDTH,
+                                onClick = {
+                                    coroutineScope.launch {
+                                        preferences.setPlayerRelatedCardStyle(PlayerRelatedCardStyle.FULL_WIDTH)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
                 }
             }
 

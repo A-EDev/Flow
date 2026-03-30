@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.ui.components.CommentsPreview
@@ -156,7 +157,7 @@ fun VideoInfoContent(
 fun LazyListScope.relatedVideosContent(
     relatedVideos: List<Video>,
     onVideoClick: (Video) -> Unit,
-    useCompactView: Boolean = false
+    cardStyle: PlayerRelatedCardStyle = PlayerRelatedCardStyle.FULL_WIDTH
 ) {
     // Header
     item {
@@ -173,13 +174,12 @@ fun LazyListScope.relatedVideosContent(
         key = { index -> relatedVideos[index].id }
     ) { index ->
         val relatedVideo = relatedVideos[index]
-        if (useCompactView) {
-            CompactVideoCard(
+        when (cardStyle) {
+            PlayerRelatedCardStyle.COMPACT -> CompactVideoCard(
                 video = relatedVideo,
                 onClick = { onVideoClick(relatedVideo) }
             )
-        } else {
-            VideoCardFullWidth(
+            PlayerRelatedCardStyle.FULL_WIDTH -> VideoCardFullWidth(
                 video = relatedVideo,
                 onClick = { onVideoClick(relatedVideo) }
             )
@@ -193,7 +193,8 @@ fun LazyListScope.relatedVideosContent(
 fun LazyListScope.relatedVideosGridContent(
     relatedVideos: List<Video>,
     columns: Int,
-    onVideoClick: (Video) -> Unit
+    onVideoClick: (Video) -> Unit,
+    cardStyle: PlayerRelatedCardStyle = PlayerRelatedCardStyle.FULL_WIDTH
 ) {
     item {
         if (relatedVideos.isNotEmpty()) {
@@ -216,10 +217,16 @@ fun LazyListScope.relatedVideosGridContent(
         ) {
             for (video in rowVideos) {
                 Box(modifier = Modifier.weight(1f)) {
-                    CompactVideoCard(
-                        video = video,
-                        onClick = { onVideoClick(video) }
-                    )
+                    when (cardStyle) {
+                        PlayerRelatedCardStyle.COMPACT -> CompactVideoCard(
+                            video = video,
+                            onClick = { onVideoClick(video) }
+                        )
+                        PlayerRelatedCardStyle.FULL_WIDTH -> VideoCardFullWidth(
+                            video = video,
+                            onClick = { onVideoClick(video) }
+                        )
+                    }
                 }
             }
             val emptySpaces = columns - rowVideos.size

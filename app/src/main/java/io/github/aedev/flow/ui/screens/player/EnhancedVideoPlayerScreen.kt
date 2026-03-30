@@ -18,6 +18,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.PlayerRelatedCardStyle
 
 // Modular components
 import io.github.aedev.flow.ui.screens.player.content.VideoInfoContent
@@ -56,6 +57,7 @@ fun EnhancedVideoPlayerScreen(
     
     val preferences = remember { PlayerPreferences(context) }
     val showRelatedVideos by preferences.showRelatedVideos.collectAsState(initial = true)
+    val relatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.FULL_WIDTH)
 
     // Error Snackbar — supplementary to the in-video error overlay.
     LaunchedEffect(uiState.error) {
@@ -120,7 +122,7 @@ fun EnhancedVideoPlayerScreen(
                             relatedVideosContent(
                                 relatedVideos = uiState.relatedVideos,
                                 onVideoClick = onVideoClick,
-                                useCompactView = true
+                                cardStyle = relatedCardStyle
                             )
                         }
                     }
@@ -151,12 +153,14 @@ fun EnhancedVideoPlayerScreen(
                                     relatedVideosGridContent(
                                         relatedVideos = uiState.relatedVideos,
                                         columns = 2,
-                                        onVideoClick = onVideoClick
+                                        onVideoClick = onVideoClick,
+                                        cardStyle = relatedCardStyle
                                     )
                                 } else {
                                     relatedVideosContent(
                                         relatedVideos = uiState.relatedVideos,
-                                        onVideoClick = onVideoClick
+                                        onVideoClick = onVideoClick,
+                                        cardStyle = relatedCardStyle
                                     )
                                 }
                             }

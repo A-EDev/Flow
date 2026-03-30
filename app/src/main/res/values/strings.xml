@@ -465,6 +465,20 @@
     <string name="content_settings_dynamic_components">Dynamic Components</string>
     <string name="settings_show_related_videos_title">Show related videos</string>
     <string name="settings_show_related_videos_subtitle">Display related videos below the video player</string>
+    <!-- Home Feed -->
+    <string name="content_settings_header_home_feed">Home Feed</string>
+    <string name="content_settings_home_feed_title">Enable Home Feed</string>
+    <string name="content_settings_home_feed_subtitle">Show personalized video recommendations on the home screen</string>
+    <string name="content_settings_home_feed_disabled_title">Home Feed Disabled</string>
+    <string name="content_settings_home_feed_disabled_body">Personalized recommendations are turned off. You can re-enable this in Content Settings.</string>
+    <!-- Video Player Related Card Style -->
+    <string name="content_settings_header_player">Video Player</string>
+    <string name="content_settings_related_card_style_title">Related Video Card Style</string>
+    <string name="content_settings_related_card_style_subtitle">Choose how related videos appear in the player panel</string>
+    <string name="content_settings_related_card_compact">Compact</string>
+    <string name="content_settings_related_card_compact_desc">Thumbnail and info side by side</string>
+    <string name="content_settings_related_card_full_width">Full Width</string>
+    <string name="content_settings_related_card_full_width_desc">Large thumbnail with title below</string>
     <string name="settings_subs_shorts_shelf_title">Subscriptions shorts shelf</string>
     <string name="settings_subs_shorts_shelf_subtitle">Show the horizontal shorts shelf in the subscription feed grid.</string>
     <string name="settings_home_shorts_shelf_title">Home screen shorts shelf</string>

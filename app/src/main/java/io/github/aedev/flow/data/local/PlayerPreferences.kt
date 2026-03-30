@@ -65,6 +65,8 @@ class PlayerPreferences(private val context: Context) {
         val SHOW_RELATED_VIDEOS = booleanPreferencesKey("show_related_videos")
         val DOUBLE_TAP_SEEK_SECONDS = intPreferencesKey("double_tap_seek_seconds")
         val HOME_VIEW_MODE = stringPreferencesKey("home_view_mode")
+        val HOME_FEED_ENABLED = booleanPreferencesKey("home_feed_enabled")
+        val RELATED_CARD_STYLE = stringPreferencesKey("related_card_style")
 
         // SponsorBlock per-category action keys
         val SB_ACTION_SPONSOR = stringPreferencesKey("sb_action_sponsor")
@@ -360,6 +362,34 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setHomeViewMode(mode: HomeViewMode) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.HOME_VIEW_MODE] = mode.name
+        }
+    }
+
+    // Home feed enabled preference
+    val homeFeedEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.HOME_FEED_ENABLED] ?: true
+        }
+
+    suspend fun setHomeFeedEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.HOME_FEED_ENABLED] = enabled
+        }
+    }
+
+    // Related video card style preference (tablet/player panel)
+    val playerRelatedCardStyle: Flow<PlayerRelatedCardStyle> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            try {
+                PlayerRelatedCardStyle.valueOf(preferences[Keys.RELATED_CARD_STYLE] ?: PlayerRelatedCardStyle.FULL_WIDTH.name)
+            } catch (_: IllegalArgumentException) {
+                PlayerRelatedCardStyle.FULL_WIDTH
+            }
+        }
+
+    suspend fun setPlayerRelatedCardStyle(style: PlayerRelatedCardStyle) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.RELATED_CARD_STYLE] = style.name
         }
     }
     val trendingRegion: Flow<String> = context.playerPreferencesDataStore.data
@@ -965,6 +995,11 @@ enum class SliderStyle {
 enum class HomeViewMode {
     GRID,
     LIST
+}
+
+enum class PlayerRelatedCardStyle {
+    COMPACT,    
+    FULL_WIDTH 
 }
 
 

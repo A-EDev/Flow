@@ -8,6 +8,8 @@ FEATURES
 - Add new direct video link copy button #178
 - Pinch-to-zoom gesture #184
 - Swipe up to enter fullscreen in the video player #183
+- Add new disable home feed toggle #195
+- Add new related video card style toggle #191
 
 IMPROVEMENTS
 - FlowNeuroEngine modularization
