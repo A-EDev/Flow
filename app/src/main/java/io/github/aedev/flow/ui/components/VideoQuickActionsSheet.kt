@@ -25,7 +25,6 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.NotificationsNone
 import androidx.compose.material.icons.outlined.PlaylistAdd
-import androidx.compose.material.icons.outlined.PlaylistPlay
 import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Block
@@ -280,7 +279,7 @@ fun VideoQuickActionsBottomSheet(
                 item { Spacer(modifier = Modifier.height(4.dp)) }
             }
 
-            // Playback Queue Group — Play Next, Add to Queue
+            // Playback Queue Group — Play Next
             item {
                 Text(
                     text = stringResource(R.string.playback_header),
@@ -300,20 +299,6 @@ fun VideoQuickActionsBottomSheet(
                                 android.widget.Toast.makeText(
                                     context,
                                     context.getString(R.string.play_next_toast),
-                                    android.widget.Toast.LENGTH_SHORT
-                                ).show()
-                                onDismiss()
-                            }
-                        ),
-                        FlowMenuItemData(
-                            icon = { Icon(Icons.Outlined.PlaylistPlay, null) },
-                            title = { Text(stringResource(R.string.add_video_to_queue)) },
-                            description = { Text(stringResource(R.string.add_video_to_queue_desc)) },
-                            onClick = {
-                                viewModel.addVideoToQueue(video)
-                                android.widget.Toast.makeText(
-                                    context,
-                                    context.getString(R.string.added_to_queue_toast),
                                     android.widget.Toast.LENGTH_SHORT
                                 ).show()
                                 onDismiss()

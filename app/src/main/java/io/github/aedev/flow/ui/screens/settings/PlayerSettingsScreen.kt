@@ -78,10 +78,13 @@ fun PlayerSettingsScreen(
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
     val miniPlayerContinueWatchingEnabled by playerPreferences.miniPlayerContinueWatchingEnabled.collectAsState(initial = true)
     val videoLoopEnabled by playerPreferences.videoLoopEnabled.collectAsState(initial = false)
+    val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
+    val sbUserId by playerPreferences.sbUserId.collectAsState(initial = null)
     
     var showAudioLanguageDialog by remember { mutableStateOf(false) }
     var showLyricsProviderSheet by remember { mutableStateOf(false) }
     var showSeekDurationDialog by remember { mutableStateOf(false) }
+    var showUserIdDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -292,6 +295,53 @@ fun PlayerSettingsScreen(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
                 )
             }
+
+            // Contribute to SponsorBlock section
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                SectionHeader(text = stringResource(R.string.sb_contribute_header))
+                SettingsGroup {
+                    SettingsSwitchItem(
+                        icon = painterResource(R.drawable.ic_block),
+                        title = stringResource(R.string.sb_contribute_toggle_title),
+                        subtitle = stringResource(R.string.sb_contribute_toggle_subtitle),
+                        checked = sbSubmitEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                playerPreferences.setSbSubmitEnabled(enabled)
+                            }
+                        }
+                    )
+                    if (sbSubmitEnabled) {
+                        HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showUserIdDialog = true }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.sb_user_id_title),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    text = sbUserId?.let { it.take(8) + "…" }
+                                        ?: stringResource(R.string.sb_user_id_not_set),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Outlined.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
     
@@ -472,6 +522,45 @@ fun PlayerSettingsScreen(
             confirmButton = {
                 TextButton(onClick = { showSeekDurationDialog = false }) {
                     Text(stringResource(R.string.btn_close))
+                }
+            }
+        )
+    }
+
+    // SponsorBlock User ID Dialog
+    if (showUserIdDialog) {
+        var inputId by remember { mutableStateOf(sbUserId ?: "") }
+        AlertDialog(
+            onDismissRequest = { showUserIdDialog = false },
+            title = { Text(stringResource(R.string.sb_user_id_dialog_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.sb_user_id_dialog_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = inputId,
+                        onValueChange = { inputId = it },
+                        label = { Text(stringResource(R.string.sb_user_id_hint)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    coroutineScope.launch {
+                        val id = inputId.trim().ifBlank { playerPreferences.getOrCreateSbUserId() }
+                        playerPreferences.setSbUserId(id)
+                    }
+                    showUserIdDialog = false
+                }) { Text(stringResource(R.string.btn_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUserIdDialog = false }) {
+                    Text(stringResource(R.string.btn_cancel))
                 }
             }
         )

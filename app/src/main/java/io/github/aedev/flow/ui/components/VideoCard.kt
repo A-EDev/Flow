@@ -1,9 +1,13 @@
+@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+
 package io.github.aedev.flow.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -85,9 +89,10 @@ fun VideoCard(
             .width(180.dp)
             .pressScale(interactionSource)
             .clip(RoundedCornerShape(16.dp))
-            .clickable(
+            .combinedClickable(
                 interactionSource = interactionSource,
                 indication = androidx.compose.material3.ripple(),
+                onLongClick = { showQuickActions = true },
                 onClick = onClick
             )
             .padding(4.dp)
@@ -166,7 +171,7 @@ fun VideoCard(
                     text = displayTitle,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold, // Stronger weight for readability
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface,
                     lineHeight = 18.sp
@@ -241,14 +246,16 @@ fun VideoCardHorizontal(
     val displayTitle = deArrowResult?.title ?: video.title
     val displayThumbnailUrl = deArrowResult?.thumbnailUrl ?: video.thumbnailUrl
 
+    var showQuickActions by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
             .fillMaxWidth()
             .pressScale(interactionSource)
-            .clickable(
+            .combinedClickable(
                 interactionSource = interactionSource,
                 indication = androidx.compose.material3.ripple(),
+                onLongClick = { showQuickActions = true },
                 onClick = onClick
             )
             .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -294,7 +301,7 @@ fun VideoCardHorizontal(
                 text = displayTitle,
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
 
@@ -315,11 +322,15 @@ fun VideoCardHorizontal(
             }
         }
     }
-}
 
-/**
- * Full-width YouTube-style video card for infinite scroll
- */
+    if (showQuickActions) {
+        VideoQuickActionsBottomSheet(
+            video = video,
+            onChannelClick = null,
+            onDismiss = { showQuickActions = false }
+        )
+    }
+}
 
 @Composable
 fun VideoCardFullWidth(
@@ -356,9 +367,10 @@ fun VideoCardFullWidth(
         modifier = modifier
             .fillMaxWidth()
             .pressScale(interactionSource)
-            .clickable(
+            .combinedClickable(
                 interactionSource = interactionSource,
                 indication = androidx.compose.material3.ripple(),
+                onLongClick = { showQuickActions = true },
                 onClick = onClick
             )
             .then(if (useInternalPadding) Modifier.padding(horizontal = 12.dp) else Modifier)
@@ -444,7 +456,7 @@ fun VideoCardFullWidth(
                     text = displayTitle,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
 
@@ -522,9 +534,10 @@ fun CompactVideoCard(
         modifier = modifier
             .fillMaxWidth()
             .pressScale(interactionSource)
-            .clickable(
+            .combinedClickable(
                 interactionSource = interactionSource,
                 indication = androidx.compose.material3.ripple(),
+                onLongClick = { showQuickActions = true },
                 onClick = onClick
             )
             .padding(vertical = 8.dp, horizontal = 12.dp)
@@ -587,7 +600,7 @@ fun CompactVideoCard(
                 text = displayTitle,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 fontWeight = FontWeight.SemiBold
             )
@@ -811,14 +824,16 @@ fun ShortsCard(
     video: Video,
     onClick: () -> Unit
 ) {
+    var showQuickActions by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
     Column(
         modifier = Modifier
             .width(160.dp)
             .pressScale(interactionSource)
-            .clickable(
+            .combinedClickable(
                 interactionSource = interactionSource,
                 indication = androidx.compose.material3.ripple(),
+                onLongClick = { showQuickActions = true },
                 onClick = onClick
             )
     ) {
@@ -840,7 +855,7 @@ fun ShortsCard(
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = video.title,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold
@@ -849,6 +864,14 @@ fun ShortsCard(
             text = stringResource(R.string.views_template, formatViewCount(video.viewCount)),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.extendedColors.textSecondary
+        )
+    }
+
+    if (showQuickActions) {
+        VideoQuickActionsBottomSheet(
+            video = video,
+            onChannelClick = null,
+            onDismiss = { showQuickActions = false }
         )
     }
 }
