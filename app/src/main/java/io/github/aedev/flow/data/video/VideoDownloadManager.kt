@@ -1,6 +1,7 @@
 package io.github.aedev.flow.data.video
 
 import android.content.Context
+import android.content.ContentUris
 import android.content.Intent
 import android.media.MediaScannerConnection
 import android.net.Uri
@@ -88,8 +89,17 @@ class VideoDownloadManager @Inject constructor(
    
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-   
+    /** In-memory guard: paths whose DB entry was deleted but whose file deletion is in-flight. */
     private val recentlyDeletedPaths: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+    /**
+     * Persistent tombstone: file paths deleted from the DB by the user but whose physical
+     * file could not be removed (e.g. Android 11+ scoped storage issue, file in use).
+     * Prevents scanAndRecoverDownloads() from re-inserting them across app restarts.
+     */
+    private val tombstonePrefs by lazy {
+        context.getSharedPreferences("flow_file_tombstones", Context.MODE_PRIVATE)
+    }
 
     // Progress updates emitted by FlowDownloadService
     private val _progressUpdates = MutableSharedFlow<DownloadProgressUpdate>(extraBufferCapacity = 64)
@@ -429,18 +439,15 @@ class VideoDownloadManager @Inject constructor(
 
             ioScope.launch {
                 filePaths.forEach { path ->
-                    try {
-                        val deleted = File(path).delete()
-                        if (deleted) {
-                            Log.d(TAG, "Deleted: $path")
-                        } else {
-                            Log.w(TAG, "File not deleted (missing or unwritable): $path")
-                        }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Error deleting: $path", e)
-                    } finally {
+                    val fileGone = deleteFileFromDisk(path)
+                    if (fileGone) {
                         recentlyDeletedPaths.remove(path)
+                        tombstonePrefs.edit().remove(path).apply()
                         MediaScannerConnection.scanFile(context, arrayOf(path), null, null)
+                        Log.d(TAG, "Deleted: $path")
+                    } else {
+                        tombstonePrefs.edit().putBoolean(path, true).apply()
+                        Log.w(TAG, "File not deleted (kept in guard + tombstoned): $path")
                     }
                 }
                 thumbPath?.let { tp ->
@@ -452,6 +459,42 @@ class VideoDownloadManager @Inject constructor(
             Log.e(TAG, "Failed to delete download: $videoId", e)
             false
         }
+    }
+
+    /**
+     * Delete a single file from disk.
+     * Returns true if the file is confirmed gone (never existed, successfully deleted,
+     * or removed via MediaStore fallback on Android Q+).
+     */
+    private fun deleteFileFromDisk(path: String): Boolean {
+        val file = File(path)
+        if (!file.exists()) return true          
+        if (file.delete()) return true           
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                val contentUri = MediaStore.Files.getContentUri(MediaStore.VOLUME_EXTERNAL)
+                context.contentResolver.query(
+                    contentUri,
+                    arrayOf(MediaStore.MediaColumns._ID),
+                    "${MediaStore.MediaColumns.DATA} = ?",
+                    arrayOf(path),
+                    null
+                )?.use { cursor ->
+                    if (cursor.moveToFirst()) {
+                        val id = cursor.getLong(0)
+                        val fileUri = ContentUris.withAppendedId(contentUri, id)
+                        if (context.contentResolver.delete(fileUri, null, null) > 0) {
+                            return !file.exists()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "MediaStore delete fallback failed for: $path", e)
+            }
+        }
+
+        return !file.exists()  
     }
 
     /** Legacy compat — same as deleteDownload */
@@ -538,6 +581,13 @@ class VideoDownloadManager @Inject constructor(
                     val filePath = file.absolutePath
                     if (downloadDao.existsByFilePath(filePath)) continue
                     if (recentlyDeletedPaths.contains(filePath)) continue
+
+                    if (tombstonePrefs.contains(filePath)) {
+                        if (deleteFileFromDisk(filePath)) {
+                            tombstonePrefs.edit().remove(filePath).apply()
+                        }
+                        continue
+                    }
 
                     val pseudoId = "recovered_${filePath.hashCode().toLong() and 0xFFFFFFFFL}"
 
