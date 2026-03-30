@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -176,7 +177,8 @@ private fun ChannelContent(
         stringResource(R.string.tab_about)
     )
 
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
+    val listState = rememberLazyListState()
+    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
         item {
             ChannelHeader(
                 channelInfo = channelInfo,

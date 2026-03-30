@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/flow_red" />
-    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <background android:drawable="@color/icon_bg_dynamic" />
+    <foreground android:drawable="@drawable/ic_notification_logo" />
     <monochrome android:drawable="@drawable/ic_notification_logo" />
 </adaptive-icon>

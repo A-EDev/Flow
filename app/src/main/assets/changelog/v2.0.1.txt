@@ -12,6 +12,7 @@ FEATURES
 - Add new related video card style toggle #191
 - Add new voice search for videos #203
 - Add new toggle to enable search icon from bottom nav #201
+- Add new custom app icon picker #169
 
 IMPROVEMENTS
 - FlowNeuroEngine modularization
@@ -29,6 +30,7 @@ IMPROVEMENTS
 - Increase video title to 2 lines #197
 - Move SponsorBlock contribution setttings to player settings screen #193
 - Add load more feature for comments #204
+- Add channel screen position caching #196
 
 FIXES AND STABILITY
 - Keyboard Focus and pop up

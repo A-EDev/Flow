@@ -64,10 +64,6 @@
             android:theme="@style/Theme.Flow"
             android:windowSoftInputMode="adjustResize"
             android:windowLayoutInDisplayCutoutMode="shortEdges">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
 
             <!-- Deep Links for YouTube URLs -->
             <intent-filter android:autoVerify="true">
@@ -179,6 +175,77 @@
             android:name=".notification.ReminderReceiver"
             android:enabled="true"
             android:exported="false" />
+
+        <!-- App Icon Variants (via activity-alias)                          -->
+        <!-- Default: Flow Red -->
+        <activity-alias
+            android:name=".IconFlowRed"
+            android:enabled="true"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- AMOLED Dark -->
+        <activity-alias
+            android:name=".IconAmoled"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_amoled"
+            android:roundIcon="@mipmap/ic_launcher_amoled_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Monochrome (white background, dark F letter; Material You compatible) -->
+        <activity-alias
+            android:name=".IconMonochrome"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_monochrome"
+            android:roundIcon="@mipmap/ic_launcher_monochrome_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Ghost / Outline (dark background, white squircle border + white F) -->
+        <activity-alias
+            android:name=".IconGhost"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_ghost"
+            android:roundIcon="@mipmap/ic_launcher_ghost_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Dynamic / Material You (neutral bg + monochrome layer; system tints on Android 13+) -->
+        <activity-alias
+            android:name=".IconDynamic"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_dynamic"
+            android:roundIcon="@mipmap/ic_launcher_dynamic_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
 
     </application>
 

@@ -318,6 +318,8 @@
     <string name="notif_system_settings_subtitle">Open Android settings to manage per-channel permissions</string>
 
     <string name="settings_item_theme">Theme</string>
+    <string name="settings_item_app_icon">App Icon</string>
+    <string name="settings_item_app_icon_subtitle">Customize your launcher icon</string>
     <string name="settings_item_content_prefs">Content Preferences</string>
     <string name="settings_item_content_prefs_subtitle">Block topics you don\'t want to see</string>
     <string name="settings_item_player">Player Settings</string>
@@ -359,6 +361,16 @@
     <string name="appearance_themes_count_all">%1$d themes</string>
     <string name="appearance_themes_count_filtered">%1$d %2$s themes</string>
     <string name="appearance_applied_toast">Applied: %1$s</string>
+
+    <!-- App Icon Picker -->
+    <string name="app_icon_picker_subtitle">Choose a launcher icon style. The change takes effect immediately and the launcher will briefly refresh.</string>
+    <string name="app_icon_picker_warning">⚠ Heads up: switching icons uses an Android system mechanism that may briefly remove the app shortcut from your home screen. Long-press the launcher to add it back if needed.</string>
+    <string name="app_icon_apply_toast">Icon updated — your launcher will refresh</string>
+    <string name="icon_name_flow_red">Flow Red</string>
+    <string name="icon_name_amoled">AMOLED Dark</string>
+    <string name="icon_name_monochrome">Monochrome</string>
+    <string name="icon_name_ghost">Ghost</string>
+    <string name="icon_name_dynamic">Material You</string>
 
     <!-- Player Appearance -->
     <string name="player_appearance_title">Player Appearance</string>

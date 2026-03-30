@@ -77,6 +77,7 @@ fun SettingsScreen(
     onNavigateToAbout: () -> Unit,
     onNavigateToUserPreferences: () -> Unit,
     onNavigateToNotifications: () -> Unit,
+    onNavigateToAppIconPicker: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -222,6 +223,7 @@ fun SettingsScreen(
     val allSettingsEntries = listOf(
         SettingSearchEntry(Icons.Outlined.Psychology, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.flow_control_center), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.neural_interest_map_subtitle), secFlowEngine, onNavigateToPersonality),
         SettingSearchEntry(Icons.Outlined.Palette, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_theme), "", secAppearance, onNavigateToAppearance),
+        SettingSearchEntry(Icons.Outlined.AppShortcut, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon_subtitle), secAppearance, onNavigateToAppIconPicker),
         SettingSearchEntry(Icons.Outlined.Tune, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_appearance), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_appearance_subtitle), secAppearance, onNavigateToPlayerAppearance),
         SettingSearchEntry(Icons.Outlined.GridView, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display_subtitle), secAppearance, onNavigateToContentSettings),
         SettingSearchEntry(Icons.Outlined.FilterAlt, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_prefs), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_prefs_subtitle), secContentPlayback, onNavigateToUserPreferences),
@@ -533,6 +535,13 @@ item {
                         title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_theme),
                         subtitle = androidx.compose.ui.res.stringResource(getThemeNameRes(currentTheme)),
                         onClick = onNavigateToAppearance
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.AppShortcut,
+                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon),
+                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon_subtitle),
+                        onClick = onNavigateToAppIconPicker
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(

@@ -249,7 +249,8 @@ fun NavGraphBuilder.flowAppGraph(
             onNavigateToSearchHistory = { navController.navigate("settings/search_history") },
             onNavigateToAbout = { navController.navigate("settings/about") },
             onNavigateToUserPreferences = { navController.navigate("settings/user_preferences") },
-            onNavigateToNotifications = { navController.navigate("settings/notifications") }
+            onNavigateToNotifications = { navController.navigate("settings/notifications") },
+            onNavigateToAppIconPicker = { navController.navigate("settings/app_icon") }
         )
     }
 
@@ -363,6 +364,14 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "settings/notifications"
         showBottomNav.value = false
         io.github.aedev.flow.ui.screens.settings.NotificationSettingsScreen(
+            onNavigateBack = { navController.popBackStack() }
+        )
+    }
+
+    composable("settings/app_icon") {
+        currentRoute.value = "settings/app_icon"
+        showBottomNav.value = false
+        io.github.aedev.flow.ui.screens.settings.AppIconPickerScreen(
             onNavigateBack = { navController.popBackStack() }
         )
     }
