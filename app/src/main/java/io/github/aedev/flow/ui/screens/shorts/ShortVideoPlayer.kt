@@ -112,6 +112,7 @@ fun ShortVideoPage(
     // ── Download State ──
     var showDownloadDialog by remember { mutableStateOf(false) }
     var currentStreamInfo by remember { mutableStateOf<org.schabi.newpipe.extractor.stream.StreamInfo?>(null) }
+    var currentStreamSizes by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
 
     // ── PlayerView instance ──
     val playerView = remember {
@@ -644,10 +645,11 @@ fun ShortVideoPage(
                     scope.launch {
                         val streamInfo = viewModel.getVideoStreamInfo(video.id)
                         currentStreamInfo = streamInfo
-                        isLoadingStreams = false
                         if (streamInfo != null) {
+                            currentStreamSizes = viewModel.fetchStreamSizes(video.id)
                             showDownloadDialog = true
                         }
+                        isLoadingStreams = false
                     }
                 }
             },
@@ -730,7 +732,7 @@ fun ShortVideoPage(
     if (showDownloadDialog && currentStreamInfo != null) {
         io.github.aedev.flow.ui.screens.player.components.DownloadQualityDialog(
             streamInfo = currentStreamInfo,
-            streamSizes = emptyMap(),
+            streamSizes = currentStreamSizes,
             video = video,
             onDismiss = { showDownloadDialog = false }
         )

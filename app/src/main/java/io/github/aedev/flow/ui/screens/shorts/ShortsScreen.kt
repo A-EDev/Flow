@@ -329,7 +329,10 @@ fun ShortsScreen(
                             viewModel.loadComments(short.id)
                             showCommentsSheet = true
                         },
-                        onDescriptionClick = { showDescriptionSheet = true },
+                        onDescriptionClick = {
+                            scope.launch { viewModel.loadShortDetails(short.id) }
+                            showDescriptionSheet = true
+                        },
                         onShareClick = {
                             val sendIntent = Intent(Intent.ACTION_SEND).apply {
                                 action = Intent.ACTION_SEND

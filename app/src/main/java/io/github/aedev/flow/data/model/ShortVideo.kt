@@ -18,13 +18,14 @@ data class ShortVideo(
     val viewCountText: String = "",
     val likeCountText: String = "",
     val description: String = "",
-    
+    val uploadDate: String = "",
+
     // Shorts-specific InnerTube fields
     val musicInfo: ShortMusicInfo? = null,
     val params: String? = null,
     val playerParams: String? = null,
     val sequenceParams: String? = null,
-    
+
     val streamUrl: String? = null
 )
 
@@ -75,7 +76,8 @@ fun Video.toShortVideo(): ShortVideo = ShortVideo(
     channelThumbnailUrl = channelThumbnailUrl,
     viewCountText = formatShortViewCount(viewCount),
     likeCountText = formatMetric(likeCount),
-    description = description
+    description = description,
+    uploadDate = uploadDate
 )
 
 /**
@@ -88,10 +90,10 @@ fun ShortVideo.toVideo(): Video = Video(
     channelName = channelName,
     channelId = channelId,
     thumbnailUrl = thumbnailUrl,
-    duration = 60, 
+    duration = 60,
     viewCount = parseViewCount(viewCountText),
     likeCount = parseMetric(likeCountText),
-    uploadDate = "",
+    uploadDate = uploadDate,
     timestamp = System.currentTimeMillis(),
     description = description,
     channelThumbnailUrl = channelThumbnailUrl,

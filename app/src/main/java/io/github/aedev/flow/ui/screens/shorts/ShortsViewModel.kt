@@ -11,6 +11,9 @@ import io.github.aedev.flow.data.model.toShortVideo
 import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.data.shorts.ShortsRepository
+import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.innertube.models.YouTubeClient
+import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +26,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.async
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
@@ -438,6 +442,97 @@ class ShortsViewModel @Inject constructor(
         }
     }
     
+    /**
+     * Fetch stream sizes in bytes for all video formats of a Short.
+     * Uses InnerTube MOBILE player endpoint — same approach as VideoPlayerViewModel.
+     */
+    suspend fun fetchStreamSizes(videoId: String): Map<String, Long> = withContext(PerformanceDispatcher.networkIO) {
+        try {
+            val playerResult = YouTube.player(videoId, client = YouTubeClient.MOBILE)
+            playerResult.getOrNull()?.let { playerResponse ->
+                val sizes = mutableMapOf<String, Long>()
+
+                val audioFormats = playerResponse.streamingData
+                    ?.adaptiveFormats?.filter { it.isAudio } ?: emptyList()
+                val bestAacSize = audioFormats
+                    .filter { it.mimeType.contains("mp4", ignoreCase = true) }
+                    .maxByOrNull { it.bitrate }?.contentLength ?: 0L
+                val bestOpusSize = audioFormats
+                    .filter { it.mimeType.contains("webm", ignoreCase = true) }
+                    .maxByOrNull { it.bitrate }?.contentLength ?: 0L
+                val bestAnyAudioSize = audioFormats
+                    .maxByOrNull { it.bitrate }?.contentLength ?: 0L
+
+                playerResponse.streamingData?.formats?.forEach { format ->
+                    if (format.height != null && format.contentLength != null) {
+                        val codecKey = VideoPlayerUtils.codecKeyFromMimeType(format.mimeType)
+                        val key = VideoPlayerUtils.streamSizeKey(format.height, codecKey)
+                        sizes[key] = format.contentLength
+                    }
+                }
+                playerResponse.streamingData?.adaptiveFormats?.forEach { format ->
+                    if (format.height != null && format.contentLength != null && !format.isAudio) {
+                        val codecKey = VideoPlayerUtils.codecKeyFromMimeType(format.mimeType)
+                        val isMp4Video = format.mimeType.contains("mp4", ignoreCase = true)
+                        val audioSize = when {
+                            isMp4Video && bestAacSize > 0 -> bestAacSize
+                            !isMp4Video && bestOpusSize > 0 -> bestOpusSize
+                            else -> bestAnyAudioSize
+                        }
+                        val totalSize = format.contentLength + audioSize
+                        val key = VideoPlayerUtils.streamSizeKey(format.height, codecKey)
+                        val currentSize = sizes[key] ?: 0L
+                        if (totalSize > currentSize) sizes[key] = totalSize
+                    }
+                }
+                sizes
+            } ?: emptyMap()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to fetch stream sizes for $videoId: ${e.message}")
+            emptyMap()
+        }
+    }
+
+    /**
+     * Load detailed metadata (description, upload date, like count) for a Short from its StreamInfo.
+     * The StreamInfo is typically already cached from playback setup — so this is usually instant.
+     * Triggers a UI state update so FlowDescriptionBottomSheet always shows accurate data.
+     */
+    fun loadShortDetails(videoId: String) {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            try {
+                val streamInfo = shortsRepository.resolveStreamInfo(videoId) ?: return@launch
+                val uploadDate = streamInfo.textualUploadDate?.takeIf { it.isNotBlank() } ?: return@launch
+                val description = streamInfo.description?.content?.takeIf { it.isNotBlank() } ?: ""
+                val likeCountText = if (streamInfo.likeCount > 0) formatLikeText(streamInfo.likeCount) else null
+
+                val current = _uiState.value.shorts
+                val updated = current.map { short ->
+                    if (short.id == videoId) {
+                        short.copy(
+                            uploadDate = uploadDate,
+                            description = description.ifBlank { short.description },
+                            likeCountText = likeCountText ?: short.likeCountText
+                        )
+                    } else short
+                }
+                if (updated != current) {
+                    _uiState.value = _uiState.value.copy(shorts = updated)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to load short details for $videoId: ${e.message}")
+            }
+        }
+    }
+
+    private fun formatLikeText(count: Long): String = when {
+        count >= 1_000_000_000 -> String.format("%.1fB", count / 1_000_000_000.0)
+        count >= 1_000_000 -> String.format("%.1fM", count / 1_000_000.0)
+        count >= 1_000 -> String.format("%.1fK", count / 1_000.0)
+        count > 0 -> count.toString()
+        else -> ""
+    }
+
     companion object {
         private const val TAG = "ShortsViewModel"
     }

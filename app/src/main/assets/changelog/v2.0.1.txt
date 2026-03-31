@@ -50,3 +50,4 @@ FIXES AND STABILITY
 - Fix video and gestures for RTL #187 #188
 - Fix comment sheet collapsing when scrolling #189
 - Fix Download settings to properly use chosen download path preferences #211
+- Fix shorts metadata and download sizes
