@@ -49,6 +49,16 @@ class ChannelViewModel : ViewModel() {
     private val _isLoadingAllVideos = MutableStateFlow(false)
     val isLoadingAllVideos: StateFlow<Boolean> = _isLoadingAllVideos.asStateFlow()
     
+    var listScrollIndex: Int = 0
+        private set
+    var listScrollOffset: Int = 0
+        private set
+
+    fun saveScrollPosition(index: Int, offset: Int) {
+        listScrollIndex = index
+        listScrollOffset = offset
+    }
+
     private var subscriptionRepository: SubscriptionRepository? = null
     private var currentVideosTab: ListLinkHandler? = null
     private var currentShortsTab: ListLinkHandler? = null

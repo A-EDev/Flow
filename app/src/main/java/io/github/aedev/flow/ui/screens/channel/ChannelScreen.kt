@@ -127,7 +127,10 @@ fun ChannelScreen(
                         onSubscribeClick = { viewModel.toggleSubscription() },
                         onUnsubscribeClick = { viewModel.unsubscribe() },
                         onNotificationChange = { viewModel.setNotificationState(it) },
-                        onTabSelected = { viewModel.selectTab(it) }
+                        onTabSelected = { viewModel.selectTab(it) },
+                        initialScrollIndex = viewModel.listScrollIndex,
+                        initialScrollOffset = viewModel.listScrollOffset,
+                        onScrollChanged = { idx, off -> viewModel.saveScrollPosition(idx, off) }
                     )
                 }
             }
@@ -150,7 +153,10 @@ private fun ChannelContent(
     onSubscribeClick: () -> Unit,
     onUnsubscribeClick: () -> Unit,
     onNotificationChange: (Boolean) -> Unit,
-    onTabSelected: (Int) -> Unit
+    onTabSelected: (Int) -> Unit,
+    initialScrollIndex: Int = 0,
+    initialScrollOffset: Int = 0,
+    onScrollChanged: (index: Int, offset: Int) -> Unit = { _, _ -> }
 ) {
     val channelInfo = uiState.channelInfo ?: return
 
@@ -177,7 +183,16 @@ private fun ChannelContent(
         stringResource(R.string.tab_about)
     )
 
-    val listState = rememberLazyListState()
+    val listState = rememberLazyListState(
+        initialFirstVisibleItemIndex = initialScrollIndex,
+        initialFirstVisibleItemScrollOffset = initialScrollOffset
+    )
+    // Sync scroll position back to ViewModel so it survives ChannelContent leaving
+    // composition (conditional visibility) and Samsung's aggressive process trimming.
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) -> onScrollChanged(index, offset) }
+    }
     LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
         item {
             ChannelHeader(
