@@ -65,6 +65,8 @@ class FlowNeuroEngine(private val appContext: Context) {
         /** Max suppressed channel entries to prevent unbounded growth */
         private const val MAX_SUPPRESSED_CHANNELS = 100
 
+        private const val VECTOR_HYGIENE_VERSION = 1
+
         @Volatile
         private var instance: FlowNeuroEngine? = null
 
@@ -255,6 +257,21 @@ class FlowNeuroEngine(private val appContext: Context) {
 
             currentUserBrain.watchHistoryMap.forEach { (id, pct) ->
                 watchHistory[id] = WatchEntry(pct, System.currentTimeMillis())
+            }
+
+            // One-time vector hygiene: clean channel-name pollution from old versions
+            val hygieneKey = "vector_hygiene_v$VECTOR_HYGIENE_VERSION"
+            val prefs = appContext.getSharedPreferences(
+                "flow_neuro_migrations", Context.MODE_PRIVATE
+            )
+            if (!prefs.getBoolean(hygieneKey, false)) {
+                val cleaned = runVectorHygiene(currentUserBrain)
+                if (cleaned !== currentUserBrain) {
+                    currentUserBrain = cleaned
+                    storage.save(currentUserBrain)
+                }
+                prefs.edit().putBoolean(hygieneKey, true).apply()
+                Log.i(TAG, "Vector hygiene pass completed")
             }
 
             resetSessionInternal()
@@ -738,13 +755,71 @@ class FlowNeuroEngine(private val appContext: Context) {
         }
     }
 
+    private fun runVectorHygiene(brain: UserBrain): UserBrain {
+        val globalTopics = brain.globalVector.topics
+        if (globalTopics.isEmpty()) return brain
+
+        val alwaysTopical = tokenizer.getAlwaysTopical()
+        val polysemousWords = tokenizer.POLYSEMOUS_WORDS
+        val domainWords = tokenizer.getDomainDisambiguationKeys()
+        val preferredLemmas = brain.preferredTopics.map {
+            tokenizer.normalizeLemma(it)
+        }.toSet()
+
+        val affinityConnected = mutableSetOf<String>()
+        brain.topicAffinities.forEach { (key, value) ->
+            if (value > 0.10) {
+                val parts = key.split("|")
+                parts.forEach { affinityConnected.add(it) }
+            }
+        }
+
+        val toRemove = mutableSetOf<String>()
+
+        globalTopics.forEach { (topic, _) ->
+            val base = NeuroScoring.stripDomainTag(topic)
+
+            if (topic.contains(" ")) return@forEach
+            if (topic.contains(":")) return@forEach
+            if (base in alwaysTopical) return@forEach
+            if (base in polysemousWords) return@forEach
+            if (base in domainWords) return@forEach
+            if (base in preferredLemmas) return@forEach
+            if (base in affinityConnected) return@forEach
+            if (base.length <= 3) return@forEach
+
+            toRemove.add(topic)
+        }
+
+        if (toRemove.isEmpty()) return brain
+
+        Log.i(TAG, "Vector hygiene: removing ${toRemove.size} " +
+            "suspected channel-name pollution: " +
+            "${toRemove.take(10).joinToString()}")
+
+        val cleanedGlobal = brain.globalVector.topics
+            .filter { it.key !in toRemove }
+        val cleanedTimeVectors = brain.timeVectors.mapValues { (_, vec) ->
+            vec.copy(topics = vec.topics.filter { it.key !in toRemove })
+        }
+        val cleanedShortsVector = brain.shortsVector.copy(
+            topics = brain.shortsVector.topics.filter { it.key !in toRemove }
+        )
+
+        return brain.copy(
+            globalVector = brain.globalVector.copy(topics = cleanedGlobal),
+            timeVectors = cleanedTimeVectors,
+            shortsVector = cleanedShortsVector
+        )
+    }
+
     suspend fun markNotInterested(video: Video) {
         val videoVector = getOrExtractFeatures(video, takeIdfSnapshotSafe())
 
         brainMutex.withLock {
             val now = System.currentTimeMillis()
 
-            // 1. Hard-suppress this specific video for VIDEO_SUPPRESSION_DAYS
+            // 1. Hard-suppress this specific video
             val newSuppressedVideos = currentUserBrain.suppressedVideoIds.toMutableMap()
             newSuppressedVideos[video.id] = now
             if (newSuppressedVideos.size > MAX_SUPPRESSED_VIDEOS) {
@@ -768,24 +843,56 @@ class FlowNeuroEngine(private val appContext: Context) {
                 }
             }
 
-            // 3. Aggressive vector adjustment — halves matching topic scores instead of
-            val newGlobal = adjustVectorAggressive(currentUserBrain.globalVector, videoVector)
+            // 3. Update rejection pattern memory BEFORE vector adjustment
+            val updatedPatterns = currentUserBrain.rejectionPatterns.toMutableMap()
+            val rejectionKeys = NeuroScoring.extractRejectionKeys(videoVector)
 
-            // 4. Channel score — halve the current score, floor at 0.01
+            rejectionKeys.forEach { key ->
+                val existing = updatedPatterns[key]
+                updatedPatterns[key] = RejectionSignal(
+                    count = (existing?.count ?: 0) + 1,
+                    lastRejectedAt = now
+                )
+            }
+
+            // Prune expired patterns
+            val patternExpiry = now - (NeuroScoring.REJECTION_EXPIRY_DAYS * 86_400_000L)
+            updatedPatterns.entries.removeAll { (_, signal) ->
+                signal.lastRejectedAt < patternExpiry
+            }
+            // Size cap
+            if (updatedPatterns.size > NeuroScoring.REJECTION_MEMORY_MAX) {
+                val sorted = updatedPatterns.entries.sortedBy { it.value.lastRejectedAt }
+                val toRemove = sorted.take(
+                    updatedPatterns.size - NeuroScoring.REJECTION_MEMORY_MAX
+                )
+                toRemove.forEach { updatedPatterns.remove(it.key) }
+            }
+
+            // 4. Aggressive vector adjustment — scales with rejection count
+            val aggressionFactor = NeuroScoring.getRejectionAggressionFactor(
+                videoVector, updatedPatterns, now
+            )
+            val newGlobal = adjustVectorByRejection(
+                currentUserBrain.globalVector, videoVector, aggressionFactor
+            )
+
+            // 5. Channel score — scales with rejection aggression
             val newChannelScores = currentUserBrain.channelScores.toMutableMap()
             if (video.channelId.isNotBlank()) {
                 val currentScore = newChannelScores[video.channelId] ?: 0.5
-                newChannelScores[video.channelId] = (currentScore * 0.5).coerceAtLeast(0.01)
+                newChannelScores[video.channelId] =
+                    (currentScore * aggressionFactor).coerceAtLeast(0.01)
             }
 
-            // 5. Time bucket adjustment
+            // 6. Time bucket adjustment
             val bucket = TimeBucket.current()
             val currentBucketVec = currentUserBrain.timeVectors[bucket] ?: ContentVector()
             val newBucketVec = NeuroVectorMath.adjustVector(
                 currentBucketVec, videoVector, NeuroScoring.NOT_INTERESTED_TIME_RATE
             )
 
-            // 6. Consecutive skips
+            // 7. Consecutive skips
             val newSkips = (currentUserBrain.consecutiveSkips +
                 NeuroScoring.NOT_INTERESTED_SKIP_INCREMENT)
                 .coerceAtMost(NeuroScoring.MAX_CONSECUTIVE_SKIPS)
@@ -798,25 +905,24 @@ class FlowNeuroEngine(private val appContext: Context) {
                 totalInteractions = currentUserBrain.totalInteractions + 1,
                 consecutiveSkips = newSkips,
                 suppressedVideoIds = newSuppressedVideos,
-                suppressedChannels = newSuppressedChannels
+                suppressedChannels = newSuppressedChannels,
+                rejectionPatterns = updatedPatterns
             )
             storage.save(currentUserBrain)
         }
     }
 
-    /**
-     * Aggressive vector adjustment for "not interested" signals.
-     * Halves every matching topic score instead of the gentle proportional decay
-     */
-    private fun adjustVectorAggressive(
+    private fun adjustVectorByRejection(
         current: ContentVector,
-        target: ContentVector
+        target: ContentVector,
+        aggressionFactor: Double
     ): ContentVector {
         val newTopics = current.topics.toMutableMap()
         target.topics.forEach { (key, _) ->
             val currentVal = newTopics[key] ?: 0.0
             if (currentVal > 0) {
-                newTopics[key] = (currentVal * 0.5).coerceAtMost(0.3)
+                newTopics[key] = (currentVal * aggressionFactor)
+                    .coerceAtMost(0.3)
             }
         }
         newTopics.entries.removeAll { it.value < NeuroVectorMath.TOPIC_PRUNE_THRESHOLD }
@@ -1121,6 +1227,11 @@ class FlowNeuroEngine(private val appContext: Context) {
             // ── Anti-recommendation penalty ──
             totalScore *= NeuroScoring.calculateAntiRecommendationPenalty(
                 videoVector, video, brain
+            )
+
+            // ── Rejection pattern penalty (repeated "not interested" signals) ──
+            totalScore *= NeuroScoring.calculateRejectionPatternPenalty(
+                videoVector, brain.rejectionPatterns, now
             )
 
             // ── Relevance floor (mature brains only) ──

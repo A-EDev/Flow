@@ -60,6 +60,12 @@ internal class NeuroStorage(private val appContext: Context) {
     )
 
     @Serializable
+    data class SerializableRejectionSignal(
+        val count: Int = 0,
+        val lastRejectedAt: Long = 0L
+    )
+
+    @Serializable
     data class SerializableBrain(
         val schemaVersion: Int = SCHEMA_VERSION,
         val timeVectors: Map<String, SerializableVector> = emptyMap(),
@@ -82,6 +88,7 @@ internal class NeuroStorage(private val appContext: Context) {
         val shortsVector: SerializableVector = SerializableVector(),
         val suppressedVideoIds: Map<String, Long> = emptyMap(),
         val suppressedChannels: Map<String, Long> = emptyMap(),
+        val rejectionPatterns: Map<String, SerializableRejectionSignal> = emptyMap(),
         val feedHistory: Map<String, SerializableFeedEntry> = emptyMap(),
         val recentQueryTokens: List<List<String>> = emptyList()
     )
@@ -144,6 +151,16 @@ internal class NeuroStorage(private val appContext: Context) {
         showCount = showCount
     )
 
+    fun RejectionSignal.toSerializable() = SerializableRejectionSignal(
+        count = count,
+        lastRejectedAt = lastRejectedAt
+    )
+
+    fun SerializableRejectionSignal.toRejectionSignal() = RejectionSignal(
+        count = count,
+        lastRejectedAt = lastRejectedAt
+    )
+
     fun UserBrain.toSerializable() = SerializableBrain(
         schemaVersion = SCHEMA_VERSION,
         timeVectors = timeVectors.map { (k, v) ->
@@ -168,6 +185,9 @@ internal class NeuroStorage(private val appContext: Context) {
         shortsVector = shortsVector.toSerializable(),
         suppressedVideoIds = suppressedVideoIds,
         suppressedChannels = suppressedChannels,
+        rejectionPatterns = rejectionPatterns.mapValues { (_, v) ->
+            v.toSerializable()
+        },
         feedHistory = feedHistory.mapValues { (_, v) -> v.toSerializable() },
         recentQueryTokens = recentQueryTokens.map { it.toList() }
     )
@@ -198,6 +218,9 @@ internal class NeuroStorage(private val appContext: Context) {
             shortsVector = shortsVector.toContentVector(),
             suppressedVideoIds = suppressedVideoIds,
             suppressedChannels = suppressedChannels,
+            rejectionPatterns = rejectionPatterns.mapValues { (_, v) ->
+                v.toRejectionSignal()
+            },
             feedHistory = feedHistory.mapValues { (_, v) -> v.toFeedEntry() },
             recentQueryTokens = recentQueryTokens.map { it.toSet() },
         )

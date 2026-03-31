@@ -99,6 +99,12 @@ data class UserBrain(
      */
     val suppressedChannels: Map<String, Long> = emptyMap(),
 
+    /**
+     * Rejection pattern memory. Tracks topic patterns the user
+     * repeatedly rejects via "not interested".
+     */
+    val rejectionPatterns: Map<String, RejectionSignal> = emptyMap(),
+
     // ── Feed repetition prevention ──
 
     val feedHistory: Map<String, FeedEntry> = emptyMap(),
@@ -166,6 +172,11 @@ internal data class ScoredVideo(
     val video: io.github.aedev.flow.data.model.Video,
     var score: Double,
     val vector: ContentVector
+)
+
+data class RejectionSignal(
+    val count: Int,
+    val lastRejectedAt: Long
 )
 
 internal data class ImpressionEntry(var count: Int, var lastSeen: Long)

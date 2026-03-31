@@ -128,6 +128,20 @@ internal object NeuroScoring {
     const val RECENT_QUERY_TOKENS_MAX = 20
     const val QUERY_OVERLAP_THRESHOLD = 0.6
 
+    // ── Rejection Pattern Memory ──
+    const val REJECTION_EXPIRY_DAYS = 14L
+    const val REJECTION_MEMORY_MAX = 200
+    const val REJECTION_PENALTY_1 = 0.50
+    const val REJECTION_PENALTY_2 = 0.20
+    const val REJECTION_PENALTY_3_PLUS = 0.05
+
+    private val REJECTION_BROAD_TOPICS = hashSetOf(
+        "music", "game", "video", "sport", "food", "art",
+        "tech", "science", "news", "show", "movie", "film",
+        "learn", "education", "entertainment", "review",
+        "react", "challenge", "build", "design", "travel"
+    )
+
     // ── Time Decay Engine ──
 
     object TimeDecay {
@@ -564,6 +578,84 @@ internal object NeuroScoring {
     fun stripDomainTag(topic: String): String {
         val colonIndex = topic.indexOf(':')
         return if (colonIndex > 0) topic.substring(0, colonIndex) else topic
+    }
+
+    // ── Rejection Pattern Memory Functions ──
+
+    fun extractRejectionKeys(videoVector: ContentVector): List<String> {
+        val topTopics = videoVector.topics.entries
+            .sortedByDescending { it.value }
+            .take(3)
+            .map { stripDomainTag(it.key) }
+            .filter { it.length >= 3 }
+
+        if (topTopics.isEmpty()) return emptyList()
+
+        val keys = mutableListOf<String>()
+
+        topTopics.firstOrNull { it !in REJECTION_BROAD_TOPICS }?.let {
+            keys.add(it)
+        }
+
+        if (topTopics.size >= 2) {
+            val sorted = listOf(topTopics[0], topTopics[1]).sorted()
+            keys.add("${sorted[0]}|${sorted[1]}")
+        }
+
+        return keys
+    }
+
+    fun calculateRejectionPatternPenalty(
+        videoVector: ContentVector,
+        rejectionPatterns: Map<String, RejectionSignal>,
+        now: Long
+    ): Double {
+        if (rejectionPatterns.isEmpty()) return 1.0
+
+        val videoKeys = extractRejectionKeys(videoVector)
+        if (videoKeys.isEmpty()) return 1.0
+
+        val expiryMs = REJECTION_EXPIRY_DAYS * 86_400_000L
+        var maxCount = 0
+
+        videoKeys.forEach { key ->
+            val signal = rejectionPatterns[key] ?: return@forEach
+            if ((now - signal.lastRejectedAt) < expiryMs) {
+                maxCount = maxOf(maxCount, signal.count)
+            }
+        }
+
+        return when {
+            maxCount >= 3 -> REJECTION_PENALTY_3_PLUS
+            maxCount == 2 -> REJECTION_PENALTY_2
+            maxCount == 1 -> REJECTION_PENALTY_1
+            else -> 1.0
+        }
+    }
+
+    fun getRejectionAggressionFactor(
+        videoVector: ContentVector,
+        rejectionPatterns: Map<String, RejectionSignal>,
+        now: Long
+    ): Double {
+        if (rejectionPatterns.isEmpty()) return 0.5
+
+        val videoKeys = extractRejectionKeys(videoVector)
+        val expiryMs = REJECTION_EXPIRY_DAYS * 86_400_000L
+        var maxCount = 0
+
+        videoKeys.forEach { key ->
+            val signal = rejectionPatterns[key] ?: return@forEach
+            if ((now - signal.lastRejectedAt) < expiryMs) {
+                maxCount = maxOf(maxCount, signal.count)
+            }
+        }
+
+        return when {
+            maxCount >= 2 -> 0.10
+            maxCount >= 1 -> 0.25
+            else -> 0.50
+        }
     }
 
     /**
