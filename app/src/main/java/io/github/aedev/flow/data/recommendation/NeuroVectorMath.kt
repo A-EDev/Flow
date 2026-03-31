@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 Flow | A-EDev
+ * Copyright (C) 2025-2026 Flow | A-EDev
  *
  * This file is part of Flow (https://github.com/A-EDev/Flow).
  *
@@ -29,8 +29,19 @@ internal object NeuroVectorMath {
     const val PACING_SIMILARITY_WEIGHT = 0.10
     const val COMPLEXITY_SIMILARITY_WEIGHT = 0.10
 
-    const val TOPIC_DECAY_RATE = 0.97
     const val TOPIC_PRUNE_THRESHOLD = 0.03
+
+    /** Topics above this score are core interests — decay extremely slowly */
+    const val ESTABLISHED_TOPIC_THRESHOLD = 0.30
+    /** Topics above this score are developing — decay slowly */
+    const val DEVELOPING_TOPIC_THRESHOLD = 0.10
+
+    /** Established interests: half-life ~1400 interactions */
+    const val ESTABLISHED_DECAY_RATE = 0.998
+    /** Developing interests: half-life ~330 interactions */
+    const val DEVELOPING_DECAY_RATE = 0.993
+    /** Emerging/noisy topics: half-life ~23 interactions*/
+    const val EMERGING_DECAY_RATE = 0.97
 
     const val NEGATIVE_PROPORTIONAL_EXPONENT = 1.5
     const val NEGATIVE_FLOOR_FACTOR = 0.3
@@ -125,12 +136,16 @@ internal object NeuroVectorMath {
             newTopics[key] = (currentVal + delta).coerceIn(0.0, 1.0)
         }
 
-        val decay = if (baseRate > 0) TOPIC_DECAY_RATE else 1.0
         val iterator = newTopics.iterator()
         while (iterator.hasNext()) {
             val entry = iterator.next()
-            if (!target.topics.containsKey(entry.key)) {
-                entry.setValue(entry.value * decay)
+            if (baseRate > 0 && !target.topics.containsKey(entry.key)) {
+                val tieredDecay = when {
+                    entry.value >= ESTABLISHED_TOPIC_THRESHOLD -> ESTABLISHED_DECAY_RATE
+                    entry.value >= DEVELOPING_TOPIC_THRESHOLD -> DEVELOPING_DECAY_RATE
+                    else -> EMERGING_DECAY_RATE
+                }
+                entry.setValue(entry.value * tieredDecay)
             }
             if (entry.value < TOPIC_PRUNE_THRESHOLD) iterator.remove()
         }

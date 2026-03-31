@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 Flow | A-EDev
+ * Copyright (C) 2025-2026 Flow | A-EDev
  *
  * This file is part of Flow (https://github.com/A-EDev/Flow).
  *
@@ -39,7 +39,7 @@ internal class NeuroStorage(private val appContext: Context) {
     companion object {
         private const val TAG = "FlowNeuroEngine"
         private const val BRAIN_FILENAME = "user_neuro_brain.json"
-        private const val SCHEMA_VERSION = 11
+        private const val SCHEMA_VERSION = 12
     }
 
     // ── Serializable models ──
@@ -51,6 +51,12 @@ internal class NeuroStorage(private val appContext: Context) {
         val pacing: Double = 0.5,
         val complexity: Double = 0.5,
         val isLive: Double = 0.0
+    )
+
+    @Serializable
+    data class SerializableFeedEntry(
+        val lastShown: Long = 0L,
+        val showCount: Int = 0
     )
 
     @Serializable
@@ -75,7 +81,9 @@ internal class NeuroStorage(private val appContext: Context) {
         val channelTopicProfiles: Map<String, Map<String, Double>> = emptyMap(),
         val shortsVector: SerializableVector = SerializableVector(),
         val suppressedVideoIds: Map<String, Long> = emptyMap(),
-        val suppressedChannels: Map<String, Long> = emptyMap()
+        val suppressedChannels: Map<String, Long> = emptyMap(),
+        val feedHistory: Map<String, SerializableFeedEntry> = emptyMap(),
+        val recentQueryTokens: List<List<String>> = emptyList()
     )
 
     // ── DataStore setup ──
@@ -126,6 +134,16 @@ internal class NeuroStorage(private val appContext: Context) {
         complexity = complexity, isLive = isLive
     )
 
+    fun FeedEntry.toSerializable() = SerializableFeedEntry(
+        lastShown = lastShown,
+        showCount = showCount
+    )
+
+    fun SerializableFeedEntry.toFeedEntry() = FeedEntry(
+        lastShown = lastShown,
+        showCount = showCount
+    )
+
     fun UserBrain.toSerializable() = SerializableBrain(
         schemaVersion = SCHEMA_VERSION,
         timeVectors = timeVectors.map { (k, v) ->
@@ -149,7 +167,9 @@ internal class NeuroStorage(private val appContext: Context) {
         channelTopicProfiles = channelTopicProfiles,
         shortsVector = shortsVector.toSerializable(),
         suppressedVideoIds = suppressedVideoIds,
-        suppressedChannels = suppressedChannels
+        suppressedChannels = suppressedChannels,
+        feedHistory = feedHistory.mapValues { (_, v) -> v.toSerializable() },
+        recentQueryTokens = recentQueryTokens.map { it.toList() }
     )
 
     fun SerializableBrain.toUserBrain(): UserBrain {
@@ -178,6 +198,8 @@ internal class NeuroStorage(private val appContext: Context) {
             shortsVector = shortsVector.toContentVector(),
             suppressedVideoIds = suppressedVideoIds,
             suppressedChannels = suppressedChannels,
+            feedHistory = feedHistory.mapValues { (_, v) -> v.toFeedEntry() },
+            recentQueryTokens = recentQueryTokens.map { it.toSet() },
         )
     }
 

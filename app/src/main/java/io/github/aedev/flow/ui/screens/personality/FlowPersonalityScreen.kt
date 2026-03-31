@@ -84,6 +84,7 @@ fun FlowPersonalityScreen(
 
     LaunchedEffect(userBrain) {
         val brain = userBrain ?: return@LaunchedEffect
+        delay(800)
         val allChannels = (brain.blockedChannels + brain.channelScores.keys).distinct()
         val toFetch = allChannels.filter { !cachedChannelNames.containsKey(it) }
         
@@ -456,7 +457,6 @@ private fun NeuralNetworkBackground() {
         modifier = Modifier
             .fillMaxSize()
             .alpha(0.15f)
-            .blur(40.dp)
     ) {
         val center = Offset(size.width * 0.7f, size.height * 0.2f)
         
@@ -686,23 +686,22 @@ private fun QuickStatCard(
 }
 
 // ============================================================================
-// 4. NEURAL BUBBLE CLOUD (Animated Canvas)
-// ============================================================================
-
-// ============================================================================
 // 4. NEURAL BUBBLE CLOUD (Animated Canvas with Physics)
 // ============================================================================
 
 private class BubbleState(
     val topic: String,
     val score: Double,
-    var x: Float,
-    var y: Float,
+    x: Float,
+    y: Float,
     val radius: Float,
-    val color: Color,
-    var velocityX: Float = 0f,
+    val color: Color
+) {
+    var x by mutableStateOf(x)
+    var y by mutableStateOf(y)
+    var velocityX: Float = 0f
     var velocityY: Float = 0f
-)
+}
 
 @Composable
 private fun NeuralBubbleCloud(brain: UserBrain) {
@@ -748,9 +747,6 @@ private fun NeuralBubbleCloud(brain: UserBrain) {
         }
     }
     
-    // Physics Loop
-    var time by remember { mutableLongStateOf(0L) }
-    
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -778,6 +774,7 @@ private fun NeuralBubbleCloud(brain: UserBrain) {
             
             // Physics Engine with Settling Detection (Performance Optimization)
             LaunchedEffect(Unit) {
+                delay(400)
                 var settleCounter = 0
                 while (true) {
                     // If settled for ~1 second, switch to idle mode (10fps) to save battery
@@ -786,9 +783,7 @@ private fun NeuralBubbleCloud(brain: UserBrain) {
                         delay(100) // 10fps idle mode
                     }
                     
-                    withFrameNanos { nanos ->
-                        time = nanos
-                        
+                    withFrameNanos {
                         // Physics Constants
                         val repulsionStrength = 1500f
                         val centerPullStrength = 0.02f
@@ -863,6 +858,8 @@ private fun NeuralBubbleCloud(brain: UserBrain) {
                 }
             }
             
+            val connectionThresholdPx = remember(density) { with(density) { 200.dp.toPx() } }
+
             // Generate accessibility description for screen readers
             val accessibilityDescription = remember(bubbles) {
                 val topTopics = bubbles.sortedByDescending { it.score }.take(5)
@@ -876,9 +873,6 @@ private fun NeuralBubbleCloud(brain: UserBrain) {
                     .fillMaxSize()
                     .semantics { contentDescription = accessibilityDescription }
             ) {
-                // Ensure recomposition on physics update
-                val t = time 
-                
                 bubbles.forEach { bubble ->
                     // Draw glow
                     drawCircle(
@@ -918,7 +912,6 @@ private fun NeuralBubbleCloud(brain: UserBrain) {
                         val dy = b1.y - b2.y
                         val dist = sqrt(dx*dx + dy*dy)
                         
-                        val connectionThresholdPx = with(density) { 200.dp.toPx() }
                         if (dist < connectionThresholdPx) {
                             val alpha = (1f - dist / connectionThresholdPx) * 0.15f
                             drawLine(
@@ -934,9 +927,6 @@ private fun NeuralBubbleCloud(brain: UserBrain) {
             
             // Labels (Overlay Composable for text crispness)
             bubbles.forEach { bubble ->
-                // Ensure recomposition
-                val t = time 
-                
                 Box(
                     modifier = Modifier
                         .offset(
@@ -1506,6 +1496,7 @@ private fun AlgorithmInsightsCard(brain: UserBrain) {
     var discoveryQueries by remember { mutableStateOf<List<String>>(emptyList()) }
     
     LaunchedEffect(brain) {
+        delay(300)
         discoveryQueries = FlowNeuroEngine.generateDiscoveryQueries()
     }
     

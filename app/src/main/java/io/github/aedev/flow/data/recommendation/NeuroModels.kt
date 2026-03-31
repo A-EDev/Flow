@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 Flow | A-EDev
+ * Copyright (C) 2025-2026 Flow | A-EDev
  *
  * This file is part of Flow (https://github.com/A-EDev/Flow).
  *
@@ -98,7 +98,14 @@ data class UserBrain(
      * Maps channelId → timestamp. Escalates to blockedChannels on second signal.
      */
     val suppressedChannels: Map<String, Long> = emptyMap(),
-    val schemaVersion: Int = 11
+
+    // ── Feed repetition prevention ──
+
+    val feedHistory: Map<String, FeedEntry> = emptyMap(),
+
+    val recentQueryTokens: List<Set<String>> = emptyList(),
+
+    val schemaVersion: Int = 12
 )
 
 // ── Interaction Types ──
@@ -166,6 +173,11 @@ internal data class ImpressionEntry(var count: Int, var lastSeen: Long)
 internal data class WatchEntry(val percentWatched: Float, val timestamp: Long)
 
 internal data class MomentumEntry(val topic: String, val positive: Boolean)
+
+data class FeedEntry(
+    val lastShown: Long,
+    val showCount: Int
+)
 
 internal data class IdfSnapshot(
     val wordFrequency: Map<String, Int>,

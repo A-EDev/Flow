@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 Flow | A-EDev
+ * Copyright (C) 2025-2026 Flow | A-EDev
  *
  * This file is part of Flow (https://github.com/A-EDev/Flow).
  *
@@ -32,7 +32,7 @@ internal class NeuroTokenizer {
         const val IDF_COLD_START_DOCS = 30
         const val IDF_MIN_WEIGHT = 0.15
         const val IDF_MAX_WEIGHT = 1.0
-        const val CHANNEL_KEYWORD_WEIGHT = 1.0
+        const val CHANNEL_KEYWORD_WEIGHT = 0.6
         const val TITLE_KEYWORD_WEIGHT = 0.5
         const val BIGRAM_WEIGHT = 0.75
         const val BIGRAM_PRIORITY_WEIGHT = 1.2
@@ -867,6 +867,137 @@ internal class NeuroTokenizer {
                     "revenue", "customer", "market", "enterprise"
                 )
             )
+        ),
+        "code" to listOf(
+            DomainContext(
+                domain = "programming",
+                contextWords = setOf(
+                    "python", "javascript", "java", "program", "debug","react", "angular", "vue", "node", "django",
+                    "software", "develop", "engineer", "function", "variable", "kotlin", "swift", "c++", "ruby", "php",
+                    "arduino", "raspberry", "linux", "terminal", "command", "line", "script", "compile", "execute",
+                    "algorithm", "data structure", "oop", "functional", "programming", "coding",
+                    "flutter", "dart", "spring", "boot", "microservice", "api", "rest", "graphql",
+                    "machine learning", "artificial intelligence", "deep learning", "neural network",
+                    "tutorial", "learn", "beginner", "project", "build"
+                )
+            ),
+            DomainContext(
+                domain = "promo",
+                contextWords = setOf(
+                    "promo", "discount", "coupon", "sale", "deal",
+                    "off", "percent", "shop", "store", "buy",
+                    "free", "trial", "subscription", "membership"
+                )
+            ),
+            DomainContext(
+                domain = "entertainment",
+                contextWords = setOf(
+                    "movie", "film", "series", "show", "thriller",
+                    "stream", "watch", "netflix", "amazon",
+                    "episode", "season", "cast", "actor", "scene"
+                )
+            )
+        ),
+        "design" to listOf(
+            DomainContext(
+                domain = "graphic",
+                contextWords = setOf(
+                    "graphic", "logo", "brand", "illustrator", "photoshop",
+                    "vector", "font", "typography", "poster", "ui",
+                    "creative", "adobe", "canva", "layout", "mockup"
+                )
+            ),
+            DomainContext(
+                domain = "interior",
+                contextWords = setOf(
+                    "interior", "room", "home", "house", "furniture",
+                    "decor", "living", "bedroom", "kitchen", "space",
+                    "minimalist", "cozy", "tour", "makeover"
+                )
+            ),
+            DomainContext(
+                domain = "fashion",
+                contextWords = setOf(
+                    "fashion", "clothing", "dress", "outfit", "style",
+                    "runway", "model", "brand", "collection",
+                    "wear", "accessory", "trend", "couture"
+                )
+            ),
+            DomainContext(
+                domain = "game",
+                contextWords = setOf(
+                    "game", "level", "character", "map", "world",
+                    "ux", "ui", "indie", "unity", "unreal",
+                    "minecraft", "city", "park", "architect"
+                )
+            )
+        ),
+        "craft" to listOf(
+            DomainContext(
+                domain = "gaming",
+                contextWords = setOf(
+                    "minecraft", "game", "recipe", "enchant", "potion",
+                    "sword", "armor", "tool", "block",
+                    "inventory", "stack", "mod", "server"
+                )
+            ),
+            DomainContext(
+                domain = "diy",
+                contextWords = setOf(
+                    "diy", "handmade", "homemade", "glue", "scissors",
+                    "fabric", "needle", "tutorial", "project",
+                    "paint", "resin", "clay", "gift", "decor"
+                )
+            )
+        ),
+        "run" to listOf(
+            DomainContext(
+                domain = "fitness",
+                contextWords = setOf(
+                    "mile", "marathon", "jog", "sprint", "pace",
+                    "5k", "10k", "shoe", "outdoor", "trail",
+                    "training", "heart", "rate", "endurance"
+                )
+            ),
+            DomainContext(
+                domain = "gaming",
+                contextWords = setOf(
+                    "speedrun", "speed", "any", "glitch", "record",
+                    "category", "wr", "attempt", "split", "timer", "pb"
+                )
+            ),
+            DomainContext(
+                domain = "tech",
+                contextWords = setOf(
+                    "command", "script", "execute", "terminal", "process",
+                    "npm", "yarn", "pipeline", "ci", "test", "local"
+                )
+            )
+        ),
+        "play" to listOf(
+            DomainContext(
+                domain = "gaming",
+                contextWords = setOf(
+                    "game", "controller", "console", "multiplayer",
+                    "online", "steam", "xbox", "playstation",
+                    "pvp", "ranked", "match"
+                )
+            ),
+            DomainContext(
+                domain = "music",
+                contextWords = setOf(
+                    "instrument", "guitar", "piano", "drum", "violin",
+                    "chord", "note", "lesson", "song", "music",
+                    "cover", "acoustic", "solo"
+                )
+            ),
+            DomainContext(
+                domain = "sport",
+                contextWords = setOf(
+                    "football", "basketball", "soccer", "baseball",
+                    "cricket", "field", "team", "sport", "athlete"
+                )
+            )
         )
     )
 
@@ -1016,44 +1147,106 @@ internal class NeuroTokenizer {
     )
 
     private val ALWAYS_TOPICAL = hashSetOf(
-        "tech", "technology", "science", "music", "game", "gaming",
-        "cook", "cooking", "art", "code", "coding", "program",
-        "fitness", "health", "beauty", "fashion", "travel",
-        "food", "nature", "history", "math", "physics", "chemistry",
-        "biology", "engineering", "design", "photo", "photography",
-        "film", "cinema", "anime", "manga", "sports", "football",
-        "basketball", "soccer", "baseball", "hockey", "golf",
-        "tennis", "boxing", "mma", "wrestling", "yoga", "meditation",
+        // Technology
+        "tech", "technology", "science", "code", "coding", "program",
+        "programming", "software", "hardware", "cybersecurity", "linux",
+        "android", "python", "javascript", "rust", "java", "swift",
+        "flutter", "react", "devops", "database", "frontend", "backend",
+        "hacking", "ai",
+
+        // Gaming
+        "game", "gaming", "minecraft", "fortnite", "roblox", "valorant",
+        "pokemon", "nintendo", "playstation", "xbox", "esports", "speedrun",
+        "apex", "overwatch", "destiny", "warzone", "gta", "zelda",
+
+        // Music
+        "music", "guitar", "piano", "drum", "violin", "bass", "singing",
+        "jazz", "classical", "electronic", "edm", "hiphop", "rap",
+        "metal", "rock", "punk", "indie", "kpop", "lofi",
+
+        // Creative
+        "art", "drawing", "painting", "illustration", "sculpture",
+        "animation", "calligraphy", "design", "photo", "photography",
+        "film", "cinema", "filmmaking",
+
+        // Education & Academic
+        "education", "math", "mathematics", "physics", "chemistry",
+        "biology", "engineering", "geography", "geology", "economics",
+        "politics", "psychology", "philosophy", "history", "literature",
+        "language", "spanish", "japanese", "korean", "french", "german",
+
+        // Entertainment
+        "anime", "manga", "movie", "comedy", "horror",
+        "podcast", "documentary", "asmr", "chess",
+
+        // Sports & Fitness
+        "sports", "fitness", "workout", "gym", "yoga", "running",
+        "bodybuilding", "calisthenics", "nutrition", "meditation",
+        "football", "basketball", "soccer", "baseball", "hockey",
+        "golf", "tennis", "boxing", "mma", "wrestling",
+        "cycling", "swimming", "climbing", "martial",
+
+        // Food & Cooking
+        "food", "cook", "cooking", "recipe", "baking", "vegan",
+        "vegetarian", "barbecue", "cuisine",
+
+        // Lifestyle
+        "travel", "fashion", "beauty", "skincare", "health",
+        "diy", "craft", "garden", "gardening", "automotive",
+        "car", "motorcycle", "aviation",
+
+        // Nature & Science
+        "nature", "wildlife", "ocean", "marine", "aquarium",
+        "space", "astronomy", "robotics", "electronics",
+
+        // Pets
+        "dog", "cat", "pet",
+
+        // Craft & Making
+        "woodworking", "metalworking", "3d", "printing",
+        "sewing", "knitting", "pottery",
+
+        // Finance
         "crypto", "finance", "investing", "business", "marketing",
-        "psychology", "philosophy", "education", "garden", "automotive",
-        "car", "motorcycle", "aviation", "space", "astronomy",
-        "woodworking", "metalworking", "electronics", "robotics",
-        "3d", "printing", "sewing", "knitting", "pottery"
+        "trading", "stocks", "entrepreneur"
     )
 
     /**
-     * Tokenizes a channel name, extracting ONLY topical keywords.
-     * Filters out personal names, branding suffixes, and other noise.
+     * Tokenizes a channel name, extracting ONLY confirmed topic keywords.
      *
-     * "John Doe Gaming"          → ["game"]
-     * "TechWithTim"              → ["tech"]  (tim filtered as name)
-     * "Kurzgesagt – In a Nutshell" → ["kurzgesagt"]  (unique brand = kept)
-     * "Linus Tech Tips"          → ["tech"]  (linus = name, tips = stop word)
+     * Channel names are inherently noisy
+     * puns ("Fireship"), adjectives ("Epic"), and creative words that are
+     * NOT content topic indicators. Instead of trying to filter out all
+     * possible noise words (impossible), we only keep words that match
+     * known content topics.
+     *
+     * The channel's identity and viewing patterns are tracked separately
+     * via channelScores and channelTopicProfiles. This function only
+     * extracts topic signals for the content vector.
+     *
+     * "Coding Sloth"          → ["code"]        (sloth = mascot, not a topic)
+     * "Linus Tech Tips"       → ["tech"]        (linus = not topical, tips = not topical)
+     * "Fireship"              → []              (creative brand, not a topic)
+     * "Python Engineer"       → ["python"]      (engineer not in list, python is)
+     * "Binging with Babish"   → []              (no topic words)
+     * "History Matters"       → ["history"]
      */
     fun tokenizeChannelName(channelName: String): List<String> {
-        // Keep original casing for capitalization-based name detection
         val rawOriginal = channelName
             .split(WHITESPACE_REGEX)
             .map { word -> word.trim { !it.isLetterOrDigit() } }
             .filter { it.length > 1 }
 
-        // Single-word channel names are likely unique brands — keep if substantial
+        if (rawOriginal.isEmpty()) return emptyList()
+
         if (rawOriginal.size == 1) {
             val word = rawOriginal[0].lowercase()
-            if (word.length > 3 && word !in CHANNEL_BRANDING && word !in STOP_WORDS) {
-                return listOf(normalizeLemma(word))
+            val lemma = normalizeLemma(word)
+            return if (lemma in ALWAYS_TOPICAL || word in ALWAYS_TOPICAL) {
+                listOf(lemma)
+            } else {
+                emptyList()
             }
-            return emptyList()
         }
 
         val topical = mutableListOf<String>()
@@ -1062,18 +1255,11 @@ internal class NeuroTokenizer {
             val lemma = normalizeLemma(lower)
 
             when {
-                lower in ALWAYS_TOPICAL || lemma in ALWAYS_TOPICAL -> topical.add(lemma)
-                lower in COMMON_FIRST_NAMES -> { /* skip — personal name */ }
-                lower in COMMON_LAST_NAMES -> { /* skip — surname */ }
-                lower in CHANNEL_BRANDING -> { /* skip — branding suffix */ }
-                lower in STOP_WORDS -> { /* skip — stop word */ }
-                lower.length <= 2 -> { /* skip — likely initials */ }
-                originalWord[0].isUpperCase() && lower.length <= 5 &&
-                    lower !in ALWAYS_TOPICAL -> { /* skip — likely a name */ }
-                else -> topical.add(lemma)
+                lemma in ALWAYS_TOPICAL -> topical.add(lemma)
+                lower in ALWAYS_TOPICAL -> topical.add(lower)
             }
         }
-        return topical
+        return topical.distinct()
     }
 
     /**

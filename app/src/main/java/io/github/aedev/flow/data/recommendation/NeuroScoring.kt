@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2026 Flow | A-EDev
+ * Copyright (C) 2025-2026 Flow | A-EDev
  *
  * This file is part of Flow (https://github.com/A-EDev/Flow).
  *
@@ -100,6 +100,33 @@ internal object NeuroScoring {
     const val PERSONA_STABILITY_THRESHOLD = 3
     const val PERSONA_MAX_STABILITY = 10
     const val EXPLORATION_SCORE_THRESHOLD = 0.1
+
+    // ── Novelty & Relevance Gate ──
+    const val NOVELTY_RELEVANCE_GATE = 0.08
+
+    const val RELEVANCE_FLOOR_MIN_INTERACTIONS = 80
+
+    const val RELEVANCE_FLOOR_SEVERE_THRESHOLD = 0.05
+    const val RELEVANCE_FLOOR_MODERATE_THRESHOLD = 0.10
+    const val RELEVANCE_FLOOR_SEVERE_PENALTY = 0.15
+    const val RELEVANCE_FLOOR_MODERATE_PENALTY = 0.40
+
+    const val EXPLORATION_MIN_SCORE_RATIO = 0.30
+
+    // ── Feed History Constants ──
+    const val FEED_HISTORY_MAX = 3000
+    const val FEED_HISTORY_EXPIRY_DAYS = 14L
+
+    // ── Implicit Disinterest Constants ──
+    const val IMPLICIT_DISINTEREST_WINDOW_HOURS = 48.0
+    const val IMPLICIT_DISINTEREST_THRESHOLD_HEAVY = 5
+    const val IMPLICIT_DISINTEREST_THRESHOLD_LIGHT = 3
+    const val IMPLICIT_DISINTEREST_PENALTY_HEAVY = 0.10
+    const val IMPLICIT_DISINTEREST_PENALTY_LIGHT = 0.30
+
+    // ── Query Rotation Constants ──
+    const val RECENT_QUERY_TOKENS_MAX = 20
+    const val QUERY_OVERLAP_THRESHOLD = 0.6
 
     // ── Time Decay Engine ──
 
@@ -412,6 +439,125 @@ internal object NeuroScoring {
     }
 
     /**
+     * Cross-session repetition prevention. Penalizes videos the user has
+     * already seen in their feed, even if they never clicked on them.
+     *
+     * Uses graduated time-based recovery so videos naturally return.
+     * Relaxes penalties when the candidate pool is small to prevent
+     * empty feeds for users with narrow interests.
+     */
+    fun calculateFeedHistoryPenalty(
+        videoId: String,
+        feedHistory: Map<String, FeedEntry>,
+        now: Long,
+        candidatePoolSize: Int
+    ): Double {
+        val entry = feedHistory[videoId] ?: return 1.0
+        val hoursSince = (now - entry.lastShown) / 3_600_000.0
+
+        // Scarcity relaxation: blend toward 1.0 when candidate pool is small
+        val scarcityRelaxation = when {
+            candidatePoolSize < 10 -> 0.4
+            candidatePoolSize < 25 -> 0.7
+            else -> 1.0
+        }
+
+        // Heavier penalty for videos shown many times
+        val countMultiplier = when {
+            entry.showCount >= 5 -> 0.7
+            entry.showCount >= 3 -> 0.85
+            else -> 1.0
+        }
+
+        val basePenalty = (when {
+            hoursSince < 2.0   -> 0.05
+            hoursSince < 8.0   -> 0.15
+            hoursSince < 24.0  -> 0.35
+            hoursSince < 72.0  -> 0.60
+            hoursSince < 168.0 -> 0.80
+            hoursSince < 336.0 -> 0.92
+            else -> 1.0
+        } * countMultiplier).coerceIn(0.0, 1.0)
+
+        // Blend toward 1.0 when pool is scarce
+        return basePenalty + (1.0 - basePenalty) * (1.0 - scarcityRelaxation)
+    }
+
+    /**
+     * Implicit disinterest signal. Videos shown multiple times in a short
+     * window but never watched are implicitly uninteresting.
+     *
+     * This is softer than explicit "not interested" — it just deprioritizes
+     * rather than suppressing, and only triggers on clear patterns.
+     */
+    fun calculateImplicitDisinterestPenalty(
+        videoId: String,
+        feedHistory: Map<String, FeedEntry>,
+        watchHistory: Map<String, WatchEntry>,
+        now: Long
+    ): Double {
+        val entry = feedHistory[videoId] ?: return 1.0
+
+        if (watchHistory.containsKey(videoId)) return 1.0
+
+        val hoursSince = (now - entry.lastShown) / 3_600_000.0
+
+        if (hoursSince > IMPLICIT_DISINTEREST_WINDOW_HOURS) return 1.0
+
+        return when {
+            entry.showCount >= IMPLICIT_DISINTEREST_THRESHOLD_HEAVY ->
+                IMPLICIT_DISINTEREST_PENALTY_HEAVY
+            entry.showCount >= IMPLICIT_DISINTEREST_THRESHOLD_LIGHT ->
+                IMPLICIT_DISINTEREST_PENALTY_LIGHT
+            else -> 1.0
+        }
+    }
+
+    /**
+     * Calculates adaptive jitter based on feed staleness.
+     * When most candidates were recently shown, increases randomization
+     * to break deterministic ordering. When fresh candidates arrive,
+     * drops back to minimal jitter to let quality ranking dominate.
+     */
+    fun calculateAdaptiveJitter(
+        totalInteractions: Int,
+        feedOverlapRatio: Double
+    ): Double {
+        return when {
+            totalInteractions < ONBOARDING_WARMUP_INTERACTIONS ->
+                JITTER_COLD_START
+            feedOverlapRatio > 0.5 -> 0.12
+            feedOverlapRatio > 0.2 -> 0.06
+            else -> JITTER_NORMAL
+        }
+    }
+
+    /**
+     * Relevance floor for mature brains. When the algorithm has enough
+     * data to know what the user likes, content with near-zero topical
+     * similarity gets a steep penalty.
+     *
+     * Subscription content is exempt — you subscribed, so it's relevant
+     * by definition. Cold start users are exempt — not enough data yet.
+     */
+    fun calculateRelevanceFloor(
+        personalityScore: Double,
+        totalInteractions: Int,
+        isSubscription: Boolean
+    ): Double {
+        if (isSubscription) return 1.0
+        if (totalInteractions < RELEVANCE_FLOOR_MIN_INTERACTIONS) return 1.0
+
+        return when {
+            personalityScore < RELEVANCE_FLOOR_SEVERE_THRESHOLD ->
+                RELEVANCE_FLOOR_SEVERE_PENALTY
+            personalityScore < RELEVANCE_FLOOR_MODERATE_THRESHOLD ->
+                RELEVANCE_FLOOR_MODERATE_PENALTY
+            else -> 1.0
+        }
+    }
+
+    /**
      * Strips the domain tag from a domain-disambiguated topic.
      * e.g. "metal:music" → "metal", "rock:climbing" → "rock", "jazz" → "jazz"
      */
@@ -443,15 +589,16 @@ internal object NeuroScoring {
         val topicDiversity = uniqueTopics.size
 
         val maxPerTopic = when {
-            topicDiversity <= 4 -> 2
+            topicDiversity <= 2 -> 6 
+            topicDiversity <= 4 -> 4
             topicDiversity <= 7 -> 3
             else -> 3
         }
 
         val explorationSlots = when {
-            topicDiversity <= 2 -> 6
-            topicDiversity <= 4 -> 4
-            else -> 2
+            topicDiversity <= 2 -> 2
+            topicDiversity <= 4 -> 2
+            else -> 1
         }
 
         val userTopTopics = candidates
@@ -493,9 +640,15 @@ internal object NeuroScoring {
 
             val isNovelTopic = primaryTopic.isNotEmpty() &&
                 !userTopTopics.contains(primaryTopic)
-            val effectiveTopicCap = if (isNovelTopic &&
-                explorationCount < explorationSlots
-            ) maxPerTopic + 1 else maxPerTopic
+
+            // Novel topics must score above a minimum to qualify for exploration slots
+            val qualifiesForExploration = isNovelTopic &&
+                explorationCount < explorationSlots &&
+                topScore > 0 &&
+                current.score >= topScore * EXPLORATION_MIN_SCORE_RATIO
+
+            val effectiveTopicCap = if (qualifiesForExploration)
+                maxPerTopic + 1 else maxPerTopic
 
             if (channelCount == 0 &&
                 topicCount < effectiveTopicCap &&
@@ -506,7 +659,7 @@ internal object NeuroScoring {
                 if (primaryTopic.isNotEmpty()) {
                     topicWindow.add(primaryTopic)
                 }
-                if (isNovelTopic) explorationCount++
+                if (qualifiesForExploration) explorationCount++
                 phase1Iterator.remove()
             } else if (topScore > 0 &&
                 current.score > (topScore * 0.8)
