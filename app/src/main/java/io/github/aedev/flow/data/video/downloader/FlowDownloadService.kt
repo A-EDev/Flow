@@ -202,6 +202,9 @@ class FlowDownloadService : Service() {
                 av1NeedsMkv -> "mkv"
                 else -> "mp4"
             }
+            downloadManager.customDownloadPath = kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                preferences.downloadLocation.firstOrNull()
+            }
             val downloadDir = downloadManager.getDownloadDir(fileType)
             Log.d(TAG, "handleStartDownload: downloadDir=${downloadDir.absolutePath}, exists=${downloadDir.exists()}, canWrite=${downloadDir.canWrite()}")
 

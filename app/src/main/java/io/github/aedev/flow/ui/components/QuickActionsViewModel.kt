@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -48,6 +49,7 @@ object FeedInvalidationBus {
 class QuickActionsViewModel @Inject constructor(
     private val repository: YouTubeRepository,
     private val playlistRepository: PlaylistRepository,
+    private val playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -255,6 +257,10 @@ class QuickActionsViewModel @Inject constructor(
             try {
                 io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils.promptStoragePermissionIfNeeded(context)
 
+                // Read the user's preferred download quality (with AUTO = best available)
+                val targetQuality = playerPreferences.defaultDownloadQuality.first()
+                val targetHeight = targetQuality.height 
+
                 Toast.makeText(context, "Fetching download links...", Toast.LENGTH_SHORT).show()
                 val streamInfo = withContext(Dispatchers.IO) {
                     repository.getVideoStreamInfo(video.id)
@@ -282,10 +288,18 @@ class QuickActionsViewModel @Inject constructor(
                                fname.contains("vp9") || fname.contains("webm")
                     }
 
-                    val bestMp4VideoOnly  = videoOnlyStreams.filter { isMp4Video(it) }.maxByOrNull { it.height }
-                    val bestVp9VideoOnly  = videoOnlyStreams.filter { isVp9Video(it) }.maxByOrNull { it.height }
-                    val bestAnyVideoOnly  = videoOnlyStreams.maxByOrNull { it.height }
-                    val bestCombined      = combinedStreams.maxByOrNull { it.height }
+                    fun List<org.schabi.newpipe.extractor.stream.VideoStream>.bestForTarget():
+                            org.schabi.newpipe.extractor.stream.VideoStream? {
+                        if (isEmpty()) return null
+                        if (targetHeight == 0) return maxByOrNull { it.height } // AUTO
+                        return filter { it.height <= targetHeight }.maxByOrNull { it.height }
+                            ?: minByOrNull { it.height } // fallback: lowest if nothing fits
+                    }
+
+                    val bestMp4VideoOnly  = videoOnlyStreams.filter { isMp4Video(it) }.bestForTarget()
+                    val bestVp9VideoOnly  = videoOnlyStreams.filter { isVp9Video(it) }.bestForTarget()
+                    val bestAnyVideoOnly  = videoOnlyStreams.bestForTarget()
+                    val bestCombined      = combinedStreams.bestForTarget()
 
                     // ── Audio selection (codec-aware) ────────────────────────────────────
                     val allAudio = streamInfo.audioStreams ?: emptyList()
@@ -315,7 +329,6 @@ class QuickActionsViewModel @Inject constructor(
                                 bestMp4VideoOnly.height > (bestCombined?.height ?: 0) -> {
                             selectedStream = bestMp4VideoOnly
                             val aacAudio = allAudio.filter { isAacCompatible(it) }.maxByOrNull { it.averageBitrate }
-                                ?: allAudio.filter { isAacCompatible(it) }.maxByOrNull { it.averageBitrate }
                             audioUrl = aacAudio?.content ?: aacAudio?.url
                             videoCodec = null
                         }

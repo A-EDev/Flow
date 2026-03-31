@@ -775,25 +775,44 @@ item {
 
     // Region Selection Dialog
     if (showRegionDialog) {
+        var regionSearchQuery by remember { mutableStateOf("") }
+        val filteredRegions = remember(regionSearchQuery) {
+            if (regionSearchQuery.isBlank()) regionList
+            else regionList.filter { (code, name) ->
+                name.contains(regionSearchQuery, ignoreCase = true) ||
+                code.contains(regionSearchQuery, ignoreCase = true)
+            }
+        }
         AlertDialog(
             onDismissRequest = { showRegionDialog = false },
             title = { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_region_dialog_title)) },
             text = {
-                LazyColumn(Modifier.heightIn(max = 300.dp)) {
-                    items(regionList.size) { index ->
-                        val (code, name) = regionList[index]
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable { 
-                                    coroutineScope.launch { playerPreferences.setTrendingRegion(code); showRegionDialog = false }
-                                }
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(selected = currentRegion == code, onClick = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(name)
+                Column {
+                    OutlinedTextField(
+                        value = regionSearchQuery,
+                        onValueChange = { regionSearchQuery = it },
+                        placeholder = { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.search_hint)) },
+                        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    LazyColumn(Modifier.heightIn(max = 260.dp)) {
+                        items(filteredRegions.size) { index ->
+                            val (code, name) = filteredRegions[index]
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        coroutineScope.launch { playerPreferences.setTrendingRegion(code); showRegionDialog = false }
+                                    }
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(selected = currentRegion == code, onClick = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(name)
+                            }
                         }
                     }
                 }

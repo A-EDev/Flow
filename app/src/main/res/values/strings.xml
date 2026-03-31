@@ -225,6 +225,7 @@
     <string name="no_videos_saved_body">Videos you save to watch later will appear here</string>
 
     <!-- Search Screen -->
+    <string name="search_hint">Search</string>
     <string name="search_videos_channels_placeholder">Search videos, channels...</string>
     <string name="recent_searches">Recent Searches</string>
     <string name="trending">Trending</string>

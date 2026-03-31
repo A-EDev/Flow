@@ -13,6 +13,7 @@ FEATURES
 - Add new voice search for videos #203
 - Add new toggle to enable search icon from bottom nav #201
 - Add new custom app icon picker #169
+- Add new country search for trending country settings picker #208
 
 IMPROVEMENTS
 - FlowNeuroEngine modularization
@@ -33,6 +34,8 @@ IMPROVEMENTS
 - Add load more feature for comments #204
 - Add channel screen position caching #196
 - Search screen filters and layout improvements #206
+- Add 144p and 240p to default download settings #209
+- Update custom download path selection to use SAF folder picker #210
 
 FIXES AND STABILITY
 - Keyboard Focus and pop up
@@ -46,3 +49,4 @@ FIXES AND STABILITY
 - Fix share button issues #176
 - Fix video and gestures for RTL #187 #188
 - Fix comment sheet collapsing when scrolling #189
+- Fix Download settings to properly use chosen download path preferences #211
