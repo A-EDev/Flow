@@ -7,6 +7,8 @@ import android.text.style.URLSpan
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
@@ -99,12 +101,13 @@ fun parseHtmlDescription(rawHtml: String): AnnotatedString {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun FlowDescriptionBottomSheet(
     video: Video,
     onDismiss: () -> Unit,
     onTimestampClick: (String) -> Unit = {},
+    tags: List<String> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val uriHandler = LocalUriHandler.current
@@ -261,6 +264,47 @@ fun FlowDescriptionBottomSheet(
                                         }
                                 }
                             )
+                        }
+
+                        // Tags section
+                        if (tags.isNotEmpty()) {
+                            val sortedTags = remember(tags) {
+                                tags.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it })
+                            }
+
+                            HorizontalDivider(
+                                modifier = Modifier.padding(top = 16.dp, bottom = 12.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.12f)
+                            )
+
+                            Text(
+                                text = stringResource(R.string.tags),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 10.dp)
+                            )
+
+                            FlowRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                sortedTags.forEach { tag ->
+                                    Surface(
+                                        shape = RoundedCornerShape(50),
+                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                        modifier = Modifier.clickable { /* future: search for tag */ }
+                                    ) {
+                                        Text(
+                                            text = tag,
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }

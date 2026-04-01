@@ -163,6 +163,7 @@ fun PlayerBottomSheetsContainer(
 
         FlowDescriptionBottomSheet(
             video = currentVideo,
+            tags = uiState.streamInfo?.tags ?: emptyList(),
             onTimestampClick = handleTimestampClick,
             onDismiss = { screenState.showDescriptionSheet = false }
         )

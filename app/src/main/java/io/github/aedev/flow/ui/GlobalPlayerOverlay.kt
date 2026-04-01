@@ -67,6 +67,8 @@ import io.github.aedev.flow.ui.screens.player.components.SeekAnimationOverlay
 import io.github.aedev.flow.ui.screens.player.components.BrightnessOverlay
 import io.github.aedev.flow.ui.screens.player.components.VolumeOverlay
 import io.github.aedev.flow.ui.screens.player.components.SpeedBoostOverlay
+import io.github.aedev.flow.ui.screens.player.components.SponsorBlockSkipButton
+import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.player.PictureInPictureHelper
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -120,7 +122,8 @@ fun GlobalPlayerOverlay(
     val playerViewModel: VideoPlayerViewModel = hiltViewModel(activity)
     val playerUiState by playerViewModel.uiState.collectAsStateWithLifecycle()
     val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
-    
+    val sponsorSegments by EnhancedPlayerManager.getInstance().sponsorSegments.collectAsState()
+
     val screenState = rememberPlayerScreenState()
     val audioSystemInfo = rememberAudioSystemInfo(context)
     val pipPreferences = rememberPipPreferences(context)
@@ -570,6 +573,19 @@ fun GlobalPlayerOverlay(
                                 modifier = Modifier
                                     .align(Alignment.TopCenter)
                                     .padding(top = 0.dp)
+                            )
+
+                            // SponsorBlock manual skip button — shown for MUTE / NOTIFY / IGNORE segments
+                            SponsorBlockSkipButton(
+                                sponsorSegments = sponsorSegments,
+                                currentPositionMs = screenState.currentPosition,
+                                categoryActions = EnhancedPlayerManager.getInstance().sbCategoryActions,
+                                onSkipClick = { endPositionMs ->
+                                    EnhancedPlayerManager.getInstance().seekTo(endPositionMs)
+                                },
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(end = 16.dp, bottom = 80.dp)
                             )
 
                             // ── Error overlay ────────────────────────────────────────────

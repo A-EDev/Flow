@@ -717,6 +717,9 @@ class EnhancedPlayerManager private constructor() {
     val sbToastEvent: SharedFlow<SponsorBlockSegment>
         get() = sponsorBlockHandler?.toastEvent ?: MutableSharedFlow()
 
+    val sbCategoryActions: Map<String, SponsorBlockAction>
+        get() = sponsorBlockHandler?.categoryActions ?: emptyMap()
+
     // ===== Surface Management =====
 
     fun attachVideoSurface(holder: SurfaceHolder?, forceAttach: Boolean = false): Boolean? {

@@ -19,10 +19,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.SponsorBlockAction
+import io.github.aedev.flow.data.model.SponsorBlockSegment
+import kotlinx.coroutines.delay
 
 @Composable
 fun SeekAnimationOverlay(
@@ -305,6 +310,80 @@ fun SpeedBoostOverlay(
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Overlay button that lets the user manually skip a SponsorBlock segment.
+ */
+@Composable
+fun SponsorBlockSkipButton(
+    sponsorSegments: List<SponsorBlockSegment>,
+    currentPositionMs: Long,
+    categoryActions: Map<String, SponsorBlockAction>,
+    onSkipClick: (endPositionMs: Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val activeSegment = remember(sponsorSegments, currentPositionMs) {
+        val posSec = currentPositionMs / 1000f
+        sponsorSegments.find { seg ->
+            posSec >= seg.startTime && posSec < seg.endTime &&
+                (categoryActions[seg.category] ?: SponsorBlockAction.SKIP) != SponsorBlockAction.SKIP
+        }
+    }
+
+    var displaySegment by remember { mutableStateOf<SponsorBlockSegment?>(null) }
+    var buttonVisible by remember { mutableStateOf(false) }
+
+    LaunchedEffect(activeSegment?.uuid) {
+        if (activeSegment != null) {
+            displaySegment = activeSegment
+            buttonVisible = true
+            val remainingMs = ((activeSegment.endTime * 1000f).toLong() - currentPositionMs).coerceAtLeast(0L)
+            val showMs = minOf(remainingMs, 4_000L)
+            delay(showMs)
+            buttonVisible = false
+        } else {
+            buttonVisible = false
+        }
+    }
+
+    AnimatedVisibility(
+        visible = buttonVisible,
+        enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(tween(200)),
+        exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut(tween(200)),
+        modifier = modifier
+    ) {
+        val seg = displaySegment ?: return@AnimatedVisibility
+        Surface(
+            onClick = {
+                onSkipClick((seg.endTime * 1000L).toLong())
+                buttonVisible = false
+            },
+            color = Color(0xFF00D400),
+            shape = RoundedCornerShape(50),
+            shadowElevation = 4.dp,
+            tonalElevation = 0.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.sb_manual_skip),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Icon(
+                    imageVector = Icons.Rounded.SkipNext,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }

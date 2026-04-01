@@ -15,6 +15,7 @@ FEATURES
 - Add new custom app icon picker #169
 - Add new country search for trending country settings picker #208
 - Add new save public playlist to library for music and videos
+- Add new manual sponsor skip button #215
 
 IMPROVEMENTS
 - FlowNeuroEngine modularization
@@ -37,6 +38,7 @@ IMPROVEMENTS
 - Search screen filters and layout improvements #206
 - Add 144p and 240p to default download settings #209
 - Update custom download path selection to use SAF folder picker #210
+- Add video tags to description
 
 FIXES AND STABILITY
 - Keyboard Focus and pop up

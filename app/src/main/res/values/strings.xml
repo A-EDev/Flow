@@ -185,6 +185,8 @@
     <string name="description">Description</string>
     <string name="copy_description">Copy description</string>
     <string name="description_copied">Description copied to clipboard</string>
+    <string name="tags">Tags</string>
+    <string name="sb_manual_skip">Skip</string>
     <string name="ago">Ago</string>
     <string name="since">Since</string>
     <string name="add_to_playlist">Add to playlist</string>
