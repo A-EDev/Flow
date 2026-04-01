@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -84,13 +85,29 @@ fun PlaylistDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showOptionsMenu = true }) {
-                        Icon(Icons.Default.MoreVert, stringResource(R.string.more_options))
+                    val isUserCreatedPlaylist = uiState.isLocalPlaylist && !uiState.isSaved
+                    if (!isUserCreatedPlaylist) {
+                        IconButton(
+                            onClick = {
+                                if (uiState.isSaved) viewModel.unsaveFromLibrary()
+                                else viewModel.saveToLibrary()
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (uiState.isSaved) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
+                                contentDescription = if (uiState.isSaved) "Remove from library" else "Save to library",
+                                tint = if (uiState.isSaved) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                            )
+                        }
                     }
-                    DropdownMenu(
-                        expanded = showOptionsMenu,
-                        onDismissRequest = { showOptionsMenu = false }
-                    ) {
+                    if (isUserCreatedPlaylist) {
+                        IconButton(onClick = { showOptionsMenu = true }) {
+                            Icon(Icons.Default.MoreVert, stringResource(R.string.more_options))
+                        }
+                        DropdownMenu(
+                            expanded = showOptionsMenu,
+                            onDismissRequest = { showOptionsMenu = false }
+                        ) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.edit_playlist_action)) },
                             onClick = {
@@ -121,6 +138,7 @@ fun PlaylistDetailScreen(
                             }
                         )
                     }
+                }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent,
@@ -645,7 +663,9 @@ class PlaylistDetailViewModel @Inject constructor(
         val description: String = "",
         val isPrivate: Boolean = false,
         val videos: List<Video> = emptyList(),
-        val thumbnailUrl: String = ""
+        val thumbnailUrl: String = "",
+        val isLocalPlaylist: Boolean = false,
+        val isSaved: Boolean = false
     )
 
     private val _uiState = MutableStateFlow(UiState())
@@ -796,11 +816,14 @@ class PlaylistDetailViewModel @Inject constructor(
             // Try Local first
             val localInfo = repository.getPlaylistInfo(playlistId)
             if (localInfo != null) {
+                val isSaved = repository.isExternalPlaylistSaved(playlistId)
                 _uiState.update { it.copy(
                     playlistName = localInfo.name,
                     description = localInfo.description,
                     isPrivate = localInfo.isPrivate,
-                    thumbnailUrl = localInfo.thumbnailUrl
+                    thumbnailUrl = localInfo.thumbnailUrl,
+                    isLocalPlaylist = true,
+                    isSaved = isSaved
                 )}
                 repository.getPlaylistVideosFlow(playlistId).collect { videos ->
                     _uiState.update { it.copy(videos = videos) }
@@ -819,7 +842,9 @@ class PlaylistDetailViewModel @Inject constructor(
                             description = details.description ?: "",
                             isPrivate = false,
                             videos = details.videos,
-                            thumbnailUrl = details.thumbnailUrl
+                            thumbnailUrl = details.thumbnailUrl,
+                            isLocalPlaylist = false,
+                            isSaved = false
                         )}
                     } else {
                         // Fallback to Music Service if regular fails (e.g. music playlist)
@@ -843,7 +868,9 @@ class PlaylistDetailViewModel @Inject constructor(
                                 description = musicDetails.description ?: "",
                                 isPrivate = false,
                                 videos = videos,
-                                thumbnailUrl = musicDetails.thumbnailUrl
+                                thumbnailUrl = musicDetails.thumbnailUrl,
+                                isLocalPlaylist = false,
+                                isSaved = false
                             )}
                         }
                     }
@@ -851,6 +878,33 @@ class PlaylistDetailViewModel @Inject constructor(
                     // Error handling could be added here
                 }
             }
+        }
+    }
+
+    fun saveToLibrary() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            repository.saveExternalVideoPlaylist(
+                id = playlistId,
+                name = state.playlistName,
+                description = state.description,
+                thumbnailUrl = state.thumbnailUrl.ifEmpty {
+                    state.videos.firstOrNull()?.thumbnailUrl ?: ""
+                }
+            )
+            state.videos.forEachIndexed { index, video ->
+                repository.addVideoToPlaylist(playlistId, video)
+            }
+            _uiState.update { it.copy(isLocalPlaylist = true, isSaved = true) }
+            android.widget.Toast.makeText(context, "Playlist saved to library", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun unsaveFromLibrary() {
+        viewModelScope.launch {
+            repository.unsaveExternalPlaylist(playlistId)
+            _uiState.update { it.copy(isLocalPlaylist = false, isSaved = false) }
+            android.widget.Toast.makeText(context, "Playlist removed from library", android.widget.Toast.LENGTH_SHORT).show()
         }
     }
 

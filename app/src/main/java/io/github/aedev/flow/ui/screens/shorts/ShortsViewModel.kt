@@ -502,7 +502,7 @@ class ShortsViewModel @Inject constructor(
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
                 val streamInfo = shortsRepository.resolveStreamInfo(videoId) ?: return@launch
-                val uploadDate = streamInfo.textualUploadDate?.takeIf { it.isNotBlank() } ?: return@launch
+                val uploadDate = streamInfo.textualUploadDate?.takeIf { it.isNotBlank() } ?: ""
                 val description = streamInfo.description?.content?.takeIf { it.isNotBlank() } ?: ""
                 val likeCountText = if (streamInfo.likeCount > 0) formatLikeText(streamInfo.likeCount) else null
 

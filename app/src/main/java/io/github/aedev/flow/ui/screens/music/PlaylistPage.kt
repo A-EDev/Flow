@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Downloading
 import androidx.compose.material.icons.outlined.AddCircle
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -59,6 +60,8 @@ fun PlaylistPage(
     onShareClick: () -> Unit = {},
     onLoadMore: () -> Unit = {},
     isUserPlaylist: Boolean = false,
+    isSaved: Boolean = false,
+    onSaveToggle: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     playlistsViewModel: MusicPlaylistsViewModel = hiltViewModel()
 ) {
@@ -202,7 +205,10 @@ fun PlaylistPage(
                             keyboardController?.hide()
                             focusManager.clearFocus()
                         }
-                    }
+                    },
+                    showSaveButton = !isUserPlaylist,
+                    isSaved = isSaved,
+                    onSaveToggle = onSaveToggle
                 )
             }
         ) { paddingValues ->
@@ -348,7 +354,10 @@ private fun PlaylistTopBar(
     onBackClick: () -> Unit,
     showSearchToggle: Boolean,
     searchActive: Boolean,
-    onSearchToggle: () -> Unit
+    onSearchToggle: () -> Unit,
+    showSaveButton: Boolean = false,
+    isSaved: Boolean = false,
+    onSaveToggle: (() -> Unit)? = null
 ) {
     val bgColor = if (isScrolled)
         MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
@@ -390,6 +399,18 @@ private fun PlaylistTopBar(
                     imageVector = if (searchActive) Icons.Default.Close else Icons.Default.Search,
                     contentDescription = if (searchActive) "Close search" else "Add songs",
                     tint = Color.White
+                )
+            }
+        }
+        if (showSaveButton && onSaveToggle != null) {
+            IconButton(
+                onClick = onSaveToggle,
+                modifier = Modifier.align(Alignment.CenterEnd)
+            ) {
+                Icon(
+                    imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
+                    contentDescription = if (isSaved) "Remove from library" else "Save to library",
+                    tint = if (isSaved) MaterialTheme.colorScheme.primary else Color.White
                 )
             }
         }

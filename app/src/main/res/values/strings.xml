@@ -858,6 +858,7 @@
     <!-- Playlists & Playlist Details -->
     <string name="new_playlist_button">New Playlist</string>
     <string name="your_playlists_header">Your Playlists</string>
+    <string name="saved_playlists_header">Saved Playlists</string>
     <string name="create_playlist_empty_desc">Create your first playlist to organize your favorite videos</string>
     <string name="my_playlist_placeholder">My Playlist</string>
     <string name="add_description_placeholder">Add a description...</string>

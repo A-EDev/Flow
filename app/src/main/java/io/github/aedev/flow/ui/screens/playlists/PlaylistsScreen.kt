@@ -150,7 +150,25 @@ fun PlaylistsScreen(
                             )
                         }
                     }
-                    
+
+                    if (uiState.savedPlaylists.isNotEmpty()) {
+                        item {
+                            Text(
+                                text = stringResource(R.string.saved_playlists_header),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                            )
+                        }
+
+                        items(uiState.savedPlaylists) { playlist ->
+                            PlaylistCard(
+                                playlist = playlist,
+                                onClick = { onPlaylistClick(playlist) }
+                            )
+                        }
+                    }
+
                     // Bottom padding for FAB
                     item {
                         Spacer(Modifier.height(80.dp))
@@ -494,13 +512,19 @@ class PlaylistsViewModel @Inject constructor(
             
             // Load user playlists
             launch {
-                repo.getAllPlaylistsFlow().collect { playlists ->
+                repo.getUserCreatedVideoPlaylistsFlow().collect { playlists ->
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             playlists = playlists
                         )
                     }
+                }
+            }
+
+            launch {
+                repo.getSavedVideoPlaylistsFlow().collect { saved ->
+                    _uiState.update { it.copy(savedPlaylists = saved) }
                 }
             }
         }
@@ -518,7 +542,8 @@ data class PlaylistsUiState(
     val isLoading: Boolean = false,
     val watchLaterCount: Int = 0,
     val likedVideosCount: Int = 0,
-    val playlists: List<PlaylistInfo> = emptyList()
+    val playlists: List<PlaylistInfo> = emptyList(),
+    val savedPlaylists: List<PlaylistInfo> = emptyList()
 )
 
 data class PlaylistInfo(

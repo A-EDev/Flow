@@ -134,6 +134,23 @@ fun MusicPlaylistsScreen(
                             )
                         }
                     }
+
+                    // Saved music playlists section
+                    if (uiState.savedPlaylists.isNotEmpty()) {
+                        item {
+                            MusicLibrarySectionHeader(stringResource(R.string.saved_playlists_header))
+                        }
+
+                        items(uiState.savedPlaylists) { playlist ->
+                            MusicPlaylistCard(
+                                playlist = playlist,
+                                onClick = { onPlaylistClick(playlist) },
+                                onDownload = {},
+                                onRename = {},
+                                onDelete = {}
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -98,12 +98,14 @@ class MusicPlaylistsViewModel @Inject constructor(
     private fun loadPlaylists() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            playlistRepository.getMusicPlaylistsFlow().collect { playlists ->
-                _uiState.update { 
-                    it.copy(
-                        playlists = playlists,
-                        isLoading = false
-                    ) 
+            launch {
+                playlistRepository.getUserCreatedMusicPlaylistsFlow().collect { playlists ->
+                    _uiState.update { it.copy(playlists = playlists, isLoading = false) }
+                }
+            }
+            launch {
+                playlistRepository.getSavedMusicPlaylistsFlow().collect { saved ->
+                    _uiState.update { it.copy(savedPlaylists = saved) }
                 }
             }
         }
@@ -355,9 +357,65 @@ class MusicPlaylistsViewModel @Inject constructor(
         _addedTrackIds.value = emptySet()
         _locallyAddedTracks.value = emptyList()
     }
+
+    // ── Save/unsave external music playlists to library ───────────────────────
+
+    private val _isSavedPlaylist = MutableStateFlow(false)
+    val isSavedPlaylist = _isSavedPlaylist.asStateFlow()
+
+    fun checkIfPlaylistSaved(playlistId: String) {
+        viewModelScope.launch {
+            _isSavedPlaylist.value = playlistRepository.isExternalPlaylistSaved(playlistId)
+        }
+    }
+
+    fun savePlaylistToLibrary(details: PlaylistDetails) {
+        viewModelScope.launch {
+            try {
+                playlistRepository.saveExternalMusicPlaylist(
+                    id = details.id,
+                    name = details.title,
+                    description = details.description ?: "",
+                    thumbnailUrl = details.thumbnailUrl
+                )
+                details.tracks.forEach { track ->
+                    val video = io.github.aedev.flow.data.model.Video(
+                        id = track.videoId,
+                        title = track.title,
+                        channelName = track.artist,
+                        channelId = track.channelId,
+                        thumbnailUrl = track.thumbnailUrl,
+                        duration = track.duration,
+                        viewCount = track.views,
+                        uploadDate = "",
+                        isMusic = true
+                    )
+                    playlistRepository.addVideoToPlaylist(details.id, video)
+                }
+                _isSavedPlaylist.value = true
+                Toast.makeText(context, "Playlist saved to your music library", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e("MusicPlaylistsVM", "savePlaylistToLibrary failed", e)
+                Toast.makeText(context, "Failed to save playlist", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    fun unsavePlaylistFromLibrary(playlistId: String) {
+        viewModelScope.launch {
+            try {
+                playlistRepository.unsaveExternalPlaylist(playlistId)
+                _isSavedPlaylist.value = false
+                Toast.makeText(context, "Playlist removed from library", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e("MusicPlaylistsVM", "unsavePlaylistFromLibrary failed", e)
+            }
+        }
+    }
 }
 
 data class MusicPlaylistsUiState(
     val playlists: List<PlaylistInfo> = emptyList(),
+    val savedPlaylists: List<PlaylistInfo> = emptyList(),
     val isLoading: Boolean = false
 )

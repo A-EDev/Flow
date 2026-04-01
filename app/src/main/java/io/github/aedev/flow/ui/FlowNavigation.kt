@@ -876,7 +876,9 @@ fun NavGraphBuilder.flowAppGraph(
         val playlistId = backStackEntry.arguments?.getString("playlistId") ?: return@composable
         val musicViewModel: MusicViewModel = hiltViewModel()
         val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        val musicPlaylistsViewModel: io.github.aedev.flow.ui.screens.music.MusicPlaylistsViewModel = hiltViewModel()
         val uiState by musicViewModel.uiState.collectAsState()
+        val isSaved by musicPlaylistsViewModel.isSavedPlaylist.collectAsState()
         
         LaunchedEffect(playlistId) {
             if (playlistId.startsWith("community_")) {
@@ -886,6 +888,16 @@ fun NavGraphBuilder.flowAppGraph(
                 musicViewModel.fetchPlaylistDetails(playlistId)
             }
         }
+
+        val isUserPlaylist = playlistId.matches(
+            Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+        )
+
+        LaunchedEffect(playlistId, isUserPlaylist) {
+            if (!isUserPlaylist) {
+                musicPlaylistsViewModel.checkIfPlaylistSaved(playlistId)
+            }
+        }
         
         if (uiState.isPlaylistLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center) {
@@ -893,9 +905,6 @@ fun NavGraphBuilder.flowAppGraph(
             }
         } else {
             uiState.playlistDetails?.let { details ->
-                val isUserPlaylist = playlistId.matches(
-                    Regex("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
-                )
                 io.github.aedev.flow.ui.screens.music.PlaylistPage(
                     playlistDetails = details,
                     onBackClick = { navController.popBackStack() },
@@ -910,7 +919,15 @@ fun NavGraphBuilder.flowAppGraph(
                         navController.navigate("artist/$channelId")
                     },
                     onLoadMore = { musicViewModel.loadMorePlaylistTracks() },
-                    isUserPlaylist = isUserPlaylist
+                    isUserPlaylist = isUserPlaylist,
+                    isSaved = isSaved,
+                    onSaveToggle = {
+                        if (isSaved) {
+                            musicPlaylistsViewModel.unsavePlaylistFromLibrary(details.id)
+                        } else {
+                            musicPlaylistsViewModel.savePlaylistToLibrary(details)
+                        }
+                    }
                 )
             }
         }

@@ -138,6 +138,13 @@ fun ShortsScreen(
                     viewModel.updateCurrentIndex(pagerState.currentPage)
                 }
 
+                // Load likes and metadata for the current short
+                LaunchedEffect(pagerState.currentPage) {
+                    uiState.shorts.getOrNull(pagerState.currentPage)?.let {
+                        viewModel.loadShortDetails(it.id)
+                    }
+                }
+
                 // Load more when near end
                 LaunchedEffect(pagerState.currentPage) {
                     if (pagerState.currentPage >= uiState.shorts.size - 3) {

@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.0.1
-DATE: 2026-03-31
+DATE: 2026-04-1
 
 FEATURES
 - New Audio focus toggle to continue playing videos while on a call #175 #177
@@ -14,6 +14,7 @@ FEATURES
 - Add new toggle to enable search icon from bottom nav #201
 - Add new custom app icon picker #169
 - Add new country search for trending country settings picker #208
+- Add new save public playlist to library for music and videos
 
 IMPROVEMENTS
 - FlowNeuroEngine modularization
