@@ -61,6 +61,7 @@ class PlayerPreferences(private val context: Context) {
         val SHORTS_NAVIGATION_ENABLED = booleanPreferencesKey("shorts_navigation_enabled")
         val MUSIC_NAVIGATION_ENABLED = booleanPreferencesKey("music_navigation_enabled")
         val SEARCH_NAV_TAB_ENABLED = booleanPreferencesKey("search_nav_tab_enabled")
+        val CATEGORIES_NAV_TAB_ENABLED = booleanPreferencesKey("categories_nav_tab_enabled")
         val PREFERRED_LYRICS_PROVIDER = stringPreferencesKey("preferred_lyrics_provider")
         val SWIPE_GESTURES_ENABLED = booleanPreferencesKey("swipe_gestures_enabled")
         val CONTINUE_WATCHING_ENABLED = booleanPreferencesKey("continue_watching_enabled")
@@ -328,6 +329,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setSearchNavigationEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SEARCH_NAV_TAB_ENABLED] = enabled
+        }
+    }
+
+    // Categories nav tab enabled preference
+    val categoriesNavigationEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.CATEGORIES_NAV_TAB_ENABLED] ?: false
+        }
+
+    suspend fun setCategoriesNavigationEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.CATEGORIES_NAV_TAB_ENABLED] = enabled
         }
     }
 

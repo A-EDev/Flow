@@ -17,7 +17,8 @@ data class Video(
     val channelThumbnailUrl: String = "",
     val isMusic: Boolean = false,
     val isLive: Boolean = false,
-    val isShort: Boolean = false
+    val isShort: Boolean = false,
+    val isUpcoming: Boolean = false
 )
 
 data class Channel(

@@ -21,18 +21,30 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 import androidx.compose.ui.res.vectorResource
 import io.github.aedev.flow.R
+
+private data class NavItemSpec(
+    val index: Int,
+    val filledIcon: ImageVector,
+    val outlinedIcon: ImageVector,
+    val labelRes: Int
+)
+
+private const val MAX_VISIBLE_NAV_ITEMS = 5
 
 @Composable
 fun FloatingBottomNavBar(
@@ -41,8 +53,36 @@ fun FloatingBottomNavBar(
     modifier: Modifier = Modifier,
     isShortsEnabled: Boolean = true,
     isMusicEnabled: Boolean = true,
-    isSearchEnabled: Boolean = false
+    isSearchEnabled: Boolean = false,
+    isCategoriesEnabled: Boolean = false
 ) {
+    val shortsIcon = ImageVector.vectorResource(id = R.drawable.ic_shorts)
+
+    val enabledItems = remember(isShortsEnabled, isMusicEnabled, isSearchEnabled, isCategoriesEnabled) {
+        buildList {
+            add(NavItemSpec(0, Icons.Filled.Home,          Icons.Outlined.Home,          R.string.nav_home))
+            if (isShortsEnabled)    add(NavItemSpec(1, shortsIcon,                shortsIcon,                   R.string.nav_shorts))
+            if (isMusicEnabled)     add(NavItemSpec(2, Icons.Filled.MusicNote,   Icons.Outlined.MusicNote,     R.string.nav_music))
+            add(NavItemSpec(3, Icons.Filled.Subscriptions, Icons.Outlined.Subscriptions, R.string.nav_subs))
+            add(NavItemSpec(4, Icons.Filled.VideoLibrary,  Icons.Outlined.VideoLibrary,  R.string.nav_library))
+            if (isSearchEnabled)    add(NavItemSpec(5, Icons.Filled.Search,      Icons.Outlined.Search,        R.string.nav_search))
+            if (isCategoriesEnabled)add(NavItemSpec(6, Icons.Filled.Explore,     Icons.Outlined.Explore,       R.string.nav_explore))
+        }
+    }
+
+    val visibleItems: List<NavItemSpec>
+    val overflowItems: List<NavItemSpec>
+    if (enabledItems.size <= MAX_VISIBLE_NAV_ITEMS) {
+        visibleItems = enabledItems
+        overflowItems = emptyList()
+    } else {
+        visibleItems = enabledItems.take(MAX_VISIBLE_NAV_ITEMS - 1)
+        overflowItems = enabledItems.drop(MAX_VISIBLE_NAV_ITEMS - 1)
+    }
+
+    val isOverflowSelected = overflowItems.any { it.index == selectedIndex }
+    var showMoreMenu by remember { mutableStateOf(false) }
+
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
@@ -57,48 +97,56 @@ fun FloatingBottomNavBar(
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            BottomNavItem(
-                icon = if (selectedIndex == 0) Icons.Filled.Home else Icons.Outlined.Home,
-                label = stringResource(R.string.nav_home),
-                selected = selectedIndex == 0,
-                onClick = { onItemSelected(0) }
-            )
-            if (isShortsEnabled) {
+            visibleItems.forEach { spec ->
                 BottomNavItem(
-                    icon = ImageVector.vectorResource(id = R.drawable.ic_shorts),
-                    label = stringResource(R.string.nav_shorts),
-                    selected = selectedIndex == 1,
-                    onClick = { onItemSelected(1) }
+                    icon = if (selectedIndex == spec.index) spec.filledIcon else spec.outlinedIcon,
+                    label = stringResource(spec.labelRes),
+                    selected = selectedIndex == spec.index,
+                    onClick = { onItemSelected(spec.index) }
                 )
             }
-            if (isMusicEnabled) {
-                BottomNavItem(
-                    icon = if (selectedIndex == 2) Icons.Filled.MusicNote else Icons.Outlined.MusicNote,
-                    label = stringResource(R.string.nav_music),
-                    selected = selectedIndex == 2,
-                    onClick = { onItemSelected(2) }
-                )
+
+            if (overflowItems.isNotEmpty()) {
+                Box {
+                    BottomNavItem(
+                        icon = if (isOverflowSelected) Icons.Filled.MoreHoriz else Icons.Outlined.MoreHoriz,
+                        label = stringResource(R.string.nav_more),
+                        selected = isOverflowSelected,
+                        onClick = { showMoreMenu = true }
+                    )
+                    DropdownMenu(
+                        expanded = showMoreMenu,
+                        onDismissRequest = { showMoreMenu = false },
+                        offset = DpOffset(x = 0.dp, y = (-8).dp)
+                    ) {
+                        overflowItems.forEach { spec ->
+                            val isSelected = selectedIndex == spec.index
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = stringResource(spec.labelRes),
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary
+                                                else MaterialTheme.colorScheme.onSurface
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = if (isSelected) spec.filledIcon else spec.outlinedIcon,
+                                        contentDescription = stringResource(spec.labelRes),
+                                        tint = if (isSelected) MaterialTheme.colorScheme.primary
+                                               else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                onClick = {
+                                    showMoreMenu = false
+                                    onItemSelected(spec.index)
+                                }
+                            )
+                        }
+                    }
+                }
             }
-            if (isSearchEnabled) {
-                BottomNavItem(
-                    icon = if (selectedIndex == 5) Icons.Filled.Search else Icons.Outlined.Search,
-                    label = stringResource(R.string.nav_search),
-                    selected = selectedIndex == 5,
-                    onClick = { onItemSelected(5) }
-                )
-            }
-            BottomNavItem(
-                icon = if (selectedIndex == 3) Icons.Filled.Subscriptions else Icons.Outlined.Subscriptions,
-                label = stringResource(R.string.nav_subs),
-                selected = selectedIndex == 3,
-                onClick = { onItemSelected(3) }
-            )
-            BottomNavItem(
-                icon = if (selectedIndex == 4) Icons.Filled.VideoLibrary else Icons.Outlined.VideoLibrary,
-                label = stringResource(R.string.nav_library),
-                selected = selectedIndex == 4,
-                onClick = { onItemSelected(4) }
-            )
         }
     }
 }

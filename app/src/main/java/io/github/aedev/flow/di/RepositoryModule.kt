@@ -1,6 +1,7 @@
 package io.github.aedev.flow.di
 
 import android.content.Context
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import dagger.Module
 import dagger.Provides
@@ -15,8 +16,8 @@ object RepositoryModule {
 
     @Provides
     @Singleton
-    fun provideYouTubeRepository(): YouTubeRepository {
-        return YouTubeRepository.getInstance()
+    fun provideYouTubeRepository(playerPreferences: PlayerPreferences): YouTubeRepository {
+        return YouTubeRepository.getInstance(playerPreferences)
     }
 
     @Provides

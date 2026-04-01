@@ -21,11 +21,15 @@ import org.schabi.newpipe.extractor.localization.Localization
 import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.schabi.newpipe.extractor.stream.StreamInfo
+import io.github.aedev.flow.data.local.PlayerPreferences
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class YouTubeRepository @Inject constructor() {
+class YouTubeRepository @Inject constructor(
+    private val playerPreferences: PlayerPreferences
+) {
     
     private val service = ServiceList.YouTube
     
@@ -33,12 +37,13 @@ class YouTubeRepository @Inject constructor() {
      * Fetch trending videos
      */
     suspend fun getTrendingVideos(
-        region: String = "US",
+        region: String = "",
         nextPage: Page? = null
     ): Pair<List<Video>, Page?> = withContext(Dispatchers.IO) {
         try {
+            val effectiveRegion = region.ifBlank { playerPreferences.trendingRegion.first() }
             // Update localization based on region
-            val country = ContentCountry(region)
+            val country = ContentCountry(effectiveRegion)
             val localization = Localization.fromLocale(java.util.Locale.ENGLISH)
             NewPipe.init(NewPipe.getDownloader(), localization, country)
 
@@ -440,11 +445,81 @@ class YouTubeRepository @Inject constructor() {
     }
     
     /**
-     * NEW: Fast parallel prefetch for preloading content
-     * Returns results as they complete (not waiting for all)
+     * Fetch trending videos for a specific category.
+     * Categories map to YouTube kiosk IDs used by NewPipe.
+     * For ALL, fetches from all non-live categories in parallel and interleaves them.
      */
+    suspend fun getTrendingByCategory(
+        category: TrendingCategory,
+        region: String = ""
+    ): List<Video> = withContext(Dispatchers.IO) {
+        val effectiveRegion = region.ifBlank { playerPreferences.trendingRegion.first() }
+        val country = ContentCountry(effectiveRegion)
+        val localization = Localization.fromLocale(java.util.Locale.ENGLISH)
+        NewPipe.init(NewPipe.getDownloader(), localization, country)
+
+        when (category) {
+            TrendingCategory.ALL -> {
+                supervisorScope {
+                    val deferreds = listOf(
+                        TrendingCategory.TRENDING,
+                        TrendingCategory.GAMING,
+                        TrendingCategory.MUSIC,
+                        TrendingCategory.MOVIES,
+                    ).map { cat ->
+                        async {
+                            try {
+                                fetchKiosk(cat.kioskId, country)
+                            } catch (e: Exception) {
+                                emptyList()
+                            }
+                        }
+                    }
+                    val results = deferreds.map { it.await() }
+                    interleaveRoundRobin(results)
+                }
+            }
+            else -> fetchKiosk(category.kioskId, country)
+        }
+    }
+
+    private fun fetchKiosk(kioskId: String, country: ContentCountry): List<Video> {
+        val kioskList = service.kioskList
+        kioskList.forceContentCountry(country)
+        val extractor = kioskList.getExtractorById(kioskId, null) as KioskExtractor<*>
+        extractor.fetchPage()
+        return extractor.initialPage.items
+            .filterIsInstance<StreamInfoItem>()
+            .map { it.toVideo() }
+    }
+
+    private fun <T> interleaveRoundRobin(lists: List<List<T>>): List<T> {
+        val result = mutableListOf<T>()
+        val iterators = lists.map { it.iterator() }.toMutableList()
+        while (iterators.any { it.hasNext() }) {
+            val iter = iterators.iterator()
+            while (iter.hasNext()) {
+                val it = iter.next()
+                if (it.hasNext()) result.add(it.next()) else iter.remove()
+            }
+        }
+        return result
+    }
+
+    /**
+     * Trending categories supported by NewPipe kiosk extractors.
+     */
+    enum class TrendingCategory(val kioskId: String, val displayName: String) {
+        ALL("Trending", "All"),
+        TRENDING("Trending", "Trending"),
+        GAMING("trending_gaming", "Gaming"),
+        MUSIC("trending_music", "Music"),
+        MOVIES("trending_movies_and_shows", "Movies"),
+        LIVE("live", "Live")
+    }
+    
     suspend fun prefetchTrendingAndShorts(
-        region: String = "US"
+        region: String = ""
     ): Pair<List<Video>, List<Video>> = withContext(PerformanceDispatcher.networkIO) {
         supervisorScope {
             val trendingDeferred = async { 
@@ -679,6 +754,7 @@ class YouTubeRepository @Inject constructor() {
             },
             timestamp = System.currentTimeMillis(), // Best effort, refined by parser if needed
             channelThumbnailUrl = bestAvatar,
+            isUpcoming = streamType == StreamType.NONE,
             isLive = isLiveStream,
             isShort = isShortUrl,
             isMusic = isMusicCandidate
@@ -742,11 +818,15 @@ class YouTubeRepository @Inject constructor() {
     companion object {
         @Volatile
         private var instance: YouTubeRepository? = null
-        
-        fun getInstance(): YouTubeRepository {
+
+        fun getInstance(playerPreferences: io.github.aedev.flow.data.local.PlayerPreferences): YouTubeRepository {
             return instance ?: synchronized(this) {
-                instance ?: YouTubeRepository().also { instance = it }
+                instance ?: YouTubeRepository(playerPreferences).also { instance = it }
             }
+        }
+
+        fun getInstance(): YouTubeRepository {
+            return instance ?: error("YouTubeRepository not initialized. Call getInstance(playerPreferences) first.")
         }
     }
 }

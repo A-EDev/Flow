@@ -63,6 +63,7 @@ fun FlowApp(
     val isShortsNavigationEnabled by preferences.shortsNavigationEnabled.collectAsState(initial = true)
     val isMusicNavigationEnabled by preferences.musicNavigationEnabled.collectAsState(initial = true)
     val isSearchNavigationEnabled by preferences.searchNavigationEnabled.collectAsState(initial = false)
+    val isCategoriesNavigationEnabled by preferences.categoriesNavigationEnabled.collectAsState(initial = false)
     
     // Mini Player Customizations
     val miniPlayerScale by preferences.miniPlayerScale.collectAsState(initial = 0.45f)
@@ -284,6 +285,7 @@ fun FlowApp(
                 isShortsEnabled = isShortsNavigationEnabled,
                 isMusicEnabled = isMusicNavigationEnabled,
                 isSearchEnabled = isSearchNavigationEnabled,
+                isCategoriesEnabled = isCategoriesNavigationEnabled,
                 onItemSelected = { index ->
                     val route = when (index) {
                         0 -> "home"
@@ -292,6 +294,7 @@ fun FlowApp(
                         3 -> "subscriptions"
                         4 -> "library"
                         5 -> "search"
+                        6 -> "categories"
                         else -> "home"
                     }
 

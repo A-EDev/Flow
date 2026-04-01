@@ -17,6 +17,7 @@ FEATURES
 - Add new save public playlist to library for music and videos
 - Add new manual sponsor skip button #215
 - Add voice stabilizer toggle to player settings menu #217
+- Add new category screen toggle #218
 
 IMPROVEMENTS
 - FlowNeuroEngine modularization

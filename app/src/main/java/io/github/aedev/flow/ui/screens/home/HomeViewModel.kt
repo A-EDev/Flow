@@ -202,7 +202,7 @@ class HomeViewModel @Inject constructor(
                 currentQueryIndex = 0
                 
                 val userSubs = subscriptionRepository.getAllSubscriptionIds()
-                val region = "US"
+                val region = playerPreferences.trendingRegion.first()
 
                 val results = supervisorScope {
                     val deferredSubs = async {
@@ -393,12 +393,13 @@ class HomeViewModel @Inject constructor(
     }
     
 
-    fun loadTrendingVideos(region: String = "US") {
+    fun loadTrendingVideos() {
         if (_uiState.value.isLoading && _uiState.value.videos.isEmpty()) return
         _uiState.update { it.copy(isLoading = true, error = null) }
 
         viewModelScope.launch {
             try {
+                val region = playerPreferences.trendingRegion.first()
                 val (videos, nextPage) = repository.getTrendingVideos(region, null)
                 currentPage = nextPage
 

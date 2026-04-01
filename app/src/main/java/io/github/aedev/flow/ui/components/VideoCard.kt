@@ -114,7 +114,7 @@ fun VideoCard(
                 contentScale = ContentScale.Crop
             )
 
-            if (video.viewCount < 0L) {
+            if (video.isUpcoming) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -174,7 +174,7 @@ fun VideoCard(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Channel Avatar
-            AsyncImage(
+            SafeAsyncImage(
                 model = video.channelThumbnailUrl?.takeIf { it.isNotEmpty() } ?: Icons.Default.AccountCircle,
                 contentDescription = video.channelName,
                 modifier = Modifier
@@ -201,11 +201,14 @@ fun VideoCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val premiereDate = formatPremiereDate(video.uploadDate)
                     Text(
-                        text = if (video.viewCount < 0L)
+                        text = if (video.isUpcoming)
                             premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
-                        else stringResource(R.string.video_metadata_short_template, video.channelName, stringResource(R.string.views_template, formatViewCount(video.viewCount))),
+                        else if (video.viewCount >= 0L)
+                            stringResource(R.string.video_metadata_short_template, video.channelName, stringResource(R.string.views_template, formatViewCount(video.viewCount)))
+                        else
+                            "${video.channelName} · ${video.uploadDate}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (video.viewCount < 0L) MaterialTheme.colorScheme.primary
+                        color = if (video.isUpcoming) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -284,7 +287,7 @@ fun VideoCardHorizontal(
                 contentScale = ContentScale.Crop
             )
 
-            if (video.viewCount < 0L) {
+            if (video.isUpcoming) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -340,11 +343,14 @@ fun VideoCardHorizontal(
 
                 val premiereDate = formatPremiereDate(video.uploadDate)
                 Text(
-                    text = if (video.viewCount < 0L)
+                    text = if (video.isUpcoming)
                                premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
-                           else stringResource(R.string.video_metadata_short_template, stringResource(R.string.views_template, formatViewCount(video.viewCount)), video.uploadDate),
+                           else if (video.viewCount >= 0L)
+                               stringResource(R.string.video_metadata_short_template, stringResource(R.string.views_template, formatViewCount(video.viewCount)), video.uploadDate)
+                           else
+                               "${video.channelName} · ${video.uploadDate}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (video.viewCount < 0L) MaterialTheme.colorScheme.primary
+                    color = if (video.isUpcoming) MaterialTheme.colorScheme.primary
                             else MaterialTheme.extendedColors.textSecondary
                 )
             }
@@ -419,7 +425,7 @@ fun VideoCardFullWidth(
                 contentScale = ContentScale.Crop
             )
 
-            if (video.viewCount < 0L) {
+            if (video.isUpcoming) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -507,11 +513,14 @@ fun VideoCardFullWidth(
 
                 val premiereDate = formatPremiereDate(video.uploadDate)
                 Text(
-                    text = if (video.viewCount < 0L)
+                    text = if (video.isUpcoming)
                                premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
-                           else stringResource(R.string.video_metadata_template, video.channelName, stringResource(R.string.views_template, formatViewCount(video.viewCount)), video.uploadDate),
+                           else if (video.viewCount >= 0L)
+                               stringResource(R.string.video_metadata_template, video.channelName, stringResource(R.string.views_template, formatViewCount(video.viewCount)), video.uploadDate)
+                           else
+                               "${video.channelName} · ${video.uploadDate}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = if (video.viewCount < 0L) MaterialTheme.colorScheme.primary
+                    color = if (video.isUpcoming) MaterialTheme.colorScheme.primary
                             else MaterialTheme.extendedColors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

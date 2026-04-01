@@ -227,6 +227,22 @@ fun NavGraphBuilder.flowAppGraph(
         )
     }
 
+    composable("categories") {
+        currentRoute.value = "categories"
+        showBottomNav.value = true
+        selectedBottomNavIndex.intValue = 6
+        io.github.aedev.flow.ui.screens.categories.CategoriesScreen(
+            onBackClick = { navController.popBackStack() },
+            onVideoClick = { video ->
+                if (video.isShort) {
+                    navController.navigate("shorts?startVideoId=${video.id}")
+                } else {
+                    navController.navigate("player/${video.id}")
+                }
+            }
+        )
+    }
+
     composable("settings") {
         currentRoute.value = "settings"
         showBottomNav.value = false

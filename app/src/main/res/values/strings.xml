@@ -515,6 +515,17 @@
     <string name="settings_search_nav_tab_title">Search tab in navigation</string>
     <string name="settings_search_nav_tab_subtitle">Show a quick-access Search tab in the bottom navigation bar.</string>
     <string name="nav_search">Search</string>
+    <string name="settings_categories_nav_tab_title">Explore tab in navigation</string>
+    <string name="settings_categories_nav_tab_subtitle">Show a Trending &amp; Categories explore tab in the bottom navigation bar.</string>
+    <string name="nav_explore">Explore</string>
+    <string name="nav_more">More</string>
+    <string name="categories_title">Categories</string>
+    <string name="categories_switch_to_grid">Switch to grid view</string>
+    <string name="categories_switch_to_list">Switch to list view</string>
+    <string name="category_all">All</string>
+    <string name="category_trending">Trending</string>
+    <string name="category_movies">Movies</string>
+    <string name="category_live">Live</string>
     <string name="settings_continue_watching_title">Continue Watching shelf</string>
     <string name="settings_continue_watching_subtitle">Show a shelf of in-progress videos on the home screen.</string>
     <string name="continue_watching_title">Continue Watching</string>
