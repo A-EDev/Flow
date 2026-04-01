@@ -148,6 +148,14 @@
     <string name="uploaded">Uploaded</string>
     <string name="itag">iTag</string>
     <string name="mime_type">Mime Type</string>
+
+    <!-- Video Status & Metadata -->
+    <string name="status_upcoming">UPCOMING</string>
+    <string name="status_live">LIVE</string>
+    <string name="video_metadata_template">%1$s • %2$s • %3$s</string>
+    <string name="video_metadata_short_template">%1$s • %2$s</string>
+    <string name="premiere_soon">Premieres soon</string>
+    <string name="premiere_date_prefix">Premieres %1$s</string>
     <string name="file_size">File Size</string>
     <string name="quality">Quality</string>
     <string name="duration">Duration</string>
@@ -522,6 +530,8 @@
     <string name="player_settings_autoplay_subtitle">Automatically play the next video</string>
     <string name="player_settings_skip_silence">Skip Silence</string>
     <string name="player_settings_skip_silence_subtitle">Skip parts with no audio</string>
+    <string name="player_settings_stable_voice">Stable Voice</string>
+    <string name="player_settings_stable_voice_subtitle">Normalize audio volume for consistent playback</string>
     <string name="loop_video">Loop video</string>
     <string name="player_settings_sponsorblock">SponsorBlock</string>
     <string name="player_settings_sponsorblock_subtitle">Skip sponsored segments</string>

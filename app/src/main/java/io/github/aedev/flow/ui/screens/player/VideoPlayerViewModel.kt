@@ -1138,6 +1138,10 @@ class VideoPlayerViewModel @Inject constructor(
     fun toggleSkipSilence(isEnabled: Boolean) {
         EnhancedPlayerManager.getInstance().toggleSkipSilence(isEnabled)
     }
+
+    fun toggleStableVolume(isEnabled: Boolean) {
+        EnhancedPlayerManager.getInstance().toggleStableVolume(isEnabled)
+    }
     private suspend fun fetchReturnYouTubeDislike(videoId: String): Long? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         try {
             val url = java.net.URL("https://returnyoutubedislikeapi.com/votes?videoId=$videoId")

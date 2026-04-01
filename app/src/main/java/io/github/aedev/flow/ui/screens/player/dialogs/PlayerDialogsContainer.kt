@@ -109,6 +109,7 @@ fun PlayerDialogsContainer(
             },
             onAutoplayToggle = { viewModel.toggleAutoplay(it) },
             onSkipSilenceToggle = { viewModel.toggleSkipSilence(it) },
+            onStableVolumeToggle = { viewModel.toggleStableVolume(it) },
             onShowSubtitleStyle = { 
                 screenState.showSettingsMenu = false
                 screenState.showSubtitleStyleCustomizer = true 

@@ -47,6 +47,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Semaphore
 
 import androidx.hilt.navigation.compose.hiltViewModel
+import io.github.aedev.flow.utils.formatPremiereDate
 
 import androidx.lifecycle.SavedStateHandle
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -498,10 +499,14 @@ private fun PlaylistVideoItem(
                     overflow = TextOverflow.Ellipsis
                 )
 
+                val premiereDate = formatPremiereDate(video.uploadDate)
                 Text(
-                    text = "${formatViewCount(video.viewCount)} • ${video.uploadDate}",
+                    text = if (video.viewCount < 0L)
+                           premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
+                           else stringResource(R.string.video_metadata_short_template, formatViewCount(video.viewCount), video.uploadDate),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    color = if (video.viewCount < 0L) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                     maxLines = 1
                 )
             }

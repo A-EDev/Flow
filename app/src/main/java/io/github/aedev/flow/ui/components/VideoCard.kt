@@ -54,6 +54,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.DeArrowRepository
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.formatDuration
+import io.github.aedev.flow.utils.formatPremiereDate
 import io.github.aedev.flow.utils.formatViewCount
 import kotlinx.coroutines.flow.collectLatest
 
@@ -113,7 +114,24 @@ fun VideoCard(
                 contentScale = ContentScale.Crop
             )
 
-            if (video.isLive || video.duration > 0) {
+            if (video.viewCount < 0L) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp),
+                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
+                ) {
+                    Text(
+                        text = stringResource(R.string.status_upcoming),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else if (video.isLive || video.duration > 0) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -123,7 +141,7 @@ fun VideoCard(
                     border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
                 ) {
                     Text(
-                        text = if (video.isLive) "LIVE" else formatDuration(video.duration),
+                        text = if (video.isLive) stringResource(R.string.status_live) else formatDuration(video.duration),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -181,25 +199,16 @@ fun VideoCard(
                 
                 // Metadata Row
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    val premiereDate = formatPremiereDate(video.uploadDate)
                     Text(
-                        text = video.channelName,
+                        text = if (video.viewCount < 0L)
+                            premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
+                        else stringResource(R.string.video_metadata_short_template, video.channelName, stringResource(R.string.views_template, formatViewCount(video.viewCount))),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (video.viewCount < 0L) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
-                    )
-                    
-                    Text(
-                        text = " • ",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                    )
-                    
-                    Text(
-                        text = stringResource(R.string.views_template, formatViewCount(video.viewCount)),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
                     )
                 }
             }
@@ -275,7 +284,22 @@ fun VideoCardHorizontal(
                 contentScale = ContentScale.Crop
             )
 
-            if (video.isLive || video.duration > 0) {
+            if (video.viewCount < 0L) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp),
+                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.status_upcoming),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                }
+            } else if (video.isLive || video.duration > 0) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -284,7 +308,7 @@ fun VideoCardHorizontal(
                     shape = RoundedCornerShape(6.dp)
                 ) {
                     Text(
-                        text = if (video.isLive) "LIVE" else formatDuration(video.duration),
+                        text = if (video.isLive) stringResource(R.string.status_live) else formatDuration(video.duration),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
@@ -314,10 +338,14 @@ fun VideoCardHorizontal(
                     overflow = TextOverflow.Ellipsis
                 )
 
+                val premiereDate = formatPremiereDate(video.uploadDate)
                 Text(
-                    text = "${formatViewCount(video.viewCount)} • ${video.uploadDate}",
+                    text = if (video.viewCount < 0L)
+                               premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
+                           else stringResource(R.string.video_metadata_short_template, stringResource(R.string.views_template, formatViewCount(video.viewCount)), video.uploadDate),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.extendedColors.textSecondary
+                    color = if (video.viewCount < 0L) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.extendedColors.textSecondary
                 )
             }
         }
@@ -391,7 +419,24 @@ fun VideoCardFullWidth(
                 contentScale = ContentScale.Crop
             )
 
-            if (video.isLive || video.duration > 0) {
+            if (video.viewCount < 0L) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(8.dp),
+                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
+                    shape = RoundedCornerShape(5.dp),
+                    border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
+                ) {
+                    Text(
+                        text = stringResource(R.string.status_upcoming),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else if (video.isLive || video.duration > 0) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -401,7 +446,7 @@ fun VideoCardFullWidth(
                     border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
                 ) {
                     Text(
-                        text = if (video.isLive) "LIVE" else formatDuration(video.duration),
+                        text = if (video.isLive) stringResource(R.string.status_live) else formatDuration(video.duration),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -460,10 +505,14 @@ fun VideoCardFullWidth(
                     overflow = TextOverflow.Ellipsis
                 )
 
+                val premiereDate = formatPremiereDate(video.uploadDate)
                 Text(
-                    text = "${video.channelName} • ${stringResource(R.string.views_template, formatViewCount(video.viewCount))} • ${video.uploadDate}",
+                    text = if (video.viewCount < 0L)
+                               premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
+                           else stringResource(R.string.video_metadata_template, video.channelName, stringResource(R.string.views_template, formatViewCount(video.viewCount)), video.uploadDate),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.extendedColors.textSecondary,
+                    color = if (video.viewCount < 0L) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.extendedColors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = if (onChannelClick != null)
@@ -557,7 +606,24 @@ fun CompactVideoCard(
                 contentScale = ContentScale.Crop
             )
 
-            if (video.isLive || video.duration > 0) {
+            if (video.viewCount < 0L) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(4.dp),
+                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.status_upcoming),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            } else if (video.isLive || video.duration > 0) {
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -566,7 +632,7 @@ fun CompactVideoCard(
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text(
-                        text = if (video.isLive) "LIVE" else formatDuration(video.duration),
+                        text = if (video.isLive) stringResource(R.string.status_live) else formatDuration(video.duration),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White,
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
@@ -615,10 +681,14 @@ fun CompactVideoCard(
                 overflow = TextOverflow.Ellipsis
             )
             
+            val premiereDate = formatPremiereDate(video.uploadDate)
             Text(
-                text = "${formatViewCount(video.viewCount)} • ${video.uploadDate}",
+                text = if (video.viewCount < 0L)
+                           premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
+                       else stringResource(R.string.video_metadata_short_template, stringResource(R.string.views_template, formatViewCount(video.viewCount)), video.uploadDate),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.extendedColors.textSecondary.copy(alpha = 0.8f),
+                color = if (video.viewCount < 0L) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.extendedColors.textSecondary.copy(alpha = 0.8f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 fontSize = 11.sp

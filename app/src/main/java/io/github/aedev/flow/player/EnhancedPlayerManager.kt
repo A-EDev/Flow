@@ -269,6 +269,7 @@ class EnhancedPlayerManager private constructor() {
     
     private fun observePreferences(context: Context) {
         audioFeaturesManager?.observeSkipSilencePreference(context)
+        audioFeaturesManager?.observeStableVolumePreference(context)
         
         val prefs = PlayerPreferences(context)
         scope.launch {
@@ -697,6 +698,8 @@ class EnhancedPlayerManager private constructor() {
     
     fun setPlaybackSpeed(speed: Float) = audioFeaturesManager?.setPlaybackSpeed(player, speed)
     fun toggleSkipSilence(isEnabled: Boolean) = audioFeaturesManager?.toggleSkipSilence(isEnabled, appContext)
+
+    fun toggleStableVolume(isEnabled: Boolean) = audioFeaturesManager?.toggleStableVolume(isEnabled, appContext)
     
     fun toggleSponsorBlock(isEnabled: Boolean) {
         sponsorBlockHandler?.setEnabled(isEnabled)

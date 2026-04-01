@@ -92,3 +92,39 @@ fun formatLikeCount(count: Int): String {
     }
 }
 
+/**
+ * Formats a scheduled premiere date string (from NewPipe extractor) into YouTube-style:
+ * "Premieres M/d/yy, h:mm a"  e.g. "Premieres 4/1/26, 9:00 AM"
+ *
+ * Returns "Premieres soon" if the date cannot be parsed.
+ */
+fun formatPremiereDate(dateString: String): String? {
+    if (dateString.isBlank()) return null
+    val formats = listOf(
+        "yyyy-MM-dd HH:mm",
+        "yyyy-MM-dd'T'HH:mm:ssXXX",
+        "yyyy-MM-dd'T'HH:mm:ssX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss",
+        "yyyy-MM-dd"
+    )
+    var date: java.util.Date? = null
+    for (fmt in formats) {
+        try {
+            val sdf = java.text.SimpleDateFormat(fmt, java.util.Locale.US)
+            sdf.timeZone = java.util.TimeZone.getDefault()
+            date = sdf.parse(dateString)
+            if (date != null) break
+        } catch (_: Exception) {}
+    }
+    return if (date != null) {
+        val out = java.text.SimpleDateFormat("M/d/yy, h:mm a", java.util.Locale.US)
+        out.timeZone = java.util.TimeZone.getDefault()
+        out.format(date)
+    } else {
+        null
+    }
+}
+

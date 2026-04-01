@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Repeat
+import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -637,6 +638,7 @@ fun SettingsMenuDialog(
     onShowSubtitles: () -> Unit,
     onAutoplayToggle: (Boolean) -> Unit,
     onSkipSilenceToggle: (Boolean) -> Unit,
+    onStableVolumeToggle: (Boolean) -> Unit,
     onShowSubtitleStyle: () -> Unit,
     onLoopToggle: (Boolean) -> Unit,
     onCastClick: () -> Unit = {},
@@ -742,6 +744,14 @@ fun SettingsMenuDialog(
                 label = stringResource(R.string.player_settings_skip_silence),
                 checked = playerState.isSkipSilenceEnabled,
                 onToggle = onSkipSilenceToggle
+            )
+
+            // ── Stable Voice ──
+            PlayerSettingsToggleRow(
+                icon = Icons.Rounded.VolumeUp,
+                label = stringResource(R.string.player_settings_stable_voice),
+                checked = playerState.isStableVolumeEnabled,
+                onToggle = onStableVolumeToggle
             )
         }
     }

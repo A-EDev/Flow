@@ -17,6 +17,7 @@ data class EnhancedPlayerState(
     val recoveryAttempted: Boolean = false,
     val playbackSpeed: Float = 1.0f,
     val isSkipSilenceEnabled: Boolean = false,
+    val isStableVolumeEnabled: Boolean = false,
     val bufferedPercentage: Float = 0f,
     val hasNext: Boolean = false,
     val hasPrevious: Boolean = false,

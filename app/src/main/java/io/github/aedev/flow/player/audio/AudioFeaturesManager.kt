@@ -1,6 +1,7 @@
 package io.github.aedev.flow.player.audio
 
 import android.content.Context
+import android.media.audiofx.LoudnessEnhancer
 import android.util.Log
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.util.UnstableApi
@@ -45,6 +46,8 @@ class AudioFeaturesManager(
     private var playerRef: ExoPlayer? = null
     
     private var pendingSkipSilence: Boolean? = null
+    private var pendingStableVolume: Boolean? = null
+    private var loudnessEnhancer: LoudnessEnhancer? = null
     
     /**
      * Set the player reference. Must be called after ExoPlayer is created.
@@ -57,12 +60,18 @@ class AudioFeaturesManager(
             pendingSkipSilence = null
             Log.d(TAG, "Applied pending skip silence: $pending")
         }
+        pendingStableVolume?.let { pending ->
+            applyLoudnessEnhancer(player, pending)
+            pendingStableVolume = null
+        }
     }
     
     /**
      * Clear the player reference (call on release).
      */
     fun clearPlayer() {
+        loudnessEnhancer?.release()
+        loudnessEnhancer = null
         playerRef = null
     }
     
@@ -120,6 +129,62 @@ class AudioFeaturesManager(
             PlayerPreferences(context).skipSilenceEnabled.collect { isEnabled ->
                 setSkipSilenceInternal(isEnabled)
             }
+        }
+    }
+
+    /**
+     * Observe stable volume preference and apply on startup.
+     */
+    fun observeStableVolumePreference(context: Context) {
+        scope.launch {
+            PlayerPreferences(context).stableVolumeEnabled.collect { isEnabled ->
+                val player = playerRef
+                if (player != null) {
+                    applyLoudnessEnhancer(player, isEnabled)
+                } else {
+                    pendingStableVolume = isEnabled
+                }
+                stateFlow.value = stateFlow.value.copy(isStableVolumeEnabled = isEnabled)
+            }
+        }
+    }
+
+    /**
+     * Toggle stable volume (audio normalization via LoudnessEnhancer) and persist preference.
+     */
+    fun toggleStableVolume(isEnabled: Boolean, context: Context?) {
+        val player = playerRef
+        if (player != null) {
+            applyLoudnessEnhancer(player, isEnabled)
+        } else {
+            pendingStableVolume = isEnabled
+        }
+        stateFlow.value = stateFlow.value.copy(isStableVolumeEnabled = isEnabled)
+        context?.let { ctx ->
+            scope.launch {
+                PlayerPreferences(ctx).setStableVolumeEnabled(isEnabled)
+            }
+        }
+    }
+
+    private fun applyLoudnessEnhancer(player: ExoPlayer, enable: Boolean) {
+        try {
+            loudnessEnhancer?.release()
+            loudnessEnhancer = null
+            if (enable) {
+                val sessionId = player.audioSessionId
+                if (sessionId != android.media.AudioTrack.ERROR_BAD_VALUE && sessionId != 0) {
+                    loudnessEnhancer = LoudnessEnhancer(sessionId).apply {
+                        setTargetGain(600) 
+                        enabled = true
+                    }
+                    Log.d(TAG, "LoudnessEnhancer enabled on session $sessionId")
+                }
+            } else {
+                Log.d(TAG, "LoudnessEnhancer disabled")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to configure LoudnessEnhancer", e)
         }
     }
 }

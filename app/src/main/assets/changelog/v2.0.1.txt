@@ -16,6 +16,7 @@ FEATURES
 - Add new country search for trending country settings picker #208
 - Add new save public playlist to library for music and videos
 - Add new manual sponsor skip button #215
+- Add voice stabilizer toggle to player settings menu #217
 
 IMPROVEMENTS
 - FlowNeuroEngine modularization
@@ -39,6 +40,7 @@ IMPROVEMENTS
 - Add 144p and 240p to default download settings #209
 - Update custom download path selection to use SAF folder picker #210
 - Add video tags to description
+- Add upcoming badge for videos that are about to premier #216
 
 FIXES AND STABILITY
 - Keyboard Focus and pop up
