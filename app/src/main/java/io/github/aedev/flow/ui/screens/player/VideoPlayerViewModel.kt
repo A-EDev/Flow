@@ -890,6 +890,13 @@ class VideoPlayerViewModel @Inject constructor(
         }
     }
     
+    fun setNotificationEnabled(channelId: String, enabled: Boolean) {
+        viewModelScope.launch {
+            subscriptionRepository.updateNotificationState(channelId, enabled)
+            _uiState.value = _uiState.value.copy(isNotificationsEnabled = enabled)
+        }
+    }
+
     fun likeVideo(videoId: String, title: String, thumbnail: String, channelName: String, channelId: String = "") {
         viewModelScope.launch {
             likedVideosRepository.likeVideo(
@@ -936,6 +943,13 @@ class VideoPlayerViewModel @Inject constructor(
         viewModelScope.launch {
             subscriptionRepository.isSubscribed(channelId).collect { isSubscribed ->
                 _uiState.value = _uiState.value.copy(isSubscribed = isSubscribed)
+            }
+        }
+        viewModelScope.launch {
+            subscriptionRepository.getSubscription(channelId).collect { subscription ->
+                _uiState.value = _uiState.value.copy(
+                    isNotificationsEnabled = subscription?.isNotificationEnabled ?: false
+                )
             }
         }
         viewModelScope.launch {
@@ -1186,6 +1200,7 @@ data class VideoPlayerUiState(
     val isMiniPlayer: Boolean = false,
     val isFullscreen: Boolean = false,
     val isSubscribed: Boolean = false,
+    val isNotificationsEnabled: Boolean = false,
     val likeState: String? = null, 
     val channelSubscriberCount: Long? = null,
     val channelAvatarUrl: String? = null,

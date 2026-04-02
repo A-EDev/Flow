@@ -43,6 +43,7 @@ IMPROVEMENTS
 - Add video tags to description
 - Add upcoming badge for videos that are about to premier #216
 - Improve music player scroll and drag handling
+- Add notifications customization to video player and subscription screens #219
 
 FIXES AND STABILITY
 - Keyboard Focus and pop up
@@ -58,3 +59,4 @@ FIXES AND STABILITY
 - Fix comment sheet collapsing when scrolling #189
 - Fix Download settings to properly use chosen download path preferences #211
 - Fix shorts metadata and download sizes
+- Fix crash on radio button click in music search screen

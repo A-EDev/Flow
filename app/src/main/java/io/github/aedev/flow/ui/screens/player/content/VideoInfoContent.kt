@@ -57,6 +57,7 @@ fun VideoInfoContent(
         channelAvatarUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
         subscriberCount = uiState.channelSubscriberCount,
         isSubscribed = uiState.isSubscribed,
+        isNotificationsEnabled = uiState.isNotificationsEnabled,
         likeState = uiState.likeState ?: "NONE",
         likeCount = uiState.streamInfo?.likeCount ?: video.likeCount,
         dislikeCount = uiState.dislikeCount,
@@ -108,6 +109,25 @@ fun VideoInfoContent(
                     }
                 }
             }
+        },
+        onUnsubscribeClick = {
+            uiState.streamInfo?.let { streamInfo ->
+                val channelIdSafe = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId
+                val channelNameSafe = streamInfo.uploaderName ?: video.channelName
+                val channelThumbSafe = uiState.channelAvatarUrl?.takeIf { it.isNotEmpty() }
+                    ?: video.channelThumbnailUrl?.takeIf { it.isNotEmpty() }
+                    ?: ""
+                viewModel.toggleSubscription(channelIdSafe, channelNameSafe, channelThumbSafe)
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        context.getString(R.string.unsubscribed_from, channelNameSafe)
+                    )
+                }
+            }
+        },
+        onNotificationChange = { enabled ->
+            val channelIdSafe = uiState.streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
+            viewModel.setNotificationEnabled(channelIdSafe, enabled)
         },
         onChannelClick = {
             uiState.streamInfo?.let { streamInfo ->

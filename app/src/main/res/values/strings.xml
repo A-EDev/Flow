@@ -90,6 +90,7 @@
     <string name="undo">Undo</string>
     <string name="subscribed_to">Subscribed to %s</string>
     <string name="unsubscribed_from">Unsubscribed from %s</string>
+    <string name="unsubscribe">Unsubscribe</string>
     <string name="share_video">Share video</string>
     <string name="check_out_video_template">Check out this video: %1$s\nhttps://youtube.com/watch?v=%2$s</string>
     <string name="related_videos">Related Videos</string>

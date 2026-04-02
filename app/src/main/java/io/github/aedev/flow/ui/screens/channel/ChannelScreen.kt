@@ -502,7 +502,7 @@ fun SubscribeButton(
             )
             HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
             DropdownMenuItem(
-                text = { Text("All") },
+                text = { Text(stringResource(R.string.on)) },
                 leadingIcon = { Icon(Icons.Rounded.NotificationsActive, null) },
                 onClick = {
                     onNotificationChange(true)
@@ -510,7 +510,7 @@ fun SubscribeButton(
                 }
             )
             DropdownMenuItem(
-                text = { Text("None") },
+                text = { Text(stringResource(R.string.off)) },
                 leadingIcon = { Icon(Icons.Rounded.NotificationsOff, null) },
                 onClick = {
                     onNotificationChange(false)
@@ -519,7 +519,7 @@ fun SubscribeButton(
             )
             HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
             DropdownMenuItem(
-                text = { Text("Unsubscribe") },
+                text = { Text(stringResource(R.string.unsubscribe)) },
                 leadingIcon = { Icon(Icons.Rounded.PersonRemove, null) },
                 onClick = {
                     onUnsubscribeClick()

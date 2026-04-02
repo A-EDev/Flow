@@ -11,7 +11,9 @@ import io.github.aedev.flow.utils.PerformanceDispatcher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
@@ -138,11 +140,9 @@ class MusicSearchViewModel @Inject constructor() : ViewModel() {
             
             result?.onSuccess { artistPage ->
                 val songsSection = artistPage.sections.find { it.title.contains("Songs", ignoreCase = true) }
-                if (songsSection != null) {
-                    callback(songsSection.items)
-                } else {
-                    // Fallback to first section if no "Songs" section found
-                    callback(artistPage.sections.firstOrNull()?.items ?: emptyList())
+                val items = songsSection?.items ?: artistPage.sections.firstOrNull()?.items ?: emptyList()
+                withContext(Dispatchers.Main) {
+                    callback(items)
                 }
             }
         }

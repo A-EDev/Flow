@@ -216,6 +216,10 @@ fun SubscriptionsScreen(
                                 onClick = { 
                                     onChannelClick("https://youtube.com/channel/${channel.id}") 
                                 },
+                                isNotificationsEnabled = uiState.notificationStates[channel.id] ?: false,
+                                onNotificationChange = { enabled ->
+                                    viewModel.updateNotificationState(channel.id, enabled)
+                                },
                                 onUnsubscribe = {
                                     scope.launch {
                                         val sub = viewModel.getSubscriptionOnce(channel.id)
@@ -389,7 +393,9 @@ fun ChannelAvatarItem(
 fun SubscriptionManagerItem(
     channel: Channel,
     onClick: () -> Unit,
-    onUnsubscribe: () -> Unit
+    onUnsubscribe: () -> Unit,
+    isNotificationsEnabled: Boolean = false,
+    onNotificationChange: (Boolean) -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -420,17 +426,62 @@ fun SubscriptionManagerItem(
             overflow = TextOverflow.Ellipsis
         )
         
-        FilledTonalButton(
-            onClick = onUnsubscribe,
-            colors = ButtonDefaults.filledTonalButtonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-            ),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
-        ) {
-            Text(androidx.compose.ui.res.stringResource(R.string.subscribed))
-            Spacer(modifier = Modifier.width(4.dp))
-            Icon(Icons.Default.Notifications, null, modifier = Modifier.size(16.dp))
+        Box {
+            var expanded by remember { mutableStateOf(false) }
+            FilledTonalButton(
+                onClick = { expanded = true },
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                Text(androidx.compose.ui.res.stringResource(R.string.subscribed))
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(Icons.Default.Notifications, null, modifier = Modifier.size(16.dp))
+            }
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                Text(
+                    text = androidx.compose.ui.res.stringResource(R.string.notifications),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+                DropdownMenuItem(
+                    text = { Text(androidx.compose.ui.res.stringResource(R.string.on)) },
+                    onClick = {
+                        onNotificationChange(true)
+                        expanded = false
+                    },
+                    leadingIcon = { Icon(Icons.Default.NotificationsActive, null) },
+                    trailingIcon = if (isNotificationsEnabled) {
+                        { Icon(Icons.Default.Check, null) }
+                    } else null
+                )
+                DropdownMenuItem(
+                    text = { Text(androidx.compose.ui.res.stringResource(R.string.off)) },
+                    onClick = {
+                        onNotificationChange(false)
+                        expanded = false
+                    },
+                    leadingIcon = { Icon(Icons.Default.NotificationsOff, null) },
+                    trailingIcon = if (!isNotificationsEnabled) {
+                        { Icon(Icons.Default.Check, null) }
+                    } else null
+                )
+                HorizontalDivider()
+                DropdownMenuItem(
+                    text = { Text(androidx.compose.ui.res.stringResource(R.string.unsubscribe)) },
+                    onClick = {
+                        onUnsubscribe()
+                        expanded = false
+                    },
+                    leadingIcon = { Icon(Icons.Default.PersonRemove, null) }
+                )
+            }
         }
     }
 }

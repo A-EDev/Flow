@@ -55,6 +55,14 @@ class SubscriptionsViewModel : ViewModel() {
         }
         
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            subscriptionRepository.getAllSubscriptions()
+                .collect { allSubs ->
+                    val notifStates = allSubs.associate { it.channelId to it.isNotificationEnabled }
+                    _uiState.update { it.copy(notificationStates = notifStates) }
+                }
+        }
+
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
             cacheDao.getSubscriptionFeed().collect { cachedFeed ->
                 Log.d(TAG, "Cache observer: ${cachedFeed.size} entries in DB")
                 if (cachedFeed.isNotEmpty()) {
@@ -315,6 +323,12 @@ class SubscriptionsViewModel : ViewModel() {
         }
     }
 
+    fun updateNotificationState(channelId: String, enabled: Boolean) {
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            subscriptionRepository.updateNotificationState(channelId, enabled)
+        }
+    }
+
     fun toggleViewMode() {
         _uiState.update { it.copy(isFullWidthView = !it.isFullWidthView) }
     }
@@ -361,6 +375,7 @@ data class SubscriptionsUiState(
     val selectedChannelId: String? = null,
     val isLoading: Boolean = false,
     val isFullWidthView: Boolean = false,
-    val isShortsShelfEnabled: Boolean = true
+    val isShortsShelfEnabled: Boolean = true,
+    val notificationStates: Map<String, Boolean> = emptyMap()
 )
 
