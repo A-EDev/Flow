@@ -804,9 +804,9 @@ internal class NeuroDiscovery(
     // QUERY QUALITY FILTERS
     // ═══════════════════════════════════════════════
 
+    private val YEAR_REGEX = Regex("^20[2-9]\\d$")
+
     private val QUERY_NOISE_WORDS = hashSetOf(
-        "2020", "2021", "2022", "2023", "2024",
-        "2025", "2026", "2027", "2028", "2029", "2030",
         "prompt", "prompts", "prompting",
         "use", "used", "using",
         "guide", "tutorial", "tips", "tricks",
@@ -823,7 +823,7 @@ internal class NeuroDiscovery(
             val lower = word.lowercase()
             lower.isNotEmpty() &&
                 lower !in QUERY_NOISE_WORDS &&
-                !lower.matches(Regex("\\d{4}"))
+                !YEAR_REGEX.matches(lower)
         }
         // Allow single-word queries (direct topic searches are natural)
         if (cleaned.isEmpty()) return null
@@ -837,7 +837,7 @@ internal class NeuroDiscovery(
         if (topic.length < 3) return false
         val lower = topic.lowercase()
         if (lower in QUERY_NOISE_WORDS) return false
-        if (lower.matches(Regex("\\d{4}"))) return false
+        if (YEAR_REGEX.matches(lower)) return false
         if (lower.all { it.isDigit() }) return false
         // Strip domain tags for checking: "metal:music" → "metal"
         val base = if (lower.contains(":")) lower.substringBefore(":") else lower

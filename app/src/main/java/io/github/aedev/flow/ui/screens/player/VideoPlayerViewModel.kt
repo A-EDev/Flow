@@ -521,8 +521,6 @@ class VideoPlayerViewModel @Inject constructor(
                     val relatedVideos = if (streamInfo != null) {
                         repository.getRelatedVideosFromStreamInfo(streamInfo)
                     } else {
-                        // Fallback: try separate fetch if stream info failed but we might want related? 
-                        // Unlikely to work if main fetch failed, but consistent with safe defaults.
                         emptyList()
                     }
                     
@@ -538,7 +536,8 @@ class VideoPlayerViewModel @Inject constructor(
                                 duration = streamInfo.duration.toInt(),
                                 viewCount = streamInfo.viewCount,
                                 uploadDate = "",
-                                description = streamInfo.description?.content ?: ""
+                                description = streamInfo.description?.content ?: "",
+                                tags = streamInfo.tags ?: emptyList()
                             )
                             FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.CLICK)
                         } catch (e: Exception) {

@@ -15,6 +15,7 @@ data class Video(
     val timestamp: Long = System.currentTimeMillis(),
     val description: String = "",
     val channelThumbnailUrl: String = "",
+    val tags: List<String> = emptyList(),
     val isMusic: Boolean = false,
     val isLive: Boolean = false,
     val isShort: Boolean = false,

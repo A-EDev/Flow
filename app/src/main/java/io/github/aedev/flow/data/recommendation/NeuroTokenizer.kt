@@ -48,6 +48,16 @@ internal class NeuroTokenizer {
         const val COMPLEXITY_CHAPTER_BONUS = 0.2
         val TIMESTAMP_PATTERN = Regex("""\d{1,2}:\d{2}""")
         const val CHAPTER_TIMESTAMP_MIN = 3
+
+        // ── Tag Processing Constants ──
+        const val TAG_MAX_INGEST = 8
+        const val TAG_VERIFIED_WEIGHT = 0.65
+        const val TAG_UNVERIFIED_WEIGHT = 0.10
+        const val TAG_MIN_LENGTH = 3
+        const val TAG_MAX_LENGTH = 40
+
+        /** Matches any year 2020-2099, used to filter year-spam tags and tokens */
+        private val YEAR_TAG_REGEX = Regex("^20[2-9]\\d$")
     }
 
     // ── Lemma Map ──
@@ -176,9 +186,6 @@ internal class NeuroTokenizer {
         "first", "last", "next", "previous",
         // AI / prompt meta-words
         "prompt", "prompts", "prompting",
-        // Year tokens — always noise in topic vectors
-        "2020", "2021", "2022", "2023", "2024",
-        "2025", "2026", "2027", "2028", "2029", "2030",
         // YouTube engagement bait
         "amazing", "insane", "crazy", "incredible",
         "unbelievable", "shocking", "exposed", "revealed",
@@ -193,6 +200,26 @@ internal class NeuroTokenizer {
         "ever", "never", "always", "every",
         "still", "also", "too", "very", "only",
         "then", "than", "well", "even"
+    )
+
+    // ── Tag Spam Filter ──
+
+    private val TAG_SPAM_WORDS = hashSetOf(
+        // Creator/platform names used as SEO bait
+        "mrbeast", "pewdiepie", "markiplier", "jacksepticeye",
+        "dream", "tommyinnit", "pokimane", "ninja",
+        // Broad SEO spam
+        "viral", "trending", "fyp", "foryou", "foryoupage",
+        "like", "subscribe", "comment", "share",
+        "free", "giveaway", "win",
+        // Platform names
+        "youtube", "tiktok", "instagram", "twitter", "twitch",
+        "shorts", "reels", "stories",
+        // Generic engagement bait
+        "funny", "amazing", "insane", "crazy", "incredible",
+        "satisfying", "oddly satisfying",
+        "gone wrong", "not clickbait", "must watch",
+        "you wont believe", "emotional"
     )
 
     // ── Polysemy Data ──
@@ -299,7 +326,7 @@ internal class NeuroTokenizer {
             .map { word -> word.trim { !it.isLetterOrDigit() } }
             .filter { it.length > 2 }
             .map { normalizeLemma(it) }
-            .filter { !STOP_WORDS.contains(it) }
+            .filter { !STOP_WORDS.contains(it) && !YEAR_TAG_REGEX.matches(it) }
     }
 
     fun tokenizeForSimilarity(text: String): Set<String> {
@@ -395,6 +422,23 @@ internal class NeuroTokenizer {
                 word
             }
             topics[resolved] = (topics.getOrDefault(resolved, 0.0) + weight)
+        }
+
+        // ── Tag Processing ──
+        if (video.tags.isNotEmpty()) {
+            val descWords = if (!video.description.isNullOrBlank()) {
+                tokenize(
+                    video.description.lines().take(DESCRIPTION_TAKE_LINES)
+                        .joinToString(" ")
+                )
+            } else emptyList()
+
+            val tagTopics = processTags(
+                video.tags, titleWords, descWords, idfSnapshot
+            )
+            tagTopics.forEach { (word, weight) ->
+                topics[word] = (topics[word] ?: 0.0) + weight
+            }
         }
 
         // ── Channel Topic Prior ──
@@ -504,6 +548,67 @@ internal class NeuroTokenizer {
             result[word] = (result.getOrDefault(word, 0.0) +
                 calculateIdfWeight(word, DESCRIPTION_WORD_WEIGHT, idfSnapshot))
         }
+        return result
+    }
+
+    // ══════════════════════════════════════════════
+    // TAG PROCESSING
+    // Tags are the strongest contextual signal for learning —
+    // the creator explicitly declared what the video is about.
+    // Only available on videos the user opens (StreamInfo),
+    // NOT on search result candidates (StreamInfoItem).
+    // ══════════════════════════════════════════════
+
+    fun processTags(
+        tags: List<String>,
+        titleWords: List<String>,
+        descriptionWords: List<String>,
+        idfSnapshot: IdfSnapshot
+    ): Map<String, Double> {
+        if (tags.isEmpty()) return emptyMap()
+
+        val result = mutableMapOf<String, Double>()
+
+        val verificationSet = (titleWords + descriptionWords).toHashSet()
+
+        val tagContextWords = tags.take(TAG_MAX_INGEST).flatMap { t ->
+            t.lowercase()
+                .split(WHITESPACE_REGEX)
+                .map { it.trim { c -> !c.isLetterOrDigit() } }
+                .filter { it.length > 1 }
+        }
+        val fullDisambiguationContext = tagContextWords + titleWords + descriptionWords
+
+        tags.take(TAG_MAX_INGEST).forEach { rawTag ->
+            val cleaned = rawTag.trim().lowercase()
+
+            if (cleaned.length < TAG_MIN_LENGTH ||
+                cleaned.length > TAG_MAX_LENGTH
+            ) return@forEach
+
+            if (cleaned in TAG_SPAM_WORDS) return@forEach
+            if (cleaned in STOP_WORDS) return@forEach
+            if (YEAR_TAG_REGEX.matches(cleaned)) return@forEach
+
+            val tagTokens = tokenize(cleaned)
+            if (tagTokens.isEmpty()) return@forEach
+
+            val isVerified = tagTokens.any { token -> token in verificationSet }
+
+            val baseWeight = if (isVerified) TAG_VERIFIED_WEIGHT
+            else TAG_UNVERIFIED_WEIGHT
+
+            tagTokens.forEach { token ->
+                val resolved = if (token in DOMAIN_DISAMBIGUATION) {
+                    disambiguateWord(token, fullDisambiguationContext)
+                } else token
+
+                val idfWeighted = calculateIdfWeight(resolved, baseWeight, idfSnapshot)
+
+                result[resolved] = (result[resolved] ?: 0.0) + idfWeighted
+            }
+        }
+
         return result
     }
 
@@ -1297,6 +1402,17 @@ internal class NeuroTokenizer {
                 .map { it.trim { c -> !c.isLetterOrDigit() } }
                 .filter { it.length > 2 }
                 .forEach { words.add(it) }
+        }
+
+        // Tags provide critical disambiguation context
+        if (video.tags.isNotEmpty()) {
+            video.tags.take(TAG_MAX_INGEST).forEach { tag ->
+                tag.lowercase()
+                    .split(WHITESPACE_REGEX)
+                    .map { it.trim { c -> !c.isLetterOrDigit() } }
+                    .filter { it.length > 1 }
+                    .forEach { words.add(it) }
+            }
         }
 
         return words

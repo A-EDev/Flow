@@ -1617,8 +1617,11 @@ class FlowNeuroEngine(private val appContext: Context) {
         channelProfile: Map<String, Double>? = null
     ): ContentVector {
         val cacheKey = video.id
-        synchronized(featureCache) {
-            featureCache[cacheKey]?.let { return it }
+        val hasTags = video.tags.isNotEmpty()
+        if (!hasTags) {
+            synchronized(featureCache) {
+                featureCache[cacheKey]?.let { return it }
+            }
         }
         val vector = tokenizer.extractFeatures(video, idfSnapshot, channelProfile)
         synchronized(featureCache) {
