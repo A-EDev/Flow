@@ -834,6 +834,23 @@
     <string name="concurrent_threads_title">Concurrent Threads</string>
     <string name="threads_per_download_template">%1$d threads per download</string>
     <string name="performance_optimization_note">Using more threads can increase speed but may use more battery and heat up the device.</string>
+
+    <string name="location_dialog_subtitle">Choose where downloaded files are saved on your device.</string>
+    <string name="location_preset_header">Preset Locations</string>
+    <string name="location_custom_header">Custom Location</string>
+    <string name="location_downloads_label">Downloads / Flow</string>
+    <string name="location_movies_label">Movies / Flow</string>
+    <string name="location_internal_app_label">Internal App Storage</string>
+    <string name="location_internal_app_desc">Private to the app — files may be deleted if you uninstall</string>
+    <string name="location_custom_saf_label">Browse…</string>
+    <string name="location_custom_saf_desc">Pick any folder using the system file picker</string>
+    <string name="location_custom_manual_label">Enter path manually</string>
+    <string name="location_custom_manual_desc">Type an absolute path, e.g. /storage/emulated/0/MyFolder</string>
+    <string name="location_manual_dialog_title">Custom Download Path</string>
+    <string name="location_manual_hint">/storage/emulated/0/…</string>
+    <string name="location_manual_confirm">Save</string>
+    <string name="location_badge_recommended">Recommended</string>
+    <string name="location_badge_active">Active</string>
     <string name="select_threads_count_desc">Select threads count (1-8):</string>
     <string name="threads_count_label">%1$d threads</string>
 

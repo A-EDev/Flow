@@ -611,6 +611,23 @@
     <string name="concurrent_threads_title">Threads concurrentiels</string>
     <string name="threads_per_download_template">%1$d threads par téléchargement</string>
     <string name="performance_optimization_note">Utiliser plus de threads peut augmenter la vitesse mais peut utiliser plus de batterie et chauffer l\'appareil.</string>
+
+    <string name="location_dialog_subtitle">Choisissez où les fichiers téléchargés sont enregistrés sur votre appareil.</string>
+    <string name="location_preset_header">Emplacements prédéfinis</string>
+    <string name="location_custom_header">Emplacement personnalisé</string>
+    <string name="location_downloads_label">Téléchargements / Flow</string>
+    <string name="location_movies_label">Vidéos / Flow</string>
+    <string name="location_internal_app_label">Stockage interne de l\'application</string>
+    <string name="location_internal_app_desc">Privé à l\'application — les fichiers peuvent être supprimés si vous désinstallez</string>
+    <string name="location_custom_saf_label">Parcourir…</string>
+    <string name="location_custom_saf_desc">Choisissez un dossier avec le sélecteur de fichiers système</string>
+    <string name="location_custom_manual_label">Saisir un chemin manuellement</string>
+    <string name="location_custom_manual_desc">Tapez un chemin absolu, ex. /storage/emulated/0/MonDossier</string>
+    <string name="location_manual_dialog_title">Chemin de téléchargement personnalisé</string>
+    <string name="location_manual_hint">/storage/emulated/0/…</string>
+    <string name="location_manual_confirm">Enregistrer</string>
+    <string name="location_badge_recommended">Recommandé</string>
+    <string name="location_badge_active">Actif</string>
     <string name="select_threads_count_desc">Sélectionnez le nombre de threads (1-8) :</string>
     <string name="threads_count_label">%1$d threads</string>
 

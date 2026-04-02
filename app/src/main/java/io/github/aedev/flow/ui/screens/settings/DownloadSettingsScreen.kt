@@ -11,31 +11,31 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.Surface
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Check
-import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.HighQuality
 import androidx.compose.material.icons.outlined.RocketLaunch
-import androidx.compose.material.icons.outlined.SignalWifi4Bar
 import androidx.compose.material.icons.outlined.Speed
-import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -63,7 +63,7 @@ fun DownloadSettingsScreen(
     var showQualityDialog by remember { mutableStateOf(false) }
     var showLocationDialog by remember { mutableStateOf(false) }
 
-    // Runtime permission launcher (needed for API < 29 to write to external storage)
+    // Runtime permission launcher
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
@@ -100,7 +100,6 @@ fun DownloadSettingsScreen(
         }
     }
 
-    // Request storage permission on first composition for pre-Q devices
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
             val writeGranted = ContextCompat.checkSelfPermission(
@@ -159,38 +158,37 @@ fun DownloadSettingsScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.background
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
-                    }
-                    Text(
-                        text = stringResource(R.string.download_settings_title),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-                    )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        TopAppBar(
+            title = {
+                Text(
+                    text = stringResource(R.string.download_settings_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onNavigateBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back))
                 }
-            }
-        }
-    ) { padding ->
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.background,
+                titleContentColor = MaterialTheme.colorScheme.onBackground
+            ),
+            windowInsets = WindowInsets(0.dp)
+        )
+
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(MaterialTheme.colorScheme.background),
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            
+
             // ==================== STORAGE ====================
             item {
                 Text(
@@ -201,7 +199,7 @@ fun DownloadSettingsScreen(
                     modifier = Modifier.padding(start = 16.dp)
                 )
             }
-            
+
             item {
                 SettingsGroup {
                     Column(Modifier.padding(16.dp)) {
@@ -209,26 +207,37 @@ fun DownloadSettingsScreen(
                             Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text(stringResource(R.string.internal_storage_label), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                            Text(stringResource(R.string.free_space_template, freeSpace), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                            Text(
+                                stringResource(R.string.internal_storage_label),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                stringResource(R.string.free_space_template, freeSpace),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
                         Spacer(Modifier.height(8.dp))
                         LinearProgressIndicator(
-                            progress = usedSpacePercentage,
-                            modifier = Modifier.fillMaxWidth().height(8.dp),
+                            progress = { usedSpacePercentage },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp)),
                             color = MaterialTheme.colorScheme.primary,
                             trackColor = MaterialTheme.colorScheme.surfaceVariant,
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            stringResource(R.string.total_space_template, totalSpace), 
-                            style = MaterialTheme.typography.labelSmall, 
+                            stringResource(R.string.total_space_template, totalSpace),
+                            style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    
+
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
-                    
+
                     SettingsItem(
                         icon = Icons.Outlined.Download,
                         title = stringResource(R.string.location_label),
@@ -257,7 +266,10 @@ fun DownloadSettingsScreen(
                         subtitle = defaultQuality.label,
                         onClick = { showQualityDialog = true }
                     )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    HorizontalDivider(
+                        Modifier.padding(start = 56.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
                     SettingsSwitchItem(
                         icon = Icons.Outlined.Wifi,
                         title = stringResource(R.string.download_over_wifi_only),
@@ -278,7 +290,7 @@ fun DownloadSettingsScreen(
                     modifier = Modifier.padding(start = 16.dp)
                 )
             }
-            
+
             item {
                 SettingsGroup {
                     SettingsSwitchItem(
@@ -288,7 +300,6 @@ fun DownloadSettingsScreen(
                         checked = parallelEnabled,
                         onCheckedChange = { coroutineScope.launch { preferences.setParallelDownloadEnabled(it) } }
                     )
-                    
                     if (parallelEnabled) {
                         HorizontalDivider(
                             modifier = Modifier.padding(start = 56.dp),
@@ -303,7 +314,7 @@ fun DownloadSettingsScreen(
                     }
                 }
             }
-            
+
             item {
                 Text(
                     stringResource(R.string.performance_optimization_note),
@@ -314,8 +325,9 @@ fun DownloadSettingsScreen(
             }
         }
     }
-    
-    // Thread Dialog
+
+    // ==================== DIALOGS ====================
+
     if (showThreadDialog) {
         AlertDialog(
             onDismissRequest = { showThreadDialog = false },
@@ -323,8 +335,12 @@ fun DownloadSettingsScreen(
             title = { Text(stringResource(R.string.concurrent_threads_title)) },
             text = {
                 Column {
-                    Text(stringResource(R.string.select_threads_count_desc), style = MaterialTheme.typography.bodyMedium)
-                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        text = stringResource(R.string.select_threads_count_desc),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(24.dp))
                     Slider(
                         value = threadCount.toFloat(),
                         onValueChange = { coroutineScope.launch { preferences.setDownloadThreads(it.toInt()) } },
@@ -333,18 +349,24 @@ fun DownloadSettingsScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     Text(
-                        stringResource(R.string.threads_count_label, threadCount), 
+                        text = stringResource(R.string.threads_count_label, threadCount), 
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.align(Alignment.CenterHorizontally),
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             },
-            confirmButton = { TextButton(onClick = { showThreadDialog = false }) { Text(stringResource(R.string.close)) } }
+            confirmButton = { 
+                TextButton(onClick = { showThreadDialog = false }) { 
+                    Text(stringResource(R.string.close)) 
+                } 
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.onSurface,
         )
     }
 
-    // Quality Dialog
     if (showQualityDialog) {
         val qualities = listOf(
             VideoQuality.Q_144p, VideoQuality.Q_240p, VideoQuality.Q_360p,
@@ -356,152 +378,324 @@ fun DownloadSettingsScreen(
             icon = { Icon(Icons.Outlined.HighQuality, null) },
             title = { Text(stringResource(R.string.quality)) },
             text = {
-                LazyColumn {
-                    items(qualities.size) { index ->
-                        val quality = qualities[index]
-                        Surface(
-                            onClick = {
-                                coroutineScope.launch {
-                                    preferences.setDefaultDownloadQuality(quality)
-                                    showQualityDialog = false
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    qualities.forEach { quality ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    coroutineScope.launch {
+                                        preferences.setDefaultDownloadQuality(quality)
+                                        showQualityDialog = false
+                                    }
                                 }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = Color.Transparent
+                                .padding(horizontal = 12.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                RadioButton(selected = defaultQuality == quality, onClick = null)
-                                Spacer(Modifier.width(8.dp))
-                                Text(quality.label)
-                            }
+                            RadioButton(
+                                selected = defaultQuality == quality,
+                                onClick = null,
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = MaterialTheme.colorScheme.primary
+                                )
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Text(
+                                text = quality.label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                         }
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showQualityDialog = false }) { Text(stringResource(R.string.cancel)) } }
+            confirmButton = { 
+                TextButton(onClick = { showQualityDialog = false }) { 
+                    Text(stringResource(R.string.cancel)) 
+                } 
+            },
+            containerColor = MaterialTheme.colorScheme.surface
         )
     }
 
-    // Location Picker Dialog
     if (showLocationDialog) {
         val downloadsPath = remember {
-            try {
-                File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Flow").absolutePath
-            } catch (_: Exception) { null }
+            try { File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Flow").absolutePath } 
+            catch (_: Exception) { null }
         }
         val moviesPath = remember {
-            try {
-                File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "Flow").absolutePath
-            } catch (_: Exception) { null }
+            try { File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "Flow").absolutePath } 
+            catch (_: Exception) { null }
         }
-        val internalPath = remember {
-            File(context.filesDir, "downloads").absolutePath
-        }
+        val internalPath = remember { File(context.filesDir, "downloads").absolutePath }
 
-        // Custom path option sentinel – null path means "use Downloads (default)"
-        data class LocationOption(val label: String, val path: String?, val description: String, val isCustom: Boolean = false)
+        val presetPaths = listOfNotNull(downloadsPath, moviesPath, internalPath)
+        val isSafCustomSelected = downloadLocation != null && downloadLocation !in presetPaths
 
-        val options = remember {
-            listOfNotNull(
-                downloadsPath?.let { LocationOption("Downloads/Flow", it, it) }, // default / recommended
-                moviesPath?.let { LocationOption("Movies/Flow", it, it) },
-                LocationOption("Internal App Storage", internalPath, internalPath),
-                LocationOption("Custom Path…", null, "Browse and pick any folder on your device", isCustom = true)
-            )
-        }
+        var showManualDialog by remember { mutableStateOf(false) }
+        var manualPathInput by remember { mutableStateOf(if (isSafCustomSelected) downloadLocation ?: "" else "") }
 
-        // Determine which preset is currently selected (if any)
-        val presetPaths = options.filter { !it.isCustom }.mapNotNull { it.path }
-        val isCustomSelected = downloadLocation != null && downloadLocation !in presetPaths
+        BasicAlertDialog(onDismissRequest = { showLocationDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(24.dp)) {
+                    
+                    // HEADER
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Outlined.FolderOpen,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(Modifier.width(16.dp))
+                        Text(
+                            stringResource(R.string.location_label),
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
 
-        AlertDialog(
-            onDismissRequest = { showLocationDialog = false },
-            icon = { Icon(Icons.Outlined.FolderOpen, null) },
-            title = { Text(stringResource(R.string.location_label)) },
-            text = {
-                Column {
+                    Spacer(Modifier.height(8.dp))
                     Text(
-                        "Choose where to save downloaded files.\nDownloads/Flow is recommended — it works on all devices without extra permissions.",
+                        stringResource(R.string.location_dialog_subtitle),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(Modifier.height(16.dp))
-                    options.forEach { option ->
+                    Spacer(Modifier.height(24.dp))
+
+                    Text(
+                        stringResource(R.string.location_preset_header).uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 12.dp, start = 8.dp)
+                    )
+
+                    // HELPER COMPOSABLE FOR ROWS
+                    @Composable
+                    fun PresetRow(label: String, path: String?, isRecommended: Boolean = false) {
+                        val isSelected = path != null && path == downloadLocation || (path == null && downloadLocation == null)
+                        
+                        val bgColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f) else Color.Transparent
+                        val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+
                         Surface(
                             onClick = {
-                                if (option.isCustom) {
-                                    folderPickerLauncher.launch(null)
-                                } else {
-                                    coroutineScope.launch {
-                                        option.path?.let { p ->
-                                            try { File(p).mkdirs() } catch (_: Exception) {}
-                                        }
-                                        preferences.setDownloadLocation(option.path)
-                                        showLocationDialog = false
-                                    }
+                                coroutineScope.launch {
+                                    path?.let { p -> try { File(p).mkdirs() } catch (_: Exception) {} }
+                                    preferences.setDownloadLocation(path)
+                                    showLocationDialog = false
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = Color.Transparent
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            color = bgColor,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
                         ) {
                             Row(
-                                Modifier.padding(12.dp),
+                                modifier = Modifier.padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                val isSelected = if (option.isCustom) {
-                                    isCustomSelected
-                                } else {
-                                    option.path != null && option.path == downloadLocation
-                                }
-                                RadioButton(selected = isSelected, onClick = null)
-                                Spacer(Modifier.width(8.dp))
+                                RadioButton(
+                                    selected = isSelected, 
+                                    onClick = null,
+                                    colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
+                                )
+                                Spacer(Modifier.width(16.dp))
+                                
                                 Column(modifier = Modifier.weight(1f)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(option.label, style = MaterialTheme.typography.bodyLarge)
-                                        if (option.path == downloadsPath) {
-                                            Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = label, 
+                                            style = MaterialTheme.typography.bodyLarge, 
+                                            fontWeight = FontWeight.Medium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false) 
+                                        )
+                                        
+                                        if (isRecommended) {
+                                            Spacer(Modifier.width(8.dp))
                                             Surface(
-                                                color = MaterialTheme.colorScheme.primaryContainer,
-                                                shape = MaterialTheme.shapes.small
+                                                color = MaterialTheme.colorScheme.primary,
+                                                shape = RoundedCornerShape(4.dp)
                                             ) {
                                                 Text(
-                                                    "Recommended",
+                                                    text = stringResource(R.string.location_badge_recommended),
                                                     style = MaterialTheme.typography.labelSmall,
                                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                                    color = MaterialTheme.colorScheme.primary
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                    maxLines = 1
                                                 )
                                             }
                                         }
                                     }
-                                    val desc = if (option.isCustom && isCustomSelected) downloadLocation ?: option.description
-                                               else option.description
-                                    Text(
-                                        desc,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                if (option.isCustom) {
-                                    Icon(
-                                        Icons.Outlined.FolderOpen,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    if (path != null) {
+                                        Spacer(Modifier.height(4.dp))
+                                        Text(
+                                            text = path,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showLocationDialog = false }) {
-                    Text(stringResource(R.string.close))
+
+                    downloadsPath?.let { PresetRow(stringResource(R.string.location_downloads_label), it, isRecommended = true) }
+                    moviesPath?.let { PresetRow(stringResource(R.string.location_movies_label), it) }
+                    PresetRow(stringResource(R.string.location_internal_app_label), internalPath)
+
+                    Spacer(Modifier.height(16.dp))
+                    Text(
+                        stringResource(R.string.location_custom_header).uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 12.dp, start = 8.dp)
+                    )
+
+                    // SAF PICKER ROW
+                    val safBg = if (isSafCustomSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f) else Color.Transparent
+                    val safBorder = if (isSafCustomSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+
+                    Surface(
+                        onClick = { folderPickerLauncher.launch(null) },
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = safBg,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, safBorder)
+                    ) {
+                        Row(
+                            Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Outlined.FolderOpen,
+                                contentDescription = null,
+                                tint = if (isSafCustomSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    stringResource(R.string.location_custom_saf_label),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = if (isSafCustomSelected) downloadLocation ?: stringResource(R.string.location_custom_saf_desc)
+                                           else stringResource(R.string.location_custom_saf_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+
+                    // MANUAL PICKER ROW
+                    Surface(
+                        onClick = { showManualDialog = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.Transparent
+                    ) {
+                        Row(
+                            Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Outlined.Edit,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    stringResource(R.string.location_custom_manual_label),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    stringResource(R.string.location_custom_manual_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(24.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { showLocationDialog = false }) {
+                            Text(stringResource(R.string.close))
+                        }
+                    }
                 }
             }
-        )
+        }
+
+        if (showManualDialog) {
+            AlertDialog(
+                onDismissRequest = { showManualDialog = false },
+                icon = { Icon(Icons.Outlined.Edit, null) },
+                title = { Text(stringResource(R.string.location_manual_dialog_title)) },
+                text = {
+                    Column {
+                        Text(
+                            stringResource(R.string.location_custom_manual_desc),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = manualPathInput,
+                            onValueChange = { manualPathInput = it },
+                            label = { Text(stringResource(R.string.location_manual_hint)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val trimmed = manualPathInput.trim()
+                            if (trimmed.isNotBlank()) {
+                                coroutineScope.launch {
+                                    try { File(trimmed).mkdirs() } catch (_: Exception) {}
+                                    preferences.setDownloadLocation(trimmed)
+                                    showManualDialog = false
+                                    showLocationDialog = false
+                                }
+                            }
+                        },
+                        enabled = manualPathInput.trim().isNotBlank()
+                    ) {
+                        Text(stringResource(R.string.location_manual_confirm))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showManualDialog = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        }
     }
 }
+

@@ -45,6 +45,8 @@ IMPROVEMENTS
 - Add upcoming badge for videos that are about to premier #216
 - Improve music player scroll and drag handling
 - Add notifications customization to video player and subscription screens #219
+- Notifications screen UI improvements
+- Download settings screen UI improvements
 
 FIXES AND STABILITY
 - Keyboard Focus and pop up
