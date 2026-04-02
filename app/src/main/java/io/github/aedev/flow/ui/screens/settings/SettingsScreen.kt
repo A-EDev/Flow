@@ -130,7 +130,7 @@ fun SettingsScreen(
 
     var showRegionDialog by remember { mutableStateOf(false) }
     var showResetBrainDialog by remember { mutableStateOf(false) }
-    // Update checker state
+    // Update checker state (github flavor only)
     var isCheckingUpdate by remember { mutableStateOf(false) }
     // null = no dialog; non-null = tag string of the available update
     var updateAvailableTag by remember { mutableStateOf<String?>(null) }
@@ -151,7 +151,7 @@ fun SettingsScreen(
     BackHandler(enabled = isSearchActive) { isSearchActive = false; searchQuery = "" }
 
     val onCheckForUpdatesClick: () -> Unit = {
-        if (!isCheckingUpdate) {
+        if (BuildConfig.UPDATER_ENABLED && !isCheckingUpdate) {
             isCheckingUpdate = true
             coroutineScope.launch(Dispatchers.IO) {
                 try {
@@ -240,9 +240,10 @@ fun SettingsScreen(
         SettingSearchEntry(Icons.Outlined.FileDownload, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_import_data), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_import_data_subtitle), secDataManagement, onNavigateToImport),
         SettingSearchEntry(Icons.Outlined.Psychology, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.export_engine_data), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.export_engine_data_subtitle), secDataManagement) { exportBrainLauncher.launch("flow_engine_${System.currentTimeMillis()}.json") },
         SettingSearchEntry(Icons.Outlined.Info, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_about_flow), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_about_flow_subtitle), secAbout, onNavigateToAbout),
-        SettingSearchEntry(Icons.Outlined.Update, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.check_for_updates), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.check_for_updates_subtitle), secAbout, onCheckForUpdatesClick),
         SettingSearchEntry(Icons.Outlined.Favorite, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_support), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_support_subtitle), secAbout, onNavigateToDonations)
-    )
+    ) + if (BuildConfig.UPDATER_ENABLED) listOf(
+        SettingSearchEntry(Icons.Outlined.Update, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.check_for_updates), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.check_for_updates_subtitle), secAbout, onCheckForUpdatesClick)
+    ) else emptyList()
     val filteredEntries = if (searchQuery.isBlank()) emptyList() else allSettingsEntries.filter { entry ->
         entry.title.contains(searchQuery, ignoreCase = true) ||
         entry.subtitle.contains(searchQuery, ignoreCase = true) ||
@@ -691,16 +692,18 @@ item {
                         onClick = onNavigateToAbout
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    SettingsItem(
-                        icon = if (isCheckingUpdate) Icons.Outlined.Sync else Icons.Outlined.Update,
-                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.check_for_updates),
-                        subtitle = if (isCheckingUpdate)
-                            androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.checking_for_updates)
-                        else
-                            androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.check_for_updates_subtitle),
-                        onClick = onCheckForUpdatesClick
-                    )
-                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    if (BuildConfig.UPDATER_ENABLED) {
+                        SettingsItem(
+                            icon = if (isCheckingUpdate) Icons.Outlined.Sync else Icons.Outlined.Update,
+                            title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.check_for_updates),
+                            subtitle = if (isCheckingUpdate)
+                                androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.checking_for_updates)
+                            else
+                                androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.check_for_updates_subtitle),
+                            onClick = onCheckForUpdatesClick
+                        )
+                        HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    }
                     SettingsItem(
                         icon = Icons.Outlined.Favorite,
                         title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_support),
@@ -743,34 +746,36 @@ item {
         )
     }
 
-    // Update Available Dialog
-    val tag = updateAvailableTag
-    if (tag != null) {
-        AlertDialog(
-            onDismissRequest = { updateAvailableTag = null },
-            icon = { Icon(Icons.Outlined.Update, null, tint = MaterialTheme.colorScheme.primary) },
-            title = { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.new_update_available), fontWeight = FontWeight.Bold) },
-            text = {
-                Text(
-                    androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.update_available_template, tag),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            },
-            confirmButton = {
-                Button(onClick = {
-                    updateAvailableTag = null
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/A-EDev/Flow/releases/latest"))
-                    context.startActivity(intent)
-                }) {
-                    Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.download))
+    // Update Available Dialog (github flavor only)
+    if (BuildConfig.UPDATER_ENABLED) {
+        val tag = updateAvailableTag
+        if (tag != null) {
+            AlertDialog(
+                onDismissRequest = { updateAvailableTag = null },
+                icon = { Icon(Icons.Outlined.Update, null, tint = MaterialTheme.colorScheme.primary) },
+                title = { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.new_update_available), fontWeight = FontWeight.Bold) },
+                text = {
+                    Text(
+                        androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.update_available_template, tag),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                },
+                confirmButton = {
+                    Button(onClick = {
+                        updateAvailableTag = null
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/A-EDev/Flow/releases/latest"))
+                        context.startActivity(intent)
+                    }) {
+                        Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.download))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { updateAvailableTag = null }) {
+                        Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cancel))
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { updateAvailableTag = null }) {
-                    Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cancel))
-                }
-            }
-        )
+            )
+        }
     }
 
     // Region Selection Dialog

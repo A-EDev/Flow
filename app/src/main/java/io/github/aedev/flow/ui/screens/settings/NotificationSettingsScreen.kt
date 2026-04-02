@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import kotlinx.coroutines.launch
@@ -97,17 +98,19 @@ fun NotificationSettingsScreen(
                         checked = notifReminders,
                         onCheckedChange = { coroutineScope.launch { prefs.setNotifRemindersEnabled(it) } }
                     )
-                    HorizontalDivider(
-                        Modifier.padding(start = 56.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                    )
-                    SettingsSwitchItem(
-                        icon = Icons.Outlined.Update,
-                        title = stringResource(R.string.notif_type_updates),
-                        subtitle = stringResource(R.string.notif_type_updates_subtitle),
-                        checked = notifUpdates,
-                        onCheckedChange = { coroutineScope.launch { prefs.setNotifUpdatesEnabled(it) } }
-                    )
+                    if (BuildConfig.UPDATER_ENABLED) {
+                        HorizontalDivider(
+                            Modifier.padding(start = 56.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
+                        SettingsSwitchItem(
+                            icon = Icons.Outlined.Update,
+                            title = stringResource(R.string.notif_type_updates),
+                            subtitle = stringResource(R.string.notif_type_updates_subtitle),
+                            checked = notifUpdates,
+                            onCheckedChange = { coroutineScope.launch { prefs.setNotifUpdatesEnabled(it) } }
+                        )
+                    }
                     HorizontalDivider(
                         Modifier.padding(start = 56.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)

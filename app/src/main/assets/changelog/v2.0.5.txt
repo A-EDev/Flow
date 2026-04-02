@@ -1,5 +1,5 @@
 FLOW CHANGE LOG
-VERSION: 2.0.1
+VERSION: 2.0.5
 DATE: 2026-04-2
 
 FEATURES
@@ -61,3 +61,7 @@ FIXES AND STABILITY
 - Fix Download settings to properly use chosen download path preferences #211
 - Fix shorts metadata and download sizes
 - Fix crash on radio button click in music search screen
+
+FLAVORS
+- Github flavor 
+- FOSS flavor (for IzzyOnDroid)

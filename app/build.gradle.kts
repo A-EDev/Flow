@@ -16,8 +16,8 @@ android {
         applicationId = "io.github.aedev.flow"
         minSdk = 21
         targetSdk = 34
-        versionCode = 13
-        versionName = "2.0.0"
+        versionCode = 14
+        versionName = "2.0.5"
 
         testInstrumentationRunner = "io.github.aedev.flow.HiltTestRunner"
         vectorDrawables {
@@ -37,6 +37,19 @@ android {
             includeInApk = false
             // Disables dependency metadata when building Android App Bundles (for Google Play)
             includeInBundle = false
+        }
+    }
+
+    flavorDimensions += "version"
+    productFlavors {
+        create("github") {
+            dimension = "version"
+            isDefault = true
+            buildConfigField("Boolean", "UPDATER_ENABLED", "true")
+        }
+        create("foss") {
+            dimension = "version"
+            buildConfigField("Boolean", "UPDATER_ENABLED", "false")
         }
     }
 
@@ -229,7 +242,7 @@ dependencies {
     implementation(libs.rxandroid)
 
     implementation(libs.androidx.work.runtime.ktx)
-    implementation(libs.apkupdater)
+    "githubImplementation"(libs.apkupdater)
     implementation(libs.androidx.multidex)
 
     implementation(libs.brotli) 

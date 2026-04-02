@@ -49,7 +49,7 @@ jobs:
       # --no-daemon  — avoids daemon startup overhead inside the ephemeral runner.
       - name: Build all APKs
         run: >
-          ./gradlew assembleDebug assembleRelease assembleNightly
+          ./gradlew assembleGithubDebug assembleGithubRelease assembleGithubNightly assembleFossRelease
           --parallel --build-cache --no-daemon --stacktrace
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
@@ -60,21 +60,28 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: flow-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/github/debug/app-github-debug.apk
           retention-days: 7
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: flow-release-apk
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/github/release/app-github-release.apk
           retention-days: 14
 
       - name: Upload Nightly APK
         uses: actions/upload-artifact@v4
         with:
           name: flow-nightly-apk
-          path: app/build/outputs/apk/nightly/app-nightly.apk
+          path: app/build/outputs/apk/github/nightly/app-github-nightly.apk
+          retention-days: 14
+
+      - name: Upload FOSS Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: flow-foss-release-apk
+          path: app/build/outputs/apk/foss/release/app-foss-release.apk
           retention-days: 14
 
   release:
@@ -100,10 +107,17 @@ jobs:
           name: flow-nightly-apk
           path: dist/
 
+      - name: Download FOSS Release APK
+        uses: actions/download-artifact@v4
+        with:
+          name: flow-foss-release-apk
+          path: dist/
+
       - name: Rename APKs for release
         run: |
-          mv dist/app-release.apk dist/flow.apk
-          mv dist/app-nightly.apk dist/flow-nightly.apk
+          mv dist/app-github-release.apk dist/flow.apk
+          mv dist/app-github-nightly.apk dist/flow-nightly.apk
+          mv dist/app-foss-release.apk dist/flow-foss.apk
 
       - name: Get version from tag
         id: get_version
@@ -189,6 +203,7 @@ jobs:
           files: |
             dist/flow.apk
             dist/flow-nightly.apk
+            dist/flow-foss.apk
           draft: false
           prerelease: false
         env:

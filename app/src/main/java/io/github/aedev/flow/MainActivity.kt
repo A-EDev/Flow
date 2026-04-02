@@ -21,7 +21,7 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.FlowApp
 import io.github.aedev.flow.ui.theme.FlowTheme
 import io.github.aedev.flow.ui.theme.ThemeMode
-import com.supersuman.apkupdater.ApkUpdater
+import io.github.aedev.flow.updater.ApkUpdateHelper
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
@@ -83,8 +83,8 @@ class MainActivity : ComponentActivity() {
         handleIntent(intent)
 
         
-        // Check for updates (only in release builds or if forced)
-        if (!BuildConfig.DEBUG) {
+        // Check for updates (only in release builds, only in github flavor)
+        if (!BuildConfig.DEBUG && BuildConfig.UPDATER_ENABLED) {
             checkForUpdates(dataManager)
         }
 
@@ -97,9 +97,9 @@ class MainActivity : ComponentActivity() {
             val context = LocalContext.current
             var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
             
-            // Check for updates ONCE on launch — skip debug builds, enforce 24h cooldown
+            // Check for updates ONCE on launch — skip debug/foss builds, enforce 24h cooldown
             LaunchedEffect(Unit) {
-                if (BuildConfig.DEBUG) return@LaunchedEffect
+                if (BuildConfig.DEBUG || !BuildConfig.UPDATER_ENABLED) return@LaunchedEffect
                 val lastCheck = dataManager.lastUpdateCheck.first()
                 val currentTime = System.currentTimeMillis()
                 if (currentTime - lastCheck < 24 * 60 * 60 * 1000L) return@LaunchedEffect
@@ -124,8 +124,8 @@ class MainActivity : ComponentActivity() {
             }
 
             FlowTheme(themeMode = themeMode) {
-                // Show Dialog Overlay if update exists
-                if (updateInfo != null) {
+                // Show Dialog Overlay if update exists (github flavor only)
+                if (BuildConfig.UPDATER_ENABLED && updateInfo != null) {
                     UpdateDialog(
                         updateInfo = updateInfo!!,
                         onDismiss = { updateInfo = null },
@@ -136,11 +136,13 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
-                // Handle update from notification
-                val pendingUpdate by this@MainActivity.pendingUpdateInfo
-                LaunchedEffect(pendingUpdate) {
-                    if (pendingUpdate != null) {
-                        updateInfo = pendingUpdate
+                // Handle update from notification (github flavor only)
+                if (BuildConfig.UPDATER_ENABLED) {
+                    val pendingUpdate by this@MainActivity.pendingUpdateInfo
+                    LaunchedEffect(pendingUpdate) {
+                        if (pendingUpdate != null) {
+                            updateInfo = pendingUpdate
+                        }
                     }
                 }
 
@@ -361,12 +363,11 @@ class MainActivity : ComponentActivity() {
                         
                         if (isNewerVersion(cleanLatest, cleanCurrent)) {
                             withContext(Dispatchers.Main) {
-                                val updater = ApkUpdater(this@MainActivity, "https://github.com/A-EDev/Flow/releases/latest")
                                 AlertDialog.Builder(this@MainActivity)
                                     .setTitle("Update Available")
                                     .setMessage("A new version of Flow is available ($latestTag). Download the latest APK?")
                                     .setPositiveButton("Download") { _, _ ->
-                                        updater.requestDownload()
+                                        ApkUpdateHelper.requestDownload(this@MainActivity, "https://github.com/A-EDev/Flow/releases/latest")
                                     }
                                     .setNegativeButton("Later", null)
                                     .show()
