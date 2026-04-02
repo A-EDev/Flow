@@ -129,71 +129,73 @@ jobs:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
           name: Flow ${{ steps.get_version.outputs.VERSION }}
           body: |
-            >### IMPORTANT: Package Name Migration
-            >The application package name has been updated from `com.flow.youtube` to `io.github.aedev.flow`. This is a significant structural change. Please **Backup your data** before uninstalling the old version and download the new one
+            >### IMPORTANT: BUILD FLAVORS
+            >The app now offers 2 build flavors: 
+            > - Default Github flavor with apk update checks when new release is available.
+            > - FOSS flavor without update checks for IzzyOnDroid and F-Droid submission.
             
             ### NEW FEATURES
-            - Content sorting in channel screen
-            - Search filters
-            - Clear video from feed when marked by "Not Interested", "Don't show channel", or "Mark as Watched"
-            - Continue watching mini-player with disable option in the Player Settings
-            - Add a mark as "not interested" and "want more like this" to shorts
-            - Audio Boost to 200% for supported codecs
-            - Auto video loop toggle
-            - Auto Theme based on system active Theme
-            - Subscription Notification Filtering
-            - Add a new StreamProxyServer for better Url handling during casting - This will avoid IP-locks and 403 errors
-            
+            - New Audio focus toggle to continue playing videos while on a call #175 #177
+            - Add new copy video link at time stamps button #178
+            - Add new direct video link copy button #178
+            - Pinch-to-zoom gesture #184
+            - Swipe up to enter fullscreen in the video player #183
+            - Add new disable home feed toggle #195
+            - Add new related video card style toggle #191
+            - Add new voice search for videos #203
+            - Add new toggle to enable search icon from bottom nav #201
+            - Add new custom app icon picker #169
+            - Add new country search for trending country settings picker #208
+            - Add new save public playlist to library for music and videos
+            - Add new manual sponsor skip button #215
+            - Add voice stabilizer toggle to player settings menu #217
+            - Add new category screen toggle #218
+
             ### IMPROVEMENTS
-            - Improved video player action buttons design and sizes.
-            - Remove swipe to seek guesture and redesigned double tap seek
-            - Improved edge-to-edge display
-            - Redesigned Search bars
-            - Improved video thumbnail quality
-            - Channel screen Redesign
-            - Removed rewind video on privious click feature
-            - Removed redudant 3-dot menu buttons in the music quick actions menu
-            - More responsive video player dragging
-            - Sequantial content loading for channels
-            - Shorts screen UI and anti-repetition
-            - Improve player button clicks
-            - Search Keyboard & Focus Improvements
-            - Improve RSS service for Subscriptions
-            - Immersive Music Player with dynamic color extraction from album art
-            - Adaptive Grid layout for Search Screen
-            
-            ### RECOMMENDATION ENGINE
-            - Fixed cross-topic contamination
-            - Removed dangerous lemma mappings
-            - Smoother scoring
-            - Consolidated 19 inline scoring factors into grouped helper functions for cleaner ranking logic
-            - Description keywords now skip sponsor copy, social media links, hashtags, and URLs before extraction
-            - Expanded blocked topic filtering 
-            - New bootstrapFromWatchHistory()
-            - Shorts from subscribed channels get 3x subscription boost
-            - All feed paths (trending, Shorts shelf, home feed) now pass through the ranking engine
-            - Instant feed invalidation
-            - New Shorts discovery engine
-            - Channel Topic extraction
-            - Anti-Recommendation
-            - Watch Velocity
-            - Engagement Momentum
-            - Subscription Freshness
+            - FlowNeuroEngine modularization
+            - Smarter Discovery Query Generation
+            - Improved content tokenization - Domain based
+            - Tuned engine learning rates
+            - Engine and content stability
+            - Add new learning from tags contexts
+            - Improved filtering on marked content #173
+            - Hide related video when marked in the video player screen #172
+            - Add shorts deduplication in the subs screen shorts shelf #138 #162
+            - Optimized shorts loading speeds
+            - Video quick actions menu
+            - Remove warmup connections and increase subs check to 6 hrs instead of 30 min #185
+            - Menu options redesign
+            - Add video card press and hold to open quick actions
+            - Increase video title to 2 lines #197
+            - Move SponsorBlock contribution settings to player settings screen #193
+            - Add load more feature for comments #204
+            - Add channel screen position caching #196
+            - Search screen filters and layout improvements #206
+            - Add 144p and 240p to default download settings #209
+            - Update custom download path selection to use SAF folder picker #210
+            - Add video tags to description
+            - Add upcoming badge for videos that are about to premier #216
+            - Improve music player scroll and drag handling
+            - Add notifications customization to video player and subscription screens #219
+            - Notifications screen UI improvements
+            - Download settings screen UI improvements
+            - Improve video player error message display
 
             ### FIXES AND STABILITY
-            - Fix Unresponsive player when clicking
-            - Fix Default Auto Quality stuck at highest quality and improved thresholds
-            - Fix previous video rewind issue in queue
-            - Fix music playback issues from Music History & Likes
-            - Fix video playback issue on Fullscreen expansion
-            - Fix Subs tab Shorts sort order — old Shorts no longer appear at top of subscription feed
-            - Fix Non-Shorts videos under 2 minutes opening in shorts player
-            - Fix Sheets opening in full screen
-            - Fix Music Player "Up Next" Scrolling & End Indicator
-            - Fix Video Upload Time incorrectly showing offset due to timezone parsing
-            - Fix Notifications are faulty and videos lag at the beginning #156
-            - Fix [BUG] screencasting not working #161
-            - Fix Keyboard pop up & Focus in Search Screen
+            - Keyboard Focus and pop up
+            - Fix shorts quality preferences #170
+            - Fix missing audio tracks #171
+            - Fix orientation when re-entering video player #179
+            - Fix continue watching mini-player #167
+            - Fix seek to preview box shape #179
+            - Fix video timestamps #192
+            - Fix video delete issues #95
+            - Fix share button issues #176
+            - Fix video and gestures for RTL #187 #188
+            - Fix comment sheet collapsing when scrolling #189
+            - Fix Download settings to properly use chosen download path preferences #211
+            - Fix shorts metadata and download sizes
+            - Fix crash on radio button click in music search screen            
             
             ### 📋 System Requirements
             - Android 5.0 (API 21) or higher

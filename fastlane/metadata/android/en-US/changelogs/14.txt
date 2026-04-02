@@ -1,0 +1,13 @@
+#New
+- Audio focus & sponsor skip toggles
+- Pinch-to-zoom & swipe-up fullscreen gestures
+- Voice search & custom app icon picker
+- Home feed & related video UI controls
+- Public playlist saving & category screen toggle
+
+#Improved & Fixed
+- FlowNeuroEngine modularization & discovery tuning
+- Shorts deduplication & load speed optimization
+- Quick actions menu & expanded comment loading
+- Improved SAF download paths & quality options
+- Fixed RTL layout, audio tracks, orientation, and crash bugs

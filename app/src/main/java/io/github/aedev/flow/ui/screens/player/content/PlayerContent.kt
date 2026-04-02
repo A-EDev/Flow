@@ -5,10 +5,8 @@ import android.media.AudioManager
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ErrorOutline
-import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -140,7 +138,7 @@ fun PlayerContent(
                 .padding(top = 0.dp)
         )
 
-        // ── Error overlay ───────────────────────────────────────────────────
+        // ── Error overlay — icon + title only; details/actions live in the body panel ──
         if (uiState.error != null) {
             Box(
                 modifier = Modifier
@@ -168,32 +166,6 @@ fun PlayerContent(
                         fontWeight = FontWeight.SemiBold,
                         textAlign = TextAlign.Center
                     )
-                    if (!uiState.errorHint.isNullOrBlank()) {
-                        Text(
-                            text = uiState.errorHint,
-                            color = Color.White.copy(alpha = 0.70f),
-                            fontSize = 13.sp,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 18.sp
-                        )
-                    }
-                    Button(
-                        onClick = { viewModel.retryLoadVideo() },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFFF0000),
-                            contentColor  = Color.White
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.padding(top = 4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Refresh,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text("Retry", fontWeight = FontWeight.SemiBold)
-                    }
                 }
             }
         }

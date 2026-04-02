@@ -47,6 +47,7 @@ IMPROVEMENTS
 - Add notifications customization to video player and subscription screens #219
 - Notifications screen UI improvements
 - Download settings screen UI improvements
+- Improve video player error message display
 
 FIXES AND STABILITY
 - Keyboard Focus and pop up

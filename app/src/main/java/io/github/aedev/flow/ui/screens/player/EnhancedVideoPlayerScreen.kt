@@ -58,26 +58,11 @@ fun EnhancedVideoPlayerScreen(
     val preferences = remember { PlayerPreferences(context) }
     val showRelatedVideos by preferences.showRelatedVideos.collectAsState(initial = true)
     val relatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.FULL_WIDTH)
-
-    // Error Snackbar — supplementary to the in-video error overlay.
-    LaunchedEffect(uiState.error) {
-        uiState.error?.let { errorMsg ->
-            val fullMessage = if (!uiState.errorHint.isNullOrBlank()) {
-                "$errorMsg\n\n${uiState.errorHint}"
-            } else errorMsg
-            snackbarHostState.showSnackbar(
-                message = fullMessage,
-                withDismissAction = true,
-                duration = SnackbarDuration.Long
-            )
-        }
-    }
-
     Box(
         modifier = Modifier
-            .fillMaxSize()
-            .alpha(alpha)
-            .background(MaterialTheme.colorScheme.background)
+        .fillMaxSize()
+        .alpha(alpha)
+        .background(MaterialTheme.colorScheme.background)
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             val isTablet = config.smallestScreenWidthDp >= 600
