@@ -32,6 +32,7 @@ fun UpNextTrackItem(
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit
 ) {
+    val accentColor = LocalPlayerAccentColor.current ?: MaterialTheme.colorScheme.primary
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -56,7 +57,7 @@ fun UpNextTrackItem(
             Text(
                 text = track.title,
                 style = MaterialTheme.typography.bodyLarge,
-                color = if (isCurrentlyPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                color = if (isCurrentlyPlaying) accentColor else MaterialTheme.colorScheme.onSurface,
                 fontWeight = if (isCurrentlyPlaying) FontWeight.Bold else FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

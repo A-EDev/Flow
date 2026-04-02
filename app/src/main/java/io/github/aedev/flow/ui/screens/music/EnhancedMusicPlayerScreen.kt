@@ -14,10 +14,16 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.*
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -82,6 +88,7 @@ fun EnhancedMusicPlayerScreen(
     
     val isVideoMode = false 
     var sheetColor by remember { mutableStateOf<Color?>(null) }
+    var sheetAccentColor by remember { mutableStateOf<Color?>(null) }
     
     val thumbnailUrl = uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl
     LaunchedEffect(thumbnailUrl) {
@@ -95,14 +102,13 @@ fun EnhancedMusicPlayerScreen(
             if (result is SuccessResult) {
                 val bitmap = result.drawable.toBitmap()
                 val palette = Palette.from(bitmap).generate()
-                val swatch = palette.darkMutedSwatch ?: palette.darkVibrantSwatch ?: palette.dominantSwatch
-                if (swatch != null) {
-                    sheetColor = Color(swatch.rgb)
-                } else {
-                    sheetColor = null
-                }
+                val bgSwatch = palette.darkMutedSwatch ?: palette.darkVibrantSwatch ?: palette.dominantSwatch
+                val accentSwatch = palette.vibrantSwatch ?: palette.lightVibrantSwatch ?: palette.lightMutedSwatch
+                sheetColor = bgSwatch?.let { Color(it.rgb) }
+                sheetAccentColor = accentSwatch?.let { Color(it.rgb) }
             } else {
                 sheetColor = null
+                sheetAccentColor = null
             }
         }
     }
@@ -112,6 +118,11 @@ fun EnhancedMusicPlayerScreen(
         targetValue = sheetColor ?: defaultSheetColor,
         animationSpec = tween(1000),
         label = "sheetColor"
+    )
+    val animatedAccentColor by animateColorAsState(
+        targetValue = sheetAccentColor ?: MaterialTheme.colorScheme.primary,
+        animationSpec = tween(1000),
+        label = "accentColor"
     )
     var showMoreOptions by remember { mutableStateOf(false) }
     var showAudioSettings by remember { mutableStateOf(false) }
@@ -263,6 +274,27 @@ fun EnhancedMusicPlayerScreen(
         
         val miniHeaderAlpha = ((queueFraction - 0.5f) / 0.5f).coerceIn(0f, 1f)
         val miniHeaderTranslation = with(density) { 10.dp.toPx() * (1f - miniHeaderAlpha) }
+
+        // ── Sheet animation helper ──────────────────────────────────────────
+        fun animateQueueSheet(target: Float) {
+            scope.launch {
+                animate(
+                    initialValue = queueOffsetY,
+                    targetValue = target,
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                ) { value, _ ->
+                    queueOffsetY = value
+                }
+            }
+        }
+
+        // ── Intercept system back when sheet is expanded ────────────────────
+        BackHandler(enabled = queueFraction > 0.5f) {
+            animateQueueSheet(safeCollapsedY)
+        }
 
         AnimatedContent(
             targetState = uiState.currentTrack?.highResThumbnailUrl ?: track.highResThumbnailUrl,
@@ -509,25 +541,48 @@ fun EnhancedMusicPlayerScreen(
             }
         }
 
-        fun animateQueueSheet(target: Float) {
-            scope.launch {
-                animate(
-                    initialValue = queueOffsetY,
-                    targetValue = target,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ) { value, _ ->
-                    queueOffsetY = value
-                }
-            }
-        }
-
         val queueCornerRadius = 24.dp * (1f - queueFraction)
 
         val queueDraggableState = rememberDraggableState { delta ->
             queueOffsetY = (queueOffsetY + delta).coerceIn(queueExpandedY, safeCollapsedY)
+        }
+
+        // ── NestedScrollConnection: isolates sheet events from MusicPlayerBottomSheet ──
+        val sheetNestedScrollConnection = remember(queueExpandedY, safeCollapsedY) {
+            object : NestedScrollConnection {
+                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset =
+                    Offset.Zero
+
+                override fun onPostScroll(
+                    consumed: Offset,
+                    available: Offset,
+                    source: NestedScrollSource
+                ): Offset {
+                    if (source == NestedScrollSource.UserInput && available.y > 0f && queueOffsetY < safeCollapsedY) {
+                        val toMove = minOf(available.y, safeCollapsedY - queueOffsetY)
+                        queueOffsetY = (queueOffsetY + toMove).coerceIn(queueExpandedY, safeCollapsedY)
+                    }
+                    return available
+                }
+
+                override suspend fun onPreFling(available: Velocity): Velocity = Velocity.Zero
+
+                override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                    if (queueOffsetY > queueExpandedY && queueOffsetY < safeCollapsedY) {
+                        val mid = (safeCollapsedY + queueExpandedY) / 2f
+                        val target = if (queueOffsetY < mid) queueExpandedY else safeCollapsedY
+                        animate(
+                            initialValue = queueOffsetY,
+                            targetValue = target,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            )
+                        ) { value, _ -> queueOffsetY = value }
+                    }
+                    return available
+                }
+            }
         }
 
         Box(
@@ -540,6 +595,7 @@ fun EnhancedMusicPlayerScreen(
                     shape = RoundedCornerShape(topStart = queueCornerRadius, topEnd = queueCornerRadius),
                     clip = false
                 )
+                .nestedScroll(sheetNestedScrollConnection)
                 .draggable(
                     orientation = Orientation.Vertical,
                     state = queueDraggableState,
@@ -547,7 +603,7 @@ fun EnhancedMusicPlayerScreen(
                         val midPoint = (safeCollapsedY + queueExpandedY) / 2
                         val target = when {
                             velocity < -800f -> queueExpandedY
-                            velocity > 800f -> safeCollapsedY
+                            velocity > 800f  -> safeCollapsedY
                             clampedQueueOffset < midPoint -> queueExpandedY
                             else -> safeCollapsedY
                         }
@@ -557,6 +613,7 @@ fun EnhancedMusicPlayerScreen(
         ) {
             UnifiedPlayerSheet(
                 sheetBackgroundColor = animatedSheetColor,
+                accentColor = animatedAccentColor,
                 currentTab = currentTab,
                 onTabSelect = { currentTab = it },
                 isExpanded = queueFraction > 0.5f,

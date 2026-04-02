@@ -52,6 +52,8 @@ fun UpNextContent(
     onFilterSelect: (String) -> Unit,
     onMoveTrack: (Int, Int) -> Unit
 ) {
+    val accentColor = LocalPlayerAccentColor.current ?: MaterialTheme.colorScheme.primary
+    val onAccentColor = LocalPlayerOnAccentColor.current ?: MaterialTheme.colorScheme.onPrimary
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -118,8 +120,8 @@ fun UpNextContent(
                 checked = autoplayEnabled,
                 onCheckedChange = { onToggleAutoplay() },
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
-                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                    checkedThumbColor = onAccentColor,
+                    checkedTrackColor = accentColor,
                     uncheckedThumbColor = MaterialTheme.colorScheme.outline,
                     uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
@@ -149,8 +151,8 @@ fun UpNextContent(
                     colors = FilterChipDefaults.filterChipColors(
                         containerColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
                         labelColor = MaterialTheme.colorScheme.onSurface,
-                        selectedContainerColor = MaterialTheme.colorScheme.onSurface,
-                        selectedLabelColor = MaterialTheme.colorScheme.surface
+                        selectedContainerColor = accentColor,
+                        selectedLabelColor = onAccentColor
                     ),
                     border = null,
                     shape = RoundedCornerShape(8.dp)
@@ -219,9 +221,10 @@ fun LyricsContent(
 ) {
     val listState = rememberLazyListState()
     val textColor = MaterialTheme.colorScheme.onSurface
-    val primaryColor = MaterialTheme.colorScheme.primary
+    val accentColor = LocalPlayerAccentColor.current ?: MaterialTheme.colorScheme.primary
+    val primaryColor = accentColor
     val dimmedTextColor = textColor.copy(alpha = 0.4f)
-    val loaderColor = MaterialTheme.colorScheme.primary
+    val loaderColor = accentColor
 
     var activePosition by remember { mutableLongStateOf(currentPosition) }
 
@@ -395,6 +398,7 @@ fun RelatedContent(
     onTrackClick: (MusicTrack) -> Unit
 ) {
     val dimmedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+    val accentColor = LocalPlayerAccentColor.current ?: MaterialTheme.colorScheme.primary
     
     Column(
         modifier = Modifier
@@ -404,7 +408,7 @@ fun RelatedContent(
     ) {
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                CircularProgressIndicator(color = accentColor)
             }
         } else if (relatedTracks.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

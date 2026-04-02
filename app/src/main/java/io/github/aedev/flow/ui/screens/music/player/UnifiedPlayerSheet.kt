@@ -29,9 +29,14 @@ enum class PlayerTab {
     UP_NEXT, LYRICS, RELATED
 }
 
+/** Provided by [UnifiedPlayerSheet] so nested content can theme itself. */
+val LocalPlayerAccentColor = compositionLocalOf<Color?> { null }
+val LocalPlayerOnAccentColor = compositionLocalOf<Color?> { null }
+
 @Composable
 fun UnifiedPlayerSheet(
     sheetBackgroundColor: Color = MaterialTheme.colorScheme.surface,
+    accentColor: Color = MaterialTheme.colorScheme.primary,
     currentTab: PlayerTab,
     onTabSelect: (PlayerTab) -> Unit,
     isExpanded: Boolean,
@@ -59,6 +64,11 @@ fun UnifiedPlayerSheet(
     onRelatedTrackClick: (MusicTrack) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val onAccentColor = remember(accentColor) {
+        val lum = 0.299f * accentColor.red + 0.587f * accentColor.green + 0.114f * accentColor.blue
+        if (lum < 0.55f) Color.White else Color(0xFF1A1A1A)
+    }
+
     Surface(
         modifier = modifier.fillMaxSize(),
         color = sheetBackgroundColor,
@@ -66,6 +76,10 @@ fun UnifiedPlayerSheet(
         shadowElevation = 24.dp,
         tonalElevation = 6.dp
     ) {
+        CompositionLocalProvider(
+            LocalPlayerAccentColor provides accentColor,
+            LocalPlayerOnAccentColor provides onAccentColor
+        ) {
         Box(
             modifier = Modifier.fillMaxSize()
         ) {
@@ -76,7 +90,7 @@ fun UnifiedPlayerSheet(
                         .width(36.dp)
                         .height(4.dp)
                         .background(
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                            color = accentColor.copy(alpha = 0.55f),
                             shape = CircleShape
                         )
                         .align(Alignment.CenterHorizontally)
@@ -112,7 +126,7 @@ fun UnifiedPlayerSheet(
                                     .padding(4.dp)
                                     .clip(CircleShape)
                                     .background(
-                                        if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                                        if (isSelected) accentColor else Color.Transparent
                                     )
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
@@ -129,7 +143,7 @@ fun UnifiedPlayerSheet(
                                     text = title,
                                     style = MaterialTheme.typography.labelLarge,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (isSelected) onAccentColor else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                                 )
                             }
                         }
@@ -138,7 +152,7 @@ fun UnifiedPlayerSheet(
                 
                 HorizontalDivider(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                    color = accentColor.copy(alpha = 0.12f)
                 )
                 
                 // Content
@@ -175,5 +189,6 @@ fun UnifiedPlayerSheet(
                 }
             }
         }
+        } 
     }
 }

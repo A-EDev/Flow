@@ -42,6 +42,7 @@ IMPROVEMENTS
 - Update custom download path selection to use SAF folder picker #210
 - Add video tags to description
 - Add upcoming badge for videos that are about to premier #216
+- Improve music player scroll and drag handling
 
 FIXES AND STABILITY
 - Keyboard Focus and pop up
