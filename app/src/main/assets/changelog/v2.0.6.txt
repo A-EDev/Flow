@@ -9,6 +9,7 @@ FEATURES
 - subscriptions worker check customizations
 - New playback speed options up to 4x #235
 - New gesture: Swipe down to exit full screen mode
+- New playback speed preset customizations #236
 
 FIXES AND STABILITY
 - Fix video player playback speed issue #232

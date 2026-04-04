@@ -654,4 +654,12 @@
     <string name="cd_liked">Понравилось</string>
     <string name="player_settings_remember_speed">Запоминать скорость воспроизведения</string>
     <string name="player_settings_remember_speed_subtitle">Применять последнюю использованную скорость к видео</string>
+    <string name="player_settings_custom_speeds_title">Пользовательские скорости воспроизведения</string>
+    <string name="player_settings_custom_speeds_subtitle">Задайте свои пресеты скоростей для плеера</string>
+    <string name="player_settings_custom_speeds_header">Пресеты скоростей</string>
+    <string name="player_settings_custom_speeds_add_hint">например 1.35</string>
+    <string name="player_settings_custom_speeds_input_error">Введите скорость от 0.1 до 10.0</string>
+    <string name="player_settings_custom_speeds_empty">Нет добавленных пресетов. Добавьте ниже.</string>
+    <string name="player_settings_custom_speeds_add">Добавить пресет</string>
+    <string name="player_settings_custom_speeds_remove">Удалить</string>
 </resources>

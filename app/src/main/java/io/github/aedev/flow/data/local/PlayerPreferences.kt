@@ -131,6 +131,10 @@ class PlayerPreferences(private val context: Context) {
 
         // Subscription check interval
         val SUBSCRIPTION_CHECK_INTERVAL_MINUTES = intPreferencesKey("subscription_check_interval_minutes")
+
+        // Custom playback speeds
+        val CUSTOM_SPEEDS_ENABLED = booleanPreferencesKey("custom_speeds_enabled")
+        val CUSTOM_SPEED_PRESETS = stringPreferencesKey("custom_speed_presets")
     }
     
     // Grid item size preference
@@ -731,6 +735,29 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setSubscriptionCheckIntervalMinutes(minutes: Int) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SUBSCRIPTION_CHECK_INTERVAL_MINUTES] = minutes
+        }
+    }
+
+    // Custom playback speeds
+    val customSpeedsEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.CUSTOM_SPEEDS_ENABLED] ?: false
+        }
+
+    suspend fun setCustomSpeedsEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.CUSTOM_SPEEDS_ENABLED] = enabled
+        }
+    }
+
+    val customSpeedPresets: Flow<String> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.CUSTOM_SPEED_PRESETS] ?: ""
+        }
+
+    suspend fun setCustomSpeedPresets(presets: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.CUSTOM_SPEED_PRESETS] = presets
         }
     }
 

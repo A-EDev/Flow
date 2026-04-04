@@ -849,7 +849,21 @@ fun PlaybackSpeedSelectorDialog(
     onSpeedSelected: (Float) -> Unit,
     onBack: (() -> Unit)? = null
 ) {
-    val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f)
+    val context = LocalContext.current
+    val playerPrefs = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
+    val customSpeedsEnabled by playerPrefs.customSpeedsEnabled.collectAsState(initial = false)
+    val customSpeedPresetsRaw by playerPrefs.customSpeedPresets.collectAsState(initial = "")
+    val defaultSpeeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f)
+    val speeds = if (customSpeedsEnabled && customSpeedPresetsRaw.isNotBlank()) {
+        val custom = customSpeedPresetsRaw
+            .split(",")
+            .mapNotNull { it.trim().toFloatOrNull() }
+            .filter { it in 0.1f..10.0f }
+            .sortedBy { it }
+        custom.ifEmpty { defaultSpeeds }
+    } else {
+        defaultSpeeds
+    }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
         Column(
             modifier = Modifier

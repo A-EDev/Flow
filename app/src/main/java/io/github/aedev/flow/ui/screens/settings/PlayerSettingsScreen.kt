@@ -28,6 +28,11 @@ import io.github.aedev.flow.data.lyrics.PreferredLyricsProvider
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.painterResource
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.material.icons.filled.Add
 
 private val audioLanguageOptions = listOf(
     "original" to "Original (Native)",
@@ -86,6 +91,18 @@ fun PlayerSettingsScreen(
     var showLyricsProviderSheet by remember { mutableStateOf(false) }
     var showSeekDurationDialog by remember { mutableStateOf(false) }
     var showUserIdDialog by remember { mutableStateOf(false) }
+
+    val customSpeedsEnabled by playerPreferences.customSpeedsEnabled.collectAsState(initial = false)
+    val customSpeedPresetsRaw by playerPreferences.customSpeedPresets.collectAsState(initial = "")
+    var newSpeedInput by remember { mutableStateOf("") }
+    var speedInputError by remember { mutableStateOf(false) }
+    val parsedPresets = remember(customSpeedPresetsRaw) {
+        customSpeedPresetsRaw
+            .split(",")
+            .mapNotNull { it.trim().toFloatOrNull() }
+            .filter { it in 0.1f..10.0f }
+            .sortedBy { it }
+    }
 
     Scaffold(
         topBar = {
@@ -238,6 +255,122 @@ fun PlayerSettingsScreen(
                         checked = deArrowEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setDeArrowEnabled(it) } }
                     )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Tune,
+                        title = stringResource(R.string.player_settings_custom_speeds_title),
+                        subtitle = stringResource(R.string.player_settings_custom_speeds_subtitle),
+                        checked = customSpeedsEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setCustomSpeedsEnabled(it) } }
+                    )
+                }
+                AnimatedVisibility(visible = customSpeedsEnabled) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                    ) {
+                        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                            Text(
+                                text = stringResource(R.string.player_settings_custom_speeds_header),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            )
+                            if (parsedPresets.isEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.player_settings_custom_speeds_empty),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+                            } else {
+                                parsedPresets.forEachIndexed { index, speed ->
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "${speed}x",
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        IconButton(onClick = {
+                                            val updated = parsedPresets.filter { it != speed }
+                                            coroutineScope.launch {
+                                                playerPreferences.setCustomSpeedPresets(updated.joinToString(","))
+                                            }
+                                        }) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Remove,
+                                                contentDescription = stringResource(R.string.player_settings_custom_speeds_remove),
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        }
+                                    }
+                                    if (index < parsedPresets.size - 1) {
+                                        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    }
+                                }
+                            }
+                            HorizontalDivider(
+                                modifier = Modifier.padding(vertical = 8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = newSpeedInput,
+                                    onValueChange = {
+                                        newSpeedInput = it
+                                        speedInputError = false
+                                    },
+                                    placeholder = { Text(stringResource(R.string.player_settings_custom_speeds_add_hint)) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                                    isError = speedInputError,
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                FilledIconButton(
+                                    onClick = {
+                                        val value = newSpeedInput.trim().replace(",", ".").toFloatOrNull()
+                                        if (value == null || value < 0.1f || value > 10.0f) {
+                                            speedInputError = true
+                                        } else {
+                                            val updated = (parsedPresets + value).distinct().sortedBy { it }
+                                            coroutineScope.launch {
+                                                playerPreferences.setCustomSpeedPresets(updated.joinToString(","))
+                                            }
+                                            newSpeedInput = ""
+                                            speedInputError = false
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Add,
+                                        contentDescription = stringResource(R.string.player_settings_custom_speeds_add)
+                                    )
+                                }
+                            }
+                            if (speedInputError) {
+                                Text(
+                                    text = stringResource(R.string.player_settings_custom_speeds_input_error),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
             
