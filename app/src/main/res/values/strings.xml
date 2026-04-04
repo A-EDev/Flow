@@ -542,6 +542,8 @@
     <string name="player_settings_autoplay_subtitle">Automatically play the next video</string>
     <string name="player_settings_skip_silence">Skip Silence</string>
     <string name="player_settings_skip_silence_subtitle">Skip parts with no audio</string>
+    <string name="player_settings_remember_speed">Remember Playback Speed</string>
+    <string name="player_settings_remember_speed_subtitle">Apply the last used playback speed to videos</string>
     <string name="player_settings_stable_voice">Stable Voice</string>
     <string name="player_settings_stable_voice_subtitle">Normalize audio volume for consistent playback</string>
     <string name="loop_video">Loop video</string>

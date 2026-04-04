@@ -1,0 +1,7 @@
+FLOW CHANGE LOG
+VERSION: 2.0.6
+DATE: 2026-04-4
+
+FEATURES
+- Add new save state for subscriptions feed display settings #221
+- Add new remember playback speed toggle #229

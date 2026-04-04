@@ -80,6 +80,7 @@ fun PlayerSettingsScreen(
     val videoLoopEnabled by playerPreferences.videoLoopEnabled.collectAsState(initial = false)
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
     val sbUserId by playerPreferences.sbUserId.collectAsState(initial = null)
+    val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
     
     var showAudioLanguageDialog by remember { mutableStateOf(false) }
     var showLyricsProviderSheet by remember { mutableStateOf(false) }
@@ -212,6 +213,14 @@ fun PlayerSettingsScreen(
                         subtitle = stringResource(R.string.player_settings_skip_silence_subtitle),
                         checked = skipSilenceEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setSkipSilenceEnabled(it) } }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Speed,
+                        title = stringResource(R.string.player_settings_remember_speed),
+                        subtitle = stringResource(R.string.player_settings_remember_speed_subtitle),
+                        checked = rememberPlaybackSpeed,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setRememberPlaybackSpeed(it) } }
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(

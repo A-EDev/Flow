@@ -1,6 +1,11 @@
 package io.github.aedev.flow.ui.screens.player.dialogs
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.state.EnhancedPlayerState
@@ -9,6 +14,7 @@ import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.components.*
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 
 @Composable
 fun PlayerDialogsContainer(
@@ -19,6 +25,9 @@ fun PlayerDialogsContainer(
     viewModel: VideoPlayerViewModel
 ) {
     val context = LocalContext.current
+    val playerPreferences = remember { PlayerPreferences(context) }
+    val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
+    val coroutineScope = rememberCoroutineScope()
 
     // Download Quality Dialog
     if (screenState.showDownloadDialog) {
@@ -144,6 +153,9 @@ fun PlayerDialogsContainer(
             onDismiss = { screenState.showPlaybackSpeedSelector = false },
             onSpeedSelected = { speed ->
                 EnhancedPlayerManager.getInstance().setPlaybackSpeed(speed)
+                if (rememberPlaybackSpeed) {
+                    coroutineScope.launch { playerPreferences.setPlaybackSpeed(speed) }
+                }
             },
             onBack = {
                 screenState.showPlaybackSpeedSelector = false

@@ -15,6 +15,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.LifecycleOwner
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.error.PlayerDiagnostics
@@ -414,6 +415,7 @@ fun PlayerInitEffect(
             Log.d(TAG, "Playing offline file for $videoId: $localFilePath")
             EnhancedPlayerManager.getInstance().initialize(context)
             EnhancedPlayerManager.getInstance().playLocalFile(videoId, localFilePath)
+            applyRememberedSpeed(context)
             return@LaunchedEffect
         }
 
@@ -458,6 +460,7 @@ fun PlayerInitEffect(
             )
             
             EnhancedPlayerManager.getInstance().play()
+            applyRememberedSpeed(context)
         } else if (uiState.isAdaptiveMode && audioStream != null && uiState.streamInfo != null) {
             val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
             
@@ -495,6 +498,18 @@ fun PlayerInitEffect(
             )
 
             EnhancedPlayerManager.getInstance().play()
+            applyRememberedSpeed(context)
+        }
+    }
+}
+
+private suspend fun applyRememberedSpeed(context: Context) {
+    val prefs = PlayerPreferences(context)
+    val remember = prefs.rememberPlaybackSpeed.first()
+    if (remember) {
+        val speed = prefs.playbackSpeed.first()
+        if (speed != 1.0f) {
+            EnhancedPlayerManager.getInstance().setPlaybackSpeed(speed)
         }
     }
 }

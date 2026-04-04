@@ -53,6 +53,12 @@ class SubscriptionsViewModel : ViewModel() {
                 _uiState.update { it.copy(isShortsShelfEnabled = enabled) }
             }
         }
+
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            playerPreferences.subsFullWidthView.collect { fullWidth ->
+                _uiState.update { it.copy(isFullWidthView = fullWidth) }
+            }
+        }
         
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             subscriptionRepository.getAllSubscriptions()
@@ -330,7 +336,11 @@ class SubscriptionsViewModel : ViewModel() {
     }
 
     fun toggleViewMode() {
-        _uiState.update { it.copy(isFullWidthView = !it.isFullWidthView) }
+        val newValue = !_uiState.value.isFullWidthView
+        _uiState.update { it.copy(isFullWidthView = newValue) }
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            playerPreferences.setSubsFullWidthView(newValue)
+        }
     }
 
     /**

@@ -122,6 +122,12 @@ class PlayerPreferences(private val context: Context) {
 
         // Audio focus during calls
         val PLAY_DURING_CALLS = booleanPreferencesKey("play_during_calls")
+
+        // Subscriptions feed view mode
+        val SUBS_FULL_WIDTH_VIEW = booleanPreferencesKey("subs_full_width_view")
+
+        // Remember playback speed
+        val REMEMBER_PLAYBACK_SPEED = booleanPreferencesKey("remember_playback_speed")
     }
     
     // Grid item size preference
@@ -698,6 +704,30 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setPlaybackSpeed(speed: Float) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.PLAYBACK_SPEED] = speed
+        }
+    }
+
+    // Remember playback speed
+    val rememberPlaybackSpeed: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.REMEMBER_PLAYBACK_SPEED] ?: false
+        }
+
+    suspend fun setRememberPlaybackSpeed(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.REMEMBER_PLAYBACK_SPEED] = enabled
+        }
+    }
+
+    // Subscriptions feed view mode
+    val subsFullWidthView: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SUBS_FULL_WIDTH_VIEW] ?: false
+        }
+
+    suspend fun setSubsFullWidthView(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SUBS_FULL_WIDTH_VIEW] = enabled
         }
     }
 

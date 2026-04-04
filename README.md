@@ -150,15 +150,25 @@ Flow gives you both. The recommendation engine learns what you like by analyzing
 ### Stable Release
 
 <div align="center">
-  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/A-EDev/Flow/">
-    <img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png" alt="Obtainium" height="70">
-  </a>
-  <a href="https://github.com/A-EDev/Flow/releases/latest">
-    <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="GitHub" height="100">
-  </a>
-  <a href="https://apt.izzysoft.de/packages/io.github.aedev.flow">
-    <img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="IzzyOnDroid" height="100">
-  </a>
+  <table border="0">
+    <tr>
+      <td align="center" style="vertical-align: middle; padding: 10px;">
+        <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/A-EDev/Flow/">
+          <img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png" alt="Obtainium" height="60">
+        </a>
+      </td>
+      <td align="center" style="vertical-align: middle; padding: 10px;">
+        <a href="https://github.com/A-EDev/Flow/releases/latest">
+          <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="GitHub" height="90">
+        </a>
+      </td>
+      <td align="center" style="vertical-align: middle; padding: 10px;">
+        <a href="https://apt.izzysoft.de/packages/io.github.aedev.flow">
+          <img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="IzzyOnDroid" height="90">
+        </a>
+      </td>
+    </tr>
+  </table>
 </div>
 
 ### Nightly / Debug Build
