@@ -59,6 +59,9 @@ class MusicSearchViewModel @Inject constructor() : ViewModel() {
                     suggestions = suggestions.queries,
                     recommendedItems = suggestions.recommendedItems
                 ) }
+            }?.onFailure { throwable ->
+                android.util.Log.w("MusicSearchViewModel", "Suggestions failed: ${throwable.message}")
+                _uiState.update { it.copy(suggestions = emptyList(), recommendedItems = emptyList()) }
             }
         }
     }

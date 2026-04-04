@@ -538,7 +538,7 @@ class VideoDownloadManager @Inject constructor(
      */
     fun generateFileName(title: String, quality: String, extension: String = "mp4"): String {
         val safeTitle = title
-            .replace(Regex("[^\\p{L}\\p{N}\\s._-]"), "_")
+            .replace(Regex("[^\\p{L}\\p{M}\\p{N}\\s._-]"), "_")
             .replace(Regex("\\s+"), "_")
             .replace(Regex("_+"), "_")
             .trim('_')

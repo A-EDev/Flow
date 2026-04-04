@@ -188,7 +188,7 @@ object YouTube {
                 ?.mapNotNull {
                     SearchPage.toYTItem(it.musicResponsiveListItemRenderer)
                 }!!,
-            continuation = response.continuationContents.musicShelfContinuation.continuations?.getContinuation()
+            continuation = response.continuationContents?.musicShelfContinuation?.continuations?.getContinuation()
         )
     }
 
@@ -404,7 +404,7 @@ object YouTube {
             }
 
             response.continuationContents?.musicShelfContinuation != null -> {
-                val musicShelfContinuation = response.continuationContents.musicShelfContinuation
+                val musicShelfContinuation = response.continuationContents!!.musicShelfContinuation!!
                 ArtistItemsContinuationPage(
                     items = musicShelfContinuation.contents?.getItems()?.mapNotNull {
                         ArtistItemsPage.fromMusicResponsiveListItemRenderer(it)

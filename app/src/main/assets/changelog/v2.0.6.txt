@@ -12,3 +12,5 @@ FEATURES
 
 FIXES AND STABILITY
 - Fix video player playback speed issue #232
+- Fix video title formats #222
+- Add nullable music search result checks #223
