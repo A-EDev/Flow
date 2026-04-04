@@ -83,7 +83,8 @@ fun PlayerContent(
                 volumeLevel = screenState.volumeLevel,
                 maxVolume = maxVolume,
                 audioManager = audioManager,
-                activity = activity
+                activity = activity,
+                onExitFullscreen = { screenState.isFullscreen = false }
             )
     ) {
         // Video Surface

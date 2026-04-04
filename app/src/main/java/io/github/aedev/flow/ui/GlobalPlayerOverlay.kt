@@ -431,7 +431,8 @@ fun GlobalPlayerOverlay(
                             audioManager = audioSystemInfo.audioManager,
                             activity = activity,
                             swipeGesturesEnabled = effectiveSwipeGesturesEnabled,
-                            doubleTapSeekMs = doubleTapSeekSeconds * 1000L
+                            doubleTapSeekMs = doubleTapSeekSeconds * 1000L,
+                            onExitFullscreen = { screenState.isFullscreen = false }
                         )
                         // Two-finger pinch-to-zoom gesture. Only activates for 2+ pointers,
                         // so single-finger gestures (brightness/volume swipe, tap) are unaffected.

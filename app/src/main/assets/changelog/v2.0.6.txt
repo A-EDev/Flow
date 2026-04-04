@@ -8,6 +8,7 @@ FEATURES
 - Russian localization #230 provided by @vazinoc
 - subscriptions worker check customizations
 - New playback speed options up to 4x #235
+- New gesture: Swipe down to exit full screen mode
 
 FIXES AND STABILITY
 - Fix video player playback speed issue #232

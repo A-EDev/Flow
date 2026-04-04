@@ -44,7 +44,8 @@ fun Modifier.videoPlayerControls(
     audioManager: AudioManager?,
     activity: Activity?,
     swipeGesturesEnabled: Boolean = true,
-    doubleTapSeekMs: Long = 10_000L
+    doubleTapSeekMs: Long = 10_000L,
+    onExitFullscreen: (() -> Unit)? = null
 ): Modifier = composed {
     val currentIsSpeedBoostActive by rememberUpdatedState(isSpeedBoostActive)
     val currentOnSpeedBoostChange by rememberUpdatedState(onSpeedBoostChange)
@@ -69,6 +70,7 @@ fun Modifier.videoPlayerControls(
     val currentSwipeGesturesEnabled by rememberUpdatedState(swipeGesturesEnabled)
     val currentDoubleTapSeekMs by rememberUpdatedState(doubleTapSeekMs)
     val currentOnSeekAccumulate by rememberUpdatedState(onSeekAccumulate)
+    val currentOnExitFullscreen by rememberUpdatedState(onExitFullscreen)
 
     var accumulatedForwardMs by remember { mutableStateOf(0L) }
     var accumulatedBackMs by remember { mutableStateOf(0L) }
@@ -170,7 +172,10 @@ fun Modifier.videoPlayerControls(
             var isDraggingVertical = false
             var shouldIgnoreGesture = false 
             val dragThreshold = 100f 
-            val edgeIgnoreThreshold = 250f 
+            val edgeIgnoreThreshold = 250f
+            var startTouchX = 0f
+            var isCenterZone = false
+            var exitDragAccum = 0f
 
             if (currentIsFullscreen) {
                 detectDragGestures(
@@ -178,6 +183,7 @@ fun Modifier.videoPlayerControls(
                         totalDragY = 0f
                         totalDragX = 0f
                         isDraggingVertical = false
+                        exitDragAccum = 0f
                         
                         val distanceFromTop = offset.y
                         val distanceFromBottom = size.height - offset.y
@@ -187,12 +193,19 @@ fun Modifier.videoPlayerControls(
                         
                         if (shouldIgnoreGesture) return@detectDragGestures
 
+                        startTouchX = offset.x
                         val screenWidth = size.width
+                        isCenterZone = startTouchX > screenWidth * 0.33f && startTouchX < screenWidth * 0.67f
                         val isEdge = offset.x < screenWidth * 0.2f || offset.x > screenWidth * 0.8f
                         
                     },
                     onDragEnd = {
                         shouldIgnoreGesture = false
+                        if (isCenterZone && exitDragAccum > 180f) {
+                            currentOnExitFullscreen?.invoke()
+                        }
+                        isCenterZone = false
+                        exitDragAccum = 0f
                         scope.launch {
                             delay(500) // Delay hiding controls
                             currentOnShowBrightnessChange(false)
@@ -202,6 +215,8 @@ fun Modifier.videoPlayerControls(
                     },
                     onDragCancel = {
                         shouldIgnoreGesture = false
+                        isCenterZone = false
+                        exitDragAccum = 0f
                         scope.launch {
                             currentOnShowBrightnessChange(false)
                             currentOnShowVolumeChange(false)
@@ -225,8 +240,12 @@ fun Modifier.videoPlayerControls(
                              val screenHeight = size.height.toFloat()
                              val screenWidth = size.width
                              val dragPosition = change.position.x
-                             
-                             if (screenHeight > 0 && currentSwipeGesturesEnabled) {
+
+                             if (isCenterZone) {
+                                 if (dragAmount.y > 0) {
+                                     exitDragAccum += dragAmount.y
+                                 }
+                             } else if (screenHeight > 0 && currentSwipeGesturesEnabled) {
                                  if (dragPosition < screenWidth / 2) {
                                      // Left side - brightness
                                      val sensitivity = 1.5f 
