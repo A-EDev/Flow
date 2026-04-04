@@ -320,6 +320,20 @@
     <string name="notif_system_settings">Системные настройки уведомлений</string>
     <string name="notif_system_settings_subtitle">Открыть настройки Android для управления разрешениями каналов</string>
 
+    <string name="notif_check_interval_section_header">Расписание проверки ленты</string>
+    <string name="notif_check_interval">Интервал проверки новых видео</string>
+    <string name="notif_check_interval_subtitle_template">Проверять каждые %s</string>
+    <string name="notif_check_interval_dialog_title">Интервал проверки</string>
+    <string name="notif_check_interval_dialog_body">Как часто Flow проверяет наличие новых видео на ваших подписанных каналах.</string>
+    <string name="notif_interval_15m">15 минут</string>
+    <string name="notif_interval_30m">30 минут</string>
+    <string name="notif_interval_1h">1 час</string>
+    <string name="notif_interval_2h">2 часа</string>
+    <string name="notif_interval_3h">3 часа</string>
+    <string name="notif_interval_6h">6 часов (по умолчанию)</string>
+    <string name="notif_interval_12h">12 часов</string>
+    <string name="notif_interval_24h">24 часа</string>
+
     <string name="settings_item_theme">Тема</string>
     <string name="settings_item_app_icon">Иконка приложения</string>
     <string name="settings_item_app_icon_subtitle">Настройте иконку в меню приложений</string>

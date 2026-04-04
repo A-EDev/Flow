@@ -329,6 +329,20 @@
     <string name="notif_system_settings">System Notification Settings</string>
     <string name="notif_system_settings_subtitle">Open Android settings to manage per-channel permissions</string>
 
+    <string name="notif_check_interval_section_header">Feed Check Schedule</string>
+    <string name="notif_check_interval">New Video Check Interval</string>
+    <string name="notif_check_interval_subtitle_template">Check every %s</string>
+    <string name="notif_check_interval_dialog_title">Check Interval</string>
+    <string name="notif_check_interval_dialog_body">How often Flow checks for new videos from your subscribed channels.</string>
+    <string name="notif_interval_15m">15 minutes</string>
+    <string name="notif_interval_30m">30 minutes</string>
+    <string name="notif_interval_1h">1 hour</string>
+    <string name="notif_interval_2h">2 hours</string>
+    <string name="notif_interval_3h">3 hours</string>
+    <string name="notif_interval_6h">6 hours (default)</string>
+    <string name="notif_interval_12h">12 hours</string>
+    <string name="notif_interval_24h">24 hours</string>
+
     <string name="settings_item_theme">Theme</string>
     <string name="settings_item_app_icon">App Icon</string>
     <string name="settings_item_app_icon_subtitle">Customize your launcher icon</string>

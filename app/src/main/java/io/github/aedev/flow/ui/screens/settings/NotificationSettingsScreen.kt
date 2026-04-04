@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.settings
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -19,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.notification.SubscriptionCheckWorker
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -35,6 +37,21 @@ fun NotificationSettingsScreen(
     val notifReminders by prefs.notifRemindersEnabled.collectAsState(initial = true)
     val notifUpdates by prefs.notifUpdatesEnabled.collectAsState(initial = true)
     val notifGeneral by prefs.notifGeneralEnabled.collectAsState(initial = true)
+    val subCheckInterval by prefs.subscriptionCheckIntervalMinutes.collectAsState(initial = 360)
+    var showIntervalDialog by remember { mutableStateOf(false) }
+
+    val intervalOptions = listOf(
+        15 to stringResource(R.string.notif_interval_15m),
+        30 to stringResource(R.string.notif_interval_30m),
+        60 to stringResource(R.string.notif_interval_1h),
+        120 to stringResource(R.string.notif_interval_2h),
+        180 to stringResource(R.string.notif_interval_3h),
+        360 to stringResource(R.string.notif_interval_6h),
+        720 to stringResource(R.string.notif_interval_12h),
+        1440 to stringResource(R.string.notif_interval_24h),
+    )
+    val currentIntervalLabel = intervalOptions.firstOrNull { it.first == subCheckInterval }?.second
+        ?: "${subCheckInterval}min"
 
     Scaffold(
         topBar = {
@@ -67,6 +84,18 @@ fun NotificationSettingsScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            item {
+                SectionHeader(text = stringResource(R.string.notif_check_interval_section_header))
+                SettingsGroup {
+                    SettingsItem(
+                        icon = Icons.Outlined.Schedule,
+                        title = stringResource(R.string.notif_check_interval),
+                        subtitle = stringResource(R.string.notif_check_interval_subtitle_template, currentIntervalLabel),
+                        onClick = { showIntervalDialog = true }
+                    )
+                }
+            }
+
             item {
                 SettingsGroup {
                     SettingsSwitchItem(
@@ -141,5 +170,54 @@ fun NotificationSettingsScreen(
                 }
             }
         }
+    }
+
+    if (showIntervalDialog) {
+        AlertDialog(
+            onDismissRequest = { showIntervalDialog = false },
+            title = {
+                Text(
+                    stringResource(R.string.notif_check_interval_dialog_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        stringResource(R.string.notif_check_interval_dialog_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                    intervalOptions.forEach { (minutes, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    coroutineScope.launch {
+                                        prefs.setSubscriptionCheckIntervalMinutes(minutes)
+                                        SubscriptionCheckWorker.schedulePeriodicCheck(context, intervalMinutes = minutes.toLong())
+                                    }
+                                    showIntervalDialog = false
+                                }
+                                .padding(vertical = 10.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = subCheckInterval == minutes,
+                                onClick = null
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(text = label, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showIntervalDialog = false }) {
+                    Text(stringResource(R.string.btn_close))
+                }
+            }
+        )
     }
 }

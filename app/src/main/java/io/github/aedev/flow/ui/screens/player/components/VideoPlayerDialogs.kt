@@ -849,7 +849,7 @@ fun PlaybackSpeedSelectorDialog(
     onSpeedSelected: (Float) -> Unit,
     onBack: (() -> Unit)? = null
 ) {
-    val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+    val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
         Column(
             modifier = Modifier

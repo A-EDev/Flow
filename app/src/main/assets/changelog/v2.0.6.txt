@@ -6,6 +6,8 @@ FEATURES
 - Add new save state for subscriptions feed display settings #221
 - Add new remember playback speed toggle #229
 - Russian localization #230 provided by @vazinoc
+- subscriptions worker check customizations
+- New playback speed options up to 4x #235
 
 FIXES AND STABILITY
 - Fix video player playback speed issue #232

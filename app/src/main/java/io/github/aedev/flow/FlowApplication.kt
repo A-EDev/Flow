@@ -3,6 +3,9 @@ package io.github.aedev.flow
 import android.app.Application
 import android.util.Log
 import io.github.aedev.flow.notification.SubscriptionCheckWorker
+import io.github.aedev.flow.data.local.PlayerPreferences
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import io.github.aedev.flow.data.repository.NewPipeDownloader
 import io.github.aedev.flow.notification.NotificationHelper
 import io.github.aedev.flow.utils.FlowCrashHandler
@@ -66,7 +69,8 @@ class FlowApplication : Application(), ImageLoaderFactory {
         */
         
         // Schedule periodic subscription checks for new videos
-        SubscriptionCheckWorker.schedulePeriodicCheck(this, intervalMinutes = 360)
+        val savedIntervalMinutes = runBlocking { PlayerPreferences(this@FlowApplication).subscriptionCheckIntervalMinutes.first() }
+        SubscriptionCheckWorker.schedulePeriodicCheck(this, intervalMinutes = savedIntervalMinutes.toLong())
         
         // Schedule periodic update checks (every 12 hours) — github flavor only
         if (BuildConfig.UPDATER_ENABLED) {

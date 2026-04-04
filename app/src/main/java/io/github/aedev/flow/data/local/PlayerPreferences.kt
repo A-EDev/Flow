@@ -128,6 +128,9 @@ class PlayerPreferences(private val context: Context) {
 
         // Remember playback speed
         val REMEMBER_PLAYBACK_SPEED = booleanPreferencesKey("remember_playback_speed")
+
+        // Subscription check interval
+        val SUBSCRIPTION_CHECK_INTERVAL_MINUTES = intPreferencesKey("subscription_check_interval_minutes")
     }
     
     // Grid item size preference
@@ -716,6 +719,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setRememberPlaybackSpeed(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.REMEMBER_PLAYBACK_SPEED] = enabled
+        }
+    }
+
+    // Subscription check interval (default: 360 minutes / 6 hours)
+    val subscriptionCheckIntervalMinutes: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SUBSCRIPTION_CHECK_INTERVAL_MINUTES] ?: 360
+        }
+
+    suspend fun setSubscriptionCheckIntervalMinutes(minutes: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SUBSCRIPTION_CHECK_INTERVAL_MINUTES] = minutes
         }
     }
 
