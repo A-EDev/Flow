@@ -148,14 +148,28 @@ Flow gives you both. The recommendation engine learns what you like by analyzing
 ## Download
 
 ### Stable Release
-[![GitHub Release](https://img.shields.io/github/v/release/A-EDev/Flow)](https://github.com/A-EDev/Flow/releases/latest)
+
+<div align="center">
+  <a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/A-EDev/Flow/">
+    <img src="https://github.com/ImranR98/Obtainium/blob/main/assets/graphics/badge_obtainium.png" alt="Obtainium" height="70">
+  </a>
+  <a href="https://github.com/A-EDev/Flow/releases/latest">
+    <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="GitHub" height="100">
+  </a>
+  <a href="https://apt.izzysoft.de/packages/io.github.aedev.flow">
+    <img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="IzzyOnDroid" height="100">
+  </a>
+</div>
 
 ### Nightly / Debug Build
 > ⚠️ Nightly builds are unstable and may contain bugs. Use at your own risk.
 
-[![Nightly Build](https://img.shields.io/badge/Nightly-Download-blue?style=for-the-badge&logo=github)](https://nightly.link/A-EDev/Flow/workflows/build/main/flow-nightly-apk.zip)
-
-**No GitHub account required** — powered by [nightly.link](https://nightly.link)
+<div align="center">
+  <a href="https://nightly.link/A-EDev/Flow/workflows/build/main/flow-nightly-apk.zip">
+    <img src="https://github.com/machiav3lli/oandbackupx/blob/034b226cea5c1b30eb4f6a6f313e4dadcbb0ece4/badge_github.png" alt="Download from GitHub" height="75">
+  </a>
+  <p><b>No GitHub account required</b> — powered by <a href="https://nightly.link">nightly.link</a></p>
+</div>
 
 ### Requirements 
 **Minimum Requirement:** Android 8.0+
