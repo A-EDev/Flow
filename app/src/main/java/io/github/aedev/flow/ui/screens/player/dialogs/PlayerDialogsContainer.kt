@@ -153,6 +153,7 @@ fun PlayerDialogsContainer(
             onDismiss = { screenState.showPlaybackSpeedSelector = false },
             onSpeedSelected = { speed ->
                 EnhancedPlayerManager.getInstance().setPlaybackSpeed(speed)
+                screenState.normalSpeed = speed
                 if (rememberPlaybackSpeed) {
                     coroutineScope.launch { playerPreferences.setPlaybackSpeed(speed) }
                 }

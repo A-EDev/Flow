@@ -415,7 +415,7 @@ fun PlayerInitEffect(
             Log.d(TAG, "Playing offline file for $videoId: $localFilePath")
             EnhancedPlayerManager.getInstance().initialize(context)
             EnhancedPlayerManager.getInstance().playLocalFile(videoId, localFilePath)
-            applyRememberedSpeed(context)
+            applyRememberedSpeed(context, screenState)
             return@LaunchedEffect
         }
 
@@ -460,7 +460,7 @@ fun PlayerInitEffect(
             )
             
             EnhancedPlayerManager.getInstance().play()
-            applyRememberedSpeed(context)
+            applyRememberedSpeed(context, screenState)
         } else if (uiState.isAdaptiveMode && audioStream != null && uiState.streamInfo != null) {
             val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
             
@@ -498,18 +498,19 @@ fun PlayerInitEffect(
             )
 
             EnhancedPlayerManager.getInstance().play()
-            applyRememberedSpeed(context)
+            applyRememberedSpeed(context, screenState)
         }
     }
 }
 
-private suspend fun applyRememberedSpeed(context: Context) {
+private suspend fun applyRememberedSpeed(context: Context, screenState: PlayerScreenState) {
     val prefs = PlayerPreferences(context)
     val remember = prefs.rememberPlaybackSpeed.first()
     if (remember) {
         val speed = prefs.playbackSpeed.first()
         if (speed != 1.0f) {
             EnhancedPlayerManager.getInstance().setPlaybackSpeed(speed)
+            screenState.normalSpeed = speed
         }
     }
 }

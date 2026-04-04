@@ -5,3 +5,7 @@ DATE: 2026-04-4
 FEATURES
 - Add new save state for subscriptions feed display settings #221
 - Add new remember playback speed toggle #229
+- Russian localization #230 provided by @vazinoc
+
+FIXES AND STABILITY
+- Fix video player playback speed issue #232
