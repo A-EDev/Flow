@@ -47,7 +47,8 @@
     <a href="https://github.com/A-EDev/Flow/releases"><b>Download APK</b></a> · 
     <a href="https://github.com/A-EDev/Flow/wiki"><b>Documentation</b></a> · 
     <a href="https://www.reddit.com/r/Flow_Official/"><b>Subreddit</b></a> · 
-    <a href="#support--donations"><b>Donate</b></a>
+    <a href="#support--donations"><b>Donate</b></a> .
+    <a href="#translate"><b>Translations</b></a>
   </p>
 </div>
 
@@ -215,6 +216,19 @@ Flow stands on the shoulders of giants. Special thanks to:
 *   **[ExoPlayer](https://github.com/google/ExoPlayer):** The gold standard for Android media playback.
 *   **[Jetpack Compose](https://developer.android.com/jetpack/compose):** For enabling the beautiful, modern UI.
 *   **[Material Design 3](https://m3.material.io/):** For the design system and guidelines.
+
+---
+
+<div align="center">
+
+<a id="translate"></a>
+## Translations
+Help translate Flow into your language! 
+
+[![Translation status](https://hosted.weblate.org/widget/flow/287x66-grey.png?threshold=0)](https://hosted.weblate.org/engage/flow/)
+
+[![Translation status](https://hosted.weblate.org/widget/flow/horizontal-auto.svg)](https://hosted.weblate.org/engage/flow/)
+</div>
 
 ---
 
