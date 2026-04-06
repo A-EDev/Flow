@@ -1,3 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">Flow</string>
+    <string name="subscribers_count_template">%1$s subskrybentów</string>
+    <string name="error_yt_music_premium_hint">Ten utwór jest dostępny tylko dla subskrybentów YouTube Music Premium.</string>
+    <string name="support_flow_dev_desc">Jeśli uważasz, że Flow jest przydatny i chcesz wesprzeć jego rozwój, możesz przekazać darowiznę za pośrednictwem poniższych adresów. Twoje wsparcie pomoże utrzymać projekt przy życiu!</string>
+    <string name="subscriptions_search_placeholder">Wyszukaj subskrypcje...</string>
+    <string name="top_bar_subscriptions_title">Subskrypcje</string>
+    <string name="subscribed">Zasubskrybowano</string>
+    <string name="no_subscriptions_yet">Nie dodano jeszcze Subskrypcji</string>
+    <string name="empty_subscriptions_body">Zasubskrybuj kanały, aby zobaczyć\nnajnowsze filmy tutaj</string>
+    <string name="home_refresh_feed">Odśwież kanał</string>
+    <string name="shorts">Shorts</string>
+    <string name="failed_to_load_channel">Nie udało się załadować kanału</string>
 </resources>
