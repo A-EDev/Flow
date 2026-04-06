@@ -44,7 +44,7 @@ class DownloadUtil @Inject constructor(
         private const val CHUNK_LENGTH = 512 * 1024L // 512KB for cache check
     }
 
-    private val songUrlCache = HashMap<String, Triple<String, String, Long>>()
+    private val songUrlCache = java.util.concurrent.ConcurrentHashMap<String, Triple<String, String, Long>>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val downloads = MutableStateFlow<Map<String, Download>>(emptyMap())
 

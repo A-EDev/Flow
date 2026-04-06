@@ -155,14 +155,11 @@ object MusicPlayerUtils {
         mainPlayerResponse = YouTube.player(videoId, playlistId, MAIN_CLIENT, sts).getOrNull()
         
         if (mainPlayerResponse?.playabilityStatus?.status == "OK") {
-            val enhancedResponse = YouTube.newPipePlayer(videoId, mainPlayerResponse)
-            val responseToUse = enhancedResponse ?: mainPlayerResponse
-            
-            extraction = tryExtract(responseToUse, MAIN_CLIENT, videoId)
+            extraction = tryExtract(mainPlayerResponse, MAIN_CLIENT, videoId, validate = false)
             if (extraction != null) {
-                response = responseToUse
+                response = mainPlayerResponse
                 usedClient = MAIN_CLIENT
-                Log.i(TAG, "MAIN_CLIENT success with NewPipe enhancement")
+                Log.i(TAG, "MAIN_CLIENT success")
             }
         }
 
@@ -181,14 +178,11 @@ object MusicPlayerUtils {
                     val fallbackResponse = YouTube.player(videoId, playlistId, client, sts).getOrNull()
                     
                     if (fallbackResponse?.playabilityStatus?.status == "OK") {
-                        val enhancedResponse = YouTube.newPipePlayer(videoId, fallbackResponse)
-                        val responseToUse = enhancedResponse ?: fallbackResponse
-                        
                         val skipValidation = index == STREAM_FALLBACK_CLIENTS.size - 1
-                        val result = tryExtract(responseToUse, client, videoId, validate = !skipValidation)
+                        val result = tryExtract(fallbackResponse, client, videoId, validate = !skipValidation)
                         
                         if (result != null) {
-                            response = responseToUse
+                            response = fallbackResponse
                             extraction = result
                             usedClient = client
                             Log.i(TAG, "Fallback success with ${client.clientName}")
@@ -243,7 +237,10 @@ object MusicPlayerUtils {
             return null
         }
         
-        if (validate && !checkUrl(url, client.userAgent)) {
+        val needsValidation = validate &&
+            !client.clientName.startsWith("ANDROID") &&
+            client.clientName != "IOS"
+        if (needsValidation && !checkUrl(url, client.userAgent)) {
             Log.d(TAG, "URL validation failed for ${client.clientName}")
             return null
         }
@@ -262,15 +259,15 @@ object MusicPlayerUtils {
         videoId: String,
         playerResponse: PlayerResponse
     ): String? {
-        if (!format.url.isNullOrEmpty()) {
-            Log.d(TAG, "Using URL from format directly")
-            return format.url
-        }
-
         val deobfuscatedUrl = NewPipeExtractor.getStreamUrl(format, videoId)
         if (deobfuscatedUrl != null) {
-            Log.d(TAG, "URL obtained via NewPipe deobfuscation")
+            Log.d(TAG, "URL obtained via NewPipe (n-param transformed)")
             return deobfuscatedUrl
+        }
+
+        if (!format.url.isNullOrEmpty()) {
+            Log.d(TAG, "Falling back to raw URL from format (n-param NOT transformed)")
+            return format.url
         }
 
         val streamUrls = YouTube.getNewPipeStreamUrls(videoId)
@@ -300,7 +297,10 @@ object MusicPlayerUtils {
     private fun findBestAudioFormat(response: PlayerResponse): PlayerResponse.StreamingData.Format? {
         val adaptiveFormats = response.streamingData?.adaptiveFormats ?: emptyList()
         
-        val audioFormats = adaptiveFormats.filter { it.mimeType.startsWith("audio/") }
+        val audioFormats = adaptiveFormats.filter { format ->
+            format.mimeType.startsWith("audio/") &&
+                format.audioTrack?.isAutoDubbed != true 
+        }
         
         if (audioFormats.isEmpty()) {
             Log.d(TAG, "No audio formats found")

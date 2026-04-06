@@ -20,6 +20,11 @@ import coil.ImageLoaderFactory
 import javax.inject.Inject
 import java.security.Security
 import org.conscrypt.Conscrypt
+import io.github.aedev.flow.innertube.YouTube
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 @HiltAndroidApp
 class FlowApplication : Application(), ImageLoaderFactory {
@@ -78,6 +83,32 @@ class FlowApplication : Application(), ImageLoaderFactory {
         }
         
         Log.d(TAG, "Workers scheduled successfully")
+
+        // Fetch and cache visitor data for the lifetime of the install.
+        // The X-Goog-Visitor-Id header prevents YouTube from returning empty
+        // search results on tablets and fresh Android 16 installs (Issue #223).
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                val prefs = getSharedPreferences("flow_prefs", MODE_PRIVATE)
+                val cached = prefs.getString("visitor_data", null)
+                if (!cached.isNullOrEmpty()) {
+                    YouTube.visitorData = cached
+                    Log.d(TAG, "visitorData restored from prefs")
+                } else {
+                    YouTube.visitorData().onSuccess { data ->
+                        if (!data.isNullOrEmpty()) {
+                            prefs.edit().putString("visitor_data", data).apply()
+                            YouTube.visitorData = data
+                            Log.d(TAG, "visitorData fetched and cached")
+                        }
+                    }.onFailure { e ->
+                        Log.w(TAG, "visitorData fetch failed: ${e.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "visitorData init error: ${e.message}")
+            }
+        }
     }
     
     override fun onTerminate() {

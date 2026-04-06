@@ -53,6 +53,7 @@ object EnhancedMusicPlayerManager {
     
     private var retryCount = 0
     private const val MAX_RETRIES = 3
+    private var positionUpdateJob: kotlinx.coroutines.Job? = null
     
     // Persistence
     private var queuePersistence: QueuePersistence? = null
@@ -234,6 +235,9 @@ object EnhancedMusicPlayerManager {
                         _currentQueueIndex.value = currentQ.indexOf(track)
                     }
                 }
+                // Pre-warm MusicPlayerUtils.resultCache for the next track so ExoPlayer's
+                // loading thread finds it instantly instead of blocking on a full HTTP resolve.
+                prefetchNextTrack()
             }
 
             override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
@@ -250,24 +254,7 @@ object EnhancedMusicPlayerManager {
             
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                 Log.e("EnhancedMusicPlayer", "Player error: ${error.errorCodeName} (${error.errorCode})", error)
-                
-                if (retryCount < MAX_RETRIES) {
-                    retryCount++
-                    Log.i("EnhancedMusicPlayer", "Retrying... Attempt $retryCount/$MAX_RETRIES")
-                    scope.launch {
-                        kotlinx.coroutines.delay(500)
-                        if (error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED || 
-                            error.errorCode == androidx.media3.common.PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT) {
-                             kotlinx.coroutines.delay(1000) 
-                        }
-                        player?.prepare()
-                        player?.play()
-                    }
-                } else {
-                    Log.w("EnhancedMusicPlayer", "Max retries reached. Skipping to next track.")
-                    retryCount = 0
-                    playNext()
-                }
+                retryCount = 0
             }
         })
     }
@@ -288,7 +275,8 @@ object EnhancedMusicPlayerManager {
     }
     
     private fun startPositionUpdates() {
-        scope.launch {
+        positionUpdateJob?.cancel()
+        positionUpdateJob = scope.launch {
             while (true) {
                 player?.let { p ->
                     if (p.isPlaying) {
