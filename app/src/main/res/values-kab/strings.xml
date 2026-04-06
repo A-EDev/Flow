@@ -1,3 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="view_all_button_label">Akk</string>
+    <string name="about">Ɣef</string>
+    <string name="clear">Sfeḍ</string>
+    <string name="cancel">Semmet</string>
+    <string name="video">Tavidyut</string>
+    <string name="share">Bḍu</string>
+    <string name="downloaded">Yettwasader-d</string>
+    <string name="download">Sader</string>
+    <string name="save">Sekles</string>
+    <string name="close">Mdel</string>
+    <string name="retry">Ɛreḍ tikkelt nniḍen</string>
+    <string name="title_label">Azwel</string>
+    <string name="artist_label">Anaẓur</string>
+    <string name="codec_label">Akudak</string>
+    <string name="channels_label">Ibuda</string>
+    <string name="tab_videos">Tividyutin</string>
+    <string name="tab_music">Aẓawan</string>
+    <string name="action_delete">Kkes</string>
 </resources>
