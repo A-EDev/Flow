@@ -12,4 +12,12 @@
     <string name="home_refresh_feed">Odśwież kanał</string>
     <string name="shorts">Shorts</string>
     <string name="failed_to_load_channel">Nie udało się załadować kanału</string>
+    <string name="library">Biblioteka</string>
+    <string name="library_section_header">Twoje Treści</string>
+    <string name="library_history_label">Historia</string>
+    <string name="library_playlists_label">Playlista</string>
+    <string name="library_music_playlists_subtitle">Twoja kolekcja muzyki</string>
+    <string name="library_liked_videos_label">Polubione filmy</string>
+    <string name="library_saved_shorts_label">Zapisane Shorts</string>
+    <string name="library_watch_later_label">Obejrzyj później</string>
 </resources>
