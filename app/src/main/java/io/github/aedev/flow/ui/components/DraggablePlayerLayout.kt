@@ -69,23 +69,49 @@ class PlayerDraggableState(
     var cachedTargetX by mutableFloatStateOf(0f)
     var cachedTargetY by mutableFloatStateOf(0f)
 
+    /**
+     * Scale multiplier for the mini player's width while it stays collapsed (floating).
+     * 1f = normal mini size. Values > 1 expand it toward full screen width.
+     * At ~2.22x (1/0.45) the mini player fills the full screen width.
+     */
+    val miniSizeScale = Animatable(1f)
+
+    /** True while the floating mini player is in wide (full-width) mode. */
+    val isInlineMode: Boolean get() = miniSizeScale.value > 1.5f
+
     val currentValue: PlayerSheetValue
         get() = if (expandFraction.targetValue > 0.5f) PlayerSheetValue.Collapsed else PlayerSheetValue.Expanded
 
     val fraction: Float get() = expandFraction.value
 
-    /** Animate to fully expanded / full-screen. */
+    /** Animate to fully expanded / full-screen video detail view. */
     fun expand() {
         corner = MiniPlayerCorner.BottomRight
         scope.launch {
+            launch { miniSizeScale.animateTo(1f, spring(dampingRatio = 0.82f, stiffness = 350f)) }
             launch { expandFraction.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 350f)) }
             launch { offsetX.animateTo(0f, spring(dampingRatio = 0.75f, stiffness = 400f)) }
             launch { offsetY.animateTo(0f, spring(dampingRatio = 0.75f, stiffness = 400f)) }
         }
     }
 
+    /**
+     * Expand the floating mini player to full-width while keeping it floating
+     * (expandFraction stays at 1). The player scales to fill the screen width
+     * and can still be dragged up/down freely.
+     */
+    fun expandWide() {
+        scope.launch {
+            launch { miniSizeScale.animateTo(2.5f, spring(dampingRatio = 0.65f, stiffness = 200f)) }
+            launch { offsetX.animateTo(0f, spring(dampingRatio = 0.65f, stiffness = 200f)) }
+        }
+    }
+
     /** Animate to the tracked mini-player corner. Coordinates calculated in layout. */
     fun collapse() {
+        scope.launch {
+            launch { miniSizeScale.animateTo(1f, spring(dampingRatio = 0.65f, stiffness = 200f)) }
+        }
         scope.launch {
             if (cachedTargetX == 0f && cachedTargetY == 0f) {
                 expandFraction.snapTo(1f)
@@ -170,10 +196,16 @@ fun DraggablePlayerLayout(
         val isSplitLayout = isLandscape && isTablet
 
         val targetMiniWidth = screenWidth * miniPlayerScale
-        val miniWidth  = if (isTablet) targetMiniWidth.coerceAtMost(400f) else targetMiniWidth
+        val baseMiniWidth  = if (isTablet) targetMiniWidth.coerceAtMost(400f) else targetMiniWidth
+        // Live-scale the mini width based on pinch/wide-mode; clamp to screen width
+        val currentSizeScale by remember { derivedStateOf { state.miniSizeScale.value } }
+        val miniWidth  = (baseMiniWidth * currentSizeScale).coerceAtMost(screenWidth)
         val miniHeight = miniWidth * (9f / 16f)
         val margin     = with(density) { 12.dp.toPx() }
         val bottomNavPad = with(density) { bottomPadding.toPx() }
+
+        // When in wide mode, lock X to 0 (centered); otherwise normal corner positioning
+        val isWideMode = currentSizeScale > 1.5f
 
         val expandedVideoWidth  = if (isSplitLayout) screenWidth * 0.65f else screenWidth
         val baseVideoHeight     = expandedVideoWidth * (9f / 16f)
@@ -181,12 +213,11 @@ fun DraggablePlayerLayout(
         val fullVideoHeight     = expandedVideoWidth / clampedAspect
         val expandedVideoHeight = fullVideoHeight
 
-        val minX = margin
-        val maxX = screenWidth - miniWidth - margin
+        val minX = if (isWideMode) 0f else margin
+        val maxX = if (isWideMode) 0f else (screenWidth - miniWidth - margin)
         val minY = statusBarHeight + margin
         val maxY = screenHeight - miniHeight - bottomNavPad - margin
         LaunchedEffect(minX, maxX, minY, maxY) {
-           
            val overshootMargin = with(density) { 8.dp.toPx() }
            state.offsetX.updateBounds(
                lowerBound = minX - overshootMargin,
@@ -197,7 +228,7 @@ fun DraggablePlayerLayout(
                upperBound = maxY + overshootMargin  
            )
        }
-        val targetMiniX = when (state.corner) {
+        val targetMiniX = if (isWideMode) 0f else when (state.corner) {
             MiniPlayerCorner.TopLeft, MiniPlayerCorner.BottomLeft -> minX
             MiniPlayerCorner.TopRight, MiniPlayerCorner.BottomRight -> maxX
         }
@@ -211,16 +242,21 @@ fun DraggablePlayerLayout(
             state.cachedTargetY = targetMiniY
         }
 
-        LaunchedEffect(state.expandFraction.targetValue, targetMiniX, targetMiniY, state.isDragging) {
+        LaunchedEffect(state.expandFraction.targetValue, targetMiniX, targetMiniY, state.isDragging, isWideMode) {
             if (state.expandFraction.targetValue > 0.5f && !state.isDragging) {
-                val needsSnap = state.offsetX.value == 0f && state.offsetY.value == 0f
-                    && targetMiniX > 0f && targetMiniY > 0f
-                if (needsSnap) {
-                    state.offsetX.snapTo(targetMiniX)
-                    state.offsetY.snapTo(targetMiniY)
+                if (isWideMode) {
+                    // In wide mode only snap X to 0; Y is freely draggable
+                    launch { state.offsetX.animateTo(0f, spring(dampingRatio = 0.75f, stiffness = 400f)) }
                 } else {
-                    launch { state.offsetX.animateTo(targetMiniX, spring(dampingRatio = 0.75f, stiffness = 400f)) }
-                    launch { state.offsetY.animateTo(targetMiniY, spring(dampingRatio = 0.75f, stiffness = 400f)) }
+                    val needsSnap = state.offsetX.value == 0f && state.offsetY.value == 0f
+                        && targetMiniX > 0f && targetMiniY > 0f
+                    if (needsSnap) {
+                        state.offsetX.snapTo(targetMiniX)
+                        state.offsetY.snapTo(targetMiniY)
+                    } else {
+                        launch { state.offsetX.animateTo(targetMiniX, spring(dampingRatio = 0.75f, stiffness = 400f)) }
+                        launch { state.offsetY.animateTo(targetMiniY, spring(dampingRatio = 0.75f, stiffness = 400f)) }
+                    }
                 }
             }
         }
@@ -280,7 +316,7 @@ fun DraggablePlayerLayout(
             derivedStateOf { (1f - state.expandFraction.value).coerceIn(0f, 1f) }
         }
 
-        if (!showImmersiveFullscreen && expandedScrimAlpha > 0f) {
+        if (!showImmersiveFullscreen && expandedScrimAlpha > 0f && !state.isInlineMode) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -304,7 +340,7 @@ fun DraggablePlayerLayout(
         // ── 6. Body content (info, comments, related — non-fullscreen only) ────
         val bodyAlpha by remember { derivedStateOf { (1f - state.expandFraction.value * 1.25f).coerceIn(0f, 1f) } }
 
-        if (!showImmersiveFullscreen && bodyAlpha > 0f) {
+        if (!showImmersiveFullscreen && bodyAlpha > 0f && !state.isInlineMode) {
             val videoHeightPlaceholder =
                 if (isSplitLayout) with(density) { expandedVideoHeight.toDp() } else 0.dp
 
@@ -388,11 +424,68 @@ fun DraggablePlayerLayout(
                         clip = true
                     }
                     .background(Color.Black)
+                    // ── Live pinch-to-resize gesture ──────────────────────────
+                    .pointerInput("pinch") {
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            // Check if a second finger appears
+                            val evt = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Main)
+                            val pressed = evt.changes.filter { it.pressed }
+                            if (pressed.size < 2) return@awaitEachGesture
+                            // Only activate for mini player
+                            if (state.expandFraction.value < 0.8f) return@awaitEachGesture
+
+                            val ptr1Id = pressed[0].id
+                            val ptr2Id = pressed[1].id
+                            val initialDist = (pressed[0].position - pressed[1].position)
+                                .getDistance().coerceAtLeast(1f)
+                            val startScale = state.miniSizeScale.value
+                            // maxScale = 1/miniPlayerScale brings baseMiniWidth to full screenWidth
+                            val maxScale = (1f / miniPlayerScale).coerceAtLeast(1f)
+
+                            // Track spread / pinch live
+                            while (true) {
+                                val e = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Main)
+                                val p1 = e.changes.firstOrNull { it.id == ptr1Id } ?: break
+                                val p2 = e.changes.firstOrNull { it.id == ptr2Id } ?: break
+                                if (!p1.pressed || !p2.pressed) {
+                                    // On release, spring to nearest size: wide or normal
+                                    val targetScale = if (state.miniSizeScale.value > 1.5f) maxScale else 1f
+                                    state.scope.launch {
+                                        state.miniSizeScale.animateTo(
+                                            targetScale,
+                                            spring(dampingRatio = 0.65f, stiffness = 200f)
+                                        )
+                                        if (targetScale <= 1f) {
+                                            // Return to corner after collapsing
+                                            state.scope.launch {
+                                                state.offsetX.animateTo(state.cachedTargetX, spring(dampingRatio = 0.65f, stiffness = 200f))
+                                                state.offsetY.animateTo(state.cachedTargetY, spring(dampingRatio = 0.65f, stiffness = 200f))
+                                            }
+                                        } else {
+                                            state.scope.launch { state.offsetX.animateTo(0f, spring(dampingRatio = 0.65f, stiffness = 200f)) }
+                                        }
+                                    }
+                                    break
+                                }
+                                p1.consume(); p2.consume()
+                                val currentDist = (p1.position - p2.position).getDistance()
+                                val gestureScale = currentDist / initialDist
+                                val newScale = (startScale * gestureScale).coerceIn(1f, maxScale)
+                                state.scope.launch { state.miniSizeScale.snapTo(newScale) }
+                                // If going wide, snap X to 0
+                                if (newScale > 1.5f) {
+                                    state.scope.launch { state.offsetX.snapTo(0f) }
+                                }
+                            }
+                        }
+                    }
                     // ── Drag gesture ──────────────────────────────────────────
                     .pointerInput(Unit) {
                         val velocityTracker = VelocityTracker()
                         var snapJob: Job? = null
-
+                        var lastTapTime = 0L
+                        var singleTapJob: Job? = null
                         awaitEachGesture {
                             val minX          = _minX.value
                             val maxX          = _maxX.value
@@ -539,7 +632,22 @@ fun DraggablePlayerLayout(
                             }
 
                             if (isMiniDrag && totalMovement < 24f) {
-                                if (!downConsumedByChild && _tapToExpand.value) state.expand()
+                                if (!downConsumedByChild && _tapToExpand.value) {
+                                    val now = System.currentTimeMillis()
+                                    if (now - lastTapTime < 300L) {
+                                        // Double-tap: toggle inline mode
+                                        singleTapJob?.cancel()
+                                        lastTapTime = 0L
+                                        if (state.isInlineMode) state.collapse() else state.expandWide()
+                                    } else {
+                                        // Single-tap: wait briefly in case a second tap follows
+                                        lastTapTime = now
+                                        singleTapJob = state.scope.launch {
+                                            kotlinx.coroutines.delay(300L)
+                                            state.expand()
+                                        }
+                                    }
+                                }
                                 return@awaitEachGesture
                             }
 

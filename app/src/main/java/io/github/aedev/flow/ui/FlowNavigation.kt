@@ -2,8 +2,12 @@ package io.github.aedev.flow.ui
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -81,6 +85,18 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "home"
         showBottomNav.value = playerSheetState.currentValue != PlayerSheetValue.Expanded
         selectedBottomNavIndex.intValue = 0
+        val density = LocalDensity.current
+        val config = LocalConfiguration.current
+        // Use miniSizeScale live value: wide = screenWidth * 9/16 height, normal = 0
+        val inlinePlayerHeight by remember {
+            derivedStateOf {
+                val scale = playerSheetState.miniSizeScale.value
+                val isMini = playerSheetState.expandFraction.value > 0.5f
+                if (isMini && scale > 1.5f) {
+                    with(density) { (config.screenWidthDp.dp.toPx() * (9f / 16f)).toDp() }
+                } else 0.dp
+            }
+        }
         HomeScreen(
             onVideoClick = { video ->
                 if (video.isShort) {

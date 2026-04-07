@@ -286,7 +286,7 @@ fun PremiumControlsOverlay(
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Outlined.Bedtime,
+                                imageVector = Icons.Rounded.Bedtime,
                                 contentDescription = stringResource(R.string.sleep_timer),
                                 tint = if (isSleepTimerActive) primaryColor else Color.White,
                                 modifier = Modifier.size(24.dp)

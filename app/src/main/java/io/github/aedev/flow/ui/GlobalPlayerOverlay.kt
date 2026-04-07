@@ -14,10 +14,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.Replay10
+import androidx.compose.material.icons.rounded.Forward10
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.ContentCopy
@@ -745,10 +745,12 @@ fun GlobalPlayerOverlay(
             },
             miniControls = { _ ->
                 Box(modifier = Modifier.fillMaxSize()) {
+                    val currentSizeScale by remember { derivedStateOf { playerSheetState.miniSizeScale.value } }
                     MiniPlayerControls(
                         playerState = playerState,
                         showSkipControls = miniPlayerShowSkipControls,
                         showNextPrevControls = miniPlayerShowNextPrevControls,
+                        sizeScale = currentSizeScale,
                         onPlayPause = {
                             if (playerUiState.isRestoredSession) {
                                 playerViewModel.resumeRestoredSession(stayMini = true)
@@ -887,6 +889,7 @@ private fun MiniPlayerControls(
     playerState: io.github.aedev.flow.player.state.EnhancedPlayerState,
     showSkipControls: Boolean,
     showNextPrevControls: Boolean,
+    sizeScale: Float = 1f,
     onPlayPause: () -> Unit,
     onSkipForward: () -> Unit,
     onSkipBack: () -> Unit,
@@ -896,20 +899,13 @@ private fun MiniPlayerControls(
 ) {
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp > 600
-    
-    val baseButtonSize = if (isTablet) 56.dp else 40.dp
-    val playButtonSize = if (isTablet) 64.dp else 48.dp
-    val iconSize = if (isTablet) 32.dp else 24.dp
-    
-    var buttonCount = 1 
-    if (showSkipControls) buttonCount += 2
-    if (showNextPrevControls) buttonCount += 2
-    
-    val scaleFactor = if (!isTablet && buttonCount == 5) 0.85f else 1f
-    
-    val finalBaseButtonSize = baseButtonSize * scaleFactor
-    val finalPlayButtonSize = playButtonSize * scaleFactor
-    val finalIconSize = iconSize * scaleFactor
+
+    val scaleMult = sizeScale.coerceIn(1f, 1.6f)
+
+    val baseBgSize  = if (isTablet) 36.dp else 26.dp
+    val baseIconSize = if (isTablet) 28.dp else 22.dp
+    val finalBgSize   = baseBgSize   * scaleMult
+    val finalIconSize = baseIconSize * scaleMult
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -938,76 +934,6 @@ private fun MiniPlayerControls(
             }
         }
 
-        Row(
-            modifier = Modifier.align(Alignment.Center),
-            horizontalArrangement = Arrangement.spacedBy((if(isTablet) 16.dp else 8.dp) * scaleFactor),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (showNextPrevControls) {
-                IconButton(
-                    onClick = onPrevious,
-                    modifier = Modifier
-                        .size(finalBaseButtonSize)
-                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SkipPrevious,
-                        contentDescription = "Previous",
-                        tint = Color.White,
-                        modifier = Modifier.size(finalIconSize)
-                    )
-                }
-            }
-
-            if (showSkipControls) {
-                IconButton(
-                    onClick = onSkipBack,
-                    modifier = Modifier
-                        .size(finalBaseButtonSize)
-                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Replay10,
-                        contentDescription = "Skip Back 10s",
-                        tint = Color.White,
-                        modifier = Modifier.size(finalIconSize)
-                    )
-                }
-            }
-
-            if (showSkipControls) {
-                IconButton(
-                    onClick = onSkipForward,
-                    modifier = Modifier
-                        .size(finalBaseButtonSize)
-                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Forward10,
-                        contentDescription = "Skip Forward 10s",
-                        tint = Color.White,
-                        modifier = Modifier.size(finalIconSize)
-                    )
-                }
-            }
-
-            if (showNextPrevControls) {
-                IconButton(
-                    onClick = onNext,
-                    modifier = Modifier
-                        .size(finalBaseButtonSize)
-                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SkipNext,
-                        contentDescription = "Next",
-                        tint = Color.White,
-                        modifier = Modifier.size(finalIconSize)
-                    )
-                }
-            }
-        }
-
         IconButton(
             onClick = {
                 EnhancedPlayerManager.getInstance().stop()
@@ -1026,6 +952,81 @@ private fun MiniPlayerControls(
                 tint = Color.White,
                 modifier = Modifier.size(if (isTablet) 32.dp else 28.dp)
             )
+        }
+
+        if (showSkipControls || showNextPrevControls) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(bottom = 4.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (showNextPrevControls) {
+                    IconButton(
+                        onClick = onPrevious,
+                        modifier = Modifier
+                            .size(finalBgSize)
+                            .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.SkipPrevious,
+                            contentDescription = "Previous",
+                            tint = Color.White,
+                            modifier = Modifier.size(finalIconSize)
+                        )
+                    }
+                }
+
+                if (showSkipControls) {
+                    IconButton(
+                        onClick = onSkipBack,
+                        modifier = Modifier
+                            .size(finalBgSize)
+                            .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Replay10,
+                            contentDescription = "Skip Back 10s",
+                            tint = Color.White,
+                            modifier = Modifier.size(finalIconSize)
+                        )
+                    }
+                }
+
+                if (showSkipControls) {
+                    IconButton(
+                        onClick = onSkipForward,
+                        modifier = Modifier
+                            .size(finalBgSize)
+                            .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Forward10,
+                            contentDescription = "Skip Forward 10s",
+                            tint = Color.White,
+                            modifier = Modifier.size(finalIconSize)
+                        )
+                    }
+                }
+
+                if (showNextPrevControls) {
+                    IconButton(
+                        onClick = onNext,
+                        modifier = Modifier
+                            .size(finalBgSize)
+                            .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.SkipNext,
+                            contentDescription = "Next",
+                            tint = Color.White,
+                            modifier = Modifier.size(finalIconSize)
+                        )
+                    }
+                }
+            }
         }
     }
 }

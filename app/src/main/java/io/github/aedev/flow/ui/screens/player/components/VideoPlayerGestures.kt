@@ -171,8 +171,8 @@ fun Modifier.videoPlayerControls(
             var totalDragX = 0f
             var isDraggingVertical = false
             var shouldIgnoreGesture = false 
-            val dragThreshold = 100f 
-            val edgeIgnoreThreshold = 250f
+            val dragThreshold = 20f 
+            val edgeIgnoreThreshold = 120f
             var startTouchX = 0f
             var isCenterZone = false
             var exitDragAccum = 0f
@@ -201,7 +201,7 @@ fun Modifier.videoPlayerControls(
                     },
                     onDragEnd = {
                         shouldIgnoreGesture = false
-                        if (isCenterZone && exitDragAccum > 180f) {
+                        if (isCenterZone && exitDragAccum > 80f) {
                             currentOnExitFullscreen?.invoke()
                         }
                         isCenterZone = false
