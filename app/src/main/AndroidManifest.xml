@@ -41,13 +41,22 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Flow"
-        android:usesCleartextTraffic="true">
+        android:usesCleartextTraffic="true"
+        android:resizeableActivity="true">
 
         <!--
             Samsung keep-alive hints (same as NewPipe).
             Prevents Samsung’s DeX and screen-off battery manager from killing the
             background playback service on OneUI devices.
         -->
+        <!-- Tells OEMs (Xiaomi HyperOS, Samsung OneUI) not to force letterboxing on large screens -->
+        <property
+            android:name="android.window.PROPERTY_COMPAT_ALLOW_MIN_ASPECT_RATIO_OVERRIDE"
+            android:value="true" />
+        <property
+            android:name="android.window.PROPERTY_COMPAT_IGNORE_ORIENTATION_REQUEST_WHEN_LOOP_DETECTED"
+            android:value="true" />
+
         <meta-data
             android:name="com.samsung.android.keepalive.density"
             android:value="true" />
@@ -58,10 +67,11 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|uiMode"
             android:launchMode="singleTop"
+            android:resizeableActivity="true"
             android:supportsPictureInPicture="true"
-            android:theme="@style/Theme.Flow"
+            android:theme="@style/Theme.Flow.Starting"
             android:windowSoftInputMode="adjustResize"
             android:windowLayoutInDisplayCutoutMode="shortEdges">
 

@@ -7,6 +7,15 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>
+
+    <!-- OS-level splash screen theme (Android 12+).
+         Background matches the Compose splash screen so there is no white flash.
+         The icon is transparent to avoid a visual clash with the custom logo animation. -->
+    <style name="Theme.Flow.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#0F0F0F</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_transparent</item>
+        <item name="postSplashScreenTheme">@style/Theme.Flow</item>
+    </style>
 </resources>
 
 
