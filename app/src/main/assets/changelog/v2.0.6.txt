@@ -12,6 +12,7 @@ FEATURES
 - New playback speed preset customizations #236
 - New pinch and double tap gestures to resize mini player 
 - Add new Diagnostic screen to capture error and crash logs globaly in the app
+- Add new playback speed slider toggle option 
 
 IMPROVEMENTS
 - New miniplayer secondary action buttons layout #225
@@ -19,6 +20,8 @@ IMPROVEMENTS
 - Add aggressive codec fetching for AV1/AV01 #226
 - Improve clickable links in video comments and description #244
 - Add pinned comment support #255
+- Improve volume and brightness gestures handling
+- Improve video player support for bluetooth media control buttton #254
 
 FIXES AND STABILITY
 - Fix video player playback speed issue #232
@@ -28,3 +31,4 @@ FIXES AND STABILITY
 - Fix music playback #242
 - Fix forced layout on tablets #228
 - Fix comments sorting to newest #240
+- Fix RTL mini player handling #187

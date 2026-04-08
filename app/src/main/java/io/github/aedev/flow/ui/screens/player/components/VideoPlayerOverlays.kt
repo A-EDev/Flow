@@ -127,8 +127,8 @@ fun BrightnessOverlay(
 
     AnimatedVisibility(
         visible = isVisible,
-        enter = fadeIn(tween(200)) + slideInHorizontally(tween(200)) { -it / 2 },
-        exit = fadeOut(tween(500)) + slideOutHorizontally(tween(500)) { -it / 2 },
+        enter = fadeIn(tween(200)) + slideInHorizontally(tween(200)) { it / 2 },
+        exit = fadeOut(tween(500)) + slideOutHorizontally(tween(500)) { it / 2 },
         modifier = modifier
     ) {
         val animatedBrightness by animateFloatAsState(
@@ -204,8 +204,8 @@ fun VolumeOverlay(
 ) {
     AnimatedVisibility(
         visible = isVisible,
-        enter = fadeIn(tween(200)) + slideInHorizontally(tween(200)) { it / 2 },
-        exit = fadeOut(tween(500)) + slideOutHorizontally(tween(500)) { it / 2 },
+        enter = fadeIn(tween(200)) + slideInHorizontally(tween(200)) { -it / 2 },
+        exit = fadeOut(tween(500)) + slideOutHorizontally(tween(500)) { -it / 2 },
         modifier = modifier
     ) {
         val animatedVolume by animateFloatAsState(

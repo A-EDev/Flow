@@ -94,6 +94,7 @@ fun PlayerSettingsScreen(
 
     val customSpeedsEnabled by playerPreferences.customSpeedsEnabled.collectAsState(initial = false)
     val customSpeedPresetsRaw by playerPreferences.customSpeedPresets.collectAsState(initial = "")
+    val speedSliderEnabled by playerPreferences.speedSliderEnabled.collectAsState(initial = false)
     var newSpeedInput by remember { mutableStateOf("") }
     var speedInputError by remember { mutableStateOf(false) }
     val parsedPresets = remember(customSpeedPresetsRaw) {
@@ -263,8 +264,16 @@ fun PlayerSettingsScreen(
                         checked = customSpeedsEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setCustomSpeedsEnabled(it) } }
                     )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Rounded.SlowMotionVideo,
+                        title = stringResource(R.string.player_settings_speed_slider_title),
+                        subtitle = stringResource(R.string.player_settings_speed_slider_subtitle),
+                        checked = speedSliderEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setSpeedSliderEnabled(it) } }
+                    )
                 }
-                AnimatedVisibility(visible = customSpeedsEnabled) {
+                AnimatedVisibility(visible = customSpeedsEnabled && !speedSliderEnabled) {
                     Card(
                         colors = CardDefaults.cardColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)

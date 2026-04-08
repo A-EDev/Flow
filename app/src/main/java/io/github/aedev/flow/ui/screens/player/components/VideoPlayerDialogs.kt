@@ -853,6 +853,7 @@ fun PlaybackSpeedSelectorDialog(
     val playerPrefs = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
     val customSpeedsEnabled by playerPrefs.customSpeedsEnabled.collectAsState(initial = false)
     val customSpeedPresetsRaw by playerPrefs.customSpeedPresets.collectAsState(initial = "")
+    val speedSliderEnabled by playerPrefs.speedSliderEnabled.collectAsState(initial = false)
     val defaultSpeeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f, 3.5f, 4.0f)
     val speeds = if (customSpeedsEnabled && customSpeedPresetsRaw.isNotBlank()) {
         val custom = customSpeedPresetsRaw
@@ -895,37 +896,195 @@ fun PlaybackSpeedSelectorDialog(
                 )
             }
             HorizontalDivider()
-            LazyColumn {
-                items(speeds) { speed ->
-                    val isSelected = speed == currentSpeed
-                    Surface(
-                        onClick = { onSpeedSelected(speed); onDismiss() },
-                        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+            if (speedSliderEnabled) {
+                SpeedSliderContent(
+                    currentSpeed = currentSpeed,
+                    onSpeedSelected = { onSpeedSelected(it); onDismiss() }
+                )
+            } else {
+                LazyColumn {
+                    items(speeds) { speed ->
+                        val isSelected = speed == currentSpeed
+                        Surface(
+                            onClick = { onSpeedSelected(speed); onDismiss() },
+                            color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                text = if (speed == 1.0f) stringResource(R.string.normal) else "${speed}x",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = if (isSelected) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurface
-                            )
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (speed == 1.0f) stringResource(R.string.normal) else "${speed}x",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.onSurface
                                 )
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Quadratic slider mapping: provides finer control near 1.0x and coarser at extremes.
+ */
+private fun sliderToSpeed(progress: Float): Float {
+    val center = 0.5f
+    return if (progress <= center) {
+        val t = progress / center          
+        0.1f + t * t * (1.0f - 0.1f)
+    } else {
+        val t = (progress - center) / center
+        1.0f + t * t * (4.0f - 1.0f)
+    }
+}
+
+private fun speedToSlider(speed: Float): Float {
+    val clamped = speed.coerceIn(0.1f, 4.0f)
+    return if (clamped <= 1.0f) {
+        val t = kotlin.math.sqrt((clamped - 0.1f) / (1.0f - 0.1f))
+        t * 0.5f
+    } else {
+        val t = kotlin.math.sqrt((clamped - 1.0f) / (4.0f - 1.0f))
+        0.5f + t * 0.5f
+    }
+}
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+private fun SpeedSliderContent(
+    currentSpeed: Float,
+    onSpeedSelected: (Float) -> Unit
+) {
+    val quickPresets = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
+    val step = 0.05f
+    var sliderProgress by remember { mutableStateOf(speedToSlider(currentSpeed)) }
+    val displaySpeed = sliderToSpeed(sliderProgress)
+    val roundedSpeed = (kotlin.math.round(displaySpeed.toDouble() / step) * step)
+        .toFloat().coerceIn(0.1f, 4.0f)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Current speed display
+        Text(
+            text = if (roundedSpeed == 1.0f) stringResource(R.string.normal)
+                   else "${"%.2f".format(roundedSpeed)}×",
+            style = MaterialTheme.typography.displaySmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // Slider with − / + buttons
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            IconButton(
+                onClick = {
+                    val newSpeed = (roundedSpeed - step).coerceIn(0.1f, 4.0f)
+                    sliderProgress = speedToSlider(newSpeed)
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Remove,
+                    contentDescription = stringResource(R.string.speed_slider_decrease)
+                )
+            }
+            Slider(
+                value = sliderProgress,
+                onValueChange = { sliderProgress = it },
+                modifier = Modifier.weight(1f)
+            )
+            IconButton(
+                onClick = {
+                    val newSpeed = (roundedSpeed + step).coerceIn(0.1f, 4.0f)
+                    sliderProgress = speedToSlider(newSpeed)
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Add,
+                    contentDescription = stringResource(R.string.speed_slider_increase)
+                )
+            }
+        }
+
+        // Range labels
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "0.1×",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "4.0×",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Quick-tap preset chips
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+        ) {
+            quickPresets.forEach { preset ->
+                val isActive = kotlin.math.abs(roundedSpeed - preset) < 0.01f
+                FilterChip(
+                    selected = isActive,
+                    onClick = { sliderProgress = speedToSlider(preset) },
+                    label = {
+                        Text(
+                            text = if (preset == 1.0f) stringResource(R.string.normal)
+                                   else "${preset}×"
+                        )
+                    }
+                )
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Confirm + Reset row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            OutlinedButton(
+                onClick = { sliderProgress = speedToSlider(1.0f) },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(stringResource(R.string.speed_slider_reset))
+            }
+            Button(
+                onClick = { onSpeedSelected(roundedSpeed) },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(stringResource(R.string.speed_slider_apply))
             }
         }
     }

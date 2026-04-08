@@ -183,7 +183,12 @@ fun DraggablePlayerLayout(
     LaunchedEffect(videoAspectRatio) { playerHeightFraction = 1f }
 
     val statusBarHeight = WindowInsets.statusBars.getTop(density).toFloat()
+    // Capture the system layout direction (e.g. RTL for Arabic) before we override it.
+    // The override is needed so the mini-player Box is always placed from the physical
+    // left edge, making graphicsLayer translationX values correct in RTL locales.
+    val systemLayoutDirection = LocalLayoutDirection.current
 
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val screenWidth  = constraints.maxWidth.toFloat()
         val screenHeight = constraints.maxHeight.toFloat()
@@ -348,6 +353,9 @@ fun DraggablePlayerLayout(
                 if (isSplitLayout) statusBarHeight
                 else expandedVideoHeight + statusBarHeight
 
+            // Restore the original system layout direction for body content (comments,
+            // related videos, etc.) so RTL language users see proper text direction.
+            CompositionLocalProvider(LocalLayoutDirection provides systemLayoutDirection) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -360,6 +368,7 @@ fun DraggablePlayerLayout(
             ) {
                 bodyContent(bodyAlpha, videoHeightPlaceholder)
             }
+            } // end restore system layout direction
         }
 
         // ── 7. Video player box ───────────────────────────────────────────────
@@ -785,4 +794,5 @@ fun DraggablePlayerLayout(
         }
         } 
     }
+    } // end CompositionLocalProvider(LayoutDirection.Ltr)
 }

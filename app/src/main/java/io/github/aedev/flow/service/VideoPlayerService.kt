@@ -89,6 +89,10 @@ class VideoPlayerService : Service() {
         
         // Initialize MediaSession for lock-screen controls
         mediaSession = MediaSessionCompat(this, "VideoPlayerService").apply {
+            setFlags(
+                MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
+                MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+            )
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() {
                     EnhancedPlayerManager.getInstance().play()
@@ -117,7 +121,35 @@ class VideoPlayerService : Service() {
             
             isActive = true
         }
-        
+
+        // Set an initial playback state immediately so the session is always defined.
+        // Without this, MediaSessionManager may not route media buttons here on first activation.
+        val initialState = PlaybackStateCompat.Builder()
+            .setActions(
+                PlaybackStateCompat.ACTION_PLAY or
+                PlaybackStateCompat.ACTION_PAUSE or
+                PlaybackStateCompat.ACTION_PLAY_PAUSE or
+                PlaybackStateCompat.ACTION_STOP or
+                PlaybackStateCompat.ACTION_SEEK_TO or
+                PlaybackStateCompat.ACTION_SKIP_TO_NEXT or
+                PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+            )
+            .setState(PlaybackStateCompat.STATE_PAUSED, 0L, 1f)
+            .build()
+        mediaSession.setPlaybackState(initialState)
+
+        // Register as the explicit media-button handler so this session wins over
+        // Media3MusicService's internal session on Android 5–12.
+        val mediaButtonIntent = Intent(Intent.ACTION_MEDIA_BUTTON).also {
+            it.setClass(this, VideoPlayerService::class.java)
+        }
+        val mediaButtonPendingIntent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            PendingIntent.getForegroundService(this, 0, mediaButtonIntent, PendingIntent.FLAG_IMMUTABLE)
+        } else {
+            PendingIntent.getService(this, 0, mediaButtonIntent, PendingIntent.FLAG_IMMUTABLE)
+        }
+        mediaSession.setMediaButtonReceiver(mediaButtonPendingIntent)
+
         // Observe player state and update notification
         serviceScope.launch {
             EnhancedPlayerManager.getInstance().playerState.collectLatest { state ->
@@ -158,9 +190,17 @@ class VideoPlayerService : Service() {
             }
         }
         
+        // Re-assert this session as the most recently active one whenever a new video
+        // is started. Toggling isActive forces the system to re-register the session
+        // timestamp so it beats Media3MusicService in media-button routing priority.
+        if (intent?.getStringExtra(EXTRA_VIDEO_ID) != null) {
+            mediaSession.isActive = false
+            mediaSession.isActive = true
+        }
+
         intent?.let { handleIntent(it) }
         MediaButtonReceiver.handleIntent(mediaSession, intent)
-        
+
         return START_NOT_STICKY
     }
     
@@ -263,6 +303,8 @@ class VideoPlayerService : Service() {
         
         val playbackState = PlaybackStateCompat.Builder()
             .setActions(
+                PlaybackStateCompat.ACTION_PLAY or
+                PlaybackStateCompat.ACTION_PAUSE or
                 PlaybackStateCompat.ACTION_PLAY_PAUSE or
                 PlaybackStateCompat.ACTION_STOP or
                 PlaybackStateCompat.ACTION_SEEK_TO or

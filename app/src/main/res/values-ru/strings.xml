@@ -662,4 +662,10 @@
     <string name="player_settings_custom_speeds_empty">Нет добавленных пресетов. Добавьте ниже.</string>
     <string name="player_settings_custom_speeds_add">Добавить пресет</string>
     <string name="player_settings_custom_speeds_remove">Удалить</string>
+    <string name="player_settings_speed_slider_title">Режим ползунка скорости</string>
+    <string name="player_settings_speed_slider_subtitle">Использовать ползунок для точной настройки скорости</string>
+    <string name="speed_slider_decrease">Уменьшить скорость</string>
+    <string name="speed_slider_increase">Увеличить скорость</string>
+    <string name="speed_slider_reset">Сбросить до 1×</string>
+    <string name="speed_slider_apply">Применить</string>
 </resources>

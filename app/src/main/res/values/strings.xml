@@ -568,6 +568,12 @@
     <string name="player_settings_custom_speeds_empty">No presets added. Add one below.</string>
     <string name="player_settings_custom_speeds_add">Add preset</string>
     <string name="player_settings_custom_speeds_remove">Remove</string>
+    <string name="player_settings_speed_slider_title">Speed Slider Mode</string>
+    <string name="player_settings_speed_slider_subtitle">Use a continuous slider to set any playback speed</string>
+    <string name="speed_slider_decrease">Decrease speed</string>
+    <string name="speed_slider_increase">Increase speed</string>
+    <string name="speed_slider_reset">Reset to 1×</string>
+    <string name="speed_slider_apply">Apply</string>
     <string name="player_settings_stable_voice">Stable Voice</string>
     <string name="player_settings_stable_voice_subtitle">Normalize audio volume for consistent playback</string>
     <string name="loop_video">Loop video</string>

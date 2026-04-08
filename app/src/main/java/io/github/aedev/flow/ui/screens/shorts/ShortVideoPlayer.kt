@@ -47,6 +47,8 @@ import coil.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toShortVideo
+import android.support.v4.media.session.MediaSessionCompat
+import android.support.v4.media.session.PlaybackStateCompat
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
@@ -125,6 +127,32 @@ fun ShortVideoPage(
             setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
             setShutterBackgroundColor(android.graphics.Color.TRANSPARENT)
             keepScreenOn = true
+        }
+    }
+
+    // Register a MediaSessionCompat so earphone / Bluetooth media buttons (play-pause)
+    // work while a short is active. Re-created every time isActive changes; released on dispose.
+    DisposableEffect(isActive) {
+        val session = MediaSessionCompat(context, "ShortsPlayer").also { s ->
+            s.setPlaybackState(
+                PlaybackStateCompat.Builder()
+                    .setActions(
+                        PlaybackStateCompat.ACTION_PLAY or
+                        PlaybackStateCompat.ACTION_PAUSE or
+                        PlaybackStateCompat.ACTION_PLAY_PAUSE
+                    )
+                    .setState(PlaybackStateCompat.STATE_PAUSED, 0L, 1f)
+                    .build()
+            )
+            s.setCallback(object : MediaSessionCompat.Callback() {
+                override fun onPlay()  { playerPool.play() }
+                override fun onPause() { playerPool.pause() }
+            })
+            s.isActive = isActive
+        }
+        onDispose {
+            session.isActive = false
+            session.release()
         }
     }
 

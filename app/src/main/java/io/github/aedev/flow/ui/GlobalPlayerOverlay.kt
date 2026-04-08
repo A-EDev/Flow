@@ -555,8 +555,8 @@ fun GlobalPlayerOverlay(
                                 isVisible = screenState.showBrightnessOverlay,
                                 brightnessLevel = screenState.brightnessLevel,
                                 modifier = Modifier
-                                    .align(Alignment.CenterStart)
-                                    .padding(start = 32.dp)
+                                    .align(Alignment.CenterEnd)
+                                    .padding(end = 32.dp)
                             )
                             
                             // Volume overlay
@@ -564,8 +564,8 @@ fun GlobalPlayerOverlay(
                                 isVisible = screenState.showVolumeOverlay,
                                 volumeLevel = screenState.volumeLevel,
                                 modifier = Modifier
-                                    .align(Alignment.CenterEnd)
-                                    .padding(end = 32.dp)
+                                    .align(Alignment.CenterStart)
+                                    .padding(start = 32.dp)
                             )
                             
                                // 2x Speed overlay  

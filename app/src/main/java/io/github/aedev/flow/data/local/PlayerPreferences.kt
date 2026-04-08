@@ -135,6 +135,7 @@ class PlayerPreferences(private val context: Context) {
         // Custom playback speeds
         val CUSTOM_SPEEDS_ENABLED = booleanPreferencesKey("custom_speeds_enabled")
         val CUSTOM_SPEED_PRESETS = stringPreferencesKey("custom_speed_presets")
+        val SPEED_SLIDER_ENABLED = booleanPreferencesKey("speed_slider_enabled")
     }
     
     // Grid item size preference
@@ -758,6 +759,17 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setCustomSpeedPresets(presets: String) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.CUSTOM_SPEED_PRESETS] = presets
+        }
+    }
+
+    val speedSliderEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SPEED_SLIDER_ENABLED] ?: false
+        }
+
+    suspend fun setSpeedSliderEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SPEED_SLIDER_ENABLED] = enabled
         }
     }
 
