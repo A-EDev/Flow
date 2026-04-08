@@ -43,8 +43,8 @@ object MusicPlayerUtils {
             .build()
     }
     
-    private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
-    
+    private val MAIN_CLIENT: YouTubeClient = ANDROID_VR_1_43_32
+
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
         TVHTML5,
         ANDROID_VR_1_43_32,

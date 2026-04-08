@@ -11,6 +11,7 @@ FEATURES
 - New gesture: Swipe down to exit full screen mode
 - New playback speed preset customizations #236
 - New pinch and double tap gestures to resize mini player 
+- Add new Diagnostic screen to capture error and crash logs globaly in the app
 
 IMPROVEMENTS
 - New miniplayer secondary action buttons layout #225

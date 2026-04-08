@@ -1252,5 +1252,21 @@
     <string name="player_action_dislike">Dislike</string>
     <string name="action_want_more">Want more like this</string>
     <string name="action_not_interested">Not interested</string>
+
+    <!-- Diagnostics screen -->
+    <string name="settings_item_diagnostics">Diagnostics</string>
+    <string name="settings_item_diagnostics_subtitle">View error logs and crash reports</string>
+    <string name="diagnostics_title">Diagnostics</string>
+    <string name="diagnostics_tab_session">Session Logs</string>
+    <string name="diagnostics_tab_crashes">Crash Reports</string>
+    <string name="diagnostics_copy">Copy report</string>
+    <string name="diagnostics_share">Share report</string>
+    <string name="diagnostics_clear_crashes">Clear Crash Reports</string>
+    <string name="diagnostics_clear_confirm_title">Clear crash reports?</string>
+    <string name="diagnostics_clear_confirm_body">All saved crash reports will be permanently deleted. This cannot be undone.</string>
+    <string name="diagnostics_no_crashes">No crash reports — great!</string>
+    <string name="diagnostics_no_session_logs">No warnings or errors in this session.</string>
+    <string name="diagnostics_loading">Reading logs…</string>
+    <string name="diagnostics_copied">Report copied to clipboard</string>
 </resources>
 

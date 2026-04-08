@@ -78,6 +78,7 @@ fun SettingsScreen(
     onNavigateToUserPreferences: () -> Unit,
     onNavigateToNotifications: () -> Unit,
     onNavigateToAppIconPicker: () -> Unit,
+    onNavigateToDiagnostics: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -240,6 +241,7 @@ fun SettingsScreen(
         SettingSearchEntry(Icons.Outlined.FileDownload, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_import_data), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_import_data_subtitle), secDataManagement, onNavigateToImport),
         SettingSearchEntry(Icons.Outlined.Psychology, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.export_engine_data), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.export_engine_data_subtitle), secDataManagement) { exportBrainLauncher.launch("flow_engine_${System.currentTimeMillis()}.json") },
         SettingSearchEntry(Icons.Outlined.Info, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_about_flow), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_about_flow_subtitle), secAbout, onNavigateToAbout),
+        SettingSearchEntry(Icons.Outlined.BugReport, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_diagnostics), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_diagnostics_subtitle), secAbout, onNavigateToDiagnostics),
         SettingSearchEntry(Icons.Outlined.Favorite, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_support), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_support_subtitle), secAbout, onNavigateToDonations)
     ) + if (BuildConfig.UPDATER_ENABLED) listOf(
         SettingSearchEntry(Icons.Outlined.Update, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.check_for_updates), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.check_for_updates_subtitle), secAbout, onCheckForUpdatesClick)
@@ -690,6 +692,13 @@ item {
                         title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_about_flow),
                         subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_about_flow_subtitle),
                         onClick = onNavigateToAbout
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.BugReport,
+                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_diagnostics),
+                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_diagnostics_subtitle),
+                        onClick = onNavigateToDiagnostics
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     if (BuildConfig.UPDATER_ENABLED) {
