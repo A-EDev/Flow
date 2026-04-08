@@ -1,116 +1,90 @@
 package io.github.aedev.flow.utils
 
-import androidx.compose.runtime.Composable
+import android.text.style.URLSpan
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.withStyle
 import androidx.core.text.HtmlCompat
 
 /**
- * Shared utility to format text with:
+ * Pure (non-Composable) utility to format comment/reply text with:
  * - HTML entity decoding (&apos;, &quot;, etc.)
  * - Line break handling (<br> to \n)
- * - Clickable URLs
- * - Clickable Timestamps (0:00)
+ * - Clickable URLs (preserving actual href from <a> tags, not just visible text)
+ * - Clickable Timestamps (0:00) — TIMESTAMP takes priority over URL for
+ *   YouTube chapter/timestamp links like <a href="...?t=74">1:14</a>
  * - Clickable Hashtags (#hashtag)
+ *
+ * Call from a Composable wrapped in remember(text) for efficiency.
  */
-@Composable
 fun formatRichText(
     text: String,
     primaryColor: Color,
     textColor: Color
 ): AnnotatedString {
-    // 1. Pre-process HTML tags and entities
-    // Use LEGACY mode to preserve more structure, and replace <br> beforehand
-    val processedHtml = text.replace("(?i)<br\\s*/?>".toRegex(), "\n")
+    // 1. Replace <br> with newlines, then parse HTML into a Spanned to decode entities and extract URLSpans.
+    val processedHtml = text.replace(Regex("(?i)<br\\s*/?>"), "\n")
     val spanned = HtmlCompat.fromHtml(processedHtml, HtmlCompat.FROM_HTML_MODE_LEGACY)
-    val plainText = spanned.toString().trim()
+    val plainText = spanned.toString().trimEnd()
+
+    val urlSpans = spanned.getSpans(0, spanned.length, URLSpan::class.java)
+    val htmlLinkRanges: List<IntRange> = urlSpans.map {
+        spanned.getSpanStart(it) until spanned.getSpanEnd(it)
+    }
 
     return buildAnnotatedString {
-        var currentIndex = 0
-        
-        // Regex patterns
-        val urlPattern = Regex("""(https?://[^\s]+)""")
+        append(plainText)
+
+        // ── 1. Timestamps (highest priority) ──────────────────────────────────
         val timestampPattern = Regex("""(\d{1,2}:)?\d{1,2}:\d{2}""")
-        val hashtagPattern = Regex("""#\w+""")
-        
-        // Find all matches and sort by position
-        data class Match(val start: Int, val end: Int, val type: String, val text: String)
-        val matches = mutableListOf<Match>()
-        
-        urlPattern.findAll(plainText).forEach { 
-            matches.add(Match(it.range.first, it.range.last + 1, "url", it.value))
+        val annotatedTimestampRanges = mutableListOf<IntRange>()
+        for (match in timestampPattern.findAll(plainText)) {
+            val s = match.range.first
+            val e = match.range.last + 1
+            annotatedTimestampRanges += s until e
+            addStyle(SpanStyle(color = primaryColor, fontWeight = FontWeight.Bold), s, e)
+            addStringAnnotation("TIMESTAMP", match.value, s, e)
         }
-        timestampPattern.findAll(plainText).forEach { 
-            matches.add(Match(it.range.first, it.range.last + 1, "timestamp", it.value))
+
+        // ── 2. URLs from HTML anchor tags (href preserved) ────────────────────
+        for (span in urlSpans) {
+            val s = spanned.getSpanStart(span).coerceAtMost(plainText.length)
+            val e = spanned.getSpanEnd(span).coerceAtMost(plainText.length)
+            if (s >= e) continue
+            val rawUrl = span.url
+            val absoluteUrl = if (rawUrl.startsWith("/")) "https://www.youtube.com$rawUrl" else rawUrl
+            if (annotatedTimestampRanges.any { range -> s in range || (s <= range.first && e >= range.last + 1) }) continue
+            addStyle(
+                SpanStyle(color = primaryColor, textDecoration = TextDecoration.Underline, fontWeight = FontWeight.Medium),
+                s, e
+            )
+            addStringAnnotation("URL", absoluteUrl, s, e)
         }
-        hashtagPattern.findAll(plainText).forEach { 
-            matches.add(Match(it.range.first, it.range.last + 1, "hashtag", it.value))
+
+        // ── 3. Plain-text URLs (not inside an HTML anchor) ────────────────────
+        val urlRegex = Regex("""https?://\S+""")
+        for (match in urlRegex.findAll(plainText)) {
+            val s = match.range.first
+            val e = match.range.last + 1
+            if (htmlLinkRanges.any { s in it } || annotatedTimestampRanges.any { s in it }) continue
+            addStyle(
+                SpanStyle(color = primaryColor, textDecoration = TextDecoration.Underline, fontWeight = FontWeight.Medium),
+                s, e
+            )
+            addStringAnnotation("URL", match.value, s, e)
         }
-        
-        matches.sortBy { it.start }
-        
-        // Build the annotated string
-        for (match in matches) {
-            // Add text before match
-            if (match.start > currentIndex) {
-                append(plainText.substring(currentIndex, match.start))
-            }
-            
-            // Skip if overlapping (e.g. hashtag inside URL)
-            if (match.start < currentIndex) continue
-            
-            // Add styled match
-            when (match.type) {
-                "url" -> {
-                    pushStringAnnotation(tag = "URL", annotation = match.text)
-                    withStyle(SpanStyle(
-                        color = primaryColor,
-                        textDecoration = TextDecoration.Underline,
-                        fontWeight = FontWeight.Medium
-                    )) {
-                        // Truncate long URLs for display
-                        val displayUrl = if (match.text.length > 40) {
-                            match.text.take(37) + "..."
-                        } else {
-                            match.text
-                        }
-                        append(displayUrl)
-                    }
-                    pop()
-                }
-                "timestamp" -> {
-                    pushStringAnnotation(tag = "TIMESTAMP", annotation = match.text)
-                    withStyle(SpanStyle(
-                        color = primaryColor,
-                        fontWeight = FontWeight.Bold
-                    )) {
-                        append(match.text)
-                    }
-                    pop()
-                }
-                "hashtag" -> {
-                    pushStringAnnotation(tag = "HASHTAG", annotation = match.text)
-                    withStyle(SpanStyle(
-                        color = primaryColor,
-                        fontWeight = FontWeight.Bold
-                    )) {
-                        append(match.text)
-                    }
-                    pop()
-                }
-            }
-            
-            currentIndex = match.end
-        }
-        
-        // Add remaining text
-        if (currentIndex < plainText.length) {
-            append(plainText.substring(currentIndex))
+
+        // ── 4. Hashtags (not inside a link or timestamp) ──────────────────────
+        val hashtagRegex = Regex("""#\w+""")
+        for (match in hashtagRegex.findAll(plainText)) {
+            val s = match.range.first
+            val e = match.range.last + 1
+            if (htmlLinkRanges.any { s in it } || annotatedTimestampRanges.any { s in it }) continue
+            addStyle(SpanStyle(color = primaryColor, fontWeight = FontWeight.Bold), s, e)
+            addStringAnnotation("HASHTAG", match.value, s, e)
         }
     }
 }

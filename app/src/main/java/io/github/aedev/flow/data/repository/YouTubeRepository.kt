@@ -565,7 +565,8 @@ class YouTubeRepository @Inject constructor(
                     likeCount = item.likeCount.toInt(),
                     publishedTime = item.textualUploadDate ?: "",
                     replyCount = item.replyCount.toInt(),
-                    repliesPage = item.replies
+                    repliesPage = item.replies,
+                    isPinned = item.isPinned
                 )
             }
             Pair(comments, commentsInfo.nextPage)
@@ -595,7 +596,8 @@ class YouTubeRepository @Inject constructor(
                     likeCount = item.likeCount.toInt(),
                     publishedTime = item.textualUploadDate ?: "",
                     replyCount = item.replyCount.toInt(),
-                    repliesPage = item.replies
+                    repliesPage = item.replies,
+                    isPinned = item.isPinned
                 )
             }
             Pair(comments, moreItems.nextPage)

@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.0.6
-DATE: 2026-04-4
+DATE: 2026-04-8
 
 FEATURES
 - Add new save state for subscriptions feed display settings #221
@@ -15,6 +15,9 @@ FEATURES
 IMPROVEMENTS
 - New miniplayer secondary action buttons layout #225
 - Splash screen color #233
+- Add aggressive codec fetching for AV1/AV01 #226
+- Improve clickable links in video comments and description #244
+- Add pinned comment support #255
 
 FIXES AND STABILITY
 - Fix video player playback speed issue #232
@@ -23,3 +26,4 @@ FIXES AND STABILITY
 - Fix music search results #223
 - Fix music playback #242
 - Fix forced layout on tablets #228
+- Fix comments sorting to newest #240

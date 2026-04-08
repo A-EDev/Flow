@@ -172,6 +172,8 @@
     <string name="reply">Reply</string>
     <string name="hide_replies">Hide replies</string>
     <string name="view_replies_template">View %1$d replies</string>
+    <string name="pinned_comment">Pinned comment</string>
+    <string name="pinned_by_creator">Pinned by creator</string>
 
     <!-- Update Dialog -->
     <string name="new_update_available">New Update Available</string>

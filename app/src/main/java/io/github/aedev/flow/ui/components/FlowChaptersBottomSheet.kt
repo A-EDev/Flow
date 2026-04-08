@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
@@ -28,17 +29,19 @@ fun FlowChaptersBottomSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val maxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.65f
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState(),
         containerColor = MaterialTheme.colorScheme.surface,
-        scrimColor = Color.Black.copy(alpha = 0.6f),
+        scrimColor = Color.Transparent,
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = modifier
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = maxHeight)
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 16.dp)
         ) {

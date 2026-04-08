@@ -11,8 +11,14 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
-import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -52,51 +58,66 @@ fun parseHtmlDescription(rawHtml: String): AnnotatedString {
 
         // 3. Find all URLSpans created by the HTML parser and apply Compose styles
         val urlSpans = spanned.getSpans(0, spanned.length, URLSpan::class.java)
-        
+        val htmlLinkRanges: List<IntRange> = urlSpans.map {
+            spanned.getSpanStart(it) until spanned.getSpanEnd(it)
+        }
         for (span in urlSpans) {
-            val start = spanned.getSpanStart(span)
-            val end = spanned.getSpanEnd(span)
-            val url = span.url
-            
-            // Apply Blue Color & Underline
+            val start = spanned.getSpanStart(span).coerceAtMost(text.length)
+            val end = spanned.getSpanEnd(span).coerceAtMost(text.length)
+            if (start >= end) continue
+            val rawUrl = span.url
+            val absoluteUrl = if (rawUrl.startsWith("/")) "https://www.youtube.com$rawUrl" else rawUrl
             addStyle(
                 style = SpanStyle(
-                    color = Color(0xFF3EA6FF), 
+                    color = Color(0xFF3EA6FF),
                     textDecoration = TextDecoration.Underline,
                     fontWeight = FontWeight.SemiBold
                 ),
                 start = start,
                 end = end
             )
-            
-            // Add Annotation so we can click it
-            addStringAnnotation(
-                tag = "URL",
-                annotation = url,
-                start = start,
-                end = end
-            )
-            val timestampRegex = Regex("""\b(?:[0-9]{1,2}:)?[0-9]{1,2}:[0-9]{2}\b""")
-            timestampRegex.findAll(text).forEach { matchResult ->
-                val start = matchResult.range.first
+            addStringAnnotation(tag = "URL", annotation = absoluteUrl, start = start, end = end)
+        }
+
+        // 4. Find plain-text URLs (https://... not covered by an anchor tag)
+        val htmlUrlStarts = urlSpans.map { spanned.getSpanStart(it) }.toSet()
+        val urlRegex = Regex("""https?://[^\s]+""")
+        urlRegex.findAll(text).forEach { matchResult ->
+            val start = matchResult.range.first
+            // Skip if already covered by an HTML anchor
+            if (start !in htmlUrlStarts) {
                 val end = matchResult.range.last + 1
-                
                 addStyle(
                     style = SpanStyle(
                         color = Color(0xFF3EA6FF),
+                        textDecoration = TextDecoration.Underline,
                         fontWeight = FontWeight.SemiBold
                     ),
                     start = start,
                     end = end
                 )
-                
-                addStringAnnotation(
-                    tag = "TIMESTAMP",
-                    annotation = matchResult.value,
-                    start = start,
-                    end = end
-                )
+                addStringAnnotation(tag = "URL", annotation = matchResult.value, start = start, end = end)
             }
+        }
+
+        // 5. Find timestamps — TIMESTAMP takes priority over URL.
+        //    YouTube chapter links like <a href="?t=74">1:14</a> should seek the
+        //    player, not open a browser.  We still add the TIMESTAMP annotation
+        //    even when the range overlaps a URL span; the click handler resolves
+        //    the conflict by preferring TIMESTAMP.
+        val timestampRegex = Regex("""\b(?:[0-9]{1,2}:)?[0-9]{1,2}:[0-9]{2}\b""")
+        timestampRegex.findAll(text).forEach { matchResult ->
+            val start = matchResult.range.first
+            val end = matchResult.range.last + 1
+            addStyle(
+                style = SpanStyle(
+                    color = Color(0xFF3EA6FF),
+                    fontWeight = FontWeight.SemiBold
+                ),
+                start = start,
+                end = end
+            )
+            addStringAnnotation(tag = "TIMESTAMP", annotation = matchResult.value, start = start, end = end)
         }
     }
 }
@@ -116,6 +137,7 @@ fun FlowDescriptionBottomSheet(
     val descriptionText = remember(video.description) {
         parseHtmlDescription(video.description)
     }
+    var descLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
     // Auto-extract hashtags (This regex is still fine for finding hashtags in the clean text)
     val hashtags = remember(descriptionText.text) {
@@ -125,11 +147,21 @@ fun FlowDescriptionBottomSheet(
             .toList()
     }
 
+    // Consume leftover scroll deltas so the sheet's drag handler never sees
+    // overscroll at the content boundary — prevents collapse while scrolling.
+    val preventCollapseOnScroll = remember {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset, available: Offset, source: NestedScrollSource
+            ) = available
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState(),
         containerColor = MaterialTheme.colorScheme.surface,
-        scrimColor = Color.Black.copy(alpha = 0.6f),
+        scrimColor = Color.Transparent,
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = modifier
     ) {
@@ -140,6 +172,7 @@ fun FlowDescriptionBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(max = maxHeight)
+                .nestedScroll(preventCollapseOnScroll)
         ) {
             // Header
             Row(
@@ -244,27 +277,38 @@ fun FlowDescriptionBottomSheet(
                             }
                         }
 
-                        // Rich Text Description — selectable text with clickable links
-                        SelectionContainer {
-                            ClickableText(
-                                text = descriptionText,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    lineHeight = 24.sp,
-                                    fontSize = 15.sp
-                                ),
-                                onClick = { offset ->
-                                    descriptionText.getStringAnnotations(tag = "URL", start = offset, end = offset)
-                                        .firstOrNull()?.let { annotation ->
-                                            uriHandler.openUri(annotation.item)
-                                        }
-                                    descriptionText.getStringAnnotations(tag = "TIMESTAMP", start = offset, end = offset)
-                                        .firstOrNull()?.let { annotation ->
-                                            onTimestampClick(annotation.item)
-                                        }
+                        // Rich Text Description — clickable links and timestamps.
+                        // SelectionContainer is intentionally omitted: wrapping ClickableText
+                        // (or BasicText) inside SelectionContainer intercepts touch events
+                        // and prevents the onClick/pointerInput from firing.
+                        BasicText(
+                            text = descriptionText,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onSurface,
+                                lineHeight = 24.sp,
+                                fontSize = 15.sp
+                            ),
+                            onTextLayout = { descLayoutResult = it },
+                            modifier = Modifier.pointerInput(descriptionText) {
+                                detectTapGestures { tapOffset ->
+                                    val result = descLayoutResult ?: return@detectTapGestures
+                                    val charOffset = result.getOffsetForPosition(tapOffset)
+                                    // TIMESTAMP takes priority — YouTube chapter links like
+                                    // <a href="?t=74">1:14</a> seek the player, not a browser.
+                                    val ts = descriptionText
+                                        .getStringAnnotations("TIMESTAMP", charOffset, charOffset)
+                                        .firstOrNull()
+                                    if (ts != null) {
+                                        onTimestampClick(ts.item)
+                                    } else {
+                                        descriptionText
+                                            .getStringAnnotations("URL", charOffset, charOffset)
+                                            .firstOrNull()
+                                            ?.let { uriHandler.openUri(it.item) }
+                                    }
                                 }
-                            )
-                        }
+                            }
+                        )
 
                         // Tags section
                         if (tags.isNotEmpty()) {

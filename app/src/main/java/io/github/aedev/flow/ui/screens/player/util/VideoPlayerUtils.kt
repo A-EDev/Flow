@@ -63,7 +63,9 @@ object VideoPlayerUtils {
      * 2. Format MIME type / name heuristic — fallback for unknown itags.
      */
     fun codecKeyFromStream(stream: VideoStream): String {
-        val url = try { stream.content ?: "" } catch (_: Exception) { "" }
+        val url = try {
+            stream.content?.takeIf { it.isNotBlank() } ?: stream.url ?: ""
+        } catch (_: Exception) { "" }
         val itag = try {
             Uri.parse(url).getQueryParameter("itag")?.toIntOrNull()
         } catch (_: Exception) { null }
@@ -75,12 +77,14 @@ object VideoPlayerUtils {
             else -> Unit
         }
 
-        // Fallback: inspect the MediaFormat
+        // Fallback: inspect the MediaFormat mime type and name
         val fmtMime = try { stream.format?.mimeType?.lowercase() ?: "" } catch (_: Exception) { "" }
         val fmtName = try { stream.format?.name?.lowercase() ?: "" } catch (_: Exception) { "" }
         return when {
-            "webm" in fmtName || "webm" in fmtMime -> "vp9"
-            else -> "h264"
+            "av01" in fmtMime || "av01" in fmtName ||
+            "av1"  in fmtName                       -> "av1"
+            "webm" in fmtName || "webm" in fmtMime  -> "vp9"
+            else                                    -> "h264"
         }
     }
 

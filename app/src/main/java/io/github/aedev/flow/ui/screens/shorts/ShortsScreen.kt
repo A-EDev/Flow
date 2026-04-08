@@ -88,9 +88,12 @@ fun ShortsScreen(
     val comments by viewModel.commentsState.collectAsState()
     val isLoadingComments by viewModel.isLoadingComments.collectAsState()
 
+    // Sorted comments — pinned always first, then top/newest order
     val sortedComments = remember(comments, isTopComments) {
-        if (isTopComments) comments.sortedByDescending { it.likeCount }
-        else comments
+        val pinned = comments.filter { it.isPinned }
+        val unpinned = comments.filterNot { it.isPinned }
+        val sortedUnpinned = if (isTopComments) unpinned.sortedByDescending { it.likeCount } else unpinned
+        pinned + sortedUnpinned
     }
 
     // Load shorts

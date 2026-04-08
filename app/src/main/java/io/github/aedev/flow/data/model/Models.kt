@@ -50,7 +50,8 @@ data class Comment(
     val publishedTime: String,
     val replies: List<Comment> = emptyList(),
     val replyCount: Int = 0,
-    val repliesPage: Page? = null
+    val repliesPage: Page? = null,
+    val isPinned: Boolean = false
 )
 
 data class SearchResult(

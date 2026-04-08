@@ -42,13 +42,30 @@ fun PlayerBottomSheetsContainer(
     onLoadReplies: (Comment) -> Unit = {},
     onNavigateToChannel: ((String) -> Unit)? = null
 ) {
-    // Sorted comments based on filter
+    // Sorted comments based on filter — pinned comments always first
     val sortedComments = remember(comments, screenState.isTopComments) {
-        if (screenState.isTopComments) {
-            comments.sortedByDescending { it.likeCount }
+        val pinned = comments.filter { it.isPinned }
+        val unpinned = comments.filterNot { it.isPinned }
+        val sortedUnpinned = if (screenState.isTopComments) {
+            unpinned.sortedByDescending { it.likeCount }
         } else {
-            comments
+            fun relativeTimeToSeconds(timeStr: String): Long {
+                val lower = timeStr.lowercase().trim()
+                val number = Regex("\\d+").find(lower)?.value?.toLongOrNull() ?: 0L
+                return when {
+                    "second" in lower -> number
+                    "minute" in lower -> number * 60L
+                    "hour"   in lower -> number * 3_600L
+                    "day"    in lower -> number * 86_400L
+                    "week"   in lower -> number * 604_800L
+                    "month"  in lower -> number * 2_592_000L
+                    "year"   in lower -> number * 31_536_000L
+                    else              -> Long.MAX_VALUE
+                }
+            }
+            unpinned.sortedBy { relativeTimeToSeconds(it.publishedTime) }
         }
+        pinned + sortedUnpinned
     }
     
     val handleTimestampClick: (String) -> Unit = remember {

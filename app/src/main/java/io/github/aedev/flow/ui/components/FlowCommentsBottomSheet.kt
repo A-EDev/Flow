@@ -3,12 +3,13 @@ package io.github.aedev.flow.ui.components
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PushPin
@@ -24,13 +25,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.text.HtmlCompat
-import android.text.style.URLSpan
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import coil.compose.AsyncImage
@@ -58,18 +63,27 @@ fun FlowCommentsBottomSheet(
 
     val latestOnLoadMore by rememberUpdatedState(onLoadMore)
 
+    val preventCollapseOnScroll = remember {
+        object : NestedScrollConnection {
+            override fun onPostScroll(
+                consumed: Offset, available: Offset, source: NestedScrollSource
+            ) = available
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState(),
         containerColor = MaterialTheme.colorScheme.surface,
-        scrimColor = Color.Black.copy(alpha = 0.6f),
+        scrimColor = Color.Transparent,
         dragHandle = { BottomSheetDefaults.DragHandle() },
         modifier = modifier
     ) {
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = maxHeight),
+                .heightIn(max = maxHeight)
+                .nestedScroll(preventCollapseOnScroll),
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
             item(key = "header") {
@@ -169,23 +183,28 @@ fun FlowCommentItem(
     var isRepliesVisible by remember { mutableStateOf(false) }
     var isOverflowing by remember { mutableStateOf(false) }
     var isLoadingReplies by remember { mutableStateOf(false) }
+    var commentTextLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+
+    val uriHandler = LocalUriHandler.current
 
     LaunchedEffect(comment.replies) {
         isLoadingReplies = false
     }
 
-    // Process text to make timestamps blue and clickable, and handle HTML
+    // Process text — cached so it isn't rebuilt on every recomposition.
     val primaryColor = MaterialTheme.colorScheme.primary
-    val annotatedText = formatRichText(
-        text = comment.text,
-        primaryColor = primaryColor,
-        textColor = MaterialTheme.colorScheme.onSurface
-    )
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val annotatedText = remember(comment.text, primaryColor) {
+        formatRichText(
+            text = comment.text,
+            primaryColor = primaryColor,
+            textColor = onSurface
+        )
+    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* Optional: Open thread */ }
             .padding(vertical = 12.dp, horizontal = 16.dp)
     ) {
         // Avatar
@@ -203,7 +222,28 @@ fun FlowCommentItem(
 
         Column(modifier = Modifier.weight(1f)) {
             
-            
+            // Pinned indicator
+            if (comment.isPinned) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PushPin,
+                        contentDescription = stringResource(R.string.pinned_comment),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.pinned_by_creator),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
             // Header: Author + Time
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -227,7 +267,7 @@ fun FlowCommentItem(
 
             // Comment Body with "Read More" logic
             Box(modifier = Modifier.animateContentSize()) {
-                ClickableText(
+                BasicText(
                     text = annotatedText,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.onSurface,
@@ -235,25 +275,28 @@ fun FlowCommentItem(
                     ),
                     maxLines = if (isExpanded) Int.MAX_VALUE else 4,
                     overflow = TextOverflow.Ellipsis,
-                    onTextLayout = { textLayoutResult ->
-                        if (textLayoutResult.hasVisualOverflow) {
-                            isOverflowing = true
-                        }
+                    onTextLayout = { result ->
+                        commentTextLayoutResult = result
+                        if (result.hasVisualOverflow) isOverflowing = true
                     },
-                    onClick = { offset ->
-                        // Handle Timestamp Clicks
-                        annotatedText.getStringAnnotations(tag = "TIMESTAMP", start = offset, end = offset)
-                            .firstOrNull()?.let { annotation ->
-                                onTimestampClick(annotation.item)
+                    modifier = Modifier.pointerInput(annotatedText) {
+                        detectTapGestures { tapOffset ->
+                            val result = commentTextLayoutResult ?: return@detectTapGestures
+                            val offset = result.getOffsetForPosition(tapOffset)
+                            val ts = annotatedText
+                                .getStringAnnotations("TIMESTAMP", offset, offset)
+                                .firstOrNull()
+                            val url = annotatedText
+                                .getStringAnnotations("URL", offset, offset)
+                                .firstOrNull()
+                            if (ts != null) {
+                                onTimestampClick(ts.item)
+                            } else if (url != null) {
+                                try { uriHandler.openUri(url.item) } catch (e: Exception) { e.printStackTrace() }
+                            } else {
+                                if (!isExpanded && isOverflowing) isExpanded = true
                             }
-                        // Handle URL Clicks
-                        annotatedText.getStringAnnotations(tag = "URL", start = offset, end = offset)
-                            .firstOrNull()?.let { 
-                                // Handle Link opening here
-                            }
-                            
-                        // Expand if clicked anywhere else and is overflowing
-                        if (!isExpanded && isOverflowing) isExpanded = true
+                        }
                     }
                 )
             }
@@ -372,11 +415,16 @@ fun FlowReplyItem(
     onTimestampClick: (String) -> Unit
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
-    val annotatedText = formatRichText(
-        text = reply.text,
-        primaryColor = primaryColor,
-        textColor = MaterialTheme.colorScheme.onSurface
-    )
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    val uriHandler = LocalUriHandler.current
+    val annotatedText = remember(reply.text, primaryColor) {
+        formatRichText(
+            text = reply.text,
+            primaryColor = primaryColor,
+            textColor = onSurface
+        )
+    }
+    var replyTextLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
 
     Row(
         modifier = Modifier
@@ -419,17 +467,29 @@ fun FlowReplyItem(
             Spacer(modifier = Modifier.height(2.dp))
 
             // Reply Body
-            ClickableText(
+            BasicText(
                 text = annotatedText,
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = MaterialTheme.colorScheme.onSurface,
                     lineHeight = 16.sp
                 ),
-                onClick = { offset ->
-                    annotatedText.getStringAnnotations(tag = "TIMESTAMP", start = offset, end = offset)
-                        .firstOrNull()?.let { annotation ->
-                            onTimestampClick(annotation.item)
+                onTextLayout = { replyTextLayoutResult = it },
+                modifier = Modifier.pointerInput(annotatedText) {
+                    detectTapGestures { tapOffset ->
+                        val result = replyTextLayoutResult ?: return@detectTapGestures
+                        val offset = result.getOffsetForPosition(tapOffset)
+                        val ts = annotatedText
+                            .getStringAnnotations("TIMESTAMP", offset, offset)
+                            .firstOrNull()
+                        if (ts != null) {
+                            onTimestampClick(ts.item)
+                        } else {
+                            annotatedText
+                                .getStringAnnotations("URL", offset, offset)
+                                .firstOrNull()
+                                ?.let { try { uriHandler.openUri(it.item) } catch (_: Exception) {} }
                         }
+                    }
                 }
             )
 
