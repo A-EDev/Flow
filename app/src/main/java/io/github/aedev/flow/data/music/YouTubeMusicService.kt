@@ -22,10 +22,6 @@ object YouTubeMusicService {
     
     private const val TAG = "YouTubeMusicService"
     
-    // Curated Playlist IDs for high-quality music data
-    private val CHART_GLOBAL_TOP_100 = "PL4fGSI1pDJn6jUjI2i02v9d8X7r5E8y7-"
-    private val TRENDING_MUSIC = "PLFgquLnL59alW3ElNjauCx5hG308liqnW"
-    private val NEW_RELEASES = "PLFi9SREyid_zhE_Uv5B_sQat4FjL8R5Pz"
     
     // Popular music categories and search queries
     private val musicGenres = listOf(
@@ -83,20 +79,20 @@ object YouTubeMusicService {
                 Log.d(TAG, "Fetched ${innertubeTracks.size} tracks from Innertube")
                 tracks.addAll(innertubeTracks)
             } else {
-                // Fallback to NewPipe Strategy
-                // Strategy 1: Fetch from Global Top 100 Chart
-                tracks.addAll(fetchPlaylistTracks(CHART_GLOBAL_TOP_100))
-                
-                // Strategy 2: Trending Music Playlist
+                // Fallback: Innertube charts (FEmusic_charts — stable, no hardcoded IDs)
+                val chartTracks = io.github.aedev.flow.data.newmusic.InnertubeMusicService.fetchCharts()
+                if (chartTracks.isNotEmpty()) {
+                    tracks.addAll(chartTracks)
+                }
+                // Secondary fallback: search-based discovery
                 if (tracks.size < limit) {
-                    tracks.addAll(fetchPlaylistTracks(TRENDING_MUSIC))
+                    tracks.addAll(searchMusic(trendingMusicQueries.first(), limit - tracks.size))
                 }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error in fetchTrendingMusic", e)
-             // Fallback to NewPipe Strategy on error
             try {
-                tracks.addAll(fetchPlaylistTracks(CHART_GLOBAL_TOP_100))
+                tracks.addAll(io.github.aedev.flow.data.newmusic.InnertubeMusicService.fetchCharts())
             } catch (ignore: Exception) {}
         }
         
@@ -115,11 +111,7 @@ object YouTubeMusicService {
                 return@withContext innertubeResults.take(limit)
             }
             
-            val tracks = fetchPlaylistTracks(NEW_RELEASES).take(limit)
-            if (tracks.isEmpty()) {
-                return@withContext searchMusic("new music releases 2025", limit)
-            }
-            tracks
+            searchMusic("new music releases 2025", limit)
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching new releases", e)
             emptyList()

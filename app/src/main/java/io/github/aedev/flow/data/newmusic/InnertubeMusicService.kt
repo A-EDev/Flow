@@ -24,16 +24,9 @@ import java.util.Locale
 object InnertubeMusicService {
     
     init {
-        // Initialize Innertube locale
-        try {
-            YouTube.locale = YouTubeLocale(
-                gl = Locale.getDefault().country,
-                hl = Locale.getDefault().toLanguageTag()
-            )
-        } catch (e: Exception) {
-            // Fallback if Locale fails
-            YouTube.locale = YouTubeLocale(gl = "US", hl = "en")
-        }
+        val lang    = Locale.getDefault().language.ifEmpty { "en" }
+        val country = Locale.getDefault().country.ifEmpty  { "US" }
+        YouTube.locale = YouTubeLocale(gl = country, hl = lang)
     }
 
     /**

@@ -393,11 +393,11 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
             queries += "${primaryTopics[0]} $personaSuffix #shorts"
         }
 
-        // Strategy 8: Time-rotated queries
-        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
-        val timeRotation = hour / 6
-        val rotatedTopic = primaryTopics.getOrNull(timeRotation % primaryTopics.size)
-        if (rotatedTopic != null) {
+        // Strategy 8: Time-rotated queries (guard against empty topic list for new users)
+        if (primaryTopics.isNotEmpty()) {
+            val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+            val timeRotation = hour / 6
+            val rotatedTopic = primaryTopics[timeRotation % primaryTopics.size]
             val timeSuffixes = listOf("trending", "viral", "new", "best")
             queries += "$rotatedTopic ${timeSuffixes[timeRotation]} shorts"
         }
