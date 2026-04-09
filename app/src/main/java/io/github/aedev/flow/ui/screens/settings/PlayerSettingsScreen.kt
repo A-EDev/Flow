@@ -68,6 +68,7 @@ fun PlayerSettingsScreen(
     val overlayCastEnabled by playerPreferences.overlayCastEnabled.collectAsState(initial = true)
     val overlayCcEnabled by playerPreferences.overlayCcEnabled.collectAsState(initial = false)
     val overlayPipEnabled by playerPreferences.overlayPipEnabled.collectAsState(initial = false)
+    val autoPipEnabled by playerPreferences.autoPipEnabled.collectAsState(initial = false)
     val overlayAutoplayEnabled by playerPreferences.overlayAutoplayEnabled.collectAsState(initial = false)
     val overlaySleepTimerEnabled by playerPreferences.overlaySleepTimerEnabled.collectAsState(initial = true)
     
@@ -171,6 +172,14 @@ fun PlayerSettingsScreen(
                                 playerPreferences.setManualPipButtonEnabled(it)
                             } 
                         }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.PictureInPictureAlt,
+                        title = stringResource(R.string.player_settings_auto_pip_title),
+                        subtitle = stringResource(R.string.player_settings_auto_pip_subtitle),
+                        checked = autoPipEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setAutoPipEnabled(it) } }
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(

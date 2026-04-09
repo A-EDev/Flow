@@ -457,8 +457,7 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
         }
 
         val isShort = item.isShortFormContent == true ||
-                url.contains("/shorts/", ignoreCase = true) ||
-                (item.duration in 1..60)
+                url.contains("/shorts/", ignoreCase = true)
 
         return Video(
             id = videoId,

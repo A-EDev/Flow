@@ -167,7 +167,7 @@ fun SetupPipEffects(
     // Update PiP params
     PipParamsUpdateEffect(
         isPlaying = isPlaying,
-        autoPipEnabled = pipPreferences.autoPipEnabled,
+        autoPipEnabled = false,
         activity = activity
     )
 }

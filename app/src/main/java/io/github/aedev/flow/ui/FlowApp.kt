@@ -64,6 +64,7 @@ fun FlowApp(
     val isMusicNavigationEnabled by preferences.musicNavigationEnabled.collectAsState(initial = true)
     val isSearchNavigationEnabled by preferences.searchNavigationEnabled.collectAsState(initial = false)
     val isCategoriesNavigationEnabled by preferences.categoriesNavigationEnabled.collectAsState(initial = false)
+    val disableShortsPlayer by preferences.disableShortsPlayer.collectAsState(initial = false)
     
     // Mini Player Customizations
     val miniPlayerScale by preferences.miniPlayerScale.collectAsState(initial = 0.45f)
@@ -260,7 +261,8 @@ fun FlowApp(
                             playerUiStateResult = playerUiStateResult,
                             playerVisibleState = playerVisibleState,
                             currentTheme = currentTheme,
-                            onThemeChange = onThemeChange
+                            onThemeChange = onThemeChange,
+                            disableShortsPlayer = disableShortsPlayer
                         )
                     }
                 }

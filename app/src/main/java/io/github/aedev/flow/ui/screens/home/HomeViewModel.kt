@@ -15,6 +15,7 @@ import io.github.aedev.flow.utils.PerformanceDispatcher
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -77,14 +78,21 @@ class HomeViewModel @Inject constructor(
         
         viewHistory = ViewHistory.getInstance(context)
         
-        // Keep the watched-IDs set up to date so the feed can filter them out
+        // Keep the watched-IDs set up to date so the feed can filter them out.
+        // When hideWatchedVideos is ON: filter ALL history items from the feed.
+        // When OFF: keep current behaviour (only >=90% watched are excluded).
         viewModelScope.launch {
-            viewHistory!!.getVideoHistoryFlow().collect { history ->
-                watchedVideoIds.value = history
-                    .filter { it.progressPercentage >= 90f }
-                    .map { it.videoId }
-                    .toHashSet()
-            }
+            viewHistory!!.getVideoHistoryFlow()
+                .combine(playerPreferences.hideWatchedVideos) { history, hideWatched ->
+                    if (hideWatched) {
+                        history.map { it.videoId }.toHashSet()
+                    } else {
+                        history.filter { it.progressPercentage >= 90f }
+                            .map { it.videoId }
+                            .toHashSet()
+                    }
+                }
+                .collect { ids -> watchedVideoIds.value = ids }
         }
         
         viewModelScope.launch {

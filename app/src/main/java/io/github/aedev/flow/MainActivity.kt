@@ -55,6 +55,9 @@ class MainActivity : ComponentActivity() {
     // resume automatically if the user taps to expand back to the app.
     private var wasPlayingWhenPipExited = false
 
+    // Cached auto-PiP preference
+    private var cachedAutoPipEnabled = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // the OS-level splash screen (camouflaged to match Compose splash background)
         installSplashScreen()
@@ -76,6 +79,13 @@ class MainActivity : ComponentActivity() {
         
         // Initialize global player state
         GlobalPlayerState.initialize(applicationContext)
+
+        // Keep auto-PiP preference cached so onUserLeaveHint can read it synchronously
+        lifecycleScope.launch {
+            io.github.aedev.flow.data.local.PlayerPreferences(applicationContext)
+                .autoPipEnabled
+                .collect { enabled -> cachedAutoPipEnabled = enabled }
+        }
         
         // Initialize Neuro Engine (Recommendation System)
         lifecycleScope.launch(Dispatchers.IO) {
@@ -326,7 +336,7 @@ class MainActivity : ComponentActivity() {
         val isMusicPlaying = musicManager.playerState.value.isPlaying
         
         // Only enter PiP for video, not for music (which uses background service)
-        if (isVideoPlaying && !isMusicPlaying) {
+        if (isVideoPlaying && !isMusicPlaying && cachedAutoPipEnabled) {
             enterPictureInPictureMode(
                 android.app.PictureInPictureParams.Builder()
                     .setAspectRatio(android.util.Rational(16, 9))

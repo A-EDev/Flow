@@ -197,7 +197,24 @@ class SubscriptionsViewModel : ViewModel() {
         Log.i(TAG, "Shorts after watched filter: ${unwatchedShorts.size}/${latestShortPerChannel.size} " +
                 "(${latestShortPerChannel.size - unwatchedShorts.size} hidden as already watched)")
 
-        _uiState.update { it.copy(recentVideos = regular, shorts = unwatchedShorts) }
+        // ── Hide-watched filter for regular videos ────────────────────────
+        val hideWatched = try {
+            playerPreferences.hideWatchedVideos.first()
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not read hideWatchedVideos preference", e)
+            false
+        }
+        val filteredRegular = if (hideWatched && watchedIds.isNotEmpty()) {
+            val before = regular.size
+            regular.filter { it.id !in watchedIds }.also { filtered ->
+                Log.i(TAG, "Regular videos after watched filter: ${filtered.size}/$before " +
+                        "(${before - filtered.size} hidden as already watched)")
+            }
+        } else {
+            regular
+        }
+
+        _uiState.update { it.copy(recentVideos = filteredRegular, shorts = unwatchedShorts) }
     }
     
     private fun parseRelativeTime(dateString: String): Long {

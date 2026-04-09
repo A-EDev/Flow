@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.SmartDisplay
 import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.ViewQuilt
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -70,6 +71,8 @@ fun ContentSettingsScreen(
 
     val homeFeedEnabled by preferences.homeFeedEnabled.collectAsState(initial = true)
     val currentRelatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.COMPACT)
+    val hideWatchedVideos by preferences.hideWatchedVideos.collectAsState(initial = false)
+    val disableShortsPlayer by preferences.disableShortsPlayer.collectAsState(initial = false)
     
     Scaffold(
         topBar = {
@@ -286,6 +289,30 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setShowRelatedVideos(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.VisibilityOff,
+                        title = stringResource(R.string.content_settings_hide_watched_title),
+                        subtitle = stringResource(R.string.content_settings_hide_watched_subtitle),
+                        checked = hideWatchedVideos,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setHideWatchedVideos(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.SmartDisplay,
+                        title = stringResource(R.string.content_settings_disable_shorts_player_title),
+                        subtitle = stringResource(R.string.content_settings_disable_shorts_player_subtitle),
+                        checked = disableShortsPlayer,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setDisableShortsPlayer(enabled)
                             }
                         }
                     )

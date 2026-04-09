@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.0.6
-DATE: 2026-04-8
+DATE: 2026-04-9
 
 FEATURES
 - Add new save state for subscriptions feed display settings #221
@@ -13,6 +13,8 @@ FEATURES
 - New pinch and double tap gestures to resize mini player 
 - Add new Diagnostic screen to capture error and crash logs globaly in the app
 - Add new playback speed slider toggle option 
+- Add shorts player disable toggle #258
+- Add watched videos filtering toggle in feed #245
 
 IMPROVEMENTS
 - New miniplayer secondary action buttons layout #225
@@ -22,6 +24,7 @@ IMPROVEMENTS
 - Add pinned comment support #255
 - Improve volume and brightness gestures handling
 - Improve video player support for bluetooth media control buttton #254
+- Improve pip mode handling #241
 
 FIXES AND STABILITY
 - Fix video player playback speed issue #232

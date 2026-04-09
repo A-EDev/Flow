@@ -136,6 +136,10 @@ class PlayerPreferences(private val context: Context) {
         val CUSTOM_SPEEDS_ENABLED = booleanPreferencesKey("custom_speeds_enabled")
         val CUSTOM_SPEED_PRESETS = stringPreferencesKey("custom_speed_presets")
         val SPEED_SLIDER_ENABLED = booleanPreferencesKey("speed_slider_enabled")
+
+        // Content filtering
+        val HIDE_WATCHED_VIDEOS = booleanPreferencesKey("hide_watched_videos")
+        val DISABLE_SHORTS_PLAYER = booleanPreferencesKey("disable_shorts_player")
     }
     
     // Grid item size preference
@@ -788,8 +792,7 @@ class PlayerPreferences(private val context: Context) {
     // PiP Preferences
     val autoPipEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            false // Forced OFF to prevent whole-app PiP bug
-            // preferences[Keys.AUTO_PIP_ENABLED] ?: false // Default OFF
+            preferences[Keys.AUTO_PIP_ENABLED] ?: false
         }
 
     suspend fun setAutoPipEnabled(enabled: Boolean) {
@@ -806,6 +809,29 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setManualPipButtonEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MANUAL_PIP_BUTTON_ENABLED] = enabled
+        }
+    }
+
+    // Content filtering
+    val hideWatchedVideos: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.HIDE_WATCHED_VIDEOS] ?: false
+        }
+
+    suspend fun setHideWatchedVideos(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.HIDE_WATCHED_VIDEOS] = enabled
+        }
+    }
+
+    val disableShortsPlayer: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.DISABLE_SHORTS_PLAYER] ?: false
+        }
+
+    suspend fun setDisableShortsPlayer(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DISABLE_SHORTS_PLAYER] = enabled
         }
     }
 
