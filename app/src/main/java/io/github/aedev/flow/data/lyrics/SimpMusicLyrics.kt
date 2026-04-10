@@ -169,6 +169,14 @@ object SimpMusicLyrics {
      */
     private fun parseRichSyncJson(richSyncJson: String): List<LyricsEntry>? {
         return try {
+            // Detect API format changes: if first element is a primitive string the format is
+            // no longer the expected object array — fall through to syncedLyrics silently.
+            val parsed = JsonParser.parseString(richSyncJson)
+            if (parsed.isJsonArray && parsed.asJsonArray.size() > 0 &&
+                    parsed.asJsonArray[0].isJsonPrimitive) {
+                Log.w(TAG, "richSyncLyrics is string-array (API format changed), skipping")
+                return null
+            }
             val type = object : TypeToken<List<RichSyncItem>>() {}.type
             val items: List<RichSyncItem> = gson.fromJson(richSyncJson, type)
 

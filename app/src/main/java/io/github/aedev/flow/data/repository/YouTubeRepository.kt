@@ -30,7 +30,7 @@ import javax.inject.Singleton
 class YouTubeRepository @Inject constructor(
     private val playerPreferences: PlayerPreferences
 ) {
-    
+    private val TAG = "YouTubeRepository"
     private val service = ServiceList.YouTube
     
     /**
@@ -65,7 +65,7 @@ class YouTubeRepository @Inject constructor(
             
             Pair(videos, infoItems.nextPage)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "Trending unavailable: ${e.message}")
             Pair(emptyList(), null)
         }
     }
@@ -96,7 +96,7 @@ class YouTubeRepository @Inject constructor(
             
             Pair(shorts, infoItems.nextPage)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             Pair(emptyList(), null)
         }
     }
@@ -125,7 +125,7 @@ class YouTubeRepository @Inject constructor(
             
             Pair(videos, infoItems.nextPage)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             Pair(emptyList(), null)
         }
     }
@@ -173,7 +173,7 @@ class YouTubeRepository @Inject constructor(
                 playlists = playlists
             )
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             io.github.aedev.flow.data.model.SearchResult()
         }
     }
@@ -188,7 +188,7 @@ class YouTubeRepository @Inject constructor(
             val suggestionExtractor = service.suggestionExtractor
             suggestionExtractor.suggestionList(query)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             emptyList()
         }
     }
@@ -277,7 +277,7 @@ class YouTubeRepository @Inject constructor(
                 channelThumbnailUrl = bestAvatar
             )
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             null
         }
     }
@@ -294,7 +294,7 @@ class YouTubeRepository @Inject constructor(
                 item.toVideo()
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             emptyList()
         }
     }
@@ -347,13 +347,13 @@ class YouTubeRepository @Inject constructor(
                     emptyList()
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.w(TAG, "${e::class.simpleName}: ${e.message}")
                 emptyList()
             }
 
             pageItems.take(limitPerChannel).map { it.toVideo() }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             emptyList()
         }
     }
@@ -368,7 +368,7 @@ class YouTubeRepository @Inject constructor(
             extractor.fetchPage()
             org.schabi.newpipe.extractor.channel.ChannelInfo.getInfo(extractor)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             null
         }
     }
@@ -571,7 +571,7 @@ class YouTubeRepository @Inject constructor(
             }
             Pair(comments, commentsInfo.nextPage)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             Pair(emptyList(), null)
         }
     }
@@ -602,7 +602,7 @@ class YouTubeRepository @Inject constructor(
             }
             Pair(comments, moreItems.nextPage)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             Pair(emptyList(), null)
         }
     }
@@ -630,7 +630,7 @@ class YouTubeRepository @Inject constructor(
             }
             Pair(replies, moreItems.nextPage)
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             Pair(emptyList(), null)
         }
     }
@@ -661,7 +661,7 @@ class YouTubeRepository @Inject constructor(
                 isLocal = false
             )
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             null
         }
     }

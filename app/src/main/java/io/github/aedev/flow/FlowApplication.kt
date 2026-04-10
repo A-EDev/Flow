@@ -58,6 +58,13 @@ class FlowApplication : Application(), ImageLoaderFactory {
             // Log error but don't crash the app
             Log.e(TAG, "Failed to initialize NewPipe", e)
         }
+
+        try {
+            io.github.aedev.flow.utils.cipher.CipherDeobfuscator.initialize(this)
+            Log.d(TAG, "CipherDeobfuscator initialized")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to initialize CipherDeobfuscator", e)
+        }
         
         // Initialize notification channels
         NotificationHelper.createNotificationChannels(this)

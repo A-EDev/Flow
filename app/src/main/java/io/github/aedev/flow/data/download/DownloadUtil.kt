@@ -169,6 +169,7 @@ class DownloadUtil @Inject constructor(
                 return@Factory dataSpec.buildUpon()
                     .setUri(url.toUri())
                     .setHttpRequestHeaders(mapOf("User-Agent" to ua))
+                    .setLength(CHUNK_LENGTH)
                     .build()
             }
 
@@ -186,6 +187,7 @@ class DownloadUtil @Inject constructor(
             dataSpec.buildUpon()
                 .setUri(streamUrl.toUri())
                 .setHttpRequestHeaders(mapOf("User-Agent" to userAgent))
+                .setLength(CHUNK_LENGTH)
                 .build()
         }
     }

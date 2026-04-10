@@ -1,5 +1,6 @@
 package io.github.aedev.flow.utils
 
+import android.net.Uri
 import android.util.Log
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
@@ -17,6 +18,9 @@ import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.WEB_CREATOR
 import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.innertube.pages.NewPipeExtractor
+import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
+import io.github.aedev.flow.utils.potoken.PoTokenGenerator
+import io.github.aedev.flow.utils.potoken.PoTokenResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -42,8 +46,10 @@ object MusicPlayerUtils {
             .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
             .build()
     }
-    
-    private val MAIN_CLIENT: YouTubeClient = ANDROID_VR_1_43_32
+
+    private val poTokenGenerator = PoTokenGenerator()
+
+    private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
 
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
         TVHTML5,
@@ -145,14 +151,26 @@ object MusicPlayerUtils {
         
         val sts = getSignatureTimestamp(videoId)
         Log.d(TAG, "Signature timestamp: $sts")
-        
+
+        // Generate PoToken for WEB clients
+        var poToken: PoTokenResult? = null
+        val sessionId = if (isLoggedIn()) YouTube.dataSyncId else YouTube.visitorData
+        if (MAIN_CLIENT.useWebPoTokens && sessionId != null) {
+            try {
+                poToken = poTokenGenerator.getWebClientPoToken(videoId, sessionId)
+                if (poToken != null) Log.d(TAG, "PoToken generated successfully")
+            } catch (e: Exception) {
+                Log.w(TAG, "PoToken generation failed: ${e.message}")
+            }
+        }
+
         var response: PlayerResponse? = null
         var usedClient: YouTubeClient? = null
         var extraction: Pair<PlayerResponse.StreamingData.Format, String>? = null
         var mainPlayerResponse: PlayerResponse? = null
 
         Log.d(TAG, "Trying MAIN_CLIENT: ${MAIN_CLIENT.clientName}")
-        mainPlayerResponse = YouTube.player(videoId, playlistId, MAIN_CLIENT, sts).getOrNull()
+        mainPlayerResponse = YouTube.player(videoId, playlistId, MAIN_CLIENT, sts, poToken?.playerRequestPoToken).getOrNull()
         
         if (mainPlayerResponse?.playabilityStatus?.status == "OK") {
             extraction = tryExtract(mainPlayerResponse, MAIN_CLIENT, videoId, validate = false)
@@ -175,7 +193,8 @@ object MusicPlayerUtils {
                 Log.d(TAG, "Trying fallback ${index + 1}/${STREAM_FALLBACK_CLIENTS.size}: ${client.clientName}")
                 
                 try {
-                    val fallbackResponse = YouTube.player(videoId, playlistId, client, sts).getOrNull()
+                    val clientPoToken = if (client.useWebPoTokens) poToken?.playerRequestPoToken else null
+                    val fallbackResponse = YouTube.player(videoId, playlistId, client, sts, clientPoToken).getOrNull()
                     
                     if (fallbackResponse?.playabilityStatus?.status == "OK") {
                         val skipValidation = index == STREAM_FALLBACK_CLIENTS.size - 1
@@ -199,7 +218,26 @@ object MusicPlayerUtils {
             throw IOException("Failed to resolve stream for $videoId after trying all clients")
         }
 
-        val (format, streamUrl) = extraction
+        val (format, rawStreamUrl) = extraction
+
+        // Apply n-transform and append pot= for web clients
+        val needsNTransform = usedClient.useWebPoTokens ||
+            usedClient.clientName in setOf("WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5")
+        val streamUrl = if (needsNTransform) {
+            try {
+                var transformedUrl = CipherDeobfuscator.transformNParamInUrl(rawStreamUrl)
+                if (poToken?.streamingDataPoToken != null) {
+                    val separator = if ("?" in transformedUrl) "&" else "?"
+                    transformedUrl = "${transformedUrl}${separator}pot=${Uri.encode(poToken.streamingDataPoToken)}"
+                }
+                transformedUrl
+            } catch (e: Exception) {
+                Log.w(TAG, "N-transform/pot failed, using raw URL: ${e.message}")
+                rawStreamUrl
+            }
+        } else {
+            rawStreamUrl
+        }
 
         val playbackTracking = if (usedClient != MAIN_CLIENT && mainPlayerResponse != null) {
             mainPlayerResponse.playbackTracking ?: response.playbackTracking
@@ -221,7 +259,7 @@ object MusicPlayerUtils {
         )
     }
 
-    private fun tryExtract(
+    private suspend fun tryExtract(
         response: PlayerResponse?, 
         client: YouTubeClient,
         videoId: String,
@@ -245,31 +283,39 @@ object MusicPlayerUtils {
             return null
         }
 
-        val streamUrl = if (format.contentLength != null) {
-            "$url&range=0-${format.contentLength}"
-        } else {
-            url
-        }
-        
-        return Pair(format, streamUrl)
+        return Pair(format, url)
     }
 
-    private fun findUrlOrNull(
+    private suspend fun findUrlOrNull(
         format: PlayerResponse.StreamingData.Format,
         videoId: String,
         playerResponse: PlayerResponse
     ): String? {
-        val deobfuscatedUrl = NewPipeExtractor.getStreamUrl(format, videoId)
-        if (deobfuscatedUrl != null) {
-            Log.d(TAG, "URL obtained via NewPipe (n-param transformed)")
-            return deobfuscatedUrl
-        }
-
+        // 1. Direct URL from format
         if (!format.url.isNullOrEmpty()) {
-            Log.d(TAG, "Falling back to raw URL from format (n-param NOT transformed)")
+            Log.d(TAG, "URL obtained from format directly")
             return format.url
         }
 
+        // 2. SignatureCipher deobfuscation via CipherDeobfuscator
+        val signatureCipher = format.signatureCipher
+        if (!signatureCipher.isNullOrEmpty()) {
+            Log.d(TAG, "Format has signatureCipher, using CipherDeobfuscator")
+            val deobfuscatedUrl = CipherDeobfuscator.deobfuscateStreamUrl(signatureCipher, videoId)
+            if (deobfuscatedUrl != null) {
+                Log.d(TAG, "URL obtained via CipherDeobfuscator")
+                return deobfuscatedUrl
+            }
+        }
+
+        // 3. NewPipe deobfuscation
+        val deobfuscatedUrl = NewPipeExtractor.getStreamUrl(format, videoId)
+        if (deobfuscatedUrl != null) {
+            Log.d(TAG, "URL obtained via NewPipe")
+            return deobfuscatedUrl
+        }
+
+        // 4. StreamInfo fallback
         val streamUrls = YouTube.getNewPipeStreamUrls(videoId)
         if (streamUrls.isNotEmpty()) {
             val exactMatch = streamUrls.find { it.first == format.itag }?.second
@@ -317,13 +363,12 @@ object MusicPlayerUtils {
 
     private fun checkUrl(url: String, userAgent: String): Boolean {
         try {
-            val request = Request.Builder()
+            val reqBuilder = Request.Builder()
                 .url(url)
                 .header("User-Agent", userAgent)
                 .head()
-                .build()
-            
-            httpClient.newCall(request).execute().use { response ->
+            YouTube.cookie?.let { reqBuilder.header("Cookie", it) }
+            httpClient.newCall(reqBuilder.build()).execute().use { response ->
                 if (response.isSuccessful) return true
             }
         } catch (e: Exception) {
@@ -331,14 +376,13 @@ object MusicPlayerUtils {
         }
 
         return try {
-            val request = Request.Builder()
+            val reqBuilder = Request.Builder()
                 .url(url)
                 .header("User-Agent", userAgent)
                 .header("Range", "bytes=0-100")
                 .get()
-                .build()
-            
-            httpClient.newCall(request).execute().use { response ->
+            YouTube.cookie?.let { reqBuilder.header("Cookie", it) }
+            httpClient.newCall(reqBuilder.build()).execute().use { response ->
                 response.isSuccessful || response.code == 206
             }
         } catch (e: Exception) {

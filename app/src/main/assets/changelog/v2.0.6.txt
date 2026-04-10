@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.0.6
-DATE: 2026-04-9
+DATE: 2026-04-10
 
 FEATURES
 - Add new save state for subscriptions feed display settings #221
@@ -25,6 +25,7 @@ IMPROVEMENTS
 - Improve volume and brightness gestures handling
 - Improve video player support for bluetooth media control buttton #254
 - Improve pip mode handling #241
+- Add cipher and PoToken generation for better music streaming handling Based and ported from MetroList's implementation (https://github.com/MetrolistGroup/Metrolist)
 
 FIXES AND STABILITY
 - Fix video player playback speed issue #232

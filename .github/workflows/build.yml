@@ -49,19 +49,12 @@ jobs:
       # --no-daemon  — avoids daemon startup overhead inside the ephemeral runner.
       - name: Build all APKs
         run: >
-          ./gradlew assembleGithubDebug assembleGithubRelease assembleGithubNightly assembleFossRelease
+          ./gradlew assembleGithubRelease assembleGithubNightly assembleFossRelease
           --parallel --build-cache --no-daemon --stacktrace
         env:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-
-      - name: Upload Debug APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: flow-debug-apk
-          path: app/build/outputs/apk/github/debug/app-github-debug.apk
-          retention-days: 7
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4

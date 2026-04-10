@@ -21,6 +21,7 @@ data class YouTubeClient(
     val loginRequired: Boolean = false,
     val useSignatureTimestamp: Boolean = false,
     val isEmbedded: Boolean = false,
+    val useWebPoTokens: Boolean = false,
 ) {
     fun toContext(locale: YouTubeLocale, visitorData: String?, dataSyncId: String?) = Context(
         client = Context.Client(
@@ -55,6 +56,7 @@ data class YouTubeClient(
             clientVersion = "2.20260213.00.00",
             clientId = "1",
             userAgent = USER_AGENT_WEB,
+            useWebPoTokens = true,
         )
 
         val ANDROID = YouTubeClient(
@@ -81,6 +83,7 @@ data class YouTubeClient(
             userAgent = USER_AGENT_WEB,
             loginSupported = true,
             useSignatureTimestamp = true,
+            useWebPoTokens = true,
         )
 
         val WEB_CREATOR = YouTubeClient(
@@ -91,6 +94,7 @@ data class YouTubeClient(
             loginSupported = true,
             loginRequired = true,
             useSignatureTimestamp = true,
+            useWebPoTokens = true,
         )
 
         val TVHTML5 = YouTubeClient(
