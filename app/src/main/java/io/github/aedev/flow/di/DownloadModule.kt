@@ -10,9 +10,13 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.player.cache.SharedPlayerCacheProvider
+import io.github.aedev.flow.player.config.PlayerConfig
 import java.io.File
 import javax.inject.Singleton
-import okhttp3.OkHttpClient
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -42,8 +46,12 @@ object DownloadModule {
         @ApplicationContext context: Context,
         databaseProvider: DatabaseProvider
     ): SimpleCache {
-        val playerCacheDirectory = File(context.cacheDir, "player_cache")
-        val evictor = androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor(256 * 1024 * 1024L)
-        return SimpleCache(playerCacheDirectory, evictor, databaseProvider)
+        val cacheSizeMb = runBlocking { PlayerPreferences(context).mediaCacheSizeMb.first() }
+        val cacheSizeBytes = PlayerConfig.cacheSizeMbToBytes(cacheSizeMb)
+        return SharedPlayerCacheProvider.getOrCreate(
+            context,
+            databaseProvider = databaseProvider,
+            maxCacheSizeBytes = if (cacheSizeBytes <= 0) PlayerConfig.CACHE_SIZE_BYTES else cacheSizeBytes
+        )
     }
 }

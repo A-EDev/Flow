@@ -32,6 +32,9 @@ fun BufferSettingsScreen(
     val bufferForPlaybackMs by playerPreferences.bufferForPlaybackMs.collectAsState(initial = 1000)
     val bufferForPlaybackAfterRebufferMs by playerPreferences.bufferForPlaybackAfterRebufferMs.collectAsState(initial = 2500)
     val currentBufferProfile by playerPreferences.bufferProfile.collectAsState(initial = BufferProfile.STABLE)
+
+    // Cache size
+    val cacheSizeMb by playerPreferences.mediaCacheSizeMb.collectAsState(initial = 500)
     
     // Local state for sliders when in custom mode
     var tempMinBuffer by remember { mutableFloatStateOf(minBufferMs.toFloat()) }
@@ -222,6 +225,33 @@ fun BufferSettingsScreen(
                         modifier = Modifier.padding(start = 16.dp)
                      )
                  }
+            }
+
+            // Cache Size Section
+            item { SectionHeader(text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cache_size_header)) }
+            item {
+                Text(
+                    text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cache_size_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                val cacheOptions = listOf(
+                    100 to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cache_size_100mb),
+                    200 to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cache_size_200mb),
+                    500 to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cache_size_500mb),
+                    0 to androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cache_size_unlimited)
+                )
+                androidx.compose.foundation.layout.Column {
+                    cacheOptions.forEach { (sizeMb, label) ->
+                        ProfileSelectionItem(
+                            title = label,
+                            subtitle = "",
+                            isSelected = cacheSizeMb == sizeMb,
+                            onClick = { coroutineScope.launch { playerPreferences.setMediaCacheSizeMb(sizeMb) } }
+                        )
+                    }
+                }
             }
         }
     }

@@ -133,6 +133,8 @@ class VideoPlayerViewModel @Inject constructor(
         viewModelScope.launch {
             val isEnabled = playerPreferences.miniPlayerContinueWatchingEnabled.first()
             if (isEnabled) {
+                // Don't restore video session if music is already playing
+                if (EnhancedMusicPlayerManager.currentTrack.value != null) return@launch
                 val lastVideo = withContext(Dispatchers.IO) { viewHistory.getLatestUnfinishedVideo() }
                 if (lastVideo != null && _uiState.value.cachedVideo == null) {
                     _uiState.update { it.copy(
@@ -268,9 +270,31 @@ class VideoPlayerViewModel @Inject constructor(
 
     /**
      * Puts the player into background mode (audio-only) and signals the UI to dismiss.
+     * If the current video's audio stream is available, hands off to the music player
+     * so the mini music player remains visible and playback continues seamlessly from
+     * the current position.
      */
     fun startBackgroundService() {
-        EnhancedPlayerManager.getInstance().switchToAudioOnly()
+        val state = _uiState.value
+        val audioUrl = state.audioStream?.content
+        val videoId = state.cachedVideo?.id ?: state.streamInfo?.id
+        if (videoId != null && audioUrl != null) {
+            val musicTrack = io.github.aedev.flow.ui.screens.music.MusicTrack(
+                videoId = videoId,
+                title = state.streamInfo?.name ?: state.cachedVideo?.title ?: "",
+                artist = state.streamInfo?.uploaderName ?: state.cachedVideo?.channelName ?: "",
+                thumbnailUrl = state.streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
+                    ?: state.cachedVideo?.thumbnailUrl ?: "",
+                duration = state.streamInfo?.duration?.toInt() ?: state.cachedVideo?.duration ?: 0,
+                channelId = state.cachedVideo?.channelId ?: ""
+            )
+            val positionMs = EnhancedPlayerManager.getInstance().getCurrentPosition()
+            EnhancedPlayerManager.getInstance().pause()
+            EnhancedMusicPlayerManager.playTrack(musicTrack, audioUrl, startPositionMs = positionMs)
+        } else {
+            // Fallback: keep video ExoPlayer running in audio-only mode
+            EnhancedPlayerManager.getInstance().switchToAudioOnly()
+        }
         _uiState.update { it.copy(shouldDismissPlayer = true) }
     }
 

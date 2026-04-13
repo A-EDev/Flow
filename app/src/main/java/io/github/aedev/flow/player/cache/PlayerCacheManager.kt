@@ -6,12 +6,10 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.cache.CacheDataSource
-import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
 import androidx.media3.datasource.cache.SimpleCache
-import androidx.media3.database.StandaloneDatabaseProvider
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
-import java.io.File
+import kotlinx.coroutines.flow.first
 
 @UnstableApi
 class PlayerCacheManager(private val context: Context) {
@@ -20,7 +18,6 @@ class PlayerCacheManager(private val context: Context) {
         private const val TAG = "PlayerCacheManager"
     }
     
-    private var databaseProvider: StandaloneDatabaseProvider? = null
     private var cache: SimpleCache? = null
     
     // Data source factories
@@ -47,10 +44,14 @@ class PlayerCacheManager(private val context: Context) {
         val upstream = DefaultDataSource.Factory(context, legacyHttpFactory)
 
         try {
-            databaseProvider = StandaloneDatabaseProvider(context)
-            val cacheDir = File(context.cacheDir, PlayerConfig.CACHE_DIR_NAME)
-            val evictor = LeastRecentlyUsedCacheEvictor(PlayerConfig.CACHE_SIZE_BYTES)
-            cache = SimpleCache(cacheDir, evictor, databaseProvider!!)
+            val cacheSizeMb = kotlinx.coroutines.runBlocking {
+                io.github.aedev.flow.data.local.PlayerPreferences(context).mediaCacheSizeMb.first()
+            }
+            val cacheSizeBytes = PlayerConfig.cacheSizeMbToBytes(cacheSizeMb)
+            cache = SharedPlayerCacheProvider.getOrCreate(
+                context,
+                maxCacheSizeBytes = if (cacheSizeBytes <= 0) PlayerConfig.CACHE_SIZE_BYTES else cacheSizeBytes
+            )
             
             val cacheFactory = CacheDataSource.Factory()
                 .setCache(cache!!)
@@ -135,7 +136,6 @@ class PlayerCacheManager(private val context: Context) {
         try {
             cache?.release()
             cache = null
-            databaseProvider = null
             sharedDataSourceFactory = null
             sharedDashDataSourceFactory = null
             sharedProgressiveDataSourceFactory = null

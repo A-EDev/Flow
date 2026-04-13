@@ -10,6 +10,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+private const val CRASH_PREFS_NAME = "flow_crash_prefs"
+private const val CRASH_PREFS_KEY_LAST = "last_crash"
+
 /**
  * Global exception handler for crash monitoring and logging.
  * Catches uncaught exceptions and logs them
@@ -44,6 +47,23 @@ class FlowCrashHandler private constructor(
         }
         
         /**
+         * Get the last crash that was persisted to SharedPreferences.
+         * Returns null if no crash is pending.
+         */
+        fun getLastCrash(context: Context): String? {
+            return context.getSharedPreferences(CRASH_PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(CRASH_PREFS_KEY_LAST, null)
+        }
+
+        /**
+         * Clear the pending crash from SharedPreferences.
+         */
+        fun clearLastCrash(context: Context) {
+            context.getSharedPreferences(CRASH_PREFS_NAME, Context.MODE_PRIVATE)
+                .edit().remove(CRASH_PREFS_KEY_LAST).apply()
+        }
+
+        /**
          * Get recent crash logs
          */
         fun getCrashLogs(context: Context): String {
@@ -75,10 +95,29 @@ class FlowCrashHandler private constructor(
             Log.e(TAG, "Thread: ${thread.name} (id=${thread.id})")
             Log.e(TAG, "Exception: ${throwable.javaClass.simpleName}: ${throwable.message}")
             Log.e(TAG, getStackTraceString(throwable))
-            
+
+            // Save to SharedPreferences synchronously (commit) so the next launch
+            // can detect the crash even if the app is killed before the file write completes.
+            val stackTrace = getStackTraceString(throwable)
+            val deviceInfo = buildDeviceInfo()
+            val summary = buildString {
+                appendLine("Exception: ${throwable.javaClass.name}")
+                appendLine("Message: ${throwable.message}")
+                appendLine()
+                appendLine("Device Info:")
+                appendLine(deviceInfo)
+                appendLine()
+                appendLine("Stack Trace:")
+                appendLine(stackTrace)
+            }
+            context.getSharedPreferences(CRASH_PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putString(CRASH_PREFS_KEY_LAST, summary)
+                .commit()
+
             // Save to file for later analysis
             saveCrashToFile(thread, throwable)
-            
+
         } catch (e: Exception) {
             Log.e(TAG, "Error in crash handler", e)
         } finally {

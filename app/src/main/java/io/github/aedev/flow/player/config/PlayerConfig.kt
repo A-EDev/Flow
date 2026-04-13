@@ -5,9 +5,15 @@ object PlayerConfig {
     const val TAG = "EnhancedPlayerManager"
     
     // ===== Cache Configuration =====
-    /** Maximum cache size in bytes (500 MB) */
+    /** Maximum cache size in bytes (500 MB — default) */
     const val CACHE_SIZE_BYTES = 500L * 1024L * 1024L
-    
+
+    /** Cache size options (MB) shown in Settings. 0 = unlimited. */
+    val CACHE_SIZE_OPTIONS_MB = intArrayOf(100, 200, 500, 0)
+
+    /** Convert a cache size MB setting to bytes. 0 MB means unlimited (NoOpCacheEvictor). */
+    fun cacheSizeMbToBytes(mb: Int): Long = if (mb <= 0) 0L else mb * 1024L * 1024L
+
     /** Cache directory name */
     const val CACHE_DIR_NAME = "exoplayer"
     

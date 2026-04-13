@@ -140,6 +140,9 @@ class PlayerPreferences(private val context: Context) {
         // Content filtering
         val HIDE_WATCHED_VIDEOS = booleanPreferencesKey("hide_watched_videos")
         val DISABLE_SHORTS_PLAYER = booleanPreferencesKey("disable_shorts_player")
+
+        // Cache size
+        val MEDIA_CACHE_SIZE_MB = intPreferencesKey("media_cache_size_mb")
     }
     
     // Grid item size preference
@@ -832,6 +835,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setDisableShortsPlayer(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DISABLE_SHORTS_PLAYER] = enabled
+        }
+    }
+
+    // Cache size — 0 means unlimited. Default 500 MB.
+    val mediaCacheSizeMb: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.MEDIA_CACHE_SIZE_MB] ?: 500
+        }
+
+    suspend fun setMediaCacheSizeMb(sizeMb: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MEDIA_CACHE_SIZE_MB] = sizeMb
         }
     }
 

@@ -33,6 +33,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import com.google.gson.JsonParser
+import io.github.aedev.flow.ui.screens.CrashReporterScreen
+import io.github.aedev.flow.utils.FlowCrashHandler
 import io.github.aedev.flow.utils.UpdateManager
 import io.github.aedev.flow.utils.UpdateInfo
 import io.github.aedev.flow.ui.components.UpdateDialog
@@ -107,8 +109,28 @@ class MainActivity : ComponentActivity() {
             var themeMode by remember { mutableStateOf(ThemeMode.LIGHT) }
             // State to control splash visibility
             var showSplash by remember { mutableStateOf(true) }
-            
+
             val context = LocalContext.current
+
+            // Check for a crash that happened last session.
+            // If found, show the CrashReporterScreen instead of the normal UI.
+            var pendingCrashLog by remember {
+                mutableStateOf(FlowCrashHandler.getLastCrash(applicationContext))
+            }
+
+            if (pendingCrashLog != null) {
+                FlowTheme(themeMode = themeMode) {
+                    CrashReporterScreen(
+                        crashLog = pendingCrashLog!!,
+                        onClearAndRestart = {
+                            FlowCrashHandler.clearLastCrash(applicationContext)
+                            pendingCrashLog = null
+                        }
+                    )
+                }
+                return@setContent
+            }
+
             var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
             
             // Check for updates ONCE on launch — skip debug/foss builds, enforce 24h cooldown

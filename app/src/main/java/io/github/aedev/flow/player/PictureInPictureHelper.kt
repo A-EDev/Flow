@@ -49,7 +49,7 @@ object PictureInPictureHelper {
         aspectRatioWidth: Int = 16,
         aspectRatioHeight: Int = 9,
         isPlaying: Boolean = true,
-        autoEnterEnabled: Boolean = true
+        autoEnterEnabled: Boolean = false
     ): Boolean {
         if (!isPipSupported(activity)) return false
         
@@ -78,7 +78,7 @@ object PictureInPictureHelper {
         aspectRatioWidth: Int = 16,
         aspectRatioHeight: Int = 9,
         isPlaying: Boolean = true,
-        autoEnterEnabled: Boolean = true
+        autoEnterEnabled: Boolean = false
     ) {
         if (!isPipSupported(activity)) return
         

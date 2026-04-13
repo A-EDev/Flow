@@ -683,6 +683,13 @@
     <string name="buffer_label_max">Max Buffer: %1$ds</string>
     <string name="buffer_label_playback">Start Playback: %1$ds</string>
     <string name="buffer_label_rebuffer">Resume after Rebuffer: %1$ds</string>
+    <!-- Cache Size Settings -->
+    <string name="cache_size_header">Media Cache Size</string>
+    <string name="cache_size_desc">Maximum disk space used to cache video and audio data. Takes effect after restarting the app.</string>
+    <string name="cache_size_100mb">100 MB</string>
+    <string name="cache_size_200mb">200 MB</string>
+    <string name="cache_size_500mb">500 MB (Default)</string>
+    <string name="cache_size_unlimited">Unlimited</string>
     <string name="btn_back">Back</string>
     <string name="back">Back</string>
     <string name="btn_close">Close</string>

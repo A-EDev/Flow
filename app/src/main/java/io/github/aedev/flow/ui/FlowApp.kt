@@ -170,9 +170,9 @@ fun FlowApp(
     val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsStateWithLifecycle()
     val musicPlayerState by EnhancedMusicPlayerManager.playerState.collectAsStateWithLifecycle()
 
-    // When music starts, clear video state to avoid conflicts
-    LaunchedEffect(currentMusicTrack, musicPlayerState.isPlaying, musicPlayerState.isBuffering, musicPlayerState.isPreparing) {
-        if (currentMusicTrack != null && (musicPlayerState.isPlaying || musicPlayerState.isBuffering || musicPlayerState.isPreparing)) {
+    // When a music track is loaded, clear any video state so they don't conflict
+    LaunchedEffect(currentMusicTrack) {
+        if (currentMusicTrack != null) {
             playerViewModel.clearVideo()
             playerVisible = false
         }

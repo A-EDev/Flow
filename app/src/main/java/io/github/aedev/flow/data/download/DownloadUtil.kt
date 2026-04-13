@@ -45,6 +45,8 @@ class DownloadUtil @Inject constructor(
     }
 
     private val songUrlCache = java.util.concurrent.ConcurrentHashMap<String, Triple<String, String, Long>>()
+    // Download-specific cache storing range-appended URLs for full-speed downloads
+    private val downloadUrlCache = java.util.concurrent.ConcurrentHashMap<String, Triple<String, String, Long>>()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val downloads = MutableStateFlow<Map<String, Download>>(emptyMap())
 
@@ -95,8 +97,9 @@ class DownloadUtil @Inject constructor(
         } catch (e: Exception) {
             Log.w(TAG, "[$source] Error checking downloadCache for $mediaId: ${e.message}")
         }
-        songUrlCache[mediaId]?.takeIf { it.third > System.currentTimeMillis() }?.let { (url, ua, _) ->
-            Log.d(TAG, "[$source] Using cached URL for $mediaId")
+        // Check download-specific cache (stores range-appended URLs for full-speed downloads)
+        downloadUrlCache[mediaId]?.takeIf { it.third > System.currentTimeMillis() }?.let { (url, ua, _) ->
+            Log.d(TAG, "[$source] Using cached download URL for $mediaId")
             return dataSpec.buildUpon()
                 .setUri(url.toUri())
                 .setHttpRequestHeaders(mapOf("User-Agent" to ua))
@@ -116,10 +119,20 @@ class DownloadUtil @Inject constructor(
         val expiration = System.currentTimeMillis() + (playbackData.streamExpiresInSeconds - 60) * 1000L
 
         songUrlCache[mediaId] = Triple(streamUrl, userAgent, expiration)
-        Log.d(TAG, "[$source] Resolved $mediaId via ${playbackData.usedClient.clientName}")
+
+        // Append &range=0-{contentLength} so YouTube CDN serves the full file at full speed
+        // Without this, WEB_REMIX streams are throttled to ~real-time playback speed
+        val contentLength = playbackData.format.contentLength
+        val downloadUrl = if (contentLength != null) {
+            val sep = if ("?" in streamUrl) "&" else "?"
+            "${streamUrl}${sep}range=0-${contentLength}"
+        } else streamUrl
+
+        downloadUrlCache[mediaId] = Triple(downloadUrl, userAgent, expiration)
+        Log.d(TAG, "[$source] Resolved $mediaId via ${playbackData.usedClient.clientName}, contentLength=$contentLength")
 
         return dataSpec.buildUpon()
-            .setUri(streamUrl.toUri())
+            .setUri(downloadUrl.toUri())
             .setHttpRequestHeaders(mapOf("User-Agent" to userAgent))
             .build()
     }
@@ -198,6 +211,7 @@ class DownloadUtil @Inject constructor(
      */
     fun invalidateUrlCache(mediaId: String) {
         songUrlCache.remove(mediaId)
+        downloadUrlCache.remove(mediaId)
         Log.d(TAG, "Invalidated URL cache for $mediaId")
     }
 
@@ -206,6 +220,7 @@ class DownloadUtil @Inject constructor(
      */
     fun clearUrlCache() {
         songUrlCache.clear()
+        downloadUrlCache.clear()
         Log.d(TAG, "Cleared all URL cache entries")
     }
 

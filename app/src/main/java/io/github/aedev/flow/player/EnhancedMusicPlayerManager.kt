@@ -315,7 +315,7 @@ object EnhancedMusicPlayerManager {
         playTrack(track, audioStream.content, queue, startIndex)
     }
 
-    fun playTrack(track: MusicTrack, audioUrl: String, queue: List<MusicTrack> = emptyList(), startIndex: Int = -1) {
+    fun playTrack(track: MusicTrack, audioUrl: String, queue: List<MusicTrack> = emptyList(), startIndex: Int = -1, startPositionMs: Long = 0) {
         player?.stop()
         player?.clearMediaItems()
 
@@ -350,7 +350,7 @@ object EnhancedMusicPlayerManager {
         
         val startIdx = if (startIndex >= 0) startIndex else activeQueue.indexOfFirst { it.videoId == track.videoId }.coerceAtLeast(0)
         
-        player?.setMediaItems(mediaItems, startIdx, 0)
+        player?.setMediaItems(mediaItems, startIdx, startPositionMs)
         player?.prepare()
         player?.play()
         
