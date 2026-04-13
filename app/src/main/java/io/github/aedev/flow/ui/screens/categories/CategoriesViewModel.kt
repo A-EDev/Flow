@@ -10,8 +10,10 @@ import io.github.aedev.flow.data.repository.YouTubeRepository.TrendingCategory
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -38,6 +40,12 @@ class CategoriesViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(CategoriesUiState())
     val uiState: StateFlow<CategoriesUiState> = _uiState.asStateFlow()
+
+    val trendingRegion: StateFlow<String> = preferences.trendingRegion
+        .stateIn(viewModelScope, SharingStarted.Eagerly, "US")
+
+    val showRegionPickerInExplore: StateFlow<Boolean> = preferences.showRegionPickerInExplore
+        .stateIn(viewModelScope, SharingStarted.Eagerly, true)
 
     // Cache per-category so switching tabs is instant after first load
     private val cache = mutableMapOf<TrendingCategory, List<Video>>()
@@ -133,5 +141,13 @@ class CategoriesViewModel @Inject constructor(
         val category = _uiState.value.selectedCategory
         cache.remove(category)
         loadCategory(category)
+    }
+
+    fun setRegion(region: String) {
+        viewModelScope.launch {
+            preferences.setTrendingRegion(region)
+            cache.clear()
+            loadCategory(_uiState.value.selectedCategory)
+        }
     }
 }

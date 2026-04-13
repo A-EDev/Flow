@@ -524,6 +524,9 @@
     <string name="content_settings_hide_watched_subtitle">Filter videos you\'ve already watched from your home feed and subscriptions</string>
     <string name="content_settings_disable_shorts_player_title">Disable Shorts Player</string>
     <string name="content_settings_disable_shorts_player_subtitle">Play all videos (including YouTube Shorts) in the regular video player</string>
+    <string name="content_settings_explore_region_picker_title">Quick region picker in Explore</string>
+    <string name="content_settings_explore_region_picker_subtitle">Show a globe icon in the Explore screen top bar to instantly change the trending region.</string>
+    <string name="categories_region_picker_desc">Change trending region (current: %1$s)</string>
     <string name="content_settings_header_nav_tabs">Navigation Tabs</string>
     <string name="settings_subs_shorts_shelf_title">Subscriptions shorts shelf</string>
     <string name="settings_subs_shorts_shelf_subtitle">Show the horizontal shorts shelf in the subscription feed grid.</string>

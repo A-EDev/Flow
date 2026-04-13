@@ -143,6 +143,9 @@ class PlayerPreferences(private val context: Context) {
 
         // Cache size
         val MEDIA_CACHE_SIZE_MB = intPreferencesKey("media_cache_size_mb")
+
+        // Explore screen quick region picker
+        val SHOW_REGION_PICKER_IN_EXPLORE = booleanPreferencesKey("show_region_picker_in_explore")
     }
     
     // Grid item size preference
@@ -847,6 +850,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setMediaCacheSizeMb(sizeMb: Int) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.MEDIA_CACHE_SIZE_MB] = sizeMb
+        }
+    }
+
+    // Show region picker globe icon in CategoriesScreen top bar
+    val showRegionPickerInExplore: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SHOW_REGION_PICKER_IN_EXPLORE] ?: true
+        }
+
+    suspend fun setShowRegionPickerInExplore(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHOW_REGION_PICKER_IN_EXPLORE] = enabled
         }
     }
 

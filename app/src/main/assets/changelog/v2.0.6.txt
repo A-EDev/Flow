@@ -20,6 +20,7 @@ FEATURES
 - Add watched videos filtering toggle in feed #245
 - Add global crash reporter and crash screen 
 - Add player cache limit options #243
+- Add new region selector in the explore screen #249
 
 IMPROVEMENTS
 - New miniplayer secondary action buttons layout #225

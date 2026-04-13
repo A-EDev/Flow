@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.DesktopWindows
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Search
@@ -73,6 +74,7 @@ fun ContentSettingsScreen(
     val currentRelatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.COMPACT)
     val hideWatchedVideos by preferences.hideWatchedVideos.collectAsState(initial = false)
     val disableShortsPlayer by preferences.disableShortsPlayer.collectAsState(initial = false)
+    val showRegionPickerInExplore by preferences.showRegionPickerInExplore.collectAsState(initial = true)
     
     Scaffold(
         topBar = {
@@ -313,6 +315,18 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setDisableShortsPlayer(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Language,
+                        title = stringResource(R.string.content_settings_explore_region_picker_title),
+                        subtitle = stringResource(R.string.content_settings_explore_region_picker_subtitle),
+                        checked = showRegionPickerInExplore,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setShowRegionPickerInExplore(enabled)
                             }
                         }
                     )

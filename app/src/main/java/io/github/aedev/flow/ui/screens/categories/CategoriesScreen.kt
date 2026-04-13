@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.categories
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -11,7 +12,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.List
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -47,6 +50,9 @@ fun CategoriesScreen(
     viewModel: CategoriesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val trendingRegion by viewModel.trendingRegion.collectAsStateWithLifecycle()
+    val showRegionPicker by viewModel.showRegionPickerInExplore.collectAsStateWithLifecycle()
+    var showRegionDialog by remember { mutableStateOf(false) }
 
     val tabs = remember {
         listOf(
@@ -62,8 +68,11 @@ fun CategoriesScreen(
         topBar = {
             CategoriesTopBar(
                 isListView = uiState.isListView,
+                currentRegion = trendingRegion,
+                showRegionPicker = showRegionPicker,
                 onBackClick = onBackClick,
-                onToggleViewMode = { viewModel.toggleViewMode() }
+                onToggleViewMode = { viewModel.toggleViewMode() },
+                onRegionPickerClick = { showRegionDialog = true }
             )
         },
         containerColor = MaterialTheme.colorScheme.background,
@@ -131,13 +140,71 @@ fun CategoriesScreen(
             }
         }
     }
+
+    // Region picker dialog
+    if (showRegionDialog) {
+        var regionSearchQuery by remember { mutableStateOf("") }
+        val allRegions = remember { REGION_NAMES.toList() }
+        val filteredRegions = remember(regionSearchQuery) {
+            if (regionSearchQuery.isBlank()) allRegions
+            else allRegions.filter { (code, name) ->
+                name.contains(regionSearchQuery, ignoreCase = true) ||
+                code.contains(regionSearchQuery, ignoreCase = true)
+            }
+        }
+        AlertDialog(
+            onDismissRequest = { showRegionDialog = false },
+            title = { Text(stringResource(R.string.settings_region_dialog_title)) },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = regionSearchQuery,
+                        onValueChange = { regionSearchQuery = it },
+                        placeholder = { Text(stringResource(R.string.search_hint)) },
+                        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    LazyColumn(Modifier.heightIn(max = 260.dp)) {
+                        items(filteredRegions.size) { index ->
+                            val (code, name) = filteredRegions[index]
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.setRegion(code)
+                                        showRegionDialog = false
+                                    }
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(selected = trendingRegion == code, onClick = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(name)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showRegionDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 }
 
 @Composable
 private fun CategoriesTopBar(
     isListView: Boolean,
+    currentRegion: String,
+    showRegionPicker: Boolean,
     onBackClick: () -> Unit,
-    onToggleViewMode: () -> Unit
+    onToggleViewMode: () -> Unit,
+    onRegionPickerClick: () -> Unit
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -160,6 +227,15 @@ private fun CategoriesTopBar(
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                 modifier = Modifier.weight(1f)
             )
+            if (showRegionPicker) {
+                IconButton(onClick = onRegionPickerClick) {
+                    Icon(
+                        imageVector = Icons.Outlined.Language,
+                        contentDescription = stringResource(R.string.categories_region_picker_desc, currentRegion),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             IconButton(onClick = onToggleViewMode) {
                 Icon(
                     imageVector = if (isListView) Icons.Outlined.GridView else Icons.Outlined.List,
@@ -327,3 +403,40 @@ private fun ErrorContent(message: String, onRetry: () -> Unit) {
         }
     }
 }
+
+private val REGION_NAMES = mapOf(
+    "DZ" to "Algeria", "AS" to "American Samoa", "AI" to "Anguilla", "AR" to "Argentina",
+    "AW" to "Aruba", "AU" to "Australia", "AT" to "Austria", "AZ" to "Azerbaijan",
+    "BH" to "Bahrain", "BD" to "Bangladesh", "BY" to "Belarus", "BE" to "Belgium",
+    "BM" to "Bermuda", "BO" to "Bolivia", "BA" to "Bosnia and Herzegovina", "BR" to "Brazil",
+    "IO" to "British Indian Ocean Territory", "VG" to "British Virgin Islands", "BG" to "Bulgaria", "KH" to "Cambodia",
+    "CA" to "Canada", "KY" to "Cayman Islands", "CL" to "Chile", "CO" to "Colombia",
+    "CR" to "Costa Rica", "HR" to "Croatia", "CY" to "Cyprus", "CZ" to "Czech Republic",
+    "DK" to "Denmark", "DO" to "Dominican Republic", "EC" to "Ecuador", "EG" to "Egypt",
+    "SV" to "El Salvador", "EE" to "Estonia", "FK" to "Falkland Islands", "FO" to "Faroe Islands",
+    "FI" to "Finland", "FR" to "France", "GF" to "French Guiana", "PF" to "French Polynesia",
+    "GE" to "Georgia", "DE" to "Germany", "GH" to "Ghana", "GI" to "Gibraltar",
+    "GR" to "Greece", "GL" to "Greenland", "GP" to "Guadeloupe", "GU" to "Guam",
+    "GT" to "Guatemala", "HN" to "Honduras", "HK" to "Hong Kong", "HU" to "Hungary",
+    "IS" to "Iceland", "IN" to "India", "ID" to "Indonesia", "IQ" to "Iraq",
+    "IE" to "Ireland", "IL" to "Israel", "IT" to "Italy", "JM" to "Jamaica",
+    "JP" to "Japan", "JO" to "Jordan", "KZ" to "Kazakhstan", "KE" to "Kenya",
+    "KW" to "Kuwait", "LA" to "Laos", "LV" to "Latvia", "LB" to "Lebanon",
+    "LY" to "Libya", "LI" to "Liechtenstein", "LT" to "Lithuania", "LU" to "Luxembourg",
+    "MY" to "Malaysia", "MT" to "Malta", "MQ" to "Martinique", "YT" to "Mayotte",
+    "MX" to "Mexico", "MD" to "Moldova", "ME" to "Montenegro", "MS" to "Montserrat",
+    "MA" to "Morocco", "NP" to "Nepal", "NL" to "Netherlands", "NC" to "New Caledonia",
+    "NZ" to "New Zealand", "NI" to "Nicaragua", "NG" to "Nigeria", "NF" to "Norfolk Island",
+    "MP" to "Northern Mariana Islands", "NO" to "Norway", "OM" to "Oman", "PK" to "Pakistan",
+    "PA" to "Panama", "PG" to "Papua New Guinea", "PY" to "Paraguay", "PE" to "Peru",
+    "PH" to "Philippines", "PL" to "Poland", "PT" to "Portugal", "PR" to "Puerto Rico",
+    "QA" to "Qatar", "RE" to "Reunion", "RO" to "Romania", "RU" to "Russia",
+    "SH" to "Saint Helena", "PM" to "Saint Pierre and Miquelon", "SA" to "Saudi Arabia", "SN" to "Senegal",
+    "RS" to "Serbia", "SG" to "Singapore", "SK" to "Slovakia", "SI" to "Slovenia",
+    "ZA" to "South Africa", "KR" to "South Korea", "ES" to "Spain", "LK" to "Sri Lanka",
+    "SJ" to "Svalbard and Jan Mayen", "SE" to "Sweden", "CH" to "Switzerland", "TW" to "Taiwan",
+    "TZ" to "Tanzania", "TH" to "Thailand", "TN" to "Tunisia", "TR" to "Turkey",
+    "TC" to "Turks and Caicos Islands", "UG" to "Uganda", "UA" to "Ukraine", "AE" to "United Arab Emirates",
+    "GB" to "United Kingdom", "US" to "United States", "VI" to "U.S. Virgin Islands", "UY" to "Uruguay",
+    "VE" to "Venezuela", "VN" to "Vietnam"
+).toList().sortedBy { it.second }.toMap()
