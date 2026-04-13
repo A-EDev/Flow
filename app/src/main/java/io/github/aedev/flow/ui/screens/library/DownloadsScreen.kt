@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,6 +30,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
@@ -47,6 +49,8 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.entity.DownloadItemStatus
+import io.github.aedev.flow.data.local.entity.DownloadWithItems
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.video.DownloadedVideo
 import io.github.aedev.flow.utils.formatDuration
@@ -148,6 +152,8 @@ fun DownloadsScreen(
                 when (targetIndex) {
                     0 -> VideosDownloadsList(
                         videos = uiState.downloadedVideos,
+                        activeDownloads = uiState.activeVideoDownloads,
+                        progressMap = uiState.downloadProgressMap,
                         isRefreshing = uiState.isScanning,
                         onRefresh = { viewModel.rescan() },
                         onVideoClick = { videos, index -> onVideoClick(videos, index) },
@@ -298,6 +304,8 @@ private data class TabInfo(
 @Composable
 private fun VideosDownloadsList(
     videos: List<DownloadedVideo>,
+    activeDownloads: List<DownloadWithItems>,
+    progressMap: Map<String, Float>,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onVideoClick: (List<DownloadedVideo>, Int) -> Unit,
@@ -305,7 +313,7 @@ private fun VideosDownloadsList(
     onHomeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (videos.isEmpty()) {
+    if (videos.isEmpty() && activeDownloads.isEmpty()) {
         val pullState = rememberPullToRefreshState()
         PullToRefreshBox(
             isRefreshing = isRefreshing,
@@ -338,6 +346,49 @@ private fun VideosDownloadsList(
                 contentPadding = PaddingValues(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
+                if (activeDownloads.isNotEmpty()) {
+                    item(key = "section_active") {
+                        Text(
+                            text = stringResource(R.string.section_downloading),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(
+                                horizontal = 16.dp, vertical = 6.dp
+                            )
+                        )
+                    }
+                    items(
+                        items = activeDownloads,
+                        key = { "active_${it.download.videoId}" }
+                    ) { dl ->
+                        ActiveVideoDownloadCard(
+                            download = dl,
+                            progressMap = progressMap,
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = tween(300, easing = EaseOutCubic),
+                                fadeOutSpec = tween(200, easing = EaseInCubic),
+                                placementSpec = spring(
+                                    dampingRatio = 0.8f,
+                                    stiffness = Spring.StiffnessLow
+                                )
+                            )
+                        )
+                    }
+                    if (videos.isNotEmpty()) {
+                        item(key = "section_completed") {
+                            Text(
+                                text = stringResource(R.string.section_completed),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(
+                                    horizontal = 16.dp, vertical = 6.dp
+                                )
+                            )
+                        }
+                    }
+                }
                 itemsIndexed(
                     items = videos,
                     key = { _, video -> video.video.id }
@@ -458,6 +509,107 @@ private fun VideoDownloadCard(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                     .copy(alpha = 0.6f),
                 modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════
+// ACTIVE DOWNLOAD CARD (in-progress)
+// ═══════════════════════════════════════════════════════
+
+@Composable
+private fun ActiveVideoDownloadCard(
+    download: DownloadWithItems,
+    progressMap: Map<String, Float>,
+    modifier: Modifier = Modifier
+) {
+    val progress = (progressMap[download.download.videoId] ?: download.progress).coerceIn(0f, 1f)
+    val pct = (progress * 100).toInt()
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .width(152.dp)
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(10.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+        ) {
+            AsyncImage(
+                model = download.download.thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+            // Dimming overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.50f))
+            )
+            // Red progress fill from left
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth(progress)
+                    .background(Color(0xFFCD2027).copy(alpha = 0.35f))
+            )
+            // Percentage label centered
+            Text(
+                text = "$pct%",
+                color = Color.White,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.Center)
+            )
+            // Thin progress bar at the bottom edge
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .align(Alignment.BottomCenter),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = Color.White.copy(alpha = 0.25f)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = download.download.title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface,
+                lineHeight = 20.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = download.download.uploader,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            val statusText = when (download.overallStatus) {
+                DownloadItemStatus.PENDING  -> stringResource(R.string.download_status_queued)
+                DownloadItemStatus.PAUSED   -> "$pct% · ${stringResource(R.string.download_status_paused)}"
+                DownloadItemStatus.FAILED   -> stringResource(R.string.download_status_failed)
+                else                        -> "$pct%"
+            }
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }

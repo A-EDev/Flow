@@ -1,13 +1,14 @@
 package io.github.aedev.flow.ui.components
 
+import android.content.ComponentName
+import android.content.pm.PackageManager
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,18 +18,48 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import androidx.compose.ui.res.painterResource
 import io.github.aedev.flow.R
+
+private const val SPLASH_ICON_NAMESPACE = "io.github.aedev.flow"
+
+private data class SplashIconOption(
+    val componentSuffix: String,
+    val drawableRes: Int,
+    /** When true, preview bg uses MaterialTheme dynamic colors (Material You variant). */
+    val isDynamic: Boolean = false
+)
+
+private val SPLASH_ICONS = listOf(
+    SplashIconOption(".IconFlowRed",    R.drawable.ic_flow_logo),
+    SplashIconOption(".IconAmoled",     R.drawable.splash_icon_amoled),
+    SplashIconOption(".IconMonochrome", R.drawable.splash_icon_monochrome),
+    SplashIconOption(".IconGhost",      R.drawable.splash_icon_ghost),
+    SplashIconOption(".IconDynamic",    R.drawable.ic_notification_logo, isDynamic = true)
+)
 
 @Composable
 fun FlowSplashScreen(
     onAnimationFinished: () -> Unit
 ) {
+    val context = LocalContext.current
+
+    // Detect the currently active app icon
+    val activeIcon = remember {
+        val pm = context.packageManager
+        val pkg = context.packageName
+        SPLASH_ICONS.firstOrNull { option ->
+            val cn = ComponentName(pkg, "$SPLASH_ICON_NAMESPACE${option.componentSuffix}")
+            pm.getComponentEnabledSetting(cn) == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        } ?: SPLASH_ICONS.first()
+    }
     // --- Animation States ---
     val scale = remember { Animatable(0f) }      // For the Logo Pop
     val lineProgress = remember { Animatable(0f) } // For the Red Line
@@ -79,26 +110,31 @@ fun FlowSplashScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // 1. The Logo Container
-                Box(
-                    modifier = Modifier
-                        .scale(scale.value) // Applies the spring animation
-                        .size(90.dp)
-                        .background(
-                            // Optional: Subtle Gradient Background for the Logo
-                            brush = Brush.radialGradient(
-                                colors = listOf(Color(0xFF222222), Color(0xFF0F0F0F))
-                            ),
-                            shape = RoundedCornerShape(24.dp)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // YOUR LOGO HERE (Using the new ic_flow_logo)
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_flow_logo),
+                // 1. The Logo — rendered differently for static vs dynamic icons
+                if (activeIcon.isDynamic) {
+                    // Material You: needs a themed background since ic_notification_logo is monochrome
+                    Box(
+                        modifier = Modifier
+                            .scale(scale.value)
+                            .size(90.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .background(MaterialTheme.colorScheme.secondaryContainer),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Image(
+                            painter = painterResource(id = activeIcon.drawableRes),
+                            contentDescription = "Flow Logo",
+                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSecondaryContainer),
+                            modifier = Modifier.fillMaxSize(0.72f)
+                        )
+                    }
+                } else {
+                    Image(
+                        painter = painterResource(id = activeIcon.drawableRes),
                         contentDescription = "Flow Logo",
-                        tint = Color.Unspecified, // Keep SVG colors
-                        modifier = Modifier.size(60.dp)
+                        modifier = Modifier
+                            .scale(scale.value)
+                            .size(90.dp)
                     )
                 }
 

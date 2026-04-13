@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.aedev.flow.data.music.DownloadManager as MusicDownloadManager
+import io.github.aedev.flow.data.local.entity.DownloadWithItems
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.DownloadedVideo
@@ -52,6 +53,22 @@ class DownloadsViewModel @Inject constructor(
                 _uiState.update { it.copy(downloadedVideos = videos) }
             }
         }
+
+        viewModelScope.launch {
+            videoDownloadManager.activeDownloads.collect { active ->
+                _uiState.update { it.copy(activeVideoDownloads = active) }
+            }
+        }
+
+        viewModelScope.launch {
+            videoDownloadManager.progressUpdates.collect { update ->
+                _uiState.update { state ->
+                    state.copy(
+                        downloadProgressMap = state.downloadProgressMap + (update.videoId to update.progress)
+                    )
+                }
+            }
+        }
     }
 
     fun deleteVideoDownload(videoId: String) {
@@ -81,7 +98,9 @@ class DownloadsViewModel @Inject constructor(
 
 data class DownloadsUiState(
     val downloadedVideos: List<DownloadedVideo> = emptyList(),
+    val activeVideoDownloads: List<DownloadWithItems> = emptyList(),
     val downloadedMusic: List<DownloadedTrack> = emptyList(),
+    val downloadProgressMap: Map<String, Float> = emptyMap(),
     val isLoading: Boolean = false,
     val isScanning: Boolean = false
 )

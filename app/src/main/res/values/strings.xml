@@ -1175,6 +1175,11 @@
     <string name="select_quality">Select your preferred quality</string>
     <string name="no_download_streams">No download streams available</string>
     <string name="downloading_template">Downloading %1$s...</string>
+    <string name="section_downloading">Downloading</string>
+    <string name="section_completed">Completed</string>
+    <string name="download_status_queued">Queued</string>
+    <string name="download_status_paused">Paused</string>
+    <string name="download_status_failed">Failed</string>
     <string name="audio_track">Audio Track</string>
     <string name="off">Off</string>
     <string name="on">On</string>
