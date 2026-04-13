@@ -1,6 +1,8 @@
 package io.github.aedev.flow.di
 
 import android.content.Context
+import android.util.Log
+import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.innertube.YouTube
 import coil.ImageLoader
 import coil.disk.DiskCache
@@ -51,6 +53,7 @@ object AppModule {
             }
             .crossfade(true)
             .respectCacheHeaders(false) // Cache images even if headers say otherwise (YouTube thumbnails)
+            .apply { if (BuildConfig.DEBUG) logger(DebugLogger()) }
             .build()
     }
 }

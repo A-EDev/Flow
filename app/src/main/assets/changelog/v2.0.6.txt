@@ -1,6 +1,9 @@
 FLOW CHANGE LOG
 VERSION: 2.0.6
-DATE: 2026-04-10
+DATE: 2026-04-13
+
+LIBRARIES
+- Bump NewpipeExtractor to latest version (v0.26.1)
 
 FEATURES
 - Add new save state for subscriptions feed display settings #221
@@ -26,6 +29,7 @@ IMPROVEMENTS
 - Improve video player support for bluetooth media control buttton #254
 - Improve pip mode handling #241
 - Add cipher and PoToken generation for better music streaming handling Based and ported from MetroList's implementation (https://github.com/MetrolistGroup/Metrolist)
+- Add Horizontal pager for horizontal swiping between channel tabs #248
 
 FIXES AND STABILITY
 - Fix video player playback speed issue #232
@@ -36,3 +40,5 @@ FIXES AND STABILITY
 - Fix forced layout on tablets #228
 - Fix comments sorting to newest #240
 - Fix RTL mini player handling #187
+- Fix Video progress not displayed in channel screen #237
+- Fix Channel avatar display issue in home feed #251

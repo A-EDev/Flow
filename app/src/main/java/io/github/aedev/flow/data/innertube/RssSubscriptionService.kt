@@ -174,7 +174,7 @@ object RssSubscriptionService {
 
         try {
             val channelInfo = ChannelInfo.getInfo(service, channelUrl)
-            val channelAvatar = channelInfo.avatars.maxByOrNull { it.height }?.url ?: ""
+            val channelAvatar = channelInfo.avatars.maxByOrNull { it.height }?.url  // null if empty → fallback below kicks in
             val tabNames = channelInfo.tabs.map { it.contentFilters.joinToString() }
             Log.d(TAG, "[$channelId] ChannelInfo: found tabs: $tabNames")
 

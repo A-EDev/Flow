@@ -412,7 +412,9 @@ class ChannelViewModel : ViewModel() {
             thumbnailUrl = thumbnail,
             channelName = uploaderName ?: channelInfo.name,
             channelId = channelInfo.id,
-            channelThumbnailUrl = channelInfo.avatars.firstOrNull()?.url ?: "",
+            channelThumbnailUrl = channelInfo.avatars.maxByOrNull { it.height }?.url
+                ?: channelInfo.avatars.firstOrNull()?.url
+                ?: "",
             viewCount = viewCount,
             duration = duration.toInt(),
             uploadDate = io.github.aedev.flow.utils.formatTimeAgo(uploadDate?.offsetDateTime()?.toString()),

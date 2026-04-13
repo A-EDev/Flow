@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.channel
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import android.util.Log
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,10 +13,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.filled.PlaylistPlay
 import androidx.compose.material.icons.filled.ViewList
@@ -49,6 +53,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.CompactVideoCard
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.theme.extendedColors
+import kotlinx.coroutines.launch
 
 private typealias SortedVideos = List<Video>?
 
@@ -162,8 +167,8 @@ private fun ChannelContent(
 
     var isGridView by rememberSaveable { mutableStateOf(false) }
     var selectedFilter by rememberSaveable { mutableStateOf(VideoFilter.Latest) }
+    val coroutineScope = rememberCoroutineScope()
 
-    val showFilterBar = uiState.selectedTab == 0 || uiState.selectedTab == 2
     val sortedVideos: List<Video> = when (selectedFilter) {
         VideoFilter.Latest -> allVideos
         VideoFilter.Popular -> allVideos.sortedByDescending { it.viewCount }
@@ -183,18 +188,41 @@ private fun ChannelContent(
         stringResource(R.string.tab_about)
     )
 
-    val listState = rememberLazyListState(
+    val pagerState = rememberPagerState(
+        initialPage = uiState.selectedTab.coerceIn(0, tabTitles.lastIndex),
+        pageCount = { tabTitles.size }
+    )
+
+    // Sync pager swipe → ViewModel tab selection
+    LaunchedEffect(pagerState.currentPage) {
+        onTabSelected(pagerState.currentPage)
+    }
+
+    // Sync ViewModel tab selection (e.g. deep-link) → pager
+    LaunchedEffect(uiState.selectedTab) {
+        if (pagerState.currentPage != uiState.selectedTab) {
+            pagerState.animateScrollToPage(uiState.selectedTab)
+        }
+    }
+
+    val showFilterBar = pagerState.currentPage == 0 || pagerState.currentPage == 2
+
+    // Persist Videos-tab scroll position across navigation
+    val videosListState = rememberLazyListState(
         initialFirstVisibleItemIndex = initialScrollIndex,
         initialFirstVisibleItemScrollOffset = initialScrollOffset
     )
-    // Sync scroll position back to ViewModel so it survives ChannelContent leaving
-    // composition (conditional visibility) and Samsung's aggressive process trimming.
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
+    LaunchedEffect(videosListState) {
+        snapshotFlow { videosListState.firstVisibleItemIndex to videosListState.firstVisibleItemScrollOffset }
             .collect { (index, offset) -> onScrollChanged(index, offset) }
     }
-    LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-        item {
+
+    LazyColumn(
+        state = videosListState,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // ── Channel header — scrolls away naturally ───────────────────────────
+        item(key = "channel_header") {
             ChannelHeader(
                 channelInfo = channelInfo,
                 isSubscribed = uiState.isSubscribed,
@@ -205,16 +233,19 @@ private fun ChannelContent(
             )
         }
 
-        stickyHeader {
+        // ── Sticky tab row + filter bar ───────────────────────────────────────
+        stickyHeader(key = "tab_row") {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(MaterialTheme.colorScheme.background)
             ) {
                 ChannelTabRow(
-                    selectedIndex = uiState.selectedTab,
+                    selectedIndex = pagerState.currentPage,
                     tabs = tabTitles,
-                    onTabSelected = onTabSelected
+                    onTabSelected = { idx ->
+                        coroutineScope.launch { pagerState.animateScrollToPage(idx) }
+                    }
                 )
                 if (showFilterBar) {
                     FilterAndToggleBar(
@@ -227,38 +258,58 @@ private fun ChannelContent(
             }
         }
 
-        // ── Tab content ────────────────────────────────────────────────────────
-        when (uiState.selectedTab) {
-            0 -> {
-                if (isLoadingAllVideos && sortedVideos.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(top = 64.dp),
-                            contentAlignment = Alignment.Center
-                        ) { CircularProgressIndicator() }
+        // ── HorizontalPager fills the rest of the screen ──────────────────────
+        item(key = "pager_content") {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillParentMaxSize(),
+                verticalAlignment = Alignment.Top,
+                userScrollEnabled = true
+            ) { page ->
+                when (page) {
+                    0 -> {
+                        if (isLoadingAllVideos && sortedVideos.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize().padding(top = 64.dp),
+                                contentAlignment = Alignment.Center
+                            ) { CircularProgressIndicator() }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                videosContent(null, sortedVideos, isGridView, onVideoClick)
+                                item { Spacer(Modifier.height(16.dp)) }
+                            }
+                        }
                     }
-                } else {
-                    videosContent(null, sortedVideos, isGridView, onVideoClick)
+                    1 -> LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        shortsContent(shortsLazyPagingItems, onShortClick)
+                        item { Spacer(Modifier.height(16.dp)) }
+                    }
+                    2 -> {
+                        if (isLoadingAllVideos && sortedLive.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize().padding(top = 64.dp),
+                                contentAlignment = Alignment.Center
+                            ) { CircularProgressIndicator() }
+                        } else {
+                            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                liveContent(null, sortedLive, isGridView, onVideoClick)
+                                item { Spacer(Modifier.height(16.dp)) }
+                            }
+                        }
+                    }
+                    3 -> LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        playlistsContent(playlistsLazyPagingItems, onPlaylistClick)
+                        item { Spacer(Modifier.height(16.dp)) }
+                    }
+                    4 -> LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        item { AboutSection(channelInfo = channelInfo) }
+                        item { Spacer(Modifier.height(16.dp)) }
+                    }
                 }
             }
-            1 -> shortsContent(shortsLazyPagingItems, onShortClick)
-            2 -> {
-                if (isLoadingAllVideos && sortedLive.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(top = 64.dp),
-                            contentAlignment = Alignment.Center
-                        ) { CircularProgressIndicator() }
-                    }
-                } else {
-                    liveContent(null, sortedLive, isGridView, onVideoClick)
-                }
-            }
-            3 -> playlistsContent(playlistsLazyPagingItems, onPlaylistClick)
-            4 -> item { AboutSection(channelInfo = channelInfo) }
         }
-
-        item { Spacer(Modifier.height(16.dp)) }
     }
 }
 
@@ -329,7 +380,13 @@ private fun ChannelHeader(
     onNotificationChange: (Boolean) -> Unit
 ) {
     val bannerUrl = try { channelInfo.banners.firstOrNull()?.url } catch (e: Exception) { null }
-    val avatarUrl = try { channelInfo.avatars.firstOrNull()?.url } catch (e: Exception) { null }
+    // Use highest-res avatar available
+    val avatarUrl = try {
+        channelInfo.avatars.maxByOrNull { it.height }?.url
+            ?: channelInfo.avatars.firstOrNull()?.url
+    } catch (e: Exception) { null }
+
+    Log.d("ChannelHeader", "channel=${channelInfo.name} avatarUrl=$avatarUrl bannerUrl=$bannerUrl")
     val context = LocalContext.current
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -341,7 +398,10 @@ private fun ChannelHeader(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(320f / 100f),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.Crop,
+                onError = {
+                    Log.e("ChannelHeader", "Banner load failed for $bannerUrl: ${it.result.throwable?.message}")
+                }
             )
         } else {
             Box(
@@ -361,27 +421,63 @@ private fun ChannelHeader(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (!avatarUrl.isNullOrEmpty()) {
-                AsyncImage(
-                    model = avatarUrl,
-                    contentDescription = stringResource(R.string.channel_avatar),
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(CircleShape)
-                        .border(
-                            width = 2.dp,
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            shape = CircleShape
-                        ),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(72.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                )
+            // Avatar: shows image with icon fallback on error or null URL
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .border(
+                        width = 2.dp,
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!avatarUrl.isNullOrEmpty()) {
+                    var avatarFailed by remember(avatarUrl) { mutableStateOf(false) }
+                    var retryUrl by remember(avatarUrl) { mutableStateOf(avatarUrl) }
+                    var didRetry by remember(avatarUrl) { mutableStateOf(false) }
+                    if (avatarFailed) {
+                        Icon(
+                            imageVector = Icons.Default.AccountCircle,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize().padding(4.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        AsyncImage(
+                            model = retryUrl,
+                            contentDescription = stringResource(R.string.channel_avatar),
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            onError = { err ->
+                                val msg = err.result.throwable?.message ?: "unknown"
+                                if (!didRetry) {
+                                    didRetry = true
+                                    val lowRes = retryUrl.replace(Regex("=s\\d+"), "=s88")
+                                    if (lowRes != retryUrl) {
+                                        Log.w("ChannelHeader", "Avatar failed '$retryUrl' ($msg) → retrying '$lowRes'")
+                                        retryUrl = lowRes
+                                    } else {
+                                        Log.e("ChannelHeader", "Avatar failed '$retryUrl' ($msg), no size param → icon")
+                                        avatarFailed = true
+                                    }
+                                } else {
+                                    Log.e("ChannelHeader", "Avatar retry failed '$retryUrl' ($msg) → icon")
+                                    avatarFailed = true
+                                }
+                            }
+                        )
+                    }
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.AccountCircle,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize().padding(4.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.weight(1f))

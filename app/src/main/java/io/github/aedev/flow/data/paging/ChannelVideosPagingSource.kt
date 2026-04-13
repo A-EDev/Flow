@@ -98,7 +98,9 @@ class ChannelVideosPagingSource(
             thumbnailUrl = thumbnail,
             channelName = this.uploaderName ?: channelInfo.name,
             channelId = channelInfo.id,
-            channelThumbnailUrl = channelInfo.avatars.firstOrNull()?.url ?: "",
+            channelThumbnailUrl = channelInfo.avatars.maxByOrNull { it.height }?.url
+                ?: channelInfo.avatars.firstOrNull()?.url
+                ?: "",
             viewCount = this.viewCount,
             duration = this.duration.toInt(),
             // Format date to human-readable format (e.g., "2 days ago")

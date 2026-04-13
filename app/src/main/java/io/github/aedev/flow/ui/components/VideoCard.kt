@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.util.Log
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
@@ -57,6 +58,8 @@ import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatPremiereDate
 import io.github.aedev.flow.utils.formatViewCount
 import kotlinx.coroutines.flow.collectLatest
+
+private const val AVATAR_TAG = "ChannelAvatarImage"
 
 @Composable
 fun VideoCard(
@@ -174,14 +177,13 @@ fun VideoCard(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Channel Avatar
-            SafeAsyncImage(
-                model = video.channelThumbnailUrl?.takeIf { it.isNotEmpty() } ?: Icons.Default.AccountCircle,
+            ChannelAvatarImage(
+                url = video.channelThumbnailUrl,
                 contentDescription = video.channelName,
                 modifier = Modifier
-                    .size(32.dp) // Slightly smaller for better balance
+                    .size(32.dp)
                     .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentScale = ContentScale.Crop
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
             )
 
             Column(modifier = Modifier.weight(1f)) {
@@ -257,6 +259,13 @@ fun VideoCardHorizontal(
     }
     val displayTitle = deArrowResult?.title ?: video.title
     val displayThumbnailUrl = deArrowResult?.thumbnailUrl ?: video.thumbnailUrl
+    val watchProgress by produceState<Float?>(initialValue = null, video.id) {
+        ViewHistory.getInstance(context).getVideoHistory(video.id).collectLatest { entry ->
+            value = if (entry != null && entry.duration > 0 && entry.progressPercentage in 3f..90f) {
+                entry.progressPercentage / 100f
+            } else null
+        }
+    }
 
     var showQuickActions by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
@@ -317,6 +326,19 @@ fun VideoCardHorizontal(
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                     )
                 }
+            }
+
+            // Watch progress bar
+            watchProgress?.let { progress ->
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(3.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = Color.Black.copy(alpha = 0.4f)
+                )
             }
         }
 
@@ -483,8 +505,8 @@ fun VideoCardFullWidth(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Channel avatar
-            SafeAsyncImage(
-                model = video.channelThumbnailUrl?.takeIf { it.isNotEmpty() } ?: Icons.Default.AccountCircle,
+            ChannelAvatarImage(
+                url = video.channelThumbnailUrl,
                 contentDescription = video.channelName,
                 modifier = Modifier
                     .size(40.dp)
@@ -494,8 +516,7 @@ fun VideoCardFullWidth(
                         if (onChannelClick != null)
                             Modifier.clickable { onChannelClick(video.channelId) }
                         else Modifier
-                    ),
-                contentScale = ContentScale.Crop
+                    )
             )
 
             // Video details
@@ -978,15 +999,18 @@ private fun SafeAsyncImage(
         }
 
         if (isValidModel) {
-            AsyncImage(
-                model = model,
-                contentDescription = contentDescription,
-                modifier = modifier,
-                contentScale = contentScale,
-                onError = { 
-                    // Fail silently or log
-                }
-            )
+            var hasError by remember(model) { mutableStateOf(false) }
+            if (hasError) {
+                Box(modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant))
+            } else {
+                AsyncImage(
+                    model = model,
+                    contentDescription = contentDescription,
+                    modifier = modifier,
+                    contentScale = contentScale,
+                    onError = { hasError = true }
+                )
+            }
         } else {
             // Fallback placeholder
             Box(modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant))
@@ -994,3 +1018,65 @@ private fun SafeAsyncImage(
     }
 }
 
+/**
+ * Channel avatar that gracefully degrades on load failure:
+ *  1. Tries the original URL (may be high-res, e.g. =s800)
+ *  2. On failure, retries with =s88 (low-res) if a size parameter is present
+ *  3. On second failure, or no size param, shows the AccountCircle icon
+ */
+@Composable
+private fun ChannelAvatarImage(
+    url: String?,
+    contentDescription: String?,
+    modifier: Modifier = Modifier
+) {
+    var currentModel by remember(url) {
+        val initial = url?.takeIf { it.isNotEmpty() } ?: Icons.Default.AccountCircle
+        if (initial is ImageVector) {
+            Log.d(AVATAR_TAG, "null/empty url for '$contentDescription', using icon")
+        } else {
+            Log.d(AVATAR_TAG, "init url='$url' for '$contentDescription'")
+        }
+        mutableStateOf<Any>(initial)
+    }
+    var didRetry by remember(url) { mutableStateOf(false) }
+
+    when (val model = currentModel) {
+        is ImageVector -> Image(
+            imageVector = model,
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = ContentScale.Crop,
+            colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(
+                MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        )
+        else -> AsyncImage(
+            model = model,
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = ContentScale.Crop,
+            onError = { errorResult ->
+                val errMsg = errorResult.result.throwable?.message ?: "unknown error"
+                if (!didRetry) {
+                    didRetry = true
+                    val src = currentModel as? String ?: run {
+                        Log.e(AVATAR_TAG, "Expected String model but got ${currentModel::class.simpleName}")
+                        return@AsyncImage
+                    }
+                    val lowRes = src.replace(Regex("=s\\d+"), "=s88")
+                    if (lowRes != src) {
+                        Log.w(AVATAR_TAG, "Failed '$src' ($errMsg) → retrying with '$lowRes'")
+                        currentModel = lowRes
+                    } else {
+                        Log.e(AVATAR_TAG, "Failed '$src' ($errMsg), no size param to replace → icon")
+                        currentModel = Icons.Default.AccountCircle
+                    }
+                } else {
+                    Log.e(AVATAR_TAG, "Retry also failed for '$model' ($errMsg) → icon")
+                    currentModel = Icons.Default.AccountCircle
+                }
+            }
+        )
+    }
+}

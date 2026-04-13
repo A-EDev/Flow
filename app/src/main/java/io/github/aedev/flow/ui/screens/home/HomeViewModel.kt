@@ -262,7 +262,21 @@ class HomeViewModel @Inject constructor(
                 currentQueryIndex = 3
                 
                 val (rawSubs, rawDiscovery, rawViral) = results
-                
+
+                val subAvatarMap: Map<String, String> = runCatching {
+                    subscriptionRepository.getAllSubscriptions().first()
+                        .filter { it.channelThumbnail.isNotEmpty() }
+                        .associate { it.channelId to it.channelThumbnail }
+                }.getOrElse { emptyMap() }
+
+                fun List<Video>.enrichAvatars(): List<Video> =
+                    if (subAvatarMap.isEmpty()) this
+                    else map { v ->
+                        if (v.channelThumbnailUrl.isEmpty() && subAvatarMap.containsKey(v.channelId))
+                            v.copy(channelThumbnailUrl = subAvatarMap.getValue(v.channelId))
+                        else v
+                    }
+
                 // Extract shorts from all sources for the shelf, ranked by FlowNeuro
                 val feedShorts = (rawSubs.extractShorts() + rawDiscovery.extractShorts() + rawViral.extractShorts())
                     .distinctBy { it.id }
@@ -275,7 +289,7 @@ class HomeViewModel @Inject constructor(
                 
                 // Filter to regular videos for the main feed
                 val watched = watchedVideoIds.value
-                val subsPool = rawSubs.filterValid().filterWatched(watched)
+                val subsPool = rawSubs.filterValid().filterWatched(watched).enrichAvatars()
                 val discoveryPool = rawDiscovery.filterValid().filterWatched(watched)
                 val viralPool = rawViral.filterValid().filterWatched(watched)
                 
