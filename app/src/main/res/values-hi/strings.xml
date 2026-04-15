@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Flow</string>
-    <string name="subscriptions_search_placeholder">सदस्यताएँ खोजें.।</string>
+    <string name="subscriptions_search_placeholder">सदस्यताएँ खोजें..।</string>
     <string name="top_bar_subscriptions_title">सदस्यताएँ</string>
     <string name="view_all_button_label">सब</string>
     <string name="subscribed">सब्सक्राइब किया गया</string>
