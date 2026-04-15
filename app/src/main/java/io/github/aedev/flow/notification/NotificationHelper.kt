@@ -428,8 +428,7 @@ object NotificationHelper {
             )
         }
 
-        if (videos.size == 1) {
-            val v = videos.first()
+        videos.forEach { v ->
             val notifId = NOTIFICATION_NEW_VIDEO + v.videoId.hashCode().and(0xFFFF)
             val watchIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -458,39 +457,6 @@ object NotificationHelper {
                 }
             }
             NotificationManagerCompat.from(context).notify(notifId, builder.build())
-        } else {
-            val openIntent = Intent(context, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra("open_subscriptions", true)
-            }
-            val pendingIntent = PendingIntent.getActivity(
-                context, NOTIFICATION_NEW_VIDEO, openIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            val inboxStyle = NotificationCompat.InboxStyle()
-                .setBigContentTitle("${videos.size} new videos")
-                .setSummaryText("From your subscriptions")
-            val displayLimit = minOf(videos.size, 5)
-            videos.take(displayLimit).forEach { v ->
-                inboxStyle.addLine("${v.channelName}  \u2022  ${v.videoTitle}")
-            }
-            if (videos.size > displayLimit) {
-                inboxStyle.addLine("+${videos.size - displayLimit} more")
-            }
-            val channelPreview = videos.take(3).joinToString(", ") { it.channelName }
-            val summaryText = if (videos.size > 3) "$channelPreview & more" else channelPreview
-            val notification = NotificationCompat.Builder(context, CHANNEL_SUBSCRIPTIONS)
-                .setSmallIcon(R.drawable.ic_notification_logo)
-                .setContentTitle("${videos.size} new videos")
-                .setContentText(summaryText)
-                .setStyle(inboxStyle)
-                .setContentIntent(pendingIntent)
-                .setAutoCancel(true)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setCategory(NotificationCompat.CATEGORY_SOCIAL)
-                .setNumber(videos.size)
-                .build()
-            NotificationManagerCompat.from(context).notify(NOTIFICATION_NEW_VIDEO, notification)
         }
     }
 

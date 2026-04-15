@@ -8,6 +8,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -22,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -29,7 +35,9 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository.TrendingCategory
 import io.github.aedev.flow.ui.components.ContentFilterChip
+import io.github.aedev.flow.ui.components.ShimmerGridVideoCard
 import io.github.aedev.flow.ui.components.ShimmerVideoCardFullWidth
+import io.github.aedev.flow.ui.components.ShimmerVideoCardHorizontal
 import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.components.VideoCardHorizontal
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -41,6 +49,25 @@ private data class CategoryTab(
     val iconRes: ImageVector? = null,
     val iconResId: Int? = null
 )
+
+private data class CategoriesLayoutConfig(
+    val columns: Int,
+    val contentPadding: Dp,
+    val cardSpacing: Dp
+)
+
+@Composable
+private fun rememberCategoriesLayoutConfig(maxWidth: Dp): CategoriesLayoutConfig {
+    return remember(maxWidth) {
+        when {
+            maxWidth < 480.dp  -> CategoriesLayoutConfig(columns = 1, contentPadding = 0.dp,  cardSpacing = 12.dp)
+            maxWidth < 700.dp  -> CategoriesLayoutConfig(columns = 1, contentPadding = 12.dp, cardSpacing = 14.dp)
+            maxWidth < 900.dp  -> CategoriesLayoutConfig(columns = 2, contentPadding = 16.dp, cardSpacing = 12.dp)
+            maxWidth < 1200.dp -> CategoriesLayoutConfig(columns = 3, contentPadding = 20.dp, cardSpacing = 14.dp)
+            else               -> CategoriesLayoutConfig(columns = 4, contentPadding = 24.dp, cardSpacing = 16.dp)
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,33 +135,41 @@ fun CategoriesScreen(
             )
 
             // Content area
-            when {
-                uiState.isLoading -> {
-                    ShimmerContent(isListView = uiState.isListView)
-                }
-                uiState.error != null && uiState.videos.isEmpty() -> {
-                    ErrorContent(
-                        message = uiState.error!!,
-                        onRetry = { viewModel.refresh() }
-                    )
-                }
-                else -> {
-                    if (uiState.isListView) {
-                        ListContent(
-                            videos = uiState.displayedVideos,
-                            canLoadMore = uiState.canLoadMore,
-                            isLoadingMore = uiState.isLoadingMore,
-                            onVideoClick = onVideoClick,
-                            onLoadMore = { viewModel.loadMore() }
+            BoxWithConstraints(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                val layoutConfig = rememberCategoriesLayoutConfig(maxWidth)
+                when {
+                    uiState.isLoading -> {
+                        ShimmerContent(isListView = uiState.isListView, layoutConfig = layoutConfig)
+                    }
+                    uiState.error != null && uiState.videos.isEmpty() -> {
+                        ErrorContent(
+                            message = uiState.error!!,
+                            onRetry = { viewModel.refresh() }
                         )
-                    } else {
-                        GridContent(
-                            videos = uiState.displayedVideos,
-                            canLoadMore = uiState.canLoadMore,
-                            isLoadingMore = uiState.isLoadingMore,
-                            onVideoClick = onVideoClick,
-                            onLoadMore = { viewModel.loadMore() }
-                        )
+                    }
+                    else -> {
+                        if (uiState.isListView) {
+                            ListContent(
+                                videos = uiState.displayedVideos,
+                                canLoadMore = uiState.canLoadMore,
+                                isLoadingMore = uiState.isLoadingMore,
+                                onVideoClick = onVideoClick,
+                                onLoadMore = { viewModel.loadMore() }
+                            )
+                        } else {
+                            GridContent(
+                                videos = uiState.displayedVideos,
+                                canLoadMore = uiState.canLoadMore,
+                                isLoadingMore = uiState.isLoadingMore,
+                                onVideoClick = onVideoClick,
+                                onLoadMore = { viewModel.loadMore() },
+                                layoutConfig = layoutConfig
+                            )
+                        }
                     }
                 }
             }
@@ -256,12 +291,13 @@ private fun GridContent(
     canLoadMore: Boolean,
     isLoadingMore: Boolean,
     onVideoClick: (Video) -> Unit,
-    onLoadMore: () -> Unit
+    onLoadMore: () -> Unit,
+    layoutConfig: CategoriesLayoutConfig
 ) {
-    val listState = rememberLazyListState()
+    val gridState = rememberLazyGridState()
 
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.layoutInfo }
+    LaunchedEffect(gridState) {
+        snapshotFlow { gridState.layoutInfo }
             .distinctUntilChanged()
             .filter { layoutInfo ->
                 if (layoutInfo.totalItemsCount == 0) return@filter false
@@ -271,10 +307,15 @@ private fun GridContent(
             .collect { if (canLoadMore && !isLoadingMore) onLoadMore() }
     }
 
-    LazyColumn(
-        state = listState,
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(layoutConfig.columns),
+        state = gridState,
+        contentPadding = PaddingValues(
+            horizontal = layoutConfig.contentPadding,
+            vertical = 12.dp
+        ),
+        horizontalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing),
+        verticalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing),
         modifier = Modifier.fillMaxSize()
     ) {
         items(videos, key = { it.id }) { video ->
@@ -287,7 +328,7 @@ private fun GridContent(
         }
 
         if (canLoadMore) {
-            item {
+            item(span = { GridItemSpan(maxLineSpan) }) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -357,24 +398,35 @@ private fun ListContent(
 }
 
 @Composable
-private fun ShimmerContent(isListView: Boolean) {
+private fun ShimmerContent(isListView: Boolean, layoutConfig: CategoriesLayoutConfig) {
     if (isListView) {
         LazyColumn(
             contentPadding = PaddingValues(vertical = 8.dp),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            userScrollEnabled = false
         ) {
             items(8) {
-                ShimmerVideoCardFullWidth(modifier = Modifier.padding(vertical = 4.dp))
+                ShimmerVideoCardHorizontal()
             }
         }
     } else {
-        LazyColumn(
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxSize()
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(layoutConfig.columns),
+            contentPadding = PaddingValues(
+                horizontal = layoutConfig.contentPadding,
+                vertical = 12.dp
+            ),
+            horizontalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing),
+            verticalArrangement = Arrangement.spacedBy(layoutConfig.cardSpacing),
+            modifier = Modifier.fillMaxSize(),
+            userScrollEnabled = false
         ) {
-            items(8) {
-                ShimmerVideoCardFullWidth(modifier = Modifier.fillMaxWidth())
+            items(12) {
+                if (layoutConfig.columns == 1) {
+                    ShimmerVideoCardFullWidth(modifier = Modifier.fillMaxWidth())
+                } else {
+                    ShimmerGridVideoCard()
+                }
             }
         }
     }

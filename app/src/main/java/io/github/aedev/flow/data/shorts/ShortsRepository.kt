@@ -188,6 +188,8 @@ class ShortsRepository private constructor(private val context: Context) {
                     withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) {
                         val enriched = enrichMissingMetadata(allShorts)
                         enriched.forEach { shortsCache.put(it.id, it) }
+                        val withAvatars = enrichAvatarsForShorts(enriched)
+                        withAvatars.forEach { shortsCache.put(it.id, it) }
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Background enrichment failed: ${e.message}")
@@ -242,6 +244,8 @@ class ShortsRepository private constructor(private val context: Context) {
                 withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) {
                     val enriched = enrichMissingMetadata(candidateShorts)
                     enriched.forEach { shortsCache.put(it.id, it) }
+                    val withAvatars = enrichAvatarsForShorts(enriched)
+                    withAvatars.forEach { shortsCache.put(it.id, it) }
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Background enrichment failed: ${e.message}")
@@ -300,7 +304,7 @@ class ShortsRepository private constructor(private val context: Context) {
             }
 
             // Enrich metadata OUTSIDE the InnerTube timeout
-            val enriched = try {
+            val metadataEnriched = try {
                 withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) {
                     enrichMissingMetadata(freshShorts)
                 }
@@ -308,6 +312,15 @@ class ShortsRepository private constructor(private val context: Context) {
                 Log.w(TAG, "Enrichment for continuation failed: ${e.message}")
                 null
             } ?: freshShorts
+
+            val enriched = try {
+                withTimeoutOrNull(ENRICHMENT_TIMEOUT_MS) {
+                    enrichAvatarsForShorts(metadataEnriched)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Avatar enrichment for continuation failed: ${e.message}")
+                null
+            } ?: metadataEnriched
 
             val reRanked = reRankWithFlowNeuro(enriched, userSubs)
             val enrichedResult = result.copy(shorts = reRanked)
@@ -576,6 +589,41 @@ class ShortsRepository private constructor(private val context: Context) {
         count >= 1_000 -> String.format("%.1fK views", count / 1_000.0)
         count > 0 -> "$count views"
         else -> ""
+    }
+
+    /**
+     * Second-pass enrichment: fills in missing [ShortVideo.channelThumbnailUrl]
+     * by looking up channel avatars via NewPipe. Results are emitted via
+     * [_enrichmentUpdates] so the UI can refresh thumbnails live.
+     */
+    private suspend fun enrichAvatarsForShorts(shorts: List<ShortVideo>): List<ShortVideo> = supervisorScope {
+        val channelIds = shorts
+            .filter { it.channelThumbnailUrl.isEmpty() && it.channelId.isNotEmpty() }
+            .map { it.channelId }
+            .distinct()
+
+        if (channelIds.isEmpty()) return@supervisorScope shorts
+
+        Log.d(TAG, "⟳ Avatar enrichment for ${channelIds.size} channels in ${shorts.size} shorts")
+        val avatarMap = mutableMapOf<String, String>()
+        channelIds.chunked(4).forEach { batch ->
+            batch.map { id ->
+                async(Dispatchers.IO) { withTimeoutOrNull(6_000L) { id to youtubeRepository.fetchChannelAvatarById(id) } }
+            }.awaitAll().forEach { pair ->
+                pair?.let { (id, url) -> if (url.isNotEmpty()) avatarMap[id] = url }
+            }
+        }
+
+        if (avatarMap.isEmpty()) return@supervisorScope shorts
+
+        val result = shorts.map { short ->
+            if (short.channelThumbnailUrl.isEmpty())
+                avatarMap[short.channelId]?.let { short.copy(channelThumbnailUrl = it) } ?: short
+            else short
+        }
+        Log.d(TAG, "✓ Avatar enrichment done: ${avatarMap.size}/${channelIds.size} channels resolved")
+        _enrichmentUpdates.tryEmit(result)
+        result
     }
     
     // INTERNAL — NewPipe Fallback Fetching    

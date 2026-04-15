@@ -35,6 +35,7 @@ IMPROVEMENTS
 - Add Horizontal pager for horizontal swiping between channel tabs #248
 - Smoother video to audio swithing (uses a shared cache) #243
 - Add Download progress card in download screen #266
+- Improve notifications container #257
 
 FIXES AND STABILITY
 - Fix video player playback speed issue #232
@@ -51,3 +52,5 @@ FIXES AND STABILITY
 - Fix Black screen when audio only download #274
 - Fix Subtitle crash #271
 - Fix Icon mismatch with splash screen #252
+- Fix Missing channel avatars in categories and shorts #276
+- Fix Playback issues after pip #264

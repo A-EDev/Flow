@@ -51,6 +51,7 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
+import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -398,14 +399,13 @@ fun ShortVideoPage(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.clickable(onClick = onChannelClick)
                 ) {
-                    AsyncImage(
-                        model = video.channelThumbnailUrl,
-                        contentDescription = null,
+                    ChannelAvatarImage(
+                        url = video.channelThumbnailUrl,
+                        contentDescription = video.channelName,
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(Color.Gray),
-                        contentScale = ContentScale.Crop
+                            .background(Color.Gray)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
@@ -572,17 +572,16 @@ fun ShortVideoPage(
                         .background(Color.DarkGray, CircleShape)
                         .padding(3.dp)
                 ) {
-                    AsyncImage(
-                        model = video.channelThumbnailUrl,
-                        contentDescription = null,
+                    ChannelAvatarImage(
+                        url = video.channelThumbnailUrl,
+                        contentDescription = video.channelName,
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(CircleShape)
                             .then(
                                 if (isActive && isPlaying) Modifier.graphicsLayer { rotationZ = albumRotation }
                                 else Modifier
-                            ),
-                        contentScale = ContentScale.Crop
+                            )
                     )
                 }
             }

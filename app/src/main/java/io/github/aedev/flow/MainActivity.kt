@@ -332,7 +332,17 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         if (wasPlayingWhenPipExited) {
             wasPlayingWhenPipExited = false
-            io.github.aedev.flow.player.EnhancedPlayerManager.getInstance().play()
+            val pm = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
+            pm.play()
+            val video = GlobalPlayerState.currentVideo.value
+            if (video != null) {
+                pm.startBackgroundService(
+                    videoId   = video.id,
+                    title     = video.title,
+                    channel   = video.channelName,
+                    thumbnail = video.thumbnailUrl
+                )
+            }
         }
     }
 

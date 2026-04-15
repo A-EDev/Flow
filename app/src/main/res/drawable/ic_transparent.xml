@@ -5,6 +5,7 @@
     android:viewportWidth="24"
     android:viewportHeight="24">
     <!-- Intentionally empty: OS splash screen icon is invisible so it
-         doesn't clash with the custom Compose splash animation. -->
-    <path android:pathData="" />
+         doesn't clash with the custom Compose splash animation.
+         Note: no <path> child element — a pathless vector is fully transparent
+         and avoids PathParser crashing on empty pathData strings (all API levels). -->
 </vector>

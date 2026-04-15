@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.repository
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import android.util.Log
+import android.util.LruCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.async
@@ -32,7 +33,53 @@ class YouTubeRepository @Inject constructor(
 ) {
     private val TAG = "YouTubeRepository"
     private val service = ServiceList.YouTube
-    
+
+    // Cache for channel avatar URLs to avoid redundant network calls
+    private val channelAvatarCache = LruCache<String, String>(300)
+
+    /**
+     * Fetch channel avatar by channelId, with in-memory caching.
+     * Returns empty string on failure.
+     */
+    suspend fun fetchChannelAvatarById(channelId: String): String = withContext(Dispatchers.IO) {
+        if (channelId.isBlank()) return@withContext ""
+        channelAvatarCache[channelId]?.let { return@withContext it }
+        val info = getChannelInfo(channelId) ?: return@withContext ""
+        val url = info.avatars.maxByOrNull { it.height }?.url ?: ""
+        if (url.isNotEmpty()) channelAvatarCache.put(channelId, url)
+        url
+    }
+
+    /**
+     * Enrich a list of [Video] objects that are missing [Video.channelThumbnailUrl]
+     * by fetching avatar URLs in parallel (max 5 concurrent channel fetches).
+     */
+    suspend fun enrichVideosWithAvatars(videos: List<Video>): List<Video> = supervisorScope {
+        val channelIds = videos
+            .filter { it.channelThumbnailUrl.isEmpty() && it.channelId.isNotEmpty() }
+            .map { it.channelId }
+            .distinct()
+
+        if (channelIds.isEmpty()) return@supervisorScope videos
+
+        Log.d(TAG, "enrichVideosWithAvatars: fetching avatars for ${channelIds.size} channels")
+        val avatarMap = mutableMapOf<String, String>()
+        channelIds.chunked(5).forEach { batch ->
+            batch.map { id ->
+                async(Dispatchers.IO) { withTimeoutOrNull(6_000L) { id to fetchChannelAvatarById(id) } }
+            }.awaitAll().forEach { pair ->
+                pair?.let { (id, url) -> if (url.isNotEmpty()) avatarMap[id] = url }
+            }
+        }
+        Log.d(TAG, "enrichVideosWithAvatars: resolved ${avatarMap.size}/${channelIds.size} avatars")
+        if (avatarMap.isEmpty()) return@supervisorScope videos
+        videos.map { video ->
+            if (video.channelThumbnailUrl.isEmpty())
+                avatarMap[video.channelId]?.let { video.copy(channelThumbnailUrl = it) } ?: video
+            else video
+        }
+    }
+
     /**
      * Fetch trending videos
      */

@@ -92,17 +92,34 @@ class CategoriesViewModel @Inject constructor(
         loadJob = viewModelScope.launch {
             try {
                 val region = preferences.trendingRegion.first()
-                val videos = repository.getTrendingByCategory(category, region)
-                cache[category] = videos
+                val rawVideos = repository.getTrendingByCategory(category, region)
+                
+                cache[category] = rawVideos
                 _uiState.update {
                     it.copy(
-                        videos = videos,
-                        displayedVideos = videos.take(PAGE_SIZE),
+                        videos = rawVideos,
+                        displayedVideos = rawVideos.take(PAGE_SIZE),
                         currentPage = 1,
-                        canLoadMore = videos.size > PAGE_SIZE,
+                        canLoadMore = rawVideos.size > PAGE_SIZE,
                         isLoading = false,
-                        error = if (videos.isEmpty()) "No videos found for this category." else null
+                        error = if (rawVideos.isEmpty()) "No videos found for this category." else null
                     )
+                }
+
+                // Background avatar enrichment — fills in missing channel thumbnails
+                viewModelScope.launch {
+                    try {
+                        val enriched = repository.enrichVideosWithAvatars(rawVideos)
+                        if (enriched !== rawVideos) {          
+                            cache[category] = enriched
+                            _uiState.update { state ->
+                                state.copy(
+                                    videos = enriched,
+                                    displayedVideos = enriched.take(state.currentPage * PAGE_SIZE)
+                                )
+                            }
+                        }
+                    } catch (_: Exception) { /* silently skip avatar enrichment */ }
                 }
             } catch (e: Exception) {
                 _uiState.update {

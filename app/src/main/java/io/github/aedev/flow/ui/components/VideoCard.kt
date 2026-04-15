@@ -1025,7 +1025,7 @@ private fun SafeAsyncImage(
  *  3. On second failure, or no size param, shows the AccountCircle icon
  */
 @Composable
-private fun ChannelAvatarImage(
+fun ChannelAvatarImage(
     url: String?,
     contentDescription: String?,
     modifier: Modifier = Modifier
