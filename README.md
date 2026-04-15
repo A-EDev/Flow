@@ -225,9 +225,9 @@ Flow stands on the shoulders of giants. Special thanks to:
 ## Translations
 Help translate Flow into your language! 
 
-[![Translation status](https://hosted.weblate.org/widget/flow/287x66-grey.png?threshold=0)](https://hosted.weblate.org/engage/flow/)
+[![Translation status](https://hosted.weblate.org/widget/flow/strings/287x66-grey.png)](https://hosted.weblate.org/engage/flow/)
 
-[![Translation status](https://hosted.weblate.org/widget/flow/horizontal-auto.svg)](https://hosted.weblate.org/engage/flow/)
+[![Translation status](https://hosted.weblate.org/widget/flow/strings/horizontal-auto.svg)](https://hosted.weblate.org/engage/flow/)
 </div>
 
 ---

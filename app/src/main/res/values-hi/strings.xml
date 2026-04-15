@@ -1,3 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">Flow</string>
+    <string name="subscriptions_search_placeholder">सदस्यताएँ खोजें.।</string>
+    <string name="top_bar_subscriptions_title">सदस्यताएँ</string>
+    <string name="view_all_button_label">सब</string>
+    <string name="subscribed">सब्सक्राइब किया गया</string>
+    <string name="no_subscriptions_yet">अभी तक कोई सदस्यता नहीं</string>
+    <string name="home_refresh_feed">फ़ीड ताज़ा करें</string>
+    <string name="retry">दोबारा प्रयास करें</string>
+    <string name="failed_to_load_channel">चैनल लोड करने में असफल</string>
+    <string name="subscribers">सब्सक्राइबर</string>
+    <string name="stats">आँकड़े</string>
+    <string name="library_history_label">इतिहास</string>
+    <string name="library_playlists_label">प्लेलिस्ट</string>
+    <string name="library_music_playlists_label">संगीत प्लेलिस्ट</string>
+    <string name="library_music_playlists_subtitle">आपका संगीत संग्रह</string>
+    <string name="library_liked_videos_label">लाइक्ड वीडियोस</string>
+    <string name="library_saved_shorts_label">सेव्ड शॉर्ट</string>
+    <string name="library_watch_later_label">बाद में देखें</string>
+    <string name="library_downloads_label">डाउनलोड</string>
+    <string name="library_manage_data_label">डेटा प्रबंधित करें</string>
+    <string name="library_manage_data_subtitle">कैश और इतिहास साफ़ करें</string>
+    <string name="about">के बारे में</string>
+    <string name="empty_description">कोई विवरण उपलब्ध नहीं है</string>
+    <string name="clear_all">सभी को साफ़ करें</string>
+    <string name="cancel">रद्द करना</string>
+    <string name="liked">"लाइक "</string>
+    <string name="liked_videos">लाइक्ड वीडियोस</string>
+    <string name="empty_liked_body">जो आपको पसंद है वह यहां दिखाई देगा</string>
+    <string name="song">गीत</string>
+    <string name="video">वीडियो</string>
+    <string name="share">शेयर</string>
 </resources>
