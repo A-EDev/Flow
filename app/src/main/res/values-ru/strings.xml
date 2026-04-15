@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Flow</string>
     <string name="subscriptions_search_placeholder">Поиск в подписках...</string>
@@ -17,12 +17,12 @@
     <string name="library_section_header">Ваш контент</string>
     <string name="library_history_label">История</string>
     <string name="library_playlists_label">Плейлисты</string>
-    <string name="library_music_playlists_label">Музыкальные плейлисты</string>
+    <string name="library_music_playlists_label">Музлисты</string>
     <string name="library_music_playlists_subtitle">Ваши музыкальные коллекции</string>
     <string name="library_liked_videos_label">Понравившиеся видео</string>
     <string name="library_saved_shorts_label">Сохраненные Shorts</string>
-    <string name="library_watch_later_label">Смотреть позже</string>
-    <string name="library_downloads_label">Скачанные</string>
+    <string name="library_watch_later_label">Посмотреть позже</string>
+    <string name="library_downloads_label">Загруженные</string>
     <string name="library_settings_data_header"><![CDATA[Настройки и данные]]></string>
     <string name="library_manage_data_label">Управление данными</string>
     <string name="library_manage_data_subtitle">Очистить кэш и историю</string>
@@ -101,14 +101,12 @@
     <string name="play_mode_suggestion_body">Это видео длится меньше 2 минут. Хотите переключиться на специализированный плеер?</string>
     <string name="shorts_player">Плеер Shorts</string>
     <string name="music_player">Музыкальный плеер</string>
-
     <plurals name="channels_count">
         <item quantity="one">%d канал</item>
         <item quantity="few">%d канала</item>
         <item quantity="many">%d каналов</item>
         <item quantity="other">%d каналов</item>
     </plurals>
-
     <string name="tab_videos">Видео</string>
     <string name="tab_music">Музыка</string>
     <string name="empty_offline_title">Офлайн %1$s</string>
@@ -121,7 +119,6 @@
     <string name="cd_delete_download">Удалить %1$s</string>
     <string name="cd_video_thumbnail">Миниатюра видео для %1$s</string>
     <string name="cd_track_artwork">Обложка трека для %1$s</string>
-
     <string name="save_to">Сохранить в...</string>
     <string name="watch_later">Смотреть позже</string>
     <string name="watch_later_unsave">Удалить из «Смотреть позже»</string>
@@ -131,7 +128,6 @@
     <string name="playlist_name">Название</string>
     <string name="playlist_description_optional">Описание (необязательно)</string>
     <string name="create">Создать</string>
-
     <string name="save_to_playlist">Сохранить в плейлист</string>
     <string name="not_interested">Не интересует</string>
     <string name="details_metadata">Детали и метаданные</string>
@@ -140,7 +136,6 @@
     <string name="i_like_this">Хочу больше такого контента</string>
     <string name="i_like_this_toast">Принято! Вы будете видеть больше подобного контента.</string>
     <string name="go_to_channel">Перейти на канал</string>
-
     <string name="track_info">Информация о треке</string>
     <string name="track_info_subtitle">Подробные технические и социальные метрики</string>
     <string name="views">Просмотры</string>
@@ -150,7 +145,6 @@
     <string name="uploaded">Загружено</string>
     <string name="itag">iTag</string>
     <string name="mime_type">Mime-тип</string>
-
     <string name="status_upcoming">ПРЕДСТОЯЩЕЕ</string>
     <string name="status_live">ПРЯМОЙ ЭФИР</string>
     <string name="video_metadata_template">%1$s • %2$s • %3$s</string>
@@ -162,7 +156,6 @@
     <string name="duration">Длительность</string>
     <string name="copied_to_clipboard">Скопировано: %1$s</string>
     <string name="unknown">Неизвестно</string>
-
     <string name="comments">Комментарии</string>
     <string name="filter_top">Лучшие</string>
     <string name="filter_newest">Сначала новые</string>
@@ -171,13 +164,11 @@
     <string name="reply">Ответить</string>
     <string name="hide_replies">Скрыть ответы</string>
     <string name="view_replies_template">Посмотреть ответы (%1$d)</string>
-
     <string name="new_update_available">Доступно новое обновление</string>
     <string name="update_available_template">Версия %1$s уже доступна</string>
     <string name="release_notes">ПРИМЕЧАНИЯ К ВЫПУСКУ</string>
     <string name="update_flow">Обновить Flow</string>
     <string name="maybe_later">Может быть, позже</string>
-
     <string name="nav_home">Главная</string>
     <string name="nav_shorts">Shorts</string>
     <string name="nav_music">Музыка</string>
@@ -186,7 +177,6 @@
     <string name="notifications">Уведомления</string>
     <string name="search">Поиск</string>
     <string name="settings">Настройки</string>
-
     <string name="select_artist">Выбрать исполнителя</string>
     <string name="description">Описание</string>
     <string name="copy_description">Копировать описание</string>
@@ -231,7 +221,6 @@
     <string name="explicit">E</string>
     <string name="no_videos_saved">Нет сохраненных видео</string>
     <string name="no_videos_saved_body">Здесь будут видео для просмотра позже</string>
-
     <string name="search_hint">Поиск</string>
     <string name="search_videos_channels_placeholder">Поиск видео, каналов...</string>
     <string name="recent_searches">История поиска</string>
@@ -240,7 +229,6 @@
     <string name="videos_header">Видео</string>
     <string name="end_of_results">Конец результатов</string>
     <string name="clear_search_history">Очистить историю поиска</string>
-
     <string name="filter_upload_date">Дата загрузки</string>
     <string name="filter_duration">Длительность</string>
     <string name="filter_sort_by">Сортировать по</string>
@@ -261,7 +249,6 @@
     <string name="sort_upload_date">По дате загрузки</string>
     <string name="sort_view_count">По числу просмотров</string>
     <string name="sort_rating">По рейтингу</string>
-
     <string name="channel_default_title">Канал</string>
     <string name="channel_banner">Баннер канала</string>
     <string name="channel_avatar">Аватар канала</string>
@@ -277,20 +264,17 @@
     <string name="no_playlists_found">Плейлисты не найдены</string>
     <string name="subscribers_count_template">%1$s подписчиков</string>
     <string name="views_count_short_template">%1$s просмотров</string>
-
     <string name="music_history">История музыки</string>
     <string name="remove_from_history">Удалить из истории</string>
     <string name="share_song_chooser">Поделиться песней</string>
     <string name="time_today">Сегодня</string>
     <string name="time_yesterday">Вчера</string>
     <string name="time_earlier">Ранее</string>
-
     <string name="clear_all_notifications">Очистить все уведомления</string>
     <string name="delete">Удалить</string>
     <string name="dismiss">Скрыть</string>
     <string name="peace_and_quiet">Тишина и покой</string>
     <string name="notifications_empty_body">Вы все просмотрели! Здесь будут новые обновления ваших подписок.</string>
-
     <string name="settings_title">Настройки</string>
     <string name="settings_flow_engine_header">Движок Flow</string>
     <string name="settings_active_learning">АКТИВНОЕ ОБУЧЕНИЕ</string>
@@ -319,7 +303,6 @@
     <string name="notif_type_general_subtitle">Различные оповещения и объявления приложения</string>
     <string name="notif_system_settings">Системные настройки уведомлений</string>
     <string name="notif_system_settings_subtitle">Открыть настройки Android для управления разрешениями каналов</string>
-
     <string name="notif_check_interval_section_header">Расписание проверки ленты</string>
     <string name="notif_check_interval">Интервал проверки новых видео</string>
     <string name="notif_check_interval_subtitle_template">Проверять каждые %s</string>
@@ -333,7 +316,6 @@
     <string name="notif_interval_6h">6 часов (по умолчанию)</string>
     <string name="notif_interval_12h">12 часов</string>
     <string name="notif_interval_24h">24 часа</string>
-
     <string name="settings_item_theme">Тема</string>
     <string name="settings_item_app_icon">Иконка приложения</string>
     <string name="settings_item_app_icon_subtitle">Настройте иконку в меню приложений</string>
@@ -362,11 +344,9 @@
     <string name="settings_item_about_flow_subtitle">Версия, лицензия, участники</string>
     <string name="settings_item_support">Поддержка и донаты</string>
     <string name="settings_item_support_subtitle">Поддержите разработку Flow</string>
-
     <string name="settings_region_dialog_title">Выберите регион</string>
     <string name="settings_export_success">Данные успешно экспортированы</string>
     <string name="settings_export_failed">Ошибка экспорта: %1$s</string>
-
     <string name="appearance_title">Внешний вид</string>
     <string name="appearance_subtitle">Персонализируйте свой опыт использования Flow</string>
     <string name="appearance_current_theme">ТЕКУЩАЯ ТЕМА</string>
@@ -377,7 +357,6 @@
     <string name="appearance_themes_count_all">%1$d тем</string>
     <string name="appearance_themes_count_filtered">%1$d %2$s тем</string>
     <string name="appearance_applied_toast">Применено: %1$s</string>
-
     <string name="app_icon_picker_subtitle">Выберите стиль иконки. Изменения вступают в силу немедленно, рабочий стол может на мгновение обновиться.</string>
     <string name="app_icon_picker_warning">⚠ Внимание: смена иконки использует системный механизм Android, который может временно удалить ярлык приложения с главного экрана. При необходимости добавьте его заново.</string>
     <string name="app_icon_apply_toast">Иконка обновлена — рабочий стол обновится</string>
@@ -386,7 +365,6 @@
     <string name="icon_name_monochrome">Монохромный</string>
     <string name="icon_name_ghost">Призрак</string>
     <string name="icon_name_dynamic">Material You</string>
-
     <string name="player_appearance_title">Вид плеера</string>
     <string name="player_appearance_header">Настройка управления плеером</string>
     <string name="player_appearance_style_title">Стиль прогресс-бара музыки</string>
@@ -410,13 +388,11 @@
     <string name="skip_button_subtitle">Показывать кнопки перемотки на 10 сек назад/вперед в мини-плеере</string>
     <string name="player_nav_btn_title">Показывать кнопки След./Пред.</string>
     <string name="player_nav_btn_subtitle">Показывать кнопки переключения видео в мини-плеере</string>
-
     <string name="lyrics_provider_title">Поставщик текстов песен</string>
     <string name="lyrics_provider_subtitle">Выберите предпочтительный источник текстов песен</string>
     <string name="lyrics_provider_lrclib">LrcLib</string>
     <string name="lyrics_provider_better_lyrics">Better Lyrics</string>
     <string name="lyrics_provider_simpmusic">SimpMusic</string>
-
     <string name="theme_name_system_default">Системная тема</string>
     <string name="theme_desc_system_default">Синхронизировать с темой устройства</string>
     <string name="theme_name_pure_light">Чистый светлый</string>
@@ -467,7 +443,6 @@
     <string name="theme_desc_espresso">Насыщенный и теплый</string>
     <string name="theme_name_gunmetal">Оружейная сталь</string>
     <string name="theme_desc_gunmetal">Индустриальный стиль</string>
-
     <string name="content_settings_title">Настройки контента</string>
     <string name="content_settings_header_display">Отображение</string>
     <string name="content_settings_header_home_layout">Макет главной</string>
@@ -488,13 +463,11 @@
     <string name="content_settings_dynamic_components">Динамические компоненты</string>
     <string name="settings_show_related_videos_title">Показывать похожие видео</string>
     <string name="settings_show_related_videos_subtitle">Отображать похожие видео под плеером</string>
-
     <string name="content_settings_header_home_feed">Главная лента</string>
     <string name="content_settings_home_feed_title">Включить главную ленту</string>
     <string name="content_settings_home_feed_subtitle">Показывать персональные рекомендации на главном экране</string>
     <string name="content_settings_home_feed_disabled_title">Главная лента отключена</string>
     <string name="content_settings_home_feed_disabled_body">Персональные рекомендации выключены. Вы можете включить их снова в настройках контента.</string>
-
     <string name="content_settings_header_player">Видеоплеер</string>
     <string name="content_settings_related_card_style_title">Стиль карточек похожих видео</string>
     <string name="content_settings_related_card_style_subtitle">Выберите, как похожие видео выглядят в панели плеера</string>
@@ -532,7 +505,6 @@
     <string name="player_settings_mini_player_continue_watching_title">Мини-плеер продолжения просмотра</string>
     <string name="player_settings_mini_player_continue_watching_subtitle">Автоматически открывать последнее просмотренное видео</string>
     <string name="player_mini_player_continue_watching_label">Продолжить просмотр</string>
-
     <string name="player_settings_title">Настройки плеера</string>
     <string name="player_settings_background_play">Фоновое воспроизведение</string>
     <string name="player_settings_background_play_subtitle">Продолжать играть, когда приложение свернуто</string>
@@ -550,7 +522,6 @@
     <string name="dearrow_badge">DeArrow</string>
     <string name="global_loop">Глобальное зацикливание видео</string>
     <string name="global_loop_subtitle">Зацикливать все видео по умолчанию</string>
-
     <string name="sb_segments_header">Действия с сегментами SponsorBlock</string>
     <string name="sb_contribute_header">Внести вклад в SponsorBlock</string>
     <string name="sb_contribute_toggle_title">Внести вклад в SponsorBlock</string>
@@ -575,7 +546,6 @@
     <string name="sb_action_mute">Выключить звук</string>
     <string name="sb_action_show_toast">Только уведомить</string>
     <string name="sb_action_ignore">Игнорировать</string>
-
     <string name="sb_submit_dialog_title">Отправить сегмент</string>
     <string name="sb_submit_start_time">Время начала</string>
     <string name="sb_submit_end_time">Время окончания</string>
@@ -584,15 +554,12 @@
     <string name="sb_submit_create">Создать сегмент</string>
     <string name="sb_submit_success">✓ Сегмент успешно отправлен</string>
     <string name="sb_submit_error">Не удалось отправить сегмент. Пожалуйста, попробуйте еще раз.</string>
-
     <string name="section_channel">Канал</string>
     <string name="section_algorithm">Алгоритм</string>
     <string name="section_options">Опции</string>
-
     <string name="dont_show_channel">Не рекомендовать этот канал</string>
     <string name="dont_show_channel_desc">Удалить из ваших рекомендаций</string>
     <string name="channel_blocked_toast">%1$s больше не появится в вашей ленте</string>
-
     <string name="btn_save">Сохранить</string>
     <string name="btn_cancel">Отмена</string>
     <string name="player_settings_show_pip">Показывать кнопку PiP</string>
@@ -605,13 +572,11 @@
     <string name="player_settings_audio_language_dialog_body">Выберите предпочтительный язык аудиодорожки. Если он недоступен, будет использован язык оригинала.</string>
     <string name="player_settings_audio_original">Оригинал (Native)</string>
     <string name="player_settings_audio_original_desc">Использовать родную аудиодорожку видео</string>
-
     <string name="player_settings_header_gestures">Жесты</string>
     <string name="player_settings_double_tap_seek">Время перемотки двойным нажатием</string>
     <string name="player_settings_double_tap_seek_subtitle_template">%d сек при двойном нажатии по краям</string>
     <string name="player_settings_double_tap_seek_dialog_title">Время перемотки</string>
     <string name="player_settings_double_tap_seek_dialog_body">Выберите количество секунд для перемотки при двойном нажатии по левой или правой стороне плеера.</string>
-
     <string name="video_quality_title">Качество видео</string>
     <string name="video_quality_warning">Высокое разрешение потребляет больше трафика</string>
     <string name="video_quality_wifi_header">Качество через Wi-Fi</string>
@@ -624,7 +589,6 @@
     <string name="quality_1080p_full_hd">1080p Full HD</string>
     <string name="quality_1440p_qhd">1440p QHD</string>
     <string name="quality_2160p_4k">2160p 4K</string>
-
     <string name="buffer_settings_title">Настройки буфера</string>
     <string name="buffer_settings_desc">Настройте параметры буферизации видео для оптимизации под ваше сетевое соединение.</string>
     <string name="buffer_settings_header_profile">Профиль производительности</string>
@@ -646,7 +610,6 @@
     <string name="btn_back">Назад</string>
     <string name="back">Назад</string>
     <string name="btn_close">Закрыть</string>
-
     <string name="loading_shorts">Загрузка Shorts…</string>
     <string name="error_short_load">Произошла ошибка</string>
     <string name="share_short_template">Посмотрите этот Short: https://youtu.be/%1$s</string>
@@ -668,4 +631,52 @@
     <string name="speed_slider_increase">Увеличить скорость</string>
     <string name="speed_slider_reset">Сбросить до 1×</string>
     <string name="speed_slider_apply">Применить</string>
+    <string name="content_settings_hide_watched_title">Скрыть просмотренные видео</string>
+    <string name="content_settings_hide_watched_subtitle">Отфильтровать видео, которые вы уже отсмотрели, из своей домашней ленты и страницы подписок</string>
+    <string name="content_settings_disable_shorts_player_title">Отключить Shorts</string>
+    <string name="content_settings_disable_shorts_player_subtitle">Воспроизвести все видео (включая YouTube Shorts) в обычном видеоплеере</string>
+    <string name="categories_region_picker_desc">Сменить регион (текущий: %1$s)</string>
+    <string name="content_settings_explore_region_picker_subtitle">Показать значок глобуса на верхней панели экрана, чтобы мгновенно изменить регион.</string>
+    <string name="content_settings_explore_region_picker_title">Быстрый выбор региона</string>
+    <string name="pinned_comment">Закреплённый комментарий</string>
+    <string name="pinned_by_creator">Закреплённый создателем</string>
+    <string name="cache_size_header">Размер медиа-кэша</string>
+    <string name="cache_size_desc">Максимальное дисковое пространство, используемое для кэширования видео- и аудиоданных. Вступает в силу после перезапуска приложения.</string>
+    <string name="cache_size_100mb">100 MB</string>
+    <string name="cache_size_200mb">200 MB</string>
+    <string name="cache_size_500mb">500 MB (Стандарт)</string>
+    <string name="cache_size_unlimited">Безлимитное</string>
+    <string name="cd_pause">Пауза</string>
+    <string name="cd_play">Играть</string>
+    <string name="cd_more_options">Больше параметров</string>
+    <string name="shorts_original_sound">Оригинальный звук — %1$s</string>
+    <string name="view_count_billion_suffix">млрд.</string>
+    <string name="view_count_million_suffix">млн.</string>
+    <string name="view_count_thousand_suffix">тысч.</string>
+    <string name="action_like">Нравится</string>
+    <string name="action_dislike">Не нравится</string>
+    <string name="action_comments">Комментарии</string>
+    <string name="action_save">Сохранить</string>
+    <string name="action_share">Поделиться</string>
+    <string name="action_description">Описание</string>
+    <string name="action_subscribe">Подписаться</string>
+    <string name="action_search">Поиск</string>
+    <string name="content_preferences_title">Параметры контента</string>
+    <string name="content_preferences_subtitle">Настройте видимое</string>
+    <string name="interests_tab">Интересы</string>
+    <string name="blocked_tab">Заблокированное</string>
+    <string name="topics_count_template">%1$d тем</string>
+    <string name="hidden_count_template">%1$d скрыто</string>
+    <string name="your_interests_title">Ваши интересы</string>
+    <string name="your_interests_desc">Выбранные вами темы помогают Флоу рекомендовать лучший контент. Коснитесь тем ниже, чтобы добавить их или удалить.</string>
+    <string name="tap_to_remove">Нажмите для удаления</string>
+    <string name="add_topics">Добавить темы</string>
+    <string name="browse_by_category">Просмотр по категориям</string>
+    <string name="hidden_content_title">Скрытый контент</string>
+    <string name="hidden_content_desc">Видео на эти темы не будут появляться в ваших рекомендациях. Вы также можете использовать кнопку «Не интересно» на видео.</string>
+    <string name="block_topic_title">Блокировать тему</string>
+    <string name="enter_keywords_to_hide">Введите ключевое слово для сокрытия</string>
+    <string name="block_topic_placeholder">например: макияж, фортнайт, асмр</string>
+    <string name="desc_add_topic">Добавить тему</string>
+    <string name="quick_add">Быстрое добавление</string>
 </resources>
