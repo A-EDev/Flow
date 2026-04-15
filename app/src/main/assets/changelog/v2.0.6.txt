@@ -21,6 +21,7 @@ FEATURES
 - Add global crash reporter and crash screen 
 - Add player cache limit options #243
 - Add new region selector in the explore screen #249
+- Add new merge playlists feature #263
 
 IMPROVEMENTS
 - New miniplayer secondary action buttons layout #225

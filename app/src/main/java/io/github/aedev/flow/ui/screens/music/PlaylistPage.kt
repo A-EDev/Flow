@@ -21,6 +21,9 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Downloading
 import androidx.compose.material.icons.outlined.AddCircle
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.foundation.lazy.items
+import io.github.aedev.flow.ui.components.rememberFlowSheetState
+import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -88,6 +91,7 @@ fun PlaylistPage(
     var showSearchPanel by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     val searchFocusRequester = remember { FocusRequester() }
+    var showMergeDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(searchQuery) {
         if (searchQuery.isNotBlank()) {
@@ -208,7 +212,9 @@ fun PlaylistPage(
                     },
                     showSaveButton = !isUserPlaylist,
                     isSaved = isSaved,
-                    onSaveToggle = onSaveToggle
+                    onSaveToggle = onSaveToggle,
+                    showMergeButton = !isUserPlaylist,
+                    onMergeClick = { showMergeDialog = true }
                 )
             }
         ) { paddingValues ->
@@ -343,6 +349,14 @@ fun PlaylistPage(
             }
         }
     }
+
+    if (showMergeDialog) {
+        MusicMergeIntoPlaylistDialog(
+            tracks = playlistDetails.tracks,
+            playlistsViewModel = playlistsViewModel,
+            onDismiss = { showMergeDialog = false }
+        )
+    }
 }
 
 // ─── Top Bar ─────────────────────────────────────────────────────────────────
@@ -357,7 +371,9 @@ private fun PlaylistTopBar(
     onSearchToggle: () -> Unit,
     showSaveButton: Boolean = false,
     isSaved: Boolean = false,
-    onSaveToggle: (() -> Unit)? = null
+    onSaveToggle: (() -> Unit)? = null,
+    showMergeButton: Boolean = false,
+    onMergeClick: (() -> Unit)? = null
 ) {
     val bgColor = if (isScrolled)
         MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
@@ -402,16 +418,26 @@ private fun PlaylistTopBar(
                 )
             }
         }
-        if (showSaveButton && onSaveToggle != null) {
-            IconButton(
-                onClick = onSaveToggle,
-                modifier = Modifier.align(Alignment.CenterEnd)
-            ) {
-                Icon(
-                    imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
-                    contentDescription = if (isSaved) "Remove from library" else "Save to library",
-                    tint = if (isSaved) MaterialTheme.colorScheme.primary else Color.White
-                )
+        if (showSaveButton || showMergeButton) {
+            Row(modifier = Modifier.align(Alignment.CenterEnd)) {
+                if (showMergeButton && onMergeClick != null) {
+                    IconButton(onClick = onMergeClick) {
+                        Icon(
+                            imageVector = Icons.Default.PlaylistAdd,
+                            contentDescription = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.add_all_to_playlist),
+                            tint = Color.White
+                        )
+                    }
+                }
+                if (showSaveButton && onSaveToggle != null) {
+                    IconButton(onClick = onSaveToggle) {
+                        Icon(
+                            imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
+                            contentDescription = if (isSaved) "Remove from library" else "Save to library",
+                            tint = if (isSaved) MaterialTheme.colorScheme.primary else Color.White
+                        )
+                    }
+                }
             }
         }
     }
@@ -877,4 +903,111 @@ private fun formatTrackDuration(seconds: Int): String {
     val m = seconds / 60
     val s = seconds % 60
     return "%d:%02d".format(m, s)
+}
+
+// ─── Merge Into Playlist Dialog ─────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MusicMergeIntoPlaylistDialog(
+    tracks: List<MusicTrack>,
+    playlistsViewModel: MusicPlaylistsViewModel,
+    onDismiss: () -> Unit
+) {
+    val playlists by playlistsViewModel.userCreatedMusicPlaylists.collectAsState()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberFlowSheetState(),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp)
+        ) {
+            Text(
+                text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.merge_playlist_dialog_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+            )
+
+            HorizontalDivider()
+
+            if (playlists.isEmpty()) {
+                Text(
+                    text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.merge_playlist_no_playlists),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(24.dp)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    items(
+                        items = playlists,
+                        key = { it.id }
+                    ) { playlist ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    playlistsViewModel.mergeTracksIntoPlaylist(playlist.id, tracks)
+                                    onDismiss()
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                modifier = Modifier.size(48.dp),
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                if (playlist.thumbnailUrl.isNotEmpty()) {
+                                    AsyncImage(
+                                        model = playlist.thumbnailUrl,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.MusicNote,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = playlist.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = androidx.compose.ui.res.stringResource(
+                                        io.github.aedev.flow.R.string.songs_count_template,
+                                        playlist.videoCount
+                                    ),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

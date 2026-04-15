@@ -248,6 +248,10 @@ class PlaylistRepository @Inject constructor(
         }
     }
 
+    suspend fun addVideosToPlaylist(targetPlaylistId: String, videos: List<Video>) {
+        videos.forEach { video -> addVideoToPlaylist(targetPlaylistId, video) }
+    }
+
     suspend fun removeVideoFromPlaylist(playlistId: String, videoId: String) {
         playlistDao.removeVideoFromPlaylist(playlistId, videoId)
     }

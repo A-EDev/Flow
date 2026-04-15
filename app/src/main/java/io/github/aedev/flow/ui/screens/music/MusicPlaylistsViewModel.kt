@@ -17,9 +17,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
@@ -409,6 +411,50 @@ class MusicPlaylistsViewModel @Inject constructor(
                 Toast.makeText(context, "Playlist removed from library", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Log.e("MusicPlaylistsVM", "unsavePlaylistFromLibrary failed", e)
+            }
+        }
+    }
+
+    // ── Merge external playlist into a local user playlist ────────────────────
+
+    val userCreatedMusicPlaylists: StateFlow<List<PlaylistInfo>> =
+        playlistRepository.getUserCreatedMusicPlaylistsFlow()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
+
+    fun mergeTracksIntoPlaylist(targetPlaylistId: String, tracks: List<MusicTrack>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val videos = tracks.map { track ->
+                    Video(
+                        id = track.videoId,
+                        title = track.title,
+                        channelName = track.artist,
+                        channelId = track.channelId,
+                        thumbnailUrl = track.thumbnailUrl,
+                        duration = track.duration,
+                        viewCount = track.views,
+                        uploadDate = "",
+                        isMusic = true
+                    )
+                }
+                playlistRepository.addVideosToPlaylist(targetPlaylistId, videos)
+                val targetInfo = playlistRepository.getPlaylistInfo(targetPlaylistId)
+                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        context.getString(
+                            io.github.aedev.flow.R.string.merge_playlist_success,
+                            tracks.size,
+                            targetInfo?.name ?: ""
+                        ),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Log.e("MusicPlaylistsVM", "mergeTracksIntoPlaylist failed", e)
+                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Failed to merge playlist", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }

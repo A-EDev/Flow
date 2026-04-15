@@ -57,6 +57,10 @@ import android.content.Context
 import android.widget.Toast
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.withPermit
+import androidx.compose.foundation.lazy.items
+import io.github.aedev.flow.ui.components.rememberFlowSheetState
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,6 +79,7 @@ fun PlaylistDetailScreen(
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showOptionsMenu by remember { mutableStateOf(false) }
+    var showMergeDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -88,6 +93,12 @@ fun PlaylistDetailScreen(
                 actions = {
                     val isUserCreatedPlaylist = uiState.isLocalPlaylist && !uiState.isSaved
                     if (!isUserCreatedPlaylist) {
+                        IconButton(onClick = { showMergeDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.PlaylistAdd,
+                                contentDescription = stringResource(R.string.add_all_to_playlist)
+                            )
+                        }
                         IconButton(
                             onClick = {
                                 if (uiState.isSaved) viewModel.unsaveFromLibrary()
@@ -240,6 +251,13 @@ fun PlaylistDetailScreen(
                     Text(stringResource(R.string.cancel))
                 }
             }
+        )
+    }
+
+    if (showMergeDialog) {
+        MergeIntoPlaylistDialog(
+            viewModel = viewModel,
+            onDismiss = { showMergeDialog = false }
         )
     }
 }
@@ -650,6 +668,108 @@ private fun formatViewCount(count: Long): String {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MergeIntoPlaylistDialog(
+    viewModel: PlaylistDetailViewModel,
+    onDismiss: () -> Unit
+) {
+    val playlists by viewModel.userCreatedPlaylists.collectAsState()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberFlowSheetState(),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.merge_playlist_dialog_title),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+            )
+
+            HorizontalDivider()
+
+            if (playlists.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.merge_playlist_no_playlists),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(24.dp)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(vertical = 8.dp)
+                ) {
+                    items(
+                        items = playlists,
+                        key = { it.id }
+                    ) { playlist ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.mergeIntoPlaylist(playlist.id)
+                                    onDismiss()
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            ) {
+                                if (playlist.thumbnailUrl.isNotEmpty()) {
+                                    AsyncImage(
+                                        model = playlist.thumbnailUrl,
+                                        contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.PlaylistPlay,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .align(Alignment.Center),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                    )
+                                }
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = playlist.name,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = stringResource(R.string.songs_count_template, playlist.videoCount),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ViewModel
 
 @HiltViewModel
@@ -949,6 +1069,34 @@ class PlaylistDetailViewModel @Inject constructor(
     fun deletePlaylist() {
         viewModelScope.launch {
             repository.deletePlaylist(playlistId)
+        }
+    }
+
+    val userCreatedPlaylists: StateFlow<List<PlaylistInfo>> =
+        repository.getUserCreatedVideoPlaylistsFlow()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), emptyList())
+
+    private val _isMerging = MutableStateFlow(false)
+    val isMerging: StateFlow<Boolean> = _isMerging.asStateFlow()
+
+    fun mergeIntoPlaylist(targetPlaylistId: String) {
+        viewModelScope.launch {
+            _isMerging.value = true
+            val videos = _uiState.value.videos
+            try {
+                repository.addVideosToPlaylist(targetPlaylistId, videos)
+                val targetInfo = repository.getPlaylistInfo(targetPlaylistId)
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.merge_playlist_success, videos.size, targetInfo?.name ?: ""),
+                    Toast.LENGTH_SHORT
+                ).show()
+            } catch (e: Exception) {
+                android.util.Log.e("PlaylistDetailVM", "Failed to merge playlist", e)
+                Toast.makeText(context, "Failed to merge playlist", Toast.LENGTH_SHORT).show()
+            } finally {
+                _isMerging.value = false
+            }
         }
     }
 

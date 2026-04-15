@@ -1295,5 +1295,11 @@
     <string name="diagnostics_no_session_logs">No warnings or errors in this session.</string>
     <string name="diagnostics_loading">Reading logs…</string>
     <string name="diagnostics_copied">Report copied to clipboard</string>
+
+    <!-- Merge/Add entire playlist into another playlist (#263) -->
+    <string name="add_all_to_playlist">Add to my playlist</string>
+    <string name="merge_playlist_dialog_title">Add all songs to…</string>
+    <string name="merge_playlist_success">Added %1$d songs to &#8220;%2$s&#8221;</string>
+    <string name="merge_playlist_no_playlists">No playlists yet. Create one first!</string>
 </resources>
 
