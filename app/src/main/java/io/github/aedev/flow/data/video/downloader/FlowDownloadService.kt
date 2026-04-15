@@ -370,7 +370,22 @@ class FlowDownloadService : Service() {
                 // Mux if DASH (separate video + audio streams)
                 if (!audioOnly && mission.audioUrl != null) {
                     Log.d(TAG, "executeDownload: Starting Muxing...")
-                    
+
+                    // Notify in-app UI that we are now merging (no byte-progress changes during mux)
+                    val ids = itemIds[videoId]
+                    if (!ids.isNullOrEmpty()) {
+                        downloadManager.emitProgress(
+                            DownloadProgressUpdate(
+                                videoId = videoId,
+                                itemId = ids.first(),
+                                downloadedBytes = mission.downloadedBytes + mission.audioDownloadedBytes,
+                                totalBytes = mission.totalBytes + mission.audioTotalBytes,
+                                status = DownloadItemStatus.DOWNLOADING,
+                                isMerging = true
+                            )
+                        )
+                    }
+
                     // Update notification to show muxing phase
                     mission.error = "Merging audio & video..."
                     updateNotification(mission, videoId, isMuxing = true)
@@ -383,11 +398,18 @@ class FlowDownloadService : Service() {
                     
                     Log.d(TAG, "executeDownload: Muxing inputs - Video: ${vFile.length()} bytes, Audio: ${aFile.length()} bytes")
 
+                    // Elevate the IO thread priority for the duration of the mux so the
+                    // file-copy loop gets more CPU time and completes faster.
+                    val prevPriority = android.os.Process.getThreadPriority(android.os.Process.myTid())
+                    android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_FOREGROUND)
+
                     val muxSuccess = try {
                         FlowStreamMuxer.mux(videoTmp, audioTmp, mission.savePath)
                     } catch (e: Exception) {
                         Log.e(TAG, "executeDownload: Muxing threw exception", e)
                         false
+                    } finally {
+                        android.os.Process.setThreadPriority(prevPriority)
                     }
                     
                     Log.d(TAG, "executeDownload: Muxing result=$muxSuccess")

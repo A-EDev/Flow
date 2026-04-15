@@ -56,15 +56,29 @@ class DownloadsViewModel @Inject constructor(
 
         viewModelScope.launch {
             videoDownloadManager.activeDownloads.collect { active ->
-                _uiState.update { it.copy(activeVideoDownloads = active) }
+                val videoOnly = active.filter { !it.isAudioOnly }
+                _uiState.update { state ->
+                    // Auto-clear merging flags for downloads that are no longer active
+                    val activeIds = videoOnly.map { it.download.videoId }.toSet()
+                    state.copy(
+                        activeVideoDownloads = videoOnly,
+                        mergingVideoIds = state.mergingVideoIds.intersect(activeIds)
+                    )
+                }
             }
         }
 
         viewModelScope.launch {
             videoDownloadManager.progressUpdates.collect { update ->
                 _uiState.update { state ->
+                    val newMerging = if (update.isMerging) {
+                        state.mergingVideoIds + update.videoId
+                    } else {
+                        state.mergingVideoIds - update.videoId
+                    }
                     state.copy(
-                        downloadProgressMap = state.downloadProgressMap + (update.videoId to update.progress)
+                        downloadProgressMap = state.downloadProgressMap + (update.videoId to update.progress),
+                        mergingVideoIds = newMerging
                     )
                 }
             }
@@ -101,6 +115,7 @@ data class DownloadsUiState(
     val activeVideoDownloads: List<DownloadWithItems> = emptyList(),
     val downloadedMusic: List<DownloadedTrack> = emptyList(),
     val downloadProgressMap: Map<String, Float> = emptyMap(),
+    val mergingVideoIds: Set<String> = emptySet(),
     val isLoading: Boolean = false,
     val isScanning: Boolean = false
 )

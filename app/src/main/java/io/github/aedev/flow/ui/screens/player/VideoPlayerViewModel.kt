@@ -519,8 +519,8 @@ class VideoPlayerViewModel @Inject constructor(
                     _uiState.value = _uiState.value.copy(dislikeCount = it)
                 }
 
-                // Check for offline video immediately (skip audio-only downloads)
-                val localFile = if (downloadedVideo != null && !downloadedVideo.isAudioOnly) java.io.File(downloadedVideo.filePath) else null
+                // Check for offline file immediately (video downloads and audio-only downloads)
+                val localFile = if (downloadedVideo != null) java.io.File(downloadedVideo.filePath) else null
                 isOfflineAvailable = localFile?.exists() == true
                 
                 if (isOfflineAvailable) {
@@ -577,8 +577,8 @@ class VideoPlayerViewModel @Inject constructor(
                         val selectedStreams = selectStreams(streamInfo, initialQuality, preferredAudioLanguage)
                         var localFilePath: String? = null
                         
-                        // If downloaded with video (not audio-only), override with local path
-                        if (downloadedVideo != null && !downloadedVideo.isAudioOnly && java.io.File(downloadedVideo.filePath).exists()) {
+                        // If downloaded (video or audio-only), override with local path
+                        if (downloadedVideo != null && java.io.File(downloadedVideo.filePath).exists()) {
                             localFilePath = downloadedVideo.filePath
                         }
 

@@ -44,18 +44,41 @@ fun SubtitleOverlay(
     modifier: Modifier = Modifier
 ) {
     if (!enabled || subtitles.isEmpty()) return
-    
-    // Find active subtitles
-    val activeCues = remember(currentPosition, subtitles) {
-        if (subtitles.isEmpty()) return@remember emptyList<SubtitleCue>()
-        
-        // Find all cues that contain the current position
-        val currentCues = subtitles.filter { currentPosition in it.startTime..it.endTime }        
-        val bestCue = currentCues
-            .filter { (it.endTime - it.startTime) > 50 }
-            .sortedWith(compareByDescending<SubtitleCue> { it.startTime }.thenByDescending { it.text.length })
-            .firstOrNull()
-            
+
+    // Pre-sort once per subtitle list change (O(n log n)), NOT on every position change
+    val sortedSubtitles = remember(subtitles) { subtitles.sortedBy { it.startTime } }
+
+    // Find active cues with binary search (O(log n)) instead of linear scan (O(n))
+    val activeCues = remember(currentPosition, sortedSubtitles) {
+        if (sortedSubtitles.isEmpty()) return@remember emptyList<SubtitleCue>()
+
+        // Binary search: find rightmost cue whose startTime <= currentPosition
+        var lo = 0; var hi = sortedSubtitles.size - 1; var insertionPoint = -1
+        while (lo <= hi) {
+            val mid = (lo + hi) ushr 1
+            if (sortedSubtitles[mid].startTime <= currentPosition) {
+                insertionPoint = mid; lo = mid + 1
+            } else {
+                hi = mid - 1
+            }
+        }
+
+        // Walk backwards from insertion point; cues start within 30s of currentPosition
+        var bestCue: SubtitleCue? = null
+        var i = insertionPoint
+        while (i >= 0 && (currentPosition - sortedSubtitles[i].startTime) < 30_000L) {
+            val cue = sortedSubtitles[i]
+            if (currentPosition <= cue.endTime && (cue.endTime - cue.startTime) > 50) {
+                if (bestCue == null ||
+                    cue.startTime > bestCue.startTime ||
+                    (cue.startTime == bestCue.startTime && cue.text.length > bestCue.text.length)
+                ) {
+                    bestCue = cue
+                }
+            }
+            i--
+        }
+
         if (bestCue != null) listOf(bestCue) else emptyList()
     }
     

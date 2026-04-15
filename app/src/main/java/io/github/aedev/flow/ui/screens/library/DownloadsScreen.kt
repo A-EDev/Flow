@@ -154,6 +154,7 @@ fun DownloadsScreen(
                         videos = uiState.downloadedVideos,
                         activeDownloads = uiState.activeVideoDownloads,
                         progressMap = uiState.downloadProgressMap,
+                        mergingVideoIds = uiState.mergingVideoIds,
                         isRefreshing = uiState.isScanning,
                         onRefresh = { viewModel.rescan() },
                         onVideoClick = { videos, index -> onVideoClick(videos, index) },
@@ -306,6 +307,7 @@ private fun VideosDownloadsList(
     videos: List<DownloadedVideo>,
     activeDownloads: List<DownloadWithItems>,
     progressMap: Map<String, Float>,
+    mergingVideoIds: Set<String>,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onVideoClick: (List<DownloadedVideo>, Int) -> Unit,
@@ -365,6 +367,7 @@ private fun VideosDownloadsList(
                         ActiveVideoDownloadCard(
                             download = dl,
                             progressMap = progressMap,
+                            isMerging = dl.download.videoId in mergingVideoIds,
                             modifier = Modifier.animateItem(
                                 fadeInSpec = tween(300, easing = EaseOutCubic),
                                 fadeOutSpec = tween(200, easing = EaseInCubic),
@@ -522,6 +525,7 @@ private fun VideoDownloadCard(
 private fun ActiveVideoDownloadCard(
     download: DownloadWithItems,
     progressMap: Map<String, Float>,
+    isMerging: Boolean,
     modifier: Modifier = Modifier
 ) {
     val progress = (progressMap[download.download.videoId] ?: download.progress).coerceIn(0f, 1f)
@@ -600,11 +604,14 @@ private fun ActiveVideoDownloadCard(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(6.dp))
-            val statusText = when (download.overallStatus) {
-                DownloadItemStatus.PENDING  -> stringResource(R.string.download_status_queued)
-                DownloadItemStatus.PAUSED   -> "$pct% · ${stringResource(R.string.download_status_paused)}"
-                DownloadItemStatus.FAILED   -> stringResource(R.string.download_status_failed)
-                else                        -> "$pct%"
+            val statusText = when {
+                isMerging -> "Merging audio & video…"
+                else -> when (download.overallStatus) {
+                    DownloadItemStatus.PENDING  -> stringResource(R.string.download_status_queued)
+                    DownloadItemStatus.PAUSED   -> "$pct% \u00b7 ${stringResource(R.string.download_status_paused)}"
+                    DownloadItemStatus.FAILED   -> stringResource(R.string.download_status_failed)
+                    else                        -> "$pct%"
+                }
             }
             Text(
                 text = statusText,

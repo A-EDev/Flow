@@ -76,9 +76,12 @@ object FlowStreamMuxer {
             val isOpusOrVorbisAudio = audioMime.contains("opus", ignoreCase = true) ||
                                       audioMime.contains("vorbis", ignoreCase = true)
 
-            // ── AV1 routing ───────────────────────────────────────────────────────────
-            if (isAv1) {
-                Log.d(TAG, "AV1: delegating to FlowMkvMuxer (API=${Build.VERSION.SDK_INT}, audio=$audioMime)")
+            // ── AV1 and VP9/VP8 routing → FlowMkvMuxer ───────────────────────────────
+            // AV1 requires MKV on API < 34. VP9/VP8 routes here too because Android's
+            // MediaMuxer WebM implementation is significantly slower than our Matroska writer
+            // for the same data, and MKV (Matroska superset of WebM) plays fine in ExoPlayer.
+            if (isAv1 || useWebM) {
+                Log.d(TAG, "${if (isAv1) "AV1" else "VP9/VP8"}: delegating to FlowMkvMuxer (API=${Build.VERSION.SDK_INT}, audio=$audioMime)")
                 return FlowMkvMuxer.mux(videoPath, audioPath, outputPath)
             }
 

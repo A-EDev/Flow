@@ -28,6 +28,7 @@ object FlowMkvMuxer {
     private const val TAG = "FlowMkvMuxer"
     private const val SAMPLE_BUF_SIZE   = 8 * 1024 * 1024   // 8 MB initial read buffer (AV1 ≥2000p keyframes can exceed 2 MB)
     private const val CLUSTER_LIMIT_MS  = 5_000L             // new cluster every ~5 s
+    private const val CLUSTER_BUF_HINT  = 512 * 1024         // 512 KB initial cluster body hint (grows & reused via reset())
 
     // ─────────────────── EBML element ID arrays (big-endian) ─────────────────────────
 
@@ -319,6 +320,12 @@ object FlowMkvMuxer {
     /**
      * Produce interleaved Cluster → SimpleBlock output, sorted ascending by presentation time.
      * A new cluster is started every [CLUSTER_LIMIT_MS] at a video keyframe boundary.
+     *
+     * Hot-path allocations eliminated:
+     *  - Sample data is written directly from the [MediaExtractor] read buffer (no ByteArray copy).
+     *  - SimpleBlock header bytes are built into a pre-allocated 10-byte scratch array.
+     *  - Cluster body is accumulated in a reused [ByteArrayOutputStream] that is flushed via
+     *    [ByteArrayOutputStream.writeTo] (zero-copy) and reset rather than replaced each cluster.
      */
     private fun writeClustersCollectCues(
         out: OutputStream,
@@ -333,20 +340,26 @@ object FlowMkvMuxer {
 
         var sampleBuf = ByteBuffer.allocate(SAMPLE_BUF_SIZE)
 
-        fun readSampleBytes(ex: MediaExtractor): ByteArray? {
+        // Pre-allocated scratch for SimpleBlock element header:
+        // ID_SIMPLE_BLOCK (1 byte 0xA3) + VINT size (1–4 bytes) + block header (4 bytes) = max 9 bytes
+        val blockHeaderScratch = ByteArray(10)
+
+        // Reused cluster body buffer — grows to max cluster size then stays there via reset()
+        val clusterBodyBuf = ByteArrayOutputStream(CLUSTER_BUF_HINT)
+
+        // Returns sample data size (>=0) stored in sampleBuf[0..size-1], or -1 when the track ends.
+        fun readSampleSize(ex: MediaExtractor): Int {
             sampleBuf.clear()
             val size = ex.readSampleData(sampleBuf, 0)
-            if (size < 0) return null
+            if (size < 0) return -1
             if (size > sampleBuf.capacity()) {
-                Log.d(TAG, "Oversized sample ($size B > ${sampleBuf.capacity()} B) — growing buffer")
-                sampleBuf = ByteBuffer.allocate(size + (size shr 2))
+                // Oversized sample (large AV1/VP9 keyframe) — grow buffer and re-read
+                sampleBuf = ByteBuffer.allocate(size + (size ushr 2))
                 val retry = ex.readSampleData(sampleBuf, 0)
-                if (retry < 0) return null
-                sampleBuf.rewind()
-                return ByteArray(retry).also { sampleBuf.get(it, 0, retry) }
+                if (retry < 0) return -1
+                return retry
             }
-            sampleBuf.rewind()
-            return ByteArray(size).also { sampleBuf.get(it, 0, size) }
+            return size
         }
 
         var videoDone = false
@@ -354,61 +367,97 @@ object FlowMkvMuxer {
         var videoTimeUs = readNextTime(videoEx) { videoDone = true }
         var audioTimeUs = readNextTime(audioEx) { audioDone = true }
 
-        var clusterStartMs  = -1L
-        var clusterBodyBuf  = ByteArrayOutputStream()
+        var clusterStartMs = -1L
 
         fun flushCluster() {
             if (clusterStartMs < 0L || clusterBodyBuf.size() == 0) return
+            // Flush BufferedOutputStream so cos.count reflects the exact start of this cluster
             out.flush()
             cuePoints.add(Pair(clusterStartMs, cos.count - segDataStart))
-            val tcEl      = wrapEl(ID_CLUSTER_TC, intBytes(clusterStartMs, 4))
-            val body      = tcEl + clusterBodyBuf.toByteArray()
-            writeEl(out, ID_CLUSTER, body)
-            clusterBodyBuf  = ByteArrayOutputStream()
-            clusterStartMs  = -1L
+            val tcEl = wrapEl(ID_CLUSTER_TC, intBytes(clusterStartMs, 4))
+            val totalBodySize = tcEl.size + clusterBodyBuf.size()
+            // Write cluster: ID + VINT(size) + timecode element + body (zero-copy writeTo)
+            out.write(ID_CLUSTER)
+            out.write(encodeVint(totalBodySize.toLong()))
+            out.write(tcEl)
+            clusterBodyBuf.writeTo(out)// writes backing array directly — no copy
+            clusterBodyBuf.reset()// resets count to 0, backing array retained for reuse
+            clusterStartMs = -1L
         }
 
-        fun appendBlock(trackNum: Int, timeUs: Long, isKey: Boolean, data: ByteArray) {
+        // Writes the current sample (already in sampleBuf[0..dataSize-1]) as a SimpleBlock element
+        // directly into clusterBodyBuf — zero intermediate ByteArray allocations.
+        fun appendBlock(trackNum: Int, timeUs: Long, isKey: Boolean, dataSize: Int) {
             val timeMs = timeUs / 1000L
             if (clusterStartMs < 0L) clusterStartMs = timeMs
-
             if ((timeMs - clusterStartMs) > CLUSTER_LIMIT_MS && isKey) {
                 flushCluster()
                 clusterStartMs = timeMs
             }
 
-            val relMs: Int = (timeMs - clusterStartMs).coerceIn(-32768L, 32767L).toInt()
-
+            val relMs = (timeMs - clusterStartMs).coerceIn(-32768L, 32767L).toInt()
             val flags: Byte = if (isKey && trackNum == 1) 0x80.toByte() else 0x00.toByte()
-            val header = byteArrayOf(
-                (0x80 or trackNum).toByte(),
-                ((relMs ushr 8) and 0xFF).toByte(),
-                (relMs         and 0xFF).toByte(),
-                flags
-            )
-            val blockData = header + data
-            clusterBodyBuf.write(wrapEl(ID_SIMPLE_BLOCK, blockData))
+
+            // Build SimpleBlock element header inline into scratch buffer:
+            //   [0] = ID_SIMPLE_BLOCK (0xA3, single-byte element ID)
+            //   [1..vLen] = VINT-encoded payload size (4 header bytes + sample data)
+            //   [vLen+1..vLen+4] = SimpleBlock header: track | relMs_hi | relMs_lo | flags
+            val blockPayload = 4 + dataSize
+            val v = blockPayload.toLong()
+            val vLen: Int
+            when {
+                v < 0x7FL     -> { blockHeaderScratch[1] = (0x80L or v).toByte(); vLen = 1 }
+                v < 0x3FFFL   -> {
+                    blockHeaderScratch[1] = (0x40L or (v shr 8)).toByte()
+                    blockHeaderScratch[2] = (v and 0xFFL).toByte()
+                    vLen = 2
+                }
+                v < 0x1FFFFFL -> {
+                    blockHeaderScratch[1] = (0x20L or (v shr 16)).toByte()
+                    blockHeaderScratch[2] = ((v shr 8) and 0xFFL).toByte()
+                    blockHeaderScratch[3] = (v and 0xFFL).toByte()
+                    vLen = 3
+                }
+                else          -> {
+                    blockHeaderScratch[1] = (0x10L or (v shr 24)).toByte()
+                    blockHeaderScratch[2] = ((v shr 16) and 0xFFL).toByte()
+                    blockHeaderScratch[3] = ((v shr 8) and 0xFFL).toByte()
+                    blockHeaderScratch[4] = (v and 0xFFL).toByte()
+                    vLen = 4
+                }
+            }
+            blockHeaderScratch[0] = 0xA3.toByte()
+            val hOff = 1 + vLen
+            blockHeaderScratch[hOff]     = (0x80 or trackNum).toByte()
+            blockHeaderScratch[hOff + 1] = ((relMs ushr 8) and 0xFF).toByte()
+            blockHeaderScratch[hOff + 2] = (relMs and 0xFF).toByte()
+            blockHeaderScratch[hOff + 3] = flags
+
+            // Write header (no allocation) then sample bytes direct from the read buffer (no copy)
+            clusterBodyBuf.write(blockHeaderScratch, 0, hOff + 4)
+            clusterBodyBuf.write(sampleBuf.array(), 0, dataSize)
         }
 
         while (!videoDone || !audioDone) {
+            if (Thread.interrupted()) throw InterruptedException("Mux cancelled")
             val takeVideo = !videoDone && (audioDone || videoTimeUs <= audioTimeUs)
 
             if (takeVideo) {
-                val data = readSampleBytes(videoEx)
-                if (data == null) {
+                val size = readSampleSize(videoEx)
+                if (size < 0) {
                     videoDone = true; videoTimeUs = Long.MAX_VALUE
                 } else {
                     val isKey = (videoEx.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC) != 0
-                    appendBlock(1, videoTimeUs, isKey, data)
+                    appendBlock(1, videoTimeUs, isKey, size)
                     videoEx.advance()
                     videoTimeUs = readNextTime(videoEx) { videoDone = true }
                 }
             } else {
-                val data = readSampleBytes(audioEx)
-                if (data == null) {
+                val size = readSampleSize(audioEx)
+                if (size < 0) {
                     audioDone = true; audioTimeUs = Long.MAX_VALUE
                 } else {
-                    appendBlock(2, audioTimeUs, true, data)
+                    appendBlock(2, audioTimeUs, true, size)
                     audioEx.advance()
                     audioTimeUs = readNextTime(audioEx) { audioDone = true }
                 }

@@ -36,6 +36,7 @@ IMPROVEMENTS
 - Smoother video to audio swithing (uses a shared cache) #243
 - Add Download progress card in download screen #266
 - Improve notifications container #257
+- Improve muxer for faster merging 
 
 FIXES AND STABILITY
 - Fix video player playback speed issue #232

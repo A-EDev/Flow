@@ -42,7 +42,8 @@ data class DownloadProgressUpdate(
     val itemId: Int,
     val downloadedBytes: Long,
     val totalBytes: Long,
-    val status: DownloadItemStatus
+    val status: DownloadItemStatus,
+    val isMerging: Boolean = false
 ) {
     val progress: Float
         get() = if (totalBytes > 0) downloadedBytes.toFloat() / totalBytes.toFloat() else 0f
@@ -315,7 +316,7 @@ class VideoDownloadManager @Inject constructor(
     val downloadedVideos: Flow<List<DownloadedVideo>>
         get() = allDownloads.map { list ->
             list.filter { dwi ->
-                dwi.overallStatus == DownloadItemStatus.COMPLETED
+                dwi.overallStatus == DownloadItemStatus.COMPLETED && !dwi.isAudioOnly
             }.map { toDownloadedVideo(it) }
         }
 
