@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.0.6
-DATE: 2026-04-13
+DATE: 2026-04-16
 
 LIBRARIES
 - Bump NewpipeExtractor to latest version (v0.26.1)
@@ -22,6 +22,7 @@ FEATURES
 - Add player cache limit options #243
 - Add new region selector in the explore screen #249
 - Add new merge playlists feature #263
+- Add new video title lines customizer #283
 
 IMPROVEMENTS
 - New miniplayer secondary action buttons layout #225
@@ -38,6 +39,7 @@ IMPROVEMENTS
 - Add Download progress card in download screen #266
 - Improve notifications container #257
 - Improve muxer for faster merging 
+- Expand content backups #280
 
 FIXES AND STABILITY
 - Fix video player playback speed issue #232

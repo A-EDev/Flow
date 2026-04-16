@@ -1,6 +1,8 @@
 package io.github.aedev.flow.data.local
 
+import android.content.ComponentName
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.OpenableColumns
 import io.github.aedev.flow.data.local.entity.PlaylistEntity
@@ -68,13 +70,31 @@ class BackupRepository(private val context: Context) {
     private val likedVideosRepo = LikedVideosRepository.getInstance(context)
     private val database = AppDatabase.getDatabase(context)
 
+    /** Detect which launcher icon alias is currently enabled via PackageManager. */
+    private fun detectActiveIconSuffix(): String? {
+        val pm = context.packageManager
+        val pkg = context.packageName
+        val knownSuffixes = listOf(".IconFlowRed", ".IconAmoled", ".IconMonochrome", ".IconGhost", ".IconDynamic")
+        return knownSuffixes.firstOrNull { suffix ->
+            pm.getComponentEnabledSetting(
+                ComponentName(pkg, "io.github.aedev.flow$suffix")
+            ) == PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        }
+    }
+
     suspend fun exportData(uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val playerSettings = playerPreferences.getExportData()
             val localSettings = localDataManager.getExportData()
-            
+
+            val activeIconSuffix = detectActiveIconSuffix()
+            val exportedStrings = if (activeIconSuffix != null)
+                playerSettings.strings + mapOf("app_icon_suffix" to activeIconSuffix) + localSettings.strings
+            else
+                playerSettings.strings + localSettings.strings
+
             val mergedSettings = SettingsBackup(
-                strings = playerSettings.strings + localSettings.strings,
+                strings = exportedStrings,
                 booleans = playerSettings.booleans + localSettings.booleans,
                 ints = playerSettings.ints + localSettings.ints,
                 floats = playerSettings.floats + localSettings.floats,
@@ -154,9 +174,26 @@ class BackupRepository(private val context: Context) {
             }
 
             // Import Settings Data
-            backupData.settings?.let { 
-                playerPreferences.restoreData(it) 
-                localDataManager.restoreData(it)
+            backupData.settings?.let { settings ->
+                playerPreferences.restoreData(settings)
+                localDataManager.restoreData(settings)
+
+                val savedIconSuffix = settings.strings["app_icon_suffix"]
+                if (!savedIconSuffix.isNullOrEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        val pm = context.packageManager
+                        val pkg = context.packageName
+                        val allSuffixes = listOf(".IconFlowRed", ".IconAmoled", ".IconMonochrome", ".IconGhost", ".IconDynamic")
+                        for (suffix in allSuffixes) {
+                            val cn = ComponentName(pkg, "io.github.aedev.flow$suffix")
+                            val want = if (suffix == savedIconSuffix)
+                                PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+                            else
+                                PackageManager.COMPONENT_ENABLED_STATE_DISABLED
+                            pm.setComponentEnabledSetting(cn, want, PackageManager.DONT_KILL_APP)
+                        }
+                    }
+                }
             }
 
             Result.success(Unit)

@@ -24,6 +24,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalContext
+import io.github.aedev.flow.data.local.PlayerPreferences
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -80,6 +82,10 @@ fun VideoInfoSection(
             .padding(12.dp)
     ) {
         // ============ TITLE SECTION ============
+        val context = LocalContext.current
+        val prefs = remember { PlayerPreferences(context) }
+        val titleMaxLinesPref by prefs.videoTitleMaxLines.collectAsState(initial = 1)
+        val titleMaxLines = if (titleMaxLinesPref <= 0) Int.MAX_VALUE else titleMaxLinesPref
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge.copy(
@@ -88,8 +94,8 @@ fun VideoInfoSection(
                 lineHeight = 28.sp
             ),
             color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            maxLines = titleMaxLines,
+            overflow = if (titleMaxLinesPref <= 0) TextOverflow.Clip else TextOverflow.Ellipsis
         )
         
         // View count and date in a subtle row below title

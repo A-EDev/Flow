@@ -66,10 +66,11 @@ fun SearchScreen(
     val context = LocalContext.current
     val searchHistoryRepo = remember { SearchHistoryRepository(context) }
     val interestProfile = remember { InterestProfile.getInstance(context) }
+    val preferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
 
     var searchQuery by remember { mutableStateOf("") }
     var isSearchFocused by remember { mutableStateOf(false) }
-    var isGridMode by remember { mutableStateOf(false) }
+    val isGridMode by preferences.searchIsGridMode.collectAsState(initial = false)
     var selectedTabIndex by remember { mutableIntStateOf(0) }
 
     var hasPerformedSearch by rememberSaveable { mutableStateOf(false) }
@@ -350,7 +351,7 @@ fun SearchScreen(
                     viewModel.updateFilters(base.copy(uploadDate = date))
                 },
                 isGridMode = isGridMode,
-                onToggleGridMode = { isGridMode = !isGridMode }
+                onToggleGridMode = { scope.launch { preferences.setSearchIsGridMode(!isGridMode) } }
             )
 
             val isInitialLoading =

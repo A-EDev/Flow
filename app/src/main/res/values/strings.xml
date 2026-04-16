@@ -519,6 +519,12 @@
     <string name="content_settings_related_card_compact_desc">Thumbnail and info side by side</string>
     <string name="content_settings_related_card_full_width">Full Width</string>
     <string name="content_settings_related_card_full_width_desc">Large thumbnail with title below</string>
+    <string name="content_settings_video_title_lines_title">Video Title Lines</string>
+    <string name="content_settings_video_title_lines_subtitle">How many lines to show for video titles in the player</string>
+    <string name="content_settings_title_lines_1">1 line</string>
+    <string name="content_settings_title_lines_2">2 lines</string>
+    <string name="content_settings_title_lines_3">3 lines</string>
+    <string name="content_settings_title_lines_unlimited">No limit</string>
     <string name="content_settings_header_content_components">Content Components</string>
     <string name="content_settings_hide_watched_title">Hide Watched Videos</string>
     <string name="content_settings_hide_watched_subtitle">Filter videos you\'ve already watched from your home feed and subscriptions</string>

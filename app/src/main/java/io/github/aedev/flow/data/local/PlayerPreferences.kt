@@ -146,6 +146,17 @@ class PlayerPreferences(private val context: Context) {
 
         // Explore screen quick region picker
         val SHOW_REGION_PICKER_IN_EXPLORE = booleanPreferencesKey("show_region_picker_in_explore")
+
+        // App icon — stores the component suffix of the currently selected launcher icon
+        val APP_ICON_SUFFIX = stringPreferencesKey("app_icon_suffix")
+
+        // Video title display — max lines in the player info section (0 = no limit)
+        val VIDEO_TITLE_MAX_LINES = intPreferencesKey("video_title_max_lines")
+
+        // Screen-level view mode toggles
+        val SEARCH_IS_GRID_MODE = booleanPreferencesKey("search_is_grid_mode")
+        val CHANNEL_IS_GRID_VIEW = booleanPreferencesKey("channel_is_grid_view")
+        val CATEGORIES_IS_LIST_VIEW = booleanPreferencesKey("categories_is_list_view")
     }
     
     // Grid item size preference
@@ -862,6 +873,58 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setShowRegionPickerInExplore(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHOW_REGION_PICKER_IN_EXPLORE] = enabled
+        }
+    }
+
+    // Selected app icon — component suffix string saved on each icon switch so it can be backed up/restored
+    val selectedAppIcon: Flow<String?> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.APP_ICON_SUFFIX]
+        }
+
+    suspend fun setSelectedAppIcon(suffix: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.APP_ICON_SUFFIX] = suffix
+        }
+    }
+
+    // Video title max lines in the player info section — 0 means no limit (Int.MAX_VALUE)
+    val videoTitleMaxLines: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.VIDEO_TITLE_MAX_LINES] ?: 1
+        }
+
+    suspend fun setVideoTitleMaxLines(lines: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.VIDEO_TITLE_MAX_LINES] = lines
+        }
+    }
+
+    // Screen-level view mode toggles
+    val searchIsGridMode: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.SEARCH_IS_GRID_MODE] ?: false }
+
+    suspend fun setSearchIsGridMode(isGrid: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SEARCH_IS_GRID_MODE] = isGrid
+        }
+    }
+
+    val channelIsGridView: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.CHANNEL_IS_GRID_VIEW] ?: false }
+
+    suspend fun setChannelIsGridView(isGrid: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.CHANNEL_IS_GRID_VIEW] = isGrid
+        }
+    }
+
+    val categoriesIsListView: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.CATEGORIES_IS_LIST_VIEW] ?: false }
+
+    suspend fun setCategoriesIsListView(isList: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.CATEGORIES_IS_LIST_VIEW] = isList
         }
     }
 

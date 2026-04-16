@@ -29,6 +29,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.PlayerPreferences
+import kotlinx.coroutines.launch
 
 private const val ICON_NAMESPACE = "io.github.aedev.flow"
 
@@ -89,7 +91,13 @@ private fun switchIcon(context: Context, newSuffix: String) {
 @Composable
 fun AppIconPickerScreen(onNavigateBack: () -> Unit) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val preferences = remember { PlayerPreferences(context) }
     var selectedSuffix by remember { mutableStateOf(getActiveIconSuffix(context)) }
+
+    LaunchedEffect(Unit) {
+        preferences.setSelectedAppIcon(selectedSuffix)
+    }
 
     Scaffold(
         topBar = {
@@ -153,6 +161,7 @@ fun AppIconPickerScreen(onNavigateBack: () -> Unit) {
                             if (selectedSuffix != icon.componentSuffix) {
                                 switchIcon(context, icon.componentSuffix)
                                 selectedSuffix = icon.componentSuffix
+                                coroutineScope.launch { preferences.setSelectedAppIcon(icon.componentSuffix) }
                                 Toast.makeText(
                                     context,
                                     context.getString(R.string.app_icon_apply_toast),

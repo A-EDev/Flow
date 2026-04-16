@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.ViewQuilt
 import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.outlined.Title
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -75,6 +76,7 @@ fun ContentSettingsScreen(
     val hideWatchedVideos by preferences.hideWatchedVideos.collectAsState(initial = false)
     val disableShortsPlayer by preferences.disableShortsPlayer.collectAsState(initial = false)
     val showRegionPickerInExplore by preferences.showRegionPickerInExplore.collectAsState(initial = true)
+    val videoTitleMaxLines by preferences.videoTitleMaxLines.collectAsState(initial = 1)
     
     Scaffold(
         topBar = {
@@ -438,6 +440,82 @@ fun ContentSettingsScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth()
                             )
+                        }
+                    }
+                }
+            }
+
+            // Video Title Lines Section
+            item {
+                SettingsGroup {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Outlined.Title,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = stringResource(R.string.content_settings_video_title_lines_title),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                Text(
+                                    text = stringResource(R.string.content_settings_video_title_lines_subtitle),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(
+                                1 to stringResource(R.string.content_settings_title_lines_1),
+                                2 to stringResource(R.string.content_settings_title_lines_2),
+                                3 to stringResource(R.string.content_settings_title_lines_3),
+                                0 to stringResource(R.string.content_settings_title_lines_unlimited)
+                            ).forEach { (lines, label) ->
+                                val isSelected = videoTitleMaxLines == lines
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                                            else androidx.compose.ui.graphics.Color.Transparent
+                                        )
+                                        .border(
+                                            width = if (isSelected) 2.dp else 1.dp,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary
+                                                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                            shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
+                                        )
+                                        .clickable {
+                                            coroutineScope.launch {
+                                                preferences.setVideoTitleMaxLines(lines)
+                                            }
+                                        }
+                                        .padding(vertical = 12.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        style = MaterialTheme.typography.bodyMedium.copy(
+                                            fontWeight = if (isSelected) androidx.compose.ui.text.font.FontWeight.SemiBold
+                                                         else androidx.compose.ui.text.font.FontWeight.Normal
+                                        ),
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary
+                                                else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
                     }
                 }

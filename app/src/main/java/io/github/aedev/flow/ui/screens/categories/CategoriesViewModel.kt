@@ -52,6 +52,10 @@ class CategoriesViewModel @Inject constructor(
     private var loadJob: Job? = null
 
     init {
+        viewModelScope.launch {
+            val savedIsListView = preferences.categoriesIsListView.first()
+            _uiState.update { it.copy(isListView = savedIsListView) }
+        }
         loadCategory(TrendingCategory.ALL)
     }
 
@@ -151,7 +155,9 @@ class CategoriesViewModel @Inject constructor(
     }
 
     fun toggleViewMode() {
-        _uiState.update { it.copy(isListView = !it.isListView) }
+        val newValue = !_uiState.value.isListView
+        _uiState.update { it.copy(isListView = newValue) }
+        viewModelScope.launch { preferences.setCategoriesIsListView(newValue) }
     }
 
     fun refresh() {

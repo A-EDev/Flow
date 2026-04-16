@@ -411,9 +411,7 @@ class YouTubeRepository @Inject constructor(
     suspend fun getChannelInfo(channelIdOrUrl: String): org.schabi.newpipe.extractor.channel.ChannelInfo? = withContext(Dispatchers.IO) {
         try {
             val channelUrl = if (channelIdOrUrl.startsWith("http")) channelIdOrUrl else "https://www.youtube.com/channel/$channelIdOrUrl"
-            val extractor = service.getChannelExtractor(channelUrl)
-            extractor.fetchPage()
-            org.schabi.newpipe.extractor.channel.ChannelInfo.getInfo(extractor)
+            org.schabi.newpipe.extractor.channel.ChannelInfo.getInfo(service, channelUrl)
         } catch (e: Exception) {
             Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             null

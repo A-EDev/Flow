@@ -24,6 +24,7 @@ fun formatViewCount(count: Long): String {
 }
 
 fun formatSubscriberCount(count: Long): String {
+    if (count <= 0L) return ""
     return when {
         count >= 1_000_000_000 -> "${(count / 1_000_000_000.0 * 10).roundToInt() / 10.0}B"
         count >= 1_000_000 -> "${(count / 1_000_000.0 * 10).roundToInt() / 10.0}M"

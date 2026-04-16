@@ -165,7 +165,9 @@ private fun ChannelContent(
 ) {
     val channelInfo = uiState.channelInfo ?: return
 
-    var isGridView by rememberSaveable { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val preferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
+    val isGridView by preferences.channelIsGridView.collectAsState(initial = false)
     var selectedFilter by rememberSaveable { mutableStateOf(VideoFilter.Latest) }
     val coroutineScope = rememberCoroutineScope()
 
@@ -252,7 +254,7 @@ private fun ChannelContent(
                         selectedFilter = selectedFilter,
                         isGridView = isGridView,
                         onFilterSelected = { selectedFilter = it },
-                        onToggleGridView = { isGridView = !isGridView }
+                        onToggleGridView = { coroutineScope.launch { preferences.setChannelIsGridView(!isGridView) } }
                     )
                 }
             }

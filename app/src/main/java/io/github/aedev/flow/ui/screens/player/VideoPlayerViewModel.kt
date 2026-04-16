@@ -621,11 +621,7 @@ class VideoPlayerViewModel @Inject constructor(
                                             if (channelUrl.isNotBlank()) {
                                                 val channelInfo = repository.getChannelInfo(channelUrl)
                                                 channelInfo?.let { ci ->
-                                                    val subCount = try {
-                                                        val method = ci::class.java.methods.firstOrNull { it.name.equals("getSubscriberCount", true) }
-                                                        (method?.invoke(ci) as? Long) ?: 0L
-                                                    } catch (ex: Exception) { 0L }
-                                                    
+                                    val subCount = ci.subscriberCount
                                                     val avatarUrl = try {
                                                         val thumbnailsMethod = ci::class.java.methods.firstOrNull { 
                                                             it.name.equals("getThumbnails", true) || it.name.equals("getAvatars", true)
@@ -703,7 +699,7 @@ class VideoPlayerViewModel @Inject constructor(
                                 
                                 channelResult?.let { (subCount, avatarUrl) ->
                                     _uiState.value = _uiState.value.copy(
-                                        channelSubscriberCount = subCount,
+                                        channelSubscriberCount = subCount.takeIf { it > 0L },
                                         channelAvatarUrl = avatarUrl
                                     )
                                 }
