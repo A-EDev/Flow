@@ -31,4 +31,6 @@
     <string name="song">गीत</string>
     <string name="video">वीडियो</string>
     <string name="share">शेयर</string>
+    <string name="shorts">शॉर्ट</string>
+    <string name="clear_watch_history_alert_body">यह आपके वॉच इतिहास के सभी वीडियो को हटा देगा। यह कार्रवाई नहीं की जा सकती है।।</string>
 </resources>
