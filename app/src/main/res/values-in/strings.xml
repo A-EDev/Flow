@@ -1,3 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="shorts">Shorts</string>
+    <string name="stats">Statistik</string>
+    <string name="library_history_label">Histori</string>
+    <string name="library_manage_data_label">Kelola Data</string>
+    <string name="library_manage_data_subtitle">Hapus cache dan histori</string>
+    <string name="share_song">Bagikan lagu</string>
+    <string name="download">Unduh</string>
+    <string name="close">Tutup</string>
+    <string name="nav_home">Beranda</string>
+    <string name="empty_description">Tidak ada deskripsi</string>
+    <string name="clear_watch_history_alert_title">Hapus riwayat tontonan</string>
+    <string name="clear_watch_history_alert_body">Pilihan ini akan menghapus seluruh video dalam riwayat tontonan. Tindakan ini tidak dapat dibatalkan.</string>
+    <string name="video">Video</string>
+    <string name="share">Bagikan</string>
+    <string name="song">Lagu</string>
+    <string name="save">Simpan</string>
+    <string name="lyrics">Lirik</string>
+    <string name="error_occurred">Terjadi kesalahan</string>
+    <string name="lyrics_not_available">Lirik tidak ditemukan</string>
+    <string name="hz">Hz</string>
+    <string name="kbps">kbps</string>
+    <string name="artist_label">Artis</string>
+    <string name="album_label">Album</string>
 </resources>
