@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.ViewAgenda
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.ViewQuilt
 import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.outlined.Title
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -77,6 +78,7 @@ fun ContentSettingsScreen(
     val disableShortsPlayer by preferences.disableShortsPlayer.collectAsState(initial = false)
     val showRegionPickerInExplore by preferences.showRegionPickerInExplore.collectAsState(initial = true)
     val videoTitleMaxLines by preferences.videoTitleMaxLines.collectAsState(initial = 1)
+    val videoCardActionsEnabled by preferences.videoCardActionsEnabled.collectAsState(initial = false)
     
     Scaffold(
         topBar = {
@@ -332,6 +334,18 @@ fun ContentSettingsScreen(
                             }
                         }
                     )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.ThumbUp,
+                        title = stringResource(R.string.content_settings_video_card_actions_title),
+                        subtitle = stringResource(R.string.content_settings_video_card_actions_subtitle),
+                        checked = videoCardActionsEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setVideoCardActionsEnabled(enabled)
+                            }
+                        }
+                    )
                 }
             }
 
@@ -517,70 +531,6 @@ fun ContentSettingsScreen(
                                 }
                             }
                         }
-                    }
-                }
-            }
-
-            // Preview Section
-            item {
-                SectionHeader(text = stringResource(R.string.content_settings_header_preview))
-                SettingsGroup {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        val previewSize = when (currentGridSize) {
-                            GridItemSize.BIG -> 140.dp
-                            GridItemSize.SMALL -> 110.dp
-                        }
-                        
-                        Box(
-                            modifier = Modifier
-                                .size(previewSize)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
-                                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), RoundedCornerShape(16.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Outlined.GridView,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                                modifier = Modifier.size(48.dp)
-                            )
-                            
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(8.dp)
-                                    .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 4.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "${previewSize.value.toInt()}dp",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White
-                                )
-                            }
-                        }
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        Text(
-                            text = stringResource(R.string.content_settings_preview_album_art),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = when (currentGridSize) {
-                                GridItemSize.BIG -> stringResource(R.string.content_settings_preview_big)
-                                GridItemSize.SMALL -> stringResource(R.string.content_settings_preview_small)
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
                 }
             }

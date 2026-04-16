@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.outlined.ThumbDown
+import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -45,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import android.util.Log
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.res.stringResource
+import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.R
 import coil.compose.AsyncImage
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -87,6 +90,8 @@ fun VideoCard(
     }
     val displayTitle = deArrowResult?.title ?: video.title
     val displayThumbnailUrl = deArrowResult?.thumbnailUrl ?: video.thumbnailUrl
+    val videoCardActionsEnabled by playerPrefs.videoCardActionsEnabled.collectAsState(initial = false)
+    val quickActionsVm: QuickActionsViewModel = hiltViewModel()
     val interactionSource = remember { MutableInteractionSource() }
     Column(
         modifier = modifier
@@ -230,6 +235,66 @@ fun VideoCard(
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+        }
+
+        // Like / Dislike action buttons
+        if (videoCardActionsEnabled) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { quickActionsVm.markAsInteresting(video) }
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Outlined.ThumbUp,
+                        contentDescription = stringResource(R.string.i_like_this),
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(R.string.i_like_this),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { quickActionsVm.markNotInterested(video) }
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Outlined.ThumbDown,
+                        contentDescription = stringResource(R.string.not_interested),
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(R.string.not_interested),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }
@@ -417,6 +482,8 @@ fun VideoCardFullWidth(
     }
     val displayTitle = deArrowResultFullWidth?.title ?: video.title
     val displayThumbnailUrl = deArrowResultFullWidth?.thumbnailUrl ?: video.thumbnailUrl
+    val videoCardActionsEnabledFW by playerPrefsFullWidth.videoCardActionsEnabled.collectAsState(initial = false)
+    val quickActionsVmFW: QuickActionsViewModel = hiltViewModel()
 
     val interactionSource = remember { MutableInteractionSource() }
     Column(
@@ -561,6 +628,62 @@ fun VideoCardFullWidth(
                     contentDescription = "More options",
                     tint = MaterialTheme.colorScheme.onBackground
                 )
+            }
+        }
+
+        // Like / Dislike action buttons
+        if (videoCardActionsEnabledFW) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { quickActionsVmFW.markAsInteresting(video) }
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Outlined.ThumbUp,
+                        contentDescription = stringResource(R.string.i_like_this),
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.i_like_this),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { quickActionsVmFW.markNotInterested(video) }
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Outlined.ThumbDown,
+                        contentDescription = stringResource(R.string.not_interested),
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.not_interested),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
@@ -798,7 +921,7 @@ private fun ContinueWatchingCard(
     val interactionSource = remember { MutableInteractionSource() }
     Column(
         modifier = Modifier
-            .width(200.dp)
+            .width(350.dp)
             .pressScale(interactionSource)
             .clickable(
                 interactionSource = interactionSource,
@@ -852,7 +975,7 @@ private fun ContinueWatchingCard(
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = entry.title,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.SemiBold,

@@ -398,8 +398,7 @@ fun GlobalPlayerOverlay(
                 },
                 videoContent = { modifier ->
                     // ALWAYS use the same video surface
-                    // Disable brightness/volume swipes when zoomed so pan gesture works cleanly
-                    val effectiveSwipeGesturesEnabled = swipeGesturesEnabled && screenState.zoomScale <= 1.02f
+                    val effectiveSwipeGesturesEnabled = swipeGesturesEnabled
                     val gestureModifier = if (!isMinimized) {
                         modifier.videoPlayerControls(
                             isSpeedBoostActive = screenState.isSpeedBoostActive,

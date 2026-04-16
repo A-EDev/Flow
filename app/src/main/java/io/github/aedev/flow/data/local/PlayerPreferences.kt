@@ -157,6 +157,9 @@ class PlayerPreferences(private val context: Context) {
         val SEARCH_IS_GRID_MODE = booleanPreferencesKey("search_is_grid_mode")
         val CHANNEL_IS_GRID_VIEW = booleanPreferencesKey("channel_is_grid_view")
         val CATEGORIES_IS_LIST_VIEW = booleanPreferencesKey("categories_is_list_view")
+
+        // Video card inline like/dislike action buttons
+        val VIDEO_CARD_ACTIONS_ENABLED = booleanPreferencesKey("video_card_actions_enabled")
     }
     
     // Grid item size preference
@@ -897,6 +900,16 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setVideoTitleMaxLines(lines: Int) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.VIDEO_TITLE_MAX_LINES] = lines
+        }
+    }
+
+    // Video card inline like/dislike action buttons (default off)
+    val videoCardActionsEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.VIDEO_CARD_ACTIONS_ENABLED] ?: false }
+
+    suspend fun setVideoCardActionsEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.VIDEO_CARD_ACTIONS_ENABLED] = enabled
         }
     }
 
