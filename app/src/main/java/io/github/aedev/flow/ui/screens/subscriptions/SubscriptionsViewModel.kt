@@ -184,26 +184,37 @@ class SubscriptionsViewModel : ViewModel() {
             .sortedByDescending { it.timestamp }
         Log.i(TAG, "Shorts after per-channel dedup: ${latestShortPerChannel.size}/${shorts.size}")
 
-        // ── Watched-shorts filter ──────────────────────────────────────────
-        val watchedIds: Set<String> = try {
-            watchHistoryDao.getAllWatchedVideoIds().toHashSet()
-        } catch (e: Exception) {
-            Log.w(TAG, "Could not read watch history for shorts filtering", e)
-            emptySet()
-        }
-        val unwatchedShorts = if (watchedIds.isEmpty()) latestShortPerChannel
-            else latestShortPerChannel.filter { it.id !in watchedIds }
-
-        Log.i(TAG, "Shorts after watched filter: ${unwatchedShorts.size}/${latestShortPerChannel.size} " +
-                "(${latestShortPerChannel.size - unwatchedShorts.size} hidden as already watched)")
-
-        // ── Hide-watched filter for regular videos ────────────────────────
+        // ── Hide-watched preference (applies to both shorts and regular) ──
         val hideWatched = try {
             playerPreferences.hideWatchedVideos.first()
         } catch (e: Exception) {
             Log.w(TAG, "Could not read hideWatchedVideos preference", e)
             false
         }
+
+        // ── Watched IDs (fetched once, shared by both filters) ────────────
+        val watchedIds: Set<String> = if (hideWatched) {
+            try {
+                watchHistoryDao.getAllWatchedVideoIds().toHashSet()
+            } catch (e: Exception) {
+                Log.w(TAG, "Could not read watch history for watched filter", e)
+                emptySet()
+            }
+        } else {
+            emptySet()
+        }
+
+        // ── Shorts watched filter — only when hide-watched is enabled ──────
+        val unwatchedShorts = if (hideWatched && watchedIds.isNotEmpty()) {
+            latestShortPerChannel.filter { it.id !in watchedIds }
+        } else {
+            latestShortPerChannel
+        }
+
+        Log.i(TAG, "Shorts after watched filter: ${unwatchedShorts.size}/${latestShortPerChannel.size} " +
+                "(${latestShortPerChannel.size - unwatchedShorts.size} hidden as already watched)")
+
+        // ── Hide-watched filter for regular videos ────────────────────────
         val filteredRegular = if (hideWatched && watchedIds.isNotEmpty()) {
             val before = regular.size
             regular.filter { it.id !in watchedIds }.also { filtered ->

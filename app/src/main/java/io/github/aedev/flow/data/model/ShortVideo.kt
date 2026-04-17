@@ -17,6 +17,7 @@ data class ShortVideo(
     val channelThumbnailUrl: String = "",
     val viewCountText: String = "",
     val likeCountText: String = "",
+    val commentCountText: String = "",
     val description: String = "",
     val uploadDate: String = "",
 
@@ -59,6 +60,7 @@ fun ShortsItem.toShortVideo(): ShortVideo = ShortVideo(
     channelThumbnailUrl = channelThumbnailUrl ?: "",
     viewCountText = viewCountText ?: "",
     likeCountText = likeCountText ?: "",
+    commentCountText = commentCountText ?: "",
     params = params,
     playerParams = playerParams,
     sequenceParams = sequenceParams
@@ -76,6 +78,7 @@ fun Video.toShortVideo(): ShortVideo = ShortVideo(
     channelThumbnailUrl = channelThumbnailUrl,
     viewCountText = formatShortViewCount(viewCount),
     likeCountText = formatMetric(likeCount),
+    commentCountText = commentCountText,
     description = description,
     uploadDate = uploadDate
 )
@@ -97,7 +100,8 @@ fun ShortVideo.toVideo(): Video = Video(
     timestamp = System.currentTimeMillis(),
     description = description,
     channelThumbnailUrl = channelThumbnailUrl,
-    isShort = true
+    isShort = true,
+    commentCountText = commentCountText
 )
 
 /**

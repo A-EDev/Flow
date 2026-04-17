@@ -47,6 +47,7 @@ import coil.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toShortVideo
+import io.github.aedev.flow.utils.formatTimeAgo
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
@@ -386,8 +387,8 @@ fun ShortVideoPage(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomStart)
-                .padding(bottom = 16.dp, start = 16.dp, end = 8.dp)
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .padding(bottom = 60.dp, start = 16.dp, end = 8.dp),
             verticalAlignment = Alignment.Bottom
         ) {
             Column(
@@ -484,32 +485,31 @@ fun ShortVideoPage(
                     modifier = Modifier.clickable(onClick = onDescriptionClick)
                 )
 
-                if (video.viewCount > 0) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "${formatViewCount(video.viewCount)} views",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White.copy(alpha = 0.7f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Default.MusicNote,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = stringResource(R.string.shorts_original_sound, video.channelName),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color.White,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                if (video.uploadDate.isNotBlank() || video.viewCount > 0) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (video.viewCount > 0) {
+                            Text(
+                                text = "${formatViewCount(video.viewCount)} views",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.7f)
+                            )
+                        }
+                        if (video.viewCount > 0 && video.uploadDate.isNotBlank()) {
+                            Text(
+                                text = " · ",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.4f)
+                            )
+                        }
+                        if (video.uploadDate.isNotBlank()) {
+                            Text(
+                                text = formatTimeAgo(video.uploadDate),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.White.copy(alpha = 0.6f)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -529,7 +529,7 @@ fun ShortVideoPage(
 
                 ShortsActionButton(
                     icon = Icons.Default.Comment,
-                    text = stringResource(R.string.action_comments),
+                    text = video.toShortVideo().commentCountText.takeIf { it.isNotBlank() } ?: stringResource(R.string.action_comments),
                     onClick = onCommentsClick
                 )
 
@@ -595,6 +595,8 @@ fun ShortVideoPage(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 40.dp)
                     .height(20.dp)
                     .clickable(indication = null, interactionSource = remember { MutableInteractionSource() }) { }
             ) {

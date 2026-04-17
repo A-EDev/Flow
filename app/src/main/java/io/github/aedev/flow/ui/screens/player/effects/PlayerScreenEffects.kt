@@ -62,11 +62,13 @@ fun PositionTrackingEffect(
     LaunchedEffect(Unit) {
         while (true) {
             delay(500L)
-            if (screenState.duration <= 0L) {
-                EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
+            EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
+                if (player.playbackState != Player.STATE_IDLE) {
                     val playerDuration = player.duration
-                    if (playerDuration > 0L) {
+                    if (playerDuration > 0L && screenState.duration <= 0L) {
                         screenState.duration = playerDuration
+                    }
+                    if (!player.isPlaying) {
                         screenState.currentPosition = player.currentPosition.coerceAtLeast(0L)
                     }
                 }
@@ -276,6 +278,7 @@ fun GestureOverlayAutoHideEffect(
         if (screenState.showSeekForwardAnimation) {
             delay(800)
             screenState.showSeekForwardAnimation = false
+            delay(400)
             screenState.seekAccumulation = 10
         }
     }
@@ -284,6 +287,7 @@ fun GestureOverlayAutoHideEffect(
         if (screenState.showSeekBackAnimation) {
             delay(800)
             screenState.showSeekBackAnimation = false
+            delay(400)
             screenState.seekAccumulation = 10
         }
     }

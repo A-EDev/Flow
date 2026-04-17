@@ -111,8 +111,10 @@ fun Modifier.videoPlayerControls(
                         lastBackTapTime = now
                         currentOnSeekAccumulate(-(accumulatedBackMs / 1000L).toInt())
                         currentOnShowSeekBackChange(true)
+                        val actualBackBase = EnhancedPlayerManager.getInstance().getPlayer()?.currentPosition
+                            ?: currentPositionValue
                         EnhancedPlayerManager.getInstance().seekTo(
-                            (currentPositionValue - currentDoubleTapSeekMs).coerceAtLeast(0)
+                            (actualBackBase - currentDoubleTapSeekMs).coerceAtLeast(0)
                         )
                     } else if (tapPosition > rightThreshold) {
                         // Seek forward — cancel any in-progress backward animation
@@ -128,8 +130,10 @@ fun Modifier.videoPlayerControls(
                         lastForwardTapTime = now
                         currentOnSeekAccumulate((accumulatedForwardMs / 1000L).toInt())
                         currentOnShowSeekForwardChange(true)
+                        val actualForwardBase = EnhancedPlayerManager.getInstance().getPlayer()?.currentPosition
+                            ?: currentPositionValue
                         EnhancedPlayerManager.getInstance().seekTo(
-                            (currentPositionValue + currentDoubleTapSeekMs).coerceAtMost(currentDuration)
+                            (actualForwardBase + currentDoubleTapSeekMs).coerceAtMost(currentDuration)
                         )
                     } else {
                         // Center double tap - play/pause

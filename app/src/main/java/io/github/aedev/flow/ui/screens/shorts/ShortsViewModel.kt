@@ -156,7 +156,20 @@ class ShortsViewModel @Inject constructor(
      */
     fun loadShorts(startVideoId: String? = null) {
         if (_uiState.value.isLoading) return
-        
+
+        val existing = _uiState.value.shorts
+        if (existing.isNotEmpty()) {
+            if (startVideoId != null) {
+                val idx = existing.indexOfFirst { it.id == startVideoId }
+                if (idx >= 0) {
+                    _uiState.value = _uiState.value.copy(currentIndex = idx)
+                    return
+                }
+            } else {
+                return
+            }
+        }
+
         _uiState.value = _uiState.value.copy(isLoading = true, error = null)
         
         viewModelScope.launch(PerformanceDispatcher.networkIO) {

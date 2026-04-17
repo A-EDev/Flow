@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.0.6
-DATE: 2026-04-16
+DATE: 2026-04-17
 
 LIBRARIES
 - Bump NewpipeExtractor to latest version (v0.26.1)
@@ -42,6 +42,7 @@ IMPROVEMENTS
 - Improve muxer for faster merging 
 - Expand content backups #280
 - Improved video gesture handling #284
+- Improve Shorts filtring #285
 
 FIXES AND STABILITY
 - Fix video player playback speed issue #232
@@ -60,3 +61,5 @@ FIXES AND STABILITY
 - Fix Icon mismatch with splash screen #252
 - Fix Missing channel avatars in categories and shorts #276
 - Fix Playback issues after pip #264
+- Fix Double-Tap seek handling #286
+- Fix Shorts UI and bugs #287

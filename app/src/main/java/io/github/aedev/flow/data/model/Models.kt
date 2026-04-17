@@ -19,7 +19,8 @@ data class Video(
     val isMusic: Boolean = false,
     val isLive: Boolean = false,
     val isShort: Boolean = false,
-    val isUpcoming: Boolean = false
+    val isUpcoming: Boolean = false,
+    val commentCountText: String = ""
 )
 
 data class Channel(

@@ -96,6 +96,8 @@ fun FlowApp(
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val route = currentRoute.value
+                if (route == "shorts" || route == "savedShortsPlayer") return Offset.Zero
                 when {
                     available.y < -10f -> isNavScrolledVisible = false 
                     available.y > 10f  -> isNavScrolledVisible = true  
@@ -208,8 +210,11 @@ fun FlowApp(
             contentWindowInsets = WindowInsets.systemBars,
             bottomBar = {} 
         ) { paddingValues ->
+            // Shorts is full-screen: don't add bottom padding so the pager fills the entire
+            // viewport. The FloatingBottomNavBar floats on top (it lives outside the Scaffold).
+            val isOnShortsFullscreen = currentRoute.value == "shorts" || currentRoute.value == "savedShortsPlayer"
             val navBarExtraBottomPadding by animateDpAsState(
-                targetValue = if (!isInPipMode && showBottomNav.value && isNavScrolledVisible) bottomNavContentHeightDp else 0.dp,
+                targetValue = if (!isInPipMode && showBottomNav.value && isNavScrolledVisible && !isOnShortsFullscreen) bottomNavContentHeightDp else 0.dp,
                 animationSpec = tween(durationMillis = 220),
                 label = "contentNavPadding"
             )

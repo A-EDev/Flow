@@ -16,6 +16,7 @@ data class ShortsItem(
     val channelThumbnailUrl: String?,
     val viewCountText: String?,
     val likeCountText: String?,
+    val commentCountText: String?,
     val params: String?,
     val playerParams: String?,
     val sequenceParams: String?
@@ -47,10 +48,31 @@ fun ReelWatchSequenceResponse.toShortsPage(): ShortsPage {
         val channelThumbnail = header?.channelThumbnail?.thumbnails?.firstOrNull()?.url
             ?: metadata?.channelThumbnail?.thumbnails?.firstOrNull()?.url
         
-        val likeCountText = overlay?.likeButton?.toggleButtonRenderer?.defaultText?.text
+        val likeButton = overlay?.likeButton?.toggleButtonRenderer
+        val likeCountText = likeButton?.defaultText?.text?.takeIf { it.isNotBlank() }
+            ?: run {
+                val label = likeButton?.defaultText?.accessibility?.accessibilityData?.label
+                    ?: likeButton?.accessibilityData?.accessibilityData?.label
+                label?.let { l ->
+                    Regex("[\\d,]+").find(l)?.value?.replace(",", "")?.toLongOrNull()?.let { count ->
+                        when {
+                            count >= 1_000_000_000L -> String.format("%.1fB", count / 1_000_000_000.0)
+                            count >= 1_000_000L -> String.format("%.1fM", count / 1_000_000.0)
+                            count >= 1_000L -> String.format("%.1fK", count / 1_000.0)
+                            count > 0L -> count.toString()
+                            else -> null
+                        }
+                    }
+                }
+            }
         
         val viewCountText = overlay?.viewCountText?.text
             ?: metadata?.viewCountText?.text
+
+        val commentCountText = overlay?.commentButton?.buttonViewModel?.title
+            ?: overlay?.commentButton?.reelCommentButtonRenderer?.commentCountText?.text
+            ?: overlay?.commentButton?.reelCommentButtonRenderer?.commentCount?.text
+            ?: overlay?.commentButton?.buttonRenderer?.text?.text
         
         ShortsItem(
             id = videoId,
@@ -61,6 +83,7 @@ fun ReelWatchSequenceResponse.toShortsPage(): ShortsPage {
             channelThumbnailUrl = channelThumbnail,
             viewCountText = viewCountText,
             likeCountText = likeCountText,
+            commentCountText = commentCountText,
             params = endpoint.params,
             playerParams = endpoint.playerParams,
             sequenceParams = endpoint.sequenceParams

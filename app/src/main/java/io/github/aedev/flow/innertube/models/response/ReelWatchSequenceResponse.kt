@@ -86,7 +86,31 @@ data class ReelPlayerOverlayRenderer(
     val reelPlayerHeaderSupportedRenderers: ReelPlayerHeaderSupportedRenderers? = null,
     val style: String? = null,
     val likeButton: ReelToggleButton? = null,
-    val viewCountText: ReelText? = null
+    val viewCountText: ReelText? = null,
+    val commentButton: ReelCommentButton? = null
+)
+
+@Serializable
+data class ReelCommentButton(
+    val buttonViewModel: ReelButtonViewModel? = null,
+    val buttonRenderer: ReelButtonRendererWrapper? = null,
+    val reelCommentButtonRenderer: ReelCommentButtonRenderer? = null
+)
+
+@Serializable
+data class ReelCommentButtonRenderer(
+    val commentCountText: ReelText? = null,
+    val commentCount: ReelText? = null
+)
+
+@Serializable
+data class ReelButtonViewModel(
+    val title: String? = null
+)
+
+@Serializable
+data class ReelButtonRendererWrapper(
+    val text: ReelText? = null
 )
 
 // ── Actual YouTube reel API header path ──
@@ -118,7 +142,18 @@ data class ReelToggleButton(
 
 @Serializable
 data class ToggleButtonRenderer(
-    val defaultText: ReelText? = null
+    val defaultText: ReelText? = null,
+    val accessibilityData: ReelAccessibilityWrapper? = null
+)
+
+@Serializable
+data class ReelAccessibilityWrapper(
+    val accessibilityData: ReelAccessibilityLabel? = null
+)
+
+@Serializable
+data class ReelAccessibilityLabel(
+    val label: String? = null
 )
 
 @Serializable
@@ -154,7 +189,8 @@ data class Thumbnail(
 @Serializable
 data class ReelText(
     val simpleText: String? = null,
-    val runs: List<ReelRun>? = null
+    val runs: List<ReelRun>? = null,
+    val accessibility: ReelAccessibilityWrapper? = null
 ) {
     val text: String
         get() = simpleText ?: runs?.joinToString("") { it.text ?: "" } ?: ""
