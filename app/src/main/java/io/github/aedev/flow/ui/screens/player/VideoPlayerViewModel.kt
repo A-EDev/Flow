@@ -74,6 +74,11 @@ class VideoPlayerViewModel @Inject constructor(
     
     private val navigationHistory = mutableListOf<String>()
     private var currentHistoryIndex = -1
+
+    // Dedup guard for reportWatchProgress — prevents double-reporting when the
+    // DisposableEffect fires multiple times for the same video.
+    private var lastReportedVideoId: String? = null
+    private var lastReportedTimestamp: Long = 0L
     
     private val _canGoPrevious = MutableStateFlow(false)
     val canGoPrevious: StateFlow<Boolean> = _canGoPrevious.asStateFlow()
@@ -889,6 +894,29 @@ class VideoPlayerViewModel @Inject constructor(
         }
     }
     
+    fun reportWatchProgress(video: io.github.aedev.flow.data.model.Video, position: Long, duration: Long) {
+        if (duration <= 0) return
+        val watchFraction = position.toDouble() / duration
+        // Only report if watched at least 20% and not already reported for this video
+        // within a 10-second dedup window (guards against DisposableEffect re-fires).
+        val now = System.currentTimeMillis()
+        if (video.id == lastReportedVideoId && (now - lastReportedTimestamp) < 10_000L) return
+        if (watchFraction < 0.20) return
+
+        lastReportedVideoId = video.id
+        lastReportedTimestamp = now
+
+        val interactionType = when {
+            watchFraction >= 0.85 -> InteractionType.WATCHED
+            watchFraction >= 0.40 -> InteractionType.WATCHED
+            else -> InteractionType.SKIPPED
+        }
+
+        viewModelScope.launch {
+            FlowNeuroEngine.onVideoInteraction(context, video, interactionType)
+        }
+    }
+
     fun toggleSubscription(channelId: String, channelName: String, channelThumbnail: String) {
         viewModelScope.launch {
             val isSubscribed = subscriptionRepository.isSubscribed(channelId).first()

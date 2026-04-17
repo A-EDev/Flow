@@ -43,6 +43,8 @@ IMPROVEMENTS
 - Expand content backups #280
 - Improved video gesture handling #284
 - Improve Shorts filtring #285
+- Engine calibration, improved watch signal for new topics and feed balancing #281
+- Improve Engine performace
 
 FIXES AND STABILITY
 - Fix video player playback speed issue #232

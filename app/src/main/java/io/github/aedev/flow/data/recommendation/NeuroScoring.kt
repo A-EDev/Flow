@@ -81,7 +81,7 @@ internal object NeuroScoring {
     const val SEEN_SHORTS_MAX = 3000
     const val SEEN_SHORT_PENALTY = 0.05
     const val SEEN_SHORT_EXPIRY_DAYS = 7
-    const val AFFINITY_INCREMENT = 0.02
+    const val AFFINITY_INCREMENT = 0.01
     const val AFFINITY_MAX = 1.0
     const val AFFINITY_PRUNE_THRESHOLD = 0.05
     const val AFFINITY_MAX_ENTRIES = 500

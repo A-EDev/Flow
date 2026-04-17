@@ -1367,10 +1367,6 @@ internal class NeuroTokenizer {
         return topical.distinct()
     }
 
-    fun getAlwaysTopical(): Set<String> = ALWAYS_TOPICAL
-
-    fun getDomainDisambiguationKeys(): Set<String> = DOMAIN_DISAMBIGUATION.keys
-
     /**
      * Builds a flat list of all meaningful words from the video's title,
      * channel name, and description. Used as context for domain disambiguation.

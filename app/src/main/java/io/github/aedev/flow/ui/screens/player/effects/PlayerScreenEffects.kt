@@ -551,6 +551,7 @@ fun VideoCleanupEffect(
                 channelId = channelId
             )
 
+            viewModel.reportWatchProgress(video, currentPos, currentDur)
             EnhancedPlayerManager.getInstance().clearCurrentVideo()
             Log.d(TAG, "Video ID changed, cleared player state (player kept alive)")
         }

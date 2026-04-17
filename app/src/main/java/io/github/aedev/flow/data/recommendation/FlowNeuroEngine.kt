@@ -65,8 +65,6 @@ class FlowNeuroEngine(private val appContext: Context) {
         /** Max suppressed channel entries to prevent unbounded growth */
         private const val MAX_SUPPRESSED_CHANNELS = 100
 
-        private const val VECTOR_HYGIENE_VERSION = 1
-
         @Volatile
         private var instance: FlowNeuroEngine? = null
 
@@ -257,21 +255,6 @@ class FlowNeuroEngine(private val appContext: Context) {
 
             currentUserBrain.watchHistoryMap.forEach { (id, pct) ->
                 watchHistory[id] = WatchEntry(pct, System.currentTimeMillis())
-            }
-
-            // One-time vector hygiene: clean channel-name pollution from old versions
-            val hygieneKey = "vector_hygiene_v$VECTOR_HYGIENE_VERSION"
-            val prefs = appContext.getSharedPreferences(
-                "flow_neuro_migrations", Context.MODE_PRIVATE
-            )
-            if (!prefs.getBoolean(hygieneKey, false)) {
-                val cleaned = runVectorHygiene(currentUserBrain)
-                if (cleaned !== currentUserBrain) {
-                    currentUserBrain = cleaned
-                    storage.save(currentUserBrain)
-                }
-                prefs.edit().putBoolean(hygieneKey, true).apply()
-                Log.i(TAG, "Vector hygiene pass completed")
             }
 
             resetSessionInternal()
@@ -755,64 +738,6 @@ class FlowNeuroEngine(private val appContext: Context) {
         }
     }
 
-    private fun runVectorHygiene(brain: UserBrain): UserBrain {
-        val globalTopics = brain.globalVector.topics
-        if (globalTopics.isEmpty()) return brain
-
-        val alwaysTopical = tokenizer.getAlwaysTopical()
-        val polysemousWords = tokenizer.POLYSEMOUS_WORDS
-        val domainWords = tokenizer.getDomainDisambiguationKeys()
-        val preferredLemmas = brain.preferredTopics.map {
-            tokenizer.normalizeLemma(it)
-        }.toSet()
-
-        val affinityConnected = mutableSetOf<String>()
-        brain.topicAffinities.forEach { (key, value) ->
-            if (value > 0.10) {
-                val parts = key.split("|")
-                parts.forEach { affinityConnected.add(it) }
-            }
-        }
-
-        val toRemove = mutableSetOf<String>()
-
-        globalTopics.forEach { (topic, _) ->
-            val base = NeuroScoring.stripDomainTag(topic)
-
-            if (topic.contains(" ")) return@forEach
-            if (topic.contains(":")) return@forEach
-            if (base in alwaysTopical) return@forEach
-            if (base in polysemousWords) return@forEach
-            if (base in domainWords) return@forEach
-            if (base in preferredLemmas) return@forEach
-            if (base in affinityConnected) return@forEach
-            if (base.length <= 3) return@forEach
-
-            toRemove.add(topic)
-        }
-
-        if (toRemove.isEmpty()) return brain
-
-        Log.i(TAG, "Vector hygiene: removing ${toRemove.size} " +
-            "suspected channel-name pollution: " +
-            "${toRemove.take(10).joinToString()}")
-
-        val cleanedGlobal = brain.globalVector.topics
-            .filter { it.key !in toRemove }
-        val cleanedTimeVectors = brain.timeVectors.mapValues { (_, vec) ->
-            vec.copy(topics = vec.topics.filter { it.key !in toRemove })
-        }
-        val cleanedShortsVector = brain.shortsVector.copy(
-            topics = brain.shortsVector.topics.filter { it.key !in toRemove }
-        )
-
-        return brain.copy(
-            globalVector = brain.globalVector.copy(topics = cleanedGlobal),
-            timeVectors = cleanedTimeVectors,
-            shortsVector = cleanedShortsVector
-        )
-    }
-
     suspend fun markNotInterested(video: Video) {
         val videoVector = getOrExtractFeatures(video, takeIdfSnapshotSafe())
 
@@ -1020,6 +945,7 @@ class FlowNeuroEngine(private val appContext: Context) {
         val sessionTopics: List<String>
         val impressionSnapshot: Map<String, ImpressionEntry>
         val watchHistorySnapshot: Map<String, WatchEntry>
+        val recentInteractionsSnapshot: List<MomentumEntry>
 
         brainMutex.withLock {
             brain = currentUserBrain
@@ -1027,6 +953,7 @@ class FlowNeuroEngine(private val appContext: Context) {
             sessionTopics = sessionTopicHistory.toList()
             impressionSnapshot = impressionCache.toMap()
             watchHistorySnapshot = watchHistory.toMap()
+            recentInteractionsSnapshot = recentInteractions.toList()
         }
 
         val random = java.util.Random()
@@ -1250,7 +1177,7 @@ class FlowNeuroEngine(private val appContext: Context) {
             )
 
             // ── Engagement momentum boost ──
-            totalScore += NeuroScoring.calculateMomentumBoost(videoVector, recentInteractions, personalityScore)
+            totalScore += NeuroScoring.calculateMomentumBoost(videoVector, recentInteractionsSnapshot, personalityScore)
 
             // ── Seen Shorts penalty ──
             if (video.isShort) {
@@ -1339,7 +1266,7 @@ class FlowNeuroEngine(private val appContext: Context) {
         } else 0.0
 
         var learningRate = when (interactionType) {
-            InteractionType.CLICK -> 0.10
+            InteractionType.CLICK -> 0.07
             InteractionType.LIKED -> 0.30
             InteractionType.WATCHED -> {
                 val baseWatchRate = 0.15 * percentWatched
@@ -1404,7 +1331,7 @@ class FlowNeuroEngine(private val appContext: Context) {
             val currentBucketVec = currentUserBrain.timeVectors[bucket]
                 ?: ContentVector()
             val newBucketVec = NeuroVectorMath.adjustVector(
-                currentBucketVec, videoVector, learningRate * 1.2
+                currentBucketVec, videoVector, learningRate
             )
 
             // 3. Channel score
@@ -1440,7 +1367,7 @@ class FlowNeuroEngine(private val appContext: Context) {
             if (learningRate > 0) {
                 val topTopics = videoVector.topics.entries
                     .sortedByDescending { it.value }
-                    .take(5)
+                    .take(3)
                     .map { NeuroScoring.stripDomainTag(it.key) }
                     .distinct()
                 if (topTopics.size >= 2) {

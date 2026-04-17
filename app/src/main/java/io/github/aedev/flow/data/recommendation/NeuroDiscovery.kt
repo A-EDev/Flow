@@ -71,7 +71,7 @@ internal class NeuroDiscovery(
                 val maturity = when {
                     score >= 0.70 -> TopicMaturity.CORE
                     score >= 0.40 -> TopicMaturity.ESTABLISHED
-                    score >= 0.15 -> TopicMaturity.DEVELOPING
+                    score >= 0.20 -> TopicMaturity.DEVELOPING
                     else -> TopicMaturity.EMERGING
                 }
 
@@ -409,17 +409,8 @@ internal class NeuroDiscovery(
             )
         }
 
-        // Emerging interests — test with direct query
-        selection.emerging.take(1).forEach { topic ->
-            queries.add(
-                DiscoveryQuery(
-                    buildNaturalQuery(topic.name, brain),
-                    QueryStrategy.ADJACENT_EXPLORATION,
-                    0.40,
-                    "Emerging interest test: ${topic.name}"
-                )
-            )
-        }
+        // Emerging interests — requires DEVELOPING threshold before generating queries
+        // (removed: premature EMERGING queries flood feed on first interaction)
     }
 
     // ═══════════════════════════════════════════════

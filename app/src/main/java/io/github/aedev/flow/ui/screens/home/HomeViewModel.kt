@@ -314,11 +314,11 @@ class HomeViewModel @Inject constructor(
                 val qViral = java.util.ArrayDeque(bestViral)
                 
                 while (qSubs.isNotEmpty() || qDisc.isNotEmpty() || qViral.isNotEmpty()) {
-                    addUnique(qDisc.pollFirst(), finalMix, usedChannelIds)
-                    
                     addUnique(qSubs.pollFirst(), finalMix, usedChannelIds)
                     
                     addUnique(qDisc.pollFirst(), finalMix, usedChannelIds)
+                    
+                    addUnique(qSubs.pollFirst(), finalMix, usedChannelIds)
                     
                     addUnique(qViral.pollFirst(), finalMix, usedChannelIds)
                 }

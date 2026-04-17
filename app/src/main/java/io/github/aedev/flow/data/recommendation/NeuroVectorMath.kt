@@ -40,7 +40,7 @@ internal object NeuroVectorMath {
     const val ESTABLISHED_DECAY_RATE = 0.998
     /** Developing interests: half-life ~330 interactions */
     const val DEVELOPING_DECAY_RATE = 0.993
-    /** Emerging/noisy topics: half-life ~23 interactions*/
+    /** Emerging/noisy topics: half-life ~46 interactions*/
     const val EMERGING_DECAY_RATE = 0.97
 
     const val NEGATIVE_PROPORTIONAL_EXPONENT = 1.5
@@ -69,6 +69,17 @@ internal object NeuroVectorMath {
 
         if (smallMap.isEmpty()) return scalarScore
 
+        // Build O(1) reverse-lookup maps for migration-compatibility matches
+        val largeBaseToTagged = HashMap<String, Pair<String, Double>>(largeMap.size)
+        val largeUntagged = HashMap<String, Double>(largeMap.size)
+        for ((k, v) in largeMap) {
+            if (k.contains(':')) {
+                largeBaseToTagged.putIfAbsent(k.substringBefore(':'), k to v)
+            } else {
+                largeUntagged[k] = v
+            }
+        }
+
         var dotProduct = 0.0
         var hasIntersection = false
 
@@ -82,14 +93,14 @@ internal object NeuroVectorMath {
             }
             // Migration compatibility: untagged ↔ tagged partial match (0.3x weight)
             if (!key.contains(":")) {
-                val taggedMatch = largeMap.entries.firstOrNull { it.key.startsWith("$key:") }
+                val taggedMatch = largeBaseToTagged[key]
                 if (taggedMatch != null) {
-                    dotProduct += smallVal * taggedMatch.value * 0.3
+                    dotProduct += smallVal * taggedMatch.second * 0.3
                     hasIntersection = true
                 }
             } else {
                 val baseWord = key.substringBefore(":")
-                val untaggedMatch = largeMap[baseWord]
+                val untaggedMatch = largeUntagged[baseWord]
                 if (untaggedMatch != null) {
                     dotProduct += smallVal * untaggedMatch * 0.3
                     hasIntersection = true
@@ -129,7 +140,11 @@ internal object NeuroVectorMath {
                 minOf(proportional, absoluteFloor)
             } else {
                 val saturationPenalty = (1.0 - currentVal).pow(2)
-                val effectiveRate = baseRate * saturationPenalty
+                // Cold-topic damping: brand-new topics (currentVal near 0) learn at reduced
+                // rate, requiring sustained engagement to build up.
+                // At 0.0: 50% of base rate. At 0.10: 75%. At 0.20+: ~100%.
+                val coldTopicDamping = (0.5 + 0.5 * (currentVal / 0.20).coerceAtMost(1.0))
+                val effectiveRate = baseRate * saturationPenalty * coldTopicDamping
                 (targetVal - currentVal) * effectiveRate
             }
 
@@ -139,7 +154,8 @@ internal object NeuroVectorMath {
         val iterator = newTopics.iterator()
         while (iterator.hasNext()) {
             val entry = iterator.next()
-            if (baseRate > 0 && !target.topics.containsKey(entry.key)) {
+            val isCurrentTarget = target.topics.containsKey(entry.key)
+            if (baseRate > 0 && !isCurrentTarget) {
                 val tieredDecay = when {
                     entry.value >= ESTABLISHED_TOPIC_THRESHOLD -> ESTABLISHED_DECAY_RATE
                     entry.value >= DEVELOPING_TOPIC_THRESHOLD -> DEVELOPING_DECAY_RATE
@@ -147,7 +163,9 @@ internal object NeuroVectorMath {
                 }
                 entry.setValue(entry.value * tieredDecay)
             }
-            if (entry.value < TOPIC_PRUNE_THRESHOLD) iterator.remove()
+            if (!isCurrentTarget && entry.value < TOPIC_PRUNE_THRESHOLD) {
+                iterator.remove()
+            }
         }
 
         if (isNegative && newTopics.isNotEmpty()) {
