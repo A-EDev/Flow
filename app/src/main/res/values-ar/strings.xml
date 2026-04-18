@@ -99,7 +99,7 @@
     <string name="view_album">عرض الألبوم</string>
     <string name="album_art">لوحة الألبوم</string>
     <string name="close_player">إغلاق المشغل</string>
-    <string name="views_template">%1$s المشاهدات</string>
+    <string name="views_template">%1$s مشاهدة</string>
     <string name="chapters">الفصول</string>
     <string name="artist">الفنان</string>
     <string name="playlist">قائمة التشغيل</string>
@@ -156,8 +156,8 @@
     <string name="no_videos_found">لا يوجد فديوهات</string>
     <string name="no_shorts_found">لا يوجد مقاطع قصيرة</string>
     <string name="no_playlists_found">لا يوجد قوائم تشغيل</string>
-    <string name="subscribers_count_template">%1$s المشتركون</string>
-    <string name="views_count_short_template">%1$s المشاهدات</string>
+    <string name="subscribers_count_template">%1$s مشترك</string>
+    <string name="views_count_short_template">%1$s مشاهدة</string>
     <string name="music_history">التاريخ</string>
     <string name="remove_from_history">إزالة من التاريخ</string>
     <string name="share_song_chooser">مشاركة الأغنية</string>
@@ -267,7 +267,7 @@
     <string name="mini_player_size">حجم مشغل الفيديو المصغر</string>
     <string name="mini_player_small">صغير</string>
     <string name="mini_player_large">كبير</string>
-    <string name="mini_player_normal">1x</string>
+    <string name="mini_player_normal">عادي</string>
     <string name="skip_button_title">إظهار أزرار التخطي</string>
     <string name="skip_button_subtitle">إظهار أزرار التقديم/التراجع لمدة 10 ثوانٍ على المشغل المصغر</string>
     <string name="player_nav_btn_title">إظهار أزرار التالي/السابق</string>
@@ -276,7 +276,7 @@
     <string name="theme_name_cream_paper">ورق كريمة</string>
     <string name="theme_desc_cream_paper">دافئ ومريح</string>
     <string name="theme_name_classic_dark">كلاسيكي داكن</string>
-    <string name="theme_desc_classic_dark">سهل على العيون</string>
+    <string name="theme_desc_classic_dark">سهل علي العين</string>
     <string name="theme_name_true_black">أسود حقيقي</string>
     <string name="theme_desc_true_black">نقي OLED</string>
     <string name="theme_name_midnight">منتصف الليل</string>
@@ -325,7 +325,7 @@
     <string name="content_settings_related_card_compact_desc">الصورة المصغرة و المعلومات جنبًا إلى جنب</string>
     <string name="content_settings_related_card_full_width">العرض الكامل</string>
     <string name="content_settings_related_card_full_width_desc">صورة مصغرة كبيرة مع العنوان أسفله</string>
-    <string name="subscriptions_search_placeholder">ابحث في المشتركين...</string>
+    <string name="subscriptions_search_placeholder">إبحث في الاشتراكات...</string>
     <string name="empty_subscriptions_body">اشترك بالقنوات لترى\nأحدث مقاطعهم هنا</string>
     <string name="shorts">شورتز</string>
     <string name="subscribers">المشتركون</string>
@@ -699,7 +699,7 @@
     <string name="newpipe_extractor_title">NewPipe Extractor</string>
     <string name="newpipe_extractor_subtitle">مكتبة الاستخراج الأساسية</string>
     <string name="about_license">رخصة</string>
-    <string name="about_changelog">سجل التغيير</string>
+    <string name="about_changelog">سجل التغييرات</string>
     <string name="whats_new_in_flow">ما الجديد في Flow</string>
     <string name="about_device_info">معلومات الجهاز</string>
     <string name="gnu_license_full_title">رخصة GNU General Public</string>
@@ -735,7 +735,7 @@
     <string name="edit_playlist_action">تحرير قائمة التشغيل</string>
     <string name="delete_playlist_action">حذف قائمة التشغيل</string>
     <string name="make_public_action">اجعلها عامة</string>
-    <string name="make_private_action">اجعلها خاصة</string>
+    <string name="make_private_action">إجعلها خاصة</string>
     <string name="remove_from_playlist_action">إزالة من قائمة التشغيل</string>
     <string name="playlist_empty_title">قائمة التشغيل هذه فارغة</string>
     <string name="playlist_empty_desc">أضف مقاطع الفيديو من مشغل الفيديو\nلإنشاء قائمة التشغيل الخاصة بك</string>
@@ -832,7 +832,7 @@
     <string name="section_recently_played">مشغل مؤخرا</string>
     <string name="section_music_videos">فيديوهات موسيقية</string>
     <string name="section_new_releases">الإصدارات الجديدة</string>
-    <string name="section_popular_artists">فنانين رائجون</string>
+    <string name="section_popular_artists">فنانون رائجون</string>
     <string name="section_mixed_for_you">قائمة لأجلك</string>
     <string name="section_moods_and_genres">الأجواء والأنواع</string>
     <string name="genre_mix_template">%1$s ميكس</string>
@@ -871,7 +871,7 @@
     <string name="no_results_found">لم يتم العثور على نتائج</string>
     <string name="no_tracks_available">لا توجد مسارات متاحة</string>
     <string name="tab_favorites">المفضلة</string>
-    <string name="create_playlist_subtitle">نظيم الموسيقى الخاصة بك</string>
+    <string name="create_playlist_subtitle">نظم الموسيقى الخاصة بك</string>
     <string name="empty_playlists_title">لا توجد قوائم تشغيل حتى الآن</string>
     <string name="empty_playlists_subtitle">أنشئ قائمة تشغيلك الأولى لتنظيم أغانيك المفضلة</string>
     <string name="empty_favorites_title">لا يوجد عناصر مفضلة بعد</string>
@@ -900,7 +900,7 @@
     <string name="shorts_audio_dubbed">مدبلج</string>
     <string name="shorts_quality_settings_title">جودة الفيديو القصير</string>
     <string name="shorts_quality_settings_subtitle">الجودة عند مشاهدة الفيديوهات القصيرة</string>
-    <string name="shorts_quality_warning">نستهلك الجودة العالية بيانات أكثر. تستخدم المقاطع القصيرة تدفقات فيديو عمودية.</string>
+    <string name="shorts_quality_warning">تستهلك الجودة العالية بيانات أكثر. تستخدم المقاطع القصيرة تدفقات فيديو عمودية.</string>
     <string name="shorts_quality_wifi_header">جودة فديوهات shorts علي الWi-Fi</string>
     <string name="shorts_quality_cellular_header">جودة فديوهات shorts علي البيانات الخلوية</string>
     <string name="play_next_video">تشغيل التالي</string>
@@ -1017,7 +1017,7 @@
     <string name="diagnostics_clear_crashes">محو تقارير الأعطال</string>
     <string name="diagnostics_clear_confirm_title">هل تريد محو تقارير الأعطال؟</string>
     <string name="diagnostics_clear_confirm_body">سيتم حذف جميع تقارير الأعطال المحفوظة نهائياً. لا يمكن التراجع عن هذا الإجراء.</string>
-    <string name="diagnostics_no_crashes">لا يوجد تقارير أعطال — رائع!</string>
+    <string name="diagnostics_no_crashes">لا توجد تقارير أعطال — رائع!</string>
     <string name="diagnostics_no_session_logs">لا توجد تحذيرات أو أخطاء في هذه الجلسة.</string>
     <string name="diagnostics_loading">قراءة السجلات…</string>
     <string name="diagnostics_copied">تم نسخ التقرير إلى الحافظة</string>
@@ -1055,7 +1055,7 @@
     <string name="i_like_this">أريد المزيد من هذا</string>
     <string name="i_like_this_toast">فهمتك! سترى المزيد من المحتوى المشابه.</string>
     <string name="go_to_channel">اذهب إلى القناة</string>
-    <string name="track_info">معلومات الأغنية</string>
+    <string name="track_info">معلومات المحتوي</string>
     <string name="track_info_subtitle">مقاييس فنية واجتماعية مفصلة</string>
     <string name="views">المشاهدات</string>
     <string name="likes">الإعجابات</string>
@@ -1083,7 +1083,7 @@
     <string name="nav_shorts">Shorts</string>
     <string name="nav_music">Music</string>
     <string name="tags">العلامات</string>
-    <string name="ago">ماضي</string>
+    <string name="ago">Ago</string>
     <string name="since">منذ</string>
     <string name="play_next_desc">أضف إلى بداية قائمة الانتظار</string>
     <string name="app_name_uppercase">FLOW</string>
@@ -1102,7 +1102,7 @@
     <string name="settings_item_time_management">إدارة الوقت</string>
     <string name="settings_item_time_management_subtitle">إحصائيات الاستخدام، تذكيرات وقت النوم</string>
     <string name="app_icon_apply_toast">تم تحديث الأيقونة - سيتم تحديث مشغل التطبيقات الخاص بك</string>
-    <string name="icon_name_flow_red">Flow الأحمر</string>
+    <string name="icon_name_flow_red">Flow أحمر</string>
     <string name="icon_name_dynamic">Material You</string>
     <string name="player_nav_btn_subtitle">إظهار أزرار الفيديو التالي و السابق في المشغل المصغر</string>
     <string name="lyrics_provider_title">مُقدّم كلمات الأغاني</string>
@@ -1183,7 +1183,7 @@
     <string name="playlist_description_community">قائمة تشغيل منتقاة من موسيقى %1$s من مجتمعنا</string>
     <string name="template_bass_boost">تعزيز الجهير: %1$ddB</string>
     <string name="action_add_band">أضف فرقة</string>
-    <string name="template_preamp">مضخم أولي: %1$.1f ديسبل</string>
+    <string name="template_preamp">مضخم أولي: %1$.1f dB</string>
     <string name="template_gain">%1$.1f ديسبل</string>
     <string name="template_q">%1$.1f</string>
     <string name="now_playing">يعرض الآن</string>
