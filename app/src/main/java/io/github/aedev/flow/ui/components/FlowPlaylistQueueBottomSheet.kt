@@ -120,7 +120,7 @@ fun PlaylistQueueItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .background(if (isPlaying) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.2f) else Color.Transparent)
+            .background(if (isPlaying) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

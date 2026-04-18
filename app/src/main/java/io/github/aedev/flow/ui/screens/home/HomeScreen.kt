@@ -35,6 +35,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.components.*
 import io.github.aedev.flow.ui.screens.notifications.NotificationViewModel
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 
@@ -117,6 +118,7 @@ fun HomeScreen(
     val preferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
     val homeViewMode by preferences.homeViewMode.collectAsState(initial = io.github.aedev.flow.data.local.HomeViewMode.GRID)
     val homeFeedEnabled by preferences.homeFeedEnabled.collectAsState(initial = true)
+    val showAppLogoIcon by preferences.showAppLogoIcon.collectAsState(initial = true)
     
     val gridState = rememberLazyGridState()
     
@@ -175,13 +177,26 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        stringResource(R.string.app_name_uppercase),
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.sp
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (showAppLogoIcon) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_flow_logo),
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.app_name_uppercase),
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = 1.sp
+                            )
                         )
-                    )
+                    }
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(0.dp),
                         verticalAlignment = Alignment.CenterVertically

@@ -48,6 +48,10 @@ class SponsorBlockHandler(
     private var lastSkippedSegmentUuid: String? = null
     private var currentMutedSegmentUuid: String? = null
     private var currentVideoId: String? = null
+    /** True when segments were loaded via [loadSegmentsFromList] (offline DB). Prevents
+     * [setEnabled] from wiping them with a network refresh that will fail offline.
+     */
+    private var offlineSegmentsLoaded: Boolean = false
 
     var isEnabled: Boolean = false
         private set
@@ -62,14 +66,34 @@ class SponsorBlockHandler(
         if (isEnabled != enabled) {
             isEnabled = enabled
             if (enabled) {
-                currentVideoId?.let { loadSegments(it) }
+                if (!offlineSegmentsLoaded) {
+                    currentVideoId?.let { loadSegments(it) }
+                } else {
+                    Log.d(TAG, "setEnabled(true): keeping offline segments, skipping network refresh")
+                }
             } else {
                 loadJob?.cancel()
                 _sponsorSegments.value = emptyList()
                 lastSkippedSegmentUuid = null
                 currentMutedSegmentUuid = null
+                offlineSegmentsLoaded = false
             }
         }
+    }
+
+    /**
+     * Load SponsorBlock segments directly from a pre-fetched list (e.g. saved offline).
+     * Bypasses the network API call. Safe to call even when [isEnabled] is false —
+     * the segments are stored and will be used if SponsorBlock is later enabled.
+     */
+    fun loadSegmentsFromList(videoId: String, segments: List<SponsorBlockSegment>) {
+        currentVideoId = videoId
+        loadJob?.cancel()
+        lastSkippedSegmentUuid = null
+        currentMutedSegmentUuid = null
+        offlineSegmentsLoaded = segments.isNotEmpty()
+        _sponsorSegments.value = segments
+        Log.d(TAG, "Loaded ${segments.size} offline SponsorBlock segments for video $videoId")
     }
 
     /**
@@ -109,6 +133,7 @@ class SponsorBlockHandler(
         lastSkippedSegmentUuid = null
         currentMutedSegmentUuid = null
         currentVideoId = null
+        offlineSegmentsLoaded = false
     }
 
     /**
@@ -117,7 +142,7 @@ class SponsorBlockHandler(
      * MUTE and SHOW_TOAST actions are handled via their respective flows.
      */
     fun checkForSkip(currentPositionMs: Long): Long? {
-        if (!isEnabled) return null
+        if (!isEnabled && !offlineSegmentsLoaded) return null
         val segments = _sponsorSegments.value
         if (segments.isEmpty()) return null
 

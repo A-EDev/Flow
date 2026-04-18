@@ -265,14 +265,9 @@ fun SearchScreen(
             isSearchFocused = isSearchFocused,
             onFocusChange = { focused ->
                 if (isNavigatingAway) return@SearchBarRow
-                
-                if (focused && hasPerformedSearch) {
-                }
-                
                 isSearchFocused = focused
             },
             focusRequester = focusRequester,
-            suppressAutoFocus = hasPerformedSearch,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
         )
 
@@ -433,7 +428,6 @@ private fun SearchBarRow(
     isSearchFocused: Boolean,
     onFocusChange: (Boolean) -> Unit,
     focusRequester: FocusRequester,
-    suppressAutoFocus: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val focusAnim by animateFloatAsState(
@@ -442,13 +436,7 @@ private fun SearchBarRow(
         label = "focus"
     )
     val primary = MaterialTheme.colorScheme.primary
-    val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-
-    var userInitiatedFocus by remember { mutableStateOf(false) }
-    
-    var tapCounter by remember { mutableIntStateOf(0) }
-    var lastProcessedTap by remember { mutableIntStateOf(0) }
 
     Box(
         modifier = modifier
@@ -485,8 +473,6 @@ private fun SearchBarRow(
                     androidx.compose.foundation.interaction.MutableInteractionSource() 
                 }
             ) {
-                userInitiatedFocus = true
-                tapCounter++
                 focusRequester.requestFocus()
                 keyboardController?.show()
             }
@@ -513,19 +499,7 @@ private fun SearchBarRow(
                     .weight(1f)
                     .focusRequester(focusRequester)
                     .onFocusChanged { state ->
-                        if (state.isFocused && suppressAutoFocus) {
-                            val isUserTap = tapCounter > lastProcessedTap
-                            if (isUserTap) {
-                                lastProcessedTap = tapCounter
-                                userInitiatedFocus = false
-                                onFocusChange(true)
-                            } else {
-                                focusManager.clearFocus(force = true)
-                                keyboardController?.hide()
-                            }
-                        } else {
-                            onFocusChange(state.isFocused)
-                        }
+                        onFocusChange(state.isFocused)
                     },
                 textStyle = MaterialTheme.typography.bodyMedium.copy(
                     color = MaterialTheme.colorScheme.onSurface,

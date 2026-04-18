@@ -98,7 +98,7 @@ fun ChapterItem(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
-            .background(if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f) else Color.Transparent)
+            .background(if (isCurrent) MaterialTheme.colorScheme.primary.copy(alpha = 0.3f) else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically

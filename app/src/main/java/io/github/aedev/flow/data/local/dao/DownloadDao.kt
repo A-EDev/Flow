@@ -29,6 +29,12 @@ interface DownloadDao {
     @Query("SELECT EXISTS(SELECT 1 FROM downloads WHERE videoId = :videoId)")
     suspend fun exists(videoId: String): Boolean
 
+    @Query("UPDATE downloads SET sponsorBlockSegmentsJson = :json WHERE videoId = :videoId")
+    suspend fun updateSponsorBlockData(videoId: String, json: String)
+
+    @Query("SELECT sponsorBlockSegmentsJson FROM downloads WHERE videoId = :videoId")
+    suspend fun getSponsorBlockData(videoId: String): String?
+
     // ===== Download Items (children) =====
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

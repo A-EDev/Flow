@@ -21,8 +21,10 @@ import io.github.aedev.flow.data.local.entity.DownloadFileType
 import io.github.aedev.flow.data.local.entity.DownloadItemEntity
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.repository.SponsorBlockRepository
 import io.github.aedev.flow.data.video.DownloadProgressUpdate
 import io.github.aedev.flow.data.video.VideoDownloadManager
+import com.google.gson.Gson
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +49,11 @@ class FlowDownloadService : Service() {
 
     @Inject
     lateinit var downloadManager: VideoDownloadManager
+
+    @Inject
+    lateinit var sponsorBlockRepository: SponsorBlockRepository
+
+    private val gson = Gson()
 
     private val activeMissions = ConcurrentHashMap<String, FlowDownloadMission>()
     private val downloadJobs = ConcurrentHashMap<String, Job>()
@@ -479,6 +486,21 @@ class FlowDownloadService : Service() {
 
                     stopForeground(false)
                     updateNotification(mission, videoId, isComplete = true)
+
+                    // Fetch and persist SponsorBlock segments inline (awaited) so it completes
+                    // before the service's finally-block calls stopSelf() → onDestroy() → serviceScope.cancel().
+                    try {
+                        val segments = sponsorBlockRepository.getSegments(videoId)
+                        if (segments.isNotEmpty()) {
+                            val json = gson.toJson(segments)
+                            downloadManager.saveSponsorBlockData(videoId, json)
+                            Log.d(TAG, "Saved ${segments.size} SponsorBlock segments for $videoId")
+                        } else {
+                            Log.d(TAG, "No SponsorBlock segments found for $videoId")
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "SponsorBlock fetch failed for $videoId (non-fatal)", e)
+                    }
                 } else {
                     Log.e(TAG, "executeDownload: Final success check failed after download/mux")
                     stopForeground(false)

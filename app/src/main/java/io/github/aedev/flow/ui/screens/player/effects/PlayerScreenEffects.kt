@@ -418,7 +418,11 @@ fun PlayerInitEffect(
 
             Log.d(TAG, "Playing offline file for $videoId: $localFilePath")
             EnhancedPlayerManager.getInstance().initialize(context)
-            EnhancedPlayerManager.getInstance().playLocalFile(videoId, localFilePath)
+            EnhancedPlayerManager.getInstance().playLocalFile(
+                videoId,
+                localFilePath,
+                savedSegments = uiState.offlineSponsorBlockSegments
+            )
             applyRememberedSpeed(context, screenState)
             return@LaunchedEffect
         }

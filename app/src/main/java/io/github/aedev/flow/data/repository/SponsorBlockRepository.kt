@@ -34,14 +34,14 @@ class SponsorBlockRepository @Inject constructor() {
                 .build()
 
             val response = client.newCall(request).execute()
-
-            if (response.isSuccessful) {
-                val responseBody = response.body?.string() ?: return@withContext emptyList()
-                val listType = object : TypeToken<List<SponsorBlockSegment>>() {}.type
-                return@withContext gson.fromJson(responseBody, listType)
-            } else {
-                // 404 means no segments found, that's fine
-                return@withContext emptyList()
+            response.use { resp ->
+                if (resp.isSuccessful) {
+                    val responseBody = resp.body?.string() ?: return@withContext emptyList()
+                    val listType = object : TypeToken<List<SponsorBlockSegment>>() {}.type
+                    return@withContext gson.fromJson(responseBody, listType)
+                } else {
+                    return@withContext emptyList()
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -82,7 +82,7 @@ class SponsorBlockRepository @Inject constructor() {
                 .build()
 
             val response = client.newCall(request).execute()
-            response.isSuccessful
+            response.use { resp -> resp.isSuccessful }
         } catch (e: Exception) {
             e.printStackTrace()
             false

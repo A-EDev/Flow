@@ -134,13 +134,12 @@ class PlayerCacheManager(private val context: Context) {
      */
     fun release() {
         try {
-            cache?.release()
             cache = null
             sharedDataSourceFactory = null
             sharedDashDataSourceFactory = null
             sharedProgressiveDataSourceFactory = null
             sharedHlsDataSourceFactory = null
-            Log.d(TAG, "Cache resources released")
+            Log.d(TAG, "Cache references cleared (SimpleCache lifecycle managed by SharedPlayerCacheProvider)")
         } catch (e: Exception) {
             Log.w(TAG, "Error releasing cache", e)
         }

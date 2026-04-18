@@ -163,6 +163,9 @@ class PlayerPreferences(private val context: Context) {
 
         // Video card inline like/dislike action buttons
         val VIDEO_CARD_ACTIONS_ENABLED = booleanPreferencesKey("video_card_actions_enabled")
+
+        // Show app logo icon in home screen top bar
+        val SHOW_APP_LOGO_ICON = booleanPreferencesKey("show_app_logo_icon")
     }
     
     // Grid item size preference
@@ -925,6 +928,16 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setVideoCardActionsEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.VIDEO_CARD_ACTIONS_ENABLED] = enabled
+        }
+    }
+
+    // Show app logo icon in home screen top bar (default on)
+    val showAppLogoIcon: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.SHOW_APP_LOGO_ICON] ?: true }
+
+    suspend fun setShowAppLogoIcon(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHOW_APP_LOGO_ICON] = enabled
         }
     }
 

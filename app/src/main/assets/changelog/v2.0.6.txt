@@ -24,6 +24,7 @@ FEATURES
 - Add new merge playlists feature #263
 - Add new video title lines customizer #283
 - Add new action button to video card
+- Add new SponsorBlock segments download with videos #278
 
 IMPROVEMENTS
 - New miniplayer secondary action buttons layout #225
@@ -45,6 +46,7 @@ IMPROVEMENTS
 - Improve Shorts filtring #285
 - Engine calibration, improved watch signal for new topics and feed balancing #281
 - Improve Engine performace
+- Add togglable Flow logo icon to top bar
 
 FIXES AND STABILITY
 - Fix video player playback speed issue #232
@@ -65,3 +67,4 @@ FIXES AND STABILITY
 - Fix Playback issues after pip #264
 - Fix Double-Tap seek handling #286
 - Fix Shorts UI and bugs #287
+- Fix Search bar related issues #272

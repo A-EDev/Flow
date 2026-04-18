@@ -26,6 +26,10 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.stream.*
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.DownloadedVideo
+import io.github.aedev.flow.data.model.SponsorBlockSegment
+import io.github.aedev.flow.data.repository.SponsorBlockRepository
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import io.github.aedev.flow.ui.screens.player.util.VideoErrorMapper
 import kotlinx.coroutines.flow.first
@@ -52,7 +56,8 @@ class VideoPlayerViewModel @Inject constructor(
     private val playlistRepository: io.github.aedev.flow.data.local.PlaylistRepository,
     private val interestProfile: InterestProfile,
     private val playerPreferences: PlayerPreferences,
-    private val videoDownloadManager: VideoDownloadManager
+    private val videoDownloadManager: VideoDownloadManager,
+    private val sponsorBlockRepository: SponsorBlockRepository
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(VideoPlayerUiState())
@@ -530,10 +535,13 @@ class VideoPlayerViewModel @Inject constructor(
                 
                 if (isOfflineAvailable) {
                     Log.d("VideoPlayerViewModel", "Found offline video at ${localFile?.absolutePath}")
+                    val sbJson = videoDownloadManager.getSponsorBlockData(videoId)
+                    val offlineSegments = deserializeSponsorBlockSegments(sbJson)
                     _uiState.update { 
                         it.copy(
                             localFilePath = localFile?.absolutePath,
                             localFileVideoId = videoId,
+                            offlineSponsorBlockSegments = offlineSegments,
                             error = null,
                             errorHint = null,
                             isLoading = false
@@ -587,6 +595,30 @@ class VideoPlayerViewModel @Inject constructor(
                             localFilePath = downloadedVideo.filePath
                         }
 
+                        // Load SponsorBlock segments from DB if we're going to play offline
+                        val offlineSegments = if (localFilePath != null) {
+                            val sbJson = videoDownloadManager.getSponsorBlockData(videoId)
+                            if (sbJson != null) {
+                                deserializeSponsorBlockSegments(sbJson)
+                            } else {
+                                viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                                    try {
+                                        val segments = sponsorBlockRepository.getSegments(videoId)
+                                        if (segments.isNotEmpty()) {
+                                            videoDownloadManager.saveSponsorBlockData(videoId, Gson().toJson(segments))
+                                            Log.d("VideoPlayerViewModel", "Backfilled ${segments.size} SB segments for $videoId")
+                                            _uiState.update { it.copy(offlineSponsorBlockSegments = segments) }
+                                        } else {
+                                            Log.d("VideoPlayerViewModel", "No SB segments available for $videoId (backfill)")
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.w("VideoPlayerViewModel", "SB backfill failed for $videoId", e)
+                                    }
+                                }
+                                null
+                            }
+                        } else null
+
                         val subtitles = extractSubtitles(streamInfo)
                         val chapters = streamInfo.streamSegments ?: emptyList()
                         
@@ -612,6 +644,7 @@ class VideoPlayerViewModel @Inject constructor(
                             streamSizes = emptyMap(),
                             localFilePath = localFilePath,
                             localFileVideoId = if (localFilePath != null) videoId else null,
+                            offlineSponsorBlockSegments = offlineSegments,
                             hlsUrl = streamInfo.hlsUrl
                         )
 
@@ -718,13 +751,15 @@ class VideoPlayerViewModel @Inject constructor(
                         // Offline fallback
                         if (isOfflineAvailable) {
                             Log.d("VideoPlayerViewModel", "Using offline video for $videoId (Network fetch failed)")
+                            val sbJson = videoDownloadManager.getSponsorBlockData(videoId)
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
                                     error = null,
                                     errorHint = null,
                                     relatedVideos = relatedVideos,
-                                    localFilePath = localFile?.absolutePath
+                                    localFilePath = localFile?.absolutePath,
+                                    offlineSponsorBlockSegments = deserializeSponsorBlockSegments(sbJson)
                                 )
                             }
                         } else {
@@ -1155,7 +1190,19 @@ class VideoPlayerViewModel @Inject constructor(
 
         return Triple(videoStream, safeAudio, actualQuality)
     }
-    
+
+    /** Deserialize a JSON string into a list of SponsorBlock segments; returns null on failure. */
+    private fun deserializeSponsorBlockSegments(json: String?): List<SponsorBlockSegment>? {
+        if (json.isNullOrBlank()) return null
+        return try {
+            val type = object : TypeToken<List<SponsorBlockSegment>>() {}.type
+            Gson().fromJson<List<SponsorBlockSegment>>(json, type)
+        } catch (e: Exception) {
+            Log.w("VideoPlayerViewModel", "Failed to deserialize SponsorBlock segments", e)
+            null
+        }
+    }
+
     private fun extractAvailableQualities(streamInfo: StreamInfo): List<VideoQuality> {
         val heights = (streamInfo.videoStreams + streamInfo.videoOnlyStreams)
             .filterIsInstance<VideoStream>()
@@ -1264,7 +1311,9 @@ data class VideoPlayerUiState(
     val hlsUrl: String? = null,
     val shouldDismissPlayer: Boolean = false,
     val isRestoredSession: Boolean = false,
-    val resumedInMiniPlayer: Boolean = false
+    val resumedInMiniPlayer: Boolean = false,
+    /** SponsorBlock segments loaded from local DB for offline playback. Null when streaming online. */
+    val offlineSponsorBlockSegments: List<SponsorBlockSegment>? = null
 )
 
 data class SubtitleInfo(

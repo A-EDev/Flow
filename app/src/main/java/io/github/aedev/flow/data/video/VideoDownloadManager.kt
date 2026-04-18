@@ -413,6 +413,16 @@ class VideoDownloadManager @Inject constructor(
         return downloadDao.isDownloaded(videoId)
     }
 
+    /** Persist SponsorBlock segments JSON for a downloaded video. */
+    suspend fun saveSponsorBlockData(videoId: String, json: String) {
+        downloadDao.updateSponsorBlockData(videoId, json)
+    }
+
+    /** Retrieve the stored SponsorBlock segments JSON, or null if not available. */
+    suspend fun getSponsorBlockData(videoId: String): String? {
+        return downloadDao.getSponsorBlockData(videoId)
+    }
+
     /** Get download with items */
     suspend fun getDownloadWithItems(videoId: String): DownloadWithItems? {
         return downloadDao.getDownloadWithItems(videoId)

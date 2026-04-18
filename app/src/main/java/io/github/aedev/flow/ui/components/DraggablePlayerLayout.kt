@@ -165,6 +165,7 @@ fun DraggablePlayerLayout(
     progress: Float,
     isFullscreen: Boolean,
     thumbnailUrl: String? = null,
+    topPadding: Dp = 56.dp,
     bottomPadding: Dp = 0.dp,
     miniPlayerScale: Float = 0.45f,
     tapToExpand: Boolean = true,
@@ -204,11 +205,12 @@ fun DraggablePlayerLayout(
         val baseMiniWidth  = if (isTablet) targetMiniWidth.coerceAtMost(400f) else targetMiniWidth
         // Live-scale the mini width based on pinch/wide-mode; clamp to screen width
         val currentSizeScale by remember { derivedStateOf { state.miniSizeScale.value } }
-        val miniWidth  = (baseMiniWidth * currentSizeScale).coerceAtMost(screenWidth)
+        val margin     = with(density) { 8.dp.toPx() }
+        val maxWideWidth = screenWidth - (margin * 2)
+        val miniWidth  = (baseMiniWidth * currentSizeScale).coerceAtMost(maxWideWidth)
         val miniHeight = miniWidth * (9f / 16f)
-        val margin     = with(density) { 12.dp.toPx() }
         val bottomNavPad = with(density) { bottomPadding.toPx() }
-
+        val topBarPad    = with(density) { topPadding.toPx() }
         // When in wide mode, lock X to 0 (centered); otherwise normal corner positioning
         val isWideMode = currentSizeScale > 1.5f
 
@@ -218,9 +220,9 @@ fun DraggablePlayerLayout(
         val fullVideoHeight     = expandedVideoWidth / clampedAspect
         val expandedVideoHeight = fullVideoHeight
 
-        val minX = if (isWideMode) 0f else margin
-        val maxX = if (isWideMode) 0f else (screenWidth - miniWidth - margin)
-        val minY = statusBarHeight + margin
+        val minX = margin 
+        val maxX = (screenWidth - miniWidth - margin).coerceAtLeast(margin)
+        val minY = statusBarHeight + topBarPad + margin
         val maxY = screenHeight - miniHeight - bottomNavPad - margin
         LaunchedEffect(minX, maxX, minY, maxY) {
            val overshootMargin = with(density) { 8.dp.toPx() }
@@ -233,7 +235,7 @@ fun DraggablePlayerLayout(
                upperBound = maxY + overshootMargin  
            )
        }
-        val targetMiniX = if (isWideMode) 0f else when (state.corner) {
+        val targetMiniX = if (isWideMode) margin else when (state.corner) {
             MiniPlayerCorner.TopLeft, MiniPlayerCorner.BottomLeft -> minX
             MiniPlayerCorner.TopRight, MiniPlayerCorner.BottomRight -> maxX
         }
@@ -250,8 +252,8 @@ fun DraggablePlayerLayout(
         LaunchedEffect(state.expandFraction.targetValue, targetMiniX, targetMiniY, state.isDragging, isWideMode) {
             if (state.expandFraction.targetValue > 0.5f && !state.isDragging) {
                 if (isWideMode) {
-                    // In wide mode only snap X to 0; Y is freely draggable
-                    launch { state.offsetX.animateTo(0f, spring(dampingRatio = 0.75f, stiffness = 400f)) }
+                    // In wide mode only snap X to margin; Y is freely draggable
+                    launch { state.offsetX.animateTo(margin, spring(dampingRatio = 0.75f, stiffness = 400f)) }
                 } else {
                     val needsSnap = state.offsetX.value == 0f && state.offsetY.value == 0f
                         && targetMiniX > 0f && targetMiniY > 0f
@@ -484,7 +486,7 @@ fun DraggablePlayerLayout(
                                 state.scope.launch { state.miniSizeScale.snapTo(newScale) }
                                 // If going wide, snap X to 0
                                 if (newScale > 1.5f) {
-                                    state.scope.launch { state.offsetX.snapTo(0f) }
+                                    state.scope.launch { state.offsetX.snapTo(margin) }
                                 }
                             }
                         }
@@ -512,6 +514,7 @@ fun DraggablePlayerLayout(
 
                             val isCollapseDrag = state.expandFraction.value < 0.4f
                             val isMiniDrag     = state.expandFraction.value > 0.8f
+
                             val canSwipeToFullscreen = isCollapseDrag &&
                                 !_isLandscape.value &&
                                 !_isFullscreen.value &&
