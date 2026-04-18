@@ -13,7 +13,7 @@
     <string name="liked">"إعجاب "</string>
     <string name="library_downloads_label">التحميلات</string>
     <string name="home_refresh_feed">تحديث الصفحة</string>
-    <string name="view_all_button_label">الجميع</string>
+    <string name="view_all_button_label">الكل</string>
     <string name="no_subscriptions_yet">لا يوجد اشتراكات</string>
     <string name="failed_to_load_channel">فشل تحميل القناة</string>
     <string name="stats">الإحصائيات</string>
@@ -394,7 +394,7 @@
     <string name="categories_title">الفئات</string>
     <string name="categories_switch_to_grid">التبديل إلى عرض الشبكة</string>
     <string name="categories_switch_to_list">التبديل إلى عرض القائمة</string>
-    <string name="category_all">الجميع</string>
+    <string name="category_all">الكل</string>
     <string name="category_trending">رائج</string>
     <string name="category_movies">أفلام</string>
     <string name="category_live">بث مباشر</string>
@@ -1188,4 +1188,6 @@
     <string name="template_q">%1$.1f</string>
     <string name="now_playing">يعرض الآن</string>
     <string name="player_settings_overlay_controls">متحكمات التراكب</string>
+    <string name="player_settings_shorts_background_play">تشغيل الفيديوهات القصيرة في الخلفية</string>
+    <string name="player_settings_shorts_background_play_subtitle">استمر في تشغيل الفيديوهات القصيرة عندما يكون التطبيق في الخلفية</string>
 </resources>
