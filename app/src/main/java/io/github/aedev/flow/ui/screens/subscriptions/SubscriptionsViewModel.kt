@@ -26,7 +26,7 @@ class SubscriptionsViewModel : ViewModel() {
          * How old the subscription-feed cache may be before a background refresh is triggered.
          * 4 hours — balances freshness with avoiding an RSS fetch on every screen visit.
          */
-        private const val FEED_CACHE_TTL_MS = 4 * 60 * 60 * 1000L // 4 hours
+        private const val FEED_CACHE_TTL_MS = 30 * 60 * 1000L // 30 minutes
     }
 
     private lateinit var subscriptionRepository: SubscriptionRepository
@@ -178,9 +178,10 @@ class SubscriptionsViewModel : ViewModel() {
         val (shorts, regular) = sortedVideos.partition { video -> video.isShort }
         Log.i(TAG, "updateVideos: total=${sortedVideos.size} → regular=${regular.size}, shorts=${shorts.size}")
 
-        // ── One short per channel (most recent) ───────────────────────────
+        // ── Up to 3 shorts per channel (most recent first) ──────────────────
         val latestShortPerChannel = shorts
-            .distinctBy { it.channelId }
+            .groupBy { it.channelId }
+            .flatMap { (_, channelShorts) -> channelShorts.sortedByDescending { it.timestamp }.take(3) }
             .sortedByDescending { it.timestamp }
         Log.i(TAG, "Shorts after per-channel dedup: ${latestShortPerChannel.size}/${shorts.size}")
 

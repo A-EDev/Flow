@@ -60,6 +60,9 @@ class MainActivity : ComponentActivity() {
     // Cached auto-PiP preference
     private var cachedAutoPipEnabled = false
 
+    // Cached shorts background-play preference (default OFF — pause on background)
+    private var cachedShortsBackgroundPlay = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // the OS-level splash screen (camouflaged to match Compose splash background)
         installSplashScreen()
@@ -87,6 +90,13 @@ class MainActivity : ComponentActivity() {
             io.github.aedev.flow.data.local.PlayerPreferences(applicationContext)
                 .autoPipEnabled
                 .collect { enabled -> cachedAutoPipEnabled = enabled }
+        }
+
+        // Keep shorts background-play preference cached so onStop can read it synchronously
+        lifecycleScope.launch {
+            io.github.aedev.flow.data.local.PlayerPreferences(applicationContext)
+                .shortsBackgroundPlay
+                .collect { enabled -> cachedShortsBackgroundPlay = enabled }
         }
         
         // Initialize Neuro Engine (Recommendation System)
@@ -351,6 +361,9 @@ class MainActivity : ComponentActivity() {
         wasPlayingWhenPipExited = false  
         if (!isInPictureInPictureMode) {
             requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            if (!cachedShortsBackgroundPlay) {
+                io.github.aedev.flow.player.shorts.ShortsPlayerPool.getInstance().pauseAll()
+            }
         }
     }
 

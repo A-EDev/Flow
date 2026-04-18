@@ -141,6 +141,9 @@ class PlayerPreferences(private val context: Context) {
         val HIDE_WATCHED_VIDEOS = booleanPreferencesKey("hide_watched_videos")
         val DISABLE_SHORTS_PLAYER = booleanPreferencesKey("disable_shorts_player")
 
+        // Shorts background playback
+        val SHORTS_BACKGROUND_PLAY = booleanPreferencesKey("shorts_background_play")
+
         // Cache size
         val MEDIA_CACHE_SIZE_MB = intPreferencesKey("media_cache_size_mb")
 
@@ -852,6 +855,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setDisableShortsPlayer(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DISABLE_SHORTS_PLAYER] = enabled
+        }
+    }
+
+    // Shorts background playback (default OFF — pauses when app goes to background)
+    val shortsBackgroundPlay: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SHORTS_BACKGROUND_PLAY] ?: false
+        }
+
+    suspend fun setShortsBackgroundPlay(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHORTS_BACKGROUND_PLAY] = enabled
         }
     }
 

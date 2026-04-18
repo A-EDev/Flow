@@ -78,6 +78,7 @@ fun PlayerSettingsScreen(
     val deArrowEnabled by playerPreferences.deArrowEnabled.collectAsState(initial = false)
     val manualPipButtonEnabled by playerPreferences.manualPipButtonEnabled.collectAsState(initial = true)
     val backgroundPlayEnabled by playerPreferences.backgroundPlayEnabled.collectAsState(initial = false)
+    val shortsBackgroundPlay by playerPreferences.shortsBackgroundPlay.collectAsState(initial = false)
     val preferredAudioLanguage by playerPreferences.preferredAudioLanguage.collectAsState(initial = "original")
     val playDuringCalls by playerPreferences.playDuringCalls.collectAsState(initial = false)
     val currentLyricsProvider by playerPreferences.preferredLyricsProvider.collectAsState(initial = "LRCLIB")
@@ -224,6 +225,14 @@ fun PlayerSettingsScreen(
                         subtitle = stringResource(R.string.player_settings_background_play_subtitle),
                         checked = backgroundPlayEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setBackgroundPlayEnabled(it) } }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.OndemandVideo,
+                        title = stringResource(R.string.player_settings_shorts_background_play),
+                        subtitle = stringResource(R.string.player_settings_shorts_background_play_subtitle),
+                        checked = shortsBackgroundPlay,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setShortsBackgroundPlay(it) } }
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
