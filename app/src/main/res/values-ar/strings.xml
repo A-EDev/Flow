@@ -950,7 +950,7 @@
     <string name="import_engine_section_title">محرك Flow</string>
     <string name="import_engine_section_subtitle">استعادة ملف تعريف التعلم بالذكاء الاصطناعي الخاص بك</string>
     <string name="error_age_restricted">محتوى مخصص للبالغين فقط</string>
-    <string name="error_age_restricted_hint">هذا الفيديو متاح فقط للمستخدمين المسجلين الذين تحققوا من أعمارهم.</string>
+    <string name="error_age_restricted_hint">هذا الفيديو متاح فقط للمستخدمين المسجلين الذين تم التحقق من أعمارهم.</string>
     <string name="error_private_video">فيديو خاص</string>
     <string name="error_private_video_hint">قام مالك هذا الفيديو بجعله خاصاً.</string>
     <string name="error_geo_restricted">غير متاح في بلدك</string>
