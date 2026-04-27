@@ -374,4 +374,6 @@
     <string name="settings_item_support_subtitle">Підтримайте розробку Flow</string>
     <string name="settings_region_dialog_title">Вибрати регіон</string>
     <string name="settings_export_success">Дані успішно експортовано</string>
+    <string name="export_newpipe_subs_failed">Не вдалося експортувати підписки NewPipe</string>
+    <string name="export_app_data_title">Резервне копіювання даних програми</string>
 </resources>
