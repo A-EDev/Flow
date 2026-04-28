@@ -1,0 +1,6 @@
+FLOW CHANGE LOG
+VERSION: 2.1.5
+DATE: 2026-04-28
+
+IMPROVEMENTS
+- Seekbar preview and slider optimization #360 #361

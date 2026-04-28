@@ -1,5 +1,6 @@
 package io.github.aedev.flow.ui.screens.player
 
+import android.os.SystemClock
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
@@ -35,6 +36,7 @@ import io.github.aedev.flow.ui.screens.player.components.SeekbarWithPreview
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.seekbarpreview.SeekbarPreviewThumbnailHelper
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 import androidx.compose.ui.platform.LocalContext
@@ -44,6 +46,10 @@ import io.github.aedev.flow.player.CastHelper
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.ui.components.pressScale
 import org.schabi.newpipe.extractor.stream.StreamSegment
+import kotlin.math.abs
+
+private const val LIVE_SCRUB_SEEK_INTERVAL_MS = 80L
+private const val LIVE_SCRUB_IMMEDIATE_DELTA_MS = 750L
 
 @Composable
 fun PremiumControlsOverlay(
@@ -98,10 +104,35 @@ fun PremiumControlsOverlay(
         stringResource(R.string.resize_fill),
         stringResource(R.string.resize_zoom)
     )
+    val scrubScope = rememberCoroutineScope()
     
+    var scrubPosition by remember(duration) { mutableStateOf<Long?>(null) }
+    var isScrubbing by remember { mutableStateOf(false) }
+    var lastScrubSeekAt by remember { mutableLongStateOf(0L) }
+    var lastScrubSeekPosition by remember { mutableLongStateOf(Long.MIN_VALUE) }
+    var pendingScrubSeekJob by remember { mutableStateOf<Job?>(null) }
+    val displayedPosition = scrubPosition ?: currentPosition
+
+    DisposableEffect(Unit) {
+        onDispose {
+            pendingScrubSeekJob?.cancel()
+            EnhancedPlayerManager.getInstance().setScrubbingModeEnabled(false)
+        }
+    }
+
+    LaunchedEffect(currentPosition, scrubPosition, isScrubbing) {
+        if (isScrubbing) {
+            return@LaunchedEffect
+        }
+        val targetPosition = scrubPosition ?: return@LaunchedEffect
+        if (abs(currentPosition - targetPosition) <= 1_000L) {
+            scrubPosition = null
+        }
+    }
+
     // Find current chapter
-    val currentChapter = remember(currentPosition, chapters) {
-        val positionSeconds = currentPosition / 1000
+    val currentChapter = remember(displayedPosition, chapters) {
+        val positionSeconds = displayedPosition / 1000
         chapters.lastOrNull { it.startTimeSeconds <= positionSeconds }
     }
     
@@ -115,6 +146,7 @@ fun PremiumControlsOverlay(
     val overlayAutoplayEnabled by playerPreferences.overlayAutoplayEnabled.collectAsState(initial = false)
     val overlaySleepTimerEnabled by playerPreferences.overlaySleepTimerEnabled.collectAsState(initial = false)
     val showFullscreenTitle by playerPreferences.showFullscreenTitle.collectAsState(initial = false)
+    val fullscreenSeekbarBottomPadding = if (isFullscreen) 20.dp else 0.dp
 
     val isInitialLoading = isBuffering && duration <= 0L && currentPosition <= 0L
 
@@ -380,7 +412,7 @@ fun PremiumControlsOverlay(
                                 indication = ripple(color = Color.White)
                             ) { onPlayPause() }
                     ) {
-                        if (isBuffering || isInitialLoading) {
+                        if ((isBuffering || isInitialLoading) && !isScrubbing) {
                             SleekLoadingAnimation(modifier = Modifier.size(48.dp))
                         } else {
                             Icon(
@@ -431,7 +463,7 @@ fun PremiumControlsOverlay(
                                 colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
                             )
                         )
-                        .padding(horizontal = 14.dp, vertical = 0.dp)
+                        .padding(start = 14.dp, end = 14.dp, top = 0.dp, bottom = fullscreenSeekbarBottomPadding)
                 ) {
                 // Duration and Chapter pills row
                 Row(
@@ -482,7 +514,7 @@ fun PremiumControlsOverlay(
                                 )
                             } else {
                             Text(
-                                text = if (showRemainingTime) "-${formatTime((duration - currentPosition).coerceAtLeast(0))}" else formatTime(currentPosition),
+                                text = if (showRemainingTime) "-${formatTime((duration - displayedPosition).coerceAtLeast(0))}" else formatTime(displayedPosition),
                                 style = MaterialTheme.typography.labelMedium,
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold
@@ -570,10 +602,50 @@ fun PremiumControlsOverlay(
                     )
                 } else {
                     SeekbarWithPreview(
-                        value = if (duration > 0) currentPosition.toFloat() / duration.toFloat() else 0f,
+                        value = if (duration > 0) displayedPosition.toFloat() / duration.toFloat() else 0f,
                         onValueChange = { progress ->
                             val newPosition = (progress * duration).toLong()
-                            onSeek(newPosition)
+                            val playerManager = EnhancedPlayerManager.getInstance()
+
+                            scrubPosition = newPosition
+
+                            if (!isScrubbing) {
+                                isScrubbing = true
+                                playerManager.setScrubbingModeEnabled(true)
+                            }
+
+                            pendingScrubSeekJob?.cancel()
+
+                            val now = SystemClock.elapsedRealtime()
+                            val remainingDelay = (LIVE_SCRUB_SEEK_INTERVAL_MS - (now - lastScrubSeekAt)).coerceAtLeast(0L)
+                            val movedFarEnough = lastScrubSeekPosition == Long.MIN_VALUE ||
+                                abs(newPosition - lastScrubSeekPosition) >= LIVE_SCRUB_IMMEDIATE_DELTA_MS
+
+                            if (remainingDelay == 0L || movedFarEnough) {
+                                onSeek(newPosition)
+                                lastScrubSeekAt = now
+                                lastScrubSeekPosition = newPosition
+                            } else {
+                                pendingScrubSeekJob = scrubScope.launch {
+                                    delay(remainingDelay)
+                                    val targetPosition = scrubPosition ?: return@launch
+                                    onSeek(targetPosition)
+                                    lastScrubSeekAt = SystemClock.elapsedRealtime()
+                                    lastScrubSeekPosition = targetPosition
+                                }
+                            }
+                        },
+                        onValueChangeFinished = {
+                            pendingScrubSeekJob?.cancel()
+                            pendingScrubSeekJob = null
+                            scrubPosition?.let { targetPosition ->
+                                onSeek(targetPosition)
+                                lastScrubSeekPosition = targetPosition
+                            }
+                            lastScrubSeekAt = 0L
+                            lastScrubSeekPosition = Long.MIN_VALUE
+                            isScrubbing = false
+                            EnhancedPlayerManager.getInstance().setScrubbingModeEnabled(false)
                         },
                         seekbarPreviewHelper = seekbarPreviewHelper,
                         chapters = chapters,

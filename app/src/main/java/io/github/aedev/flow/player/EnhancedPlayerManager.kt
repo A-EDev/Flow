@@ -8,6 +8,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
@@ -682,6 +683,11 @@ class EnhancedPlayerManager private constructor() {
     fun play() = player?.play()
     fun pause() = player?.pause()
     fun seekTo(position: Long) = player?.seekTo(position)
+    fun setScrubbingModeEnabled(enabled: Boolean) {
+        player?.setSeekParameters(
+            if (enabled) SeekParameters.EXACT else SeekParameters.CLOSEST_SYNC
+        )
+    }
 
     fun replay() {
         player?.let { exoPlayer ->
