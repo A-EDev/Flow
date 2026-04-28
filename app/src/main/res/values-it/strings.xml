@@ -478,7 +478,7 @@
     <string name="content_settings_home_layout_subtitle">Scegli come devono essere mostrati i video nella schermata home</string>
     <string name="content_settings_layout_grid">Griglia</string>
     <string name="content_settings_layout_list">Elenco</string>
-    <string name="content_settings_grid_size_title">Dimensione elementi griglia</string>
+    <string name="content_settings_grid_size_title">Dimensione elementi della griglia</string>
     <string name="content_settings_grid_size_subtitle">Regola la dimensione delle copertine e delle schede contenuto</string>
     <string name="content_settings_grid_big_title">Grande</string>
     <string name="content_settings_grid_big_desc">Miniature più grandi</string>
@@ -503,13 +503,13 @@
     <string name="content_settings_related_card_compact_desc">Miniatura e informazioni affiancate</string>
     <string name="content_settings_related_card_full_width">Larghezza massima</string>
     <string name="content_settings_related_card_full_width_desc">Miniatura grande con titolo sotto</string>
-    <string name="content_settings_video_title_lines_title">Righe titolo video</string>
+    <string name="content_settings_video_title_lines_title">Righe titolo del video</string>
     <string name="content_settings_video_title_lines_subtitle">Quante righe mostrare nel player per il titolo del video</string>
     <string name="content_settings_title_lines_1">1 riga</string>
     <string name="content_settings_title_lines_2">2 righe</string>
     <string name="content_settings_title_lines_3">3 righe</string>
     <string name="content_settings_title_lines_unlimited">Nessun limite</string>
-    <string name="content_settings_video_card_actions_title">Pulsanti mi piace e non mi piace della scheda video</string>
+    <string name="content_settings_video_card_actions_title">Pulsanti mi piace e non mi piace sulla scheda video</string>
     <string name="content_settings_video_card_actions_subtitle">Mostra i pulsanti pollice su/pollice giù sulle schede video per ottimizzare rapidamente i tuoi suggerimenti</string>
     <string name="content_settings_show_app_logo_title">Mostra icona logo app</string>
     <string name="content_settings_show_app_logo_subtitle">Mostra l\'icona del logo Flow accanto al nome dell\'app nella barra superiore della schermata home</string>
@@ -574,7 +574,7 @@
     <string name="player_settings_custom_speeds_empty">Nessun preset aggiunto. Aggiungine uno in basso.</string>
     <string name="player_settings_custom_speeds_add">Aggiungi preset</string>
     <string name="player_settings_custom_speeds_remove">Rimuovi</string>
-    <string name="player_settings_speed_slider_title">Modalità cursore velocità</string>
+    <string name="player_settings_speed_slider_title">Modalità cursore di velocità</string>
     <string name="player_settings_speed_slider_subtitle">Utilizza un cursore continuo per impostare qualsiasi velocità di riproduzione</string>
     <string name="speed_slider_decrease">Riduci velocità</string>
     <string name="speed_slider_increase">Aumenta velocità</string>
@@ -772,7 +772,7 @@
     <string name="break_reminder_subtitle">Fai pause regolari durante la visione</string>
     <string name="sleep_window">Fascia di riposo:</string>
     <string name="frequency_description">Con quale frequenza ricordartelo</string>
-    <string name="tools_subtitle">Impostazioni promemoria per regolare le tue abitudini di visione</string>
+    <string name="tools_subtitle">Imposta promemoria per regolare le tue abitudini di visione</string>
     <string name="confirm">Conferma</string>
     <string name="sleep_timer_duration">Durata</string>
     <string name="sleep_timer_minutes">%1$d min</string>
@@ -830,7 +830,7 @@
     <string name="import_music_apps_section_subtitle">Importa la tua libreria musicale da altri player</string>
     <string name="import_from_metrolist">Importa da Metrolist</string>
     <string name="import_from_metrolist_desc">Importa playlist musicali da un file di backup di Metrolist (.zip). Le playlist appariranno nella tua libreria musicale.</string>
-    <string name="import_from_youtube">Importa di YouTube</string>
+    <string name="import_from_youtube">Importa da YouTube</string>
     <string name="import_from_youtube_desc">Importa le iscrizioni da YouTube Takeout (CSV).</string>
     <string name="import_yt_data_section_title">Dati YouTube</string>
     <string name="import_yt_data_section_subtitle">Importa dati aggiuntivi da YouTube Takeout</string>
@@ -1203,7 +1203,7 @@
     <string name="auto_backup_failed">Backup fallito</string>
     <string name="auto_backup_notification_channel">Backup automatici</string>
     <string name="export_data_screen_title">Esporta dati</string>
-    <string name="export_data_section_header">Scegli tipologia di esportazione</string>
+    <string name="export_data_section_header">Scegli la tipologia di esportazione</string>
     <string name="export_data_section_subtitle">Seleziona cosa vuoi esportare e salvare nel tuo dispositivo</string>
     <string name="export_app_data_title">Backup dati dell\'app</string>
     <string name="export_app_data_desc">Esporta le tue iscrizioni, la cronologia delle visualizzazioni, le playlist e le impostazioni</string>
@@ -1302,7 +1302,7 @@
     <string name="channel_search_close">Chiudi ricerca</string>
     <string name="channel_search_no_results">Nessun risultato trovato per %1$s</string>
     <string name="player_appearance_fullscreen_header">Schermo intero</string>
-    <string name="player_show_title_title">Mostra titolo video</string>
+    <string name="player_show_title_title">Mostra titolo del video</string>
     <string name="player_show_title_subtitle">Mostra il titolo del video sotto la barra superiore in modalità schermo intero</string>
     <string name="player_appearance_brightness_gesture_subtitle">Scorri il bordo sinistro a schermo intero per regolare la luminosità</string>
     <string name="player_appearance_volume_gesture_title">Gesto volume</string>
