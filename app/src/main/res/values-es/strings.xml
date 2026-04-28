@@ -99,4 +99,5 @@
     <string name="diagnostics_no_session_logs">No hay advertencias ni errores en esta sesión.</string>
     <string name="diagnostics_loading">Leyendo registros…</string>
     <string name="diagnostics_copied">Reporte copiado al portapapeles</string>
+    <string name="library_playlists_label">Lista de reproducción</string>
 </resources>
