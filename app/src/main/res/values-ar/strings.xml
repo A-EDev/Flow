@@ -950,7 +950,7 @@
     <string name="import_engine_section_title">محرك Flow</string>
     <string name="import_engine_section_subtitle">استعادة ملف تعريف التعلم بالذكاء الاصطناعي الخاص بك</string>
     <string name="error_age_restricted">محتوى مخصص للبالغين فقط</string>
-    <string name="error_age_restricted_hint">هذا الفيديو متاح فقط للمستخدمين المسجلين الذين تحققوا من أعمارهم.</string>
+    <string name="error_age_restricted_hint">هذا الفيديو متاح فقط للمستخدمين المسجلين الذين تم التحقق من أعمارهم.</string>
     <string name="error_private_video">فيديو خاص</string>
     <string name="error_private_video_hint">قام مالك هذا الفيديو بجعله خاصاً.</string>
     <string name="error_geo_restricted">غير متاح في بلدك</string>
@@ -1307,4 +1307,21 @@
     <string name="player_appearance_fullscreen_header">ملء الشاشة</string>
     <string name="player_show_title_title">أظهر عنوان الفيديو</string>
     <string name="player_show_title_subtitle">إعرض عنوان الفيديو أسفل الشريط العلوي أثناء وضع ملء الشاشة</string>
+    <string name="deep_flow_duration_never">أبداً</string>
+    <string name="player_appearance_volume_gesture_subtitle">إسحب من الحافة اليمنى في وضع ملء الشاشة لضبط مستوى الصوت</string>
+    <string name="deep_flow_active_until_disabled">يبقي تعلم Flow العميق مفعل حتي تقوم بتعطيله</string>
+    <string name="copy_video_link">انسخ رابط الفيديو</string>
+    <string name="player_appearance_brightness_gesture_title">إيماءات السطوع</string>
+    <string name="deep_flow_enabled_message">تعلم Flow العميق مفعل</string>
+    <string name="player_appearance_volume_gesture_title">إيماءات الصوت</string>
+    <string name="copy_channel_link">انسخ رابط القناة</string>
+    <string name="export_newpipe_subs_failed">فشل تصدير إشتراكات NewPipe</string>
+    <string name="deep_flow_disabled_message">تعلم Flow العميق معطل</string>
+    <string name="export_newpipe_subs_desc">قم بتصدير اشتراكاتك كملف JSON متوافق مع NewPipe.</string>
+    <string name="content_settings_video_card_mark_watched_subtitle">إعرض زر لرمز عين على بطاقات الفيديو ذات العرض الكامل و المدمج لوضع علامة سريعة على مقاطع الفيديو التي تمت مشاهدتها</string>
+    <string name="export_newpipe_subs_success">تم تصدير إشتراكات NewPipe بنجاح</string>
+    <string name="deep_flow_expired_message">إنتهي مؤقت تعلم Flow العميق</string>
+    <string name="content_settings_video_card_mark_watched_title">زر وضع علامة كمشاهدة على بطاقة الفيديو</string>
+    <string name="player_appearance_brightness_gesture_subtitle">إسحب من الحافة اليسرى في وضع ملء الشاشة لضبط مستوي السطوع</string>
+    <string name="export_newpipe_subs_title">تصدير الإشتراكات (بتنسيق NewPipe)</string>
 </resources>

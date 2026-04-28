@@ -89,7 +89,7 @@
     <string name="undo">Annulla</string>
     <string name="subscribed_to">Iscritto a %s</string>
     <string name="unsubscribed_from">Disiscritto da %s</string>
-    <string name="unsubscribe">Disiscriviti</string>
+    <string name="unsubscribe">Annulla</string>
     <string name="share_video">Condividi video</string>
     <string name="check_out_video_template">Guarda questo video: %1$s\nhttps://youtube.com/watch?v=%2$s</string>
     <string name="related_videos">Video correlati</string>
@@ -219,7 +219,7 @@
     <string name="itag">iTag</string>
     <string name="mime_type">Tipo Mime</string>
     <string name="status_upcoming">IN ARRIVO</string>
-    <string name="status_live">IN DIRETTA</string>
+    <string name="status_live">LIVE</string>
     <string name="video_metadata_template">%1$s • %2$s • %3$s</string>
     <string name="video_metadata_short_template">%1$s • %2$s</string>
     <string name="premiere_soon">In anteprima a breve</string>
@@ -255,7 +255,7 @@
     <string name="subscribe">Iscriviti</string>
     <string name="unlike">Rimuovi mi piace</string>
     <string name="tab_shorts">Shorts</string>
-    <string name="tab_live">In diretta</string>
+    <string name="tab_live">Live</string>
     <string name="tab_playlists">Playlist</string>
     <string name="tab_about">Informazioni</string>
     <string name="end_of_queue">Fine della coda</string>
@@ -319,7 +319,7 @@
     <string name="settings_item_theme">Tema</string>
     <string name="settings_item_app_icon">Icona app</string>
     <string name="settings_item_app_icon_subtitle">Personalizza l\'icona del launcher</string>
-    <string name="settings_item_content_prefs">Preferenze dei contenuti</string>
+    <string name="settings_item_content_prefs">Preferenze contenuti</string>
     <string name="settings_item_content_prefs_subtitle">Blocca gli argomenti che non vuoi vedere</string>
     <string name="settings_item_player">Impostazioni player</string>
     <string name="settings_item_player_subtitle">Riproduzione automatica, riproduzione in background, SponsorBlock</string>
@@ -478,7 +478,7 @@
     <string name="content_settings_home_layout_subtitle">Scegli come devono essere mostrati i video nella schermata home</string>
     <string name="content_settings_layout_grid">Griglia</string>
     <string name="content_settings_layout_list">Elenco</string>
-    <string name="content_settings_grid_size_title">Dimensione elementi griglia</string>
+    <string name="content_settings_grid_size_title">Dimensione elementi della griglia</string>
     <string name="content_settings_grid_size_subtitle">Regola la dimensione delle copertine e delle schede contenuto</string>
     <string name="content_settings_grid_big_title">Grande</string>
     <string name="content_settings_grid_big_desc">Miniature più grandi</string>
@@ -503,13 +503,13 @@
     <string name="content_settings_related_card_compact_desc">Miniatura e informazioni affiancate</string>
     <string name="content_settings_related_card_full_width">Larghezza massima</string>
     <string name="content_settings_related_card_full_width_desc">Miniatura grande con titolo sotto</string>
-    <string name="content_settings_video_title_lines_title">Righe titolo video</string>
+    <string name="content_settings_video_title_lines_title">Righe titolo del video</string>
     <string name="content_settings_video_title_lines_subtitle">Quante righe mostrare nel player per il titolo del video</string>
     <string name="content_settings_title_lines_1">1 riga</string>
     <string name="content_settings_title_lines_2">2 righe</string>
     <string name="content_settings_title_lines_3">3 righe</string>
     <string name="content_settings_title_lines_unlimited">Nessun limite</string>
-    <string name="content_settings_video_card_actions_title">Pulsanti mi piace e non mi piace della scheda video</string>
+    <string name="content_settings_video_card_actions_title">Pulsanti mi piace e non mi piace sulla scheda video</string>
     <string name="content_settings_video_card_actions_subtitle">Mostra i pulsanti pollice su/pollice giù sulle schede video per ottimizzare rapidamente i tuoi suggerimenti</string>
     <string name="content_settings_show_app_logo_title">Mostra icona logo app</string>
     <string name="content_settings_show_app_logo_subtitle">Mostra l\'icona del logo Flow accanto al nome dell\'app nella barra superiore della schermata home</string>
@@ -543,7 +543,7 @@
     <string name="category_all">Tutte</string>
     <string name="category_trending">Tendenza</string>
     <string name="category_movies">Film</string>
-    <string name="category_live">Dirette</string>
+    <string name="category_live">Live</string>
     <string name="settings_continue_watching_title">Sezione Continua a guardare</string>
     <string name="settings_continue_watching_subtitle">Mostra una sezione di video da completare nella schermata home.</string>
     <string name="continue_watching_title">Continua a guardare</string>
@@ -574,7 +574,7 @@
     <string name="player_settings_custom_speeds_empty">Nessun preset aggiunto. Aggiungine uno in basso.</string>
     <string name="player_settings_custom_speeds_add">Aggiungi preset</string>
     <string name="player_settings_custom_speeds_remove">Rimuovi</string>
-    <string name="player_settings_speed_slider_title">Modalità cursore velocità</string>
+    <string name="player_settings_speed_slider_title">Modalità cursore di velocità</string>
     <string name="player_settings_speed_slider_subtitle">Utilizza un cursore continuo per impostare qualsiasi velocità di riproduzione</string>
     <string name="speed_slider_decrease">Riduci velocità</string>
     <string name="speed_slider_increase">Aumenta velocità</string>
@@ -738,7 +738,7 @@
     <string name="deep_flow_mode_title">Modalità Deep Flow</string>
     <string name="deep_flow_learning_paused">APPRENDIMENTO SOSPESO</string>
     <string name="deep_flow_expires_in">Scade tra %s</string>
-    <string name="deep_flow_expire_duration_title">Disabilita automaticamente dopo</string>
+    <string name="deep_flow_expire_duration_title">Sospensione automatica</string>
     <string name="deep_flow_expire_duration_subtitle">L\'apprendimento riprenderà automaticamente dopo %s</string>
     <string name="deep_flow_dialog_title">Durata sospensione</string>
     <string name="deep_flow_dialog_body">Per quanto tempo deve stare sospeso l\'apprendimento?</string>
@@ -772,7 +772,7 @@
     <string name="break_reminder_subtitle">Fai pause regolari durante la visione</string>
     <string name="sleep_window">Fascia di riposo:</string>
     <string name="frequency_description">Con quale frequenza ricordartelo</string>
-    <string name="tools_subtitle">Impostazioni promemoria per regolare le tue abitudini di visione</string>
+    <string name="tools_subtitle">Imposta promemoria per regolare le tue abitudini di visione</string>
     <string name="confirm">Conferma</string>
     <string name="sleep_timer_duration">Durata</string>
     <string name="sleep_timer_minutes">%1$d min</string>
@@ -830,7 +830,7 @@
     <string name="import_music_apps_section_subtitle">Importa la tua libreria musicale da altri player</string>
     <string name="import_from_metrolist">Importa da Metrolist</string>
     <string name="import_from_metrolist_desc">Importa playlist musicali da un file di backup di Metrolist (.zip). Le playlist appariranno nella tua libreria musicale.</string>
-    <string name="import_from_youtube">Importa di YouTube</string>
+    <string name="import_from_youtube">Importa da YouTube</string>
     <string name="import_from_youtube_desc">Importa le iscrizioni da YouTube Takeout (CSV).</string>
     <string name="import_yt_data_section_title">Dati YouTube</string>
     <string name="import_yt_data_section_subtitle">Importa dati aggiuntivi da YouTube Takeout</string>
@@ -1203,7 +1203,7 @@
     <string name="auto_backup_failed">Backup fallito</string>
     <string name="auto_backup_notification_channel">Backup automatici</string>
     <string name="export_data_screen_title">Esporta dati</string>
-    <string name="export_data_section_header">Scegli tipologia di esportazione</string>
+    <string name="export_data_section_header">Scegli la tipologia di esportazione</string>
     <string name="export_data_section_subtitle">Seleziona cosa vuoi esportare e salvare nel tuo dispositivo</string>
     <string name="export_app_data_title">Backup dati dell\'app</string>
     <string name="export_app_data_desc">Esporta le tue iscrizioni, la cronologia delle visualizzazioni, le playlist e le impostazioni</string>
@@ -1262,7 +1262,7 @@
     <string name="player_action_copy_link">Copia link</string>
     <string name="player_action_copy_link_at_time">Copia al momento</string>
     <string name="link_with_timestamp_copied">Link con timestamp copiato</string>
-    <string name="player_live_label">IN DIRETTA</string>
+    <string name="player_live_label">LIVE</string>
     <string name="player_action_dislike">Non mi piace</string>
     <string name="action_want_more">Voglio altri contenuti simili</string>
     <string name="action_not_interested">Non imteressato</string>
@@ -1302,7 +1302,7 @@
     <string name="channel_search_close">Chiudi ricerca</string>
     <string name="channel_search_no_results">Nessun risultato trovato per %1$s</string>
     <string name="player_appearance_fullscreen_header">Schermo intero</string>
-    <string name="player_show_title_title">Mostra titolo video</string>
+    <string name="player_show_title_title">Mostra titolo del video</string>
     <string name="player_show_title_subtitle">Mostra il titolo del video sotto la barra superiore in modalità schermo intero</string>
     <string name="player_appearance_brightness_gesture_subtitle">Scorri il bordo sinistro a schermo intero per regolare la luminosità</string>
     <string name="player_appearance_volume_gesture_title">Gesto volume</string>
@@ -1315,4 +1315,10 @@
     <string name="deep_flow_expired_message">Timer Deep Flow scaduto</string>
     <string name="deep_flow_active_until_disabled">Deep Flow rimane attivo finché non lo disattivi</string>
     <string name="deep_flow_duration_never">Mai</string>
+    <string name="export_newpipe_subs_failed">Impossibile esportare iscrizioni NewPipe</string>
+    <string name="export_newpipe_subs_desc">Esporta le tue iscrizioni come file JSON compatibile con NewPipe.</string>
+    <string name="content_settings_video_card_mark_watched_subtitle">Mostra un pulsante a forma di occhio sulle schede video complete e compatte per contrassegnare rapidamente i video come visti</string>
+    <string name="export_newpipe_subs_success">Iscrizioni NewPipe esportate correttamente</string>
+    <string name="content_settings_video_card_mark_watched_title">Pulsante segna come visto sulla scheda video</string>
+    <string name="export_newpipe_subs_title">Esporta iscrizioni (formato NewPipe)</string>
 </resources>

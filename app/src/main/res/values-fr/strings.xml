@@ -62,7 +62,7 @@
     <string name="loading_track">Chargement...</string>
     <string name="error_occurred">Une erreur est survenue</string>
     <string name="playing_from">Lecture depuis</string>
-    <string name="autoplay">Lecture auto.</string>
+    <string name="autoplay">Lecture automatique</string>
     <string name="move_up">Monter</string>
     <string name="move_down">Descendre</string>
     <string name="lyrics_not_available">Paroles non disponibles</string>
@@ -85,7 +85,7 @@
     <string name="codec_label">Codec</string>
     <string name="sample_rate_label">Taux d\'échantillonnage</string>
     <string name="bitrate_label">Débit binaire</string>
-    <string name="channels_label">Canaux</string>
+    <string name="channels_label">Chaînes</string>
     <string name="audio_info_not_available">Informations sur le flux audio non disponibles pour l\'instant.</string>
     <string name="undo">Annuler</string>
     <string name="subscribed_to">Abonné à %s</string>
@@ -102,6 +102,7 @@
     <string name="music_player">Lecteur audio</string>
     <plurals name="channels_count">
         <item quantity="one">%d chaîne</item>
+        <item quantity="many">%d chaînes</item>
         <item quantity="other">%d chaînes</item>
     </plurals>
     <string name="tab_videos">Vidéos</string>
@@ -119,7 +120,7 @@
     <!-- Enregistrer dans la Playlist Dialog -->
     <string name="save_to">Enregistrer dans...</string>
     <string name="watch_later">À regarder plus tard</string>
-    <string name="watch_later_unsave">Retirer de "À regarder plus tard"</string>
+    <string name="watch_later_unsave">Retirer de À regarder plus tard</string>
     <string name="playlist_private">Privée</string>
     <string name="playlist_public">Publique</string>
     <string name="create_new_playlist">Créer une playlist</string>
@@ -205,7 +206,7 @@
     <string name="playlists_count_template">%1$d playlists</string>
     <string name="shorts_count_template">%1$d shorts</string>
     <string name="play_all">Tout lire</string>
-    <string name="remove_from_watch_later">Retirer de "À regarder plus tard"</string>
+    <string name="remove_from_watch_later">Retirer de À regarder plus tard</string>
     <string name="playlist_metadata_template">Playlist • Privée • %1$d vidéos</string>
     <string name="explicit">E</string>
     <string name="no_videos_saved">Aucune vidéo enregistrée</string>
@@ -410,7 +411,7 @@
     <!-- Paramètres du Lecteur -->
     <string name="player_settings_title">Paramètres du Lecteur</string>
     <string name="player_settings_background_play">Lecture en Arrière-plan</string>
-    <string name="player_settings_background_play_subtitle">Continuer à jouer lorsque l\'application est en arrière-plan</string>
+    <string name="player_settings_background_play_subtitle">Continuer la lecture lorsque l\'application est en arrière-plan</string>
     <string name="player_settings_autoplay">Lecture Automatique</string>
     <string name="player_settings_autoplay_subtitle">Jouer automatiquement la vidéo suivante</string>
     <string name="player_settings_skip_silence">Passer les silences</string>
@@ -488,7 +489,7 @@
     <string name="topics_count_template">%1$d sujets</string>
     <string name="hidden_count_template">%1$d masqués</string>
     <string name="your_interests_title">Vos Intérêts</string>
-    <string name="your_interests_desc">Les sujets que vous avez sélectionnés aident Flow à recommander un meilleur contenu. Appuyez sur les sujets ci-dessous pour les ajouter ou les supprimer.</string>
+    <string name="your_interests_desc">Les thèmes que vous avez sélectionnés aident Flow à vous recommander du contenu plus adapté. Appuyez sur les thèmes ci-dessous pour en ajouter ou en supprimer.</string>
     <string name="currently_following">Actuellement Suivis</string>
     <string name="tap_to_remove">Appuyez pour supprimer</string>
     <string name="add_topics">Ajouter des Sujets</string>
@@ -590,7 +591,7 @@
     <string name="location_internal_app_label">Stockage interne de l\'application</string>
     <string name="location_internal_app_desc">Privé à l\'application — les fichiers peuvent être supprimés si vous désinstallez</string>
     <string name="location_custom_saf_label">Parcourir…</string>
-    <string name="location_custom_saf_desc">Choisissez un dossier avec le sélecteur de fichiers système</string>
+    <string name="location_custom_saf_desc">Sélectionnez un dossier à l\'aide du sélecteur de fichiers du système</string>
     <string name="location_custom_manual_label">Saisir un chemin manuellement</string>
     <string name="location_custom_manual_desc">Tapez un chemin absolu, ex. /storage/emulated/0/MonDossier</string>
     <string name="location_manual_dialog_title">Chemin de téléchargement personnalisé</string>
@@ -684,7 +685,7 @@
     <string name="topic_weights">Poids des sujets</string>
     <string name="topic_weights_subtitle">Transparence totale sur ce qui alimente votre fil</string>
     <string name="temporal_patterns">Modèles temporels</string>
-    <string name="temporal_patterns_subtitle">Comment vos centres d’intérêt évoluent dans la journée</string>
+    <string name="temporal_patterns_subtitle">Comment vos centres d\'intérêt évoluent au fil de la journée</string>
     <string name="channel_memory">Mémoire des chaînes</string>
     <string name="channel_memory_subtitle">Retour implicite de votre historique de visionnage</string>
     <string name="algorithm_insights">Insights de l\'Algorithme</string>
@@ -727,7 +728,7 @@
     <string name="year_artist_template">%1$s • %2$s</string>
     <string name="status_playing">Lecture en cours</string>
     <string name="label_explicit">Explicite</string>
-    <string name="duration_with_dot_template"> • %1$s</string>
+    <string name="duration_with_dot_template">• %1$s</string>
     <string name="status_downloaded">Téléchargé</string>
     <string name="title_create_playlist">Créer une Playlist</string>
     <string name="label_playlist_name">Nom de la Playlist</string>
@@ -747,7 +748,7 @@
     <!-- Écran de Musique Améliorée -->
     <string name="screen_title_music">MUSIQUE</string>
     <string name="section_listen_again">Écouter à nouveau</string>
-    <string name="section_quick_picks">Choix rapides</string>
+    <string name="section_quick_picks">Sélection rapide</string>
     <string name="section_recommended">Recommandé</string>
     <string name="section_recently_played">Récemment joué</string>
     <string name="section_music_videos">Clips musicaux</string>
@@ -800,7 +801,7 @@
     <string name="artist_audience_template">Artiste • %1$s audience mensuelle</string>
     <string name="search_source_template">Recherche : %1$s</string>
     <string name="artist_source_template">Artiste : %1$s</string>
-    <string name="top_picks_for_you">Top Choix pour Vous</string>
+    <string name="top_picks_for_you">Nos meilleures suggestions pour vous</string>
     <string name="no_results_found">Aucun résultat trouvé</string>
     <string name="no_tracks_available">Aucune piste disponible</string>
     <!-- Écran de Bibliothèque -->
@@ -848,7 +849,7 @@
     <string name="sleep_timer_close_app">Fermer l\'appli à l\'expiration</string>
     <string name="sleep_timer_close_app_desc">Quitter l\'appli pour préserver la batterie</string>
     <string name="sleep_timer_will_close_app">L\'appli se fermera à l\'expiration de la minuterie</string>
-    <string name="unsubscribe">Se Désabonner</string>
+    <string name="unsubscribe">Se désabonner</string>
     <string name="mark_as_watched">Marquer comme vu</string>
     <string name="mark_as_watched_toast">Marquer comme vu — vos recommandations vont s’améliorer!</string>
     <string name="i_like_this">Je veux plus de ça</string>
@@ -885,7 +886,7 @@
     <string name="delete_group">Supprimer un Groupe</string>
     <string name="group_name_label">Nom du groupe</string>
     <string name="no_groups_yet">Pas encore de groupes. Créez-en un pour filtrer vos recommandations.</string>
-    <string name="search_channels_hint">Recherche des chaînes…</string>
+    <string name="search_channels_hint">Recherche de chaînes…</string>
     <string name="songs_count_template">%1$d titres</string>
     <string name="end_of_queue">Fin de la file d\'attente</string>
     <string name="channel_search_hint">Rechercher dans la chaîne</string>
@@ -899,7 +900,7 @@
     <string name="deep_flow_expire_duration_title">Désactivation automatique après</string>
     <string name="deep_flow_expire_duration_subtitle">L\'apprentissage reprend automatiquement après %s</string>
     <string name="deep_flow_dialog_title">Durée de la pause</string>
-    <string name="deep_flow_dialog_body">Combien de temps l\'apprentissage devrait-il rester en pause ?</string>
+    <string name="deep_flow_dialog_body">Combien de temps l\'apprentissage devrait-il rester en pause ?</string>
     <string name="deep_flow_duration_1h">1 heure</string>
     <string name="deep_flow_duration_2h">2 heures</string>
     <string name="deep_flow_duration_4h">4 heures</string>
@@ -933,9 +934,63 @@
     <string name="appearance_customize_theme">Personnalisation du Thème</string>
     <string name="appearance_customizer_title">Éditeur de Thèmes Personnalisés</string>
     <string name="appearance_customizer_subtitle">Définissez chaque rôle à l\'aide de valeurs hexadécimales et prévisualisez instantanément</string>
-    <string name="appearance_customizer_format_hint">Format hexadécimal : #RRGGBB ou #AARRGGBB</string>
+    <string name="appearance_customizer_format_hint">Format hexadécimal : #RRGGBB ou #AARRGGBB</string>
     <string name="appearance_customizer_reset">Réinitialiser</string>
     <string name="appearance_customizer_save">Sauvegarder le Thème</string>
     <string name="appearance_role_primary">Primaire</string>
     <string name="appearance_role_on_primary">Aux primaires</string>
+    <string name="deep_flow_enabled_message">Deep Flow activé</string>
+    <string name="deep_flow_disabled_message">Deep Flow désactivé</string>
+    <string name="deep_flow_expired_message">Le minuteur Deep Flow s\'est arrêté</string>
+    <string name="deep_flow_active_until_disabled">Deep Flow reste actif jusqu\'à ce que vous le désactiviez</string>
+    <string name="deep_flow_duration_never">Jamais</string>
+    <string name="appearance_role_secondary">Secondaire</string>
+    <string name="appearance_role_tertiary">Tertiaire</string>
+    <string name="app_icon_picker_subtitle">Choisissez un style d\'icône pour le lanceur. La modification prend effet immédiatement et le lanceur s\'actualise brièvement.</string>
+    <string name="app_icon_picker_warning">⚠ Attention : la modification des icônes fait appel à un mécanisme du système Android qui peut temporairement faire disparaître le raccourci de l\'application de votre écran d\'accueil. Appuyez longuement sur le lanceur d\'applications pour le rajouter si nécessaire.</string>
+    <string name="content_settings_explore_region_picker_title">Sélection rapide de la région dans Explorer</string>
+    <string name="content_settings_explore_region_picker_subtitle">Afficher une icône représentant un globe terrestre dans la barre supérieure de l\'écran « Explorer » pour changer instantanément la région en vogue.</string>
+    <string name="categories_region_picker_desc">Changer la région en vogue (actuellement : %1$s)</string>
+    <string name="sb_color_picker_title">Couleur de mise en évidence du segment</string>
+    <string name="auto_backup_pick_folder">Sélectionner un dossier</string>
+    <string name="player_settings_shorts_background_play_subtitle">Continuer à lire les Shorts lorsque l\'application est en arrière-plan</string>
+    <string name="player_settings_play_during_calls_subtitle">Poursuivre la lecture pendant les appels téléphoniques ou VoIP (par exemple, WhatsApp)</string>
+    <string name="import_engine_data_desc">Restaurez votre profil de personnalité IA à partir d\'un fichier de sauvegarde</string>
+    <string name="mini_player_normal">Normal</string>
+    <string name="skip_button_title">Afficher les boutons « Passer »</string>
+    <string name="skip_button_subtitle">Afficher les boutons de retour en arrière et d\'avance rapide de 10 secondes sur le mini-lecteur</string>
+    <string name="player_nav_btn_title">Afficher les boutons Suivant/Précédent</string>
+    <string name="player_nav_btn_subtitle">Afficher les boutons « Vidéo suivante » et « Vidéo précédente » sur le mini-lecteur</string>
+    <string name="player_appearance_fullscreen_header">Plein écran</string>
+    <string name="player_show_title_title">Afficher le titre de la vidéo</string>
+    <string name="player_show_title_subtitle">Afficher le titre de la vidéo sous la barre supérieure en mode plein écran</string>
+    <string name="theme_name_system_default">Paramètres par défaut du système</string>
+    <string name="theme_desc_system_default">Synchroniser avec le thème de l\'appareil</string>
+    <string name="theme_name_monochrome">Monochrome</string>
+    <string name="theme_name_custom">Personnalisé</string>
+    <string name="theme_desc_custom">Créez votre propre palette professionnelle</string>
+    <string name="content_settings_home_layout_title">Mode d\'affichage d\'accueil</string>
+    <string name="content_settings_home_layout_subtitle">Choisissez comment les vidéos s\'affichent sur l\'écran d\'accueil</string>
+    <string name="content_settings_layout_grid">Grille</string>
+    <string name="content_settings_layout_list">Liste</string>
+    <string name="settings_show_related_videos_title">Afficher les vidéos associées</string>
+    <string name="settings_show_related_videos_subtitle">Afficher les vidéos associées sous le lecteur vidéo</string>
+    <string name="player_appearance_gestures_header">Gestes</string>
+    <string name="player_appearance_swipe_gestures_title">Gestes de luminosité et de volume</string>
+    <string name="player_appearance_swipe_gestures_subtitle">Balayez vers la gauche ou vers la droite pour régler la luminosité et le volume en mode plein écran</string>
+    <string name="content_settings_video_card_mark_watched_title">Bouton « Marquer comme vu » de la carte graphique</string>
+    <string name="content_settings_video_card_mark_watched_subtitle">Afficher un bouton en forme d\'œil sur les fiches vidéo « complète » et « compacte » pour marquer rapidement les vidéos comme déjà visionnées</string>
+    <string name="content_settings_show_app_logo_title">Afficher l\'icône du logo de l\'application</string>
+    <string name="content_settings_show_app_logo_subtitle">Afficher l\'icône du logo Flow à côté du nom de l\'application dans la barre supérieure de l\'écran d\'accueil</string>
+    <string name="content_settings_header_content_components">Éléments de contenu</string>
+    <string name="content_settings_hide_watched_title">Masquer les vidéos visionnées</string>
+    <string name="content_settings_hide_watched_subtitle">Filtrez les vidéos que vous avez déjà visionnées dans votre fil d\'actualité et vos abonnements</string>
+    <string name="content_settings_disable_shorts_player_title">Désactiver le lecteur Shorts</string>
+    <string name="content_settings_disable_shorts_player_subtitle">Lire toutes les vidéos (y compris les YouTube Shorts) dans le lecteur vidéo standard</string>
+    <string name="content_settings_header_nav_tabs">Onglets de navigation</string>
+    <string name="settings_music_nav_tab_title">Onglet « Musique » dans le menu de navigation</string>
+    <string name="settings_music_nav_tab_subtitle">Afficher l\'onglet « Musique » dans la barre de navigation inférieure.</string>
+    <string name="settings_search_nav_tab_title">Onglet « Recherche » dans le menu de navigation</string>
+    <string name="settings_search_nav_tab_subtitle">Afficher un onglet « Recherche » à accès rapide dans la barre de navigation inférieure.</string>
+    <string name="nav_search">Recherche</string>
 </resources>
