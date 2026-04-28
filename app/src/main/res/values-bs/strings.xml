@@ -20,7 +20,7 @@
     <string name="library_music_playlists_label">Muzičke liste</string>
     <string name="library_music_playlists_subtitle">Vaše muzičke kolekcije</string>
     <string name="library_liked_videos_label">Videzapisi koji ti se sviđaju</string>
-    <string name="library_saved_shorts_label">Spremljeni Shorts</string>
+    <string name="library_saved_shorts_label">Sačuvani Shorts</string>
     <string name="library_watch_later_label">Gledaj kasnije</string>
     <string name="library_downloads_label">Preuzimanja</string>
     <string name="library_settings_data_header"><![CDATA[Postavke i podaci]]></string>
@@ -360,4 +360,14 @@
     <string name="settings_item_support_subtitle">Podržite razvoj Flow-a</string>
     <string name="settings_region_dialog_title">Odaberite regiju</string>
     <string name="settings_export_success">Podaci uspješno izvezani</string>
+    <string name="tap_to_close">Dodirnite da zatvorite</string>
+    <string name="group_all">Sve</string>
+    <string name="manage_groups">Upravljanje grupama</string>
+    <string name="new_group">Nova Grupa</string>
+    <string name="edit_group">Uredi Grupu</string>
+    <string name="delete_group">Izbriši Grupu</string>
+    <string name="group_name_label">Naziv Grupe</string>
+    <string name="no_groups_yet">Još nema grupa. Napravite grupu da biste filtrirali svoj feed.</string>
+    <string name="search_channels_hint">Pretraži kanale…</string>
+    <string name="channel_search_hint">Pretraži Kanal</string>
 </resources>
