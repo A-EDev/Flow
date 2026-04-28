@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -32,6 +33,7 @@ fun DonationsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
 
     Scaffold(
         topBar = {
@@ -86,6 +88,24 @@ fun DonationsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(
+                        onClick = { uriHandler.openUri("https://nowpayments.io/donation/aedev") },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.onBackground,
+                            contentColor = MaterialTheme.colorScheme.background
+                        )
+                    ) {
+                        Text(
+                            text = stringResource(R.string.support_flow_nowpayments),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
                 }
             }
 

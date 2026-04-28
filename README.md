@@ -194,9 +194,18 @@ Flow gives you both. The recommendation engine learns what you like by analyzing
 <a id="support--donations"></a>
 ## 💰 Support Development
 
-Flow is free and open-source. I am an independent developer without banking access, so I rely on **Crypto** to keep the lights on.
+Flow is a free and open-source project. As an independent developer without traditional banking access, I cannot use services like PayPal or Stripe. 
 
-**If you enjoy the app, please consider supporting:**
+**However, you can now easily support the project using a Credit Card, Apple Pay, or Google Pay!** (The gateway automatically handles the conversion to crypto on my end).
+
+<a href="https://nowpayments.io/donation/aedev" target="_blank" rel="noreferrer noopener">
+    <img src="https://nowpayments.io/images/embeds/donation-button-black.svg" alt="Support Flow via NOWPayments">
+</a>
+
+<br>
+
+**Prefer to send Crypto directly?**
+If you already use crypto, you can send it directly to my wallets below:
 
 | Coin | Network | Address |
 | :--- | :--- | :--- |
@@ -206,7 +215,7 @@ Flow is free and open-source. I am an independent developer without banking acce
 | **Solana** | SOL | `7b3SLgiVPb8qQUvERSPGRWoFoiGEDvkFuY98M1GEngug` |
 | **Monero** | XMR | `8AgaxZnpEvT8VXJpczpL7BQejwSEw97saJmKYqq4zKErbe9bkYSwUhJ813msPPbdYhF11oz4N7tfEj4Zi6k27fKD83ca1if` |
 
-*Your support helps me maintain the project and add new features!*
+*Your support helps me maintain the project and add amazing new features!*
 
 ---
 
