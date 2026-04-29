@@ -1325,4 +1325,21 @@
     <string name="player_appearance_brightness_gesture_subtitle">إسحب من الحافة اليسرى في وضع ملء الشاشة لضبط مستوي السطوع</string>
     <string name="export_newpipe_subs_title">تصدير الإشتراكات (بتنسيق NewPipe)</string>
     <string name="support_flow_nowpayments">إدعم Flow عبر خدمة NOWPayments</string>
+    <string name="settings_item_proxy_subtitle">توجيه حركة مرور الشبكة عن بعد عبر HTTP أو SOCKS5</string>
+    <string name="proxy_settings_username">إسم المستخدم</string>
+    <string name="proxy_settings_password">كلمة المرور</string>
+    <string name="proxy_type_http">HTTP</string>
+    <string name="proxy_type_socks5">SOCKS5</string>
+    <string name="settings_item_proxy">إعدادات الوكيل (Proxy)</string>
+    <string name="proxy_settings_title">إعدادات الوكيل</string>
+    <string name="proxy_settings_enabled">تمكين Proxy</string>
+    <string name="proxy_settings_enabled_subtitle">استخدم الوكيل المعد مسبقا للتحكم في حركة مرور الشبكة عن بُعد</string>
+    <string name="proxy_settings_type">نوع Proxy</string>
+    <string name="proxy_settings_host">المضيف (Host)</string>
+    <string name="proxy_settings_port">المنفذ</string>
+    <string name="proxy_settings_optional_auth">أترك إسم المستخدم و كلمة المرور فارغتين لخوادم ال Proxy غير المصادق عليها التي لا تتطلب اسم مستخدم أو كلمة مرور.</string>
+    <string name="proxy_settings_restart_notice">قد تحتاج عمليات التنزيل النشطة أو طلبات التشغيل طويلة الأمد إلى إعادة تشغيل قبل أن تتكيف مع مسار جديد للوكيل (proxy) بشكل كامل.</string>
+    <string name="proxy_settings_invalid_host">أدخل اسم مضيف (host) الوكيل قبل تفعيل الوكيل.</string>
+    <string name="proxy_settings_invalid_port">أدخل منفذ proxy صالح بين 1 و 65535.</string>
+    <string name="proxy_settings_saved">تم حفظ إعدادات الProxy</string>
 </resources>
