@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.repository
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -16,7 +17,8 @@ import javax.inject.Singleton
 @Singleton
 class SponsorBlockRepository @Inject constructor() {
 
-    private val client = OkHttpClient()
+    private val client: OkHttpClient
+        get() = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
     private val gson = Gson()
     private val baseUrl = "https://sponsor.ajay.app/api/skipSegments"
 

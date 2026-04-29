@@ -124,16 +124,26 @@ object NewPipeExtractor {
     private var newPipeDownloader: NewPipeDownloaderImpl? = null
     private var newPipeUtils: NewPipeUtils? = null
     private var isInitialized = false
+    private var lastProxySignature: String? = null
 
     fun init() {
-        if (!isInitialized) {
+        val currentSignature = listOf(YouTube.proxy?.address(), YouTube.proxyAuth).joinToString(separator = "|")
+        if (!isInitialized || lastProxySignature != currentSignature) {
             newPipeDownloader = NewPipeDownloaderImpl(
                 proxy = YouTube.proxy,
                 proxyAuth = YouTube.proxyAuth
             )
             newPipeUtils = NewPipeUtils(newPipeDownloader!!)
             isInitialized = true
+            lastProxySignature = currentSignature
         }
+    }
+
+    fun invalidateClient() {
+        newPipeDownloader = null
+        newPipeUtils = null
+        isInitialized = false
+        lastProxySignature = null
     }
 
     fun getSignatureTimestamp(videoId: String): Result<Int> {

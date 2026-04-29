@@ -39,6 +39,7 @@ import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.data.local.DEEP_FLOW_NEVER_EXPIRES_HOURS
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.UserBrain
+import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.extendedColors
@@ -72,6 +73,7 @@ fun SettingsScreen(
     onNavigateToTimeManagement: () -> Unit,
     onNavigateToImport: () -> Unit,
     onNavigateToPlayerSettings: () -> Unit,
+    onNavigateToProxySettings: () -> Unit,
     onNavigateToVideoQuality: () -> Unit,
     onNavigateToShortsQuality: () -> Unit,
     onNavigateToContentSettings: () -> Unit,
@@ -142,7 +144,7 @@ fun SettingsScreen(
             isCheckingUpdate = true
             coroutineScope.launch(Dispatchers.IO) {
                 try {
-                    val client = OkHttpClient()
+                    val client = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
                     val request = Request.Builder()
                         .url("https://api.github.com/repos/A-EDev/Flow/releases/latest")
                         .header("Accept", "application/vnd.github.v3+json")
@@ -215,6 +217,7 @@ fun SettingsScreen(
         SettingSearchEntry(Icons.Outlined.GridView, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display_subtitle), secAppearance, onNavigateToContentSettings),
         SettingSearchEntry(Icons.Outlined.FilterAlt, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_prefs), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_prefs_subtitle), secContentPlayback, onNavigateToUserPreferences),
         SettingSearchEntry(Icons.Outlined.PlayCircle, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_subtitle), secContentPlayback, onNavigateToPlayerSettings),
+        SettingSearchEntry(Icons.Outlined.Public, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_proxy), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_proxy_subtitle), secContentPlayback, onNavigateToProxySettings),
         SettingSearchEntry(io.github.aedev.flow.R.drawable.ic_block, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sb_settings_title), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.sb_settings_subtitle), secContentPlayback, onNavigateToSponsorBlockSettings),
         SettingSearchEntry(Icons.Outlined.HighQuality, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_quality), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_quality_subtitle), secContentPlayback, onNavigateToVideoQuality),
         SettingSearchEntry(Icons.Outlined.Slideshow, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.shorts_quality_settings_title), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.shorts_quality_settings_subtitle), secContentPlayback, onNavigateToShortsQuality),
@@ -694,6 +697,13 @@ item {
                          title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player),
                          subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_subtitle),
                          onClick = onNavigateToPlayerSettings
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                        icon = Icons.Outlined.Public,
+                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_proxy),
+                        subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_proxy_subtitle),
+                        onClick = onNavigateToProxySettings
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(

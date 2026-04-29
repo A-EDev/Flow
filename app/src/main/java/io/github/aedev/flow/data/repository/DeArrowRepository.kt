@@ -4,6 +4,7 @@ import android.util.LruCache
 import io.github.aedev.flow.data.model.DeArrowContent
 import io.github.aedev.flow.data.model.DeArrowResult
 import com.google.gson.Gson
+import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -19,7 +20,8 @@ import okhttp3.Request
  */
 object DeArrowRepository {
 
-    private val client = OkHttpClient()
+    private val client: OkHttpClient
+        get() = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
     private val gson = Gson()
 
     private const val BRANDING_BASE_URL = "https://sponsor.ajay.app/api/branding"

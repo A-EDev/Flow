@@ -391,6 +391,8 @@
     <string name="settings_item_content_prefs_subtitle">Block topics you don\'t want to see</string>
     <string name="settings_item_player">Player Settings</string>
     <string name="settings_item_player_subtitle">Autoplay, Background Play, SponsorBlock</string>
+    <string name="settings_item_proxy">Proxy Settings</string>
+    <string name="settings_item_proxy_subtitle">Route remote traffic through HTTP or SOCKS5</string>
     <string name="settings_item_quality">Video Quality</string>
     <string name="settings_item_quality_subtitle">Resolution for Wi-Fi and Mobile</string>
     <string name="settings_item_content_display">Content Display</string>
@@ -644,6 +646,22 @@
 
     <!-- Player Settings -->
     <string name="player_settings_title">Player Settings</string>
+    <string name="proxy_settings_title">Proxy Settings</string>
+    <string name="proxy_settings_description">Configure an optional HTTP or SOCKS5 proxy for remote requests. Local casting and LAN discovery stay direct.</string>
+    <string name="proxy_settings_enabled">Enable Proxy</string>
+    <string name="proxy_settings_enabled_subtitle">Use the configured proxy for remote network traffic</string>
+    <string name="proxy_settings_type">Proxy Type</string>
+    <string name="proxy_settings_host">Host</string>
+    <string name="proxy_settings_port">Port</string>
+    <string name="proxy_settings_username">Username</string>
+    <string name="proxy_settings_password">Password</string>
+    <string name="proxy_settings_optional_auth">Leave username and password empty for unauthenticated proxies.</string>
+    <string name="proxy_settings_restart_notice">Active downloads or long-lived playback requests may need a restart before they fully adopt a new proxy route.</string>
+    <string name="proxy_type_http">HTTP</string>
+    <string name="proxy_type_socks5">SOCKS5</string>
+    <string name="proxy_settings_invalid_host">Enter a proxy host before enabling the proxy.</string>
+    <string name="proxy_settings_invalid_port">Enter a valid proxy port between 1 and 65535.</string>
+    <string name="proxy_settings_saved">Proxy settings saved</string>
     <string name="player_settings_background_play">Background Play</string>
     <string name="player_settings_background_play_subtitle">Continue playing when app is in background</string>
     <string name="player_settings_shorts_background_play">Shorts Background Play</string>

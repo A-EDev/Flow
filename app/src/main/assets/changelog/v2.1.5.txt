@@ -1,6 +1,11 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-04-28
+DATE: 2026-04-29
+
+FEATURES
+- Add new Proxy manager and routing #362
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361
+- Improve media playback notification handling #347
+- Improve Monochrome app logo quality #336

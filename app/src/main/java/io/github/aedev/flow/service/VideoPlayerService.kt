@@ -42,6 +42,7 @@ class VideoPlayerService : Service() {
     
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
+    private var hasStartedForeground = false
 
     /**
      * Coroutine job that releases WakeLock/WifiLock after a 30-second grace period.
@@ -192,7 +193,12 @@ class VideoPlayerService : Service() {
             try {
                 val title = intent.getStringExtra(EXTRA_VIDEO_TITLE)
                 val channel = intent.getStringExtra(EXTRA_VIDEO_CHANNEL)
-                startForeground(NOTIFICATION_ID, createPlaceholderNotification(title, channel))
+                if (!hasStartedForeground) {
+                    startForeground(NOTIFICATION_ID, createPlaceholderNotification(title, channel))
+                    hasStartedForeground = true
+                } else {
+                    notificationManager.notify(NOTIFICATION_ID, createPlaceholderNotification(title, channel))
+                }
             } catch (e: Exception) {
                 Log.w("VideoPlayerService", "Immediate foreground start failed", e)
             }
@@ -523,8 +529,13 @@ class VideoPlayerService : Service() {
                     .setShowActionsInCompactView(0, 1, 2)
             )
             .build()
-        
-        startForeground(NOTIFICATION_ID, notification)
+
+        if (!hasStartedForeground && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForeground(NOTIFICATION_ID, notification)
+            hasStartedForeground = true
+        } else {
+            notificationManager.notify(NOTIFICATION_ID, notification)
+        }
     }
 
     private fun createPlaceholderNotification(title: String? = null, channel: String? = null): Notification {
@@ -595,6 +606,7 @@ class VideoPlayerService : Service() {
     
     private fun stopPlayback() {
         EnhancedPlayerManager.getInstance().stop()
+        hasStartedForeground = false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE)
         } else {

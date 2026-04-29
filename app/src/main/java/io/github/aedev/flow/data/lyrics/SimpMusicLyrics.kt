@@ -8,6 +8,7 @@ import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
+import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -26,10 +27,11 @@ import kotlin.math.abs
 object SimpMusicLyrics {
     private const val TAG = "SimpMusicLyrics"
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
+    private val client: OkHttpClient
+        get() = AppProxyManager.applyTo(OkHttpClient.Builder())
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .build()
     private val gson = Gson()
 
     private const val BASE_URL = "https://api-lyrics.simpmusic.org/v1/"

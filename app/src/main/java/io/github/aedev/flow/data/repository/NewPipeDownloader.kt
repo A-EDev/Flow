@@ -1,6 +1,7 @@
 package io.github.aedev.flow.data.repository
 
 import android.content.Context
+import io.github.aedev.flow.network.AppProxyManager
 import okhttp3.OkHttpClient
 import org.schabi.newpipe.extractor.downloader.Downloader
 import org.schabi.newpipe.extractor.downloader.Request
@@ -15,12 +16,12 @@ import java.util.concurrent.TimeUnit
  */
 class NewPipeDownloader private constructor(context: Context) : Downloader() {
 
-    private val client: OkHttpClient = OkHttpClient.Builder()
-        .readTimeout(30, TimeUnit.SECONDS)
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        // .cache(Cache(File(context.cacheDir, "newpipe_http_cache"), 10 * 1024 * 1024))
-        .build()
+    private val client: OkHttpClient
+        get() = AppProxyManager.applyTo(OkHttpClient.Builder())
+            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
 
     companion object {
         @Volatile

@@ -1,6 +1,7 @@
 package io.github.aedev.flow.di
 
 import android.content.Context
+import io.github.aedev.flow.network.AppProxyManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -64,7 +65,7 @@ object NetworkModule {
             maxRequestsPerHost = MAX_REQUESTS_PER_HOST
         }
 
-        return OkHttpClient.Builder()
+        return AppProxyManager.applyTo(OkHttpClient.Builder())
             // Enable HTTP/2 for multiplexing (parallel streams on single connection)
             .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
             
@@ -101,7 +102,7 @@ object NetworkModule {
     @Singleton
     @MetadataClient
     fun provideMetadataClient(@ApplicationContext context: Context): OkHttpClient {
-        return OkHttpClient.Builder()
+        return AppProxyManager.applyTo(OkHttpClient.Builder())
             .protocols(listOf(Protocol.HTTP_2, Protocol.HTTP_1_1))
             .connectionPool(ConnectionPool(5, 2, TimeUnit.MINUTES))
             .connectTimeout(10, TimeUnit.SECONDS)

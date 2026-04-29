@@ -18,6 +18,7 @@ import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.WEB_CREATOR
 import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.innertube.pages.NewPipeExtractor
+import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
 import io.github.aedev.flow.utils.potoken.PoTokenGenerator
 import io.github.aedev.flow.utils.potoken.PoTokenResult
@@ -32,20 +33,11 @@ import java.util.concurrent.ConcurrentHashMap
 object MusicPlayerUtils {
     private const val TAG = "MusicPlayerUtils"
 
-    private val httpClient: OkHttpClient by lazy {
-        OkHttpClient.Builder()
-            .proxy(YouTube.proxy)
-            .proxyAuthenticator { _, response ->
-                YouTube.proxyAuth?.let { auth ->
-                    response.request.newBuilder()
-                        .header("Proxy-Authorization", auth)
-                        .build()
-                } ?: response.request
-            }
+    private val httpClient: OkHttpClient
+        get() = AppProxyManager.applyTo(OkHttpClient.Builder())
             .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
             .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
             .build()
-    }
 
     private val poTokenGenerator = PoTokenGenerator()
 

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -18,7 +19,8 @@ data class UpdateInfo(
 )
 
 object UpdateManager {
-    private val client = OkHttpClient()
+    private val client: OkHttpClient
+        get() = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
     
     // 🔥 CHANGE THIS TO YOUR REPO: "owner/repo"
     private const val GITHUB_REPO = "A-EDev/Flow" 

@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import io.github.aedev.flow.network.AppProxyConfig
+import io.github.aedev.flow.network.AppProxyType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -45,6 +47,12 @@ class PlayerPreferences(private val context: Context) {
         val DOWNLOAD_OVER_WIFI_ONLY = booleanPreferencesKey("download_over_wifi_only")
         val DEFAULT_DOWNLOAD_QUALITY = stringPreferencesKey("default_download_quality")
         val DOWNLOAD_LOCATION = stringPreferencesKey("download_location")
+        val PROXY_ENABLED = booleanPreferencesKey("proxy_enabled")
+        val PROXY_TYPE = stringPreferencesKey("proxy_type")
+        val PROXY_HOST = stringPreferencesKey("proxy_host")
+        val PROXY_PORT = intPreferencesKey("proxy_port")
+        val PROXY_USERNAME = stringPreferencesKey("proxy_username")
+        val PROXY_PASSWORD = stringPreferencesKey("proxy_password")
         val SURFACE_READY_TIMEOUT_MS = longPreferencesKey("surface_ready_timeout_ms")
         
         // Audio track preference
@@ -1205,6 +1213,101 @@ class PlayerPreferences(private val context: Context) {
         }
     }
 
+    val proxyEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.PROXY_ENABLED] ?: false
+        }
+
+    suspend fun setProxyEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PROXY_ENABLED] = enabled
+        }
+    }
+
+    val proxyType: Flow<AppProxyType> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            AppProxyType.fromStorageValue(preferences[Keys.PROXY_TYPE])
+        }
+
+    suspend fun setProxyType(type: AppProxyType) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PROXY_TYPE] = type.storageValue
+        }
+    }
+
+    val proxyHost: Flow<String> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.PROXY_HOST].orEmpty()
+        }
+
+    suspend fun setProxyHost(host: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PROXY_HOST] = host.trim()
+        }
+    }
+
+    val proxyPort: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.PROXY_PORT] ?: 8080
+        }
+
+    suspend fun setProxyPort(port: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PROXY_PORT] = port
+        }
+    }
+
+    val proxyUsername: Flow<String> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.PROXY_USERNAME].orEmpty()
+        }
+
+    suspend fun setProxyUsername(username: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PROXY_USERNAME] = username.trim()
+        }
+    }
+
+    val proxyPassword: Flow<String> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.PROXY_PASSWORD].orEmpty()
+        }
+
+    suspend fun setProxyPassword(password: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PROXY_PASSWORD] = password
+        }
+    }
+
+    val proxyConfig: Flow<AppProxyConfig> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            AppProxyConfig(
+                enabled = preferences[Keys.PROXY_ENABLED] ?: false,
+                type = AppProxyType.fromStorageValue(preferences[Keys.PROXY_TYPE]),
+                host = preferences[Keys.PROXY_HOST].orEmpty(),
+                port = preferences[Keys.PROXY_PORT] ?: 8080,
+                username = preferences[Keys.PROXY_USERNAME].orEmpty(),
+                password = preferences[Keys.PROXY_PASSWORD].orEmpty()
+            )
+        }
+
+    suspend fun getProxyConfig(): AppProxyConfig = proxyConfig.first()
+
+    suspend fun setProxyConfig(config: AppProxyConfig) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PROXY_ENABLED] = config.enabled
+            preferences[Keys.PROXY_TYPE] = config.type.storageValue
+            preferences[Keys.PROXY_HOST] = config.host.trim()
+            preferences[Keys.PROXY_PORT] = config.port
+            preferences[Keys.PROXY_USERNAME] = config.username.trim()
+            if (config.password.isEmpty()) {
+                preferences.remove(Keys.PROXY_PASSWORD)
+            } else {
+                preferences[Keys.PROXY_PASSWORD] = config.password
+            }
+        }
+    }
+
     // Surface timeout
     val surfaceReadyTimeoutMs: Flow<Long> = context.playerPreferencesDataStore.data
         .map { preferences ->
@@ -1381,6 +1484,7 @@ class PlayerPreferences(private val context: Context) {
         val longs = mutableMapOf<String, Long>()
 
         prefs.asMap().forEach { (key, value) ->
+            if (key.name == "proxy_password") return@forEach
             when (value) {
                 is String -> strings[key.name] = value
                 is Boolean -> booleans[key.name] = value
@@ -1394,7 +1498,11 @@ class PlayerPreferences(private val context: Context) {
 
     suspend fun restoreData(backup: SettingsBackup) {
         context.playerPreferencesDataStore.edit { prefs ->
-            backup.strings.forEach { (k, v) -> prefs[stringPreferencesKey(k)] = v }
+            backup.strings.forEach { (k, v) ->
+                if (k != "proxy_password") {
+                    prefs[stringPreferencesKey(k)] = v
+                }
+            }
             backup.booleans.forEach { (k, v) -> prefs[booleanPreferencesKey(k)] = v }
             backup.ints.forEach { (k, v) -> prefs[intPreferencesKey(k)] = v }
             backup.floats.forEach { (k, v) -> prefs[floatPreferencesKey(k)] = v }

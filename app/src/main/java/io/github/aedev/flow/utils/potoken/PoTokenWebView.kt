@@ -8,7 +8,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import androidx.annotation.MainThread
 import io.github.aedev.flow.BuildConfig
-import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
@@ -325,9 +325,8 @@ class PoTokenWebView private constructor(
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.3"
         private const val JS_INTERFACE = "PoTokenWebView"
 
-        private val httpClient = OkHttpClient.Builder()
-            .proxy(YouTube.proxy)
-            .build()
+        private val httpClient: OkHttpClient
+            get() = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
 
         suspend fun getNewPoTokenGenerator(context: Context): PoTokenWebView {
             return withContext(Dispatchers.Main) {

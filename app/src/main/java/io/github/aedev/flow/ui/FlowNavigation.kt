@@ -282,6 +282,7 @@ fun NavGraphBuilder.flowAppGraph(
             onNavigateToTimeManagement = { navController.navigate("settings/time_management") },
             onNavigateToImport = { navController.navigate("settings/import") },
             onNavigateToPlayerSettings = { navController.navigate("settings/player") },
+            onNavigateToProxySettings = { navController.navigate("settings/proxy") },
             onNavigateToVideoQuality = { navController.navigate("settings/video_quality") },
             onNavigateToShortsQuality = { navController.navigate("settings/shorts_quality") },
             onNavigateToContentSettings = { navController.navigate("settings/content") },
@@ -326,6 +327,14 @@ fun NavGraphBuilder.flowAppGraph(
         currentRoute.value = "settings/player"
         showBottomNav.value = false
         io.github.aedev.flow.ui.screens.settings.PlayerSettingsScreen(
+            onNavigateBack = { navController.popBackStack() }
+        )
+    }
+
+    composable("settings/proxy") {
+        currentRoute.value = "settings/proxy"
+        showBottomNav.value = false
+        io.github.aedev.flow.ui.screens.settings.ProxySettingsScreen(
             onNavigateBack = { navController.popBackStack() }
         )
     }

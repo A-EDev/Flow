@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.work.*
 import io.github.aedev.flow.data.local.SubscriptionRepository
+import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -90,7 +91,7 @@ class SubscriptionCheckWorker(
     }
     
     // Create a single OkHttpClient instance
-    private val client = OkHttpClient.Builder()
+    private val client = AppProxyManager.applyTo(OkHttpClient.Builder())
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()

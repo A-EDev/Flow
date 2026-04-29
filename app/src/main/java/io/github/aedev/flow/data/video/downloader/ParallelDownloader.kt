@@ -2,6 +2,7 @@ package io.github.aedev.flow.data.video.downloader
 
 import android.net.Uri
 import android.util.Log
+import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -34,7 +35,7 @@ class ParallelDownloader @Inject constructor() {
     private fun getClient(threads: Int): OkHttpClient {
         val existing = _client
         if (existing != null) return existing
-        return OkHttpClient.Builder()
+        return AppProxyManager.applyTo(OkHttpClient.Builder())
             .connectTimeout(30, TimeUnit.SECONDS)   
             .readTimeout(120, TimeUnit.SECONDS)     
             .connectionPool(okhttp3.ConnectionPool(threads * 4, 5, TimeUnit.MINUTES))

@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import io.github.aedev.flow.data.repository.NewPipeDownloader
 import io.github.aedev.flow.notification.NotificationHelper
+import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.utils.FlowCrashHandler
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import org.schabi.newpipe.extractor.NewPipe
@@ -21,9 +22,11 @@ import javax.inject.Inject
 import java.security.Security
 import org.conscrypt.Conscrypt
 import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 @HiltAndroidApp
@@ -40,6 +43,11 @@ class FlowApplication : Application(), ImageLoaderFactory {
     
     override fun onCreate() {
         super.onCreate()
+
+        val playerPreferences = PlayerPreferences(this)
+        runBlocking {
+            applyProxyConfig(playerPreferences.getProxyConfig())
+        }
         
         // Injects modern TLS/SSL certificates so OkHttp and Ktor don't crash
         if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.N_MR1) {
@@ -81,7 +89,7 @@ class FlowApplication : Application(), ImageLoaderFactory {
         */
         
         // Schedule periodic subscription checks for new videos
-        val savedIntervalMinutes = runBlocking { PlayerPreferences(this@FlowApplication).subscriptionCheckIntervalMinutes.first() }
+        val savedIntervalMinutes = runBlocking { playerPreferences.subscriptionCheckIntervalMinutes.first() }
         SubscriptionCheckWorker.schedulePeriodicCheck(this, intervalMinutes = savedIntervalMinutes.toLong())
         
         // Schedule periodic update checks (every 12 hours) — github flavor only
@@ -94,6 +102,12 @@ class FlowApplication : Application(), ImageLoaderFactory {
         // Fetch and cache visitor data for the lifetime of the install.
         // The X-Goog-Visitor-Id header prevents YouTube from returning empty
         // search results on tablets and fresh Android 16 installs (Issue #223).
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            playerPreferences.proxyConfig.collectLatest { proxyConfig ->
+                applyProxyConfig(proxyConfig)
+            }
+        }
+
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 val prefs = getSharedPreferences("flow_prefs", MODE_PRIVATE)
@@ -116,6 +130,13 @@ class FlowApplication : Application(), ImageLoaderFactory {
                 Log.w(TAG, "visitorData init error: ${e.message}")
             }
         }
+    }
+
+    private fun applyProxyConfig(config: io.github.aedev.flow.network.AppProxyConfig) {
+        AppProxyManager.update(config)
+        YouTube.proxy = AppProxyManager.currentProxy()
+        YouTube.proxyAuth = AppProxyManager.currentHttpProxyAuthorizationHeader()
+        NewPipeExtractor.invalidateClient()
     }
     
     override fun onTerminate() {

@@ -61,6 +61,11 @@ class InnerTube {
         }
     
     var proxyAuth: String? = null
+        set(value) {
+            field = value
+            httpClient.close()
+            httpClient = createClient()
+        }
 
     var useLoginForBrowse: Boolean = false
 

@@ -1,5 +1,6 @@
 package io.github.aedev.flow.data.lyrics
 
+import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -14,7 +15,8 @@ import java.net.URLEncoder
 class LrcLibLyricsProvider : LyricsProvider {
     override val name = "LrcLib"
     
-    private val client = OkHttpClient()
+    private val client: OkHttpClient
+        get() = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
     private val gson = Gson()
     
     private data class LrcLibResponse(

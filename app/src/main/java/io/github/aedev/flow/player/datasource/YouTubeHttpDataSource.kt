@@ -7,6 +7,9 @@ import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.HttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
+import io.github.aedev.flow.network.AppProxyManager
+import okhttp3.OkHttpClient
 
 /**
  * YouTube-specific HttpDataSource optimized for streaming performance.
@@ -59,12 +62,15 @@ class YouTubeHttpDataSource private constructor(
         // Optimized timeouts for YouTube streaming
         // YouTube can have variable latency, especially during peak hours
         // Longer timeouts prevent premature failures on slow networks
-        val factory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
-            .setUserAgent(userAgent)
-            .setConnectTimeoutMs(15_000) // 15s connect - balance between responsiveness and reliability
-            .setReadTimeoutMs(30_000)    // 30s read - critical for DASH segment downloads
-            .setAllowCrossProtocolRedirects(true)
-            .setKeepPostFor302Redirects(true)
+        val factory = OkHttpDataSource.Factory(
+            AppProxyManager.applyTo(OkHttpClient.Builder())
+                .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
+                .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                .followRedirects(true)
+                .followSslRedirects(true)
+                .retryOnConnectionFailure(true)
+                .build()
+        ).setUserAgent(userAgent)
 
         if (isYouTubeUri(dataSpec.uri)) {
             addYouTubeHeaders(factory)
@@ -122,7 +128,7 @@ class YouTubeHttpDataSource private constructor(
      * Add headers that YouTube expects/requires for video streaming.
      * These help avoid bot detection and ensure proper CDN routing.
      */
-    private fun addYouTubeHeaders(factory: androidx.media3.datasource.DefaultHttpDataSource.Factory) {
+    private fun addYouTubeHeaders(factory: OkHttpDataSource.Factory) {
         val headers = mapOf(
             "Origin" to "https://www.youtube.com",
             "Referer" to "https://www.youtube.com/",

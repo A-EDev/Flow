@@ -15,7 +15,7 @@ import androidx.media3.exoplayer.offline.DownloadNotificationHelper
 import io.github.aedev.flow.service.ExoDownloadService
 import io.github.aedev.flow.di.DownloadCache
 import io.github.aedev.flow.di.PlayerCache
-import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.utils.MusicPlayerUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -50,34 +50,26 @@ class DownloadUtil @Inject constructor(
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val downloads = MutableStateFlow<Map<String, Download>>(emptyMap())
 
-    private val okHttpClient: OkHttpClient by lazy {
-        OkHttpClient.Builder()
-            .proxy(YouTube.proxy)
-            .proxyAuthenticator { _, response ->
-                YouTube.proxyAuth?.let { auth ->
-                    response.request.newBuilder()
-                        .header("Proxy-Authorization", auth)
-                        .build()
-                } ?: response.request
-            }
+    private val okHttpClient: OkHttpClient
+        get() = AppProxyManager.applyTo(OkHttpClient.Builder())
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(60, TimeUnit.SECONDS)
             .build()
-    }
 
     /**
      * DataSource factory for DOWNLOADS - writes to downloadCache.
      * Used by DownloadManager for downloading tracks for offline playback.
      */
-    val dataSourceFactory: ResolvingDataSource.Factory = ResolvingDataSource.Factory(
-        CacheDataSource.Factory()
-            .setCache(downloadCache)
-            .setCacheWriteDataSinkFactory(CacheDataSink.Factory().setCache(downloadCache))
-            .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(okHttpClient))
-            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
-    ) { dataSpec ->
-        resolveDataSpec(dataSpec, "Download")
-    }
+    val dataSourceFactory: ResolvingDataSource.Factory
+        get() = ResolvingDataSource.Factory(
+            CacheDataSource.Factory()
+                .setCache(downloadCache)
+                .setCacheWriteDataSinkFactory(CacheDataSink.Factory().setCache(downloadCache))
+                .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(okHttpClient))
+                .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        ) { dataSpec ->
+            resolveDataSpec(dataSpec, "Download")
+        }
 
     /**
      * Resolve DataSpec by looking up cached URL or fetching from network.

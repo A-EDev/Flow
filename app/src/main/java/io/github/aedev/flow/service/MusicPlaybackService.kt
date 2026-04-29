@@ -38,6 +38,7 @@ class MusicPlaybackService : Service() {
     private var currentPosition = 0L
     private var currentDuration = 0L
     private var currentAlbumArt: Bitmap? = null
+    private var hasStartedForeground = false
     
     // Position update job for smooth progress tracking
     private var positionUpdateJob: Job? = null
@@ -216,6 +217,7 @@ class MusicPlaybackService : Service() {
                 ACTION_LIKE -> EnhancedMusicPlayerManager.toggleLike()
                 ACTION_STOP -> {
                     EnhancedMusicPlayerManager.pause()
+                    hasStartedForeground = false
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                 }
@@ -456,8 +458,14 @@ class MusicPlaybackService : Service() {
                 .setShowCancelButton(true)
                 .setCancelButtonIntent(stopIntent)
         )
-        
-        startForeground(NOTIFICATION_ID, notificationBuilder.build())
+
+        val notification = notificationBuilder.build()
+        if (!hasStartedForeground && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForeground(NOTIFICATION_ID, notification)
+            hasStartedForeground = true
+        } else {
+            notificationManager.notify(NOTIFICATION_ID, notification)
+        }
     }
     
     private fun createActionIntent(action: String, requestCode: Int): PendingIntent {

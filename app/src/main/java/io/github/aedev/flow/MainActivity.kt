@@ -39,6 +39,7 @@ import io.github.aedev.flow.ui.screens.CrashReporterScreen
 import io.github.aedev.flow.utils.FlowCrashHandler
 import io.github.aedev.flow.utils.UpdateManager
 import io.github.aedev.flow.utils.UpdateInfo
+import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.ui.components.UpdateDialog
 import io.github.aedev.flow.BuildConfig
 import androidx.activity.SystemBarStyle
@@ -412,7 +413,7 @@ class MainActivity : ComponentActivity() {
                     return@launch
                 }
 
-                val client = OkHttpClient()
+                val client = AppProxyManager.applyTo(OkHttpClient.Builder()).build()
                 val request = Request.Builder()
                     .url("https://api.github.com/repos/A-EDev/Flow/releases/latest")
                     .header("Accept", "application/vnd.github.v3+json")
