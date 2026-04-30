@@ -469,10 +469,10 @@ private fun ChannelContent(
                         onFilterSelected = { 
                             selectedFilter = it
                             if (pagerState.currentPage == 0){
-                              videosListState.scrollToItem(0)
+                              coroutineScope.launch { videosListState.scrollToItem(0) }
                             }
                             else if (pagerState.currentPage == 2){
-                              liveListState.scrollToItem(0)
+                              coroutineScope.launch { liveListState.scrollToItem(0) }
                             }
                             
                         },
