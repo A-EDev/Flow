@@ -1,7 +1,7 @@
 # These are supported funding model platforms
 
 github: # Leave empty
-patreon: # Leave empty
+patreon: A_EDev
 open_collective: # Leave empty
 ko_fi: # Leave empty
 tidelift: # Leave empty
@@ -14,4 +14,4 @@ buy_me_a_coffee: # Leave empty
 thanks_dev: # Leave empty
 
 # Link directly to the "Support & Donations" section of your README
-custom: ["https://github.com/A-EDev/Flow#support--donations", "https://nowpayments.io/donation/aedev"]
+custom: ["https://github.com/A-EDev/Flow#support--donations"]

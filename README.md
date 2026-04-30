@@ -194,12 +194,12 @@ Flow gives you both. The recommendation engine learns what you like by analyzing
 <a id="support--donations"></a>
 ## 💰 Support Development
 
-Flow is a free and open-source project. As an independent developer without traditional banking access, I cannot use services like PayPal or Stripe. 
+Flow is a free and open-source project. As an independent developer without traditional banking access, keeping this project alive relies entirely on community support. 
 
-**However, you can now easily support the project using a Credit Card, Apple Pay, or Google Pay!** (The gateway automatically handles the conversion to crypto on my end).
+**You can now easily support the project using a Credit Card, Apple Pay, or PayPal via Patreon!** (You can choose to support monthly, or just leave a simple one-time tip in the shop).
 
-<a href="https://nowpayments.io/donation/aedev" target="_blank" rel="noreferrer noopener">
-    <img src="https://nowpayments.io/images/embeds/donation-button-black.svg" alt="Support Flow via NOWPayments">
+<a href="https://patreon.com/A_EDev" target="_blank" rel="noreferrer noopener">
+  <img src="https://img.shields.io/badge/Patreon-Support_Flow-FF424D?style=for-the-badge&amp;logo=patreon&amp;logoColor=white" alt="Support Flow on Patreon">
 </a>
 
 <br>

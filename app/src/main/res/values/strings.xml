@@ -1028,8 +1028,8 @@
     <!-- Donations Screen -->
     <string name="support_donations_title">Support &amp; Donations</string>
     <string name="support_flow_dev_title">Support Flow Development</string>
-    <string name="support_flow_dev_desc">If you find Flow useful and would like to support its development, you can donate via the following addresses. Your support helps keep the project alive!</string>
-    <string name="support_flow_nowpayments">Support Flow via NOWPayments</string>
+    <string name="support_flow_dev_desc">If you find Flow useful and would like to support its development, you can support it on Patreon or donate via the crypto addresses below. Your support helps keep the project alive!</string>
+    <string name="support_flow_patreon">Support Flow on Patreon</string>
     <string name="thank_you_support_message">Thank you for your support! ❤️</string>
     <string name="address_copied_toast">Address copied to clipboard</string>
     <string name="donation_address_clip_label">Donation Address</string>
