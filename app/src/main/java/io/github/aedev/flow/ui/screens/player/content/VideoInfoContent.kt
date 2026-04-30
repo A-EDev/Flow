@@ -300,6 +300,7 @@ fun VideoInfoContent(
 fun LazyListScope.relatedVideosContent(
     relatedVideos: List<Video>,
     onVideoClick: (Video) -> Unit,
+    onChannelClick: (String) -> Unit,
     cardStyle: PlayerRelatedCardStyle = PlayerRelatedCardStyle.FULL_WIDTH
 ) {
     // Header
@@ -324,7 +325,8 @@ fun LazyListScope.relatedVideosContent(
             )
             PlayerRelatedCardStyle.FULL_WIDTH -> VideoCardFullWidth(
                 video = relatedVideo,
-                onClick = { onVideoClick(relatedVideo) }
+                onClick = { onVideoClick(relatedVideo) },
+                onChannelClick = onChannelClick
             )
         }
     }
@@ -337,6 +339,7 @@ fun LazyListScope.relatedVideosGridContent(
     relatedVideos: List<Video>,
     columns: Int,
     onVideoClick: (Video) -> Unit,
+    onChannelClick: (String) -> Unit,
     cardStyle: PlayerRelatedCardStyle = PlayerRelatedCardStyle.FULL_WIDTH
 ) {
     item {
@@ -367,7 +370,8 @@ fun LazyListScope.relatedVideosGridContent(
                         )
                         PlayerRelatedCardStyle.FULL_WIDTH -> VideoCardFullWidth(
                             video = video,
-                            onClick = { onVideoClick(video) }
+                            onClick = { onVideoClick(video) },
+                            onChannelClick = onChannelClick
                         )
                     }
                 }

@@ -59,6 +59,7 @@ fun FlowCommentsBottomSheet(
     onTimestampClick: (String) -> Unit = {},
     onFilterChanged: (Boolean) -> Unit = {},
     onLoadReplies: (Comment) -> Unit = {},
+    onLoadMoreReplies: (Comment) -> Unit = {},
     isTopSelected: Boolean = true,
     isLoadingMore: Boolean = false,
     onLoadMore: () -> Unit = {},
@@ -160,6 +161,7 @@ fun FlowCommentsBottomSheet(
                         comment = comment,
                         onTimestampClick = onTimestampClick,
                         onLoadReplies = onLoadReplies,
+                        onLoadMoreReplies = onLoadMoreReplies,
                         onAuthorClick = onAuthorClick,
                         onAvatarClick = onAvatarClick
                     )
@@ -189,6 +191,7 @@ fun FlowCommentItem(
     comment: Comment,
     onTimestampClick: (String) -> Unit,
     onLoadReplies: (Comment) -> Unit,
+    onLoadMoreReplies: (Comment) -> Unit,
     onAuthorClick: (String) -> Unit = {},
     onAvatarClick: (String) -> Unit = {}
 ) {
@@ -442,6 +445,21 @@ fun FlowCommentItem(
                             onTimestampClick = onTimestampClick,
                             onAuthorClick = onAuthorClick,
                             onAvatarClick = onAvatarClick
+                        )
+                    }
+
+                    if (comment.repliesPage != null) {
+                        Text(
+                            text = stringResource(R.string.load_more_replies),
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier
+                                .padding(top = 8.dp)
+                                .clickable {
+                                    isLoadingReplies = true
+                                    onLoadMoreReplies(comment)
+                                }
                         )
                     }
                 }

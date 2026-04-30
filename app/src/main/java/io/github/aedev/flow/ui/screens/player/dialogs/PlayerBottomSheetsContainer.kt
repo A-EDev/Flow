@@ -41,6 +41,7 @@ fun PlayerBottomSheetsContainer(
     onPlayAsShort: (String) -> Unit,
     onPlayAsMusic: (String) -> Unit,
     onLoadReplies: (Comment) -> Unit = {},
+    onLoadMoreReplies: (Comment) -> Unit = {},
     onNavigateToChannel: ((String) -> Unit)? = null
 ) {
     // Sorted comments based on filter — pinned comments always first
@@ -140,6 +141,7 @@ fun PlayerBottomSheetsContainer(
                 screenState.isTopComments = isTop
             },
             onLoadReplies = onLoadReplies,
+            onLoadMoreReplies = onLoadMoreReplies,
             onTimestampClick = handleTimestampClick,
             isLoadingMore = isLoadingMoreComments,
             hasMore = hasMoreComments,

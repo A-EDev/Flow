@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-04-30
+DATE: 2026-05-1
 
 FEATURES
 - Add new Proxy manager and routing #362
@@ -10,6 +10,10 @@ IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361
 - Improve media playback notification handling #347
 - Improve Monochrome app logo quality #336
+- Add paging to comment replies #369
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378
+- Fix Go to channel on home and related videos #370 #351
+- Fix comment loading in queue #352
+- Fix queue dock position by @ItsMe-95fx #371

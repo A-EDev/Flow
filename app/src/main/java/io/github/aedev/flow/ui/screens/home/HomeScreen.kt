@@ -348,7 +348,8 @@ fun HomeScreen(
                                 if (isListView) {
                                     VideoCardHorizontal(
                                         video = video,
-                                        onClick = { onVideoClick(video) }
+                                        onClick = { onVideoClick(video) },
+                                        onChannelClick = { channelId -> onChannelClick(channelId) }
                                     )
                                 } else {
                                     VideoCardFullWidth(
@@ -411,7 +412,8 @@ fun HomeScreen(
                                 if (isListView) {
                                     VideoCardHorizontal(
                                         video = video,
-                                        onClick = { onVideoClick(video) }
+                                        onClick = { onVideoClick(video) },
+                                        onChannelClick = { channelId -> onChannelClick(channelId) }
                                     )
                                 } else {
                                     VideoCardFullWidth(

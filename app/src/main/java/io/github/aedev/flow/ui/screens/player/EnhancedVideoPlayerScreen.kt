@@ -107,6 +107,7 @@ fun EnhancedVideoPlayerScreen(
                             relatedVideosContent(
                                 relatedVideos = uiState.relatedVideos,
                                 onVideoClick = onVideoClick,
+                                onChannelClick = onChannelClick,
                                 cardStyle = relatedCardStyle
                             )
                         }
@@ -139,12 +140,14 @@ fun EnhancedVideoPlayerScreen(
                                         relatedVideos = uiState.relatedVideos,
                                         columns = 2,
                                         onVideoClick = onVideoClick,
+                                        onChannelClick = onChannelClick,
                                         cardStyle = relatedCardStyle
                                     )
                                 } else {
                                     relatedVideosContent(
                                         relatedVideos = uiState.relatedVideos,
                                         onVideoClick = onVideoClick,
+                                        onChannelClick = onChannelClick,
                                         cardStyle = relatedCardStyle
                                     )
                                 }

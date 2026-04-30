@@ -323,9 +323,10 @@ fun GlobalPlayerOverlay(
     
     SubtitleLoadEffectWithState(screenState)
     
-    LaunchedEffect(video.id, playerUiState.isRestoredSession) {
-        if (!playerUiState.isRestoredSession) {
-            playerViewModel.loadComments(video.id)
+    val globalCurrentVideoId = GlobalPlayerState.currentVideo.collectAsState().value?.id
+    LaunchedEffect(globalCurrentVideoId) {
+        if (globalCurrentVideoId != null && !playerUiState.isRestoredSession) {
+            playerViewModel.loadComments(globalCurrentVideoId)
         }
     }
     
@@ -930,6 +931,9 @@ fun GlobalPlayerOverlay(
             },
             onLoadReplies = { comment ->
                 playerViewModel.loadCommentReplies(comment)
+            },
+            onLoadMoreReplies = { comment ->
+                playerViewModel.loadMoreCommentReplies(comment)
             },
             onNavigateToChannel = { channelId ->
                 onNavigateToChannel(channelId)

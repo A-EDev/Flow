@@ -137,6 +137,27 @@ class VideoPlayerViewModel @Inject constructor(
                         videoId != _uiState.value.cachedVideo?.id &&
                         !_uiState.value.isLoading &&
                         !_uiState.value.isRestoredSession) {
+                        GlobalPlayerState.currentVideo.value?.takeIf { it.id == videoId }?.let { currentVideo ->
+                            _uiState.update {
+                                it.copy(
+                                    cachedVideo = currentVideo,
+                                    isLoading = true,
+                                    error = null,
+                                    errorHint = null,
+                                    metadataError = null,
+                                    streamInfo = null,
+                                    videoStream = null,
+                                    audioStream = null,
+                                    savedPosition = null,
+                                    relatedVideos = emptyList(),
+                                    isSubscribed = false,
+                                    likeState = null,
+                                    hlsUrl = null,
+                                    localFilePath = null,
+                                    localFileVideoId = null
+                                )
+                            }
+                        }
                          loadVideoInfo(videoId, isWifi = detectIsWifi())
                     }
                 }
@@ -1148,6 +1169,29 @@ class VideoPlayerViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e("VideoPlayerViewModel", "Error loading replies", e)
+            }
+        }
+    }
+
+    fun loadMoreCommentReplies(comment: io.github.aedev.flow.data.model.Comment) {
+        val videoId = _uiState.value.streamInfo?.id ?: return
+        val repliesPage = comment.repliesPage ?: return
+
+        viewModelScope.launch {
+            try {
+                val url = "https://www.youtube.com/watch?v=$videoId"
+                val (replies, nextPage) = repository.getCommentReplies(url, repliesPage)
+
+                _commentsState.value = _commentsState.value.map { currentComment ->
+                    if (currentComment.id == comment.id) {
+                        currentComment.copy(
+                            replies = currentComment.replies + replies,
+                            repliesPage = nextPage
+                        )
+                    } else currentComment
+                }
+            } catch (e: Exception) {
+                Log.e("VideoPlayerViewModel", "Error loading more replies", e)
             }
         }
     }
