@@ -469,12 +469,12 @@ private fun ChannelContent(
                         onFilterSelected = { 
                             selectedFilter = it
                             if (pagerState.currentPage == 0){
-                              videosListState.initialFirstVisibleItemIndex = 0
-                              videosListState.initialFirstVisibleItemScrollOffset = 0
+                              videosListState.firstVisibleItemIndex = initialScrollIndex
+                              videosListState.firstVisibleItemScrollOffset = initialScrollOffset
                             }
                             else if (pagerState.currentPage == 2){
-                              liveListState.initialFirstVisibleItemIndex = 0
-                              liveListState.initialFirstVisibleItemScrollOffset = 0
+                              liveListState.firstVisibleItemIndex = initialScrollIndex
+                              liveListState.firstVisibleItemScrollOffset = initialScrollOffset
                             }
                             
                         },
