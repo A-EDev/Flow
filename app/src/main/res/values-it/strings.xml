@@ -782,7 +782,7 @@
     <string name="sleep_timer_unit">min</string>
     <string name="sleep_timer_input_error">Inserisci un valore tra 1 e 1440</string>
     <string name="sleep_timer_end_of_song">Fine di un brano / video</string>
-    <string name="sleep_timer_start">Inizio</string>
+    <string name="sleep_timer_start">Avvia</string>
     <string name="sleep_timer_end_of_media">Fine del brano attuale</string>
     <string name="sleep_timer_reset">Reimposta</string>
     <string name="sleep_timer_close_app">Chiudi l\'app quando scade il timer</string>
@@ -1322,4 +1322,22 @@
     <string name="content_settings_video_card_mark_watched_title">Pulsante segna come visto sulla scheda video</string>
     <string name="export_newpipe_subs_title">Esporta iscrizioni (formato NewPipe)</string>
     <string name="support_flow_nowpayments">Supporta Flow tramite NOWPayments</string>
+    <string name="settings_item_proxy">Impostazioni proxy</string>
+    <string name="settings_item_proxy_subtitle">Instrada il traffico remoto tramite HTTP o SOCKS5</string>
+    <string name="proxy_settings_title">Impostazioni proxy</string>
+    <string name="proxy_settings_description">Configura un proxy HTTP o SOCKS5 opzionale per le richieste remote. Il cast locale e il rilevamento LAN rimangono diretti.</string>
+    <string name="proxy_settings_enabled">Abilita proxy</string>
+    <string name="proxy_settings_enabled_subtitle">Usa il proxy configurato per il traffico di rete remoto</string>
+    <string name="proxy_settings_type">Tipologia proxy</string>
+    <string name="proxy_settings_host">Host</string>
+    <string name="proxy_settings_port">Porta</string>
+    <string name="proxy_settings_username">Nome utente</string>
+    <string name="proxy_settings_password">Password</string>
+    <string name="proxy_settings_optional_auth">Lascia vuoti nome utente e password per i proxy non autenticati.</string>
+    <string name="proxy_settings_restart_notice">I download attivi o le richieste di riproduzione di lunga durata potrebbero richiedere un riavvio prima di adottare completamente il nuovo percorso proxy.</string>
+    <string name="proxy_type_http">HTTP</string>
+    <string name="proxy_type_socks5">SOCKS5</string>
+    <string name="proxy_settings_invalid_host">Inserisci un host proxy prima di abilitarlo.</string>
+    <string name="proxy_settings_invalid_port">Inserisci una porta proxy valida tra 1 e 65535.</string>
+    <string name="proxy_settings_saved">Impostazioni proxy salvate</string>
 </resources>
