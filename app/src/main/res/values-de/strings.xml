@@ -1,3 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="app_name">Flow</string>
+    <string name="subscriptions_search_placeholder">Abonnements durchsuchen...</string>
+    <string name="top_bar_subscriptions_title">Abonnements</string>
+    <string name="view_all_button_label">Alle</string>
+    <string name="subscribed">Abonniert</string>
+    <string name="no_subscriptions_yet">Noch Keine Abonnements</string>
+    <string name="empty_subscriptions_body">Abonnieren Sie Kanäle, um hier ihre neuesten Videos zu sehen</string>
+    <string name="home_refresh_feed">Feed aktualisieren</string>
+    <string name="retry">Erneut versuchen</string>
+    <string name="shorts">Shorts</string>
+    <string name="failed_to_load_channel">Der Kanal konnte nicht geladen werden</string>
+    <string name="subscribers">Abonnenten</string>
 </resources>
