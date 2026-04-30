@@ -140,6 +140,7 @@ fun GlobalPlayerOverlay(
     val volumeSwipeGesturesEnabled by playerPreferences.volumeSwipeGesturesEnabled.collectAsState(initial = true)
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
+    val disableShortsPlayer by playerPreferences.disableShortsPlayer.collectAsState(initial = false)
 
     var videoAspectRatio by remember { mutableFloatStateOf(16f / 9f) }
 
@@ -338,7 +339,8 @@ fun GlobalPlayerOverlay(
     ShortVideoPromptEffect(
         videoDuration = completeVideo.duration,
         screenState = screenState,
-        isInQueue = playerState.queueSize > 1
+        isInQueue = playerState.queueSize > 1,
+        disableShortsPlayer = disableShortsPlayer
     )
 
     SponsorSkipEffect(context)
@@ -912,6 +914,7 @@ fun GlobalPlayerOverlay(
             uiState = playerUiState,
             video = video,
             completeVideo = completeVideo,
+            disableShortsPlayer = disableShortsPlayer,
             comments = comments,
             isLoadingComments = isLoadingComments,
             isLoadingMoreComments = isLoadingMoreComments,

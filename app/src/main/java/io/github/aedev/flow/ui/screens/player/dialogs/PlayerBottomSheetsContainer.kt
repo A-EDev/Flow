@@ -31,6 +31,7 @@ fun PlayerBottomSheetsContainer(
     uiState: VideoPlayerUiState,
     video: Video,
     completeVideo: Video,
+    disableShortsPlayer: Boolean,
     comments: List<Comment>,
     isLoadingComments: Boolean,
     isLoadingMoreComments: Boolean = false,
@@ -226,7 +227,7 @@ fun PlayerBottomSheetsContainer(
     }
 
     // Shorts/Music Suggestion Dialog
-    if (screenState.showShortsPrompt) {
+    if (screenState.showShortsPrompt && !disableShortsPlayer) {
         ShortsSuggestionDialog(
             isMusic = completeVideo.isMusic || 
                      completeVideo.title.contains("Official Audio", true) || 

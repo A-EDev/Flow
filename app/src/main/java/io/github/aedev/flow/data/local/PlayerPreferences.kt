@@ -26,6 +26,7 @@ class PlayerPreferences(private val context: Context) {
         val PREFERRED_SUBTITLE_LANGUAGE = stringPreferencesKey("preferred_subtitle_language")
         val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
         val TRENDING_REGION = stringPreferencesKey("trending_region")
+        val APP_LANGUAGE = stringPreferencesKey("app_language")
         val SKIP_SILENCE_ENABLED = booleanPreferencesKey("skip_silence_enabled")        
         val SPONSOR_BLOCK_ENABLED = booleanPreferencesKey("sponsor_block_enabled")        
         val AUTO_PIP_ENABLED = booleanPreferencesKey("auto_pip_enabled")
@@ -544,6 +545,17 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setTrendingRegion(region: String) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.TRENDING_REGION] = region
+        }
+    }
+
+    val appLanguage: Flow<String> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.APP_LANGUAGE] ?: "system"
+        }
+
+    suspend fun setAppLanguage(languageTag: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.APP_LANGUAGE] = languageTag
         }
     }
     

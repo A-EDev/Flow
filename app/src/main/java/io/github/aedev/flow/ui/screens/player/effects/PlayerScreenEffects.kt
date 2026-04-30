@@ -613,13 +613,21 @@ fun VideoCleanupEffect(
 fun ShortVideoPromptEffect(
     videoDuration: Int,
     screenState: PlayerScreenState,
-    isInQueue: Boolean
+    isInQueue: Boolean,
+    disableShortsPlayer: Boolean
 ) {
-    LaunchedEffect(videoDuration, screenState.hasShownShortsPrompt, isInQueue) {
+    LaunchedEffect(videoDuration, screenState.hasShownShortsPrompt, isInQueue, disableShortsPlayer) {
+        if (disableShortsPlayer) {
+            screenState.showShortsPrompt = false
+            return@LaunchedEffect
+        }
+
         if (!isInQueue && !screenState.hasShownShortsPrompt && videoDuration > 0 && videoDuration <= 80) {
             delay(1000)
-            screenState.showShortsPrompt = true
-            screenState.hasShownShortsPrompt = true
+            if (!disableShortsPlayer) {
+                screenState.showShortsPrompt = true
+                screenState.hasShownShortsPrompt = true
+            }
         }
     }
 }

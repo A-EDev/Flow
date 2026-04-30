@@ -44,6 +44,7 @@ import io.github.aedev.flow.ui.components.UpdateDialog
 import io.github.aedev.flow.BuildConfig
 import androidx.activity.SystemBarStyle
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import io.github.aedev.flow.utils.AppLanguageManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -66,6 +67,11 @@ class MainActivity : ComponentActivity() {
     private var cachedShortsBackgroundPlay = false
 
     private var pipDismissCheckJob: Job? = null
+
+    override fun attachBaseContext(newBase: Context) {
+        val selectedLanguage = AppLanguageManager.loadSelectedLanguageTag(newBase)
+        super.attachBaseContext(AppLanguageManager.wrapContext(newBase, selectedLanguage))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // the OS-level splash screen (camouflaged to match Compose splash background)

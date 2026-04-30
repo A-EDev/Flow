@@ -397,6 +397,8 @@
     <string name="settings_item_quality_subtitle">Resolution for Wi-Fi and Mobile</string>
     <string name="settings_item_content_display">Content Display</string>
     <string name="settings_item_content_display_subtitle">Grid size, thumbnails, layout</string>
+    <string name="settings_item_app_language">App Language</string>
+    <string name="settings_item_app_language_subtitle">Use your device language or choose one manually</string>
     <string name="settings_item_buffer">Buffer Settings</string>
     <string name="settings_item_buffer_subtitle">Configure video buffering behavior</string>
     <string name="settings_item_downloads">Download Settings</string>
@@ -416,6 +418,8 @@
     <string name="settings_item_support_subtitle">Help support the development of Flow</string>
     
     <string name="settings_region_dialog_title">Select Region</string>
+        <string name="settings_language_dialog_title">Select App Language</string>
+        <string name="settings_language_system_default">System default</string>
     <string name="settings_export_success">Data exported successfully</string>
     <string name="settings_export_failed">Export failed: %1$s</string>
 

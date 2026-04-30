@@ -44,10 +44,10 @@ private data class AppIconOption(
     val isDynamic: Boolean = false
 )
 
+// TODO: Re-enable .IconMonochrome once rendering issues are fixed
 private val ALL_ICONS = listOf(
     AppIconOption(".IconFlowRed",    R.string.icon_name_flow_red,   Color(0xFFCD2027), R.drawable.ic_launcher_foreground),
     AppIconOption(".IconAmoled",     R.string.icon_name_amoled,     Color(0xFF000000), R.drawable.ic_fg_amoled),
-    AppIconOption(".IconMonochrome", R.string.icon_name_monochrome, Color(0xFFFFFFFF), R.drawable.ic_fg_monochrome, labelColor = Color(0xFF1C1B1F)),
     AppIconOption(".IconGhost",      R.string.icon_name_ghost,      Color(0xFF121212), R.drawable.ic_fg_ghost),
     AppIconOption(".IconDynamic",    R.string.icon_name_dynamic,    Color.Unspecified, R.drawable.ic_notification_logo, isDynamic = true)
 )

@@ -44,6 +44,7 @@ import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.ui.theme.ThemeMode
 import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.utils.AppLanguageManager
 import com.google.gson.JsonParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -103,6 +104,7 @@ fun SettingsScreen(
     }
     
     var showRegionDialog by remember { mutableStateOf(false) }
+    var showAppLanguageDialog by remember { mutableStateOf(false) }
     var showResetBrainDialog by remember { mutableStateOf(false) }
     // Update checker state (github flavor only)
     var isCheckingUpdate by remember { mutableStateOf(false) }
@@ -111,6 +113,7 @@ fun SettingsScreen(
     
     // Player preferences states
     val currentRegion by playerPreferences.trendingRegion.collectAsState(initial = "US")
+    val currentAppLanguage by playerPreferences.appLanguage.collectAsState(initial = AppLanguageManager.SYSTEM_DEFAULT)
 
     // Deep Flow state
     val deepFlowActive by playerPreferences.deepFlowActive.collectAsState(initial = false)
@@ -129,6 +132,16 @@ fun SettingsScreen(
 
     // Optimize Region Dialog: compute list only once
     val regionList = remember { REGION_NAMES.toList() }
+    val appLanguageOptions = remember { AppLanguageManager.getSupportedLanguages() }
+    val currentAppLanguageLabel = remember(currentAppLanguage, appLanguageOptions) {
+        val normalizedLanguage = AppLanguageManager.normalizeLanguageTag(currentAppLanguage)
+        if (normalizedLanguage == AppLanguageManager.SYSTEM_DEFAULT) {
+            context.getString(io.github.aedev.flow.R.string.settings_language_system_default)
+        } else {
+            appLanguageOptions.firstOrNull { it.tag == normalizedLanguage }?.localizedName
+                ?: AppLanguageManager.getLanguageLabel(normalizedLanguage)
+        }
+    }
 
     // Search state
     var searchQuery by remember { mutableStateOf("") }
@@ -212,6 +225,7 @@ fun SettingsScreen(
     val allSettingsEntries = listOf(
         SettingSearchEntry(Icons.Outlined.Psychology, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.flow_control_center), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.neural_interest_map_subtitle), secFlowEngine, onNavigateToPersonality),
         SettingSearchEntry(Icons.Outlined.Palette, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_theme), "", secAppearance, onNavigateToAppearance),
+        SettingSearchEntry(Icons.Outlined.Language, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_language), currentAppLanguageLabel, secAppearance) { showAppLanguageDialog = true },
         SettingSearchEntry(Icons.Outlined.AppShortcut, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon_subtitle), secAppearance, onNavigateToAppIconPicker),
         SettingSearchEntry(Icons.Outlined.Tune, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_appearance), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_appearance_subtitle), secAppearance, onNavigateToPlayerAppearance),
         SettingSearchEntry(Icons.Outlined.GridView, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display_subtitle), secAppearance, onNavigateToContentSettings),
@@ -656,6 +670,13 @@ item {
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsItem(
+                        icon = Icons.Outlined.Language,
+                        title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_language),
+                        subtitle = currentAppLanguageLabel,
+                        onClick = { showAppLanguageDialog = true }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
                         icon = Icons.Outlined.AppShortcut,
                         title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon),
                         subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon_subtitle),
@@ -972,6 +993,109 @@ item {
                 }
             )
         }
+    }
+
+    if (showAppLanguageDialog) {
+        var languageSearchQuery by remember { mutableStateOf("") }
+        val normalizedCurrentLanguage = remember(currentAppLanguage) {
+            AppLanguageManager.normalizeLanguageTag(currentAppLanguage)
+        }
+        val filteredLanguages = remember(languageSearchQuery, appLanguageOptions) {
+            if (languageSearchQuery.isBlank()) {
+                appLanguageOptions
+            } else {
+                appLanguageOptions.filter { option ->
+                    option.nativeName.contains(languageSearchQuery, ignoreCase = true) ||
+                        option.localizedName.contains(languageSearchQuery, ignoreCase = true) ||
+                        option.tag.contains(languageSearchQuery, ignoreCase = true)
+                }
+            }
+        }
+        AlertDialog(
+            onDismissRequest = { showAppLanguageDialog = false },
+            title = { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_language_dialog_title)) },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = languageSearchQuery,
+                        onValueChange = { languageSearchQuery = it },
+                        placeholder = { Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.search_hint)) },
+                        leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    LazyColumn(Modifier.heightIn(max = 320.dp)) {
+                        item {
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        coroutineScope.launch {
+                                            playerPreferences.setAppLanguage(AppLanguageManager.SYSTEM_DEFAULT)
+                                            AppLanguageManager.saveLanguageTag(context, AppLanguageManager.SYSTEM_DEFAULT)
+                                            showAppLanguageDialog = false
+                                            AppLanguageManager.activityContext(context)?.recreate()
+                                        }
+                                    }
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(
+                                    selected = normalizedCurrentLanguage == AppLanguageManager.SYSTEM_DEFAULT,
+                                    onClick = null
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Column {
+                                    Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_language_system_default))
+                                    Text(
+                                        text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_language_subtitle),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                        items(filteredLanguages.size) { index ->
+                            val option = filteredLanguages[index]
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        coroutineScope.launch {
+                                            playerPreferences.setAppLanguage(option.tag)
+                                            AppLanguageManager.saveLanguageTag(context, option.tag)
+                                            showAppLanguageDialog = false
+                                            AppLanguageManager.activityContext(context)?.recreate()
+                                        }
+                                    }
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(selected = normalizedCurrentLanguage == option.tag, onClick = null)
+                                Spacer(Modifier.width(8.dp))
+                                Column {
+                                    Text(option.nativeName)
+                                    if (option.localizedName != option.nativeName) {
+                                        Text(
+                                            text = option.localizedName,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showAppLanguageDialog = false }) {
+                    Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.cancel))
+                }
+            }
+        )
     }
 
     // Region Selection Dialog

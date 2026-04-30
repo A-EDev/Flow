@@ -1,6 +1,7 @@
 package io.github.aedev.flow
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
 import io.github.aedev.flow.notification.SubscriptionCheckWorker
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -23,6 +24,7 @@ import java.security.Security
 import org.conscrypt.Conscrypt
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.NewPipeExtractor
+import io.github.aedev.flow.utils.AppLanguageManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -40,11 +42,18 @@ class FlowApplication : Application(), ImageLoaderFactory {
     companion object {
         private const val TAG = "FlowApplication"
     }
+
+    override fun attachBaseContext(base: Context) {
+        val selectedLanguage = AppLanguageManager.loadSelectedLanguageTag(base)
+        super.attachBaseContext(AppLanguageManager.wrapContext(base, selectedLanguage))
+    }
     
     override fun onCreate() {
         super.onCreate()
 
         val playerPreferences = PlayerPreferences(this)
+        val selectedLanguage = runBlocking { playerPreferences.appLanguage.first() }
+        AppLanguageManager.wrapContext(this, selectedLanguage)
         runBlocking {
             applyProxyConfig(playerPreferences.getProxyConfig())
         }
