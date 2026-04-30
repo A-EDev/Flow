@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.SkipNext
@@ -37,6 +38,7 @@ fun PlaylistQueueDock(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
+            .safeDrawingPadding()
             .height(64.dp)
             .clickable(onClick = onClick)
     ) {
