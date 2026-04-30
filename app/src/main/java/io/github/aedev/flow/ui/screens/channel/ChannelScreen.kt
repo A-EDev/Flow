@@ -466,7 +466,18 @@ private fun ChannelContent(
                         isGridView = isGridView,
                         searchActive = uiState.searchActive,
                         searchQuery = uiState.searchQuery,
-                        onFilterSelected = { selectedFilter = it },
+                        onFilterSelected = { 
+                            selectedFilter = it
+                            if (pagerState.currentPage == 0){
+                              videosListState.initialFirstVisibleItemIndex = 0
+                              videosListState.initialFirstVisibleItemScrollOffset = 0
+                            }
+                            else if (pagerState.currentPage == 2){
+                              liveListState.initialFirstVisibleItemIndex = 0
+                              liveListState.initialFirstVisibleItemScrollOffset = 0
+                            }
+                            
+                        },
                         onToggleGridView = { coroutineScope.launch { preferences.setChannelIsGridView(!isGridView) } },
                         onSearchToggle = onSearchToggle,
                         onSearchQueryChange = onSearchQueryChange,
