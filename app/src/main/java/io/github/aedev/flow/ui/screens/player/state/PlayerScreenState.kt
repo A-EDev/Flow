@@ -66,6 +66,8 @@ class PlayerScreenState {
     var zoomScale by mutableFloatStateOf(1f)
     var zoomOffsetX by mutableFloatStateOf(0f)
     var zoomOffsetY by mutableFloatStateOf(0f)
+    var showZoomIndicator by mutableStateOf(false)
+    var zoomIndicatorSequence by mutableIntStateOf(0)
 
     // Speed Control
     var isSpeedBoostActive by mutableStateOf(false)
@@ -112,6 +114,8 @@ class PlayerScreenState {
         zoomScale = 1f
         zoomOffsetX = 0f
         zoomOffsetY = 0f
+        showZoomIndicator = false
+        zoomIndicatorSequence = 0
     }
     
     fun cycleResizeMode() {

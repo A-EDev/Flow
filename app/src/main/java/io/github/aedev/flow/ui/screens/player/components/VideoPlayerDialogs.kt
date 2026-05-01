@@ -514,6 +514,7 @@ fun SubtitleSelectorDialog(
     onDismiss: () -> Unit,
     onSubtitleSelected: (Int, String) -> Unit,
     onDisableSubtitles: () -> Unit,
+    onShowStyleCustomizer: () -> Unit,
     onBack: (() -> Unit)? = null
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
@@ -543,8 +544,16 @@ fun SubtitleSelectorDialog(
                 Text(
                     text = stringResource(R.string.filter_subtitles),
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.weight(1f)
                 )
+
+                IconButton(onClick = onShowStyleCustomizer) {
+                    Icon(
+                        imageVector = Icons.Filled.Tune,
+                        contentDescription = stringResource(R.string.settings)
+                    )
+                }
             }
             HorizontalDivider()
             LazyColumn {
@@ -649,7 +658,6 @@ fun SettingsMenuDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp)
         ) {
@@ -694,6 +702,13 @@ fun SettingsMenuDialog(
                 label = stringResource(R.string.filter_subtitles),
                 value = if (subtitlesEnabled) stringResource(R.string.on) else stringResource(R.string.off),
                 onClick = { onShowSubtitles() }
+            )
+
+            PlayerSettingsNavRow(
+                icon = Icons.Filled.Tune,
+                label = stringResource(R.string.settings),
+                value = stringResource(R.string.filter_subtitles),
+                onClick = { onShowSubtitleStyle() }
             )
 
             // ── Cast to TV ──
@@ -1103,49 +1118,59 @@ fun SubtitleStyleCustomizerDialog(
     onBack: (() -> Unit)? = null
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
-                .padding(bottom = 16.dp)
+                .padding(bottom = 16.dp),
+            contentPadding = PaddingValues(bottom = 8.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (onBack != null) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = stringResource(R.string.back)
-                        )
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = stringResource(R.string.back)
+                            )
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.width(16.dp))
                     }
-                } else {
-                    Spacer(modifier = Modifier.width(16.dp))
-                }
                 
-                Text(
-                    text = stringResource(R.string.filter_subtitles),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
+                    Text(
+                        text = stringResource(R.string.filter_subtitles),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+            item {
+                HorizontalDivider()
+            }
+            item {
+                SubtitleCustomizer(
+                    currentStyle = subtitleStyle,
+                    onStyleChange = onStyleChange
                 )
             }
-            HorizontalDivider()
-            SubtitleCustomizer(
-                currentStyle = subtitleStyle,
-                onStyleChange = onStyleChange
-            )
-            Spacer(Modifier.height(8.dp))
-            TextButton(
-                onClick = onDismiss,
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .padding(end = 16.dp)
-            ) {
-                Text(stringResource(R.string.done))
+            item {
+                Spacer(Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = 16.dp),
+                    contentAlignment = Alignment.CenterEnd
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.done))
+                    }
+                }
             }
         }
     }

@@ -189,30 +189,37 @@ class VideoPlayerService : Service() {
     }
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && intent != null) {
+        val requestedVideoId = intent?.getStringExtra(EXTRA_VIDEO_ID)
+        val requestedTitle = intent?.getStringExtra(EXTRA_VIDEO_TITLE)
+        val requestedChannel = intent?.getStringExtra(EXTRA_VIDEO_CHANNEL)
+
+        intent?.let { handleIntent(it) }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !hasStartedForeground) {
             try {
-                val title = intent.getStringExtra(EXTRA_VIDEO_TITLE)
-                val channel = intent.getStringExtra(EXTRA_VIDEO_CHANNEL)
-                if (!hasStartedForeground) {
-                    startForeground(NOTIFICATION_ID, createPlaceholderNotification(title, channel))
-                    hasStartedForeground = true
+                val video = currentVideo
+                if (video != null) {
+                    showNotification(video, cachedThumbnailBitmap)
                 } else {
-                    notificationManager.notify(NOTIFICATION_ID, createPlaceholderNotification(title, channel))
+                    startForeground(
+                        NOTIFICATION_ID,
+                        createPlaceholderNotification(requestedTitle, requestedChannel)
+                    )
+                    hasStartedForeground = true
                 }
             } catch (e: Exception) {
                 Log.w("VideoPlayerService", "Immediate foreground start failed", e)
             }
         }
-        
+
         // Re-assert this session as the most recently active one whenever a new video
         // is started. Toggling isActive forces the system to re-register the session
         // timestamp so it beats Media3MusicService in media-button routing priority.
-        if (intent?.getStringExtra(EXTRA_VIDEO_ID) != null) {
+        if (requestedVideoId != null) {
             mediaSession.isActive = false
             mediaSession.isActive = true
         }
 
-        intent?.let { handleIntent(it) }
         MediaButtonReceiver.handleIntent(mediaSession, intent)
 
         return START_NOT_STICKY
@@ -362,7 +369,7 @@ class VideoPlayerService : Service() {
     }
 
     /**
-     * Build candidate thumbnail URLs in descending resolution order.
+     * Build candidate thumbnail URLs for notification artwork.
      * Extracts the video ID so each URL is a clean, predictable path.
      */
     private fun buildThumbnailCandidates(originalUrl: String): List<String> {
@@ -371,9 +378,9 @@ class VideoPlayerService : Service() {
             val videoId = Regex("(?:vi|vi_webp)/([a-zA-Z0-9_-]+)/").find(originalUrl)
                 ?.groupValues?.getOrNull(1)
             if (videoId != null) {
-                candidates.add("https://i.ytimg.com/vi/$videoId/maxresdefault.jpg") // 1280×720
-                candidates.add("https://i.ytimg.com/vi/$videoId/sddefault.jpg")     // 640×480
                 candidates.add("https://i.ytimg.com/vi/$videoId/hqdefault.jpg")     // 480×360
+                candidates.add("https://i.ytimg.com/vi/$videoId/mqdefault.jpg")     // 320×180
+                candidates.add("https://i.ytimg.com/vi/$videoId/default.jpg")       // 120×90
             }
         }
         if (originalUrl !in candidates) candidates.add(originalUrl)
@@ -381,10 +388,9 @@ class VideoPlayerService : Service() {
     }
 
     /**
-     * Load the best available thumbnail via Coil (proper HTTP headers, disk cache).
-     * Falls back down the resolution ladder on any failure.
-     * Scales the result up to at least [minPx] so FHD+ notification panels
-     * don't upscale a tiny bitmap and look blurry.
+     * Load notification artwork via Coil (proper HTTP headers, disk cache).
+     * Falls back down the resolution ladder on any failure and normalizes
+     * dimensions so OEM SystemUI code paths don't silently drop oversized bitmaps.
      */
     private suspend fun loadBestThumbnail(originalUrl: String): Bitmap? = withContext(Dispatchers.IO) {
         for (url in buildThumbnailCandidates(originalUrl)) {
@@ -396,21 +402,20 @@ class VideoPlayerService : Service() {
                 is SuccessResult -> (result.drawable as? BitmapDrawable)?.bitmap
                 else -> null
             }
-            if (bitmap != null) return@withContext ensureMinSize(bitmap, 512)
+            if (bitmap != null) return@withContext resizeForNotification(bitmap)
         }
         null
     }
 
     /**
-     * Scale [bitmap] up so its shorter side is at least [minPx] pixels.
-     * Uses bilinear filtering to avoid blocky upscaling artefacts.
-     * Returns the original unchanged if it's already large enough.
+     * Keep notification artwork within a safe size for binder transport and OEM SystemUI.
      */
-    private fun ensureMinSize(bitmap: Bitmap, minPx: Int): Bitmap {
+    private fun resizeForNotification(bitmap: Bitmap, maxPx: Int = 512): Bitmap {
         val w = bitmap.width
         val h = bitmap.height
-        if (w >= minPx && h >= minPx) return bitmap
-        val scale = minPx.toFloat() / minOf(w, h)
+        val longestSide = maxOf(w, h)
+        if (longestSide <= maxPx) return bitmap
+        val scale = maxPx.toFloat() / longestSide.toFloat()
         val newW = (w * scale).toInt()
         val newH = (h * scale).toInt()
         return Bitmap.createScaledBitmap(bitmap, newW, newH, true)

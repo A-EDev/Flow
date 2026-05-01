@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.player.dialogs
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -28,6 +29,14 @@ fun PlayerDialogsContainer(
     val playerPreferences = remember { PlayerPreferences(context) }
     val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        playerPreferences.subtitleStyle.collect { style ->
+            if (screenState.subtitleStyle != style) {
+                screenState.subtitleStyle = style
+            }
+        }
+    }
 
     // Download Quality Dialog
     if (screenState.showDownloadDialog) {
@@ -85,6 +94,10 @@ fun PlayerDialogsContainer(
             },
             onDisableSubtitles = {
                 screenState.disableSubtitles()
+            },
+            onShowStyleCustomizer = {
+                screenState.showSubtitleSelector = false
+                screenState.showSubtitleStyleCustomizer = true
             },
             onBack = {
                 screenState.showSubtitleSelector = false
@@ -169,7 +182,10 @@ fun PlayerDialogsContainer(
     if (screenState.showSubtitleStyleCustomizer) {
         SubtitleStyleCustomizerDialog(
             subtitleStyle = screenState.subtitleStyle,
-            onStyleChange = { screenState.subtitleStyle = it },
+            onStyleChange = {
+                screenState.subtitleStyle = it
+                coroutineScope.launch { playerPreferences.setSubtitleStyle(it) }
+            },
             onDismiss = { screenState.showSubtitleStyleCustomizer = false },
             onBack = {
                 screenState.showSubtitleStyleCustomizer = false

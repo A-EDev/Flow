@@ -1,10 +1,12 @@
 package io.github.aedev.flow.ui.components
 
+import android.util.Log
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,11 +16,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material3.Surface
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.draw.blur
-import android.util.Log
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -32,7 +29,8 @@ data class SubtitleStyle(
     val fontSize: Float = 14f,
     val textColor: Color = Color.White,
     val backgroundColor: Color = Color.Black.copy(alpha = 0.6f),
-    val isBold: Boolean = true
+    val isBold: Boolean = true,
+    val bottomPadding: Float = 48f
 )
 
 @Composable
@@ -92,23 +90,25 @@ fun SubtitleOverlay(
         }
     }
     
+    val bottomPadding = style.bottomPadding.coerceIn(24f, 220f)
+
     AnimatedVisibility(
         visible = displayState != null,
         enter = fadeIn() + slideInVertically { it / 2 },
         exit = fadeOut() + slideOutVertically { it / 2 },
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(bottom = 48.dp, start = 16.dp, end = 16.dp)
+        modifier = modifier.fillMaxSize()
     ) {
         if (displayState != null) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(),
-                contentAlignment = Alignment.Center
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.BottomCenter
             ) {
                 Surface(
                     color = style.backgroundColor,
-                    shape = RoundedCornerShape(8.dp)
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.offset(y = -bottomPadding.dp)
                 ) {
                     Text(
                         text = displayState,
@@ -116,6 +116,7 @@ fun SubtitleOverlay(
                         fontSize = style.fontSize.sp,
                         fontWeight = if (style.isBold) FontWeight.Bold else FontWeight.Normal,
                         textAlign = TextAlign.Center,
+                        lineHeight = (style.fontSize * 1.25f).sp,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                     )
                 }

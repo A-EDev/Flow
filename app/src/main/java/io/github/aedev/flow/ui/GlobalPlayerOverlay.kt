@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.pm.ActivityInfo
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -54,6 +57,7 @@ import io.github.aedev.flow.ui.screens.player.EnhancedVideoPlayerScreen
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.components.VideoPlayerSurface
+import io.github.aedev.flow.ui.components.SubtitleStyle
 import io.github.aedev.flow.ui.screens.player.content.PlayerContent
 import io.github.aedev.flow.ui.screens.player.content.rememberCompleteVideo
 import io.github.aedev.flow.ui.screens.player.dialogs.PlayerDialogsContainer
@@ -80,6 +84,8 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.player.dlna.DlnaCastManager
 import io.github.aedev.flow.player.dlna.DlnaDevice
+import java.util.Locale
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -141,6 +147,7 @@ fun GlobalPlayerOverlay(
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
     val disableShortsPlayer by playerPreferences.disableShortsPlayer.collectAsState(initial = false)
+    val savedSubtitleStyle by playerPreferences.subtitleStyle.collectAsState(initial = SubtitleStyle())
 
     var videoAspectRatio by remember { mutableFloatStateOf(16f / 9f) }
 
@@ -149,6 +156,14 @@ fun GlobalPlayerOverlay(
         screenState.zoomScale = 1f
         screenState.zoomOffsetX = 0f
         screenState.zoomOffsetY = 0f
+        screenState.showZoomIndicator = false
+        screenState.zoomIndicatorSequence = 0
+    }
+
+    LaunchedEffect(savedSubtitleStyle) {
+        if (screenState.subtitleStyle != savedSubtitleStyle) {
+            screenState.subtitleStyle = savedSubtitleStyle
+        }
     }
 
     var showSbSubmitDialog by remember { mutableStateOf(false) }
@@ -170,6 +185,14 @@ fun GlobalPlayerOverlay(
             screenState.zoomScale = 1f
             screenState.zoomOffsetX = 0f
             screenState.zoomOffsetY = 0f
+            screenState.showZoomIndicator = false
+        }
+    }
+
+    LaunchedEffect(screenState.zoomIndicatorSequence) {
+        if (screenState.showZoomIndicator) {
+            delay(if (screenState.zoomScale > 1.02f) 900 else 600)
+            screenState.showZoomIndicator = false
         }
     }
 
@@ -516,6 +539,8 @@ fun GlobalPlayerOverlay(
                                         screenState.zoomOffsetX = (screenState.zoomOffsetX + panX).coerceIn(-maxPanX, maxPanX)
                                         screenState.zoomOffsetY = (screenState.zoomOffsetY + panY).coerceIn(-maxPanY, maxPanY)
                                     }
+                                    screenState.showZoomIndicator = true
+                                    screenState.zoomIndicatorSequence += 1
                                     prevDist = dist
                                     prevCentroidX = centroidX
                                     prevCentroidY = centroidY
@@ -607,6 +632,29 @@ fun GlobalPlayerOverlay(
                                     .align(Alignment.TopCenter)
                                     .padding(top = 0.dp)
                             )
+
+                            AnimatedVisibility(
+                                visible = screenState.showZoomIndicator,
+                                enter = fadeIn(),
+                                exit = fadeOut(),
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = if (screenState.isFullscreen) 28.dp else 16.dp)
+                            ) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                                    shape = RoundedCornerShape(999.dp),
+                                    tonalElevation = 3.dp,
+                                    shadowElevation = 2.dp
+                                ) {
+                                    Text(
+                                        text = String.format(Locale.US, "%.1fx", screenState.zoomScale),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
 
                             // SponsorBlock manual skip button — shown for MUTE / NOTIFY / IGNORE segments
                             SponsorBlockSkipButton(

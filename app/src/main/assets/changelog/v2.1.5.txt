@@ -6,6 +6,8 @@ FEATURES
 - Add new Proxy manager and routing #362
 - Add new App language selection in settings #376
 - Add text highlight and selection for comments and description #374
+- Zoom level indicator #348
+- Subtitle customization #348
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361
@@ -20,3 +22,4 @@ FIXES AND STABILITY
 - Fix comment loading in queue #352
 - Fix queue dock position by @ItsMe-95fx #371
 - Fix channel content rendering #366
+- Fix empty media playback notification #347

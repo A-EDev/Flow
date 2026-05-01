@@ -4,8 +4,11 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import io.github.aedev.flow.network.AppProxyConfig
 import io.github.aedev.flow.network.AppProxyType
+import io.github.aedev.flow.ui.components.SubtitleStyle
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -24,6 +27,11 @@ class PlayerPreferences(private val context: Context) {
         val VIDEO_LOOP_ENABLED = booleanPreferencesKey("video_loop_enabled")
         val SUBTITLES_ENABLED = booleanPreferencesKey("subtitles_enabled")
         val PREFERRED_SUBTITLE_LANGUAGE = stringPreferencesKey("preferred_subtitle_language")
+        val SUBTITLE_FONT_SIZE = floatPreferencesKey("subtitle_font_size")
+        val SUBTITLE_TEXT_COLOR = intPreferencesKey("subtitle_text_color")
+        val SUBTITLE_BACKGROUND_COLOR = intPreferencesKey("subtitle_background_color")
+        val SUBTITLE_BOLD = booleanPreferencesKey("subtitle_bold")
+        val SUBTITLE_BOTTOM_PADDING = floatPreferencesKey("subtitle_bottom_padding")
         val PLAYBACK_SPEED = floatPreferencesKey("playback_speed")
         val TRENDING_REGION = stringPreferencesKey("trending_region")
         val APP_LANGUAGE = stringPreferencesKey("app_language")
@@ -825,6 +833,30 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setPreferredSubtitleLanguage(language: String) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.PREFERRED_SUBTITLE_LANGUAGE] = language
+        }
+    }
+
+    val subtitleStyle: Flow<SubtitleStyle> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            SubtitleStyle(
+                fontSize = preferences[Keys.SUBTITLE_FONT_SIZE] ?: 14f,
+                textColor = Color(preferences[Keys.SUBTITLE_TEXT_COLOR] ?: Color.White.toArgb()),
+                backgroundColor = Color(
+                    preferences[Keys.SUBTITLE_BACKGROUND_COLOR]
+                        ?: Color.Black.copy(alpha = 0.6f).toArgb()
+                ),
+                isBold = preferences[Keys.SUBTITLE_BOLD] ?: true,
+                bottomPadding = preferences[Keys.SUBTITLE_BOTTOM_PADDING] ?: 48f
+            )
+        }
+
+    suspend fun setSubtitleStyle(style: SubtitleStyle) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SUBTITLE_FONT_SIZE] = style.fontSize
+            preferences[Keys.SUBTITLE_TEXT_COLOR] = style.textColor.toArgb()
+            preferences[Keys.SUBTITLE_BACKGROUND_COLOR] = style.backgroundColor.toArgb()
+            preferences[Keys.SUBTITLE_BOLD] = style.isBold
+            preferences[Keys.SUBTITLE_BOTTOM_PADDING] = style.bottomPadding
         }
     }
     
