@@ -893,7 +893,7 @@
     <string name="threads_count_label">%1$d thread</string>
     <string name="support_donations_title">Supporto e donazioni</string>
     <string name="support_flow_dev_title">Supporta lo sviluppo di Flow</string>
-    <string name="support_flow_dev_desc">Se trovi Flow utile e desideri supportarne lo sviluppo, puoi donare tramite i seguenti indirizzi. Il tuo supporto aiuta a mantenere vivo il progetto!</string>
+    <string name="support_flow_dev_desc">Se trovi Flow utile e desideri supportarne lo sviluppo, puoi sostenerlo su Patreon o donare tramite gli indirizzi crypto qui sotto. Il tuo supporto aiuta a mantenere vivo il progetto!</string>
     <string name="thank_you_support_message">Grazie per il tuo supporto! ❤️</string>
     <string name="address_copied_toast">Indirizzo copiato negli appunti</string>
     <string name="donation_address_clip_label">Indirizzo di donazione</string>
@@ -1340,4 +1340,10 @@
     <string name="proxy_settings_invalid_host">Inserisci un host proxy prima di abilitarlo.</string>
     <string name="proxy_settings_invalid_port">Inserisci una porta proxy valida tra 1 e 65535.</string>
     <string name="proxy_settings_saved">Impostazioni proxy salvate</string>
+    <string name="load_more_replies">Carica altre risposte</string>
+    <string name="settings_item_app_language_subtitle">Utilizza la lingua del dispositivo o scegline una manualmente</string>
+    <string name="settings_language_dialog_title">Seleziona lingua dell\'app</string>
+    <string name="settings_language_system_default">Predefinita di sistema</string>
+    <string name="support_flow_patreon">Supporta Flow su Patreon</string>
+    <string name="settings_item_app_language">Lingua dell\'app</string>
 </resources>
