@@ -1076,4 +1076,22 @@
     <string name="settings_continue_watching_subtitle">Afficher une section pour les vidéos en cours de lecture sur l\'écran d\'accueil.</string>
     <string name="continue_watching_title">Reprendre la lecture</string>
     <string name="player_settings_mini_player_continue_watching_title">Reprendre la lecture dans le mini-lecteur</string>
+    <string name="settings_item_proxy">Paramètres du proxy</string>
+    <string name="settings_item_proxy_subtitle">Acheminer le trafic distant via HTTP ou SOCKS5</string>
+    <string name="settings_item_app_language">Langue de l\'application</string>
+    <string name="settings_item_app_language_subtitle">Utilisez la langue de votre appareil ou sélectionnez-en une manuellement</string>
+    <string name="settings_language_dialog_title">Sélectionner la langue de l\'application</string>
+    <string name="settings_language_system_default">Paramètres par défaut du système</string>
+    <string name="app_icon_apply_toast">L\'icône a été mise à jour — votre lanceur va s\'actualiser</string>
+    <string name="icon_name_flow_red">Flow Rouge</string>
+    <string name="icon_name_monochrome">Monochrome</string>
+    <string name="icon_name_ghost">Fantôme</string>
+    <string name="icon_name_dynamic">Material You</string>
+    <string name="player_appearance_brightness_gesture_title">Geste de réglage de la luminosité</string>
+    <string name="player_appearance_brightness_gesture_subtitle">En mode plein écran, balayez le bord gauche pour régler la luminosité</string>
+    <string name="player_appearance_volume_gesture_title">Geste de volume</string>
+    <string name="player_appearance_volume_gesture_subtitle">En mode plein écran, balayez le bord droit pour régler le volume</string>
+    <string name="player_settings_mini_player_continue_watching_subtitle">Afficher automatiquement la dernière vidéo visionnée</string>
+    <string name="proxy_settings_host">Hôte</string>
+    <string name="player_settings_shorts_background_play">Lecture en arrière-plan des Shorts</string>
 </resources>
