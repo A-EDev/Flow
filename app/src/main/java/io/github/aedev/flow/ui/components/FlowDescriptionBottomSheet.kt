@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -277,38 +278,37 @@ fun FlowDescriptionBottomSheet(
                             }
                         }
 
-                        // Rich Text Description — clickable links and timestamps.
-                        // SelectionContainer is intentionally omitted: wrapping ClickableText
-                        // (or BasicText) inside SelectionContainer intercepts touch events
-                        // and prevents the onClick/pointerInput from firing.
-                        BasicText(
-                            text = descriptionText,
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurface,
-                                lineHeight = 24.sp,
-                                fontSize = 15.sp
-                            ),
-                            onTextLayout = { descLayoutResult = it },
-                            modifier = Modifier.pointerInput(descriptionText) {
-                                detectTapGestures { tapOffset ->
-                                    val result = descLayoutResult ?: return@detectTapGestures
-                                    val charOffset = result.getOffsetForPosition(tapOffset)
-                                    // TIMESTAMP takes priority — YouTube chapter links like
-                                    // <a href="?t=74">1:14</a> seek the player, not a browser.
-                                    val ts = descriptionText
-                                        .getStringAnnotations("TIMESTAMP", charOffset, charOffset)
-                                        .firstOrNull()
-                                    if (ts != null) {
-                                        onTimestampClick(ts.item)
-                                    } else {
-                                        descriptionText
-                                            .getStringAnnotations("URL", charOffset, charOffset)
-                                            .firstOrNull()
-                                            ?.let { uriHandler.openUri(it.item) }
-                                    }
+                        SelectionContainer {
+                            BasicText(
+                                text = descriptionText,
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    lineHeight = 24.sp,
+                                    fontSize = 15.sp
+                                ),
+                                onTextLayout = { descLayoutResult = it },
+                                modifier = Modifier.pointerInput(descriptionText) {
+                                    detectTapGestures(
+                                        onTap = { tapOffset ->
+                                            descLayoutResult?.let { result ->
+                                                val charOffset = result.getOffsetForPosition(tapOffset)
+                                                val ts = descriptionText
+                                                    .getStringAnnotations("TIMESTAMP", charOffset, charOffset)
+                                                    .firstOrNull()
+                                                if (ts != null) {
+                                                    onTimestampClick(ts.item)
+                                                } else {
+                                                    descriptionText
+                                                        .getStringAnnotations("URL", charOffset, charOffset)
+                                                        .firstOrNull()
+                                                        ?.let { uriHandler.openUri(it.item) }
+                                                }
+                                            }
+                                        }
+                                    )
                                 }
-                            }
-                        )
+                            )
+                        }
 
                         // Tags section
                         if (tags.isNotEmpty()) {

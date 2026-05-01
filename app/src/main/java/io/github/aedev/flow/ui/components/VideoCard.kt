@@ -945,7 +945,10 @@ fun CompactVideoCard(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.extendedColors.textSecondary,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = if (onChannelClick != null)
+                    Modifier.clickable { onChannelClick(video.channelId) }
+                else Modifier
             )
             
             val premiereDate = formatPremiereDate(video.uploadDate)

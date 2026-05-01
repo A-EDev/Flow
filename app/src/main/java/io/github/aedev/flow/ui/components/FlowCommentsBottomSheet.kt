@@ -4,12 +4,15 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PushPin
@@ -31,6 +34,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
@@ -77,7 +81,11 @@ fun FlowCommentsBottomSheet(
         object : NestedScrollConnection {
             override fun onPostScroll(
                 consumed: Offset, available: Offset, source: NestedScrollSource
-            ) = available
+            ): Offset = available
+
+            override suspend fun onPostFling(
+                consumed: Velocity, available: Velocity
+            ): Velocity = available
         }
     }
 
@@ -306,38 +314,43 @@ fun FlowCommentItem(
 
             // Comment Body with "Read More" logic
             Box(modifier = Modifier.animateContentSize()) {
-                BasicText(
-                    text = annotatedText,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurface,
-                        lineHeight = 20.sp
-                    ),
-                    maxLines = if (isExpanded) Int.MAX_VALUE else 4,
-                    overflow = TextOverflow.Ellipsis,
-                    onTextLayout = { result ->
-                        commentTextLayoutResult = result
-                        if (result.hasVisualOverflow) isOverflowing = true
-                    },
-                    modifier = Modifier.pointerInput(annotatedText) {
-                        detectTapGestures { tapOffset ->
-                            val result = commentTextLayoutResult ?: return@detectTapGestures
-                            val offset = result.getOffsetForPosition(tapOffset)
-                            val ts = annotatedText
-                                .getStringAnnotations("TIMESTAMP", offset, offset)
-                                .firstOrNull()
-                            val url = annotatedText
-                                .getStringAnnotations("URL", offset, offset)
-                                .firstOrNull()
-                            if (ts != null) {
-                                onTimestampClick(ts.item)
-                            } else if (url != null) {
-                                try { uriHandler.openUri(url.item) } catch (e: Exception) { e.printStackTrace() }
-                            } else {
-                                if (!isExpanded && isOverflowing) isExpanded = true
-                            }
+                SelectionContainer {
+                    BasicText(
+                        text = annotatedText,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurface,
+                            lineHeight = 20.sp
+                        ),
+                        maxLines = if (isExpanded) Int.MAX_VALUE else 4,
+                        overflow = TextOverflow.Ellipsis,
+                        onTextLayout = { result ->
+                            commentTextLayoutResult = result
+                            if (result.hasVisualOverflow) isOverflowing = true
+                        },
+                        modifier = Modifier.pointerInput(annotatedText) {
+                            detectTapGestures(
+                                onTap = { tapOffset ->
+                                    commentTextLayoutResult?.let { result ->
+                                        val offset = result.getOffsetForPosition(tapOffset)
+                                        val ts = annotatedText
+                                            .getStringAnnotations("TIMESTAMP", offset, offset)
+                                            .firstOrNull()
+                                        val url = annotatedText
+                                            .getStringAnnotations("URL", offset, offset)
+                                            .firstOrNull()
+                                        if (ts != null) {
+                                            onTimestampClick(ts.item)
+                                        } else if (url != null) {
+                                            try { uriHandler.openUri(url.item) } catch (e: Exception) { e.printStackTrace() }
+                                        } else {
+                                            if (!isExpanded && isOverflowing) isExpanded = true
+                                        }
+                                    }
+                                }
+                            )
                         }
-                    }
-                )
+                    )
+                }
             }
 
             if (isOverflowing && !isExpanded) {
@@ -550,31 +563,36 @@ fun FlowReplyItem(
             Spacer(modifier = Modifier.height(2.dp))
 
             // Reply Body
-            BasicText(
-                text = annotatedText,
-                style = MaterialTheme.typography.bodySmall.copy(
-                    color = MaterialTheme.colorScheme.onSurface,
-                    lineHeight = 16.sp
-                ),
-                onTextLayout = { replyTextLayoutResult = it },
-                modifier = Modifier.pointerInput(annotatedText) {
-                    detectTapGestures { tapOffset ->
-                        val result = replyTextLayoutResult ?: return@detectTapGestures
-                        val offset = result.getOffsetForPosition(tapOffset)
-                        val ts = annotatedText
-                            .getStringAnnotations("TIMESTAMP", offset, offset)
-                            .firstOrNull()
-                        if (ts != null) {
-                            onTimestampClick(ts.item)
-                        } else {
-                            annotatedText
-                                .getStringAnnotations("URL", offset, offset)
-                                .firstOrNull()
-                                ?.let { try { uriHandler.openUri(it.item) } catch (_: Exception) {} }
-                        }
+            SelectionContainer {
+                BasicText(
+                    text = annotatedText,
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = MaterialTheme.colorScheme.onSurface,
+                        lineHeight = 16.sp
+                    ),
+                    onTextLayout = { replyTextLayoutResult = it },
+                    modifier = Modifier.pointerInput(annotatedText) {
+                        detectTapGestures(
+                            onTap = { tapOffset ->
+                                replyTextLayoutResult?.let { result ->
+                                    val offset = result.getOffsetForPosition(tapOffset)
+                                    val ts = annotatedText
+                                        .getStringAnnotations("TIMESTAMP", offset, offset)
+                                        .firstOrNull()
+                                    if (ts != null) {
+                                        onTimestampClick(ts.item)
+                                    } else {
+                                        annotatedText
+                                            .getStringAnnotations("URL", offset, offset)
+                                            .firstOrNull()
+                                            ?.let { try { uriHandler.openUri(it.item) } catch (_: Exception) {} }
+                                    }
+                                }
+                            }
+                        )
                     }
-                }
-            )
+                )
+            }
 
             Spacer(modifier = Modifier.height(4.dp))
 

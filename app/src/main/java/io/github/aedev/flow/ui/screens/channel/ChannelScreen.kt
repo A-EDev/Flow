@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -234,9 +235,6 @@ private fun ChannelContent(
     var headerOffsetPx by remember { mutableFloatStateOf(0f) }
 
     val density = LocalDensity.current
-    val totalHeaderHeightDp = with(density) {
-        (collapsingHeaderHeightPx + stickySectionHeightPx).toDp()
-    }
     val visibleHeaderHeightDp = with(density) {
         (collapsingHeaderHeightPx + stickySectionHeightPx + headerOffsetPx)
             .coerceAtLeast(stickySectionHeightPx)
@@ -280,10 +278,46 @@ private fun ChannelContent(
     val liveListState = rememberLazyListState()
     val playlistsListState = rememberLazyListState()
     val aboutListState = rememberLazyListState()
+    var lastAppliedFilter by rememberSaveable { mutableStateOf(selectedFilter) }
+
     LaunchedEffect(videosListState) {
         snapshotFlow { videosListState.firstVisibleItemIndex to videosListState.firstVisibleItemScrollOffset }
             .collect { (index, offset) -> onScrollChanged(index, offset) }
     }
+
+    LaunchedEffect(selectedFilter) {
+        if (lastAppliedFilter == selectedFilter) return@LaunchedEffect
+        lastAppliedFilter = selectedFilter
+
+        when (pagerState.currentPage) {
+            0 -> videosListState.scrollToItem(0)
+            2 -> liveListState.scrollToItem(0)
+        }
+    }
+
+    LaunchedEffect(sortedVideos.size, selectedFilter, pagerState.currentPage) {
+        if (selectedFilter == VideoFilter.Latest || pagerState.currentPage != 0) return@LaunchedEffect
+
+        val isNearTop =
+            videosListState.firstVisibleItemIndex <= 1 &&
+                videosListState.firstVisibleItemScrollOffset <= 40
+        if (isNearTop) {
+            videosListState.scrollToItem(0)
+        }
+    }
+
+    LaunchedEffect(sortedLive.size, selectedFilter, pagerState.currentPage) {
+        if (selectedFilter == VideoFilter.Latest || pagerState.currentPage != 2) return@LaunchedEffect
+
+        val isNearTop =
+            liveListState.firstVisibleItemIndex <= 1 &&
+                liveListState.firstVisibleItemScrollOffset <= 40
+        if (isNearTop) {
+            liveListState.scrollToItem(0)
+        }
+    }
+
+    val headerMeasured by remember { derivedStateOf { collapsingHeaderHeightPx > 0f } }
 
     Box(
         modifier = Modifier
@@ -293,7 +327,9 @@ private fun ChannelContent(
     ) {
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = if (headerMeasured) 1f else 0f },
             verticalAlignment = Alignment.Top,
             userScrollEnabled = true
         ) { page ->
@@ -435,6 +471,7 @@ private fun ChannelContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.background)
                     .onSizeChanged { collapsingHeaderHeightPx = it.height.toFloat() }
             ) {
                 ChannelHeader(
@@ -603,7 +640,11 @@ private fun ChannelHeader(
     Log.d("ChannelHeader", "channel=${channelInfo.name} avatarUrl=$avatarUrl bannerUrl=$bannerUrl")
     val context = LocalContext.current
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
         // ── Banner ───────────────────────────────────────────────────────────
         if (!bannerUrl.isNullOrEmpty()) {
             AsyncImage(

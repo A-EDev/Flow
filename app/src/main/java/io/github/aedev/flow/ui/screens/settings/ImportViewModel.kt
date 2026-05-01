@@ -121,6 +121,25 @@ class ImportViewModel @Inject constructor(
         }
     }
 
+    fun importMasterBackup(uri: Uri) {
+        if (isRunning) return
+        val label = "Master backup"
+        viewModelScope.launch {
+            startProgress(label, 0, 0)
+            val result = backupRepo.importMasterBackup(uri)
+            NotificationHelper.cancelImportNotification(context)
+            if (result.isSuccess) {
+                _state.value = State.Success(label, 0)
+                if (NotificationHelper.hasNotificationPermission(context)) {
+                    NotificationHelper.showImportComplete(context, label, 0)
+                }
+            } else {
+                val msg = result.exceptionOrNull()?.message ?: "Unknown error"
+                _state.value = State.Error(label, msg)
+            }
+        }
+    }
+
     /** Reset state back to [State.Idle] after the caller has handled a Success or Error. */
     fun dismiss() {
         _state.value = State.Idle

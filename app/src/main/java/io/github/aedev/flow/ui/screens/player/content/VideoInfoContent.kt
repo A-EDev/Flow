@@ -321,7 +321,8 @@ fun LazyListScope.relatedVideosContent(
         when (cardStyle) {
             PlayerRelatedCardStyle.COMPACT -> CompactVideoCard(
                 video = relatedVideo,
-                onClick = { onVideoClick(relatedVideo) }
+                onClick = { onVideoClick(relatedVideo) },
+                onChannelClick = onChannelClick
             )
             PlayerRelatedCardStyle.FULL_WIDTH -> VideoCardFullWidth(
                 video = relatedVideo,
@@ -366,7 +367,8 @@ fun LazyListScope.relatedVideosGridContent(
                     when (cardStyle) {
                         PlayerRelatedCardStyle.COMPACT -> CompactVideoCard(
                             video = video,
-                            onClick = { onVideoClick(video) }
+                            onClick = { onVideoClick(video) },
+                            onChannelClick = onChannelClick
                         )
                         PlayerRelatedCardStyle.FULL_WIDTH -> VideoCardFullWidth(
                             video = video,

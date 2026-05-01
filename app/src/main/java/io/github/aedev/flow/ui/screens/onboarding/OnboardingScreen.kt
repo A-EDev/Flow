@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.FileDownload
@@ -34,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -169,6 +171,10 @@ fun OnboardingScreen(onComplete: () -> Unit) {
         contract = ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { importViewModel.importLibreTube(it) } }
 
+    val masterBackupImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let { importViewModel.importMasterBackup(it) } }
+
     val metrolistImportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { importViewModel.importMetrolist(it) } }
@@ -284,6 +290,9 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                 )
                 OnboardingStep.IMPORT -> ImportStep(
                     importState = importState,
+                    onImportMasterBackup = {
+                        masterBackupImportLauncher.launch(arrayOf("application/zip", "application/octet-stream"))
+                    },
                     onImportNewPipe = {
                         newPipeImportLauncher.launch(arrayOf("application/json"))
                     },
@@ -731,6 +740,7 @@ private fun ChannelResultRow(
 @Composable
 private fun ImportStep(
     importState: ImportViewModel.State,
+    onImportMasterBackup: () -> Unit,
     onImportNewPipe: () -> Unit,
     onImportYouTube: () -> Unit,
     onImportYouTubeHistory: () -> Unit,
@@ -749,6 +759,16 @@ private fun ImportStep(
             )
         }
         item { ImportProgressBanner(importState) }
+
+        item {
+            ImportCard(
+                painter = rememberVectorPainter(Icons.Outlined.Archive),
+                title = stringResource(R.string.import_master_backup_title),
+                description = stringResource(R.string.import_master_backup_desc),
+                iconTint = MaterialTheme.colorScheme.primary,
+                onClick = onImportMasterBackup
+            )
+        }
 
         item {
             Text(
@@ -834,6 +854,7 @@ private fun ImportCard(
     painter: androidx.compose.ui.graphics.painter.Painter,
     title: String,
     description: String,
+    iconTint: Color = Color.Unspecified,
     onClick: () -> Unit
 ) {
     Surface(
@@ -859,7 +880,7 @@ private fun ImportCard(
                         painter = painter,
                         contentDescription = null,
                         modifier = Modifier.size(24.dp),
-                        tint = Color.Unspecified
+                        tint = iconTint
                     )
                 }
             }

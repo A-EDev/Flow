@@ -5,15 +5,18 @@ DATE: 2026-05-1
 FEATURES
 - Add new Proxy manager and routing #362
 - Add new App language selection in settings #376
+- Add text highlight and selection for comments and description #374
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361
 - Improve media playback notification handling #347
 - Improve Monochrome app logo quality #336
 - Add paging to comment replies #369
+- Add master backup import to onboarding #365
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378
 - Fix Go to channel on home and related videos #370 #351
 - Fix comment loading in queue #352
 - Fix queue dock position by @ItsMe-95fx #371
+- Fix channel content rendering #366
