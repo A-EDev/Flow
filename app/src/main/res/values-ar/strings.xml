@@ -689,7 +689,7 @@
     <string name="threads_count_label">%1$d تقسيمات</string>
     <string name="support_donations_title">الدعم والتبرعات</string>
     <string name="support_flow_dev_title">إدعم تطوير Flow</string>
-    <string name="support_flow_dev_desc">إذا وجدتَ تطبيق Flow مفيدًا وترغب في دعم تطويره، يمكنك التبرع عبر العناوين التالية. دعمكم يُسهم في استمرار المشروع!</string>
+    <string name="support_flow_dev_desc">إذا وجدتَ تطبيق Flow مفيدًا وترغب في دعم تطويره، يمكنك دعمه عبر منصة Patreon أو التبرع عبر عناوين العملات الرقمية الموضحة أدناه. دعمكم يُسهم في استمرار المشروع!</string>
     <string name="thank_you_support_message">شكراً لدعمكم! ❤️</string>
     <string name="address_copied_toast">تم نسخ العنوان إلى الحافظة</string>
     <string name="donation_address_clip_label">عنوان التبرع</string>
@@ -1342,4 +1342,10 @@
     <string name="proxy_settings_invalid_host">أدخل اسم مضيف (host) الوكيل قبل تفعيل الوكيل.</string>
     <string name="proxy_settings_invalid_port">أدخل منفذ proxy صالح بين 1 و 65535.</string>
     <string name="proxy_settings_saved">تم حفظ إعدادات الProxy</string>
+    <string name="load_more_replies">تحميل المزيد من الردود</string>
+    <string name="settings_item_app_language">لغة التطبيق</string>
+    <string name="settings_item_app_language_subtitle">استخدم لغة جهازك أو اختر لغة يدويًا</string>
+    <string name="settings_language_dialog_title">إختر لغة التطبيق</string>
+    <string name="settings_language_system_default">‌الافتراضي للنظام</string>
+    <string name="support_flow_patreon">إدعم Flow على Patreon</string>
 </resources>
