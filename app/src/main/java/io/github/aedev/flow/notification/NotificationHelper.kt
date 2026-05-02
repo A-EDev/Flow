@@ -223,14 +223,14 @@ object NotificationHelper {
     }
 
     /** Replace the progress notification with a one-shot completion notification. */
-    fun showImportComplete(context: Context, label: String, count: Int) {
+    fun showImportComplete(context: Context, label: String, count: Int, message: String? = null) {
         if (!hasNotificationPermission(context)) return
         // cancel progress first
         NotificationManagerCompat.from(context).cancel(NOTIFICATION_IMPORT_PROGRESS)
         val builder = NotificationCompat.Builder(context, CHANNEL_IMPORTS)
             .setSmallIcon(R.drawable.ic_notification_logo)
             .setContentTitle("Import complete")
-            .setContentText("Imported $count ${label.lowercase()}")
+            .setContentText(message ?: "Imported $count ${label.lowercase()}")
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
         NotificationManagerCompat.from(context).notify(NOTIFICATION_IMPORT_COMPLETE, builder.build())

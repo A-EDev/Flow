@@ -58,6 +58,9 @@ interface PlaylistDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPlaylistVideoCrossRef(crossRef: PlaylistVideoCrossRef)
 
+    @Query("UPDATE playlist_video_cross_ref SET position = :position WHERE playlistId = :playlistId AND videoId = :videoId")
+    suspend fun updatePlaylistVideoPosition(playlistId: String, videoId: String, position: Long)
+
     @Query("DELETE FROM playlist_video_cross_ref WHERE playlistId = :playlistId AND videoId = :videoId")
     suspend fun removeVideoFromPlaylist(playlistId: String, videoId: String)
 
@@ -79,6 +82,12 @@ interface PlaylistDao {
 
     @Query("SELECT * FROM playlist_video_cross_ref")
     suspend fun getAllPlaylistVideoCrossRefs(): List<PlaylistVideoCrossRef>
+
+    @Query("UPDATE playlists SET thumbnailUrl = :thumbnailUrl WHERE id = :id")
+    suspend fun updatePlaylistThumbnail(id: String, thumbnailUrl: String)
+
+    @Query("SELECT v.thumbnailUrl FROM videos v INNER JOIN playlist_video_cross_ref r ON v.id = r.videoId WHERE r.playlistId = :playlistId ORDER BY r.position ASC LIMIT 1")
+    suspend fun getFirstVideoThumbnail(playlistId: String): String?
 
     /** Returns stub VideoEntities (empty title) that live inside music playlists. Used for background enrichment. */
     @Query("""

@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-1
+DATE: 2026-05-2
 
 FEATURES
 - Add new Proxy manager and routing #362
@@ -8,6 +8,7 @@ FEATURES
 - Add text highlight and selection for comments and description #374
 - Zoom level indicator #348
 - Subtitle customization #348
+- Add playlist items re-ordering and video watch progress #380 #382
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361
@@ -23,3 +24,4 @@ FIXES AND STABILITY
 - Fix queue dock position by @ItsMe-95fx #371
 - Fix channel content rendering #366
 - Fix empty media playback notification #347
+- Fix limited playlist content #385

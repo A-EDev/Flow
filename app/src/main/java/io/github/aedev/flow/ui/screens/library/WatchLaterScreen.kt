@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,6 +33,9 @@ import coil.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.components.ReorderHandle
+import io.github.aedev.flow.ui.components.ThumbnailWatchProgress
+import io.github.aedev.flow.ui.components.rememberReorderableLazyListState
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
@@ -51,6 +55,25 @@ fun WatchLaterScreen(
     var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     val inSelectionMode = selectedIds.isNotEmpty()
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
+
+    val reorderState = rememberReorderableLazyListState(
+        listState = listState,
+        itemIndexOffset = 1,
+        onMove = { from, to ->
+            watchLaterVideos = watchLaterVideos.toMutableList().apply {
+                add(to, removeAt(from))
+            }
+        },
+        onDragStopped = {
+            scope.launch {
+                repo.reorderVideosInPlaylist(
+                    PlaylistRepository.WATCH_LATER_ID,
+                    watchLaterVideos.map { it.id }
+                )
+            }
+        }
+    )
 
     BackHandler(enabled = inSelectionMode) { selectedIds = emptySet() }
 
@@ -141,6 +164,7 @@ fun WatchLaterScreen(
         modifier = modifier
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -192,6 +216,8 @@ fun WatchLaterScreen(
                         video = video,
                         isSelected = isSelected,
                         inSelectionMode = inSelectionMode,
+                        reorderModifier = reorderState.itemModifier(index),
+                        dragHandleModifier = if (inSelectionMode) Modifier else reorderState.handleModifier(index),
                         onClick = {
                             if (inSelectionMode) {
                                 selectedIds = if (isSelected) selectedIds - video.id
@@ -201,7 +227,7 @@ fun WatchLaterScreen(
                             }
                         },
                         onLongClick = {
-                            selectedIds = selectedIds + video.id
+                            if (!reorderState.isDragging) selectedIds = selectedIds + video.id
                         },
                         onRemove = {
                             scope.launch { repo.removeFromWatchLater(video.id) }
@@ -334,6 +360,8 @@ private fun WatchLaterVideoItem(
     video: Video,
     isSelected: Boolean,
     inSelectionMode: Boolean,
+    reorderModifier: Modifier,
+    dragHandleModifier: Modifier,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     onRemove: () -> Unit,
@@ -347,9 +375,15 @@ private fun WatchLaterVideoItem(
 
     Row(
         modifier = modifier
+            .then(reorderModifier)
             .fillMaxWidth()
             .background(selectionBg)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = {
+                    if (!inSelectionMode) onLongClick()
+                }
+            )
             .padding(vertical = 12.dp, horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -360,7 +394,13 @@ private fun WatchLaterVideoItem(
                 onCheckedChange = { onClick() },
                 modifier = Modifier.size(24.dp)
             )
+        } else {
+            ReorderHandle(
+                modifier = dragHandleModifier,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+            )
         }
+
         // Thumbnail
         Box(
             modifier = Modifier
@@ -397,6 +437,14 @@ private fun WatchLaterVideoItem(
                     )
                 }
             }
+
+            ThumbnailWatchProgress(
+                videoId = video.id,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .height(3.dp)
+            )
         }
 
         // Video Info

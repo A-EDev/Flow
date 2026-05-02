@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -61,6 +62,9 @@ import androidx.compose.foundation.lazy.items
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import io.github.aedev.flow.ui.components.ReorderHandle
+import io.github.aedev.flow.ui.components.ThumbnailWatchProgress
+import io.github.aedev.flow.ui.components.rememberReorderableLazyListState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,6 +84,28 @@ fun PlaylistDetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showOptionsMenu by remember { mutableStateOf(false) }
     var showMergeDialog by remember { mutableStateOf(false) }
+    val isUserCreatedPlaylist = uiState.isLocalPlaylist && !uiState.isSaved
+    val listState = rememberLazyListState()
+    var displayVideos by remember { mutableStateOf(uiState.videos) }
+
+    LaunchedEffect(uiState.videos) {
+        displayVideos = uiState.videos
+    }
+
+    val reorderState = rememberReorderableLazyListState(
+        listState = listState,
+        itemIndexOffset = 1,
+        onMove = { from, to ->
+            displayVideos = displayVideos.toMutableList().apply {
+                add(to, removeAt(from))
+            }
+        },
+        onDragStopped = {
+            if (isUserCreatedPlaylist) {
+                viewModel.reorderVideos(displayVideos.map { it.id })
+            }
+        }
+    )
 
     Scaffold(
         topBar = {
@@ -91,7 +117,6 @@ fun PlaylistDetailScreen(
                     }
                 },
                 actions = {
-                    val isUserCreatedPlaylist = uiState.isLocalPlaylist && !uiState.isSaved
                     if (!isUserCreatedPlaylist) {
                         IconButton(onClick = { showMergeDialog = true }) {
                             Icon(
@@ -161,6 +186,7 @@ fun PlaylistDetailScreen(
         modifier = modifier
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
@@ -173,7 +199,7 @@ fun PlaylistDetailScreen(
                     name = uiState.playlistName,
                     description = uiState.description,
                     videoCount = uiState.videos.size,
-                    thumbnailUrl = uiState.thumbnailUrl.ifEmpty { uiState.videos.firstOrNull()?.thumbnailUrl ?: "" },
+                    thumbnailUrl = displayVideos.firstOrNull()?.thumbnailUrl ?: uiState.thumbnailUrl,
                     isPrivate = uiState.isPrivate,
                     onPlayAll = {
                         onPlayPlaylist(uiState.videos, 0)
@@ -190,7 +216,7 @@ fun PlaylistDetailScreen(
             }
 
             // Video List
-            if (uiState.videos.isEmpty()) {
+            if (displayVideos.isEmpty()) {
                 item {
                     EmptyPlaylistState(
                         modifier = Modifier.padding(32.dp)
@@ -198,13 +224,16 @@ fun PlaylistDetailScreen(
                 }
             } else {
                 itemsIndexed(
-                    items = uiState.videos,
+                    items = displayVideos,
                     key = { _, video -> video.id }
                 ) { index, video ->
                     PlaylistVideoItem(
                         video = video,
                         position = index + 1,
-                        onVideoClick = { onPlayPlaylist(uiState.videos, index) },
+                        reorderModifier = if (isUserCreatedPlaylist) reorderState.itemModifier(index) else Modifier,
+                        dragHandleModifier = if (isUserCreatedPlaylist) reorderState.handleModifier(index) else Modifier,
+                        showDragHandle = isUserCreatedPlaylist,
+                        onVideoClick = { onPlayPlaylist(displayVideos, index) },
                         onRemove = { viewModel.removeVideo(video.id) }
                     )
                 }
@@ -437,6 +466,9 @@ private fun PlaylistHeader(
 private fun PlaylistVideoItem(
     video: Video,
     position: Int,
+    reorderModifier: Modifier,
+    dragHandleModifier: Modifier,
+    showDragHandle: Boolean,
     onVideoClick: () -> Unit,
     onRemove: () -> Unit,
     modifier: Modifier = Modifier
@@ -445,13 +477,26 @@ private fun PlaylistVideoItem(
 
     Row(
         modifier = modifier
+            .then(reorderModifier)
             .fillMaxWidth()
             .clickable(onClick = onVideoClick)
             .padding(vertical = 12.dp, horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Drag Handle removed as per request
+        if (showDragHandle) {
+            ReorderHandle(
+                modifier = dragHandleModifier,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+            )
+        } else {
+            Text(
+                text = position.toString(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.width(20.dp)
+            )
+        }
         
         // Thumbnail
         Box(
@@ -489,6 +534,14 @@ private fun PlaylistVideoItem(
                     )
                 }
             }
+
+            ThumbnailWatchProgress(
+                videoId = video.id,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .height(3.dp)
+            )
         }
 
         // Video Info
@@ -1036,6 +1089,12 @@ class PlaylistDetailViewModel @Inject constructor(
     fun removeVideo(videoId: String) {
         viewModelScope.launch {
             repository.removeVideoFromPlaylist(playlistId, videoId)
+        }
+    }
+
+    fun reorderVideos(orderedVideoIds: List<String>) {
+        viewModelScope.launch {
+            repository.reorderVideosInPlaylist(playlistId, orderedVideoIds)
         }
     }
 

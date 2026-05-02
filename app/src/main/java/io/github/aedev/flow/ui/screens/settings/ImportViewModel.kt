@@ -44,7 +44,7 @@ class ImportViewModel @Inject constructor(
         data class Running(val label: String, val current: Int, val total: Int) : State()
 
         /** Import finished successfully. Call [dismiss] to return to [Idle]. */
-        data class Success(val label: String, val count: Int) : State()
+        data class Success(val label: String, val count: Int? = null, val message: String? = null) : State()
 
         /** Import failed. Call [dismiss] to return to [Idle]. */
         data class Error(val label: String, val message: String) : State()
@@ -124,14 +124,15 @@ class ImportViewModel @Inject constructor(
     fun importMasterBackup(uri: Uri) {
         if (isRunning) return
         val label = "Master backup"
+        val successMessage = "Master backup restored successfully"
         viewModelScope.launch {
             startProgress(label, 0, 0)
             val result = backupRepo.importMasterBackup(uri)
             NotificationHelper.cancelImportNotification(context)
             if (result.isSuccess) {
-                _state.value = State.Success(label, 0)
+                _state.value = State.Success(label, message = successMessage)
                 if (NotificationHelper.hasNotificationPermission(context)) {
-                    NotificationHelper.showImportComplete(context, label, 0)
+                    NotificationHelper.showImportComplete(context, label, 0, successMessage)
                 }
             } else {
                 val msg = result.exceptionOrNull()?.message ?: "Unknown error"
@@ -165,7 +166,7 @@ class ImportViewModel @Inject constructor(
         NotificationHelper.cancelImportNotification(context)
         if (result.isSuccess) {
             val count = result.getOrNull() ?: 0
-            _state.value = State.Success(label, count)
+            _state.value = State.Success(label, count = count)
             if (NotificationHelper.hasNotificationPermission(context)) {
                 NotificationHelper.showImportComplete(context, label, count)
             }

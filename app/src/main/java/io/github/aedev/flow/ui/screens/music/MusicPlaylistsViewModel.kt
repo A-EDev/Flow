@@ -354,6 +354,16 @@ class MusicPlaylistsViewModel @Inject constructor(
         }
     }
 
+    fun reorderTracksInPlaylist(playlistId: String, orderedVideoIds: List<String>) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                playlistRepository.reorderVideosInPlaylist(playlistId, orderedVideoIds)
+            } catch (e: Exception) {
+                Log.e("MusicPlaylistsVM", "reorderTracksInPlaylist failed", e)
+            }
+        }
+    }
+
     fun clearTrackSearch() {
         _trackSearchResults.value = emptyList()
         _addedTrackIds.value = emptySet()

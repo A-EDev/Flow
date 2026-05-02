@@ -134,7 +134,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     LaunchedEffect(importState) {
         when (val s = importState) {
             is ImportViewModel.State.Success -> {
-                importMessage = if (s.count > 0)
+                importMessage = s.message ?: if ((s.count ?: 0) > 0)
                     "Imported ${s.count} ${s.label.lowercase()}"
                 else
                     "${s.label} imported"

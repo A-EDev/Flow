@@ -64,7 +64,7 @@ fun ImportDataScreen(
         when (val s = importState) {
             is ImportViewModel.State.Success -> {
                 snackbarHostState.showSnackbar(
-                    if (s.count > 0) "Imported ${s.count} ${s.label.lowercase()}"
+                    s.message ?: if ((s.count ?: 0) > 0) "Imported ${s.count} ${s.label.lowercase()}"
                     else "${s.label} imported successfully"
                 )
                 importViewModel.dismiss()

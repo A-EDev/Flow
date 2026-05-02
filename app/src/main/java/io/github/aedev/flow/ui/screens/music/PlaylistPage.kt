@@ -49,7 +49,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import io.github.aedev.flow.R
+import io.github.aedev.flow.ui.components.ReorderHandle
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.ThumbnailWatchProgress
+import io.github.aedev.flow.ui.components.rememberReorderableLazyListState
 import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -87,6 +90,29 @@ fun PlaylistPage(
         val all = playlistDetails.tracks + locallyAddedTracks.filter { it.videoId !in existing }
         all.filter { it.videoId !in deletedTrackIds.value }
     }
+    var orderedDisplayTracks by remember { mutableStateOf(displayTracks) }
+
+    LaunchedEffect(displayTracks) {
+        orderedDisplayTracks = displayTracks
+    }
+
+    val reorderState = rememberReorderableLazyListState(
+        listState = scrollState,
+        itemIndexOffset = 3,
+        onMove = { from, to ->
+            orderedDisplayTracks = orderedDisplayTracks.toMutableList().apply {
+                add(to, removeAt(from))
+            }
+        },
+        onDragStopped = {
+            if (isUserPlaylist) {
+                playlistsViewModel.reorderTracksInPlaylist(
+                    playlistDetails.id,
+                    orderedDisplayTracks.map { it.videoId }
+                )
+            }
+        }
+    )
 
     var showSearchPanel by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -234,13 +260,13 @@ fun PlaylistPage(
                         isDownloading = isDownloading,
                         downloadProgress = downloadProgress,
                         onPlayClick = {
-                            if (displayTracks.isNotEmpty()) {
-                                onTrackClick(displayTracks.first(), displayTracks)
+                            if (orderedDisplayTracks.isNotEmpty()) {
+                                onTrackClick(orderedDisplayTracks.first(), orderedDisplayTracks)
                             }
                         },
                         onShuffleClick = {
-                            if (displayTracks.isNotEmpty()) {
-                                val shuffled = displayTracks.shuffled()
+                            if (orderedDisplayTracks.isNotEmpty()) {
+                                val shuffled = orderedDisplayTracks.shuffled()
                                 onTrackClick(shuffled.first(), shuffled)
                             }
                         },
@@ -326,11 +352,14 @@ fun PlaylistPage(
                             color = Color.White.copy(alpha = 0.08f)
                         )
                     }
-                    itemsIndexed(displayTracks, key = { _, t -> t.videoId }) { index, track ->
+                    itemsIndexed(orderedDisplayTracks, key = { _, t -> t.videoId }) { index, track ->
                         PlaylistTrackRow(
                             index = index + 1,
                             track = track,
-                            onClick = { onTrackClick(track, displayTracks) },
+                            reorderModifier = if (isUserPlaylist) reorderState.itemModifier(index) else Modifier,
+                            dragHandleModifier = if (isUserPlaylist) reorderState.handleModifier(index) else Modifier,
+                            showDragHandle = isUserPlaylist,
+                            onClick = { onTrackClick(track, orderedDisplayTracks) },
                             onMenuClick = { selectedTrack = track; showBottomSheet = true },
                             onDeleteClick = if (isUserPlaylist) {{
                                 deletedTrackIds.value = deletedTrackIds.value + track.videoId
@@ -724,37 +753,58 @@ private fun PlaylistSearchBar(
 private fun PlaylistTrackRow(
     index: Int,
     track: MusicTrack,
+    reorderModifier: Modifier,
+    dragHandleModifier: Modifier,
+    showDragHandle: Boolean,
     onClick: () -> Unit,
     onMenuClick: () -> Unit,
     onDeleteClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
+            .then(reorderModifier)
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = index.toString(),
-            style = MaterialTheme.typography.bodySmall,
-            color = Color.White.copy(alpha = 0.35f),
-            modifier = Modifier.width(22.dp),
-            maxLines = 1
-        )
-        Surface(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(RoundedCornerShape(6.dp)),
-            shape = RoundedCornerShape(6.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant
-        ) {
-            AsyncImage(
-                model = track.thumbnailUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+        if (showDragHandle) {
+            ReorderHandle(
+                modifier = dragHandleModifier,
+                tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
+            )
+        } else {
+            Text(
+                text = index.toString(),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White.copy(alpha = 0.35f),
+                modifier = Modifier.width(22.dp),
+                maxLines = 1
+            )
+        }
+        Box {
+            Surface(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(6.dp)),
+                shape = RoundedCornerShape(6.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                AsyncImage(
+                    model = track.thumbnailUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
+
+            ThumbnailWatchProgress(
+                videoId = track.videoId,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .fillMaxWidth()
+                    .height(3.dp)
             )
         }
         Column(modifier = Modifier.weight(1f)) {

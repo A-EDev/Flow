@@ -720,22 +720,33 @@ class YouTubeRepository @Inject constructor(
         try {
             val playlistUrl = "https://www.youtube.com/playlist?list=$playlistId"
             val playlistInfo = org.schabi.newpipe.extractor.playlist.PlaylistInfo.getInfo(service, playlistUrl)
-            
-            val videos = playlistInfo.relatedItems
+
+            val allVideos = mutableListOf<Video>()
+            allVideos += playlistInfo.relatedItems
                 .filterIsInstance<StreamInfoItem>()
                 .map { it.toVideo() }
-                
+
+            var nextPage = playlistInfo.nextPage
+            while (nextPage != null) {
+                val page = org.schabi.newpipe.extractor.playlist.PlaylistInfo
+                    .getMoreItems(service, playlistUrl, nextPage)
+                allVideos += page.items
+                    .filterIsInstance<StreamInfoItem>()
+                    .map { it.toVideo() }
+                nextPage = page.nextPage
+            }
+
             val bestThumbnail = playlistInfo.thumbnails
                 .sortedByDescending { it.height }
-                .firstOrNull()?.url ?: videos.firstOrNull()?.thumbnailUrl ?: ""
+                .firstOrNull()?.url ?: allVideos.firstOrNull()?.thumbnailUrl ?: ""
 
             io.github.aedev.flow.data.model.Playlist(
                 id = playlistId,
                 name = playlistInfo.name ?: "Unknown Playlist",
                 thumbnailUrl = bestThumbnail,
-                videoCount = videos.size,
+                videoCount = allVideos.size,
                 description = playlistInfo.description?.content ?: "",
-                videos = videos,
+                videos = allVideos,
                 isLocal = false
             )
         } catch (e: Exception) {

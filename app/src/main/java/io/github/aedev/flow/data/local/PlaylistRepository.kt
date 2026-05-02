@@ -226,12 +226,6 @@ class PlaylistRepository @Inject constructor(
             // Save video first
             videoDao.insertVideo(VideoEntity.fromDomain(video))
             
-            // Add to playlist
-            val playlist = playlistDao.getPlaylist(playlistId)
-            if (playlist != null && playlist.thumbnailUrl.isEmpty()) {
-                 playlistDao.insertPlaylist(playlist.copy(thumbnailUrl = video.thumbnailUrl))
-            }
-            
             // Add relation
             val position = -System.currentTimeMillis()
             playlistDao.insertPlaylistVideoCrossRef(
@@ -241,6 +235,9 @@ class PlaylistRepository @Inject constructor(
                     position = position
                 )
             )
+
+            val newThumb = playlistDao.getFirstVideoThumbnail(playlistId) ?: video.thumbnailUrl
+            playlistDao.updatePlaylistThumbnail(playlistId, newThumb)
             android.util.Log.d("PlaylistRepository", "Successfully added to playlist $playlistId")
         } catch (e: Exception) {
             android.util.Log.e("PlaylistRepository", "Failed to add to playlist $playlistId", e)
@@ -254,6 +251,20 @@ class PlaylistRepository @Inject constructor(
 
     suspend fun removeVideoFromPlaylist(playlistId: String, videoId: String) {
         playlistDao.removeVideoFromPlaylist(playlistId, videoId)
+        val newThumb = playlistDao.getFirstVideoThumbnail(playlistId) ?: ""
+        playlistDao.updatePlaylistThumbnail(playlistId, newThumb)
+    }
+
+    suspend fun reorderVideosInPlaylist(playlistId: String, orderedVideoIds: List<String>) {
+        orderedVideoIds.forEachIndexed { index, videoId ->
+            playlistDao.updatePlaylistVideoPosition(
+                playlistId = playlistId,
+                videoId = videoId,
+                position = index.toLong()
+            )
+        }
+        val newThumb = playlistDao.getFirstVideoThumbnail(playlistId) ?: ""
+        playlistDao.updatePlaylistThumbnail(playlistId, newThumb)
     }
 
     fun getAllPlaylistsFlow(): Flow<List<PlaylistInfo>> = playlistDao.getVideoPlaylistsWithCount().map { items ->
