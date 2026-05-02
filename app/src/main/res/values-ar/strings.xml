@@ -1348,4 +1348,5 @@
     <string name="settings_language_dialog_title">إختر لغة التطبيق</string>
     <string name="settings_language_system_default">‌الافتراضي للنظام</string>
     <string name="support_flow_patreon">إدعم Flow على Patreon</string>
+    <string name="select_text">حدد النص</string>
 </resources>
