@@ -390,6 +390,13 @@ fun GlobalPlayerOverlay(
         }
     }
     
+    LaunchedEffect(localIsInPipMode) {
+        if (localIsInPipMode) {
+            playerSheetState.expand()
+            screenState.showControls = false
+        }
+    }
+
     // Video cleanup on dispose
     DisposableEffect(video.id) {
         onDispose {
@@ -421,21 +428,7 @@ fun GlobalPlayerOverlay(
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val fullScreenHeight = constraints.maxHeight.toFloat()
 
-        // PiP Mode: Show only the video surface fullscreen
-        if (localIsInPipMode) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black)
-            ) {
-                VideoPlayerSurface(
-                    video = video,
-                    resizeMode = screenState.resizeMode,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        } else {
-            DraggablePlayerLayout(
+        DraggablePlayerLayout(
                 state = playerSheetState,
                 progress = progress,
                 isFullscreen = screenState.isFullscreen,
@@ -454,7 +447,7 @@ fun GlobalPlayerOverlay(
                 },
                 videoContent = { modifier ->
                     // ALWAYS use the same video surface
-                    val gestureModifier = if (!isMinimized) {
+                    val gestureModifier = if (!isMinimized && !localIsInPipMode) {
                         modifier.videoPlayerControls(
                             isSpeedBoostActive = screenState.isSpeedBoostActive,
                             onSpeedBoostChange = { screenState.isSpeedBoostActive = it },
@@ -584,7 +577,7 @@ fun GlobalPlayerOverlay(
                         }
                         
                         // Subtitles scale with the video when zoomed in
-                        if (!isMinimized) {
+                        if (!isMinimized && !localIsInPipMode) {
                             SubtitleOverlay(
                                 currentPosition = screenState.currentPosition,
                                 subtitles = screenState.currentSubtitles,
@@ -598,7 +591,7 @@ fun GlobalPlayerOverlay(
                         } // end zoomable layer
                         
                         // Non-zoomable UI overlays (always at full-screen position)
-                        if (!isMinimized) {
+                        if (!isMinimized && !localIsInPipMode) {
                             // Seek animations
                             SeekAnimationOverlay(
                                 showSeekBack = screenState.showSeekBackAnimation,
@@ -988,7 +981,6 @@ fun GlobalPlayerOverlay(
             }
         )
     }
-  }
 }
 
 /**

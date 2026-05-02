@@ -84,6 +84,7 @@ class VideoPlayerViewModel @Inject constructor(
     // DisposableEffect fires multiple times for the same video.
     private var lastReportedVideoId: String? = null
     private var lastReportedTimestamp: Long = 0L
+    private var lastAutoplayHandledVideoId: String? = null
     
     private val _canGoPrevious = MutableStateFlow(false)
     val canGoPrevious: StateFlow<Boolean> = _canGoPrevious.asStateFlow()
@@ -157,8 +158,30 @@ class VideoPlayerViewModel @Inject constructor(
                                     localFileVideoId = null
                                 )
                             }
+                            EnhancedPlayerManager.getInstance().startBackgroundService(
+                                videoId = currentVideo.id,
+                                title = currentVideo.title.ifEmpty { "Loading..." },
+                                channel = currentVideo.channelName,
+                                thumbnail = currentVideo.thumbnailUrl
+                            )
                         }
                          loadVideoInfo(videoId, isWifi = detectIsWifi())
+                    }
+                }
+
+                if (playerState.hasEnded &&
+                    !playerState.isLooping &&
+                    !playerState.hasNext &&
+                    _uiState.value.autoplayEnabled &&
+                    !_uiState.value.isLoading
+                ) {
+                    val endedVideoId = playerState.currentVideoId ?: _uiState.value.cachedVideo?.id
+                    if (endedVideoId != null && lastAutoplayHandledVideoId != endedVideoId) {
+                        _uiState.value.relatedVideos.firstOrNull()?.let { nextVideo ->
+                            lastAutoplayHandledVideoId = endedVideoId
+                            playVideo(nextVideo)
+                            GlobalPlayerState.setCurrentVideo(nextVideo)
+                        }
                     }
                 }
             }
@@ -245,6 +268,8 @@ class VideoPlayerViewModel @Inject constructor(
      * This ensures the UI shows video info immediately while streams are fetched.
      */
     fun playVideo(video: Video) {
+        lastAutoplayHandledVideoId = null
+
         // Stop current playback and clear everything (including any active queue)
         EnhancedPlayerManager.getInstance().pause()
         EnhancedPlayerManager.getInstance().clearAll()
@@ -682,6 +707,22 @@ class VideoPlayerViewModel @Inject constructor(
                             hlsUrl = streamInfo.hlsUrl
                         )
 
+                        prepareLoadedMediaForPlayback(
+                            videoId = videoId,
+                            streamInfo = streamInfo,
+                            videoStream = selectedStreams.first,
+                            audioStream = selectedStreams.second,
+                            videoStreams = (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
+                                .filterIsInstance<VideoStream>(),
+                            audioStreams = streamInfo.audioStreams,
+                            subtitles = streamInfo.subtitles ?: emptyList(),
+                            savedPosition = savedPosition.first(),
+                            localFilePath = localFilePath,
+                            offlineSegments = offlineSegments,
+                            hlsUrl = streamInfo.hlsUrl,
+                            isAdaptiveMode = preferredQuality == VideoQuality.AUTO
+                        )
+
                         // PARALLEL FETCH: Channel info and stream sizes simultaneously
                         viewModelScope.launch(PerformanceDispatcher.networkIO) {
                             supervisorScope {
@@ -860,6 +901,69 @@ class VideoPlayerViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private suspend fun prepareLoadedMediaForPlayback(
+        videoId: String,
+        streamInfo: StreamInfo,
+        videoStream: VideoStream?,
+        audioStream: AudioStream?,
+        videoStreams: List<VideoStream>,
+        audioStreams: List<AudioStream>,
+        subtitles: List<SubtitlesStream>,
+        savedPosition: Long,
+        localFilePath: String?,
+        offlineSegments: List<SponsorBlockSegment>?,
+        hlsUrl: String?,
+        isAdaptiveMode: Boolean
+    ) = withContext(Dispatchers.Main) {
+        val manager = EnhancedPlayerManager.getInstance()
+        val currentPlayerState = manager.playerState.value
+        if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) return@withContext
+
+        manager.initialize(context)
+
+        val durationMs = when {
+            streamInfo.duration > 0L -> streamInfo.duration * 1000L
+            else -> (_uiState.value.cachedVideo?.duration?.toLong() ?: 0L) * 1000L
+        }
+        val resumePosition = savedPosition
+            .takeIf { it > 500L }
+            ?.takeUnless { shouldRestartCompletedPlayback(it, durationMs) }
+            ?: 0L
+
+        if (localFilePath != null) {
+            manager.playLocalFile(
+                videoId = videoId,
+                filePath = localFilePath,
+                savedSegments = offlineSegments,
+                preservePosition = resumePosition.takeIf { it > 0L }
+            )
+        } else if (audioStream != null) {
+            manager.setStreams(
+                videoId = videoId,
+                videoStream = if (isAdaptiveMode) null else videoStream,
+                audioStream = audioStream,
+                videoStreams = videoStreams,
+                audioStreams = audioStreams,
+                subtitles = subtitles,
+                durationSeconds = streamInfo.duration,
+                dashManifestUrl = streamInfo.dashMpdUrl,
+                hlsUrl = hlsUrl,
+                startPosition = resumePosition
+            )
+        }
+
+        manager.play()
+    }
+
+    private fun shouldRestartCompletedPlayback(savedPosition: Long, durationMs: Long): Boolean {
+        if (savedPosition <= 0L) return false
+        if (durationMs > 0L) {
+            val remainingMs = durationMs - savedPosition
+            return remainingMs <= 1_500L || savedPosition >= (durationMs * 0.98f).toLong()
+        }
+        return savedPosition > 4 * 60 * 60 * 1000L
     }
     
     fun switchQuality(quality: VideoQuality) {

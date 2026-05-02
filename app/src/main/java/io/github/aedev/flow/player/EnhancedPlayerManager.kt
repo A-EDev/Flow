@@ -113,9 +113,6 @@ class EnhancedPlayerManager private constructor() {
     /** Call at the start of a screen-off recovery sequence (before prepare()). */
     fun beginBackgroundRecovery() {
         isRecoveringFromBackground = true
-        if (_playerState.value.hasEnded) {
-            _playerState.value = _playerState.value.copy(hasEnded = false)
-        }
     }
 
     /** Call after the recovery sequence completes or is abandoned. */

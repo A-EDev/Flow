@@ -179,6 +179,26 @@ class VideoPlayerService : Service() {
                 isPlaying = state.isPlaying
                 val isPlaybackActive = state.isPlaying || state.isBuffering
 
+                val globalVideo = GlobalPlayerState.currentVideo.value
+                if (globalVideo != null && globalVideo.id != currentVideo?.id) {
+                    currentVideo = Video(
+                        id = globalVideo.id,
+                        title = globalVideo.title,
+                        channelName = globalVideo.channelName,
+                        channelId = globalVideo.channelId,
+                        thumbnailUrl = globalVideo.thumbnailUrl,
+                        duration = globalVideo.duration,
+                        viewCount = globalVideo.viewCount,
+                        uploadDate = globalVideo.uploadDate
+                    )
+                    if (cachedThumbnailUrl != globalVideo.thumbnailUrl) {
+                        thumbnailLoadJob?.cancel()
+                        thumbnailLoadJob = null
+                        cachedThumbnailUrl = null
+                        cachedThumbnailBitmap = null
+                    }
+                }
+
                 updateLocks(isPlaybackActive)
                 
                 updatePlaybackState(state.isPlaying, EnhancedPlayerManager.getInstance().getCurrentPosition())
@@ -222,7 +242,7 @@ class VideoPlayerService : Service() {
 
         MediaButtonReceiver.handleIntent(mediaSession, intent)
 
-        return START_NOT_STICKY
+        return START_STICKY
     }
     
     private fun handleIntent(intent: Intent) {
@@ -555,7 +575,7 @@ class VideoPlayerService : Service() {
     }
     
     private fun acquireLocks() {
-        if (isAppInForeground() && wakeLock?.isHeld != true) {
+        if (wakeLock?.isHeld != true) {
             wakeLock?.acquire()
         }
         if (wifiLock?.isHeld != true) {
@@ -569,9 +589,6 @@ class VideoPlayerService : Service() {
 
         if (isPlaybackActive) {
             acquireLocks()
-            if (!isAppInForeground()) {
-                releaseWakeLock()
-            }
             return
         }
 

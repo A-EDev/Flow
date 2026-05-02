@@ -121,6 +121,18 @@ fun PlaybackRefocusEffect(
         val player = mgr.getPlayer() ?: return@LaunchedEffect
         val playerMgrState = mgr.playerState.value
 
+        if (!playerMgrState.hasEnded &&
+            player.playbackState in listOf(Player.STATE_READY, Player.STATE_BUFFERING) &&
+            player.duration > 0L
+        ) {
+            screenState.duration = player.duration
+            screenState.currentPosition = player.currentPosition.coerceAtLeast(0L)
+            if (playerMgrState.playWhenReady && !player.isPlaying) {
+                player.play()
+            }
+            return@LaunchedEffect
+        }
+
         if (playerMgrState.currentVideoId != null) {
             mgr.beginBackgroundRecovery()
             try {

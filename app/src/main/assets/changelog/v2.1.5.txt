@@ -16,6 +16,7 @@ IMPROVEMENTS
 - Improve Monochrome app logo quality #336
 - Add paging to comment replies #369
 - Add master backup import to onboarding #365
+- Improve video watch progress handling #379
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378
@@ -25,3 +26,5 @@ FIXES AND STABILITY
 - Fix channel content rendering #366
 - Fix empty media playback notification #347
 - Fix limited playlist content #385
+- Fix auto play when in background playback #388
+- Fix pip mode freeze #354
