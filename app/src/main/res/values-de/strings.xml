@@ -43,7 +43,7 @@
     <string name="video">Video</string>
     <string name="share">Teilen</string>
     <string name="downloaded">Heruntergeladen</string>
-    <string name="download">Downloaden</string>
+    <string name="download">Herunterladen</string>
     <string name="save">Speichern</string>
     <string name="up_next">Nächster Titel</string>
     <string name="lyrics">Songtext</string>
@@ -86,7 +86,7 @@
     <string name="undo">Rückgängig</string>
     <string name="subscribed_to">%s abonniert</string>
     <string name="unsubscribed_from">Abbestellen von %s</string>
-    <string name="unsubscribe">Abbestellen</string>
+    <string name="unsubscribe">Abo beenden</string>
     <string name="share_video">Video teilen</string>
     <string name="check_out_video_template">Schauen Sie sich dieses Video an: %1$s\n\nhttps://youtube.com/watch?v=%2$s</string>
     <string name="related_videos">Ähnliche Videos</string>
@@ -559,4 +559,10 @@
     <string name="settings_music_nav_tab_subtitle">„Musik“-Tab in der unteren Navigationsleiste Anzeigen.</string>
     <string name="settings_search_nav_tab_title">„Suchen“-Tab in der Navigation</string>
     <string name="settings_shorts_nav_tab_title">„Shorts“-Tab in der Navigation</string>
+    <string name="content_settings_disable_shorts_player_subtitle">Abspielen aller Videos (einschließlich YouTube Shorts) im regulären Videoplayer</string>
+    <string name="content_settings_explore_region_picker_title">Schnelle Regionsauswahl in „Explore“</string>
+    <string name="content_settings_explore_region_picker_subtitle">Zeige ein Globus-Symbol in der oberen Leiste des „Entdecken“-Bildschirms an, um die Region mit den aktuellen Trends sofort zu wechseln.</string>
+    <string name="categories_region_picker_desc">Trendregion ändern (aktuell: %1$s)</string>
+    <string name="content_settings_header_nav_tabs">Navigation Tabs</string>
+    <string name="settings_subs_shorts_shelf_title">Abonnements – Shorts</string>
 </resources>
