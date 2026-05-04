@@ -482,8 +482,7 @@ fun PlayerInitEffect(
 
         if (videoStream != null && audioStream != null) {
             val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
-            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared
-                && EnhancedPlayerManager.getInstance().isSurfaceReady) {
+            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) {
                 Log.d(TAG, "Player already prepared for $videoId, skipping setStreams")
                 return@LaunchedEffect
             }
@@ -528,8 +527,7 @@ fun PlayerInitEffect(
         } else if (uiState.isAdaptiveMode && audioStream != null && uiState.streamInfo != null) {
             val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
             
-            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared
-                && EnhancedPlayerManager.getInstance().isSurfaceReady) {
+            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) {
                 Log.d(TAG, "Player already prepared for $videoId (AUTO mode), skipping setStreams")
                 return@LaunchedEffect
             }

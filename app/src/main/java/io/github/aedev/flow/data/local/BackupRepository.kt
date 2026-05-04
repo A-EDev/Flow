@@ -805,6 +805,559 @@ class BackupRepository(private val context: Context) {
         }
     }
 
+    // ── Google Takeout all-in-one import ──
+
+    suspend fun importYouTubeTakeout(
+        uri: Uri,
+        onProgress: ((label: String, current: Int, total: Int) -> Unit)? = null
+    ): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            var subscriptionsImported = 0
+            var historyImported = 0
+            var playlistsImported = 0
+            var playlistVideosImported = 0
+
+            val playlistMeta = mutableMapOf<String, String>()
+            val videoCsvData = mutableMapOf<String, List<String>>()
+            data class SubRow(val channelId: String, val channelName: String)
+            val subRows = mutableListOf<SubRow>()
+
+            val OVERLAP    = 2_048
+            val READ_SIZE  = 65_536
+            val BATCH_SIZE = 500
+
+            val videoPattern = Regex(
+                """href="https://www\.youtube\.com/watch\?v=([\w-]{10,12})"[^>]*?>([^<]+)</a>""",
+                RegexOption.IGNORE_CASE
+            )
+            val channelPattern = Regex(
+                """href="https://www\.youtube\.com/channel/([^"&\s]+)"[^>]*?>([^<]+)</a>""",
+                RegexOption.IGNORE_CASE
+            )
+            val historyBatch = mutableListOf<VideoHistoryEntry>()
+
+            context.contentResolver.openInputStream(uri)?.use { raw ->
+                ZipInputStream(raw.buffered()).use { zip ->
+                    var entry = zip.nextEntry
+                    while (entry != null) {
+                        val name = entry.name
+                        when {
+                            name.endsWith("subscriptions/subscriptions.csv", ignoreCase = true) -> {
+                                onProgress?.invoke("Subscriptions", 0, 0)
+                                val reader = zip.bufferedReader(Charsets.UTF_8)
+                                reader.readLine()
+                                var line = reader.readLine()
+                                while (line != null) {
+                                    val parts = line.split(",", limit = 3)
+                                    if (parts.size >= 3) {
+                                        val channelId = parts[0].trim().trimStart('\uFEFF')
+                                        val channelName = parts[2].trim().removeSurrounding("\"")
+                                        if (channelId.isNotEmpty() && channelName.isNotEmpty()) {
+                                            subRows.add(SubRow(channelId, channelName))
+                                        }
+                                    }
+                                    line = reader.readLine()
+                                }
+                            }
+
+                            name.endsWith("history/watch-history.html", ignoreCase = true) -> {
+                                onProgress?.invoke("Watch history", 0, 0)
+                                val reader = zip.bufferedReader(Charsets.UTF_8)
+                                val buf  = CharArray(READ_SIZE)
+                                val tail = StringBuilder(OVERLAP)
+                                while (true) {
+                                    val n = reader.read(buf)
+                                    if (n == -1) break
+                                    val window = tail.toString() + String(buf, 0, n)
+                                    val videoMatches   = videoPattern.findAll(window).toList()
+                                    val channelMatches = channelPattern.findAll(window).toList()
+                                    var chIdx = 0
+                                    for (vm in videoMatches) {
+                                        if (vm.range.last < tail.length) continue
+                                        val videoId = vm.groupValues[1].trim()
+                                        if (videoId.isEmpty()) continue
+                                        val title = unescapeHtmlEntities(vm.groupValues[2].trim())
+                                        while (chIdx < channelMatches.size &&
+                                            channelMatches[chIdx].range.first <= vm.range.first
+                                        ) chIdx++
+                                        val cm = channelMatches.getOrNull(chIdx)
+                                        val chId: String; val chName: String
+                                        if (cm != null && cm.range.first - vm.range.last < 2_000) {
+                                            chId = cm.groupValues[1].trim(); chName = unescapeHtmlEntities(cm.groupValues[2].trim())
+                                        } else { chId = ""; chName = "" }
+                                        historyBatch.add(VideoHistoryEntry(
+                                            videoId      = videoId,
+                                            position     = 0L, duration = 0L,
+                                            timestamp    = System.currentTimeMillis() - historyImported,
+                                            title        = title,
+                                            thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                                            channelName  = chName, channelId = chId, isMusic = false
+                                        ))
+                                        historyImported++
+                                        if (historyBatch.size >= BATCH_SIZE) {
+                                            viewHistory.bulkSaveHistoryEntries(historyBatch)
+                                            historyBatch.clear()
+                                            kotlinx.coroutines.yield()
+                                        }
+                                    }
+                                    tail.clear()
+                                    if (window.length > OVERLAP) tail.append(window, window.length - OVERLAP, window.length)
+                                    else tail.append(window)
+                                }
+                                if (historyBatch.isNotEmpty()) {
+                                    viewHistory.bulkSaveHistoryEntries(historyBatch)
+                                    historyBatch.clear()
+                                }
+                            }
+
+                            name.endsWith("playlists/playlists.csv", ignoreCase = true) -> {
+                                val reader = zip.bufferedReader(Charsets.UTF_8)
+                                reader.readLine()
+                                var line = reader.readLine()
+                                while (line != null) {
+                                    if (line.isNotBlank()) {
+                                        val cols = line.split(",")
+                                        val id = cols.getOrNull(0)?.trim() ?: ""
+                                        if (cols.size >= 11 && id.startsWith("PL")) {
+                                            val title = cols[10].trim().removeSurrounding("\"")
+                                            if (title.isNotEmpty()) playlistMeta[id] = title
+                                        }
+                                    }
+                                    line = reader.readLine()
+                                }
+                            }
+
+                            name.contains("/playlists/") && name.endsWith("-videos.csv", ignoreCase = true) -> {
+                                val filename = name.substringAfterLast("/")
+                                val ids = mutableListOf<String>()
+                                val reader = zip.bufferedReader(Charsets.UTF_8)
+                                var headerSkipped = false
+                                var rawLine = reader.readLine()
+                                while (rawLine != null) {
+                                    val line = rawLine.trim()
+                                    if (line.isNotEmpty()) {
+                                        if (!headerSkipped) {
+                                            headerSkipped = true
+                                            if (!line.startsWith("Video ID", ignoreCase = true)) {
+                                                val videoId = line.split(",").firstOrNull()?.trim() ?: ""
+                                                if (videoId.isNotEmpty() && videoId.all { it.isLetterOrDigit() || it == '_' || it == '-' }) ids.add(videoId)
+                                            }
+                                        } else {
+                                            val videoId = line.split(",").firstOrNull()?.trim() ?: ""
+                                            if (videoId.isNotEmpty() && videoId.all { it.isLetterOrDigit() || it == '_' || it == '-' }) ids.add(videoId)
+                                        }
+                                    }
+                                    rawLine = reader.readLine()
+                                }
+                                if (ids.isNotEmpty()) videoCsvData[filename] = ids
+                            }
+                        }
+                        zip.closeEntry()
+                        entry = zip.nextEntry
+                    }
+                }
+            } ?: return@withContext Result.failure(Exception("Could not open file"))
+
+            if (subRows.isNotEmpty()) {
+                onProgress?.invoke("Subscriptions", 0, subRows.size)
+                val semaphore = Semaphore(5)
+                val completed = AtomicInteger(0)
+                supervisorScope {
+                    subRows.map { sub ->
+                        async(Dispatchers.IO) {
+                            semaphore.withPermit {
+                                val avatar = try { fetchChannelAvatar(sub.channelId) } catch (e: Exception) { "" }
+                                subscriptionRepo.subscribe(ChannelSubscription(
+                                    channelId = sub.channelId, channelName = sub.channelName,
+                                    channelThumbnail = avatar, subscribedAt = System.currentTimeMillis()
+                                ))
+                                subscriptionsImported++
+                                onProgress?.invoke("Subscriptions", completed.incrementAndGet(), subRows.size)
+                            }
+                        }
+                    }.awaitAll()
+                }
+                val channelNames = subRows.map { it.channelName }.filter { it.isNotEmpty() }
+                if (channelNames.isNotEmpty()) {
+                    try { FlowNeuroEngine.bootstrapFromSubscriptions(context, channelNames) } catch (_: Exception) {}
+                }
+            }
+
+            videoCsvData.forEach { (filename, videoIds) ->
+                val derivedName = filename.removeSuffix(".csv")
+                    .let { if (it.endsWith("-videos", ignoreCase = true)) it.dropLast(7) else it }
+                    .trim().ifEmpty { "Imported Playlist" }
+
+                val playlistName = playlistMeta.values.firstOrNull {
+                    it.equals(derivedName, ignoreCase = true)
+                } ?: derivedName
+
+                val isWatchLater = playlistName.equals("watch later", ignoreCase = true)
+                val playlistId = if (isWatchLater) PlaylistRepository.WATCH_LATER_ID
+                                 else "yt_takeout_${playlistName.take(40)}_${System.currentTimeMillis()}"
+                val firstThumb = "https://i.ytimg.com/vi/${videoIds.first()}/hqdefault.jpg"
+
+                database.withTransaction {
+                    val existing = database.playlistDao().getPlaylist(playlistId)
+                    if (existing == null) {
+                        database.playlistDao().insertPlaylist(PlaylistEntity(
+                            id = playlistId, name = if (isWatchLater) "Watch Later" else playlistName,
+                            description = "Imported from Google Takeout",
+                            thumbnailUrl = firstThumb,
+                            isPrivate = isWatchLater, createdAt = System.currentTimeMillis(),
+                            isMusic = false, isUserCreated = true
+                        ))
+                    }
+                    videoIds.forEachIndexed { index, videoId ->
+                        database.videoDao().insertVideoOrIgnore(VideoEntity(
+                            id = videoId, title = "", channelName = "", channelId = "",
+                            thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                            duration = 0, viewCount = 0L, uploadDate = "", description = "",
+                            channelThumbnailUrl = "", isMusic = false
+                        ))
+                        database.playlistDao().insertPlaylistVideoCrossRef(PlaylistVideoCrossRef(
+                            playlistId = playlistId, videoId = videoId, position = index.toLong()
+                        ))
+                    }
+                }
+                playlistsImported++
+                playlistVideosImported += videoIds.size
+            }
+
+            if (subscriptionsImported == 0 && historyImported == 0 && playlistsImported == 0) {
+                return@withContext Result.failure(Exception("no_content"))
+            }
+
+            val parts = buildList {
+                if (subscriptionsImported > 0) add("$subscriptionsImported subscriptions")
+                if (historyImported > 0) add("$historyImported history entries")
+                if (playlistsImported > 0) add("$playlistsImported playlists ($playlistVideosImported videos)")
+            }
+            Result.success(parts.joinToString(", "))
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // ── NewPipe playlist import (ZIP containing SQLite DB) ──
+
+    suspend fun importNewPipePlaylists(
+        uri: Uri,
+        onProgress: ((current: Int, total: Int) -> Unit)? = null
+    ): Result<Int> = withContext(Dispatchers.IO) {
+        val tempDb = java.io.File(context.cacheDir, "newpipe_playlists_${System.currentTimeMillis()}.db")
+        try {
+            val mimeType = context.contentResolver.getType(uri)
+            val isZip = mimeType == "application/zip" || mimeType == "application/octet-stream" ||
+                uri.lastPathSegment?.endsWith(".zip", ignoreCase = true) == true
+
+            if (isZip) {
+                var foundDb = false
+                context.contentResolver.openInputStream(uri)?.use { raw ->
+                    ZipInputStream(raw.buffered()).use { zip ->
+                        var entry = zip.nextEntry
+                        while (entry != null) {
+                            if (entry.name == "newpipe.db" || entry.name.endsWith("/newpipe.db")) {
+                                tempDb.outputStream().use { zip.copyTo(it) }
+                                foundDb = true
+                                break
+                            }
+                            zip.closeEntry()
+                            entry = zip.nextEntry
+                        }
+                    }
+                }
+                if (!foundDb) return@withContext Result.failure(Exception("invalid_format"))
+            } else {
+                context.contentResolver.openInputStream(uri)?.use { raw ->
+                    tempDb.outputStream().use { raw.copyTo(it) }
+                } ?: return@withContext Result.failure(Exception("invalid_format"))
+            }
+
+            val db = android.database.sqlite.SQLiteDatabase.openDatabase(
+                tempDb.absolutePath, null, android.database.sqlite.SQLiteDatabase.OPEN_READONLY
+            )
+
+            val streamUrlMap = mutableMapOf<Long, String>()
+            db.rawQuery("SELECT uid, url FROM streams", null).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val uid = cursor.getLong(0)
+                    val url = cursor.getString(1)
+                    streamUrlMap[uid] = url
+                }
+            }
+
+            data class NpPlaylist(val uid: Long, val name: String)
+            val playlists = mutableListOf<NpPlaylist>()
+            db.rawQuery("SELECT uid, name FROM playlists", null).use { cursor ->
+                while (cursor.moveToNext()) {
+                    playlists.add(NpPlaylist(cursor.getLong(0), cursor.getString(1)))
+                }
+            }
+
+            val playlistStreams = mutableMapOf<Long, MutableList<Long>>()
+            db.rawQuery(
+                "SELECT playlist_id, stream_id FROM playlist_stream_join ORDER BY join_index ASC",
+                null
+            ).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val plId = cursor.getLong(0)
+                    val streamId = cursor.getLong(1)
+                    playlistStreams.getOrPut(plId) { mutableListOf() }.add(streamId)
+                }
+            }
+            db.close()
+
+            var importedCount = 0
+            val total = playlists.size
+
+            playlists.forEachIndexed { idx, playlist ->
+                onProgress?.invoke(idx, total)
+
+                val videoIds = (playlistStreams[playlist.uid] ?: emptyList()).mapNotNull { streamId ->
+                    extractYouTubeVideoId(streamUrlMap[streamId] ?: return@mapNotNull null)
+                }
+
+                if (videoIds.isEmpty()) return@forEachIndexed
+
+                val playlistId = "newpipe_pl_${playlist.uid}_${System.currentTimeMillis()}"
+                val firstThumb = "https://i.ytimg.com/vi/${videoIds.first()}/hqdefault.jpg"
+
+                database.withTransaction {
+                    database.playlistDao().insertPlaylist(
+                        PlaylistEntity(
+                            id           = playlistId,
+                            name         = playlist.name,
+                            description  = "Imported from NewPipe",
+                            thumbnailUrl = firstThumb,
+                            isPrivate    = false,
+                            createdAt    = System.currentTimeMillis(),
+                            isMusic      = false,
+                            isUserCreated = true
+                        )
+                    )
+                    videoIds.forEachIndexed { index, videoId ->
+                        database.videoDao().insertVideoOrIgnore(
+                            VideoEntity(
+                                id                  = videoId,
+                                title               = "",
+                                channelName         = "",
+                                channelId           = "",
+                                thumbnailUrl        = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                                duration            = 0,
+                                viewCount           = 0L,
+                                uploadDate          = "",
+                                description         = "",
+                                channelThumbnailUrl = "",
+                                isMusic             = false
+                            )
+                        )
+                        database.playlistDao().insertPlaylistVideoCrossRef(
+                            PlaylistVideoCrossRef(
+                                playlistId = playlistId,
+                                videoId    = videoId,
+                                position   = index.toLong()
+                            )
+                        )
+                    }
+                }
+                importedCount += videoIds.size
+            }
+
+            onProgress?.invoke(total, total)
+            if (importedCount == 0) return@withContext Result.failure(Exception("no_content"))
+            Result.success(importedCount)
+        } catch (e: Exception) {
+            Result.failure(e)
+        } finally {
+            tempDb.delete()
+        }
+    }
+
+    // ── LibreTube playlist import (JSON backup) ──
+
+    suspend fun importLibreTubePlaylists(
+        uri: Uri,
+        onProgress: ((current: Int, total: Int) -> Unit)? = null
+    ): Result<Int> = withContext(Dispatchers.IO) {
+        try {
+            val jsonString = context.contentResolver.openInputStream(uri)?.use {
+                it.bufferedReader().readText()
+            } ?: return@withContext Result.failure(Exception("Could not read file"))
+
+            val root = org.json.JSONObject(jsonString)
+            var importedCount = 0
+
+            if (root.has("localPlaylists")) {
+                val localPlaylists = root.getJSONArray("localPlaylists")
+                val total = localPlaylists.length()
+                for (i in 0 until total) {
+                    onProgress?.invoke(i, total)
+                    val entry = localPlaylists.getJSONObject(i)
+                    val playlistObj = entry.optJSONObject("playlist") ?: continue
+                    val name = playlistObj.optString("name", "Imported Playlist")
+                    val videosArray = entry.optJSONArray("videos") ?: continue
+
+                    if (videosArray.length() == 0) continue
+
+                    val videoIds = mutableListOf<String>()
+                    val titleMap = mutableMapOf<String, String>()
+                    val thumbMap = mutableMapOf<String, String>()
+                    val durationMap = mutableMapOf<String, Int>()
+
+                    for (j in 0 until videosArray.length()) {
+                        val v = videosArray.getJSONObject(j)
+                        val videoId = v.optString("videoId")
+                        if (videoId.isNotBlank()) {
+                            videoIds.add(videoId)
+                            v.optString("title").takeIf { it.isNotBlank() }?.let { titleMap[videoId] = it }
+                            v.optString("thumbnailUrl").takeIf { it.isNotBlank() }?.let { thumbMap[videoId] = it }
+                            val dur = v.optInt("duration", 0)
+                            if (dur > 0) durationMap[videoId] = dur
+                        }
+                    }
+
+                    if (videoIds.isEmpty()) continue
+
+                    val playlistId = "libretube_local_${i}_${System.currentTimeMillis()}"
+                    val firstThumb = thumbMap[videoIds.first()]
+                        ?: "https://i.ytimg.com/vi/${videoIds.first()}/hqdefault.jpg"
+
+                    database.withTransaction {
+                        database.playlistDao().insertPlaylist(
+                            PlaylistEntity(
+                                id           = playlistId,
+                                name         = name,
+                                description  = "Imported from LibreTube",
+                                thumbnailUrl = firstThumb,
+                                isPrivate    = false,
+                                createdAt    = System.currentTimeMillis(),
+                                isMusic      = false,
+                                isUserCreated = true
+                            )
+                        )
+                        videoIds.forEachIndexed { index, videoId ->
+                            database.videoDao().insertVideoOrIgnore(
+                                VideoEntity(
+                                    id                  = videoId,
+                                    title               = titleMap[videoId] ?: "",
+                                    channelName         = "",
+                                    channelId           = "",
+                                    thumbnailUrl        = thumbMap[videoId]
+                                        ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                                    duration            = durationMap[videoId] ?: 0,
+                                    viewCount           = 0L,
+                                    uploadDate          = "",
+                                    description         = "",
+                                    channelThumbnailUrl = "",
+                                    isMusic             = false
+                                )
+                            )
+                            database.playlistDao().insertPlaylistVideoCrossRef(
+                                PlaylistVideoCrossRef(
+                                    playlistId = playlistId,
+                                    videoId    = videoId,
+                                    position   = index.toLong()
+                                )
+                            )
+                        }
+                    }
+                    importedCount += videoIds.size
+                }
+            }
+
+            // ── playlists (Piped format) ──
+            if (root.has("playlists")) {
+                val pipedPlaylists = root.getJSONArray("playlists")
+                for (i in 0 until pipedPlaylists.length()) {
+                    val entry = pipedPlaylists.getJSONObject(i)
+                    val name = entry.optString("name", "Imported Playlist")
+                    val videosArray = entry.optJSONArray("videos") ?: continue
+
+                    val videoIds = mutableListOf<String>()
+                    for (j in 0 until videosArray.length()) {
+                        val url = videosArray.getString(j)
+                        val videoId = extractYouTubeVideoId(url)
+                        if (videoId != null) videoIds.add(videoId)
+                    }
+
+                    if (videoIds.isEmpty()) continue
+
+                    val playlistId = "libretube_piped_${i}_${System.currentTimeMillis()}"
+                    val firstThumb = "https://i.ytimg.com/vi/${videoIds.first()}/hqdefault.jpg"
+
+                    database.withTransaction {
+                        database.playlistDao().insertPlaylist(
+                            PlaylistEntity(
+                                id           = playlistId,
+                                name         = name,
+                                description  = "Imported from LibreTube",
+                                thumbnailUrl = firstThumb,
+                                isPrivate    = false,
+                                createdAt    = System.currentTimeMillis(),
+                                isMusic      = false,
+                                isUserCreated = true
+                            )
+                        )
+                        videoIds.forEachIndexed { index, videoId ->
+                            database.videoDao().insertVideoOrIgnore(
+                                VideoEntity(
+                                    id                  = videoId,
+                                    title               = "",
+                                    channelName         = "",
+                                    channelId           = "",
+                                    thumbnailUrl        = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                                    duration            = 0,
+                                    viewCount           = 0L,
+                                    uploadDate          = "",
+                                    description         = "",
+                                    channelThumbnailUrl = "",
+                                    isMusic             = false
+                                )
+                            )
+                            database.playlistDao().insertPlaylistVideoCrossRef(
+                                PlaylistVideoCrossRef(
+                                    playlistId = playlistId,
+                                    videoId    = videoId,
+                                    position   = index.toLong()
+                                )
+                            )
+                        }
+                    }
+                    importedCount += videoIds.size
+                }
+            }
+
+            if (importedCount == 0) return@withContext Result.failure(Exception("no_content"))
+            Result.success(importedCount)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Helper: extract YouTube video ID from various URL forms
+
+    private fun extractYouTubeVideoId(url: String): String? {
+        return when {
+            url.contains("youtube.com/watch") -> {
+                val queryStart = url.indexOf('?')
+                if (queryStart == -1) null
+                else url.substring(queryStart + 1)
+                    .split('&')
+                    .firstOrNull { it.startsWith("v=") }
+                    ?.substring(2)
+                    ?.takeIf { it.isNotBlank() }
+            }
+            url.contains("youtu.be/") -> {
+                url.substringAfter("youtu.be/")
+                    .substringBefore("?")
+                    .substringBefore("/")
+                    .takeIf { it.isNotBlank() }
+            }
+            else -> null
+        }
+    }
+
     // ── Master Backup (app data + engine brain in one ZIP) ──
 
     suspend fun exportMasterBackup(uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {

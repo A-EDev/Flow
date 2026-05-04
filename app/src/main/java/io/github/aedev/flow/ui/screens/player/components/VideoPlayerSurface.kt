@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.player.components
 
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,6 +13,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.ui.PlayerView
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 
@@ -26,16 +28,13 @@ fun VideoPlayerSurface(
     val context = LocalContext.current
     
     val playerView = remember {
-        Log.d("EnhancedVideoPlayer", "Creating shared PlayerView")
-        PlayerView(context).apply {
-            useController = false
+        Log.d("EnhancedVideoPlayer", "Creating shared PlayerView (TextureView surface)")
+        (LayoutInflater.from(context).inflate(R.layout.video_player_view, null) as PlayerView).apply {
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
             setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
-            // Set background to black to avoid white flash during transitions
-            setBackgroundColor(android.graphics.Color.BLACK)
         }
     }
     

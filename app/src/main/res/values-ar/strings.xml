@@ -1324,7 +1324,6 @@
     <string name="content_settings_video_card_mark_watched_title">زر وضع علامة كمشاهدة على بطاقة الفيديو</string>
     <string name="player_appearance_brightness_gesture_subtitle">إسحب من الحافة اليسرى في وضع ملء الشاشة لضبط مستوي السطوع</string>
     <string name="export_newpipe_subs_title">تصدير الإشتراكات (بتنسيق NewPipe)</string>
-    <string name="support_flow_nowpayments">إدعم Flow عبر خدمة NOWPayments</string>
     <string name="settings_item_proxy_subtitle">توجيه حركة مرور الشبكة عن بعد عبر HTTP أو SOCKS5</string>
     <string name="proxy_settings_username">إسم المستخدم</string>
     <string name="proxy_settings_password">كلمة المرور</string>

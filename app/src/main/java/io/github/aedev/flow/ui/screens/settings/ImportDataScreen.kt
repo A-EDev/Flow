@@ -169,6 +169,21 @@ fun ImportDataScreen(
         onResult = { uri -> uri?.let { importViewModel.importLibreTube(it) } }
     )
 
+    val youtubeTakeoutImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri -> uri?.let { importViewModel.importYouTubeTakeout(it) } }
+    )
+
+    val newPipePlaylistImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri -> uri?.let { importViewModel.importNewPipePlaylists(it) } }
+    )
+
+    val libreTubePlaylistImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri -> uri?.let { importViewModel.importLibreTubePlaylists(it) } }
+    )
+
     val metrolistImportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri -> uri?.let { importViewModel.importMetrolist(it) } }
@@ -324,6 +339,35 @@ fun ImportDataScreen(
 
             item {
                 PreferencesSectionHeader(
+                    title = stringResource(R.string.import_playlists_section_title),
+                    subtitle = stringResource(R.string.import_playlists_section_subtitle)
+                )
+            }
+
+            item {
+                ImportOptionCard(
+                    title = stringResource(R.string.import_newpipe_playlists),
+                    description = stringResource(R.string.import_newpipe_playlists_desc),
+                    painter = painterResource(id = R.drawable.ic_newpipe),
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    enabled = importState !is ImportViewModel.State.Running,
+                    onClick = { newPipePlaylistImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) }
+                )
+            }
+
+            item {
+                ImportOptionCard(
+                    title = stringResource(R.string.import_libretube_playlists),
+                    description = stringResource(R.string.import_libretube_playlists_desc),
+                    painter = painterResource(id = R.drawable.ic_libretube),
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    enabled = importState !is ImportViewModel.State.Running,
+                    onClick = { libreTubePlaylistImportLauncher.launch(arrayOf("application/json")) }
+                )
+            }
+
+            item {
+                PreferencesSectionHeader(
                     title = stringResource(R.string.import_music_apps_section_title),
                     subtitle = stringResource(R.string.import_music_apps_section_subtitle)
                 )
@@ -344,6 +388,17 @@ fun ImportDataScreen(
                 PreferencesSectionHeader(
                     title = stringResource(R.string.import_yt_data_section_title),
                     subtitle = stringResource(R.string.import_yt_data_section_subtitle)
+                )
+            }
+
+            item {
+                ImportOptionCard(
+                    title = stringResource(R.string.import_yt_takeout_all),
+                    description = stringResource(R.string.import_yt_takeout_all_desc),
+                    icon = Icons.Outlined.Archive,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    enabled = importState !is ImportViewModel.State.Running,
+                    onClick = { youtubeTakeoutImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) }
                 )
             }
 

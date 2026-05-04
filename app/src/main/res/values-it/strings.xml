@@ -1321,7 +1321,6 @@
     <string name="export_newpipe_subs_success">Iscrizioni NewPipe esportate correttamente</string>
     <string name="content_settings_video_card_mark_watched_title">Pulsante segna come visto sulla scheda video</string>
     <string name="export_newpipe_subs_title">Esporta iscrizioni (formato NewPipe)</string>
-    <string name="support_flow_nowpayments">Supporta Flow tramite NOWPayments</string>
     <string name="settings_item_proxy">Impostazioni del proxy</string>
     <string name="settings_item_proxy_subtitle">Instrada il traffico remoto tramite HTTP o SOCKS5</string>
     <string name="proxy_settings_title">Impostazioni del proxy</string>

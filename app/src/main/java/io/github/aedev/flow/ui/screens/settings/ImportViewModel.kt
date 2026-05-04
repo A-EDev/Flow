@@ -121,6 +121,52 @@ class ImportViewModel @Inject constructor(
         }
     }
 
+    fun importNewPipePlaylists(uri: Uri) {
+        if (isRunning) return
+        val label = "NewPipe playlists"
+        viewModelScope.launch {
+            startProgress(label, 0, 0)
+            val result = backupRepo.importNewPipePlaylists(uri) { current, total ->
+                updateProgress(label, current, total)
+            }
+            handleResult(label, result)
+        }
+    }
+
+    fun importLibreTubePlaylists(uri: Uri) {
+        if (isRunning) return
+        val label = "LibreTube playlists"
+        viewModelScope.launch {
+            startProgress(label, 0, 0)
+            val result = backupRepo.importLibreTubePlaylists(uri) { current, total ->
+                updateProgress(label, current, total)
+            }
+            handleResult(label, result)
+        }
+    }
+
+    fun importYouTubeTakeout(uri: Uri) {
+        if (isRunning) return
+        val label = "YouTube Takeout"
+        viewModelScope.launch {
+            startProgress(label, 0, 0)
+            val result = backupRepo.importYouTubeTakeout(uri) { stepLabel, current, total ->
+                updateProgress("$label – $stepLabel", current, total)
+            }
+            NotificationHelper.cancelImportNotification(context)
+            if (result.isSuccess) {
+                val summary = result.getOrNull() ?: ""
+                _state.value = State.Success(label, message = summary)
+                if (NotificationHelper.hasNotificationPermission(context)) {
+                    NotificationHelper.showImportComplete(context, label, 0, summary)
+                }
+            } else {
+                val msg = result.exceptionOrNull()?.message ?: "Unknown error"
+                _state.value = State.Error(label, msg)
+            }
+        }
+    }
+
     fun importMasterBackup(uri: Uri) {
         if (isRunning) return
         val label = "Master backup"

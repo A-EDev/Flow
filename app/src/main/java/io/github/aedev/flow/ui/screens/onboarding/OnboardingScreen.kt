@@ -179,6 +179,18 @@ fun OnboardingScreen(onComplete: () -> Unit) {
         contract = ActivityResultContracts.OpenDocument()
     ) { uri -> uri?.let { importViewModel.importMetrolist(it) } }
 
+    val newPipePlaylistImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let { importViewModel.importNewPipePlaylists(it) } }
+
+    val libreTubePlaylistImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let { importViewModel.importLibreTubePlaylists(it) } }
+
+    val youtubeTakeoutImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri -> uri?.let { importViewModel.importYouTubeTakeout(it) } }
+
     fun finish() {
         scope.launch {
             FlowNeuroEngine.completeOnboarding(context, selectedTopics)
@@ -311,6 +323,15 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                     },
                     onImportMetrolist = {
                         metrolistImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
+                    },
+                    onImportNewPipePlaylists = {
+                        newPipePlaylistImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
+                    },
+                    onImportLibreTubePlaylists = {
+                        libreTubePlaylistImportLauncher.launch(arrayOf("application/json"))
+                    },
+                    onImportYouTubeTakeout = {
+                        youtubeTakeoutImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*"))
                     }
                 )
             }
@@ -745,7 +766,10 @@ private fun ImportStep(
     onImportYouTube: () -> Unit,
     onImportYouTubeHistory: () -> Unit,
     onImportLibreTube: () -> Unit,
-    onImportMetrolist: () -> Unit
+    onImportMetrolist: () -> Unit,
+    onImportNewPipePlaylists: () -> Unit,
+    onImportLibreTubePlaylists: () -> Unit,
+    onImportYouTubeTakeout: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -777,6 +801,25 @@ private fun ImportStep(
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+            )
+        }
+
+        item {
+            ImportCard(
+                painter = painterResource(id = R.drawable.ic_youtube),
+                title = stringResource(R.string.import_yt_takeout_all),
+                description = stringResource(R.string.import_yt_takeout_all_desc),
+                onClick = onImportYouTubeTakeout
+            )
+        }
+
+        item {
+            Text(
+                text = "Import individually",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
             )
         }
 
@@ -823,6 +866,34 @@ private fun ImportStep(
                 title = stringResource(R.string.import_from_metrolist),
                 description = "Import your Metrolist music playlists from a backup ZIP file.",
                 onClick = onImportMetrolist
+            )
+        }
+
+        item {
+            Text(
+                text = "Playlists",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(top = 8.dp, bottom = 2.dp)
+            )
+        }
+
+        item {
+            ImportCard(
+                painter = painterResource(id = R.drawable.ic_newpipe),
+                title = stringResource(R.string.import_newpipe_playlists),
+                description = stringResource(R.string.import_newpipe_playlists_desc),
+                onClick = onImportNewPipePlaylists
+            )
+        }
+
+        item {
+            ImportCard(
+                painter = painterResource(id = R.drawable.ic_libretube),
+                title = stringResource(R.string.import_libretube_playlists),
+                description = stringResource(R.string.import_libretube_playlists_desc),
+                onClick = onImportLibreTubePlaylists
             )
         }
 

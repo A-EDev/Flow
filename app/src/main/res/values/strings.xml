@@ -958,6 +958,14 @@
     <string name="import_from_newpipe_desc">Import subscriptions from a NewPipe export file (JSON).</string>
     <string name="import_from_libretube">Import from LibreTube</string>
     <string name="import_from_libretube_desc">Import subscriptions from a LibreTube backup file (JSON).</string>
+    <string name="import_playlists_section_title">Playlists</string>
+    <string name="import_playlists_section_subtitle">Import video playlists from other apps</string>
+    <string name="import_newpipe_playlists">Import NewPipe Playlists</string>
+    <string name="import_newpipe_playlists_desc">Import your NewPipe local playlists from a backup ZIP file.</string>
+    <string name="import_libretube_playlists">Import LibreTube Playlists</string>
+    <string name="import_libretube_playlists_desc">Import your LibreTube local playlists from a backup JSON file.</string>
+    <string name="import_yt_takeout_all">Import from Google Takeout</string>
+    <string name="import_yt_takeout_all_desc">Import your YouTube subscriptions, watch history, and playlists all at once from a Google Takeout ZIP file.</string>
 
     <!-- Music Apps Import -->
     <string name="import_music_apps_section_title">Music Apps</string>

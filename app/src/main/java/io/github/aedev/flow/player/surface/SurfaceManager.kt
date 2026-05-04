@@ -191,6 +191,13 @@ class SurfaceManager(
      * Returns true if surface became ready within timeout.
      */
     suspend fun awaitSurfaceReady(timeoutMillis: Long = 1000): Boolean {
+        if (surfaceHolder == null) {
+            Log.d(TAG, "No SurfaceHolder (TextureView mode) — surface assumed ready")
+            isSurfaceReady = true
+            _surfaceReadyFlow.value = true
+            return true
+        }
+
         // Check if surfaceHolder is valid
         if (surfaceHolder != null) {
             val validSurface = runCatching { surfaceHolder?.surface?.isValid == true }.getOrDefault(false)
