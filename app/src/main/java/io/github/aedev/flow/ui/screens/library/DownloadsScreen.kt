@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.VideoLibrary
@@ -166,6 +168,8 @@ fun DownloadsScreen(
                         onDeleteClick = { id ->
                             requestDelete(id, DeletionType.VIDEO)
                         },
+                        onPauseClick = { id -> viewModel.pauseVideoDownload(id) },
+                        onResumeClick = { id -> viewModel.resumeVideoDownload(id) },
                         onHomeClick = onHomeClick
                     )
                     1 -> MusicDownloadsList(
@@ -317,6 +321,8 @@ private fun VideosDownloadsList(
     onRefresh: () -> Unit,
     onVideoClick: (List<DownloadedVideo>, Int) -> Unit,
     onDeleteClick: (String) -> Unit,
+    onPauseClick: (String) -> Unit,
+    onResumeClick: (String) -> Unit,
     onHomeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -373,6 +379,8 @@ private fun VideosDownloadsList(
                             download = dl,
                             progressMap = progressMap,
                             isMerging = dl.download.videoId in mergingVideoIds,
+                            onPauseClick = { onPauseClick(dl.download.videoId) },
+                            onResumeClick = { onResumeClick(dl.download.videoId) },
                             modifier = Modifier.animateItem(
                                 fadeInSpec = tween(300, easing = EaseOutCubic),
                                 fadeOutSpec = tween(200, easing = EaseInCubic),
@@ -531,6 +539,8 @@ private fun ActiveVideoDownloadCard(
     download: DownloadWithItems,
     progressMap: Map<String, Float>,
     isMerging: Boolean,
+    onPauseClick: () -> Unit,
+    onResumeClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val progress = (progressMap[download.download.videoId] ?: download.progress).coerceIn(0f, 1f)
@@ -623,6 +633,22 @@ private fun ActiveVideoDownloadCard(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary
             )
+        }
+
+        if (!isMerging && download.overallStatus != DownloadItemStatus.FAILED) {
+            val isPaused = download.overallStatus == DownloadItemStatus.PAUSED
+            IconButton(
+                onClick = if (isPaused) onResumeClick else onPauseClick
+            ) {
+                Icon(
+                    imageVector = if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause,
+                    contentDescription = if (isPaused)
+                        stringResource(R.string.resume)
+                    else
+                        stringResource(R.string.pause),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

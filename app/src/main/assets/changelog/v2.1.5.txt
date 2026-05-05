@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-4
+DATE: 2026-05-6
 
 FEATURES
 - Add new Proxy manager and routing #362
@@ -18,6 +18,8 @@ IMPROVEMENTS
 - Add paging to comment replies #369
 - Add master backup import to onboarding #365
 - Improve video watch progress handling #379
+- Add share button to channel screen #397
+- Add download pause/resume to download screen #407
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

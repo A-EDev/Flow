@@ -207,7 +207,7 @@ private fun PlaylistItem(
         
         Checkbox(
             checked = isChecked,
-            onCheckedChange = { onClick() }
+            onCheckedChange = null
         )
     }
 }
@@ -273,7 +273,7 @@ private fun PlaylistItemWithThumbnail(
         
         Checkbox(
             checked = isChecked,
-            onCheckedChange = { onClick() }
+            onCheckedChange = null
         )
     }
 }

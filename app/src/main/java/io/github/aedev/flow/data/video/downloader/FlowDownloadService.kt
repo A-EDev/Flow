@@ -124,6 +124,14 @@ class FlowDownloadService : Service() {
             context.startService(intent)
         }
 
+        fun resumeDownload(context: Context, videoId: String) {
+            val intent = Intent(context, FlowDownloadService::class.java).apply {
+                action = ACTION_RESUME_DOWNLOAD
+                putExtra("video_id", videoId)
+            }
+            context.startService(intent)
+        }
+
         fun cancelDownload(context: Context, videoId: String) {
             val intent = Intent(context, FlowDownloadService::class.java).apply {
                 action = ACTION_CANCEL_DOWNLOAD

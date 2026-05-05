@@ -56,6 +56,7 @@
     <string name="shuffle">Shuffle</string>
     <string name="previous">Previous</string>
     <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
     <string name="play">Play</string>
     <string name="next">Next</string>
     <string name="repeat">Repeat</string>

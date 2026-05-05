@@ -102,6 +102,8 @@ fun AddToPlaylistDialog(
     onSelectPlaylist: (String) -> Unit,
     onCreateNew: () -> Unit
 ) {
+    var addedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -157,18 +159,24 @@ fun AddToPlaylistDialog(
                     }
                 } else {
                     items(playlists) { playlist ->
+                        val isAdded = playlist.id in addedIds
                         PlaylistItem(
                             playlist = playlist,
+                            isAdded = isAdded,
                             onClick = {
                                 onSelectPlaylist(playlist.id)
-                                onDismiss()
+                                addedIds = if (isAdded) addedIds - playlist.id else addedIds + playlist.id
                             }
                         )
                     }
                 }
             }
         },
-        confirmButton = {},
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.done))
+            }
+        },
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(stringResource(R.string.action_cancel))
@@ -180,12 +188,13 @@ fun AddToPlaylistDialog(
 @Composable
 private fun PlaylistItem(
     playlist: io.github.aedev.flow.data.music.Playlist,
+    isAdded: Boolean = false,
     onClick: () -> Unit
 ) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = if (isAdded) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -225,9 +234,9 @@ private fun PlaylistItem(
             }
             
             Icon(
-                Icons.Default.ChevronRight,
+                if (isAdded) Icons.Default.CheckCircle else Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                tint = if (isAdded) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
             )
         }
     }

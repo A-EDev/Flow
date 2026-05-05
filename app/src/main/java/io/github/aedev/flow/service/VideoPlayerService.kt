@@ -313,6 +313,7 @@ class VideoPlayerService : Service() {
             updateNotification()
         }
     }
+    private var isStoppingPlayback = false
     
     override fun onDestroy() {
         Log.d("VideoPlayerService", "onDestroy() called")
@@ -320,7 +321,7 @@ class VideoPlayerService : Service() {
         lockReleaseJob = null
         thumbnailLoadJob?.cancel()
         thumbnailLoadJob = null
-        stopPlayback()
+        teardownPlaybackUi()
         releaseLocks()
         mediaSession.isActive = false
         mediaSession.release()
@@ -564,13 +565,21 @@ class VideoPlayerService : Service() {
     }
 
     private fun createPlaceholderNotification(title: String? = null, channel: String? = null): Notification {
+        val closeIntent = PendingIntent.getService(
+            this,
+            5,
+            Intent(this, VideoPlayerService::class.java).apply { action = ACTION_CLOSE },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title?.takeIf { it.isNotEmpty() } ?: "Flow Player")
             .setContentText(channel?.takeIf { it.isNotEmpty() } ?: "Preparing playback...")
             .setSubText("Flow Player")
             .setSmallIcon(R.drawable.ic_notification_logo)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(true)
+            .setOngoing(false)
+            .setDeleteIntent(closeIntent)
+            .addAction(R.drawable.ic_close, "Close", closeIntent)
             .build()
     }
     
@@ -592,10 +601,9 @@ class VideoPlayerService : Service() {
             return
         }
 
-        releaseWakeLock()
         lockReleaseJob = serviceScope.launch {
             delay(30_000L)
-            releaseWifiLock()
+            releaseLocks()
         }
     }
 
@@ -625,8 +633,25 @@ class VideoPlayerService : Service() {
             else -> false
         }
     }
+
+    private fun teardownPlaybackUi() {
+        currentVideo = null
+        cachedThumbnailUrl = null
+        cachedThumbnailBitmap = null
+        mediaSession.setPlaybackState(
+            PlaybackStateCompat.Builder()
+                .setState(PlaybackStateCompat.STATE_STOPPED, 0L, 0f)
+                .build()
+        )
+        mediaSession.setMetadata(null)
+        mediaSession.isActive = false
+        notificationManager.cancel(NOTIFICATION_ID)
+    }
     
     private fun stopPlayback() {
+        if (isStoppingPlayback) return
+        isStoppingPlayback = true
+        teardownPlaybackUi()
         EnhancedPlayerManager.getInstance().stop()
         hasStartedForeground = false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {

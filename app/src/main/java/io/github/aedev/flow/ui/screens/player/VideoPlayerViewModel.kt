@@ -134,10 +134,15 @@ class VideoPlayerViewModel @Inject constructor(
 
                 // Handle external video id changes (e.g. from queue auto-advance)
                 playerState.currentVideoId?.let { videoId ->
-                    if (videoId != _uiState.value.streamInfo?.id &&
-                        videoId != _uiState.value.cachedVideo?.id &&
+                    val hasActiveStreams = playerState.isPrepared || playerState.isBuffering
+                    val isSameVideoNeedsReload = !hasActiveStreams &&
+                        _uiState.value.streamInfo == null &&
+                        _uiState.value.cachedVideo?.id == videoId
+                    if ((videoId != _uiState.value.streamInfo?.id &&
+                        videoId != _uiState.value.cachedVideo?.id ||
+                        isSameVideoNeedsReload) &&
                         !_uiState.value.isLoading &&
-                        !_uiState.value.isRestoredSession) {
+                        (!_uiState.value.isRestoredSession || !hasActiveStreams)) {
                         GlobalPlayerState.currentVideo.value?.takeIf { it.id == videoId }?.let { currentVideo ->
                             _uiState.update {
                                 it.copy(
@@ -314,6 +319,7 @@ class VideoPlayerViewModel @Inject constructor(
      */
     fun clearVideo() {
         EnhancedPlayerManager.getInstance().stop()
+        EnhancedPlayerManager.getInstance().stopBackgroundService()
         EnhancedPlayerManager.getInstance().clearAll()
         GlobalPlayerState.setCurrentVideo(null)
         GlobalPlayerState.hideMiniPlayer()

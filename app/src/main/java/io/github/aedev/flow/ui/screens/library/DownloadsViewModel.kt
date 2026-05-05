@@ -7,7 +7,10 @@ import io.github.aedev.flow.data.local.entity.DownloadWithItems
 import io.github.aedev.flow.data.music.DownloadedTrack
 import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.video.DownloadedVideo
+import io.github.aedev.flow.data.video.downloader.FlowDownloadService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -16,7 +19,8 @@ import javax.inject.Inject
 @HiltViewModel
 class DownloadsViewModel @Inject constructor(
     private val videoDownloadManager: VideoDownloadManager,
-    private val musicDownloadManager: MusicDownloadManager
+    private val musicDownloadManager: MusicDownloadManager,
+    @ApplicationContext private val appContext: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DownloadsUiState())
@@ -99,6 +103,14 @@ class DownloadsViewModel @Inject constructor(
             musicDownloadManager.deleteDownload(videoId)
             _pendingDeleteIds.update { it - videoId }
         }
+    }
+
+    fun pauseVideoDownload(videoId: String) {
+        FlowDownloadService.pauseDownload(appContext, videoId)
+    }
+
+    fun resumeVideoDownload(videoId: String) {
+        FlowDownloadService.resumeDownload(appContext, videoId)
     }
 
     fun rescan() {
