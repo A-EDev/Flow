@@ -1125,4 +1125,5 @@
     <string name="sb_action_mute">Muet</string>
     <string name="sb_action_show_toast">Notification uniquement</string>
     <string name="sb_action_ignore">Ignorer</string>
+    <string name="select_text">Sélectionner le texte</string>
 </resources>
