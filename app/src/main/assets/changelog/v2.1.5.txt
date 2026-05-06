@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-6
+DATE: 2026-05-7
 
 FEATURES
 - Add new Proxy manager and routing #362
@@ -23,6 +23,7 @@ IMPROVEMENTS
 - Add to playlist sheet redesign and video addition to multiple playlists #391
 - Improve comments and description sheets design and interactions #397
 - Chapters sheet redesign
+- Battery optimization #383
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378
@@ -34,3 +35,5 @@ FIXES AND STABILITY
 - Fix limited playlist content #385
 - Fix auto play when in background playback #388
 - Fix pip mode freeze #354
+- Fix low thumbnail quality #403
+- Fix channel avatar on subscription #387

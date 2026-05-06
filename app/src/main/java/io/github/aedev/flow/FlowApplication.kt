@@ -5,9 +5,11 @@ import android.content.Context
 import android.util.Log
 import io.github.aedev.flow.notification.SubscriptionCheckWorker
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.SubscriptionRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import io.github.aedev.flow.data.repository.NewPipeDownloader
+import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.notification.NotificationHelper
 import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.utils.FlowCrashHandler
@@ -30,6 +32,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 @HiltAndroidApp
 class FlowApplication : Application(), ImageLoaderFactory {
@@ -137,6 +140,23 @@ class FlowApplication : Application(), ImageLoaderFactory {
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "visitorData init error: ${e.message}")
+            }
+        }
+
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                val repository = SubscriptionRepository.getInstance(this@FlowApplication)
+                val youtubeRepository = YouTubeRepository.getInstance(playerPreferences)
+                val repaired = repository.repairVideoThumbnailSubscriptions { channelId ->
+                    withTimeoutOrNull(6_000L) {
+                        youtubeRepository.fetchChannelAvatarById(channelId)
+                    }.orEmpty()
+                }
+                if (repaired > 0) {
+                    Log.i(TAG, "Repaired $repaired subscription thumbnails")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Subscription thumbnail repair failed: ${e.message}")
             }
         }
     }

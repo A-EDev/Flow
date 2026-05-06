@@ -23,6 +23,7 @@ import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.flow.first
 import java.util.Locale
 import javax.inject.Inject
@@ -300,16 +301,8 @@ class YouTubeRepository @Inject constructor(
             val bestThumbnail = info.thumbnails
                 .sortedByDescending { it.height }
                 .map { it.url }
-                .firstOrNull()?.let { url ->
-                    if (url.contains("i.ytimg.com/vi/") || url.contains("img.youtube.com/vi/")) {
-                        when {
-                            url.endsWith("/mqdefault.jpg") -> url.replace("/mqdefault.jpg", "/hq720.jpg")
-                            url.endsWith("/default.jpg") -> url.replace("/default.jpg", "/hq720.jpg")
-                            url.endsWith("/hqdefault.jpg") -> url.replace("/hqdefault.jpg", "/hq720.jpg")
-                            else -> url
-                        }
-                    } else url
-                } ?: ""
+                .firstOrNull()
+                .let { ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, it) }
             
             val bestAvatar = info.uploaderAvatars
                 .sortedByDescending { it.height }
@@ -782,17 +775,8 @@ class YouTubeRepository @Inject constructor(
         val bestThumbnail = thumbnails
             .sortedByDescending { it.height }
             .map { it.url }
-            .firstOrNull()?.let { url ->
-                // YouTube thumbnail quality promotion logic
-                if (url.contains("i.ytimg.com/vi/") || url.contains("img.youtube.com/vi/")) {
-                    when {
-                        url.endsWith("/mqdefault.jpg") -> url.replace("/mqdefault.jpg", "/hq720.jpg")
-                        url.endsWith("/default.jpg") -> url.replace("/default.jpg", "/hq720.jpg")
-                        url.endsWith("/hqdefault.jpg") -> url.replace("/hqdefault.jpg", "/hq720.jpg")
-                        else -> url
-                    }
-                } else url
-            } ?: ""
+            .firstOrNull()
+            .let { ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, it) }
         
         val bestAvatar = uploaderAvatars
             .sortedByDescending { it.height }
@@ -886,22 +870,15 @@ class YouTubeRepository @Inject constructor(
      * Extension function to convert PlaylistInfoItem to our Playlist model
      */
     private fun org.schabi.newpipe.extractor.playlist.PlaylistInfoItem.toPlaylist(): io.github.aedev.flow.data.model.Playlist {
+        val playlistId = url.substringAfterLast("=")
         val bestThumbnail = thumbnails
             .sortedByDescending { it.height }
             .map { it.url }
-            .firstOrNull()?.let { url ->
-                if (url.contains("i.ytimg.com/vi/") || url.contains("img.youtube.com/vi/")) {
-                    when {
-                        url.endsWith("/mqdefault.jpg") -> url.replace("/mqdefault.jpg", "/hq720.jpg")
-                        url.endsWith("/default.jpg") -> url.replace("/default.jpg", "/hq720.jpg")
-                        url.endsWith("/hqdefault.jpg") -> url.replace("/hqdefault.jpg", "/hq720.jpg")
-                        else -> url
-                    }
-                } else url
-            } ?: ""
+            .firstOrNull()
+            .let { ThumbnailUrlResolver.normalizeVideoThumbnail(playlistId, it) }
         
         return io.github.aedev.flow.data.model.Playlist(
-            id = url.substringAfterLast("="),
+            id = playlistId,
             name = name ?: "Unknown Playlist",
             thumbnailUrl = bestThumbnail,
             videoCount = streamCount.toInt(),

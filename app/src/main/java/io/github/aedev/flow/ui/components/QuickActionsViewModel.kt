@@ -11,6 +11,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.InteractionType
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -99,11 +100,17 @@ class QuickActionsViewModel @Inject constructor(
                     _subscribedChannelIds.update { it - channelId }
                     Toast.makeText(context, "Unsubscribed from $channelName", Toast.LENGTH_SHORT).show()
                 } else {
+                    val resolvedThumbnail = channelThumbnail
+                        .takeUnless { ThumbnailUrlResolver.isYoutubeVideoThumbnail(it) }
+                        ?.takeIf { it.isNotBlank() }
+                        ?: withContext(Dispatchers.IO) {
+                            repository.fetchChannelAvatarById(channelId)
+                        }
                     subscriptionRepository.subscribe(
                         ChannelSubscription(
                             channelId = channelId,
                             channelName = channelName,
-                            channelThumbnail = channelThumbnail,
+                            channelThumbnail = resolvedThumbnail,
                             subscribedAt = System.currentTimeMillis()
                         )
                     )

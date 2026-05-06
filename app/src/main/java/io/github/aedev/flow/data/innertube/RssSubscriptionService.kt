@@ -2,6 +2,7 @@ package io.github.aedev.flow.data.innertube
 
 import android.util.Log
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -257,8 +258,10 @@ object RssSubscriptionService {
         overrideTimestamp: Long? = null
     ): Video {
         val videoId = extractVideoId(item.url)
-        val thumbnail = item.thumbnails.maxByOrNull { it.width }?.url
-            ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+        val thumbnail = ThumbnailUrlResolver.normalizeVideoThumbnail(
+            videoId,
+            item.thumbnails.maxByOrNull { it.width }?.url
+        )
 
         val uploadTimeMillis = overrideTimestamp
             ?: resolveUploadTimestamp(item)

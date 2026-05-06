@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -76,7 +77,7 @@ class ViewHistory private constructor(private val context: Context) {
     ) {
         if (PlayerPreferences(context).isDeepFlowCurrentlyActive()) return
 
-        val thumbnail = thumbnailUrl.ifEmpty { "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" }
+        val thumbnail = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, thumbnailUrl)
         dao.upsert(
             WatchHistoryEntity(
                 videoId      = videoId,
@@ -107,7 +108,7 @@ class ViewHistory private constructor(private val context: Context) {
     ) {
         if (PlayerPreferences(context).isDeepFlowCurrentlyActive()) return
 
-        val thumbnail = thumbnailUrl.ifEmpty { "https://i.ytimg.com/vi/$videoId/hqdefault.jpg" }
+        val thumbnail = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, thumbnailUrl)
         val existingPosition = dao.getPosition(videoId) ?: 0L  // preserve saved progress
         dao.upsert(
             WatchHistoryEntity(
@@ -138,9 +139,7 @@ class ViewHistory private constructor(private val context: Context) {
                 duration     = entry.duration,
                 timestamp    = entry.timestamp,
                 title        = entry.title,
-                thumbnailUrl = entry.thumbnailUrl.ifEmpty {
-                    "https://i.ytimg.com/vi/${entry.videoId}/hqdefault.jpg"
-                },
+                thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(entry.videoId, entry.thumbnailUrl),
                 channelName  = entry.channelName,
                 channelId    = entry.channelId,
                 isMusic      = entry.isMusic
@@ -225,8 +224,7 @@ class ViewHistory private constructor(private val context: Context) {
                 val duration = prefs[durationKey(videoId)]    ?: 0L
                 val ts       = prefs[timestampKey(videoId)]   ?: 0L
                 val title    = prefs[titleKey(videoId)]       ?: ""
-                val thumb    = prefs[thumbnailKey(videoId)]
-                    ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg"
+                val thumb    = ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, prefs[thumbnailKey(videoId)])
                 val chName   = prefs[channelNameKey(videoId)] ?: ""
                 val chId     = prefs[channelIdKey(videoId)]   ?: ""
                 val isMusic  = prefs[isMusicKey(videoId)]     ?: false

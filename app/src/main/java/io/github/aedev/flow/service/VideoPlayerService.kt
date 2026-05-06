@@ -399,6 +399,7 @@ class VideoPlayerService : Service() {
             val videoId = Regex("(?:vi|vi_webp)/([a-zA-Z0-9_-]+)/").find(originalUrl)
                 ?.groupValues?.getOrNull(1)
             if (videoId != null) {
+                candidates.add("https://i.ytimg.com/vi/$videoId/hq720.jpg")
                 candidates.add("https://i.ytimg.com/vi/$videoId/hqdefault.jpg")     // 480×360
                 candidates.add("https://i.ytimg.com/vi/$videoId/mqdefault.jpg")     // 320×180
                 candidates.add("https://i.ytimg.com/vi/$videoId/default.jpg")       // 120×90
@@ -597,7 +598,11 @@ class VideoPlayerService : Service() {
         lockReleaseJob = null
 
         if (isPlaybackActive) {
-            acquireLocks()
+            if (isAppInForeground()) {
+                releaseLocks()
+            } else {
+                acquireLocks()
+            }
             return
         }
 

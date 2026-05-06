@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.NewPipe
@@ -89,8 +90,10 @@ class ChannelVideosPagingSource(
     private fun StreamInfoItem.toVideo(channelInfo: ChannelInfo): Video {
         val videoId = extractVideoId(this.url)
         // Use highest resolution thumbnail for better quality
-        val thumbnail = this.thumbnails.maxByOrNull { it.width }?.url 
-            ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
+        val thumbnail = ThumbnailUrlResolver.normalizeVideoThumbnail(
+            videoId,
+            this.thumbnails.maxByOrNull { it.width }?.url
+        )
         
         return Video(
             id = videoId,

@@ -38,6 +38,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.util.concurrent.atomic.AtomicInteger
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 
 data class SettingsBackup(
     val strings: Map<String, String> = emptyMap(),
@@ -432,7 +433,7 @@ class BackupRepository(private val context: Context) {
                                     duration     = 0L,
                                     timestamp    = System.currentTimeMillis() - importedCount, 
                                     title        = title,
-                                    thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                                    thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
                                     channelName  = channelName,
                                     channelId    = channelId,
                                     isMusic      = false
@@ -536,7 +537,7 @@ class BackupRepository(private val context: Context) {
             val playlistId  = if (isWatchLater) PlaylistRepository.WATCH_LATER_ID
                               else "yt_import_${System.currentTimeMillis()}"
             val finalName   = if (isWatchLater) "Watch Later" else playlistName
-            val firstThumb  = "https://i.ytimg.com/vi/${videoIds.first()}/hqdefault.jpg"
+            val firstThumb = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoIds.first())
 
             database.withTransaction {
                 val existingPlaylist = database.playlistDao().getPlaylist(playlistId)
@@ -562,7 +563,7 @@ class BackupRepository(private val context: Context) {
                             title               = "",
                             channelName         = "",
                             channelId           = "",
-                            thumbnailUrl        = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                            thumbnailUrl        = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
                             duration            = 0,
                             viewCount           = 0L,
                             uploadDate          = "",
@@ -762,8 +763,8 @@ class BackupRepository(private val context: Context) {
                         songList.forEachIndexed { index, (songId, _) ->
                             val row = songs[songId]
                             val thumb = row?.thumb?.ifEmpty {
-                                "https://i.ytimg.com/vi/$songId/hqdefault.jpg"
-                            } ?: "https://i.ytimg.com/vi/$songId/hqdefault.jpg"
+                                ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(songId)
+                            } ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(songId)
 
                             database.videoDao().insertVideoOrIgnore(
                                 VideoEntity(
@@ -890,7 +891,7 @@ class BackupRepository(private val context: Context) {
                                             position     = 0L, duration = 0L,
                                             timestamp    = System.currentTimeMillis() - historyImported,
                                             title        = title,
-                                            thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                                            thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
                                             channelName  = chName, channelId = chId, isMusic = false
                                         ))
                                         historyImported++
@@ -995,7 +996,7 @@ class BackupRepository(private val context: Context) {
                 val isWatchLater = playlistName.equals("watch later", ignoreCase = true)
                 val playlistId = if (isWatchLater) PlaylistRepository.WATCH_LATER_ID
                                  else "yt_takeout_${playlistName.take(40)}_${System.currentTimeMillis()}"
-                val firstThumb = "https://i.ytimg.com/vi/${videoIds.first()}/hqdefault.jpg"
+                val firstThumb = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoIds.first())
 
                 database.withTransaction {
                     val existing = database.playlistDao().getPlaylist(playlistId)
@@ -1011,7 +1012,7 @@ class BackupRepository(private val context: Context) {
                     videoIds.forEachIndexed { index, videoId ->
                         database.videoDao().insertVideoOrIgnore(VideoEntity(
                             id = videoId, title = "", channelName = "", channelId = "",
-                            thumbnailUrl = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                            thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
                             duration = 0, viewCount = 0L, uploadDate = "", description = "",
                             channelThumbnailUrl = "", isMusic = false
                         ))
@@ -1121,7 +1122,7 @@ class BackupRepository(private val context: Context) {
                 if (videoIds.isEmpty()) return@forEachIndexed
 
                 val playlistId = "newpipe_pl_${playlist.uid}_${System.currentTimeMillis()}"
-                val firstThumb = "https://i.ytimg.com/vi/${videoIds.first()}/hqdefault.jpg"
+                val firstThumb = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoIds.first())
 
                 database.withTransaction {
                     database.playlistDao().insertPlaylist(
@@ -1143,7 +1144,7 @@ class BackupRepository(private val context: Context) {
                                 title               = "",
                                 channelName         = "",
                                 channelId           = "",
-                                thumbnailUrl        = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                                thumbnailUrl        = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
                                 duration            = 0,
                                 viewCount           = 0L,
                                 uploadDate          = "",
@@ -1221,7 +1222,7 @@ class BackupRepository(private val context: Context) {
 
                     val playlistId = "libretube_local_${i}_${System.currentTimeMillis()}"
                     val firstThumb = thumbMap[videoIds.first()]
-                        ?: "https://i.ytimg.com/vi/${videoIds.first()}/hqdefault.jpg"
+                        ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoIds.first())
 
                     database.withTransaction {
                         database.playlistDao().insertPlaylist(
@@ -1244,7 +1245,7 @@ class BackupRepository(private val context: Context) {
                                     channelName         = "",
                                     channelId           = "",
                                     thumbnailUrl        = thumbMap[videoId]
-                                        ?: "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                                        ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
                                     duration            = durationMap[videoId] ?: 0,
                                     viewCount           = 0L,
                                     uploadDate          = "",
@@ -1284,7 +1285,7 @@ class BackupRepository(private val context: Context) {
                     if (videoIds.isEmpty()) continue
 
                     val playlistId = "libretube_piped_${i}_${System.currentTimeMillis()}"
-                    val firstThumb = "https://i.ytimg.com/vi/${videoIds.first()}/hqdefault.jpg"
+                    val firstThumb = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoIds.first())
 
                     database.withTransaction {
                         database.playlistDao().insertPlaylist(
@@ -1306,7 +1307,7 @@ class BackupRepository(private val context: Context) {
                                     title               = "",
                                     channelName         = "",
                                     channelId           = "",
-                                    thumbnailUrl        = "https://i.ytimg.com/vi/$videoId/hqdefault.jpg",
+                                    thumbnailUrl        = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
                                     duration            = 0,
                                     viewCount           = 0L,
                                     uploadDate          = "",

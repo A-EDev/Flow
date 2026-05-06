@@ -10,6 +10,7 @@ import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 import io.github.aedev.flow.data.local.entity.VideoEntity
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -43,9 +44,10 @@ class HistoryViewModel : ViewModel() {
 
                     if (e.thumbnailUrl.isEmpty()) {
                         e = e.copy(
-                            thumbnailUrl = dbVideo?.thumbnailUrl
-                                ?.takeIf { it.isNotEmpty() }
-                                ?: "https://i.ytimg.com/vi/${e.videoId}/hq720.jpg"
+                            thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(
+                                e.videoId,
+                                dbVideo?.thumbnailUrl
+                            )
                         )
                     }
 
@@ -55,7 +57,7 @@ class HistoryViewModel : ViewModel() {
                         if (e.channelName.isEmpty() && dbVideo.channelName.isNotEmpty())
                             e = e.copy(channelName = dbVideo.channelName, channelId = dbVideo.channelId)
                         if (dbVideo.thumbnailUrl.isNotEmpty() &&
-                            e.thumbnailUrl.startsWith("https://i.ytimg.com/vi/${e.videoId}/hqdefault"))
+                            ThumbnailUrlResolver.isYoutubeVideoThumbnail(e.thumbnailUrl))
                             e = e.copy(thumbnailUrl = dbVideo.thumbnailUrl)
                     }
                     e
@@ -106,9 +108,10 @@ class HistoryViewModel : ViewModel() {
                                     duration     = video.duration * 1000L,
                                     timestamp    = stub.timestamp,
                                     title        = video.title,
-                                    thumbnailUrl = video.thumbnailUrl.ifEmpty {
-                                        "https://i.ytimg.com/vi/${stub.videoId}/hq720.jpg"
-                                    },
+                                    thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(
+                                        stub.videoId,
+                                        video.thumbnailUrl
+                                    ),
                                     channelName  = video.channelName,
                                     channelId    = video.channelId,
                                     isMusic      = stub.isMusic

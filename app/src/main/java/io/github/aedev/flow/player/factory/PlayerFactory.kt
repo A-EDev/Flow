@@ -132,7 +132,6 @@ class PlayerFactory {
             .setHandleAudioBecomingNoisy(true)
             .setLoadControl(loadControl)
             .setMediaSourceFactory(DefaultMediaSourceFactory(factory))
-            .setWakeMode(C.WAKE_MODE_NETWORK)
             .build()
             .also {
                 it.setSeekParameters(SeekParameters.CLOSEST_SYNC)

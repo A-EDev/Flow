@@ -464,8 +464,10 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
             title = item.name ?: "",
             channelName = item.uploaderName ?: "",
             channelId = channelId,
-            thumbnailUrl = item.thumbnails?.maxByOrNull { it.height }?.url
-                ?: if (videoId.isNotBlank()) "https://i.ytimg.com/vi/$videoId/hq720.jpg" else "",
+            thumbnailUrl = io.github.aedev.flow.utils.ThumbnailUrlResolver.normalizeVideoThumbnail(
+                videoId,
+                item.thumbnails?.maxByOrNull { it.height }?.url
+            ),
             duration = item.duration.toInt().coerceAtLeast(0),
             viewCount = if (item.viewCount >= 0) item.viewCount else 0L,
             likeCount = 0L,

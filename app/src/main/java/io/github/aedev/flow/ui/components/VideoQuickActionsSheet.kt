@@ -320,7 +320,7 @@ fun VideoQuickActionsBottomSheet(
                                     viewModel.toggleSubscription(
                                         channelId = video.channelId,
                                         channelName = video.channelName,
-                                        channelThumbnail = video.thumbnailUrl
+                                        channelThumbnail = video.channelThumbnailUrl
                                     )
                                 }
                             )

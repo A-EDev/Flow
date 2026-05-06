@@ -9,6 +9,7 @@ import io.github.aedev.flow.data.local.SearchFilter
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.Page
@@ -95,8 +96,10 @@ class SearchPagingSource(
                             }
 
                             val videoId = extractVideoId(item.url)
-                            val thumbnail = item.thumbnails.maxByOrNull { it.width }?.url
-                                ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
+                            val thumbnail = ThumbnailUrlResolver.normalizeVideoThumbnail(
+                                videoId,
+                                item.thumbnails.maxByOrNull { it.width }?.url
+                            )
                             val channelThumb = try {
                                 item.uploaderAvatars.maxByOrNull { it.width }?.url ?: ""
                             } catch (_: Exception) { "" }

@@ -416,6 +416,8 @@ class EnhancedPlayerManager private constructor() {
     ) {
         Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.height})")
         resetPlaybackStateForNewVideo(videoId)
+        isAudioOnlyMode = false
+        setVideoTracksDisabled(false)
         
         // Reset and load SponsorBlock
         sponsorBlockHandler?.reset()
@@ -501,8 +503,15 @@ class EnhancedPlayerManager private constructor() {
         videoStream: VideoStream?,
         audioStream: AudioStream?,
         preservePosition: Long? = null,
-        localFilePath: String? = null
+        localFilePath: String? = null,
+        audioOnly: Boolean = false
     ) {
+        if (audioOnly) {
+            setVideoTracksDisabled(true)
+        } else if (videoStream != null || localFilePath != null) {
+            setVideoTracksDisabled(false)
+        }
+
         if (localFilePath != null) {
             Log.d(TAG, "loadMediaInternal: Playing local file: $localFilePath")
             mediaLoader?.loadMedia(
@@ -517,7 +526,8 @@ class EnhancedPlayerManager private constructor() {
                 durationSeconds = currentDurationSeconds,
                 currentDurationSeconds = currentDurationSeconds,
                 preservePosition = preservePosition,
-                localFilePath = localFilePath
+                localFilePath = localFilePath,
+                audioOnly = false
             )
             return
         }
@@ -535,8 +545,19 @@ class EnhancedPlayerManager private constructor() {
             durationSeconds = currentDurationSeconds,
             currentDurationSeconds = currentDurationSeconds,
             preservePosition = preservePosition,
-            localFilePath = localFilePath
+            localFilePath = localFilePath,
+            audioOnly = audioOnly
         )
+    }
+
+    private fun setVideoTracksDisabled(disabled: Boolean) {
+        trackSelector?.let { selector ->
+            selector.setParameters(
+                selector.buildUponParameters()
+                    .setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, disabled)
+                    .build()
+            )
+        }
     }
 
     // ===== Queue Management =====
@@ -730,7 +751,11 @@ class EnhancedPlayerManager private constructor() {
             currentAudioStream = availableAudioStreams[index]
             val position = player?.currentPosition ?: 0L
             val wasPlaying = player?.isPlaying ?: false
-            loadMediaInternal(currentVideoStream, currentAudioStream)
+            if (isAudioOnlyMode) {
+                loadMediaInternal(null, currentAudioStream, audioOnly = true)
+            } else {
+                loadMediaInternal(currentVideoStream, currentAudioStream)
+            }
             player?.seekTo(position)
             if (wasPlaying) player?.play()
             _playerState.value = _playerState.value.copy(currentAudioTrack = index)
@@ -783,6 +808,7 @@ class EnhancedPlayerManager private constructor() {
                 if (isAudioOnlyMode) {
                     Log.d(TAG, "attachVideoSurface: was in audio-only mode — restoring video stream")
                     isAudioOnlyMode = false
+                    setVideoTracksDisabled(false)
                     val pos = p.currentPosition
                     loadMediaInternal(currentVideoStream, currentAudioStream, preservePosition = pos)
                 } else if (p.currentMediaItem == null) {
@@ -816,7 +842,7 @@ class EnhancedPlayerManager private constructor() {
         
         // Reload as audio-only stream (bandwidth saving)
         val pos = player?.currentPosition ?: 0L
-        loadMediaInternal(null, currentAudioStream, preservePosition = pos)
+        loadMediaInternal(null, currentAudioStream, preservePosition = pos, audioOnly = true)
     }
     
     fun setSurfaceReady(ready: Boolean) {

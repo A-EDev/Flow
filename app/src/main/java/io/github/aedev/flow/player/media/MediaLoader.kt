@@ -46,6 +46,7 @@ class MediaLoader(
      * @param preservePosition Position to seek to after loading
      * @param localFilePath Optional local file path for offline playback
      * @param currentDurationSeconds Fallback duration from stream info
+     * @param audioOnly When true, never selects video streams or video manifests.
      */
     fun loadMedia(
         player: ExoPlayer?,
@@ -59,7 +60,8 @@ class MediaLoader(
         durationSeconds: Long,
         currentDurationSeconds: Long,
         preservePosition: Long? = null,
-        localFilePath: String? = null
+        localFilePath: String? = null,
+        audioOnly: Boolean = false
     ): Boolean {
         val finalDuration = when {
             durationSeconds > 0 -> durationSeconds
@@ -70,15 +72,17 @@ class MediaLoader(
         player?.let { exoPlayer ->
             try {
                 // Reattach surface before loading
-                reattachSurface(exoPlayer)
+                if (!audioOnly) {
+                    reattachSurface(exoPlayer)
+                }
 
-                Log.d(TAG, "Preparing media: video=${videoStream?.height ?: -1}p surfaceReady=${surfaceManager?.isSurfaceReady}")
+                Log.d(TAG, "Preparing media: video=${videoStream?.height ?: -1}p audioOnly=$audioOnly surfaceReady=${surfaceManager?.isSurfaceReady}")
                 
                 val ctx = context ?: throw IllegalStateException("Context not initialized")
                 val dataSourceFactory = cacheManager?.getDataSourceFactory()
                     ?: DefaultDataSource.Factory(ctx)
                 
-                if (surfaceManager?.isSurfaceReady != true && localFilePath == null) {
+                if (!audioOnly && surfaceManager?.isSurfaceReady != true && localFilePath == null) {
                     Log.w(TAG, "Surface not ready yet, preparing media and waiting for attach")
                 }
                 
@@ -93,7 +97,8 @@ class MediaLoader(
                     dashManifestUrl = dashManifestUrl,
                     hlsUrl = hlsUrl,
                     finalDuration = finalDuration,
-                    localFilePath = localFilePath
+                    localFilePath = localFilePath,
+                    audioOnly = audioOnly
                 )
                 
                 if (mediaSource != null) {
@@ -142,7 +147,8 @@ class MediaLoader(
         dashManifestUrl: String?,
         hlsUrl: String?,
         finalDuration: Long,
-        localFilePath: String?
+        localFilePath: String?,
+        audioOnly: Boolean
     ): MediaSource? {
         return if (localFilePath != null) {
             ProgressiveMediaSource.Factory(cacheManager?.getProgressiveDataSourceFactory() ?: dataSourceFactory)
@@ -154,7 +160,9 @@ class MediaLoader(
                 cacheManager?.getProgressiveDataSourceFactory() ?: dataSourceFactory
             )
             
-            val selectedStreams = if (videoStream != null) {
+            val selectedStreams = if (audioOnly) {
+                emptyList()
+            } else if (videoStream != null) {
                 listOf(videoStream)
             } else if (!dashManifestUrl.isNullOrEmpty() && availableVideoStreams.size > 1) {
                 availableVideoStreams
@@ -162,7 +170,13 @@ class MediaLoader(
                 listOfNotNull(currentVideoStream ?: availableVideoStreams.firstOrNull())
             }
             Log.d(TAG, "Passing ${selectedStreams.size} stream(s) to resolver: ${selectedStreams.map { "${it.height}p" }}")
-            resolver.resolve(selectedStreams, audio, dashManifestUrl, hlsUrl, finalDuration)
+            resolver.resolve(
+                selectedStreams,
+                audio,
+                dashManifestUrl = if (audioOnly) null else dashManifestUrl,
+                hlsUrl = if (audioOnly) null else hlsUrl,
+                durationSeconds = finalDuration
+            )
         }
     }
 }
