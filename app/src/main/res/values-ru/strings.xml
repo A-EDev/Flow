@@ -690,4 +690,10 @@
     <string name="player_settings_shorts_background_play">Воспроизведение Shorts в фоновом режиме</string>
     <string name="player_settings_shorts_background_play_subtitle">Продолжать воспроизведение Shorts, когда приложение работает в фоновом режиме</string>
     <string name="currently_following">Текущие подписки</string>
+    <string name="tap_to_close">Коснитесь, чтобы закрыть</string>
+    <string name="load_more_replies">Показать ещё ответы</string>
+    <string name="select_text">Выбрать текст</string>
+    <string name="group_all">Все</string>
+    <string name="no_groups_yet">Пока нет групп. Создайте группу, чтобы настроить фильтр ленты.</string>
+    <string name="search_channels_hint">Поиск каналов…</string>
 </resources>
