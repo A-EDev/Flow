@@ -1348,4 +1348,13 @@
     <string name="settings_language_system_default">‌الافتراضي للنظام</string>
     <string name="support_flow_patreon">إدعم Flow على Patreon</string>
     <string name="select_text">حدد النص</string>
+    <string name="resume">إستأنف</string>
+    <string name="import_playlists_section_title">قوائم التشغيل</string>
+    <string name="import_playlists_section_subtitle">إسترد قوائم تشغيل الفيديو من تطبيقات أخرى</string>
+    <string name="import_newpipe_playlists">استيراد قوائم تشغيل NewPipe</string>
+    <string name="import_newpipe_playlists_desc">إستورد قوائم التشغيل المحلية الخاصة بك في NewPipe من ملف ZIP إحتياطي.</string>
+    <string name="import_libretube_playlists">استيراد قوائم تشغيل LibreTube</string>
+    <string name="import_libretube_playlists_desc">‎إسترد قوائم التشغيل المحلية الخاصة بك على LibreTube من ملف JSON احتياطي.</string>
+    <string name="import_yt_takeout_all">إستيراد من Google Takeout</string>
+    <string name="import_yt_takeout_all_desc">إسترد اشتراكاتك على يوتيوب، وسجل المشاهدة، وقوائم التشغيل دفعة واحدة من ملفZIP خاص بخدمة Google Takeout.</string>
 </resources>
