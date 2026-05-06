@@ -915,4 +915,5 @@
     <string name="import_yt_music_playlist_desc">Імпортуйте музичний плейліст із YouTube Music Takeout CSV. Він з’явиться у розділі \"Списки відтворення музики\".</string>
     <string name="import_yt_history_success_template">Імпортовано %1$d записів з вашої історії переглядів YouTube</string>
     <string name="import_yt_playlist_success_template">Імпортовано %1$d записів з вашої історії переглядів YouTube</string>
+    <string name="resume">Продовжити</string>
 </resources>
