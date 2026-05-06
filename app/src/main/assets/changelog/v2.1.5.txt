@@ -21,6 +21,8 @@ IMPROVEMENTS
 - Add share button to channel screen #397
 - Add download pause/resume to download screen #407
 - Add to playlist sheet redesign and video addition to multiple playlists #391
+- Improve comments and description sheets design and interactions #397
+- Chapters sheet redesign
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

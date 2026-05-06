@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.AudioManager
 import androidx.compose.runtime.*
 import io.github.aedev.flow.player.seekbarpreview.SeekbarPreviewThumbnailHelper
+import io.github.aedev.flow.ui.components.CommentSortFilter
 import io.github.aedev.flow.ui.components.SubtitleCue
 import io.github.aedev.flow.ui.components.SubtitleStyle
 
@@ -38,7 +39,7 @@ class PlayerScreenState {
     var showPlaylistQueueSheet by mutableStateOf(false)
     
     // Comment Sorting
-    var isTopComments by mutableStateOf(true)
+    var commentSortFilter by mutableStateOf(CommentSortFilter.TOP)
     
     // Gesture States
     var brightnessLevel by mutableFloatStateOf(0.5f)

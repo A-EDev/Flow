@@ -15,6 +15,7 @@ import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.SleepTimerManager
 import io.github.aedev.flow.ui.components.FlowChaptersBottomSheet
+import io.github.aedev.flow.ui.components.CommentSortFilter
 import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.FlowDescriptionBottomSheet
 import io.github.aedev.flow.ui.components.FlowPlaylistQueueBottomSheet
@@ -44,28 +45,28 @@ fun PlayerBottomSheetsContainer(
     onLoadMoreReplies: (Comment) -> Unit = {},
     onNavigateToChannel: ((String) -> Unit)? = null
 ) {
-    // Sorted comments based on filter — pinned comments always first
-    val sortedComments = remember(comments, screenState.isTopComments) {
+    fun relativeTimeToSeconds(timeStr: String): Long {
+        val lower = timeStr.lowercase().trim()
+        val number = Regex("\\d+").find(lower)?.value?.toLongOrNull() ?: 0L
+        return when {
+            "second" in lower -> number
+            "minute" in lower -> number * 60L
+            "hour" in lower -> number * 3_600L
+            "day" in lower -> number * 86_400L
+            "week" in lower -> number * 604_800L
+            "month" in lower -> number * 2_592_000L
+            "year" in lower -> number * 31_536_000L
+            else -> Long.MAX_VALUE
+        }
+    }
+
+    val sortedComments = remember(comments, screenState.commentSortFilter) {
         val pinned = comments.filter { it.isPinned }
         val unpinned = comments.filterNot { it.isPinned }
-        val sortedUnpinned = if (screenState.isTopComments) {
-            unpinned.sortedByDescending { it.likeCount }
-        } else {
-            fun relativeTimeToSeconds(timeStr: String): Long {
-                val lower = timeStr.lowercase().trim()
-                val number = Regex("\\d+").find(lower)?.value?.toLongOrNull() ?: 0L
-                return when {
-                    "second" in lower -> number
-                    "minute" in lower -> number * 60L
-                    "hour"   in lower -> number * 3_600L
-                    "day"    in lower -> number * 86_400L
-                    "week"   in lower -> number * 604_800L
-                    "month"  in lower -> number * 2_592_000L
-                    "year"   in lower -> number * 31_536_000L
-                    else              -> Long.MAX_VALUE
-                }
-            }
-            unpinned.sortedBy { relativeTimeToSeconds(it.publishedTime) }
+        val sortedUnpinned = when (screenState.commentSortFilter) {
+            CommentSortFilter.TOP -> unpinned.sortedByDescending { it.likeCount }
+            CommentSortFilter.NEWEST -> unpinned.sortedBy { relativeTimeToSeconds(it.publishedTime) }
+            CommentSortFilter.OLDEST -> unpinned.sortedByDescending { relativeTimeToSeconds(it.publishedTime) }
         }
         pinned + sortedUnpinned
     }
@@ -136,9 +137,9 @@ fun PlayerBottomSheetsContainer(
         FlowCommentsBottomSheet(
             comments = sortedComments,
             isLoading = isLoadingComments,
-            isTopSelected = screenState.isTopComments,
-            onFilterChanged = { isTop ->
-                screenState.isTopComments = isTop
+            selectedFilter = screenState.commentSortFilter,
+            onFilterChanged = { filter ->
+                screenState.commentSortFilter = filter
             },
             onLoadReplies = onLoadReplies,
             onLoadMoreReplies = onLoadMoreReplies,
@@ -201,6 +202,7 @@ fun PlayerBottomSheetsContainer(
             onChapterClick = { newPosition ->
                 EnhancedPlayerManager.getInstance().seekTo(newPosition)
             },
+            thumbnailUrl = video.thumbnailUrl,
             onDismiss = { screenState.showChaptersSheet = false }
         )
     }

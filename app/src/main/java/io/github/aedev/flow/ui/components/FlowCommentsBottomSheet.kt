@@ -1,14 +1,21 @@
 package io.github.aedev.flow.ui.components
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
@@ -30,11 +37,8 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
@@ -52,7 +56,15 @@ import io.github.aedev.flow.utils.formatLikeCount
 import io.github.aedev.flow.utils.formatRichText
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material3.ripple
+import kotlinx.coroutines.launch
+
+enum class CommentSortFilter {
+    TOP,
+    NEWEST,
+    OLDEST
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,10 +73,10 @@ fun FlowCommentsBottomSheet(
     isLoading: Boolean,
     onDismiss: () -> Unit,
     onTimestampClick: (String) -> Unit = {},
-    onFilterChanged: (Boolean) -> Unit = {},
+    onFilterChanged: (CommentSortFilter) -> Unit = {},
     onLoadReplies: (Comment) -> Unit = {},
     onLoadMoreReplies: (Comment) -> Unit = {},
-    isTopSelected: Boolean = true,
+    selectedFilter: CommentSortFilter = CommentSortFilter.TOP,
     isLoadingMore: Boolean = false,
     onLoadMore: () -> Unit = {},
     hasMore: Boolean = false,
@@ -73,43 +85,124 @@ fun FlowCommentsBottomSheet(
     modifier: Modifier = Modifier
 ) {
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    val maxHeight = configuration.screenHeightDp.dp * 0.65f
+    val density = LocalDensity.current
+    val coroutineScope = rememberCoroutineScope()
+    val latestOnDismiss by rememberUpdatedState(onDismiss)
+    val expandedHeight = configuration.screenHeightDp.dp * 0.75f
+    val expandedHeightPx = with(density) { expandedHeight.toPx() }
+    val dismissThresholdPx = expandedHeightPx * 0.55f
+    val sheetHeightPx = remember { Animatable(0f) }
+    var isAnimatingOut by remember { mutableStateOf(false) }
 
     val latestOnLoadMore by rememberUpdatedState(onLoadMore)
+    val commentsListState = rememberLazyListState()
 
-    val preventCollapseOnScroll = remember {
-        object : NestedScrollConnection {
-            override fun onPostScroll(
-                consumed: Offset, available: Offset, source: NestedScrollSource
-            ): Offset = available
-
-            override suspend fun onPostFling(
-                consumed: Velocity, available: Velocity
-            ): Velocity = available
+    fun animateToExpanded() {
+        coroutineScope.launch {
+            sheetHeightPx.animateTo(
+                targetValue = expandedHeightPx,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            )
         }
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberFlowSheetState(),
-        containerColor = MaterialTheme.colorScheme.surface,
-        scrimColor = Color.Transparent,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
-        modifier = modifier
+    fun animateToDismiss() {
+        if (isAnimatingOut) return
+        isAnimatingOut = true
+        coroutineScope.launch {
+            sheetHeightPx.animateTo(
+                targetValue = 0f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            )
+            latestOnDismiss()
+        }
+    }
+
+    LaunchedEffect(expandedHeightPx) {
+        isAnimatingOut = false
+        sheetHeightPx.updateBounds(lowerBound = 0f, upperBound = expandedHeightPx)
+        if (sheetHeightPx.value == 0f) {
+            sheetHeightPx.snapTo(0f)
+        }
+        sheetHeightPx.animateTo(
+            targetValue = expandedHeightPx,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            )
+        )
+    }
+
+    LaunchedEffect(selectedFilter) {
+        commentsListState.scrollToItem(0)
+    }
+
+    BackHandler(onBack = ::animateToDismiss)
+
+    val headerDragModifier = Modifier.pointerInput(expandedHeightPx, dismissThresholdPx, isAnimatingOut) {
+        val velocityTracker = VelocityTracker()
+        detectVerticalDragGestures(
+            onVerticalDrag = { change, dragAmount ->
+                if (isAnimatingOut) return@detectVerticalDragGestures
+                velocityTracker.addPointerInputChange(change)
+                coroutineScope.launch {
+                    val nextValue = (sheetHeightPx.value - dragAmount).coerceIn(0f, expandedHeightPx)
+                    sheetHeightPx.snapTo(nextValue)
+                }
+            },
+            onDragCancel = {
+                velocityTracker.resetTracking()
+                if (!isAnimatingOut) animateToExpanded()
+            },
+            onDragEnd = {
+                val velocityY = velocityTracker.calculateVelocity().y
+                velocityTracker.resetTracking()
+                when {
+                    velocityY > 1200f || sheetHeightPx.value < dismissThresholdPx -> animateToDismiss()
+                    else -> animateToExpanded()
+                }
+            }
+        )
+    }
+
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.BottomCenter
     ) {
-        LazyColumn(
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = maxHeight)
-                .nestedScroll(preventCollapseOnScroll),
-            contentPadding = PaddingValues(bottom = 32.dp)
+                .height(with(density) { sheetHeightPx.value.toDp() }),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
         ) {
-            item(key = "header") {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp)
+                        .then(headerDragModifier),
+                    contentAlignment = Alignment.Center
+                ) {
+                    BottomSheetDefaults.DragHandle()
+                }
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(headerDragModifier)
                         .padding(horizontal = 16.dp)
-                        .padding(bottom = 8.dp)
+                        .padding(bottom = 6.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -121,70 +214,92 @@ fun FlowCommentsBottomSheet(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Spacer(modifier = Modifier.weight(1f))
-                        IconButton(onClick = onDismiss) {
+                        IconButton(
+                            onClick = ::animateToDismiss,
+                            modifier = Modifier.size(40.dp)
+                        ) {
                             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                         }
                     }
                     Row(
-                        modifier = Modifier.padding(top = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        modifier = Modifier.padding(top = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         FilterChip(
-                            selected = isTopSelected,
-                            onClick = { onFilterChanged(true) },
+                            selected = selectedFilter == CommentSortFilter.TOP,
+                            onClick = { onFilterChanged(CommentSortFilter.TOP) },
                             label = { Text(stringResource(R.string.filter_top)) }
                         )
                         FilterChip(
-                            selected = !isTopSelected,
-                            onClick = { onFilterChanged(false) },
+                            selected = selectedFilter == CommentSortFilter.NEWEST,
+                            onClick = { onFilterChanged(CommentSortFilter.NEWEST) },
                             label = { Text(stringResource(R.string.filter_newest)) }
+                        )
+                        FilterChip(
+                            selected = selectedFilter == CommentSortFilter.OLDEST,
+                            onClick = { onFilterChanged(CommentSortFilter.OLDEST) },
+                            label = { Text(stringResource(R.string.filter_oldest)) }
                         )
                     }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
-            }
 
-            // Loading skeleton
-            if (isLoading) {
-                item(key = "loading") {
-                    Column(Modifier.padding(16.dp)) {
-                        repeat(6) { CommentSkeleton() }
-                    }
-                }
-            } else if (comments.isEmpty()) {
-                item(key = "empty") {
-                    Box(
-                        modifier = Modifier.fillParentMaxWidth().height(120.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            stringResource(R.string.no_comments_yet),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            } else {
-                items(comments) { comment ->
-                    FlowCommentItem(
-                        comment = comment,
-                        onTimestampClick = onTimestampClick,
-                        onLoadReplies = onLoadReplies,
-                        onLoadMoreReplies = onLoadMoreReplies,
-                        onAuthorClick = onAuthorClick,
-                        onAvatarClick = onAvatarClick
-                    )
-                }
-                if (hasMore) {
-                    item(key = "load_more_trigger") {
-                        LaunchedEffect(comments.size) {
-                            latestOnLoadMore()
+                LazyColumn(
+                    state = commentsListState,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(bottom = 32.dp)
+                ) {
+                    if (isLoading) {
+                        item(key = "loading") {
+                            Column(Modifier.padding(16.dp)) {
+                                repeat(6) { CommentSkeleton() }
+                            }
                         }
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (isLoadingMore) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    } else if (comments.isEmpty()) {
+                        item(key = "empty") {
+                            Box(
+                                modifier = Modifier
+                                    .fillParentMaxWidth()
+                                    .height(120.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    stringResource(R.string.no_comments_yet),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    } else {
+                        items(
+                            items = comments,
+                            key = { comment -> "${selectedFilter.name}_${comment.id}" }
+                        ) { comment ->
+                            FlowCommentItem(
+                                comment = comment,
+                                onTimestampClick = onTimestampClick,
+                                onLoadReplies = onLoadReplies,
+                                onLoadMoreReplies = onLoadMoreReplies,
+                                onAuthorClick = onAuthorClick,
+                                onAvatarClick = onAvatarClick
+                            )
+                        }
+                        if (hasMore) {
+                            item(key = "load_more_trigger") {
+                                LaunchedEffect(comments.size) {
+                                    latestOnLoadMore()
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isLoadingMore) {
+                                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                                    }
+                                }
                             }
                         }
                     }

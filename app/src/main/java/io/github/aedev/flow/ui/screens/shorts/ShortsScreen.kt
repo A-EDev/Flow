@@ -22,6 +22,7 @@ import io.github.aedev.flow.data.model.toVideo
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
+import io.github.aedev.flow.ui.components.CommentSortFilter
 import io.github.aedev.flow.ui.components.FlowDescriptionBottomSheet
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
@@ -84,15 +85,33 @@ fun ShortsScreen(
     // Bottom sheet states
     var showCommentsSheet by remember { mutableStateOf(false) }
     var showDescriptionSheet by remember { mutableStateOf(false) }
-    var isTopComments by remember { mutableStateOf(true) }
+    var commentSortFilter by remember { mutableStateOf(CommentSortFilter.TOP) }
     val comments by viewModel.commentsState.collectAsState()
     val isLoadingComments by viewModel.isLoadingComments.collectAsState()
 
-    // Sorted comments — pinned always first, then top/newest order
-    val sortedComments = remember(comments, isTopComments) {
+    fun relativeTimeToSeconds(timeStr: String): Long {
+        val lower = timeStr.lowercase().trim()
+        val number = Regex("\\d+").find(lower)?.value?.toLongOrNull() ?: 0L
+        return when {
+            "second" in lower -> number
+            "minute" in lower -> number * 60L
+            "hour" in lower -> number * 3_600L
+            "day" in lower -> number * 86_400L
+            "week" in lower -> number * 604_800L
+            "month" in lower -> number * 2_592_000L
+            "year" in lower -> number * 31_536_000L
+            else -> Long.MAX_VALUE
+        }
+    }
+
+    val sortedComments = remember(comments, commentSortFilter) {
         val pinned = comments.filter { it.isPinned }
         val unpinned = comments.filterNot { it.isPinned }
-        val sortedUnpinned = if (isTopComments) unpinned.sortedByDescending { it.likeCount } else unpinned
+        val sortedUnpinned = when (commentSortFilter) {
+            CommentSortFilter.TOP -> unpinned.sortedByDescending { it.likeCount }
+            CommentSortFilter.NEWEST -> unpinned.sortedBy { relativeTimeToSeconds(it.publishedTime) }
+            CommentSortFilter.OLDEST -> unpinned.sortedByDescending { relativeTimeToSeconds(it.publishedTime) }
+        }
         pinned + sortedUnpinned
     }
 
@@ -383,8 +402,8 @@ fun ShortsScreen(
             FlowCommentsBottomSheet(
                 comments = sortedComments,
                 isLoading = isLoadingComments,
-                isTopSelected = isTopComments,
-                onFilterChanged = { isTopComments = it },
+                selectedFilter = commentSortFilter,
+                onFilterChanged = { commentSortFilter = it },
                 onLoadReplies = { viewModel.loadCommentReplies(it) },
                 onAuthorClick = { authorHandle ->
                     showCommentsSheet = false
