@@ -74,6 +74,7 @@ fun VideoInfoSection(
     onCopyLinkClick: () -> Unit = {},
     onCopyLinkAtTimeClick: () -> Unit = {},
     onDescriptionClick: () -> Unit,
+    isSaved: Boolean = false,
     isDownloaded: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -210,6 +211,7 @@ fun VideoInfoSection(
             onBackgroundPlayClick = onBackgroundPlayClick,
             onCopyLinkClick = onCopyLinkClick,
             onCopyLinkAtTimeClick = onCopyLinkAtTimeClick,
+            isSaved = isSaved,
             isDownloaded = isDownloaded
         )
     }
@@ -400,6 +402,7 @@ fun VideoActionRow(
     onBackgroundPlayClick: () -> Unit,
     onCopyLinkClick: () -> Unit = {},
     onCopyLinkAtTimeClick: () -> Unit = {},
+    isSaved: Boolean = false,
     isDownloaded: Boolean = false
 ) {
     LazyRow(
@@ -418,9 +421,10 @@ fun VideoActionRow(
         
         item {
             ActionChip(
-                icon = Icons.Outlined.BookmarkBorder,
-                label = stringResource(R.string.save),
-                onClick = onSaveClick
+                icon = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                label = if (isSaved) stringResource(R.string.saved) else stringResource(R.string.save),
+                onClick = onSaveClick,
+                tint = if (isSaved) MaterialTheme.colorScheme.primary else null
             )
         }
         

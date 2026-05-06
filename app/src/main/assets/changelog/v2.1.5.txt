@@ -20,6 +20,7 @@ IMPROVEMENTS
 - Improve video watch progress handling #379
 - Add share button to channel screen #397
 - Add download pause/resume to download screen #407
+- Add to playlist sheet redesign and video addition to multiple playlists #391
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

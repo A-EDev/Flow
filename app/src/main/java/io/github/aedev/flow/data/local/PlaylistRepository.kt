@@ -29,6 +29,23 @@ class PlaylistRepository @Inject constructor(
         const val SAVED_SHORTS_ID = "saved_shorts"
     }
 
+    private suspend fun persistVideoWithoutDroppingPlaylistRefs(video: Video) {
+        val entity = VideoEntity.fromDomain(video)
+        videoDao.insertVideoOrIgnore(entity)
+        videoDao.updateVideoMetadata(
+            id = entity.id,
+            title = entity.title,
+            channelName = entity.channelName,
+            channelId = entity.channelId,
+            thumbnailUrl = entity.thumbnailUrl,
+            duration = entity.duration,
+            viewCount = entity.viewCount,
+            uploadDate = entity.uploadDate,
+            description = entity.description,
+            channelThumbnailUrl = entity.channelThumbnailUrl
+        )
+    }
+
     // Saved Shorts Logic
     suspend fun addToSavedShorts(video: Video) {
         // Ensure saved shorts playlist exists
@@ -47,7 +64,7 @@ class PlaylistRepository @Inject constructor(
         }
         
         // Save video
-        videoDao.insertVideo(VideoEntity.fromDomain(video))
+        persistVideoWithoutDroppingPlaylistRefs(video)
         
         // Add relationship
         val position = System.currentTimeMillis()
@@ -97,7 +114,7 @@ class PlaylistRepository @Inject constructor(
             
             // Save video
             android.util.Log.d("PlaylistRepository", "Inserting video metadata")
-            videoDao.insertVideo(VideoEntity.fromDomain(video))
+            persistVideoWithoutDroppingPlaylistRefs(video)
             
             // Add relationship
             val position = System.currentTimeMillis()
@@ -139,6 +156,9 @@ class PlaylistRepository @Inject constructor(
         playlistDao.getVideosForPlaylist(WATCH_LATER_ID).map { entities ->
             entities.map { it.id }.toSet()
         }
+
+    fun isVideoSavedToAnyPlaylistFlow(videoId: String): Flow<Boolean> =
+        playlistDao.getVideoPlaylistMembershipCount(videoId).map { it > 0 }
 
     suspend fun isInWatchLater(videoId: String): Boolean {
         return try {
@@ -224,7 +244,7 @@ class PlaylistRepository @Inject constructor(
         try {
             android.util.Log.d("PlaylistRepository", "Adding video ${video.id} to playlist $playlistId")
             // Save video first
-            videoDao.insertVideo(VideoEntity.fromDomain(video))
+            persistVideoWithoutDroppingPlaylistRefs(video)
             
             // Add relation
             val position = -System.currentTimeMillis()

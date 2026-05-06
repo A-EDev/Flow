@@ -93,6 +93,9 @@ class VideoPlayerViewModel @Inject constructor(
         .map { list -> list.map { it.video.id }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
+    fun isVideoSavedToAnyPlaylist(videoId: String): Flow<Boolean> =
+        playlistRepository.isVideoSavedToAnyPlaylistFlow(videoId)
+
     fun initialize(context: Context) {
         // Handled by Hilt
     }

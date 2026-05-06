@@ -16,7 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import io.github.aedev.flow.data.local.PlaylistRepository
@@ -24,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,27 +42,67 @@ fun AddToPlaylistDialog(
     var playlists by remember { mutableStateOf<List<PlaylistInfo>>(emptyList()) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var watchLaterVideos by remember { mutableStateOf<List<Video>>(emptyList()) }
+    var playlistsLoaded by remember { mutableStateOf(false) }
+    var watchLaterLoaded by remember { mutableStateOf(false) }
+    var selectedPlaylistIds by remember(video.id) { mutableStateOf<Set<String>>(emptySet()) }
+    var playlistSelectionInitialized by remember(video.id) { mutableStateOf(false) }
+    var selectedWatchLater by remember(video.id) { mutableStateOf(false) }
+    var watchLaterSelectionInitialized by remember(video.id) { mutableStateOf(false) }
     
     // Load playlists and watch later
     LaunchedEffect(Unit) {
         launch {
-            repo.getAllPlaylistsFlow().collect { playlists = it }
+            repo.getAllPlaylistsFlow().collect {
+                playlists = it.filter { playlist ->
+                    playlist.id != PlaylistRepository.WATCH_LATER_ID
+                }
+                playlistsLoaded = true
+            }
         }
         launch {
-            repo.getWatchLaterVideosFlow().collect { watchLaterVideos = it }
+            repo.getWatchLaterVideosFlow().collect {
+                watchLaterVideos = it
+                watchLaterLoaded = true
+            }
         }
     }
+
+    LaunchedEffect(playlistsLoaded, playlists, video.id) {
+        if (playlistsLoaded && !playlistSelectionInitialized) {
+            val existingPlaylistIds = playlists.filter { playlist ->
+                repo.getPlaylistVideosFlow(playlist.id).first().any { it.id == video.id }
+            }.map { it.id }.toSet()
+
+            selectedPlaylistIds = existingPlaylistIds
+            playlistSelectionInitialized = true
+        }
+    }
+
+    LaunchedEffect(watchLaterLoaded, watchLaterVideos, video.id) {
+        if (watchLaterLoaded && !watchLaterSelectionInitialized) {
+            val isInWatchLater = watchLaterVideos.any { it.id == video.id }
+            selectedWatchLater = isInWatchLater
+            watchLaterSelectionInitialized = true
+        }
+    }
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val maxHeight = configuration.screenHeightDp.dp * 0.65f
+    val watchLaterThumbnail = watchLaterVideos.firstOrNull()?.thumbnailUrl.orEmpty().ifBlank { video.thumbnailUrl }
     
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberFlowSheetState(),
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-        containerColor = MaterialTheme.colorScheme.surface
+        containerColor = MaterialTheme.colorScheme.surface,
+        scrimColor = Color.Transparent,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 24.dp)
+                .heightIn(max = maxHeight)
+                .navigationBarsPadding()
+                .padding(bottom = 16.dp)
         ) {
             Text(
                 text = stringResource(R.string.save_to),
@@ -71,22 +114,32 @@ fun AddToPlaylistDialog(
             HorizontalDivider()
             
             LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
                 // Watch Later
                 item {
-                    val isInWatchLater = watchLaterVideos.any { it.id == video.id }
-                    PlaylistItem(
-                        icon = Icons.Outlined.WatchLater,
+                    PlaylistSheetRow(
+                        thumbnail = watchLaterThumbnail,
                         name = stringResource(R.string.watch_later),
-                        isChecked = isInWatchLater,
+                        privacy = stringResource(R.string.playlist_private),
+                        isSaved = selectedWatchLater,
                         onClick = {
-                            scope.launch {
-                                if (isInWatchLater) {
-                                    repo.removeFromWatchLater(video.id)
-                                } else {
-                                    repo.addToWatchLater(video)
+                            if (watchLaterSelectionInitialized) {
+                                val shouldSave = !selectedWatchLater
+                                selectedWatchLater = shouldSave
+                                scope.launch {
+                                    runCatching {
+                                        if (shouldSave) {
+                                            repo.addToWatchLater(video)
+                                        } else {
+                                            repo.removeFromWatchLater(video.id)
+                                        }
+                                    }.onFailure {
+                                        selectedWatchLater = !shouldSave
+                                    }
                                 }
                             }
                         }
@@ -105,27 +158,34 @@ fun AddToPlaylistDialog(
                     items = playlists,
                     key = { it.id }
                 ) { playlist ->
-                    var playlistVideos by remember { mutableStateOf<List<Video>>(emptyList()) }
-                    
-                    LaunchedEffect(playlist.id) {
-                        repo.getPlaylistVideosFlow(playlist.id).collect {
-                            playlistVideos = it
-                        }
-                    }
-                    
-                    val isInPlaylist = playlistVideos.any { it.id == video.id }
-                    
-                    PlaylistItemWithThumbnail(
+                    PlaylistSheetRow(
                         thumbnail = playlist.thumbnailUrl,
                         name = playlist.name,
                         privacy = if (playlist.isPrivate) stringResource(R.string.playlist_private) else stringResource(R.string.playlist_public),
-                        isChecked = isInPlaylist,
+                        isSaved = playlist.id in selectedPlaylistIds,
                         onClick = {
-                            scope.launch {
-                                if (isInPlaylist) {
-                                    repo.removeVideoFromPlaylist(playlist.id, video.id)
+                            if (playlistSelectionInitialized) {
+                                val isCurrentlySaved = playlist.id in selectedPlaylistIds
+                                selectedPlaylistIds = if (isCurrentlySaved) {
+                                    selectedPlaylistIds - playlist.id
                                 } else {
-                                    repo.addVideoToPlaylist(playlist.id, video)
+                                    selectedPlaylistIds + playlist.id
+                                }
+
+                                scope.launch {
+                                    runCatching {
+                                        if (isCurrentlySaved) {
+                                            repo.removeVideoFromPlaylist(playlist.id, video.id)
+                                        } else {
+                                            repo.addVideoToPlaylist(playlist.id, video)
+                                        }
+                                    }.onFailure {
+                                        selectedPlaylistIds = if (isCurrentlySaved) {
+                                            selectedPlaylistIds + playlist.id
+                                        } else {
+                                            selectedPlaylistIds - playlist.id
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -134,26 +194,33 @@ fun AddToPlaylistDialog(
                 
                 // Create New Playlist
                 item {
-                    Spacer(Modifier.height(8.dp))
-                    
-                    Row(
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { showCreateDialog = true }
-                            .padding(horizontal = 24.dp, vertical = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        shape = RoundedCornerShape(24.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        onClick = { showCreateDialog = true }
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Text(
-                            text = stringResource(R.string.create_new_playlist),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = stringResource(R.string.create_new_playlist),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }
@@ -163,15 +230,14 @@ fun AddToPlaylistDialog(
     // Create Playlist Dialog
     if (showCreateDialog) {
         CreateNewPlaylistDialog(
-            initialVideo = video,
             onDismiss = { showCreateDialog = false },
-            onCreate = { name, description, isPrivate ->
+            onCreate = { name, description ->
                 scope.launch {
                     val playlistId = System.currentTimeMillis().toString()
-                    repo.createPlaylist(playlistId, name, description, isPrivate)
+                    repo.createPlaylist(playlistId, name, description, true)
                     repo.addVideoToPlaylist(playlistId, video)
+                    selectedPlaylistIds = selectedPlaylistIds + playlistId
                     showCreateDialog = false
-                    onDismiss()
                 }
             }
         )
@@ -179,67 +245,33 @@ fun AddToPlaylistDialog(
 }
 
 @Composable
-private fun PlaylistItem(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    name: String,
-    isChecked: Boolean,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 24.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(24.dp)
-        )
-        
-        Text(
-            text = name,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f)
-        )
-        
-        Checkbox(
-            checked = isChecked,
-            onCheckedChange = null
-        )
-    }
-}
-
-@Composable
-private fun PlaylistItemWithThumbnail(
+private fun PlaylistSheetRow(
     thumbnail: String,
     name: String,
     privacy: String,
-    isChecked: Boolean,
+    isSaved: Boolean,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 24.dp, vertical = 12.dp),
+            .padding(horizontal = 20.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Thumbnail
         Box(
             modifier = Modifier
-                .size(56.dp)
-                .clip(RoundedCornerShape(8.dp))
+                .size(width = 88.dp, height = 50.dp)
+                .clip(RoundedCornerShape(10.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             if (thumbnail.isNotEmpty()) {
                 AsyncImage(
                     model = thumbnail,
                     contentDescription = null,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
             } else {
                 Icon(
@@ -252,17 +284,17 @@ private fun PlaylistItemWithThumbnail(
                 )
             }
         }
-        
-        // Info
+
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             Text(
                 text = name,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium,
                 maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = privacy,
@@ -270,23 +302,23 @@ private fun PlaylistItemWithThumbnail(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        
-        Checkbox(
-            checked = isChecked,
-            onCheckedChange = null
+
+        Icon(
+            imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+            contentDescription = null,
+            tint = if (isSaved) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(28.dp)
         )
     }
 }
 
 @Composable
 private fun CreateNewPlaylistDialog(
-    initialVideo: Video,
     onDismiss: () -> Unit,
-    onCreate: (String, String, Boolean) -> Unit
+    onCreate: (String, String) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    var isPrivate by remember { mutableStateOf(true) }
     
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -315,39 +347,13 @@ private fun CreateNewPlaylistDialog(
                     maxLines = 3,
                     modifier = Modifier.fillMaxWidth()
                 )
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = if (isPrivate) Icons.Filled.Lock else Icons.Filled.Public,
-                            contentDescription = null,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            text = if (isPrivate) stringResource(R.string.playlist_private) else stringResource(R.string.playlist_public),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    }
-                    
-                    Switch(
-                        checked = isPrivate,
-                        onCheckedChange = { isPrivate = it }
-                    )
-                }
             }
         },
         confirmButton = {
             TextButton(
                 onClick = {
                     if (name.isNotBlank()) {
-                        onCreate(name.trim(), description.trim(), isPrivate)
+                        onCreate(name.trim(), description.trim())
                     }
                 },
                 enabled = name.isNotBlank()

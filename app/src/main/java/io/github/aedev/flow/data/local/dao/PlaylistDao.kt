@@ -74,6 +74,13 @@ interface PlaylistDao {
     @Query("SELECT COUNT(*) FROM playlist_video_cross_ref WHERE playlistId = :playlistId AND videoId = :videoId")
     suspend fun isVideoInPlaylist(playlistId: String, videoId: String): Int
 
+    @Query("""
+        SELECT COUNT(*) FROM playlist_video_cross_ref r
+        INNER JOIN playlists p ON p.id = r.playlistId
+        WHERE r.videoId = :videoId AND p.isMusic = 0
+    """)
+    fun getVideoPlaylistMembershipCount(videoId: String): Flow<Int>
+
     @Query("SELECT COUNT(*) FROM playlists WHERE id = :id AND isUserCreated = 0")
     suspend fun isSavedExternalPlaylist(id: String): Int
 

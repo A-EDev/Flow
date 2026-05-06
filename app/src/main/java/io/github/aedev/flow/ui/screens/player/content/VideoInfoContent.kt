@@ -18,8 +18,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,6 +43,7 @@ import io.github.aedev.flow.ui.components.VideoCardFullWidth
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.data.model.Comment
+import io.github.aedev.flow.ui.components.AddToPlaylistDialog
 import io.github.aedev.flow.ui.components.VideoInfoSection
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import kotlinx.coroutines.CoroutineScope
@@ -58,6 +61,7 @@ fun VideoInfoContent(
     snackbarHostState: SnackbarHostState,
     onChannelClick: (String) -> Unit
 ) {
+    var showAddToPlaylistDialog by remember(video.id) { mutableStateOf(false) }
     val playerPrefs = remember { PlayerPreferences(context) }
     val deArrowEnabled by playerPrefs.deArrowEnabled.collectAsState(initial = false)
     val deArrowResult by produceState<DeArrowResult?>(
@@ -68,6 +72,33 @@ fun VideoInfoContent(
         value = if (deArrowEnabled) DeArrowRepository.getDeArrowResult(video.id) else null
     }
     val resolvedVideoTitle = deArrowResult?.title ?: uiState.streamInfo?.name ?: video.title
+    val dialogVideo = remember(video, uiState.streamInfo, uiState.channelAvatarUrl, resolvedVideoTitle) {
+        uiState.streamInfo?.let { streamInfo ->
+            Video(
+                id = streamInfo.id ?: video.id,
+                title = resolvedVideoTitle,
+                channelName = streamInfo.uploaderName ?: video.channelName,
+                channelId = streamInfo.uploaderUrl?.substringAfterLast("/") ?: video.channelId,
+                thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url ?: video.thumbnailUrl,
+                duration = streamInfo.duration.toInt(),
+                viewCount = streamInfo.viewCount,
+                likeCount = streamInfo.likeCount,
+                uploadDate = streamInfo.textualUploadDate ?: streamInfo.uploadDate?.run {
+                    try {
+                        val date = java.util.Date.from(offsetDateTime().toInstant())
+                        val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
+                        sdf.format(date)
+                    } catch (e: Exception) {
+                        video.uploadDate
+                    }
+                } ?: video.uploadDate,
+                description = streamInfo.description?.content ?: video.description,
+                channelThumbnailUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,
+                timestamp = video.timestamp,
+                isMusic = video.isMusic
+            )
+        } ?: video
+    }
 
     // ── Error details panel ─────────────────────────────────────────────────
     if (uiState.error != null) {
@@ -162,6 +193,15 @@ fun VideoInfoContent(
 
     val downloadedVideoIds by viewModel.downloadedVideoIds.collectAsState()
     val isVideoDownloaded = remember(downloadedVideoIds, video.id) { downloadedVideoIds.contains(video.id) }
+    val isVideoSaved by remember(video.id) { viewModel.isVideoSavedToAnyPlaylist(video.id) }
+        .collectAsState(initial = false)
+
+    if (showAddToPlaylistDialog) {
+        AddToPlaylistDialog(
+            video = dialogVideo,
+            onDismiss = { showAddToPlaylistDialog = false }
+        )
+    }
 
     VideoInfoSection(
         video = video,
@@ -257,7 +297,7 @@ fun VideoInfoContent(
                 onChannelClick(channelIdSafe)
             } ?: onChannelClick(video.channelId)
         },
-        onSaveClick = { screenState.showQuickActions = true },
+        onSaveClick = { showAddToPlaylistDialog = true },
         onShareClick = {
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
                 type = "text/plain"
@@ -267,6 +307,7 @@ fun VideoInfoContent(
             context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_video)))
         },
         onDownloadClick = { screenState.showDownloadDialog = true },
+        isSaved = isVideoSaved,
         isDownloaded = isVideoDownloaded,
         onBackgroundPlayClick = { viewModel.startBackgroundService() },
         onCopyLinkClick = {
