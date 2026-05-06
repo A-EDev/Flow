@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.CircleShape
@@ -53,6 +54,7 @@ import org.schabi.newpipe.extractor.stream.StreamSegment
 fun FlowChaptersBottomSheet(
     chapters: List<StreamSegment>,
     currentPosition: Long,
+    durationMs: Long = 0L,
     onChapterClick: (Long) -> Unit,
     onDismiss: () -> Unit,
     thumbnailUrl: String = "",
@@ -67,6 +69,14 @@ fun FlowChaptersBottomSheet(
     val dismissThresholdPx = expandedHeightPx * 0.55f
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }
+    val initialActiveChapterIndex = remember(chapters) {
+        chapters
+            .indexOfLast { currentPosition >= it.startTimeSeconds.toLong() * 1000L }
+            .coerceAtLeast(0)
+    }
+    val chaptersListState = rememberLazyListState(
+        initialFirstVisibleItemIndex = initialActiveChapterIndex
+    )
 
     fun animateToExpanded() {
         coroutineScope.launch {
@@ -108,6 +118,12 @@ fun FlowChaptersBottomSheet(
                 stiffness = Spring.StiffnessMediumLow
             )
         )
+    }
+
+    LaunchedEffect(chapters, initialActiveChapterIndex) {
+        if (chapters.isNotEmpty()) {
+            chaptersListState.scrollToItem(initialActiveChapterIndex)
+        }
     }
 
     BackHandler(onBack = ::animateToDismiss)
@@ -198,6 +214,7 @@ fun FlowChaptersBottomSheet(
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.18f))
 
                 LazyColumn(
+                    state = chaptersListState,
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
@@ -207,22 +224,26 @@ fun FlowChaptersBottomSheet(
                     itemsIndexed(chapters, key = { _, chapter -> chapter.title + chapter.startTimeSeconds }) { index, chapter ->
                         val startTimeMs = chapter.startTimeSeconds.toLong() * 1000L
                         val nextChapter = chapters.getOrNull(index + 1)
-                        val endTimeMs = nextChapter?.startTimeSeconds?.let { it.toLong() * 1000L } ?: Long.MAX_VALUE
-                        val isCurrent = currentPosition >= startTimeMs && currentPosition < endTimeMs
-                        val progress = if (isCurrent && endTimeMs != Long.MAX_VALUE && endTimeMs > startTimeMs) {
+                        val endTimeMs = nextChapter?.startTimeSeconds?.let { it.toLong() * 1000L }
+                            ?: durationMs.takeIf { it > startTimeMs }
+                        val isCurrent = currentPosition >= startTimeMs && (endTimeMs == null || currentPosition < endTimeMs)
+                        val progress = if (isCurrent && endTimeMs != null && endTimeMs > startTimeMs) {
                             ((currentPosition - startTimeMs).toFloat() / (endTimeMs - startTimeMs).toFloat()).coerceIn(0f, 1f)
                         } else {
                             0f
                         }
+                        val durationLabel = endTimeMs
+                            ?.takeIf { it > startTimeMs }
+                            ?.let { formatChapterDuration((it - startTimeMs) / 1000L) }
 
                         ChapterItem(
                             chapter = chapter,
                             isCurrent = isCurrent,
                             progress = progress,
+                            durationLabel = durationLabel,
                             thumbnailUrl = thumbnailUrl,
                             onClick = {
                                 onChapterClick(startTimeMs)
-                                animateToDismiss()
                             }
                         )
                     }
@@ -237,6 +258,7 @@ fun ChapterItem(
     chapter: StreamSegment,
     isCurrent: Boolean,
     progress: Float,
+    durationLabel: String?,
     thumbnailUrl: String,
     onClick: () -> Unit
 ) {
@@ -257,7 +279,6 @@ fun ChapterItem(
         ) {
             ChapterThumbnail(
                 thumbnailUrl = thumbnailUrl,
-                timestampLabel = formatChapterTime(chapter.startTimeSeconds),
                 isCurrent = isCurrent,
                 progress = progress
             )
@@ -312,6 +333,15 @@ fun ChapterItem(
                     maxLines = 3,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (durationLabel != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = durationLabel,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }
@@ -320,7 +350,6 @@ fun ChapterItem(
 @Composable
 private fun ChapterThumbnail(
     thumbnailUrl: String,
-    timestampLabel: String,
     isCurrent: Boolean,
     progress: Float
 ) {
@@ -363,22 +392,6 @@ private fun ChapterThumbnail(
                 .background(Color.Black.copy(alpha = if (isCurrent) 0.16f else 0.26f))
         )
 
-        Surface(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(8.dp),
-            shape = RoundedCornerShape(8.dp),
-            color = Color.Black.copy(alpha = 0.72f)
-        ) {
-            Text(
-                text = timestampLabel,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                color = Color.White,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.SemiBold
-            )
-        }
-
         if (isCurrent) {
             LinearProgressIndicator(
                 progress = { progress },
@@ -403,4 +416,20 @@ private fun formatChapterTime(totalSeconds: Int): String {
     } else {
         String.format("%d:%02d", minutes, seconds)
     }
+}
+
+private fun formatChapterDuration(totalSeconds: Long): String {
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return when {
+        hours > 0 && minutes > 0 -> "$hours ${pluralize("hour", hours)} $minutes ${pluralize("minute", minutes)}"
+        hours > 0 -> "$hours ${pluralize("hour", hours)}"
+        minutes > 0 -> "$minutes ${pluralize("minute", minutes)}"
+        else -> "$seconds ${pluralize("second", seconds)}"
+    }
+}
+
+private fun pluralize(unit: String, value: Long): String {
+    return if (value == 1L) unit else "${unit}s"
 }

@@ -103,6 +103,9 @@ fun ChannelScreen(
     LaunchedEffect(Unit) { viewModel.initialize(context) }
     LaunchedEffect(channelUrl) { viewModel.loadChannel(channelUrl) }
 
+    var showCollapsedChannelTitle by remember(channelUrl) { mutableStateOf(false) }
+    val collapsedChannelTitle = uiState.channelInfo?.name.orEmpty()
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -121,7 +124,24 @@ fun ChannelScreen(
                     contentDescription = stringResource(R.string.close)
                 )
             }
-            Spacer(modifier = Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+            ) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showCollapsedChannelTitle && collapsedChannelTitle.isNotBlank(),
+                    modifier = Modifier.align(Alignment.CenterStart)
+                ) {
+                    Text(
+                        text = collapsedChannelTitle,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
             IconButton(onClick = {
                 val shareUrl = "https://www.youtube.com/channel/${uiState.channelInfo?.id ?: channelUrl}"
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -170,7 +190,8 @@ fun ChannelScreen(
                         onSearchQueryChange = { viewModel.searchInChannel(it) },
                         initialScrollIndex = viewModel.listScrollIndex,
                         initialScrollOffset = viewModel.listScrollOffset,
-                        onScrollChanged = { idx, off -> viewModel.saveScrollPosition(idx, off) }
+                        onScrollChanged = { idx, off -> viewModel.saveScrollPosition(idx, off) },
+                        onCollapsedTitleVisibilityChange = { showCollapsedChannelTitle = it }
                     )
                 }
             }
@@ -198,7 +219,8 @@ private fun ChannelContent(
     onSearchQueryChange: (String) -> Unit = {},
     initialScrollIndex: Int = 0,
     initialScrollOffset: Int = 0,
-    onScrollChanged: (index: Int, offset: Int) -> Unit = { _, _ -> }
+    onScrollChanged: (index: Int, offset: Int) -> Unit = { _, _ -> },
+    onCollapsedTitleVisibilityChange: (Boolean) -> Unit = {}
 ) {
     val channelInfo = uiState.channelInfo ?: return
 
@@ -251,10 +273,26 @@ private fun ChannelContent(
     var headerOffsetPx by remember { mutableFloatStateOf(0f) }
 
     val density = LocalDensity.current
+    val collapseTitleThresholdPx = with(density) { 2.dp.toPx() }
     val visibleHeaderHeightDp = with(density) {
         (collapsingHeaderHeightPx + stickySectionHeightPx + headerOffsetPx)
             .coerceAtLeast(stickySectionHeightPx)
             .toDp()
+    }
+    val headerMeasured by remember { derivedStateOf { collapsingHeaderHeightPx > 0f } }
+    val showCollapsedTopBarTitle by remember(collapseTitleThresholdPx) {
+        derivedStateOf {
+            headerMeasured &&
+                headerOffsetPx <= -collapsingHeaderHeightPx + collapseTitleThresholdPx
+        }
+    }
+
+    LaunchedEffect(showCollapsedTopBarTitle) {
+        onCollapsedTitleVisibilityChange(showCollapsedTopBarTitle)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { onCollapsedTitleVisibilityChange(false) }
     }
 
     LaunchedEffect(collapsingHeaderHeightPx) {
@@ -311,29 +349,39 @@ private fun ChannelContent(
         }
     }
 
-    LaunchedEffect(sortedVideos.size, selectedFilter, pagerState.currentPage) {
-        if (selectedFilter == VideoFilter.Latest || pagerState.currentPage != 0) return@LaunchedEffect
+    LaunchedEffect(sortedVideos.size, selectedFilter, pagerState.currentPage, uiState.searchActive) {
+        if (selectedFilter == VideoFilter.Latest || pagerState.currentPage != 0 || uiState.searchActive) return@LaunchedEffect
 
-        val isNearTop =
-            videosListState.firstVisibleItemIndex <= 1 &&
-                videosListState.firstVisibleItemScrollOffset <= 40
-        if (isNearTop) {
-            videosListState.scrollToItem(0)
+        when (selectedFilter) {
+            VideoFilter.Oldest -> videosListState.scrollToItem(0)
+            VideoFilter.Popular -> {
+                val isNearTop =
+                    videosListState.firstVisibleItemIndex <= 1 &&
+                        videosListState.firstVisibleItemScrollOffset <= 40
+                if (isNearTop) {
+                    videosListState.scrollToItem(0)
+                }
+            }
+            VideoFilter.Latest -> Unit
         }
     }
 
     LaunchedEffect(sortedLive.size, selectedFilter, pagerState.currentPage) {
         if (selectedFilter == VideoFilter.Latest || pagerState.currentPage != 2) return@LaunchedEffect
 
-        val isNearTop =
-            liveListState.firstVisibleItemIndex <= 1 &&
-                liveListState.firstVisibleItemScrollOffset <= 40
-        if (isNearTop) {
-            liveListState.scrollToItem(0)
+        when (selectedFilter) {
+            VideoFilter.Oldest -> liveListState.scrollToItem(0)
+            VideoFilter.Popular -> {
+                val isNearTop =
+                    liveListState.firstVisibleItemIndex <= 1 &&
+                        liveListState.firstVisibleItemScrollOffset <= 40
+                if (isNearTop) {
+                    liveListState.scrollToItem(0)
+                }
+            }
+            VideoFilter.Latest -> Unit
         }
     }
-
-    val headerMeasured by remember { derivedStateOf { collapsingHeaderHeightPx > 0f } }
 
     Box(
         modifier = Modifier
@@ -401,7 +449,13 @@ private fun ChannelContent(
                                         modifier = Modifier.fillMaxSize(),
                                         contentPadding = listPadding
                                     ) {
-                                        videosContent(null, uiState.searchResults, isGridView, onVideoClick)
+                                        videosContent(
+                                            pagingItems = null,
+                                            sortedItems = uiState.searchResults,
+                                            isGridView = isGridView,
+                                            listKeyPrefix = "Search_${uiState.searchQuery}",
+                                            onVideoClick = onVideoClick
+                                        )
                                         item { Spacer(Modifier.height(16.dp)) }
                                     }
                                 }
@@ -423,7 +477,13 @@ private fun ChannelContent(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = listPadding
                             ) {
-                                videosContent(null, sortedVideos, isGridView, onVideoClick)
+                                videosContent(
+                                    pagingItems = null,
+                                    sortedItems = sortedVideos,
+                                    isGridView = isGridView,
+                                    listKeyPrefix = selectedFilter.name,
+                                    onVideoClick = onVideoClick
+                                )
                                 item { Spacer(Modifier.height(16.dp)) }
                             }
                         }
@@ -453,7 +513,13 @@ private fun ChannelContent(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = listPadding
                         ) {
-                            liveContent(null, sortedLive, isGridView, onVideoClick)
+                            liveContent(
+                                pagingItems = null,
+                                sortedItems = sortedLive,
+                                isGridView = isGridView,
+                                listKeyPrefix = selectedFilter.name,
+                                onVideoClick = onVideoClick
+                            )
                             item { Spacer(Modifier.height(16.dp)) }
                         }
                     }
@@ -949,6 +1015,7 @@ private fun LazyListScope.videosContent(
     pagingItems: LazyPagingItems<Video>?,
     sortedItems: SortedVideos,
     isGridView: Boolean,
+    listKeyPrefix: String = "",
     onVideoClick: (Video) -> Unit
 ) {
     if (sortedItems != null) {
@@ -956,7 +1023,7 @@ private fun LazyListScope.videosContent(
             item { EmptyState(message = "No videos found") }
             return
         }
-        items(count = sortedItems.size, key = { sortedItems[it].id }) { idx ->
+        items(count = sortedItems.size, key = { "${listKeyPrefix}_${sortedItems[it].id}" }) { idx ->
             val video = sortedItems[idx]
             if (isGridView) {
                 VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })
@@ -1021,6 +1088,7 @@ private fun LazyListScope.liveContent(
     pagingItems: LazyPagingItems<Video>?,
     sortedItems: SortedVideos,
     isGridView: Boolean,
+    listKeyPrefix: String = "",
     onVideoClick: (Video) -> Unit
 ) {
     if (sortedItems != null) {
@@ -1028,7 +1096,7 @@ private fun LazyListScope.liveContent(
             item { EmptyState(message = "No live videos found") }
             return
         }
-        items(count = sortedItems.size, key = { sortedItems[it].id }) { idx ->
+        items(count = sortedItems.size, key = { "${listKeyPrefix}_${sortedItems[it].id}" }) { idx ->
             val video = sortedItems[idx]
             if (isGridView) {
                 VideoCardFullWidth(video = video, onClick = { onVideoClick(video) })

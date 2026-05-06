@@ -199,6 +199,7 @@ fun PlayerBottomSheetsContainer(
         FlowChaptersBottomSheet(
             chapters = uiState.chapters,
             currentPosition = screenState.currentPosition,
+            durationMs = screenState.duration,
             onChapterClick = { newPosition ->
                 EnhancedPlayerManager.getInstance().seekTo(newPosition)
             },
