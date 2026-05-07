@@ -951,4 +951,11 @@
     <string name="location_preset_header">Збережені локації</string>
     <string name="location_custom_header">Власна локація</string>
     <string name="location_downloads_label">Завантаження / Потік</string>
+    <string name="location_movies_label">Фільми / Потік</string>
+    <string name="location_internal_app_label">Внутрішнє сховище додатка</string>
+    <string name="location_internal_app_desc">Приватні дані додатка — файли можуть бути видалені, якщо ви видалите додаток</string>
+    <string name="location_custom_saf_label">Огляд…</string>
+    <string name="location_custom_saf_desc">Виберіть будь-яку папку за допомогою системного засобу вибору файлів</string>
+    <string name="location_custom_manual_label">Ввести шлях вручну</string>
+    <string name="location_custom_manual_desc">Введіть абсолютний шлях, наприклад /storage/emulated/0/MyFolder</string>
 </resources>
