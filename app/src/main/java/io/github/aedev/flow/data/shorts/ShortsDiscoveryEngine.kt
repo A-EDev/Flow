@@ -188,6 +188,7 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
 
         try {
             FlowNeuroEngine.recordSeenShorts(ranked.map { it.id })
+            FlowNeuroEngine.recordFeedImpressions(ranked)
         } catch (e: Exception) {
             Log.w(TAG, "Failed to record seen Shorts", e)
         }

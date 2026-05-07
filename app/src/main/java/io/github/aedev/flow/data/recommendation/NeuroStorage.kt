@@ -39,7 +39,7 @@ internal class NeuroStorage(private val appContext: Context) {
     companion object {
         private const val TAG = "FlowNeuroEngine"
         private const val BRAIN_FILENAME = "user_neuro_brain.json"
-        private const val SCHEMA_VERSION = 12
+        private const val SCHEMA_VERSION = 13
     }
 
     // ── Serializable models ──
@@ -63,6 +63,18 @@ internal class NeuroStorage(private val appContext: Context) {
     data class SerializableRejectionSignal(
         val count: Int = 0,
         val lastRejectedAt: Long = 0L
+    )
+
+    @Serializable
+    data class SerializableTopicEvidence(
+        val positiveSignals: Int = 0,
+        val watchSignals: Int = 0,
+        val explicitSignals: Int = 0,
+        val positiveScore: Double = 0.0,
+        val videoIds: Set<String> = emptySet(),
+        val channelIds: Set<String> = emptySet(),
+        val firstSeenAt: Long = 0L,
+        val lastSeenAt: Long = 0L
     )
 
     @Serializable
@@ -90,7 +102,8 @@ internal class NeuroStorage(private val appContext: Context) {
         val suppressedChannels: Map<String, Long> = emptyMap(),
         val rejectionPatterns: Map<String, SerializableRejectionSignal> = emptyMap(),
         val feedHistory: Map<String, SerializableFeedEntry> = emptyMap(),
-        val recentQueryTokens: List<List<String>> = emptyList()
+        val recentQueryTokens: List<List<String>> = emptyList(),
+        val topicEvidence: Map<String, SerializableTopicEvidence> = emptyMap()
     )
 
     // ── DataStore setup ──
@@ -161,6 +174,28 @@ internal class NeuroStorage(private val appContext: Context) {
         lastRejectedAt = lastRejectedAt
     )
 
+    fun TopicEvidence.toSerializable() = SerializableTopicEvidence(
+        positiveSignals = positiveSignals,
+        watchSignals = watchSignals,
+        explicitSignals = explicitSignals,
+        positiveScore = positiveScore,
+        videoIds = videoIds,
+        channelIds = channelIds,
+        firstSeenAt = firstSeenAt,
+        lastSeenAt = lastSeenAt
+    )
+
+    fun SerializableTopicEvidence.toTopicEvidence() = TopicEvidence(
+        positiveSignals = positiveSignals,
+        watchSignals = watchSignals,
+        explicitSignals = explicitSignals,
+        positiveScore = positiveScore,
+        videoIds = videoIds,
+        channelIds = channelIds,
+        firstSeenAt = firstSeenAt,
+        lastSeenAt = lastSeenAt
+    )
+
     fun UserBrain.toSerializable() = SerializableBrain(
         schemaVersion = SCHEMA_VERSION,
         timeVectors = timeVectors.map { (k, v) ->
@@ -189,7 +224,8 @@ internal class NeuroStorage(private val appContext: Context) {
             v.toSerializable()
         },
         feedHistory = feedHistory.mapValues { (_, v) -> v.toSerializable() },
-        recentQueryTokens = recentQueryTokens.map { it.toList() }
+        recentQueryTokens = recentQueryTokens.map { it.toList() },
+        topicEvidence = topicEvidence.mapValues { (_, v) -> v.toSerializable() }
     )
 
     fun SerializableBrain.toUserBrain(): UserBrain {
@@ -223,6 +259,7 @@ internal class NeuroStorage(private val appContext: Context) {
             },
             feedHistory = feedHistory.mapValues { (_, v) -> v.toFeedEntry() },
             recentQueryTokens = recentQueryTokens.map { it.toSet() },
+            topicEvidence = topicEvidence.mapValues { (_, v) -> v.toTopicEvidence() },
         )
     }
 
@@ -243,10 +280,7 @@ internal class NeuroStorage(private val appContext: Context) {
         withContext(Dispatchers.IO) {
             try {
                 val data = appContext.brainDataStore.data.first()
-                if (data.interactions > 0 ||
-                    data.hasCompletedOnboarding ||
-                    data.preferredTopics.isNotEmpty()
-                ) {
+                if (data.hasAnyUserState()) {
                     val brain = data.toUserBrain()
                     Log.i(
                         TAG,
@@ -263,6 +297,29 @@ internal class NeuroStorage(private val appContext: Context) {
         }
 
     // ── Export / Import ──
+
+    private fun SerializableBrain.hasAnyUserState(): Boolean =
+        interactions > 0 ||
+            hasCompletedOnboarding ||
+            preferredTopics.isNotEmpty() ||
+            blockedTopics.isNotEmpty() ||
+            blockedChannels.isNotEmpty() ||
+            channelScores.isNotEmpty() ||
+            topicAffinities.isNotEmpty() ||
+            idfWordFrequency.isNotEmpty() ||
+            idfTotalDocuments > 0 ||
+            watchHistoryMap.isNotEmpty() ||
+            seenShortsHistory.isNotEmpty() ||
+            channelTopicProfiles.isNotEmpty() ||
+            shortsVector.topics.isNotEmpty() ||
+            suppressedVideoIds.isNotEmpty() ||
+            suppressedChannels.isNotEmpty() ||
+            rejectionPatterns.isNotEmpty() ||
+            feedHistory.isNotEmpty() ||
+            recentQueryTokens.isNotEmpty() ||
+            topicEvidence.isNotEmpty() ||
+            global.topics.isNotEmpty() ||
+            timeVectors.any { (_, vector) -> vector.topics.isNotEmpty() }
 
     suspend fun exportToStream(brain: UserBrain, output: OutputStream): Boolean =
         withContext(Dispatchers.IO) {

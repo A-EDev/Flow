@@ -38,6 +38,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.util.concurrent.atomic.AtomicInteger
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 
 data class SettingsBackup(
@@ -95,6 +96,45 @@ class BackupRepository(private val context: Context) {
     private val subscriptionRepo = SubscriptionRepository.getInstance(context)
     private val likedVideosRepo = LikedVideosRepository.getInstance(context)
     private val database = AppDatabase.getDatabase(context)
+
+    private fun rememberNeuroBootstrapCandidate(
+        candidates: LinkedHashMap<String, VideoHistoryEntry>,
+        entry: VideoHistoryEntry,
+        limit: Int = 800
+    ) {
+        if (candidates.size >= limit) return
+        if (entry.videoId.isBlank() || entry.title.isBlank()) return
+        candidates.putIfAbsent(entry.videoId, entry)
+    }
+
+    private suspend fun bootstrapNeuroFromImportedHistory(
+        entries: Collection<VideoHistoryEntry>
+    ) {
+        val videos = entries
+            .asSequence()
+            .filter { !it.isMusic && it.videoId.isNotBlank() && it.title.isNotBlank() }
+            .distinctBy { it.videoId }
+            .sortedByDescending { it.timestamp }
+            .map { entry ->
+                Video(
+                    id = entry.videoId,
+                    title = entry.title,
+                    channelName = entry.channelName,
+                    channelId = entry.channelId,
+                    thumbnailUrl = entry.thumbnailUrl,
+                    duration = if (entry.duration > 0) (entry.duration / 1000).toInt() else 0,
+                    viewCount = 0L,
+                    uploadDate = "",
+                    timestamp = entry.timestamp
+                )
+            }
+            .take(500)
+            .toList()
+
+        if (videos.isNotEmpty()) {
+            FlowNeuroEngine.bootstrapFromWatchHistory(context, videos)
+        }
+    }
 
     /** Detect which launcher icon alias is currently enabled via PackageManager. */
     private fun detectActiveIconSuffix(): String? {
@@ -386,6 +426,7 @@ class BackupRepository(private val context: Context) {
 
             var importedCount = 0
             val batch = mutableListOf<VideoHistoryEntry>()
+            val neuroBootstrapCandidates = LinkedHashMap<String, VideoHistoryEntry>()
 
             context.contentResolver.openInputStream(uri)
                 ?.bufferedReader(Charsets.UTF_8)
@@ -426,19 +467,19 @@ class BackupRepository(private val context: Context) {
                                 channelName = ""
                             }
 
-                            batch.add(
-                                VideoHistoryEntry(
-                                    videoId      = videoId,
-                                    position     = 0L,
-                                    duration     = 0L,
-                                    timestamp    = System.currentTimeMillis() - importedCount, 
-                                    title        = title,
-                                    thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
-                                    channelName  = channelName,
-                                    channelId    = channelId,
-                                    isMusic      = false
-                                )
+                            val historyEntry = VideoHistoryEntry(
+                                videoId      = videoId,
+                                position     = 0L,
+                                duration     = 0L,
+                                timestamp    = System.currentTimeMillis() - importedCount,
+                                title        = title,
+                                thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
+                                channelName  = channelName,
+                                channelId    = channelId,
+                                isMusic      = false
                             )
+                            batch.add(historyEntry)
+                            rememberNeuroBootstrapCandidate(neuroBootstrapCandidates, historyEntry)
                             importedCount++
                         }
 
@@ -464,6 +505,11 @@ class BackupRepository(private val context: Context) {
 
             if (importedCount == 0) {
                 return@withContext Result.failure(Exception("no_entries"))
+            }
+
+            try {
+                bootstrapNeuroFromImportedHistory(neuroBootstrapCandidates.values)
+            } catch (_: Exception) {
             }
 
             Result.success(importedCount)
@@ -822,6 +868,7 @@ class BackupRepository(private val context: Context) {
             val videoCsvData = mutableMapOf<String, List<String>>()
             data class SubRow(val channelId: String, val channelName: String)
             val subRows = mutableListOf<SubRow>()
+            val neuroBootstrapCandidates = LinkedHashMap<String, VideoHistoryEntry>()
 
             val OVERLAP    = 2_048
             val READ_SIZE  = 65_536
@@ -886,14 +933,16 @@ class BackupRepository(private val context: Context) {
                                         if (cm != null && cm.range.first - vm.range.last < 2_000) {
                                             chId = cm.groupValues[1].trim(); chName = unescapeHtmlEntities(cm.groupValues[2].trim())
                                         } else { chId = ""; chName = "" }
-                                        historyBatch.add(VideoHistoryEntry(
+                                        val historyEntry = VideoHistoryEntry(
                                             videoId      = videoId,
                                             position     = 0L, duration = 0L,
                                             timestamp    = System.currentTimeMillis() - historyImported,
                                             title        = title,
                                             thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
                                             channelName  = chName, channelId = chId, isMusic = false
-                                        ))
+                                        )
+                                        historyBatch.add(historyEntry)
+                                        rememberNeuroBootstrapCandidate(neuroBootstrapCandidates, historyEntry)
                                         historyImported++
                                         if (historyBatch.size >= BATCH_SIZE) {
                                             viewHistory.bulkSaveHistoryEntries(historyBatch)
@@ -1027,6 +1076,13 @@ class BackupRepository(private val context: Context) {
 
             if (subscriptionsImported == 0 && historyImported == 0 && playlistsImported == 0) {
                 return@withContext Result.failure(Exception("no_content"))
+            }
+
+            if (historyImported > 0) {
+                try {
+                    bootstrapNeuroFromImportedHistory(neuroBootstrapCandidates.values)
+                } catch (_: Exception) {
+                }
             }
 
             val parts = buildList {

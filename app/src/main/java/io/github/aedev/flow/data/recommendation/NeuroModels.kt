@@ -111,7 +111,10 @@ data class UserBrain(
 
     val recentQueryTokens: List<Set<String>> = emptyList(),
 
-    val schemaVersion: Int = 12
+
+    val topicEvidence: Map<String, TopicEvidence> = emptyMap(),
+
+    val schemaVersion: Int = 13
 )
 
 // ── Interaction Types ──
@@ -177,6 +180,17 @@ internal data class ScoredVideo(
 data class RejectionSignal(
     val count: Int,
     val lastRejectedAt: Long
+)
+
+data class TopicEvidence(
+    val positiveSignals: Int = 0,
+    val watchSignals: Int = 0,
+    val explicitSignals: Int = 0,
+    val positiveScore: Double = 0.0,
+    val videoIds: Set<String> = emptySet(),
+    val channelIds: Set<String> = emptySet(),
+    val firstSeenAt: Long = 0L,
+    val lastSeenAt: Long = 0L
 )
 
 internal data class ImpressionEntry(var count: Int, var lastSeen: Long)

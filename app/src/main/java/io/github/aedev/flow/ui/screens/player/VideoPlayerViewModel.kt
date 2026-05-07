@@ -1094,7 +1094,12 @@ class VideoPlayerViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            FlowNeuroEngine.onVideoInteraction(context, video, interactionType)
+            FlowNeuroEngine.onVideoInteraction(
+                context,
+                video,
+                interactionType,
+                percentWatched = watchFraction.toFloat()
+            )
         }
     }
 

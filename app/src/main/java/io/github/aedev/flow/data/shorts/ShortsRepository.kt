@@ -429,6 +429,7 @@ class ShortsRepository private constructor(private val context: Context) {
             val rankedIds = ranked.map { it.id }
             val shortById = candidates.associateBy { it.id }
             val reRanked = rankedIds.mapNotNull { shortById[it] }
+            FlowNeuroEngine.recordFeedImpressions(listOf(pinned.toVideo()) + ranked)
             Log.d(TAG, "✓ FlowNeuro re-ranked ${reRanked.size} shorts")
             listOf(pinned) + reRanked
         } catch (e: Exception) {

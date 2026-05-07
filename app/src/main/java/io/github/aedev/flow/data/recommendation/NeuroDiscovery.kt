@@ -48,7 +48,8 @@ internal class NeuroDiscovery(
         val score: Double,
         val maturityLevel: TopicMaturity,
         val categorySupport: Int,
-        val hasTimeContext: Boolean
+        val hasTimeContext: Boolean,
+        val hasDiscoveryEvidence: Boolean
     )
 
     private enum class TopicMaturity {
@@ -86,7 +87,8 @@ internal class NeuroDiscovery(
                     score = score,
                     maturityLevel = maturity,
                     categorySupport = categorySupport,
-                    hasTimeContext = name in timeTopics
+                    hasTimeContext = name in timeTopics,
+                    hasDiscoveryEvidence = hasDiscoveryEvidence(name, brain)
                 )
             }
             .sortedWith(
@@ -113,8 +115,7 @@ internal class NeuroDiscovery(
     }
 
     private fun selectDiverseTopics(
-        matureTopics: List<MatureTopic>,
-        brain: UserBrain
+        matureTopics: List<MatureTopic>
     ): TopicSelection {
         if (matureTopics.isEmpty()) return TopicSelection(
             emptyList(), emptyList(), emptyList(), emptyList()
@@ -178,6 +179,26 @@ internal class NeuroDiscovery(
             emerging = emerging,
             crossCategory = crossCategory
         )
+    }
+
+    private fun isDiscoveryEligible(topic: MatureTopic): Boolean =
+        topic.hasDiscoveryEvidence ||
+            topic.maturityLevel >= TopicMaturity.DEVELOPING
+
+    private fun hasDiscoveryEvidence(topic: String, brain: UserBrain): Boolean {
+        val base = NeuroScoring.stripDomainTag(topic)
+        val preferred = brain.preferredTopics.any {
+            tokenizer.normalizeLemma(it).equals(base, ignoreCase = true)
+        }
+        if (preferred) return true
+
+        val evidence = brain.topicEvidence[base] ?: brain.topicEvidence[topic]
+            ?: return false
+
+        return evidence.explicitSignals > 0 ||
+            evidence.watchSignals >= 2 ||
+            evidence.videoIds.size >= 2 ||
+            evidence.positiveScore >= 1.2
     }
 
     // ═══════════════════════════════════════════════
@@ -340,13 +361,13 @@ internal class NeuroDiscovery(
         val matureTopics = analyzeMatureTopics(brain, timeTopicSet)
 
         // Step 2: Select diverse topics
-        val selection = selectDiverseTopics(matureTopics, brain)
+        val selection = selectDiverseTopics(matureTopics)
 
         // Step 3: Generate queries — every strategy is interest-rooted
         val queries = mutableListOf<DiscoveryQuery>()
 
         addDirectQueries(queries, selection, persona, brain)
-        addCombinationQueries(queries, selection, brain)
+        addCombinationQueries(queries, selection)
         addAffinityQueries(queries, brain)
         addTimeContextQueries(queries, brain, bucket, selection)
         addChannelQueries(queries, brain)
@@ -379,7 +400,7 @@ internal class NeuroDiscovery(
         brain: UserBrain
     ) {
         // Primary interest — always included
-        selection.primary.forEach { topic ->
+        selection.primary.filter { isDiscoveryEligible(it) }.forEach { topic ->
             queries.add(
                 DiscoveryQuery(
                     buildNaturalQuery(topic.name, brain),
@@ -398,16 +419,19 @@ internal class NeuroDiscovery(
             else -> 2
         }
 
-        selection.secondary.take(secondaryCount).forEach { topic ->
-            queries.add(
-                DiscoveryQuery(
-                    buildNaturalQuery(topic.name, brain),
-                    QueryStrategy.DEEP_DIVE,
-                    calculateConfidence(topic) - 0.05,
-                    "Secondary interest: ${topic.name}"
+        selection.secondary
+            .filter { isDiscoveryEligible(it) }
+            .take(secondaryCount)
+            .forEach { topic ->
+                queries.add(
+                    DiscoveryQuery(
+                        buildNaturalQuery(topic.name, brain),
+                        QueryStrategy.DEEP_DIVE,
+                        calculateConfidence(topic) - 0.05,
+                        "Secondary interest: ${topic.name}"
+                    )
                 )
-            )
-        }
+            }
 
         // Emerging interests — requires DEVELOPING threshold before generating queries
         // (removed: premature EMERGING queries flood feed on first interaction)
@@ -421,11 +445,10 @@ internal class NeuroDiscovery(
 
     private fun addCombinationQueries(
         queries: MutableList<DiscoveryQuery>,
-        selection: TopicSelection,
-        brain: UserBrain
+        selection: TopicSelection
     ) {
-        val primary = selection.primary.firstOrNull() ?: return
-        val secondary = selection.secondary
+        val primary = selection.primary.firstOrNull { isDiscoveryEligible(it) } ?: return
+        val secondary = selection.secondary.filter { isDiscoveryEligible(it) }
 
         if (secondary.isEmpty()) return
 
@@ -537,14 +560,11 @@ internal class NeuroDiscovery(
         val globalTopics = brain.globalVector.topics
         val confirmed = timeTopics.filter { topic ->
             val globalScore = globalTopics[topic] ?: 0.0
-            globalScore > 0.10
+            globalScore > 0.10 && hasDiscoveryEvidence(topic, brain)
         }
 
-        // Fallback to raw time topics if nothing is confirmed yet
-        // (early brain with few interactions)
-        val usableTopics = confirmed.ifEmpty {
-            timeTopics.take(2)
-        }
+        val usableTopics = confirmed
+        if (usableTopics.isEmpty()) return
 
         val primaryName = selection.primary.firstOrNull()?.name
 
@@ -615,7 +635,7 @@ internal class NeuroDiscovery(
                 .sortedByDescending { it.value }
                 .take(2)
                 .map { it.key }
-                .filter { isSubstantialTopic(it) }
+                .filter { isSubstantialTopic(it) && hasDiscoveryEvidence(it, brain) }
 
             if (topTopics.size >= 2) {
                 queries.add(
@@ -634,7 +654,7 @@ internal class NeuroDiscovery(
             .flatMap { it.entries }
             .groupBy { it.key }
             .mapValues { (_, entries) -> entries.sumOf { it.value } }
-            .filter { isSubstantialTopic(it.key) }
+            .filter { isSubstantialTopic(it.key) && hasDiscoveryEvidence(it.key, brain) }
             .maxByOrNull { it.value }
 
         if (topNiche != null) {
@@ -662,7 +682,7 @@ internal class NeuroDiscovery(
         brain: UserBrain
     ) {
         val established = selection.allTopics()
-            .filter { it.maturityLevel >= TopicMaturity.ESTABLISHED }
+            .filter { it.maturityLevel >= TopicMaturity.ESTABLISHED && isDiscoveryEligible(it) }
             .take(2)
 
         established.forEachIndexed { index, topic ->
@@ -698,7 +718,7 @@ internal class NeuroDiscovery(
         brain: UserBrain,
         persona: FlowPersona
     ) {
-        val primary = selection.primary.firstOrNull() ?: return
+        val primary = selection.primary.firstOrNull { isDiscoveryEligible(it) } ?: return
         val v = brain.globalVector
 
         val formatWord = when {

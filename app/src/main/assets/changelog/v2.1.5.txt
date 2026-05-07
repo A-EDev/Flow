@@ -37,3 +37,13 @@ FIXES AND STABILITY
 - Fix pip mode freeze #354
 - Fix low thumbnail quality #403
 - Fix channel avatar on subscription #387
+
+ENGINE
+- Improve topic maturity detection for better recommendations #281
+- Fix watch progress tracking accuracy
+- Optimize learning signal weighting
+- Improve discovery query filtering
+- Improve feed history tracking
+- Fix recommendation engine concurrency issue
+- Improve brain state persistence
+- Connect YouTube watch history to recommendations #389

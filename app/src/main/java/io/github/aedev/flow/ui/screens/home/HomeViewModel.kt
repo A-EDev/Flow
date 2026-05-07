@@ -265,6 +265,7 @@ class HomeViewModel @Inject constructor(
                                     isFlowFeed = true
                                 )
                             }
+                            FlowNeuroEngine.recordFeedImpressions(quickFeed)
                         }
                     }
 
@@ -299,6 +300,7 @@ class HomeViewModel @Inject constructor(
                     _uiState.update { state ->
                         state.copy(shorts = (state.shorts + rankedShorts).distinctBy { it.id })
                     }
+                    FlowNeuroEngine.recordFeedImpressions(rankedShorts)
                 }
                 
                 // Filter to regular videos for the main feed
@@ -413,6 +415,7 @@ class HomeViewModel @Inject constructor(
                     lastRefreshTime = now
                 )}
                 HomeFeedCache.update(finalMix, _uiState.value.shorts)
+                FlowNeuroEngine.recordFeedImpressions(finalMix)
                 
             } catch (e: Exception) {
                  _uiState.update { it.copy(isLoading = false, isRefreshing = false, error = "Failed to load feed") }
@@ -460,6 +463,7 @@ class HomeViewModel @Inject constructor(
                     _uiState.update { state ->
                         state.copy(shorts = (state.shorts + rankedMore).distinctBy { it.id })
                     }
+                    FlowNeuroEngine.recordFeedImpressions(rankedMore)
                 }
                 
                 val newVideos = rawVideos.filterValid().filterWatched(watchedVideoIds.value)
@@ -470,16 +474,17 @@ class HomeViewModel @Inject constructor(
                     val rankedBatch = FlowNeuroEngine.rank(newVideos, userSubs)
                                         .shuffled()
                                         .distinctBy { it.channelId } 
-                    
+                    val currentIds = _uiState.value.videos.map { it.id }.toHashSet()
+                    val uniqueNew = rankedBatch.filter { !currentIds.contains(it.id) }
+
                     _uiState.update { state ->
-                        val currentIds = state.videos.map { it.id }.toHashSet()
-                        val uniqueNew = rankedBatch.filter { !currentIds.contains(it.id) }
                         state.copy(
                             videos = state.videos + uniqueNew,
                             isLoadingMore = false,
                             hasMorePages = true
                         )
                     }
+                    FlowNeuroEngine.recordFeedImpressions(uniqueNew)
                 } else {
                     _uiState.update { it.copy(isLoadingMore = false) }
                 }
@@ -505,6 +510,7 @@ class HomeViewModel @Inject constructor(
                 val userSubs = subscriptionRepository.getAllSubscriptionIds()
                 val ranked = FlowNeuroEngine.rank(videos, userSubs)
                 updateVideosAndShorts(ranked, append = false)
+                FlowNeuroEngine.recordFeedImpressions(ranked)
 
                 _uiState.update { it.copy(
                     isLoading = false,
@@ -528,6 +534,7 @@ class HomeViewModel @Inject constructor(
         val userSubs = subscriptionRepository.getAllSubscriptionIds()
         val ranked = FlowNeuroEngine.rank(videos, userSubs)
         updateVideosAndShorts(ranked, append = false)
+        FlowNeuroEngine.recordFeedImpressions(ranked)
         _uiState.update { it.copy(
             isLoading = false,
             hasMorePages = nextPage != null,
