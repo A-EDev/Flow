@@ -940,7 +940,7 @@
     <string name="default_video_quality_label">Якість відео за замовчуванням</string>
     <string name="download_over_wifi_only">Завантажувати тільки з Wi-Fi</string>
     <string name="audio_access_title">Доступ до музики та аудіо</string>
-    <string name="reduce_data_usage_subtitle">Економія трафіку</string>
+    <string name="reduce_data_usage_subtitle">Зменшити використання трафіку</string>
     <string name="performance_header">Продуктивність</string>
     <string name="parallel_downloading_title">Паралельне завантаження</string>
     <string name="parallel_downloading_subtitle">Завантажуйте файли кількома частинами для максимальної швидкості.</string>
