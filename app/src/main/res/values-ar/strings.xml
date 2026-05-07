@@ -1357,4 +1357,7 @@
     <string name="import_libretube_playlists_desc">‎إسترد قوائم التشغيل المحلية الخاصة بك على LibreTube من ملف JSON احتياطي.</string>
     <string name="import_yt_takeout_all">إستيراد من Google Takeout</string>
     <string name="import_yt_takeout_all_desc">إسترد اشتراكاتك على يوتيوب، وسجل المشاهدة، وقوائم التشغيل دفعة واحدة من ملفZIP خاص بخدمة Google Takeout.</string>
+    <string name="saved">تم الحفظ</string>
+    <string name="filter_oldest">الأقدم</string>
+    <string name="in_this_video">في هذا الفيديو</string>
 </resources>

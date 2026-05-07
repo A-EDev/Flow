@@ -1346,4 +1346,15 @@
     <string name="support_flow_patreon">Supporta Flow su Patreon</string>
     <string name="settings_item_app_language">Lingua dell\'app</string>
     <string name="select_text">Seleziona testo</string>
+    <string name="resume">Riprendi</string>
+    <string name="in_this_video">In questo video</string>
+    <string name="import_playlists_section_title">Playlist</string>
+    <string name="import_playlists_section_subtitle">Importa playlist di video da altre applicazioni</string>
+    <string name="import_newpipe_playlists">Importa playlist di NewPipe</string>
+    <string name="import_newpipe_playlists_desc">Importa le playlist locali di NewPipe da un file backup ZIP.</string>
+    <string name="import_libretube_playlists">Importa playlist di LibreTube</string>
+    <string name="import_libretube_playlists_desc">Importa le playlist locali di NewPipe da un file backup JSON.</string>
+    <string name="import_yt_takeout_all">Importa da Google Takeout</string>
+    <string name="import_yt_takeout_all_desc">Importa contemporaneamente le iscrizioni a YouTube, la cronologia di visualizzazione e le playlist da un file ZIP di Google Takeout.</string>
+    <string name="saved">Salvato</string>
 </resources>
