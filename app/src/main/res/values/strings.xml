@@ -1140,6 +1140,7 @@
     <string name="temporal_patterns_subtitle">How your interests shift by time of day</string>
     <string name="channel_memory">Channel Memory</string>
     <string name="channel_memory_subtitle">Implicit feedback from your viewing history</string>
+    <string name="channel_memory_empty">No channels in memory.</string>
     <string name="algorithm_insights">Algorithm Insights</string>
     <string name="algorithm_insights_subtitle">Under the hood</string>
     <string name="filters_title">Filters</string>
@@ -1494,5 +1495,129 @@
     <string name="merge_playlist_dialog_title">Add all songs to…</string>
     <string name="merge_playlist_success">Added %1$d songs to &#8220;%2$s&#8221;</string>
     <string name="merge_playlist_no_playlists">No playlists yet. Create one first!</string>
+
+    <!-- Profile Export/Import Toasts -->
+    <string name="profile_export_success">Profile exported successfully</string>
+    <string name="profile_export_failed">Export failed</string>
+    <string name="profile_import_success">Profile imported successfully</string>
+    <string name="profile_import_failed">Import failed - invalid file</string>
+
+    <!-- Learning Stats Section -->
+    <string name="learning_stats_title">Learning Signals</string>
+    <string name="learning_stats_subtitle">What the engine currently remembers</string>
+    <string name="metric_interactions">Interactions</string>
+    <string name="metric_interactions_detail">clicks, watches, skips</string>
+    <string name="metric_topics">Topics</string>
+    <string name="metric_topics_detail">weighted interests</string>
+    <string name="metric_evidence">Evidence</string>
+    <string name="metric_evidence_detail">validated topics</string>
+    <string name="metric_channels">Channels</string>
+    <string name="metric_channels_detail">affinity entries</string>
+    <string name="metric_history">History</string>
+    <string name="metric_history_detail">watch references</string>
+    <string name="metric_feed_memory">Feed Memory</string>
+    <string name="metric_feed_memory_detail">recently shown</string>
+    <string name="metric_filters">Filters</string>
+    <string name="metric_filters_detail">blocked items</string>
+    <string name="metric_suppressed">Suppressed</string>
+    <string name="metric_suppressed_detail">cooldown items</string>
+
+    <!-- Profile Maturity Section -->
+    <string name="profile_maturity_label">Profile maturity</string>
+    <string name="profile_maturity_detail">Higher maturity means the profile has enough signals to be stable</string>
+
+    <!-- Taste Shape Section -->
+    <string name="taste_shape_title">Taste Shape</string>
+    <string name="taste_shape_subtitle">Global profile compared with the active time context</string>
+    <string name="taste_pacing">Pacing</string>
+    <string name="taste_pacing_context">Current context: %1$s</string>
+    <string name="taste_complexity">Complexity</string>
+    <string name="taste_duration">Duration preference</string>
+    <string name="taste_duration_detail">Higher values lean toward longer videos</string>
+    <string name="taste_live_affinity">Live affinity</string>
+    <string name="taste_live_affinity_detail">How much live content fits the profile</string>
+    <string name="taste_topic_breadth">Topic breadth</string>
+    <string name="taste_topic_breadth_detail">%1$d topics in the global vector</string>
+
+    <!-- Interest Weights Section -->
+    <string name="interest_weights_title">Interest Weights</string>
+    <string name="interest_weights_subtitle">Highest weighted topics after probation and evidence checks</string>
+    <string name="interest_weights_empty">No topic weights yet.</string>
+
+    <!-- Time Patterns Section -->
+    <string name="time_patterns_title">Time Patterns</string>
+    <string name="time_patterns_subtitle">Swipe through weekday and weekend context vectors</string>
+    <string name="time_bucket_label_now">Now</string>
+    <string name="time_bucket_no_topics">No topics recorded</string>
+    <string name="time_bucket_top_topics">Top topics</string>
+    <string name="time_bucket_topics_count">Topics</string>
+    <string name="time_bucket_pace">Pace</string>
+    <string name="time_bucket_complexity">Complexity</string>
+    <string name="time_bucket_duration">Duration</string>
+
+    <!-- Time Bucket Display Names -->
+    <string name="time_bucket_weekday_morning">Weekday morning</string>
+    <string name="time_bucket_weekday_afternoon">Weekday afternoon</string>
+    <string name="time_bucket_weekday_evening">Weekday evening</string>
+    <string name="time_bucket_weekday_night">Weekday night</string>
+    <string name="time_bucket_weekend_morning">Weekend morning</string>
+    <string name="time_bucket_weekend_afternoon">Weekend afternoon</string>
+    <string name="time_bucket_weekend_evening">Weekend evening</string>
+    <string name="time_bucket_weekend_night">Weekend night</string>
+
+    <!-- Time Bucket Windows -->
+    <string name="time_window_morning">6 AM - 12 PM</string>
+    <string name="time_window_afternoon">12 PM - 6 PM</string>
+    <string name="time_window_evening">6 PM - 12 AM</string>
+    <string name="time_window_night">12 AM - 6 AM</string>
+
+    <!-- Channel Affinity Section -->
+    <string name="channel_affinity_strong">Strong</string>
+    <string name="channel_affinity_balanced">Balanced</string>
+    <string name="channel_affinity_cooling">Cooling</string>
+    <string name="channel_affinity_score">affinity score</string>
+
+    <!-- Discovery Status Section -->
+    <string name="discovery_status_title">Discovery Status</string>
+    <string name="discovery_status_subtitle">Queries and guardrails currently shaping exploration</string>
+    <string name="discovery_queries">Queries</string>
+    <string name="discovery_queries_detail">ready now</string>
+    <string name="discovery_query_memory">Query Memory</string>
+    <string name="discovery_query_memory_detail">recent token sets</string>
+    <string name="discovery_rejections">Rejections</string>
+    <string name="discovery_rejections_detail">topic patterns</string>
+    <string name="discovery_shorts_seen">Shorts Seen</string>
+    <string name="discovery_shorts_seen_detail">repeat guard</string>
+
+    <!-- Blocked Content Section -->
+    <string name="blocked_content_title">Filters</string>
+    <string name="blocked_content_subtitle">Topics and channels excluded from recommendations</string>
+    <string name="blocked_topics_header">Blocked topics</string>
+    <string name="blocked_channels_header">Blocked channels</string>
+    <string name="blocked_item_unblock_topic">Unblock topic</string>
+    <string name="blocked_item_unblock_channel">Unblock channel</string>
+    <string name="blocked_item_showing_count">Showing %1$d of %2$d</string>
+
+    <!-- Profile Data Section -->
+    <string name="profile_data_title">Profile Data</string>
+    <string name="profile_data_subtitle">Backup, restore, or reset the local recommendation profile</string>
+    <string name="profile_action_export">Export profile</string>
+    <string name="profile_action_export_detail">Save the current profile as JSON</string>
+    <string name="profile_action_import">Import profile</string>
+    <string name="profile_action_import_detail">Restore a profile backup</string>
+    <string name="profile_action_reset">Reset profile</string>
+    <string name="profile_action_reset_detail">Erase learned preferences and start fresh</string>
+
+    <!-- Reset Profile Dialog -->
+    <string name="reset_profile_dialog_title">Reset profile?</string>
+    <string name="reset_profile_dialog_message">This clears the local recommendation profile and starts learning again from zero.</string>
+    <string name="reset_profile_confirm">Reset</string>
+
+    <!-- Taste Chart Labels -->
+    <string name="taste_chart_profile">Profile</string>
+    <string name="taste_chart_now">Now</string>
+
+    <!-- Topic Evidence -->
+    <string name="topic_score_prefix">Score</string>
 </resources>
 

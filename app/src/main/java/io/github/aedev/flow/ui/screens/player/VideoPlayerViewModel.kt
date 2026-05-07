@@ -1162,6 +1162,33 @@ class VideoPlayerViewModel @Inject constructor(
         viewModelScope.launch {
             likedVideosRepository.dislikeVideo(videoId)
             _uiState.value = _uiState.value.copy(likeState = "DISLIKED")
+            try {
+                val state = _uiState.value
+                val video = state.cachedVideo?.takeIf { it.id == videoId }
+                    ?: state.streamInfo?.takeIf { it.id == videoId }?.let { info ->
+                        Video(
+                            id = videoId,
+                            title = info.name ?: "",
+                            channelName = info.uploaderName ?: "",
+                            channelId = info.uploaderUrl?.split("/")?.last() ?: "",
+                            thumbnailUrl = info.thumbnails.maxByOrNull { it.height }?.url ?: "",
+                            duration = info.duration.toInt(),
+                            viewCount = info.viewCount,
+                            uploadDate = "",
+                            description = info.description?.content ?: "",
+                            tags = info.tags ?: emptyList()
+                        )
+                    }
+                if (video != null) {
+                    FlowNeuroEngine.onVideoInteraction(
+                        context,
+                        video,
+                        InteractionType.DISLIKED
+                    )
+                }
+            } catch (e: Exception) {
+                Log.w("VideoPlayerViewModel", "Failed to record dislike", e)
+            }
         }
     }
     

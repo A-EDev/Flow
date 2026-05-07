@@ -57,6 +57,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.ChannelSubscription
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
+import io.github.aedev.flow.data.recommendation.NeuroTopicCatalog
 import io.github.aedev.flow.data.recommendation.TopicCategory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -68,6 +69,7 @@ import org.schabi.newpipe.extractor.channel.ChannelInfoItem
 import androidx.activity.ComponentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import io.github.aedev.flow.ui.components.topicCategoryIcon
 import io.github.aedev.flow.ui.screens.settings.ImportViewModel
 import io.github.aedev.flow.ui.screens.settings.ImportProgressBanner
 
@@ -110,7 +112,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
     // Step 1 — interests
     var selectedTopics by remember { mutableStateOf<Set<String>>(emptySet()) }
     var visibleCategories by remember { mutableStateOf(0) }
-    val totalCategories = FlowNeuroEngine.TOPIC_CATEGORIES.size
+    val totalCategories = NeuroTopicCatalog.TOPIC_CATEGORIES.size
 
     LaunchedEffect(Unit) {
         for (i in 1..totalCategories) {
@@ -518,10 +520,10 @@ private fun InterestsStep(
         }
 
         items(
-            items = FlowNeuroEngine.TOPIC_CATEGORIES,
+            items = NeuroTopicCatalog.TOPIC_CATEGORIES,
             key = { it.name }
         ) { category ->
-            val index = FlowNeuroEngine.TOPIC_CATEGORIES.indexOf(category)
+            val index = NeuroTopicCatalog.TOPIC_CATEGORIES.indexOf(category)
             AnimatedVisibility(
                 visible = index < visibleCategories,
                 enter = fadeIn(tween(280)) + slideInVertically(tween(300)) { it / 4 },
@@ -1043,10 +1045,13 @@ private fun CategoryCard(
                     .padding(vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = category.icon,
-                    fontSize = 20.sp,
-                    modifier = Modifier.padding(end = 10.dp)
+                Icon(
+                    imageVector = topicCategoryIcon(category.icon),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .padding(end = 10.dp)
+                        .size(22.dp),
+                    tint = MaterialTheme.colorScheme.primary
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
