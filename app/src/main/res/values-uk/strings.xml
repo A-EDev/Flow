@@ -1250,4 +1250,8 @@
     <string name="import_master_backup_failed">Не вдалося імпортувати повну резервну копію</string>
     <string name="auto_backup_title">Автоматичне резервне копіювання</string>
     <string name="auto_backup_subtitle">Запланувати автоматичне копіювання в папку</string>
+    <string name="location_manual_dialog_title">Власний шлях завантаження</string>
+    <string name="location_manual_hint">/storage/emulated/0/…</string>
+    <string name="location_manual_confirm">Зберегти</string>
+    <string name="location_badge_recommended">Рекомендовано</string>
 </resources>
