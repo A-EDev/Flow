@@ -944,4 +944,11 @@
     <string name="performance_header">Продуктивність</string>
     <string name="parallel_downloading_title">Паралельне завантаження</string>
     <string name="parallel_downloading_subtitle">Завантажуйте файли кількома частинами для максимальної швидкості.</string>
+    <string name="concurrent_threads_title">Паралельні потоки</string>
+    <string name="threads_per_download_template">%1$d потоків на завантаження</string>
+    <string name="performance_optimization_note">Використання більшої кількості потоків може збільшити швидкість, але може споживати більше акумулятора та нагрівати пристрій.</string>
+    <string name="location_dialog_subtitle">Виберіть місце збереження завантажених файлів на вашому пристрої.</string>
+    <string name="location_preset_header">Збережені локації</string>
+    <string name="location_custom_header">Власна локація</string>
+    <string name="location_downloads_label">Завантаження / Потік</string>
 </resources>
