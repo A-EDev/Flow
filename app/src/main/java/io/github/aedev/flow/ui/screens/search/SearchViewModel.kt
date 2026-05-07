@@ -85,7 +85,10 @@ class SearchViewModel(
 
     fun hasActiveFilters(filters: SearchFilter?): Boolean {
         if (filters == null) return false
-        return filters.contentType != ContentType.ALL || filters.duration != io.github.aedev.flow.data.local.Duration.ANY || filters.uploadDate != io.github.aedev.flow.data.local.UploadDate.ANY
+        return filters.contentType != ContentType.ALL
+                || filters.duration != io.github.aedev.flow.data.local.Duration.ANY
+                || filters.uploadDate != io.github.aedev.flow.data.local.UploadDate.ANY
+                || filters.sortType != io.github.aedev.flow.data.local.SortType.RELEVANCE
     }
 
     suspend fun getSearchSuggestions(query: String): List<String> {
