@@ -6,6 +6,7 @@ import androidx.paging.PagingState
 import io.github.aedev.flow.data.local.Duration
 import io.github.aedev.flow.data.local.UploadDate
 import io.github.aedev.flow.data.local.SearchFilter
+import io.github.aedev.flow.data.local.SortType
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Playlist
 import io.github.aedev.flow.data.model.Video
@@ -160,7 +161,7 @@ class SearchPagingSource(
                 Log.d(TAG, "Loaded ${items.size} items | query='$query' | nextPage=${infoPage.nextPage != null}")
 
                 LoadResult.Page(
-                    data = items,
+                    data = sortVideoItems(searchFilter = searchFilter, items),
                     prevKey = null,
                     nextKey = infoPage.nextPage
                 )
@@ -193,4 +194,19 @@ class SearchPagingSource(
     private fun extractPlaylistId(url: String): String =
         url.substringAfter("list=").substringBefore("&")
             .ifEmpty { url.substringAfterLast("/").substringBefore("?") }
+
+    private fun sortVideoItems(searchFilter: SearchFilter?, items: List<SearchResultItem>): List<SearchResultItem> =
+        when (searchFilter?.sortType) {
+            SortType.RELEVANCE -> items
+            SortType.RATING -> items.sortedByDescending { item ->
+                if (item is SearchResultItem.VideoResult) item.video.likeCount else 0L
+            }
+
+            SortType.VIEWS -> items.sortedByDescending { item ->
+                if (item is SearchResultItem.VideoResult) item.video.viewCount else 0L
+            }
+
+            else -> items
+        }
+
 }

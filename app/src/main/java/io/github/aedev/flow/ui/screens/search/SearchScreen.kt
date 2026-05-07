@@ -219,6 +219,9 @@ fun SearchScreen(
         ContentType.ALL, ContentType.VIDEOS, ContentType.CHANNELS,
         ContentType.PLAYLISTS, ContentType.LIVE
     )
+    val sortByTypes = listOf(
+        SortType.RELEVANCE, SortType.RATING, SortType.VIEWS
+    )
     LaunchedEffect(selectedTabIndex) {
         if (uiState.query.isNotBlank()) {
             val base = uiState.filters ?: SearchFilter()
@@ -356,7 +359,12 @@ fun SearchScreen(
                     viewModel.updateFilters(base.copy(uploadDate = date))
                 },
                 isGridMode = isGridMode,
-                onToggleGridMode = { scope.launch { preferences.setSearchIsGridMode(!isGridMode) } }
+                onToggleGridMode = { scope.launch { preferences.setSearchIsGridMode(!isGridMode) } },
+                selectedSortType = uiState.filters?.sortType ?: SortType.RELEVANCE,
+                onSelectedSortType = {
+                    val base = uiState.filters ?: SearchFilter()
+                    viewModel.updateFilters(base.copy(sortType = it))
+                }
             )
 
             val isInitialLoading =
@@ -579,8 +587,10 @@ private fun SearchFiltersBar(
     onDurationSelected: (Duration) -> Unit,
     selectedUploadDate: UploadDate,
     onUploadDateSelected: (UploadDate) -> Unit,
+    selectedSortType: SortType,
+    onSelectedSortType: (SortType) -> Unit,
     isGridMode: Boolean,
-    onToggleGridMode: () -> Unit
+    onToggleGridMode: () -> Unit,
 ) {
     val showVideoFilters = selectedContentType in listOf(
         ContentType.ALL, ContentType.VIDEOS, ContentType.LIVE
@@ -604,6 +614,11 @@ private fun SearchFiltersBar(
         UploadDate.THIS_WEEK to "This Week",
         UploadDate.THIS_MONTH to "This Month",
         UploadDate.THIS_YEAR to "This Year"
+    )
+    val sortTypeLabels = listOf(
+        SortType.RELEVANCE to "Relevance",
+        SortType.RATING to "Rating",
+        SortType.VIEWS to "Views"
     )
 
     Row(
@@ -708,6 +723,36 @@ private fun SearchFiltersBar(
                                     onClick = {
                                         onUploadDateSelected(date)
                                         dateExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+                item {
+                    var sortExpanded by remember { mutableStateOf(false) }
+                    Box {
+                        FilterChip(
+                            selected = selectedSortType != SortType.RELEVANCE,
+                            onClick = { sortExpanded = true },
+                            label = { Text(sortTypeLabels.first { it.first == selectedSortType }.second) },
+                            trailingIcon = {
+                                Icon(Icons.Default.ArrowDropDown, null, Modifier.size(16.dp))
+                            }
+                        )
+                        DropdownMenu(
+                            expanded = sortExpanded,
+                            onDismissRequest = { sortExpanded = false }
+                        ) {
+                            sortTypeLabels.forEach { (sort, label) ->
+                                DropdownMenuItem(
+                                    text = { Text(label) },
+                                    leadingIcon = if (sort == selectedSortType) {
+                                        { Icon(Icons.Default.Check, null, Modifier.size(16.dp)) }
+                                    } else null,
+                                    onClick = {
+                                        onSelectedSortType(sort)
+                                        sortExpanded = false
                                     }
                                 )
                             }

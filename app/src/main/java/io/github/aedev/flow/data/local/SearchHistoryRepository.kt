@@ -36,11 +36,16 @@ enum class SuggestionType {
 data class SearchFilter(
     val contentType: ContentType = ContentType.ALL,
     val duration: Duration = Duration.ANY,
-    val uploadDate: UploadDate = UploadDate.ANY
+    val uploadDate: UploadDate = UploadDate.ANY,
+    val sortType: SortType = SortType.RELEVANCE
 )
 
 enum class ContentType {
     ALL, VIDEOS, CHANNELS, PLAYLISTS, LIVE
+}
+
+enum class SortType {
+   RELEVANCE, RATING, VIEWS
 }
 
 enum class Duration {
