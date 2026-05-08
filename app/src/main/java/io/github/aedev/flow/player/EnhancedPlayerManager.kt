@@ -733,13 +733,28 @@ class EnhancedPlayerManager private constructor() {
         player?.stop()
         player?.clearMediaItems()
         qualityManager?.resetForNewVideo()
-        _playerState.value = _playerState.value.copy(isPlaying = false, currentVideoId = null)
+        _playerState.value = _playerState.value.copy(
+            isPlaying = false,
+            playWhenReady = false,
+            isBuffering = false,
+            isPrepared = false,
+            hasEnded = false,
+            currentVideoId = null
+        )
     }
 
     fun getPlayer(): ExoPlayer? = player
     fun getCurrentPosition(): Long = player?.currentPosition ?: 0L
     fun getDuration(): Long = player?.duration ?: 0L
     fun isPlaying(): Boolean = player?.isPlaying ?: false
+    fun isPreparedForPlayback(videoId: String): Boolean {
+        val p = player ?: return false
+        val state = _playerState.value
+        return state.currentVideoId == videoId &&
+            state.isPrepared &&
+            p.currentMediaItem != null &&
+            p.playbackState != Player.STATE_IDLE
+    }
 
     // ===== Quality & Audio Management =====
     

@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.res.stringResource
@@ -58,14 +59,15 @@ fun FlowChaptersBottomSheet(
     onChapterClick: (Long) -> Unit,
     onDismiss: () -> Unit,
     thumbnailUrl: String = "",
+    expandedHeight: Dp? = null,
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
     val latestOnDismiss by rememberUpdatedState(onDismiss)
-    val expandedHeight = configuration.screenHeightDp.dp * 0.75f
-    val expandedHeightPx = with(density) { expandedHeight.toPx() }
+    val sheetExpandedHeight = expandedHeight ?: (configuration.screenHeightDp.dp * 0.75f)
+    val expandedHeightPx = with(density) { sheetExpandedHeight.toPx() }
     val dismissThresholdPx = expandedHeightPx * 0.55f
     val sheetHeightPx = remember { Animatable(0f) }
     var isAnimatingOut by remember { mutableStateOf(false) }

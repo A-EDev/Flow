@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -150,6 +151,7 @@ fun GlobalPlayerOverlay(
     val savedSubtitleStyle by playerPreferences.subtitleStyle.collectAsState(initial = SubtitleStyle())
 
     var videoAspectRatio by remember { mutableFloatStateOf(16f / 9f) }
+    var expandedPlayerBottom by remember { mutableStateOf(0.dp) }
 
     LaunchedEffect(video.id) {
         videoAspectRatio = 16f / 9f
@@ -182,10 +184,17 @@ fun GlobalPlayerOverlay(
     LaunchedEffect(playerSheetState.currentValue) {
         if (playerSheetState.currentValue == PlayerSheetValue.Collapsed) {
             screenState.isFullscreen = false
+            screenState.dismissMediaSheets()
             screenState.zoomScale = 1f
             screenState.zoomOffsetX = 0f
             screenState.zoomOffsetY = 0f
             screenState.showZoomIndicator = false
+        }
+    }
+
+    LaunchedEffect(screenState.isFullscreen) {
+        if (screenState.isFullscreen) {
+            screenState.dismissMediaSheets()
         }
     }
 
@@ -335,6 +344,13 @@ fun GlobalPlayerOverlay(
             context = context,
             screenState = screenState
         )
+
+        PlaybackStartupRecoveryEffect(
+            videoId = video.id,
+            uiState = playerUiState,
+            screenState = screenState,
+            viewModel = playerViewModel
+        )
     }
     
     // Seekbar preview
@@ -424,9 +440,18 @@ fun GlobalPlayerOverlay(
     
     // ===== UI =====
     val isMinimized = playerSheetState.fraction > 0.5f
+    val density = LocalDensity.current
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val fullScreenHeight = constraints.maxHeight.toFloat()
+        val mediaSheetExpandedHeight = with(density) {
+            val availablePx = fullScreenHeight - expandedPlayerBottom.toPx()
+            if (expandedPlayerBottom > 0.dp && availablePx > 0f) {
+                availablePx.toDp()
+            } else {
+                config.screenHeightDp.dp * 0.75f
+            }
+        }
 
         DraggablePlayerLayout(
                 state = playerSheetState,
@@ -441,9 +466,14 @@ fun GlobalPlayerOverlay(
                 onDismiss = onClose,
                 onCollapseGesture = {
                     screenState.isFullscreen = false
+                    screenState.dismissMediaSheets()
                 },
                 onFullscreenGesture = {
+                    screenState.dismissMediaSheets()
                     screenState.isFullscreen = true
+                },
+                onExpandedPlayerBottomChanged = { bottom ->
+                    expandedPlayerBottom = bottom
                 },
                 videoContent = { modifier ->
                     // ALWAYS use the same video surface
@@ -962,6 +992,7 @@ fun GlobalPlayerOverlay(
             isLoadingMoreComments = isLoadingMoreComments,
             hasMoreComments = hasMoreComments,
             onLoadMoreComments = { videoId -> playerViewModel.loadMoreComments(videoId) },
+            mediaSheetExpandedHeight = mediaSheetExpandedHeight,
             context = context,
             onPlayAsShort = { videoId ->
                 onClose()

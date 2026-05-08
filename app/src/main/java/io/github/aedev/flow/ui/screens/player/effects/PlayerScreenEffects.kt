@@ -452,8 +452,7 @@ fun PlayerInitEffect(
                 return@LaunchedEffect
             }
 
-            val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
-            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) {
+            if (EnhancedPlayerManager.getInstance().isPreparedForPlayback(videoId)) {
                 Log.d(TAG, "Player already prepared for $videoId (offline), skipping")
                 return@LaunchedEffect
             }
@@ -482,7 +481,7 @@ fun PlayerInitEffect(
 
         if (videoStream != null && audioStream != null) {
             val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
-            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) {
+            if (EnhancedPlayerManager.getInstance().isPreparedForPlayback(videoId)) {
                 Log.d(TAG, "Player already prepared for $videoId, skipping setStreams")
                 return@LaunchedEffect
             }
@@ -527,7 +526,7 @@ fun PlayerInitEffect(
         } else if (uiState.isAdaptiveMode && audioStream != null && uiState.streamInfo != null) {
             val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
             
-            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) {
+            if (EnhancedPlayerManager.getInstance().isPreparedForPlayback(videoId)) {
                 Log.d(TAG, "Player already prepared for $videoId (AUTO mode), skipping setStreams")
                 return@LaunchedEffect
             }
@@ -564,6 +563,58 @@ fun PlayerInitEffect(
 
             EnhancedPlayerManager.getInstance().play()
             applyRememberedSpeed(context, screenState)
+        }
+    }
+}
+
+@Composable
+fun PlaybackStartupRecoveryEffect(
+    videoId: String,
+    uiState: VideoPlayerUiState,
+    screenState: PlayerScreenState,
+    viewModel: VideoPlayerViewModel
+) {
+    var recoveredVideoId by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(videoId) {
+        recoveredVideoId = null
+    }
+
+    LaunchedEffect(videoId, uiState.isLoading, uiState.streamInfo, uiState.localFilePath, uiState.error) {
+        if (uiState.isLoading || uiState.error != null || uiState.isRestoredSession) return@LaunchedEffect
+        if (uiState.streamInfo == null && uiState.localFilePath == null) return@LaunchedEffect
+
+        delay(5_000L)
+
+        val manager = EnhancedPlayerManager.getInstance()
+        val player = manager.getPlayer()
+        val playerState = manager.playerState.value
+        if (playerState.currentVideoId != videoId && uiState.cachedVideo?.id != videoId) return@LaunchedEffect
+
+        val hasMedia = player?.currentMediaItem != null
+        val isIdle = player == null || player.playbackState == Player.STATE_IDLE
+
+        if (hasMedia && isIdle) {
+            Log.w(TAG, "Startup recovery: player idle for $videoId, preparing again")
+            player?.prepare()
+            player?.play()
+            delay(2_000L)
+        }
+
+        val latestPlayer = manager.getPlayer()
+        val latestState = manager.playerState.value
+        val hasDuration = screenState.duration > 0L || (latestPlayer?.duration ?: 0L) > 0L
+        val hasStarted = (latestPlayer?.currentPosition ?: 0L) > 500L || latestState.isPlaying
+        val belongsToVideo = latestState.currentVideoId == videoId || uiState.cachedVideo?.id == videoId
+
+        val stillStuck = belongsToVideo &&
+            recoveredVideoId != videoId &&
+            (!manager.isPreparedForPlayback(videoId) || (!hasDuration && !hasStarted))
+
+        if (stillStuck) {
+            recoveredVideoId = videoId
+            Log.w(TAG, "Startup recovery: reloading stuck playback for $videoId")
+            viewModel.retryLoadVideo()
         }
     }
 }

@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
@@ -38,6 +39,7 @@ fun PlayerBottomSheetsContainer(
     isLoadingMoreComments: Boolean = false,
     hasMoreComments: Boolean = false,
     onLoadMoreComments: (videoId: String) -> Unit = {},
+    mediaSheetExpandedHeight: Dp? = null,
     context: Context,
     onPlayAsShort: (String) -> Unit,
     onPlayAsMusic: (String) -> Unit,
@@ -151,6 +153,7 @@ fun PlayerBottomSheetsContainer(
                 screenState.showCommentsSheet = false
                 onNavigateToChannel?.invoke("@$authorHandle")
             },
+            expandedHeight = mediaSheetExpandedHeight,
             onDismiss = { screenState.showCommentsSheet = false }
         )
     }
@@ -190,6 +193,7 @@ fun PlayerBottomSheetsContainer(
             video = currentVideo,
             tags = uiState.streamInfo?.tags ?: emptyList(),
             onTimestampClick = handleTimestampClick,
+            expandedHeight = mediaSheetExpandedHeight,
             onDismiss = { screenState.showDescriptionSheet = false }
         )
     }
@@ -204,6 +208,7 @@ fun PlayerBottomSheetsContainer(
                 EnhancedPlayerManager.getInstance().seekTo(newPosition)
             },
             thumbnailUrl = video.thumbnailUrl,
+            expandedHeight = mediaSheetExpandedHeight,
             onDismiss = { screenState.showChaptersSheet = false }
         )
     }

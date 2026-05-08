@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-7
+DATE: 2026-05-8
 
 FEATURES
 - Add new Proxy manager and routing #362
@@ -27,6 +27,7 @@ IMPROVEMENTS
 - Personality/control center redesign and optimization
 - Improve dislike signals from video player
 - Improve topics categories
+- Improve dynamic video player sizing and handling
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378
@@ -40,6 +41,7 @@ FIXES AND STABILITY
 - Fix pip mode freeze #354
 - Fix low thumbnail quality #403
 - Fix channel avatar on subscription #387
+- Fix background playback #417
 
 ENGINE
 - Improve topic maturity detection for better recommendations #281

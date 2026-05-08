@@ -927,8 +927,7 @@ class VideoPlayerViewModel @Inject constructor(
         isAdaptiveMode: Boolean
     ) = withContext(Dispatchers.Main) {
         val manager = EnhancedPlayerManager.getInstance()
-        val currentPlayerState = manager.playerState.value
-        if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) return@withContext
+        if (manager.isPreparedForPlayback(videoId)) return@withContext
 
         manager.initialize(context)
 

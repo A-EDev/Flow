@@ -118,6 +118,12 @@ class PlayerScreenState {
         showZoomIndicator = false
         zoomIndicatorSequence = 0
     }
+
+    fun dismissMediaSheets() {
+        showCommentsSheet = false
+        showDescriptionSheet = false
+        showChaptersSheet = false
+    }
     
     fun cycleResizeMode() {
         resizeMode = (resizeMode + 1) % 3

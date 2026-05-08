@@ -24,6 +24,7 @@ import io.github.aedev.flow.data.model.Video
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
 import android.app.ActivityManager
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.os.Process
@@ -43,6 +44,7 @@ class VideoPlayerService : Service() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
     private var hasStartedForeground = false
+    private var isPlaybackActive = false
 
     /**
      * Coroutine job that releases WakeLock/WifiLock after a 30-second grace period.
@@ -177,7 +179,7 @@ class VideoPlayerService : Service() {
         serviceScope.launch {
             EnhancedPlayerManager.getInstance().playerState.collectLatest { state ->
                 isPlaying = state.isPlaying
-                val isPlaybackActive = state.isPlaying || state.isBuffering
+                isPlaybackActive = state.isPlaying || state.isBuffering || state.playWhenReady
 
                 val globalVideo = GlobalPlayerState.currentVideo.value
                 if (globalVideo != null && globalVideo.id != currentVideo?.id) {
@@ -214,6 +216,14 @@ class VideoPlayerService : Service() {
         val requestedChannel = intent?.getStringExtra(EXTRA_VIDEO_CHANNEL)
 
         intent?.let { handleIntent(it) }
+        if (intent?.action == ACTION_STOP || intent?.action == ACTION_CLOSE) {
+            return START_NOT_STICKY
+        }
+        EnhancedPlayerManager.getInstance().playerState.value.let { state ->
+            isPlaying = state.isPlaying
+            isPlaybackActive = state.isPlaying || state.isBuffering || state.playWhenReady
+            updateLocks(isPlaybackActive)
+        }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !hasStartedForeground) {
             try {
@@ -243,6 +253,14 @@ class VideoPlayerService : Service() {
         MediaButtonReceiver.handleIntent(mediaSession, intent)
 
         return START_STICKY
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN && isPlaybackActive) {
+            updateLocks(true)
+            updateNotification()
+        }
     }
     
     private fun handleIntent(intent: Intent) {
@@ -527,6 +545,7 @@ class VideoPlayerService : Service() {
             .setDeleteIntent(closeIntent)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(isPlaybackActive)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
              // Add Previous Action
@@ -578,7 +597,7 @@ class VideoPlayerService : Service() {
             .setSubText("Flow Player")
             .setSmallIcon(R.drawable.ic_notification_logo)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setOngoing(false)
+            .setOngoing(true)
             .setDeleteIntent(closeIntent)
             .addAction(R.drawable.ic_close, "Close", closeIntent)
             .build()

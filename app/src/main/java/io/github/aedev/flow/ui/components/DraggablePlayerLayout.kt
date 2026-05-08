@@ -198,6 +198,7 @@ fun DraggablePlayerLayout(
     onDismiss: () -> Unit = {},
     onCollapseGesture: (() -> Unit)? = null,
     onFullscreenGesture: (() -> Unit)? = null,
+    onExpandedPlayerBottomChanged: (Dp) -> Unit = {},
     videoAspectRatio: Float = 16f / 9f
 ) {
     val density = LocalDensity.current
@@ -262,6 +263,19 @@ fun DraggablePlayerLayout(
             val baseVideoHeight     = expandedVideoWidth * (9f / 16f)
             val clampedAspect       = videoAspectRatio.coerceAtMost(2.0f)
             val expandedVideoHeight = expandedVideoWidth / clampedAspect
+            val currentExpandedVideoHeight =
+                if (expandedVideoHeight > baseVideoHeight) {
+                    lerpFloat(baseVideoHeight, expandedVideoHeight, playerHeightFraction)
+                } else {
+                    expandedVideoHeight
+                }
+            val expandedPlayerBottom = with(density) {
+                (statusBarHeight + currentExpandedVideoHeight).toDp()
+            }
+
+            SideEffect {
+                onExpandedPlayerBottomChanged(expandedPlayerBottom)
+            }
 
             val minX = margin
             val maxX = (screenWidth - miniWidth - margin).coerceAtLeast(margin)
@@ -430,9 +444,9 @@ fun DraggablePlayerLayout(
             }
             if (!showImmersiveFullscreen && bodyAlpha > 0f && !state.isInlineMode) {
                 val videoHeightPlaceholder =
-                    if (isSplitLayout) with(density) { expandedVideoHeight.toDp() } else 0.dp
+                    if (isSplitLayout) with(density) { currentExpandedVideoHeight.toDp() } else 0.dp
                 val bodyPaddingTop =
-                    if (isSplitLayout) statusBarHeight else expandedVideoHeight + statusBarHeight
+                    if (isSplitLayout) statusBarHeight else currentExpandedVideoHeight + statusBarHeight
 
                 CompositionLocalProvider(LocalLayoutDirection provides systemLayoutDirection) {
                     Box(
@@ -485,7 +499,7 @@ fun DraggablePlayerLayout(
                                     lerpFloat(expandedVideoWidth, miniWidth, fraction).toInt()
                                         .coerceIn(1, constraints.maxWidth)
                                 val targetH =
-                                    lerpFloat(expandedVideoHeight, miniHeight, fraction).toInt()
+                                    lerpFloat(currentExpandedVideoHeight, miniHeight, fraction).toInt()
                                         .coerceIn(1, constraints.maxHeight)
                                 val placeable = measurable.measure(
                                     constraints.copy(

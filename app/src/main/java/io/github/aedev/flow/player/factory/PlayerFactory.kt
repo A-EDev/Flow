@@ -135,6 +135,7 @@ class PlayerFactory {
             .build()
             .also {
                 it.setSeekParameters(SeekParameters.CLOSEST_SYNC)
+                it.setWakeMode(C.WAKE_MODE_NETWORK)
                 Log.d(TAG, "ExoPlayer instance created")
             }
     }
