@@ -20,4 +20,15 @@
     <string name="library_liked_videos_label">Polubione filmy</string>
     <string name="library_saved_shorts_label">Zapisane Shorts</string>
     <string name="library_watch_later_label">Obejrzyj później</string>
+    <string name="library_downloads_label">Pobrane</string>
+    <string name="cancel">Anuluj</string>
+    <string name="share_song">Udostępnij piosenkę</string>
+    <string name="share">Udostępnij</string>
+    <string name="download">Pobierz</string>
+    <string name="save">Zapisz</string>
+    <string name="saved">Zapisane</string>
+    <string name="up_next">NASTĘPNY</string>
+    <string name="close">Zamknij</string>
+    <string name="more_options">Więcej opcji</string>
+    <string name="resume">Wznów</string>
 </resources>
