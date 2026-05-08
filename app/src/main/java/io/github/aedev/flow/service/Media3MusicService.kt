@@ -208,6 +208,13 @@ class Media3MusicService : MediaLibraryService() {
             }
             
             override fun onMediaItemTransition(mediaItem: androidx.media3.common.MediaItem?, reason: Int) {
+                if (
+                    reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
+                    reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
+                ) {
+                    player.seekTo(0L)
+                }
+
                 if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
                     retryCountMap.clear()
                 }
@@ -226,9 +233,6 @@ class Media3MusicService : MediaLibraryService() {
                     lockReleaseJob?.cancel()
                     lockReleaseJob = null
                     acquireLocks()
-                    if (!isAppInForeground()) {
-                        releaseWakeLock()
-                    }
                 } else {
                     releaseWakeLock()
                     lockReleaseJob?.cancel()
@@ -501,7 +505,7 @@ class Media3MusicService : MediaLibraryService() {
     }
     
     private fun acquireLocks() {
-        if (isAppInForeground() && wakeLock?.isHeld != true) {
+        if (wakeLock?.isHeld != true) {
             wakeLock?.acquire()
         }
         if (wifiLock?.isHeld != true) {

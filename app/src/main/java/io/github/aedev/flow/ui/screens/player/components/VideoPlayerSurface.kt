@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -49,17 +50,24 @@ fun VideoPlayerSurface(
         }
     }
 
+    DisposableEffect(playerView) {
+        onDispose {
+            playerView.player?.removeListener(videoSizeListener)
+            playerView.player = null
+        }
+    }
+
     AndroidView(
         factory = { playerView },
         update = { view ->
-            val newPlayer = EnhancedPlayerManager.getInstance().getPlayer()
+            val manager = EnhancedPlayerManager.getInstance()
+            val newPlayer = manager.getPlayer()
             val oldPlayer = view.player
             if (oldPlayer !== newPlayer) {
                 oldPlayer?.removeListener(videoSizeListener)
                 newPlayer?.addListener(videoSizeListener)
+                view.player = newPlayer
             }
-
-            view.player = newPlayer
 
             // Apply resize mode
             view.resizeMode = when (resizeMode) {

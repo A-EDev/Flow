@@ -84,7 +84,6 @@ class VideoPlayerViewModel @Inject constructor(
     // DisposableEffect fires multiple times for the same video.
     private var lastReportedVideoId: String? = null
     private var lastReportedTimestamp: Long = 0L
-    private var lastAutoplayHandledVideoId: String? = null
     
     private val _canGoPrevious = MutableStateFlow(false)
     val canGoPrevious: StateFlow<Boolean> = _canGoPrevious.asStateFlow()
@@ -168,7 +167,7 @@ class VideoPlayerViewModel @Inject constructor(
                             }
                             EnhancedPlayerManager.getInstance().startBackgroundService(
                                 videoId = currentVideo.id,
-                                title = currentVideo.title.ifEmpty { "Loading..." },
+                                title = currentVideo.title.ifEmpty { "Flow Player" },
                                 channel = currentVideo.channelName,
                                 thumbnail = currentVideo.thumbnailUrl
                             )
@@ -177,21 +176,6 @@ class VideoPlayerViewModel @Inject constructor(
                     }
                 }
 
-                if (playerState.hasEnded &&
-                    !playerState.isLooping &&
-                    !playerState.hasNext &&
-                    _uiState.value.autoplayEnabled &&
-                    !_uiState.value.isLoading
-                ) {
-                    val endedVideoId = playerState.currentVideoId ?: _uiState.value.cachedVideo?.id
-                    if (endedVideoId != null && lastAutoplayHandledVideoId != endedVideoId) {
-                        _uiState.value.relatedVideos.firstOrNull()?.let { nextVideo ->
-                            lastAutoplayHandledVideoId = endedVideoId
-                            playVideo(nextVideo)
-                            GlobalPlayerState.setCurrentVideo(nextVideo)
-                        }
-                    }
-                }
             }
         }
 
@@ -261,7 +245,7 @@ class VideoPlayerViewModel @Inject constructor(
         val video = _uiState.value.cachedVideo ?: return
         EnhancedPlayerManager.getInstance().startBackgroundService(
             videoId   = video.id,
-            title     = video.title.ifEmpty { "Playing…" },
+            title     = video.title.ifEmpty { "Flow Player" },
             channel   = video.channelName,
             thumbnail = video.thumbnailUrl
         )
@@ -271,13 +255,40 @@ class VideoPlayerViewModel @Inject constructor(
         _uiState.update { it.copy(resumedInMiniPlayer = false) }
     }
 
+    fun syncWithCurrentPlayerVideo(video: Video) {
+        val state = _uiState.value
+        val alreadySynced = state.cachedVideo?.id == video.id &&
+            (state.streamInfo?.id == video.id || state.isLoading)
+        if (alreadySynced) return
+
+        _uiState.update {
+            it.copy(
+                cachedVideo = video,
+                isRestoredSession = false,
+                isLoading = true,
+                error = null,
+                errorHint = null,
+                metadataError = null,
+                streamInfo = null,
+                videoStream = null,
+                audioStream = null,
+                savedPosition = null,
+                relatedVideos = emptyList(),
+                isSubscribed = false,
+                likeState = null,
+                hlsUrl = null,
+                localFilePath = null,
+                localFileVideoId = null
+            )
+        }
+        loadVideoInfo(video.id, isWifi = detectIsWifi(), forceRefresh = true)
+    }
+
     /**
      * Plays a video by immediately caching metadata and triggering stream load.
      * This ensures the UI shows video info immediately while streams are fetched.
      */
     fun playVideo(video: Video) {
-        lastAutoplayHandledVideoId = null
-
         // Stop current playback and clear everything (including any active queue)
         EnhancedPlayerManager.getInstance().pause()
         EnhancedPlayerManager.getInstance().clearAll()
@@ -308,7 +319,7 @@ class VideoPlayerViewModel @Inject constructor(
         saveHistoryEntry(video)
         EnhancedPlayerManager.getInstance().startBackgroundService(
             videoId   = video.id,
-            title     = video.title.ifEmpty { "Loading…" },
+            title     = video.title.ifEmpty { "Flow Player" },
             channel   = video.channelName,
             thumbnail = video.thumbnailUrl
         )
@@ -423,7 +434,7 @@ class VideoPlayerViewModel @Inject constructor(
         saveHistoryEntry(startVideo)
         EnhancedPlayerManager.getInstance().startBackgroundService(
             videoId   = startVideo.id,
-            title     = startVideo.title.ifEmpty { "Loading…" },
+            title     = startVideo.title.ifEmpty { "Flow Player" },
             channel   = startVideo.channelName,
             thumbnail = startVideo.thumbnailUrl
         )
@@ -695,6 +706,11 @@ class VideoPlayerViewModel @Inject constructor(
                         
                         // Load autoplay preference
                         val autoplay = playerPreferences.autoplayEnabled.first()
+                        EnhancedPlayerManager.getInstance().setAutoplayCandidates(
+                            sourceVideoId = videoId,
+                            videos = relatedVideos,
+                            enabled = autoplay
+                        )
                         
                         _uiState.value = _uiState.value.copy(
                             streamInfo = streamInfo,
@@ -930,6 +946,7 @@ class VideoPlayerViewModel @Inject constructor(
         if (manager.isPreparedForPlayback(videoId)) return@withContext
 
         manager.initialize(context)
+        val queueSize = manager.playerState.value.queueSize
 
         val durationMs = when {
             streamInfo.duration > 0L -> streamInfo.duration * 1000L
@@ -937,6 +954,7 @@ class VideoPlayerViewModel @Inject constructor(
         }
         val resumePosition = savedPosition
             .takeIf { it > 500L }
+            ?.takeIf { queueSize <= 1 }
             ?.takeUnless { shouldRestartCompletedPlayback(it, durationMs) }
             ?: 0L
 
@@ -1243,6 +1261,13 @@ class VideoPlayerViewModel @Inject constructor(
             val resolvedEnabled = enabled && !EnhancedPlayerManager.getInstance().playerState.value.isLooping
             playerPreferences.setAutoplayEnabled(resolvedEnabled)
             _uiState.value = _uiState.value.copy(autoplayEnabled = resolvedEnabled)
+            _uiState.value.cachedVideo?.id?.let { videoId ->
+                EnhancedPlayerManager.getInstance().setAutoplayCandidates(
+                    sourceVideoId = videoId,
+                    videos = _uiState.value.relatedVideos,
+                    enabled = resolvedEnabled
+                )
+            }
         }
     }
 

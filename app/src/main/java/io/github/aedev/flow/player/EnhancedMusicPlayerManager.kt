@@ -235,6 +235,13 @@ object EnhancedMusicPlayerManager {
                         _currentQueueIndex.value = currentQ.indexOf(track)
                     }
                 }
+                if (
+                    reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
+                    reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
+                ) {
+                    _currentPosition.value = 0L
+                    _playerState.value = _playerState.value.copy(position = 0L)
+                }
                 // Pre-warm MusicPlayerUtils.resultCache for the next track so ExoPlayer's
                 // loading thread finds it instantly instead of blocking on a full HTTP resolve.
                 prefetchNextTrack()

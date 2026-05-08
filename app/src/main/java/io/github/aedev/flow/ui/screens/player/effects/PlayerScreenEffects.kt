@@ -318,7 +318,8 @@ fun FullscreenEffect(
     isFullscreen: Boolean,
     activity: Activity?,
     videoAspectRatio: Float = 16f / 9f,
-    lifecycleOwner: LifecycleOwner
+    lifecycleOwner: LifecycleOwner,
+    suppressFullscreenRequest: Boolean = false
 ) {
     var resumeTrigger by remember { mutableIntStateOf(0) }
     DisposableEffect(lifecycleOwner) {
@@ -329,9 +330,10 @@ fun FullscreenEffect(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    LaunchedEffect(isFullscreen, videoAspectRatio, resumeTrigger) {
+    LaunchedEffect(isFullscreen, videoAspectRatio, resumeTrigger, suppressFullscreenRequest) {
         activity?.let { act ->
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && act.isInPictureInPictureMode) return@let
+            if (suppressFullscreenRequest && isFullscreen) return@let
             if (isFullscreen) {
                 val orientation = if (videoAspectRatio < 1f) {
                     ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
@@ -452,7 +454,8 @@ fun PlayerInitEffect(
                 return@LaunchedEffect
             }
 
-            if (EnhancedPlayerManager.getInstance().isPreparedForPlayback(videoId)) {
+            val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
+            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) {
                 Log.d(TAG, "Player already prepared for $videoId (offline), skipping")
                 return@LaunchedEffect
             }
@@ -481,7 +484,7 @@ fun PlayerInitEffect(
 
         if (videoStream != null && audioStream != null) {
             val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
-            if (EnhancedPlayerManager.getInstance().isPreparedForPlayback(videoId)) {
+            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) {
                 Log.d(TAG, "Player already prepared for $videoId, skipping setStreams")
                 return@LaunchedEffect
             }
@@ -526,7 +529,7 @@ fun PlayerInitEffect(
         } else if (uiState.isAdaptiveMode && audioStream != null && uiState.streamInfo != null) {
             val currentPlayerState = EnhancedPlayerManager.getInstance().playerState.value
             
-            if (EnhancedPlayerManager.getInstance().isPreparedForPlayback(videoId)) {
+            if (currentPlayerState.currentVideoId == videoId && currentPlayerState.isPrepared) {
                 Log.d(TAG, "Player already prepared for $videoId (AUTO mode), skipping setStreams")
                 return@LaunchedEffect
             }

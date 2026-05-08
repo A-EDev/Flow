@@ -182,8 +182,8 @@ class VideoPlayerService : Service() {
                 isPlaybackActive = state.isPlaying || state.isBuffering || state.playWhenReady
 
                 val globalVideo = GlobalPlayerState.currentVideo.value
-                if (globalVideo != null && globalVideo.id != currentVideo?.id) {
-                    currentVideo = Video(
+                if (globalVideo != null) {
+                    val incoming = Video(
                         id = globalVideo.id,
                         title = globalVideo.title,
                         channelName = globalVideo.channelName,
@@ -193,7 +193,10 @@ class VideoPlayerService : Service() {
                         viewCount = globalVideo.viewCount,
                         uploadDate = globalVideo.uploadDate
                     )
-                    if (cachedThumbnailUrl != globalVideo.thumbnailUrl) {
+                    val merged = mergeVideoMetadata(currentVideo, incoming)
+                    val thumbnailChanged = merged.thumbnailUrl != currentVideo?.thumbnailUrl
+                    currentVideo = merged
+                    if (thumbnailChanged) {
                         thumbnailLoadJob?.cancel()
                         thumbnailLoadJob = null
                         cachedThumbnailUrl = null
@@ -288,10 +291,10 @@ class VideoPlayerService : Service() {
                 val channel = intent.getStringExtra(EXTRA_VIDEO_CHANNEL)
                 val thumbnail = intent.getStringExtra(EXTRA_VIDEO_THUMBNAIL)
                 
-                if (videoId != null && title != null) {
-                    currentVideo = Video(
+                if (videoId != null) {
+                    val incoming = Video(
                         id = videoId,
-                        title = title,
+                        title = title.orEmpty(),
                         channelName = channel ?: "",
                         channelId = "",
                         thumbnailUrl = thumbnail ?: "",
@@ -299,8 +302,11 @@ class VideoPlayerService : Service() {
                         viewCount = 0L,
                         uploadDate = ""
                     )
-                    if (cachedThumbnailUrl != thumbnail) {
-                        cachedThumbnailUrl = thumbnail
+                    val merged = mergeVideoMetadata(currentVideo, incoming)
+                    val thumbnailChanged = merged.thumbnailUrl != currentVideo?.thumbnailUrl
+                    currentVideo = merged
+                    if (thumbnailChanged) {
+                        cachedThumbnailUrl = merged.thumbnailUrl
                         cachedThumbnailBitmap = null
                         thumbnailLoadJob?.cancel()
                         thumbnailLoadJob = null
@@ -327,7 +333,8 @@ class VideoPlayerService : Service() {
             return
         }
 
-        if (isPlaying) {
+        if (isPlaybackActive) {
+            updateLocks(true)
             updateNotification()
         }
     }
@@ -405,6 +412,36 @@ class VideoPlayerService : Service() {
             builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bitmap)
         }
         return builder.build()
+    }
+
+    private fun mergeVideoMetadata(existing: Video?, incoming: Video): Video {
+        if (existing == null || existing.id != incoming.id) return incoming.sanitizedForNotification()
+
+        return existing.copy(
+            title = incoming.title.takeIf { it.isUsefulTitle() } ?: existing.title,
+            channelName = incoming.channelName.takeIf { it.isUsefulText() } ?: existing.channelName,
+            channelId = incoming.channelId.takeIf { it.isUsefulText() } ?: existing.channelId,
+            thumbnailUrl = incoming.thumbnailUrl.takeIf { it.isUsefulText() } ?: existing.thumbnailUrl,
+            duration = incoming.duration.takeIf { it > 0 } ?: existing.duration,
+            viewCount = incoming.viewCount.takeIf { it > 0L } ?: existing.viewCount,
+            uploadDate = incoming.uploadDate.takeIf { it.isUsefulText() } ?: existing.uploadDate,
+            description = incoming.description.takeIf { it.isUsefulText() } ?: existing.description,
+            channelThumbnailUrl = incoming.channelThumbnailUrl.takeIf { it.isUsefulText() } ?: existing.channelThumbnailUrl,
+            tags = incoming.tags.takeIf { it.isNotEmpty() } ?: existing.tags
+        ).sanitizedForNotification()
+    }
+
+    private fun Video.sanitizedForNotification(): Video = copy(
+        title = title.takeIf { it.isUsefulTitle() } ?: "Flow Player",
+        channelName = channelName.takeIf { it.isUsefulText() } ?: "Preparing playback..."
+    )
+
+    private fun String?.isUsefulText(): Boolean = !this.isNullOrBlank()
+
+    private fun String?.isUsefulTitle(): Boolean {
+        val value = this?.trim().orEmpty()
+        if (value.isBlank()) return false
+        return value !in setOf("Loading...", "Loading…", "Playing…", "Preparing playback...", "Flow Player")
     }
 
     /**
@@ -617,11 +654,7 @@ class VideoPlayerService : Service() {
         lockReleaseJob = null
 
         if (isPlaybackActive) {
-            if (isAppInForeground()) {
-                releaseLocks()
-            } else {
-                acquireLocks()
-            }
+            acquireLocks()
             return
         }
 

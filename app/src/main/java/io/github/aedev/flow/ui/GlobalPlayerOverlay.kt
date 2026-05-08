@@ -152,6 +152,7 @@ fun GlobalPlayerOverlay(
 
     var videoAspectRatio by remember { mutableFloatStateOf(16f / 9f) }
     var expandedPlayerBottom by remember { mutableStateOf(0.dp) }
+    var pipForcedFullscreen by remember { mutableStateOf(false) }
 
     LaunchedEffect(video.id) {
         videoAspectRatio = 16f / 9f
@@ -303,7 +304,8 @@ fun GlobalPlayerOverlay(
         isFullscreen = screenState.isFullscreen,
         activity = activity,
         videoAspectRatio = videoAspectRatio,
-        lifecycleOwner = lifecycleOwner
+        lifecycleOwner = lifecycleOwner,
+        suppressFullscreenRequest = pipForcedFullscreen
     )
     
     OrientationResetEffect(activity)
@@ -316,18 +318,6 @@ fun GlobalPlayerOverlay(
         duration = screenState.duration,
         uiState = playerUiState,
         viewModel = playerViewModel
-    )
-    
-    AutoPlayNextEffect(
-        hasEnded = playerState.hasEnded,
-        autoplayEnabled = playerUiState.autoplayEnabled,
-        isLooping = playerState.isLooping,
-        hasNextInQueue = playerState.hasNext,
-        relatedVideos = playerUiState.relatedVideos,
-        onVideoClick = { nextVideo ->
-            playerViewModel.playVideo(nextVideo)
-            GlobalPlayerState.setCurrentVideo(nextVideo)
-        }
     )
     
     if (!playerUiState.isRestoredSession) {
@@ -362,10 +352,14 @@ fun GlobalPlayerOverlay(
     
     SubtitleLoadEffectWithState(screenState)
     
-    val globalCurrentVideoId = GlobalPlayerState.currentVideo.collectAsState().value?.id
-    LaunchedEffect(globalCurrentVideoId) {
-        if (globalCurrentVideoId != null && !playerUiState.isRestoredSession) {
-            playerViewModel.loadComments(globalCurrentVideoId)
+    val globalCurrentVideo by GlobalPlayerState.currentVideo.collectAsState()
+    LaunchedEffect(globalCurrentVideo?.id) {
+        val current = globalCurrentVideo
+        if (current != null && !playerUiState.isRestoredSession) {
+            if (current.id != playerUiState.cachedVideo?.id || playerUiState.streamInfo?.id != current.id) {
+                playerViewModel.syncWithCurrentPlayerVideo(current)
+            }
+            playerViewModel.loadComments(current.id)
         }
     }
     
@@ -406,10 +400,17 @@ fun GlobalPlayerOverlay(
         }
     }
     
-    LaunchedEffect(localIsInPipMode) {
+    LaunchedEffect(localIsInPipMode, isLandscape) {
         if (localIsInPipMode) {
             playerSheetState.expand()
+            if (!screenState.isFullscreen) {
+                pipForcedFullscreen = true
+                screenState.isFullscreen = true
+            }
             screenState.showControls = false
+        } else if (pipForcedFullscreen && !isLandscape) {
+            pipForcedFullscreen = false
+            screenState.isFullscreen = false
         }
     }
 
@@ -728,7 +729,7 @@ fun GlobalPlayerOverlay(
                         
                         // Controls overlay - fully expanded only
                         var showRemainingTime by rememberSaveable { mutableStateOf(false) }
-                        if (!isMinimized && screenState.showControls) {
+                        if (!isMinimized && !localIsInPipMode && screenState.showControls) {
                             PremiumControlsOverlay(
                                 isVisible = true,
                                 isPlaying = playerState.playWhenReady,

@@ -1,6 +1,8 @@
 package io.github.aedev.flow.player
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import android.view.SurfaceHolder
 import androidx.media3.common.C
@@ -14,6 +16,8 @@ import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SponsorBlockAction
+import io.github.aedev.flow.data.local.VideoQuality
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 
 // Modular components
 import io.github.aedev.flow.player.audio.AudioFeaturesManager
@@ -44,8 +48,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import io.github.aedev.flow.data.model.SponsorBlockSegment
+import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.stream.AudioStream
+import org.schabi.newpipe.extractor.stream.StreamInfo
+import org.schabi.newpipe.extractor.stream.StreamInfoItem
+import org.schabi.newpipe.extractor.stream.StreamType
 import org.schabi.newpipe.extractor.stream.SubtitlesStream
 import org.schabi.newpipe.extractor.stream.VideoStream
 
@@ -88,6 +98,7 @@ class EnhancedPlayerManager private constructor() {
     private var currentHlsUrl: String? = null
     
     private var isAudioOnlyMode = false
+    private var videoTracksDisabled = false
 
     // Queue management
     private var playbackQueue: List<io.github.aedev.flow.data.model.Video> = emptyList()
@@ -95,6 +106,10 @@ class EnhancedPlayerManager private constructor() {
     private var queueTitle: String? = null
     private var manualLoopEnabled: Boolean = false
     private var globalLoopEnabled: Boolean = false
+    @Volatile private var autoplayEnabled: Boolean = true
+    private var autoplayCandidates: List<Video> = emptyList()
+    private var autoplaySourceVideoId: String? = null
+    private var autoplayJob: Job? = null
     
     // Application context
     private var appContext: Context? = null
@@ -292,6 +307,12 @@ class EnhancedPlayerManager private constructor() {
             }
         }
 
+        scope.launch {
+            prefs.autoplayEnabled.collect { isEnabled ->
+                autoplayEnabled = isEnabled
+            }
+        }
+
         // Collect per-category SponsorBlock actions and update handler
         val sbCategories = listOf("sponsor", "intro", "outro", "selfpromo", "interaction", "music_offtopic")
         sbCategories.forEach { category ->
@@ -328,7 +349,9 @@ class EnhancedPlayerManager private constructor() {
                         player?.play()
                     } else if (hasNext()) {
                         _queueAutoAdvanceEvent.tryEmit(Unit)
-                        playNext()
+                        playNext(loadStreamsInPlayer = true)
+                    } else {
+                        playNextAutoplayCandidate()
                     }
                 }
                 
@@ -551,6 +574,8 @@ class EnhancedPlayerManager private constructor() {
     }
 
     private fun setVideoTracksDisabled(disabled: Boolean) {
+        if (videoTracksDisabled == disabled) return
+        videoTracksDisabled = disabled
         trackSelector?.let { selector ->
             selector.setParameters(
                 selector.buildUponParameters()
@@ -574,26 +599,26 @@ class EnhancedPlayerManager private constructor() {
         
         if (videos.isNotEmpty()) {
             val video = videos[currentQueueIndex]
-            startPlaybackFromQueue(video)
+            startPlaybackFromQueue(video, loadStreamsInPlayer = false)
         }
     }
 
-    fun playNext(): Boolean {
+    fun playNext(loadStreamsInPlayer: Boolean = true): Boolean {
         if (currentQueueIndex < playbackQueue.size - 1) {
             currentQueueIndex++
             _currentQueueIndex.value = currentQueueIndex
-            startPlaybackFromQueue(playbackQueue[currentQueueIndex])
+            startPlaybackFromQueue(playbackQueue[currentQueueIndex], loadStreamsInPlayer)
             updateQueueState()
             return true
         }
         return false
     }
 
-    fun playPrevious(): Boolean {
+    fun playPrevious(loadStreamsInPlayer: Boolean = true): Boolean {
         if (currentQueueIndex > 0) {
             currentQueueIndex--
             _currentQueueIndex.value = currentQueueIndex
-            startPlaybackFromQueue(playbackQueue[currentQueueIndex])
+            startPlaybackFromQueue(playbackQueue[currentQueueIndex], loadStreamsInPlayer)
             updateQueueState()
             return true
         }
@@ -668,12 +693,12 @@ class EnhancedPlayerManager private constructor() {
         if (index in playbackQueue.indices && index != currentQueueIndex) {
             currentQueueIndex = index
             _currentQueueIndex.value = currentQueueIndex
-            startPlaybackFromQueue(playbackQueue[currentQueueIndex])
+            startPlaybackFromQueue(playbackQueue[currentQueueIndex], loadStreamsInPlayer = true)
             updateQueueState()
         }
     }
 
-    private fun startPlaybackFromQueue(video: Video) {
+    private fun startPlaybackFromQueue(video: Video, loadStreamsInPlayer: Boolean) {
         // Reset player state for new video
         resetPlaybackStateForNewVideo(video.id)
         
@@ -685,6 +710,15 @@ class EnhancedPlayerManager private constructor() {
         )
         
         GlobalPlayerState.setCurrentVideo(video)
+        startBackgroundService(
+            videoId = video.id,
+            title = video.title,
+            channel = video.channelName,
+            thumbnail = video.thumbnailUrl
+        )
+        if (loadStreamsInPlayer) {
+            playVideoFromServiceLayer(video, reason = "queue-advance")
+        }
     }
 
     private fun updateQueueState() {
@@ -694,6 +728,260 @@ class EnhancedPlayerManager private constructor() {
             queueTitle = queueTitle,
             queueSize = playbackQueue.size
         )
+    }
+
+    fun setAutoplayCandidates(sourceVideoId: String, videos: List<Video>, enabled: Boolean = autoplayEnabled) {
+        autoplayEnabled = enabled
+        autoplaySourceVideoId = sourceVideoId
+        autoplayCandidates = videos
+            .filter { it.id.isNotBlank() && it.id != sourceVideoId && !it.isLive && !it.isUpcoming }
+            .distinctBy { it.id }
+        Log.d(TAG, "Autoplay candidates for $sourceVideoId: ${autoplayCandidates.size}, enabled=$enabled")
+    }
+
+    private fun playNextAutoplayCandidate(): Boolean {
+        if (!autoplayEnabled || autoplayJob?.isActive == true || _playerState.value.isLooping) return false
+
+        val nextVideo = autoplayCandidates.firstOrNull() ?: return false
+
+        autoplayCandidates = autoplayCandidates.drop(1)
+        playVideoFromServiceLayer(nextVideo, reason = "related-autoplay")
+        return true
+    }
+
+    private fun playVideoFromServiceLayer(video: Video, reason: String) {
+        val context = appContext ?: return
+        autoplayJob?.cancel()
+        autoplayJob = scope.launch {
+            Log.d(TAG, "Service-layer playback start: ${video.id} ($reason)")
+            try {
+                initialize(context)
+                GlobalPlayerState.setCurrentVideo(video)
+                startBackgroundService(
+                    videoId = video.id,
+                    title = video.title,
+                    channel = video.channelName,
+                    thumbnail = video.thumbnailUrl
+                )
+                _playerState.value = _playerState.value.copy(
+                    currentVideoId = video.id,
+                    isBuffering = true,
+                    isPlaying = false,
+                    playWhenReady = true,
+                    hasEnded = false,
+                    error = null
+                )
+
+                val streamInfo = fetchStreamInfoForPlayback(video.id) ?: run {
+                    _playerState.value = _playerState.value.copy(
+                        isBuffering = false,
+                        error = "Unable to load next video"
+                    )
+                    return@launch
+                }
+
+                val enrichedVideo = videoFromStreamInfo(video.id, streamInfo, fallback = video)
+                GlobalPlayerState.setCurrentVideo(enrichedVideo)
+                startBackgroundService(
+                    videoId = enrichedVideo.id,
+                    title = enrichedVideo.title,
+                    channel = enrichedVideo.channelName,
+                    thumbnail = enrichedVideo.thumbnailUrl
+                )
+                setAutoplayCandidates(
+                    sourceVideoId = enrichedVideo.id,
+                    videos = relatedVideosFromStreamInfo(streamInfo),
+                    enabled = autoplayEnabled
+                )
+
+                val prefs = PlayerPreferences(context)
+                val preferredQuality = if (isOnWifi(context)) {
+                    prefs.defaultQualityWifi.first()
+                } else {
+                    prefs.defaultQualityCellular.first()
+                }
+                val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
+                val selected = selectStreamsForServicePlayback(streamInfo, preferredQuality, preferredAudioLanguage)
+                val audioStream = selected.second ?: run {
+                    _playerState.value = _playerState.value.copy(
+                        isBuffering = false,
+                        error = "Unable to load audio stream"
+                    )
+                    return@launch
+                }
+
+                setStreams(
+                    videoId = enrichedVideo.id,
+                    videoStream = selected.first,
+                    audioStream = audioStream,
+                    videoStreams = (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
+                        .filterIsInstance<VideoStream>(),
+                    audioStreams = streamInfo.audioStreams,
+                    subtitles = streamInfo.subtitles ?: emptyList(),
+                    durationSeconds = streamInfo.duration,
+                    dashManifestUrl = streamInfo.dashMpdUrl,
+                    hlsUrl = streamInfo.hlsUrl,
+                    startPosition = 0L
+                )
+                play()
+            } catch (e: Exception) {
+                Log.e(TAG, "Service-layer playback failed for ${video.id}", e)
+                _playerState.value = _playerState.value.copy(
+                    isBuffering = false,
+                    error = e.message ?: "Unable to load next video"
+                )
+            } finally {
+                autoplayJob = null
+            }
+        }
+    }
+
+    private suspend fun fetchStreamInfoForPlayback(videoId: String): StreamInfo? = withContext(Dispatchers.IO) {
+        var lastError: Throwable? = null
+        repeat(3) { attempt ->
+            val info = try {
+                val url = if (attempt == 1) {
+                    "https://youtu.be/$videoId"
+                } else {
+                    "https://www.youtube.com/watch?v=$videoId"
+                }
+                withTimeoutOrNull(12_000L) {
+                    StreamInfo.getInfo(ServiceList.YouTube, url)
+                }
+            } catch (e: Exception) {
+                lastError = e
+                null
+            }
+            if (info != null) return@withContext info
+            if (attempt < 2) delay((attempt + 1) * 300L)
+        }
+        Log.e(TAG, "Failed to fetch stream info for $videoId", lastError)
+        null
+    }
+
+    private fun selectStreamsForServicePlayback(
+        streamInfo: StreamInfo,
+        preferredQuality: VideoQuality,
+        preferredAudioLanguage: String
+    ): Pair<VideoStream?, AudioStream?> {
+        val audioCandidates = streamInfo.audioStreams
+            .distinctBy { it.url ?: it.content }
+            .sortedByDescending { it.bitrate }
+
+        val audioStream = when (preferredAudioLanguage) {
+            "original", "" -> audioCandidates.firstOrNull {
+                it.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
+            } ?: audioCandidates.firstOrNull {
+                it.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED
+            } ?: audioCandidates.firstOrNull()
+            else -> audioCandidates.firstOrNull { audio ->
+                val lang = audio.audioLocale?.language ?: ""
+                lang.startsWith(preferredAudioLanguage, ignoreCase = true)
+            } ?: audioCandidates.firstOrNull {
+                it.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
+            } ?: audioCandidates.firstOrNull()
+        }
+
+        val videoStreams = (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
+            .filterIsInstance<VideoStream>()
+            .filter {
+                val mime = it.format?.mimeType
+                mime?.contains("mp4", ignoreCase = true) == true ||
+                    mime?.contains("webm", ignoreCase = true) == true
+            }
+
+        val videoStream = when (preferredQuality) {
+            VideoQuality.AUTO -> null
+            else -> videoStreams.minByOrNull { kotlin.math.abs(it.height - preferredQuality.height) }
+        }
+        return videoStream to audioStream
+    }
+
+    private fun relatedVideosFromStreamInfo(info: StreamInfo): List<Video> =
+        info.relatedItems.filterIsInstance<StreamInfoItem>().mapNotNull { item ->
+            runCatching { item.toFlowVideo() }.getOrNull()
+        }
+
+    private fun videoFromStreamInfo(videoId: String, info: StreamInfo, fallback: Video): Video {
+        val thumbnail = info.thumbnails
+            .sortedByDescending { it.height }
+            .map { it.url }
+            .firstOrNull()
+            .let { ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, it) }
+        return fallback.copy(
+            title = info.name?.takeIf { it.isNotBlank() } ?: fallback.title,
+            channelName = info.uploaderName?.takeIf { it.isNotBlank() } ?: fallback.channelName,
+            channelId = extractChannelId(info.uploaderUrl).ifBlank { fallback.channelId },
+            thumbnailUrl = thumbnail.ifBlank { fallback.thumbnailUrl },
+            duration = info.duration.toInt().takeIf { it > 0 } ?: fallback.duration,
+            viewCount = info.viewCount.takeIf { it > 0L } ?: fallback.viewCount,
+            uploadDate = info.textualUploadDate ?: fallback.uploadDate,
+            description = info.description?.content ?: fallback.description,
+            tags = info.tags ?: fallback.tags
+        )
+    }
+
+    private fun StreamInfoItem.toFlowVideo(): Video {
+        val rawUrl = url ?: ""
+        val videoId = when {
+            rawUrl.contains("watch?v=") -> rawUrl.substringAfter("watch?v=").substringBefore("&")
+            rawUrl.contains("youtu.be/") -> rawUrl.substringAfter("youtu.be/").substringBefore("?")
+            rawUrl.contains("/shorts/") -> rawUrl.substringAfter("/shorts/").substringBefore("?")
+            else -> rawUrl.substringAfterLast("/")
+        }.trim()
+        if (videoId.isBlank()) throw IllegalArgumentException("Blank related video id")
+
+        val bestThumbnail = thumbnails
+            .sortedByDescending { it.height }
+            .map { it.url }
+            .firstOrNull()
+            .let { ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, it) }
+
+        val isShortUrl = rawUrl.contains("/shorts/")
+        val isLiveStream = streamType == StreamType.LIVE_STREAM
+        val durationSecs = when {
+            isLiveStream -> 0
+            duration > 0 -> duration.toInt()
+            isShortUrl -> 60
+            else -> 0
+        }
+        val nameLower = name?.lowercase() ?: ""
+        val uploaderLower = uploaderName?.lowercase() ?: ""
+        val isMusicCandidate = uploaderLower.contains("vevo") ||
+            uploaderLower.contains(" - topic") ||
+            nameLower.contains("official music video") ||
+            nameLower.contains("official video") ||
+            nameLower.contains("official audio") ||
+            nameLower.contains("(official)")
+
+        return Video(
+            id = videoId,
+            title = name ?: "Unknown Title",
+            channelName = uploaderName ?: "Unknown Channel",
+            channelId = extractChannelId(uploaderUrl),
+            thumbnailUrl = bestThumbnail,
+            duration = durationSecs,
+            viewCount = viewCount,
+            uploadDate = textualUploadDate ?: "Unknown",
+            channelThumbnailUrl = uploaderAvatars.sortedByDescending { it.height }.firstOrNull()?.url ?: "",
+            isUpcoming = streamType == StreamType.NONE,
+            isLive = isLiveStream,
+            isShort = isShortUrl,
+            isMusic = isMusicCandidate
+        )
+    }
+
+    private fun extractChannelId(url: String?): String =
+        url?.substringAfterLast("/")?.takeIf { it.isNotBlank() && it != url } ?: ""
+
+    private fun isOnWifi(context: Context): Boolean {
+        return try {
+            val manager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val caps = manager.getNetworkCapabilities(manager.activeNetwork)
+            caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ?: true
+        } catch (e: Exception) {
+            true
+        }
     }
 
     // ===== Playback Controls =====
@@ -729,6 +1017,10 @@ class EnhancedPlayerManager private constructor() {
     }
     
     fun stop() {
+        autoplayJob?.cancel()
+        autoplayJob = null
+        isAudioOnlyMode = false
+        setVideoTracksDisabled(false)
         playbackTracker?.stop()
         player?.stop()
         player?.clearMediaItems()
@@ -822,10 +1114,7 @@ class EnhancedPlayerManager private constructor() {
             if (p != null && currentVideoStream != null && currentAudioStream != null) {
                 if (isAudioOnlyMode) {
                     Log.d(TAG, "attachVideoSurface: was in audio-only mode — restoring video stream")
-                    isAudioOnlyMode = false
-                    setVideoTracksDisabled(false)
-                    val pos = p.currentPosition
-                    loadMediaInternal(currentVideoStream, currentAudioStream, preservePosition = pos)
+                    restoreVideoOutput()
                 } else if (p.currentMediaItem == null) {
                     Log.d(TAG, "attachVideoSurface: no media item — loading media now")
                     loadMediaInternal(currentVideoStream, currentAudioStream)
@@ -842,22 +1131,27 @@ class EnhancedPlayerManager private constructor() {
     fun clearSurface() = surfaceManager?.clearSurface(player)
     suspend fun awaitSurfaceReady(timeoutMillis: Long = 1000) = surfaceManager?.awaitSurfaceReady(timeoutMillis) ?: false
 
-    /**
-     * Switch to audio-only mode by detaching the video surface.
-     * This allows playback to continue without rendering video frames.
-     */
+    
+    fun continueVideoPlaybackInBackground() {
+        restoreVideoOutput()
+        val p = player
+        if (p?.playWhenReady == true && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
+            p.play()
+        }
+    }
+
+    
     fun switchToAudioOnly() {
-        if (isAudioOnlyMode) return
-        Log.d(TAG, "Switching to audio-only mode")
-        isAudioOnlyMode = true
-        
-        surfaceManager?.detachVideoSurface(null, player, appContext)
-        // Set surface ready to false so it doesn't try to auto-reattach
-        surfaceManager?.setSurfaceReady(false)
-        
-        // Reload as audio-only stream (bandwidth saving)
-        val pos = player?.currentPosition ?: 0L
-        loadMediaInternal(null, currentAudioStream, preservePosition = pos, audioOnly = true)
+        continueVideoPlaybackInBackground()
+    }
+
+    fun restoreVideoOutput() {
+        val p = player ?: return
+        isAudioOnlyMode = false
+        setVideoTracksDisabled(false)
+        if (p.playWhenReady && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
+            p.play()
+        }
     }
     
     fun setSurfaceReady(ready: Boolean) {
@@ -921,6 +1215,8 @@ class EnhancedPlayerManager private constructor() {
     // ===== Clear & Release =====
 
     fun clearCurrentVideo() {
+        isAudioOnlyMode = false
+        setVideoTracksDisabled(false)
         player?.stop()
         player?.clearMediaItems()
         qualityManager?.resetForNewVideo()
@@ -936,6 +1232,8 @@ class EnhancedPlayerManager private constructor() {
     fun clearAll() {
         clearCurrentVideo()
         manualLoopEnabled = false
+        autoplayCandidates = emptyList()
+        autoplaySourceVideoId = null
         playbackQueue = emptyList()
         currentQueueIndex = -1
         _queueVideos.value = emptyList()

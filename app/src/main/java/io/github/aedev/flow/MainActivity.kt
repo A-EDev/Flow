@@ -67,6 +67,7 @@ class MainActivity : ComponentActivity() {
     private var cachedShortsBackgroundPlay = false
 
     private var pipDismissCheckJob: Job? = null
+    private var pendingAutoPip = false
 
     override fun attachBaseContext(newBase: Context) {
         val selectedLanguage = AppLanguageManager.loadSelectedLanguageTag(newBase)
@@ -355,6 +356,7 @@ class MainActivity : ComponentActivity() {
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         GlobalPlayerState.setPipMode(isInPictureInPictureMode)
+        pendingAutoPip = false
 
         pipDismissCheckJob?.cancel()
         if (!isInPictureInPictureMode) {
@@ -372,6 +374,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        pendingAutoPip = false
         pipDismissCheckJob?.cancel()
     }
 
@@ -381,6 +384,22 @@ class MainActivity : ComponentActivity() {
             requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             if (!cachedShortsBackgroundPlay) {
                 io.github.aedev.flow.player.shorts.ShortsPlayerPool.getInstance().pauseAll()
+            }
+
+            if (pendingAutoPip) {
+                lifecycleScope.launch {
+                    delay(800L)
+                    if (
+                        pendingAutoPip &&
+                        !isInPictureInPictureMode &&
+                        !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+                    ) {
+                        pendingAutoPip = false
+                        handOffVideoPlaybackToBackground()
+                    }
+                }
+            } else {
+                handOffVideoPlaybackToBackground()
             }
         }
     }
@@ -400,11 +419,31 @@ class MainActivity : ComponentActivity() {
         
         // Only enter PiP for video, not for music (which uses background service)
         if (isVideoPlaying && !isMusicPlaying && cachedAutoPipEnabled) {
+            pendingAutoPip = true
             enterPictureInPictureMode(
                 android.app.PictureInPictureParams.Builder()
                     .setAspectRatio(android.util.Rational(16, 9))
                     .build()
             )
+        }
+    }
+
+    private fun handOffVideoPlaybackToBackground() {
+        val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
+        val playerState = playerManager.playerState.value
+        if (
+            playerState.currentVideoId != null &&
+            (playerState.playWhenReady || playerState.isPlaying || playerState.isBuffering)
+        ) {
+            GlobalPlayerState.currentVideo.value?.let { video ->
+                playerManager.startBackgroundService(
+                    videoId = video.id,
+                    title = video.title.ifEmpty { "Playing..." },
+                    channel = video.channelName,
+                    thumbnail = video.thumbnailUrl
+                )
+            }
+            playerManager.continueVideoPlaybackInBackground()
         }
     }
 
