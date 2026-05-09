@@ -19,6 +19,7 @@ object AppLanguageManager {
     private const val PREFS_KEY = "app_language_tag"
 
     private val supportedLanguageTags = listOf(
+        "en",
         "ar",
         "bs",
         "de",
