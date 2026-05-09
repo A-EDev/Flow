@@ -83,9 +83,6 @@ fun PlayerBottomSheetsContainer(
             }
             val ms = seconds * 1000L
             EnhancedPlayerManager.getInstance().seekTo(ms)
-            
-            screenState.showCommentsSheet = false
-            screenState.showDescriptionSheet = false
         }
     }
     
