@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.pm.ActivityInfo
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -58,6 +60,7 @@ import io.github.aedev.flow.ui.screens.player.EnhancedVideoPlayerScreen
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.components.VideoPlayerSurface
+import io.github.aedev.flow.ui.components.FlowChaptersBottomSheet
 import io.github.aedev.flow.ui.components.SubtitleStyle
 import io.github.aedev.flow.ui.screens.player.content.PlayerContent
 import io.github.aedev.flow.ui.screens.player.content.rememberCompleteVideo
@@ -74,12 +77,17 @@ import io.github.aedev.flow.ui.screens.player.components.BrightnessOverlay
 import io.github.aedev.flow.ui.screens.player.components.VolumeOverlay
 import io.github.aedev.flow.ui.screens.player.components.SpeedBoostOverlay
 import io.github.aedev.flow.ui.screens.player.components.SponsorBlockSkipButton
+import io.github.aedev.flow.ui.screens.player.components.SettingsMenuDialog
+import io.github.aedev.flow.ui.screens.player.components.PlayerSettingsPage
 import io.github.aedev.flow.data.local.SponsorBlockAction
 import io.github.aedev.flow.player.PictureInPictureHelper
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.input.pointer.util.addPointerInputChange
 import androidx.compose.ui.graphics.graphicsLayer
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -149,6 +157,7 @@ fun GlobalPlayerOverlay(
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
     val disableShortsPlayer by playerPreferences.disableShortsPlayer.collectAsState(initial = false)
     val savedSubtitleStyle by playerPreferences.subtitleStyle.collectAsState(initial = SubtitleStyle())
+    val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
 
     var videoAspectRatio by remember { mutableFloatStateOf(16f / 9f) }
     var expandedPlayerBottom by remember { mutableStateOf(0.dp) }
@@ -194,9 +203,7 @@ fun GlobalPlayerOverlay(
     }
 
     LaunchedEffect(screenState.isFullscreen) {
-        if (screenState.isFullscreen) {
-            screenState.dismissMediaSheets()
-        }
+        screenState.dismissMediaSheets()
     }
 
     LaunchedEffect(screenState.zoomIndicatorSequence) {
@@ -453,6 +460,87 @@ fun GlobalPlayerOverlay(
                 config.screenHeightDp.dp * 0.75f
             }
         }
+        val canUseFullscreenSidePanel = screenState.isFullscreen && maxWidth > maxHeight
+        val settingsInitialPage = when {
+            screenState.showQualitySelector -> PlayerSettingsPage.Quality
+            screenState.showAudioTrackSelector -> PlayerSettingsPage.Audio
+            screenState.showPlaybackSpeedSelector -> PlayerSettingsPage.Speed
+            screenState.showSubtitleSelector -> PlayerSettingsPage.Subtitles
+            else -> PlayerSettingsPage.Main
+        }
+        val showSettingsSurface = screenState.showSettingsMenu ||
+            screenState.showQualitySelector ||
+            screenState.showAudioTrackSelector ||
+            screenState.showPlaybackSpeedSelector ||
+            screenState.showSubtitleSelector
+        val fullscreenSidePanelVisible = canUseFullscreenSidePanel &&
+            (showSettingsSurface || screenState.showChaptersSheet)
+        val fullscreenSidePanelTargetWidth = maxWidth * 0.36f
+        val fullscreenSidePanelTargetWidthPx = with(density) { fullscreenSidePanelTargetWidth.toPx() }
+        val fullscreenSidePanelWidthPx = remember { Animatable(0f) }
+        LaunchedEffect(fullscreenSidePanelVisible, fullscreenSidePanelTargetWidthPx) {
+            fullscreenSidePanelWidthPx.updateBounds(
+                lowerBound = 0f,
+                upperBound = fullscreenSidePanelTargetWidthPx
+            )
+            fullscreenSidePanelWidthPx.animateTo(
+                targetValue = if (fullscreenSidePanelVisible) fullscreenSidePanelTargetWidthPx else 0f,
+                animationSpec = tween(durationMillis = 260)
+            )
+        }
+        fun closeFullscreenSidePanel() {
+            scope.launch {
+                fullscreenSidePanelWidthPx.animateTo(
+                    targetValue = 0f,
+                    animationSpec = tween(durationMillis = 220)
+                )
+                screenState.dismissMediaSheets()
+            }
+        }
+        val fullscreenSidePanelDragModifier = Modifier.pointerInput(fullscreenSidePanelTargetWidthPx, fullscreenSidePanelVisible) {
+            if (!fullscreenSidePanelVisible || fullscreenSidePanelTargetWidthPx <= 0f) return@pointerInput
+            val velocityTracker = VelocityTracker()
+            detectHorizontalDragGestures(
+                onHorizontalDrag = { change, dragAmount ->
+                    velocityTracker.addPointerInputChange(change)
+                    change.consume()
+                    scope.launch {
+                        fullscreenSidePanelWidthPx.snapTo(
+                            (fullscreenSidePanelWidthPx.value - dragAmount)
+                                .coerceIn(0f, fullscreenSidePanelTargetWidthPx)
+                        )
+                    }
+                },
+                onDragCancel = {
+                    velocityTracker.resetTracking()
+                    scope.launch {
+                        fullscreenSidePanelWidthPx.animateTo(
+                            targetValue = fullscreenSidePanelTargetWidthPx,
+                            animationSpec = tween(durationMillis = 220)
+                        )
+                    }
+                },
+                onDragEnd = {
+                    val velocityX = velocityTracker.calculateVelocity().x
+                    velocityTracker.resetTracking()
+                    val shouldDismiss = velocityX > 900f ||
+                        fullscreenSidePanelWidthPx.value < fullscreenSidePanelTargetWidthPx * 0.62f
+                    if (shouldDismiss) {
+                        closeFullscreenSidePanel()
+                    } else {
+                        scope.launch {
+                            fullscreenSidePanelWidthPx.animateTo(
+                                targetValue = fullscreenSidePanelTargetWidthPx,
+                                animationSpec = tween(durationMillis = 220)
+                            )
+                        }
+                    }
+                }
+            )
+        }
+        val fullscreenSidePanelWidth = with(density) { fullscreenSidePanelWidthPx.value.toDp() }
+        val fullscreenSidePanelHeight = maxHeight
+        val fullscreenPlayerWidth = (maxWidth - fullscreenSidePanelWidth).coerceAtLeast(maxWidth * 0.6f)
 
         DraggablePlayerLayout(
                 state = playerSheetState,
@@ -476,6 +564,10 @@ fun GlobalPlayerOverlay(
                 onExpandedPlayerBottomChanged = { bottom ->
                     expandedPlayerBottom = bottom
                 },
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .width(fullscreenPlayerWidth)
+                    .fillMaxHeight(),
                 videoContent = { modifier ->
                     // ALWAYS use the same video surface
                     val gestureModifier = if (!isMinimized && !localIsInPipMode) {
@@ -907,6 +999,97 @@ fun GlobalPlayerOverlay(
                 }
             }
         )
+
+        if (fullscreenSidePanelWidth > 1.dp) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .width(fullscreenSidePanelWidth)
+                    .fillMaxHeight()
+                    .then(fullscreenSidePanelDragModifier)
+                    .background(MaterialTheme.colorScheme.surface)
+            ) {
+                if (showSettingsSurface) {
+                    SettingsMenuDialog(
+                        playerState = playerState,
+                        autoplayEnabled = playerUiState.autoplayEnabled,
+                        subtitlesEnabled = screenState.subtitlesEnabled,
+                        initialPage = settingsInitialPage,
+                        onDismiss = {
+                            screenState.showSettingsMenu = false
+                            screenState.showQualitySelector = false
+                            screenState.showAudioTrackSelector = false
+                            screenState.showPlaybackSpeedSelector = false
+                            screenState.showSubtitleSelector = false
+                        },
+                        onQualitySelected = { height ->
+                            EnhancedPlayerManager.getInstance().switchQuality(height)
+                        },
+                        onAudioTrackSelected = { index ->
+                            EnhancedPlayerManager.getInstance().switchAudioTrack(index)
+                        },
+                        onSpeedSelected = { speed ->
+                            EnhancedPlayerManager.getInstance().setPlaybackSpeed(speed)
+                            screenState.normalSpeed = speed
+                            if (rememberPlaybackSpeed) {
+                                scope.launch { playerPreferences.setPlaybackSpeed(speed) }
+                            }
+                        },
+                        selectedSubtitleUrl = screenState.selectedSubtitleUrl,
+                        onSubtitleSelected = { index, url ->
+                            screenState.selectedSubtitleUrl = url
+                            EnhancedPlayerManager.getInstance().selectSubtitle(index)
+                            screenState.subtitlesEnabled = true
+                        },
+                        onDisableSubtitles = {
+                            screenState.disableSubtitles()
+                        },
+                        onAutoplayToggle = { playerViewModel.toggleAutoplay(it) },
+                        onSkipSilenceToggle = { playerViewModel.toggleSkipSilence(it) },
+                        onStableVolumeToggle = { playerViewModel.toggleStableVolume(it) },
+                        onShowSubtitleStyle = {
+                            screenState.showSettingsMenu = false
+                            screenState.showSubtitleStyleCustomizer = true
+                        },
+                        onLoopToggle = { playerViewModel.toggleLoop(it) },
+                        onCastClick = {
+                            DlnaCastManager.startDiscovery(context)
+                            screenState.showDlnaDialog = true
+                        },
+                        onPipClick = {
+                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
+                                PictureInPictureHelper.isPipSupported(context)
+                            ) {
+                                PictureInPictureHelper.enterPipMode(
+                                    activity = activity,
+                                    isPlaying = playerState.isPlaying
+                                )
+                            }
+                        },
+                        onSleepTimerClick = {
+                            screenState.showSleepTimerSheet = true
+                        },
+                        expandedHeight = fullscreenSidePanelHeight,
+                        enableVerticalDismiss = false,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else if (screenState.showChaptersSheet) {
+                    FlowChaptersBottomSheet(
+                        chapters = playerUiState.chapters,
+                        currentPosition = screenState.currentPosition,
+                        durationMs = screenState.duration,
+                        onChapterClick = { newPosition ->
+                            EnhancedPlayerManager.getInstance().seekTo(newPosition)
+                        },
+                        thumbnailUrl = video.thumbnailUrl,
+                        expandedHeight = fullscreenSidePanelHeight,
+                        enableVerticalDismiss = false,
+                        modifier = Modifier.fillMaxSize(),
+                        onDismiss = { screenState.showChaptersSheet = false }
+                    )
+                }
+            }
+        }
         
         // Dialogs
         PlayerDialogsContainer(
@@ -914,7 +1097,8 @@ fun GlobalPlayerOverlay(
             playerState = playerState,
             uiState = playerUiState,
             video = completeVideo,
-            viewModel = playerViewModel
+            viewModel = playerViewModel,
+            renderSettingsMenu = !canUseFullscreenSidePanel
         )
 
         // SB Submit dialog
@@ -1010,7 +1194,8 @@ fun GlobalPlayerOverlay(
             },
             onNavigateToChannel = { channelId ->
                 onNavigateToChannel(channelId)
-            }
+            },
+            renderChaptersSheet = !canUseFullscreenSidePanel
         )
     }
 }

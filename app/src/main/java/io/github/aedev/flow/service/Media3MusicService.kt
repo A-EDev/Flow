@@ -221,6 +221,7 @@ class Media3MusicService : MediaLibraryService() {
             }
             
             override fun onPlaybackStateChanged(playbackState: Int) {
+                updateLocks(isPlaybackActive())
                 if (playbackState == Player.STATE_READY) {
                     player.currentMediaItem?.mediaId?.let { mediaId ->
                         retryCountMap.remove(mediaId)
@@ -228,20 +229,13 @@ class Media3MusicService : MediaLibraryService() {
                     }
                 }
             }
+
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                updateLocks(isPlaybackActive())
+            }
+
             override fun onIsPlayingChanged(isPlaying: Boolean) {
-                if (isPlaying) {
-                    lockReleaseJob?.cancel()
-                    lockReleaseJob = null
-                    acquireLocks()
-                } else {
-                    releaseWakeLock()
-                    lockReleaseJob?.cancel()
-                    lockReleaseJob = serviceScope.launch {
-                        delay(30_000L)
-                        releaseWifiLock()
-                        stopSelf()
-                    }
-                }
+                updateLocks(isPlaybackActive())
             }
         })
     }
@@ -410,10 +404,17 @@ class Media3MusicService : MediaLibraryService() {
      * Skip to next track
      */
     private fun skipToNext() {
-        if (player.hasNextMediaItem()) {
-            player.seekToNextMediaItem()
-            player.prepare()
-            player.play()
+        when {
+            player.hasNextMediaItem() -> {
+                player.seekToNextMediaItem()
+                player.prepare()
+                player.play()
+            }
+            player.repeatMode == Player.REPEAT_MODE_ALL && player.mediaItemCount > 0 -> {
+                player.seekTo(0, 0L)
+                player.prepare()
+                player.play()
+            }
         }
     }
 
@@ -510,6 +511,35 @@ class Media3MusicService : MediaLibraryService() {
         }
         if (wifiLock?.isHeld != true) {
             wifiLock?.acquire()
+        }
+    }
+
+    private fun isPlaybackActive(): Boolean {
+        if (!::player.isInitialized) return false
+        return player.isPlaying ||
+            player.playbackState == Player.STATE_BUFFERING ||
+            (player.playWhenReady &&
+                player.playbackState != Player.STATE_IDLE &&
+                player.playbackState != Player.STATE_ENDED)
+    }
+
+    private fun updateLocks(isPlaybackActive: Boolean) {
+        lockReleaseJob?.cancel()
+        lockReleaseJob = null
+
+        if (isPlaybackActive) {
+            acquireLocks()
+            return
+        }
+
+        lockReleaseJob = serviceScope.launch {
+            delay(30_000L)
+            if (!isPlaybackActive()) {
+                releaseLocks()
+                if (!isAppInForeground()) {
+                    stopSelf()
+                }
+            }
         }
     }
 

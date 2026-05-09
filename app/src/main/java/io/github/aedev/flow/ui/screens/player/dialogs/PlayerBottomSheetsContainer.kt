@@ -45,7 +45,8 @@ fun PlayerBottomSheetsContainer(
     onPlayAsMusic: (String) -> Unit,
     onLoadReplies: (Comment) -> Unit = {},
     onLoadMoreReplies: (Comment) -> Unit = {},
-    onNavigateToChannel: ((String) -> Unit)? = null
+    onNavigateToChannel: ((String) -> Unit)? = null,
+    renderChaptersSheet: Boolean = true
 ) {
     fun relativeTimeToSeconds(timeStr: String): Long {
         val lower = timeStr.lowercase().trim()
@@ -83,9 +84,6 @@ fun PlayerBottomSheetsContainer(
             }
             val ms = seconds * 1000L
             EnhancedPlayerManager.getInstance().seekTo(ms)
-            
-            screenState.showCommentsSheet = false
-            screenState.showDescriptionSheet = false
         }
     }
     
@@ -199,7 +197,7 @@ fun PlayerBottomSheetsContainer(
     }
 
     // Chapters Bottom Sheet
-    if (screenState.showChaptersSheet) {
+    if (screenState.showChaptersSheet && renderChaptersSheet) {
         FlowChaptersBottomSheet(
             chapters = uiState.chapters,
             currentPosition = screenState.currentPosition,
@@ -226,6 +224,7 @@ fun PlayerBottomSheetsContainer(
             onPlayVideoAtIndex = { index ->
                 EnhancedPlayerManager.getInstance().playVideoAtIndex(index)
             },
+            expandedHeight = mediaSheetExpandedHeight,
             onDismiss = { screenState.showPlaylistQueueSheet = false }
         )
     }

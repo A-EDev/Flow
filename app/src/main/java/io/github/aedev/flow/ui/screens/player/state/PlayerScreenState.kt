@@ -123,6 +123,13 @@ class PlayerScreenState {
         showCommentsSheet = false
         showDescriptionSheet = false
         showChaptersSheet = false
+        showPlaylistQueueSheet = false
+        showSettingsMenu = false
+        showQualitySelector = false
+        showAudioTrackSelector = false
+        showSubtitleSelector = false
+        showPlaybackSpeedSelector = false
+        showSubtitleStyleCustomizer = false
     }
     
     fun cycleResizeMode() {

@@ -60,6 +60,7 @@ fun FlowChaptersBottomSheet(
     onDismiss: () -> Unit,
     thumbnailUrl: String = "",
     expandedHeight: Dp? = null,
+    enableVerticalDismiss: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val configuration = LocalConfiguration.current
@@ -81,6 +82,10 @@ fun FlowChaptersBottomSheet(
     )
 
     fun animateToExpanded() {
+        if (!enableVerticalDismiss) {
+            coroutineScope.launch { sheetHeightPx.snapTo(expandedHeightPx) }
+            return
+        }
         coroutineScope.launch {
             sheetHeightPx.animateTo(
                 targetValue = expandedHeightPx,
@@ -94,6 +99,10 @@ fun FlowChaptersBottomSheet(
 
     fun animateToDismiss() {
         if (isAnimatingOut) return
+        if (!enableVerticalDismiss) {
+            latestOnDismiss()
+            return
+        }
         isAnimatingOut = true
         coroutineScope.launch {
             sheetHeightPx.animateTo(
@@ -110,6 +119,10 @@ fun FlowChaptersBottomSheet(
     LaunchedEffect(expandedHeightPx) {
         isAnimatingOut = false
         sheetHeightPx.updateBounds(lowerBound = 0f, upperBound = expandedHeightPx)
+        if (!enableVerticalDismiss) {
+            sheetHeightPx.snapTo(expandedHeightPx)
+            return@LaunchedEffect
+        }
         if (sheetHeightPx.value == 0f) {
             sheetHeightPx.snapTo(0f)
         }
@@ -130,7 +143,7 @@ fun FlowChaptersBottomSheet(
 
     BackHandler(onBack = ::animateToDismiss)
 
-    val headerDragModifier = Modifier.pointerInput(expandedHeightPx, dismissThresholdPx, isAnimatingOut) {
+    val headerDragModifier = if (enableVerticalDismiss) Modifier.pointerInput(expandedHeightPx, dismissThresholdPx, isAnimatingOut) {
         val velocityTracker = VelocityTracker()
         detectVerticalDragGestures(
             onVerticalDrag = { change, dragAmount ->
@@ -154,7 +167,7 @@ fun FlowChaptersBottomSheet(
                 }
             }
         )
-    }
+    } else Modifier
 
     Box(
         modifier = modifier.fillMaxSize(),

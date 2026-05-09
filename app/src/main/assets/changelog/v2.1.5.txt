@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-8
+DATE: 2026-05-9
 
 FEATURES
 - Add new Proxy manager and routing #362
@@ -28,6 +28,7 @@ IMPROVEMENTS
 - Improve dislike signals from video player
 - Improve topics categories
 - Improve dynamic video player sizing and handling
+- Player settings sheet redesign and Introduce new sheet sidebar in player
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

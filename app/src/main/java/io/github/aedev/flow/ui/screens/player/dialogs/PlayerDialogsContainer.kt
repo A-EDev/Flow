@@ -13,6 +13,7 @@ import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.screens.player.components.*
+import io.github.aedev.flow.ui.screens.player.components.PlayerSettingsPage
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
@@ -23,7 +24,8 @@ fun PlayerDialogsContainer(
     playerState: EnhancedPlayerState,
     uiState: VideoPlayerUiState,
     video: Video,
-    viewModel: VideoPlayerViewModel
+    viewModel: VideoPlayerViewModel,
+    renderSettingsMenu: Boolean = true
 ) {
     val context = LocalContext.current
     val playerPreferences = remember { PlayerPreferences(context) }
@@ -48,8 +50,20 @@ fun PlayerDialogsContainer(
         )
     }
 
-    // Quality selector
-    if (screenState.showQualitySelector) {
+    val settingsInitialPage = when {
+        screenState.showQualitySelector -> PlayerSettingsPage.Quality
+        screenState.showAudioTrackSelector -> PlayerSettingsPage.Audio
+        screenState.showPlaybackSpeedSelector -> PlayerSettingsPage.Speed
+        screenState.showSubtitleSelector -> PlayerSettingsPage.Subtitles
+        else -> PlayerSettingsPage.Main
+    }
+    val showSettingsSurface = screenState.showSettingsMenu ||
+        screenState.showQualitySelector ||
+        screenState.showAudioTrackSelector ||
+        screenState.showPlaybackSpeedSelector ||
+        screenState.showSubtitleSelector
+
+    if (false && screenState.showQualitySelector) {
         QualitySelectorDialog(
             availableQualities = playerState.availableQualities,
             currentQuality = playerState.currentQuality,
@@ -65,7 +79,7 @@ fun PlayerDialogsContainer(
     }
     
     // Audio track selector
-    if (screenState.showAudioTrackSelector) {
+    if (false && screenState.showAudioTrackSelector) {
         AudioTrackSelectorDialog(
             availableAudioTracks = playerState.availableAudioTracks,
             currentAudioTrack = playerState.currentAudioTrack,
@@ -81,7 +95,7 @@ fun PlayerDialogsContainer(
     }
     
     // Subtitle selector
-    if (screenState.showSubtitleSelector) {
+    if (false && screenState.showSubtitleSelector) {
         SubtitleSelectorDialog(
             availableSubtitles = playerState.availableSubtitles,
             selectedSubtitleUrl = screenState.selectedSubtitleUrl,
@@ -107,27 +121,40 @@ fun PlayerDialogsContainer(
     }
     
     // Settings menu
-    if (screenState.showSettingsMenu) {
+    if (showSettingsSurface && renderSettingsMenu) {
         SettingsMenuDialog(
             playerState = playerState,
             autoplayEnabled = uiState.autoplayEnabled,
             subtitlesEnabled = screenState.subtitlesEnabled,
-            onDismiss = { screenState.showSettingsMenu = false },
-            onShowQuality = { 
+            initialPage = settingsInitialPage,
+            onDismiss = {
                 screenState.showSettingsMenu = false
-                screenState.showQualitySelector = true 
+                screenState.showQualitySelector = false
+                screenState.showAudioTrackSelector = false
+                screenState.showPlaybackSpeedSelector = false
+                screenState.showSubtitleSelector = false
             },
-            onShowAudio = { 
-                screenState.showSettingsMenu = false
-                screenState.showAudioTrackSelector = true 
+            onQualitySelected = { height ->
+                EnhancedPlayerManager.getInstance().switchQuality(height)
             },
-            onShowSpeed = { 
-                screenState.showSettingsMenu = false
-                screenState.showPlaybackSpeedSelector = true 
+            onAudioTrackSelected = { index ->
+                EnhancedPlayerManager.getInstance().switchAudioTrack(index)
             },
-            onShowSubtitles = { 
-                screenState.showSettingsMenu = false
-                screenState.showSubtitleSelector = true 
+            onSpeedSelected = { speed ->
+                EnhancedPlayerManager.getInstance().setPlaybackSpeed(speed)
+                screenState.normalSpeed = speed
+                if (rememberPlaybackSpeed) {
+                    coroutineScope.launch { playerPreferences.setPlaybackSpeed(speed) }
+                }
+            },
+            selectedSubtitleUrl = screenState.selectedSubtitleUrl,
+            onSubtitleSelected = { index, url ->
+                screenState.selectedSubtitleUrl = url
+                EnhancedPlayerManager.getInstance().selectSubtitle(index)
+                screenState.subtitlesEnabled = true
+            },
+            onDisableSubtitles = {
+                screenState.disableSubtitles()
             },
             onAutoplayToggle = { viewModel.toggleAutoplay(it) },
             onSkipSilenceToggle = { viewModel.toggleSkipSilence(it) },
@@ -160,7 +187,7 @@ fun PlayerDialogsContainer(
     }
 
     // Playback speed selector
-    if (screenState.showPlaybackSpeedSelector) {
+    if (false && screenState.showPlaybackSpeedSelector) {
         PlaybackSpeedSelectorDialog(
             currentSpeed = playerState.playbackSpeed,
             onDismiss = { screenState.showPlaybackSpeedSelector = false },

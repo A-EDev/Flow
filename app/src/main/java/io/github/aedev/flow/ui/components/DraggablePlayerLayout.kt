@@ -199,7 +199,8 @@ fun DraggablePlayerLayout(
     onCollapseGesture: (() -> Unit)? = null,
     onFullscreenGesture: (() -> Unit)? = null,
     onExpandedPlayerBottomChanged: (Dp) -> Unit = {},
-    videoAspectRatio: Float = 16f / 9f
+    videoAspectRatio: Float = 16f / 9f,
+    modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
     val config  = LocalConfiguration.current
@@ -217,7 +218,7 @@ fun DraggablePlayerLayout(
     val systemLayoutDirection = LocalLayoutDirection.current
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = modifier.fillMaxSize()) {
             val screenWidth  = constraints.maxWidth.toFloat()
             val screenHeight = constraints.maxHeight.toFloat()
 
