@@ -565,4 +565,7 @@
     <string name="categories_region_picker_desc">Trendregion ändern (aktuell: %1$s)</string>
     <string name="content_settings_header_nav_tabs">Navigation Tabs</string>
     <string name="settings_subs_shorts_shelf_title">Abonnements – Shorts</string>
+    <string name="content_settings_disable_shorts_player_title">Shorts-Player deaktivieren</string>
+    <string name="settings_subs_shorts_shelf_subtitle">Zeige die horizontalen Shorts im Feed-Raster des Abonnements an.</string>
+    <string name="settings_home_shorts_shelf_title">Shorts auf dem Startbildschirm</string>
 </resources>
