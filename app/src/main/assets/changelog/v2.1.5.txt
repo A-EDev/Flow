@@ -10,6 +10,8 @@ FEATURES
 - Subtitle customization #348
 - Add playlist items re-ordering and video watch progress #380 #382
 - Add more import options #396 #357
+- Add copy video title by long press #426
+- Add playlist video downloads confirmation dialog  #413
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361
@@ -43,6 +45,8 @@ FIXES AND STABILITY
 - Fix low thumbnail quality #403
 - Fix channel avatar on subscription #387
 - Fix background playback #417
+- Fix playback issues when playing from shared links #422
+- Fix playlist playback history #413
 
 ENGINE
 - Improve topic maturity detection for better recommendations #281

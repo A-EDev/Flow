@@ -67,6 +67,13 @@ fun VideoPlayerSurface(
                 oldPlayer?.removeListener(videoSizeListener)
                 newPlayer?.addListener(videoSizeListener)
                 view.player = newPlayer
+                if (newPlayer != null &&
+                    newPlayer.playbackState == Player.STATE_IDLE &&
+                    newPlayer.currentMediaItem != null
+                ) {
+                    Log.d("VideoPlayerSurface", "New PlayerView attached; player IDLE with media — calling prepare()")
+                    newPlayer.prepare()
+                }
             }
 
             // Apply resize mode

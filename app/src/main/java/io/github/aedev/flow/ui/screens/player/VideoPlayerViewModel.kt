@@ -171,6 +171,7 @@ class VideoPlayerViewModel @Inject constructor(
                                 channel = currentVideo.channelName,
                                 thumbnail = currentVideo.thumbnailUrl
                             )
+                            saveHistoryEntry(currentVideo)
                         }
                          loadVideoInfo(videoId, isWifi = detectIsWifi())
                     }
@@ -658,6 +659,31 @@ class VideoPlayerViewModel @Inject constructor(
                             FlowNeuroEngine.onVideoInteraction(context, video, InteractionType.CLICK)
                         } catch (e: Exception) {
                             Log.e("VideoPlayerViewModel", "Failed to record interaction", e)
+                        }
+
+                        val realTitle = streamInfo.name?.takeIf { it.isNotBlank() }
+                        val realChannel = streamInfo.uploaderName?.takeIf { it.isNotBlank() }
+                        val realThumbnail = streamInfo.thumbnails?.maxByOrNull { it.height }?.url?.takeIf { it.isNotBlank() }
+                        if (realTitle != null) {
+                            val currentCached = _uiState.value.cachedVideo
+                            val enrichedVideo = (currentCached ?: Video(
+                                id = videoId, title = "", channelName = "", channelId = "",
+                                thumbnailUrl = "", duration = 0, viewCount = 0L, uploadDate = ""
+                            )).copy(
+                                title = realTitle,
+                                channelName = realChannel ?: currentCached?.channelName ?: "",
+                                channelId = currentCached?.channelId?.takeIf { it.isNotBlank() }
+                                    ?: streamInfo.uploaderUrl?.split("/")?.last() ?: "",
+                                thumbnailUrl = realThumbnail ?: currentCached?.thumbnailUrl ?: "",
+                                duration = streamInfo.duration.toInt().takeIf { it > 0 } ?: (currentCached?.duration ?: 0)
+                            )
+                            GlobalPlayerState.setCurrentVideo(enrichedVideo)
+                            EnhancedPlayerManager.getInstance().startBackgroundService(
+                                videoId   = videoId,
+                                title     = realTitle,
+                                channel   = realChannel ?: "",
+                                thumbnail = realThumbnail ?: ""
+                            )
                         }
 
                         val availableQualities = extractAvailableQualities(streamInfo)

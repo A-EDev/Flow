@@ -133,6 +133,15 @@ fun PlaybackRefocusEffect(
             return@LaunchedEffect
         }
 
+        if (!playerMgrState.hasEnded &&
+            player.playbackState == Player.STATE_BUFFERING
+        ) {
+            if (playerMgrState.playWhenReady && !player.isPlaying) {
+                player.play()
+            }
+            return@LaunchedEffect
+        }
+
         if (playerMgrState.currentVideoId != null) {
             mgr.beginBackgroundRecovery()
             try {

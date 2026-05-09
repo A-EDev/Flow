@@ -84,6 +84,7 @@ fun PlaylistDetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showOptionsMenu by remember { mutableStateOf(false) }
     var showMergeDialog by remember { mutableStateOf(false) }
+    var showDownloadAllDialog by remember { mutableStateOf(false) }
     val isUserCreatedPlaylist = uiState.isLocalPlaylist && !uiState.isSaved
     val listState = rememberLazyListState()
     var displayVideos by remember { mutableStateOf(uiState.videos) }
@@ -208,7 +209,7 @@ fun PlaylistDetailScreen(
                         val shuffled = uiState.videos.shuffled()
                         onPlayPlaylist(shuffled, 0)
                     },
-                    onDownloadAll = { viewModel.downloadPlaylist() },
+                    onDownloadAll = { showDownloadAllDialog = true },
                     isDownloading = isDownloadingPlaylist,
                     downloadProgress = playlistDownloadProgress,
                     currentDownloadingTitle = currentDownloadingTitle
@@ -287,6 +288,30 @@ fun PlaylistDetailScreen(
         MergeIntoPlaylistDialog(
             viewModel = viewModel,
             onDismiss = { showMergeDialog = false }
+        )
+    }
+
+    if (showDownloadAllDialog) {
+        AlertDialog(
+            onDismissRequest = { showDownloadAllDialog = false },
+            icon = { Icon(Icons.Default.Download, null) },
+            title = { Text(stringResource(R.string.download_all)) },
+            text = { Text(stringResource(R.string.download_all_confirmation, uiState.videos.size)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.downloadPlaylist()
+                        showDownloadAllDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.download))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDownloadAllDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
         )
     }
 }

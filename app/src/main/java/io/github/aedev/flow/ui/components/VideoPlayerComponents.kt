@@ -1,11 +1,17 @@
 package io.github.aedev.flow.ui.components
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.text.Html
 import android.text.method.LinkMovementMethod
 import android.widget.TextView
+import android.widget.Toast
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
@@ -46,6 +52,7 @@ import io.github.aedev.flow.utils.formatRichText
 import io.github.aedev.flow.R
 import androidx.compose.ui.res.stringResource
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VideoInfoSection(
     video: Video,
@@ -97,7 +104,15 @@ fun VideoInfoSection(
             ),
             color = MaterialTheme.colorScheme.onBackground,
             maxLines = titleMaxLines,
-            overflow = if (titleMaxLinesPref <= 0) TextOverflow.Clip else TextOverflow.Ellipsis
+            overflow = if (titleMaxLinesPref <= 0) TextOverflow.Clip else TextOverflow.Ellipsis,
+            modifier = Modifier.combinedClickable(
+                onClick = {},
+                onLongClick = {
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("Video Title", title))
+                    Toast.makeText(context, context.getString(R.string.title_copied), Toast.LENGTH_SHORT).show()
+                }
+            )
         )
         
         // View count and date in a subtle row below title

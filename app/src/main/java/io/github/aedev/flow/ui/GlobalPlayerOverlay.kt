@@ -681,6 +681,12 @@ fun GlobalPlayerOverlay(
                                     }
                                 }
                         ) {
+                        VideoPlayerSurface(
+                            video = video,
+                            resizeMode = screenState.resizeMode,
+                            modifier = Modifier.fillMaxSize(),
+                            onVideoAspectRatioChanged = { videoAspectRatio = it }
+                        )
                         if (playerUiState.isRestoredSession) {
                             val thumbUrl = video.thumbnailUrl.takeIf { it.isNotEmpty() }
                                 ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg"
@@ -689,13 +695,6 @@ fun GlobalPlayerOverlay(
                                 contentDescription = null,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                            )
-                        } else {
-                            VideoPlayerSurface(
-                                video = video,
-                                resizeMode = screenState.resizeMode,
-                                modifier = Modifier.fillMaxSize(),
-                                onVideoAspectRatioChanged = { videoAspectRatio = it }
                             )
                         }
                         

@@ -46,6 +46,8 @@
     <string name="share">Share</string>
     <string name="downloaded">Downloaded</string>
     <string name="download">Download</string>
+    <string name="download_all">Download all</string>
+    <string name="download_all_confirmation">Download all %1$d videos? This may use significant storage.</string>
     <string name="save">Save</string>
     <string name="saved">Saved</string>
     <string name="up_next">UP NEXT</string>
@@ -202,6 +204,7 @@
     <string name="description">Description</string>
     <string name="copy_description">Copy description</string>
     <string name="description_copied">Description copied to clipboard</string>
+    <string name="title_copied">Title copied to clipboard</string>
     <string name="tags">Tags</string>
     <string name="in_this_video">In this video</string>
     <string name="sb_manual_skip">Skip</string>
