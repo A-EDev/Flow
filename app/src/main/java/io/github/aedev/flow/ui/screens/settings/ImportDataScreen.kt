@@ -115,6 +115,16 @@ fun ImportDataScreen(
         onResult = { uri -> uri?.let { importViewModel.importYouTubeWatchHistory(it) } }
     )
 
+    val freeTubeHistoryImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri -> uri?.let { importViewModel.importFreeTubeWatchHistory(it) } }
+    )
+
+    val newPipeHistoryImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri -> uri?.let { importViewModel.importNewPipeWatchHistory(it) } }
+    )
+
     val youtubePlaylistImportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri ->
@@ -163,7 +173,6 @@ fun ImportDataScreen(
         }
     )
 
-    // Flow Engine / Neural profile import
     val libreTubeImportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
         onResult = { uri -> uri?.let { importViewModel.importLibreTube(it) } }
@@ -296,12 +305,26 @@ fun ImportDataScreen(
                     onClick = { importMasterLauncher.launch(arrayOf("application/zip", "application/octet-stream")) }
                 )
             }
+
+            item {
+                ImportOptionCard(
+                    title = stringResource(R.string.import_engine_data),
+                    description = stringResource(R.string.import_engine_data_desc),
+                    icon = Icons.Outlined.Psychology,
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    onClick = { importEngineLauncher.launch(arrayOf("application/json")) }
+                )
+            }
             
             item {
                 PreferencesSectionHeader(
                     title = "External Services",
                     subtitle = "Import from other YouTube clients"
                 )
+            }
+
+            item {
+                ImportSubsectionHeader(title = stringResource(R.string.import_subscriptions_section_title))
             }
 
             item {
@@ -338,10 +361,55 @@ fun ImportDataScreen(
             }
 
             item {
-                PreferencesSectionHeader(
-                    title = stringResource(R.string.import_playlists_section_title),
-                    subtitle = stringResource(R.string.import_playlists_section_subtitle)
+                ImportSubsectionHeader(title = stringResource(R.string.import_history_section_title))
+            }
+
+            item {
+                ImportOptionCard(
+                    title = stringResource(R.string.import_yt_takeout_all),
+                    description = stringResource(R.string.import_yt_takeout_all_desc),
+                    icon = Icons.Outlined.Archive,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    enabled = importState !is ImportViewModel.State.Running,
+                    onClick = { youtubeTakeoutImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) }
                 )
+            }
+
+            item {
+                ImportOptionCard(
+                    title = stringResource(R.string.import_yt_watch_history),
+                    description = stringResource(R.string.import_yt_watch_history_desc),
+                    icon = Icons.Outlined.History,
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    enabled = importState !is ImportViewModel.State.Running,
+                    onClick = { youtubeHistoryImportLauncher.launch(arrayOf("text/html", "text/plain", "*/*")) }
+                )
+            }
+
+            item {
+                ImportOptionCard(
+                    title = stringResource(R.string.import_freetube_history),
+                    description = stringResource(R.string.import_freetube_history_desc),
+                    icon = Icons.Outlined.History,
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    enabled = importState !is ImportViewModel.State.Running,
+                    onClick = { freeTubeHistoryImportLauncher.launch(arrayOf("application/json", "text/plain", "application/octet-stream", "*/*")) }
+                )
+            }
+
+            item {
+                ImportOptionCard(
+                    title = stringResource(R.string.import_newpipe_history),
+                    description = stringResource(R.string.import_newpipe_history_desc),
+                    painter = painterResource(id = R.drawable.ic_newpipe),
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    enabled = importState !is ImportViewModel.State.Running,
+                    onClick = { newPipeHistoryImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "application/x-sqlite3", "*/*")) }
+                )
+            }
+
+            item {
+                ImportSubsectionHeader(title = stringResource(R.string.import_playlists_section_title))
             }
 
             item {
@@ -367,10 +435,18 @@ fun ImportDataScreen(
             }
 
             item {
-                PreferencesSectionHeader(
-                    title = stringResource(R.string.import_music_apps_section_title),
-                    subtitle = stringResource(R.string.import_music_apps_section_subtitle)
+                ImportOptionCard(
+                    title = stringResource(R.string.import_yt_playlist),
+                    description = stringResource(R.string.import_yt_playlist_desc),
+                    icon = Icons.Outlined.PlaylistPlay,
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    enabled = importState !is ImportViewModel.State.Running,
+                    onClick = { youtubePlaylistImportLauncher.launch(arrayOf("text/comma-separated-values", "text/csv", "text/plain")) }
                 )
+            }
+
+            item {
+                ImportSubsectionHeader(title = stringResource(R.string.import_music_apps_section_title))
             }
 
             item {
@@ -385,68 +461,13 @@ fun ImportDataScreen(
             }
 
             item {
-                PreferencesSectionHeader(
-                    title = stringResource(R.string.import_yt_data_section_title),
-                    subtitle = stringResource(R.string.import_yt_data_section_subtitle)
-                )
-            }
-
-            item {
-                ImportOptionCard(
-                    title = stringResource(R.string.import_yt_takeout_all),
-                    description = stringResource(R.string.import_yt_takeout_all_desc),
-                    icon = Icons.Outlined.Archive,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    enabled = importState !is ImportViewModel.State.Running,
-                    onClick = { youtubeTakeoutImportLauncher.launch(arrayOf("application/zip", "application/octet-stream", "*/*")) }
-                )
-            }
-
-            item {
-                ImportOptionCard(
-                    title = stringResource(R.string.import_yt_watch_history),
-                    description = stringResource(R.string.import_yt_watch_history_desc),
-                    icon = Icons.Outlined.History,
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    enabled = importState !is ImportViewModel.State.Running,
-                    onClick = { youtubeHistoryImportLauncher.launch(arrayOf("text/html", "text/plain")) }
-                )
-            }
-
-            item {
-                ImportOptionCard(
-                    title = stringResource(R.string.import_yt_playlist),
-                    description = stringResource(R.string.import_yt_playlist_desc),
-                    icon = Icons.Outlined.PlaylistPlay,
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    onClick = { youtubePlaylistImportLauncher.launch(arrayOf("text/comma-separated-values", "text/csv", "text/plain")) }
-                )
-            }
-
-            item {
                 ImportOptionCard(
                     title = stringResource(R.string.import_yt_music_playlist),
                     description = stringResource(R.string.import_yt_music_playlist_desc),
                     icon = Icons.Outlined.QueueMusic,
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    enabled = importState !is ImportViewModel.State.Running,
                     onClick = { youtubeMusicPlaylistImportLauncher.launch(arrayOf("text/comma-separated-values", "text/csv", "text/plain")) }
-                )
-            }
-
-            item {
-                PreferencesSectionHeader(
-                    title = stringResource(R.string.import_engine_section_title),
-                    subtitle = stringResource(R.string.import_engine_section_subtitle)
-                )
-            }
-
-            item {
-                ImportOptionCard(
-                    title = stringResource(R.string.import_engine_data),
-                    description = stringResource(R.string.import_engine_data_desc),
-                    icon = Icons.Outlined.Psychology,
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    onClick = { importEngineLauncher.launch(arrayOf("application/json")) }
                 )
             }
 
@@ -455,6 +476,17 @@ fun ImportDataScreen(
             }
         }
     }
+}
+
+@Composable
+private fun ImportSubsectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+    )
 }
 
 @Composable

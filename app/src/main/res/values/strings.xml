@@ -981,6 +981,12 @@
     <string name="import_from_metrolist_desc">Import music playlists from a Metrolist backup file (.zip). Playlists appear in your Music Library.</string>
     <string name="import_from_youtube">Import from YouTube</string>
     <string name="import_from_youtube_desc">Import subscriptions from YouTube Takeout (CSV).</string>
+    <string name="import_subscriptions_section_title">Subs</string>
+    <string name="import_history_section_title">History</string>
+    <string name="import_freetube_history">Import FreeTube History</string>
+    <string name="import_freetube_history_desc">Import your watch history from a FreeTube export JSON file.</string>
+    <string name="import_newpipe_history">Import NewPipe History</string>
+    <string name="import_newpipe_history_desc">Import your watch history from a NewPipe backup ZIP or newpipe.db file.</string>
 
     <!-- YouTube Data Import (Watch History & Playlists) -->
     <string name="import_yt_data_section_title">YouTube Data</string>
@@ -1364,8 +1370,6 @@
     <string name="import_engine_data_desc">Restore your AI personality profile from a backup file</string>
     <string name="import_engine_success">Engine profile restored successfully</string>
     <string name="import_engine_failed">Failed to import engine profile</string>
-    <string name="import_engine_section_title">Flow Engine</string>
-    <string name="import_engine_section_subtitle">Restore your AI learning profile</string>
 
     <!-- Master Backup -->
     <string name="master_backup_title">Master Backup</string>

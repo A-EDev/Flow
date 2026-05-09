@@ -83,16 +83,20 @@ class ImportViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Watch-history import processes the file in 64 KB chunks so individual item progress
-     * is not available.
-     */
     fun importYouTubeWatchHistory(uri: Uri) {
+        importWatchHistory(uri, "YouTube watch history")
+    }
+
+    fun importFreeTubeWatchHistory(uri: Uri) {
+        importWatchHistory(uri, "FreeTube watch history")
+    }
+
+    fun importNewPipeWatchHistory(uri: Uri) {
         if (isRunning) return
-        val label = "YouTube watch history"
+        val label = "NewPipe watch history"
         viewModelScope.launch {
             startProgress(label, 0, 0)
-            val result = backupRepo.importYouTubeWatchHistory(uri)
+            val result = backupRepo.importNewPipeWatchHistory(uri)
             handleResult(label, result)
         }
     }
@@ -205,6 +209,15 @@ class ImportViewModel @Inject constructor(
         _state.value = State.Running(label, current, total)
         if (NotificationHelper.hasNotificationPermission(context)) {
             NotificationHelper.showImportProgress(context, label, current, total)
+        }
+    }
+
+    private fun importWatchHistory(uri: Uri, label: String) {
+        if (isRunning) return
+        viewModelScope.launch {
+            startProgress(label, 0, 0)
+            val result = backupRepo.importYouTubeWatchHistory(uri)
+            handleResult(label, result)
         }
     }
 

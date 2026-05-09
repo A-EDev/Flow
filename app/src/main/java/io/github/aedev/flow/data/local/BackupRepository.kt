@@ -36,7 +36,10 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
+import kotlin.math.roundToLong
 import java.util.concurrent.atomic.AtomicInteger
+import java.time.Instant
+import java.time.OffsetDateTime
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
@@ -77,6 +80,34 @@ data class NewPipeSubscriptionExport(
     @SerializedName("app_version_int")
     val appVersionInt: Int = BuildConfig.VERSION_CODE
 )
+
+private data class FreeTubeHistoryExportEntry(
+    val videoId: String? = null,
+    val author: String? = null,
+    val authorId: String? = null,
+    val title: String? = null,
+    val timeWatched: Long? = null,
+    val lengthSeconds: Long? = null,
+    val watchProgress: Double? = null
+)
+
+private data class YouTubeArchiveSubtitle(
+    val name: String? = null,
+    val url: String? = null
+)
+
+private data class YouTubeArchiveHistoryEntry(
+    val title: String? = null,
+    val titleUrl: String? = null,
+    val subtitles: List<YouTubeArchiveSubtitle>? = null,
+    val time: String? = null,
+    val details: Any? = null
+)
+
+private enum class HistoryImportFormat {
+    HTML,
+    JSON
+}
 
 class BackupRepository(private val context: Context) {
     private val playerPreferences = PlayerPreferences(context)
@@ -402,120 +433,373 @@ class BackupRepository(private val context: Context) {
         }
     }
 
-    /**
-     * Import YouTube watch history from a YouTube Takeout HTML file (watch-history.html).
-     *
-     * Streams the file in 64KB chunks so large files (50MB+) do not cause OOM.
-     * Saves entries in bulk DataStore transactions (500 per batch) for performance.
-     */
     suspend fun importYouTubeWatchHistory(uri: Uri): Result<Int> = withContext(Dispatchers.IO) {
         try {
-            val READ_SIZE  = 65_536  // 64 KB read buffer
-            val OVERLAP    = 2_048   // bytes kept from previous chunk to catch cross-boundary matches
-            val BATCH_SIZE = 500     // entries saved per DataStore transaction
+            val format = detectHistoryImportFormat(uri)
+            val result = when (format) {
+                HistoryImportFormat.HTML -> importHtmlWatchHistory(uri)
+                HistoryImportFormat.JSON -> importJsonWatchHistory(uri)
+            }
 
-            // Match: watch?v=VIDEO_ID">TITLE</a> optionally followed by channel link
-            val videoPattern = Regex(
-                """href="https://www\.youtube\.com/watch\?v=([\w-]{10,12})"[^>]*?>([^<]+)</a>""",
-                RegexOption.IGNORE_CASE
-            )
-            val channelPattern = Regex(
-                """href="https://www\.youtube\.com/channel/([^"&\s]+)"[^>]*?>([^<]+)</a>""",
-                RegexOption.IGNORE_CASE
+            if (result.isSuccess) {
+                result
+            } else {
+                Result.failure(result.exceptionOrNull() ?: Exception("invalid_format"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun importNewPipeWatchHistory(uri: Uri): Result<Int> = withContext(Dispatchers.IO) {
+        val tempDb = java.io.File(context.cacheDir, "newpipe_history_${System.currentTimeMillis()}.db")
+        try {
+            if (!copyNewPipeDatabaseToTempFile(uri, tempDb)) {
+                return@withContext Result.failure(Exception("invalid_format"))
+            }
+
+            val db = android.database.sqlite.SQLiteDatabase.openDatabase(
+                tempDb.absolutePath,
+                null,
+                android.database.sqlite.SQLiteDatabase.OPEN_READONLY
             )
 
-            var importedCount = 0
-            val batch = mutableListOf<VideoHistoryEntry>()
+            val entries = mutableListOf<VideoHistoryEntry>()
             val neuroBootstrapCandidates = LinkedHashMap<String, VideoHistoryEntry>()
 
-            context.contentResolver.openInputStream(uri)
-                ?.bufferedReader(Charsets.UTF_8)
-                ?.use { reader ->
-                    val buf  = CharArray(READ_SIZE)
-                    val tail = StringBuilder(OVERLAP)
+            db.rawQuery(
+                """
+                SELECT s.url, s.title, s.duration, s.uploader, s.uploader_url, s.thumbnail_url,
+                       h.access_date, COALESCE(ss.progress_time, 0)
+                FROM stream_history h
+                INNER JOIN streams s ON s.uid = h.stream_id
+                LEFT JOIN stream_state ss ON ss.stream_id = s.uid
+                ORDER BY h.access_date DESC
+                """.trimIndent(),
+                null
+            ).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val videoUrl = cursor.getString(0).orEmpty()
+                    val videoId = extractYouTubeVideoId(videoUrl) ?: continue
 
-                    while (true) {
-                        val n = reader.read(buf)
-                        if (n == -1) break
+                    val title = cursor.getString(1).orEmpty()
+                    if (title.isBlank()) continue
+                    val durationMs = if (cursor.isNull(2)) 0L else cursor.getLong(2).coerceAtLeast(0L) * 1000L
+                    val channelName = cursor.getString(3).orEmpty()
+                    val channelId = extractImportedChannelId(cursor.getString(4))
+                    val storedThumbnail = cursor.getString(5).orEmpty()
+                    val timestamp = readSqliteTimestamp(cursor, 6) ?: (System.currentTimeMillis() - entries.size)
+                    val rawPositionMs = if (cursor.isNull(7)) 0L else cursor.getLong(7).coerceAtLeast(0L)
+                    val positionMs = if (durationMs > 0L) rawPositionMs.coerceAtMost(durationMs) else rawPositionMs
 
-                        val window = tail.toString() + String(buf, 0, n)
+                    val historyEntry = VideoHistoryEntry(
+                        videoId = videoId,
+                        position = positionMs,
+                        duration = durationMs,
+                        timestamp = timestamp,
+                        title = title,
+                        thumbnailUrl = storedThumbnail.ifBlank {
+                            ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId)
+                        },
+                        channelName = channelName,
+                        channelId = channelId,
+                        isMusic = false
+                    )
+                    entries.add(historyEntry)
+                    rememberNeuroBootstrapCandidate(neuroBootstrapCandidates, historyEntry)
+                }
+            }
+            db.close()
 
-                        val videoMatches   = videoPattern.findAll(window).toList()
-                        val channelMatches = channelPattern.findAll(window).toList()
-                        var chIdx = 0
-
-                        for (vm in videoMatches) {
-                            if (vm.range.last < tail.length) continue
-
-                            val videoId = vm.groupValues[1].trim()
-                            if (videoId.isEmpty()) continue
-
-                            val title = unescapeHtmlEntities(vm.groupValues[2].trim())
-
-                            while (chIdx < channelMatches.size &&
-                                channelMatches[chIdx].range.first <= vm.range.first
-                            ) chIdx++
-
-                            val cm = channelMatches.getOrNull(chIdx)
-                            val channelId: String
-                            val channelName: String
-                            if (cm != null && cm.range.first - vm.range.last < 2_000) {
-                                channelId   = cm.groupValues[1].trim()
-                                channelName = unescapeHtmlEntities(cm.groupValues[2].trim())
-                            } else {
-                                channelId   = ""
-                                channelName = ""
-                            }
-
-                            val historyEntry = VideoHistoryEntry(
-                                videoId      = videoId,
-                                position     = 0L,
-                                duration     = 0L,
-                                timestamp    = System.currentTimeMillis() - importedCount,
-                                title        = title,
-                                thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
-                                channelName  = channelName,
-                                channelId    = channelId,
-                                isMusic      = false
-                            )
-                            batch.add(historyEntry)
-                            rememberNeuroBootstrapCandidate(neuroBootstrapCandidates, historyEntry)
-                            importedCount++
-                        }
-
-                        tail.clear()
-                        if (window.length > OVERLAP) {
-                            tail.append(window, window.length - OVERLAP, window.length)
-                        } else {
-                            tail.append(window)
-                        }
-
-                        if (batch.size >= BATCH_SIZE) {
-                            viewHistory.bulkSaveHistoryEntries(batch)
-                            batch.clear()
-                            kotlinx.coroutines.yield() 
-                        }
-                    }
-
-                    if (batch.isNotEmpty()) {
-                        viewHistory.bulkSaveHistoryEntries(batch)
-                        batch.clear()
-                    }
-                } ?: return@withContext Result.failure(Exception("Could not read file"))
-
-            if (importedCount == 0) {
+            if (entries.isEmpty()) {
                 return@withContext Result.failure(Exception("no_entries"))
             }
+
+            viewHistory.bulkSaveHistoryEntries(entries)
 
             try {
                 bootstrapNeuroFromImportedHistory(neuroBootstrapCandidates.values)
             } catch (_: Exception) {
             }
 
-            Result.success(importedCount)
+            Result.success(entries.size)
         } catch (e: Exception) {
             Result.failure(e)
+        } finally {
+            tempDb.delete()
         }
+    }
+
+    private fun detectHistoryImportFormat(uri: Uri): HistoryImportFormat {
+        val sample = context.contentResolver.openInputStream(uri)
+            ?.bufferedReader(Charsets.UTF_8)
+            ?.use { reader ->
+                val buffer = CharArray(1024)
+                val count = reader.read(buffer)
+                if (count > 0) String(buffer, 0, count) else ""
+            }
+            ?: throw Exception("Could not read file")
+
+        val trimmed = sample.trimStart()
+        return when {
+            trimmed.startsWith("<") -> HistoryImportFormat.HTML
+            trimmed.startsWith("[") || trimmed.startsWith("{") -> HistoryImportFormat.JSON
+            else -> throw Exception("invalid_format")
+        }
+    }
+
+    private suspend fun importHtmlWatchHistory(uri: Uri): Result<Int> {
+        val readSize = 65_536
+        val overlap = 2_048
+        val batchSize = 500
+
+        val videoPattern = Regex(
+            """href="https://www\.youtube\.com/watch\?v=([\w-]{10,12})"[^>]*?>([^<]+)</a>""",
+            RegexOption.IGNORE_CASE
+        )
+        val channelPattern = Regex(
+            """href="https://www\.youtube\.com/channel/([^"&\s]+)"[^>]*?>([^<]+)</a>""",
+            RegexOption.IGNORE_CASE
+        )
+
+        var importedCount = 0
+        val batch = mutableListOf<VideoHistoryEntry>()
+        val neuroBootstrapCandidates = LinkedHashMap<String, VideoHistoryEntry>()
+
+        context.contentResolver.openInputStream(uri)
+            ?.bufferedReader(Charsets.UTF_8)
+            ?.use { reader ->
+                val buffer = CharArray(readSize)
+                val tail = StringBuilder(overlap)
+
+                while (true) {
+                    val count = reader.read(buffer)
+                    if (count == -1) break
+
+                    val window = tail.toString() + String(buffer, 0, count)
+                    val videoMatches = videoPattern.findAll(window).toList()
+                    val channelMatches = channelPattern.findAll(window).toList()
+                    var channelIndex = 0
+
+                    for (videoMatch in videoMatches) {
+                        if (videoMatch.range.last < tail.length) continue
+
+                        val videoId = videoMatch.groupValues[1].trim()
+                        if (videoId.isEmpty()) continue
+
+                        val title = unescapeHtmlEntities(videoMatch.groupValues[2].trim())
+
+                        while (channelIndex < channelMatches.size &&
+                            channelMatches[channelIndex].range.first <= videoMatch.range.first
+                        ) {
+                            channelIndex++
+                        }
+
+                        val channelMatch = channelMatches.getOrNull(channelIndex)
+                        val channelId: String
+                        val channelName: String
+                        if (channelMatch != null && channelMatch.range.first - videoMatch.range.last < 2_000) {
+                            channelId = channelMatch.groupValues[1].trim()
+                            channelName = unescapeHtmlEntities(channelMatch.groupValues[2].trim())
+                        } else {
+                            channelId = ""
+                            channelName = ""
+                        }
+
+                        val historyEntry = VideoHistoryEntry(
+                            videoId = videoId,
+                            position = 0L,
+                            duration = 0L,
+                            timestamp = System.currentTimeMillis() - importedCount,
+                            title = title,
+                            thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
+                            channelName = channelName,
+                            channelId = channelId,
+                            isMusic = false
+                        )
+                        batch.add(historyEntry)
+                        rememberNeuroBootstrapCandidate(neuroBootstrapCandidates, historyEntry)
+                        importedCount++
+                    }
+
+                    tail.clear()
+                    if (window.length > overlap) {
+                        tail.append(window, window.length - overlap, window.length)
+                    } else {
+                        tail.append(window)
+                    }
+
+                    if (batch.size >= batchSize) {
+                        viewHistory.bulkSaveHistoryEntries(batch)
+                        batch.clear()
+                        kotlinx.coroutines.yield()
+                    }
+                }
+
+                if (batch.isNotEmpty()) {
+                    viewHistory.bulkSaveHistoryEntries(batch)
+                    batch.clear()
+                }
+            } ?: return Result.failure(Exception("Could not read file"))
+
+        if (importedCount == 0) {
+            return Result.failure(Exception("no_entries"))
+        }
+
+        try {
+            bootstrapNeuroFromImportedHistory(neuroBootstrapCandidates.values)
+        } catch (_: Exception) {
+        }
+
+        return Result.success(importedCount)
+    }
+
+    private suspend fun importJsonWatchHistory(uri: Uri): Result<Int> {
+        val raw = context.contentResolver.openInputStream(uri)
+            ?.bufferedReader(Charsets.UTF_8)
+            ?.use(BufferedReader::readText)
+            ?: return Result.failure(Exception("Could not read file"))
+
+        val entries = parseJsonWatchHistoryEntries(raw)
+        if (entries.isEmpty()) {
+            return Result.failure(Exception("no_entries"))
+        }
+
+        viewHistory.bulkSaveHistoryEntries(entries)
+
+        try {
+            bootstrapNeuroFromImportedHistory(entries)
+        } catch (_: Exception) {
+        }
+
+        return Result.success(entries.size)
+    }
+
+    private fun parseJsonWatchHistoryEntries(raw: String): List<VideoHistoryEntry> {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return emptyList()
+
+        return when {
+            trimmed.startsWith("[") -> parseYouTubeArchiveHistoryEntries(trimmed)
+            trimmed.startsWith("{") -> parseFreeTubeHistoryEntries(trimmed)
+            else -> emptyList()
+        }
+    }
+
+    private fun parseFreeTubeHistoryEntries(raw: String): List<VideoHistoryEntry> {
+        val lines = raw.lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .toList()
+
+        return lines.mapNotNullIndexed { index, line ->
+            runCatching {
+                gson.fromJson(line, FreeTubeHistoryExportEntry::class.java)
+            }.getOrNull()?.toVideoHistoryEntry(index)
+        }
+    }
+
+    private fun parseYouTubeArchiveHistoryEntries(raw: String): List<VideoHistoryEntry> {
+        val items = runCatching {
+            gson.fromJson(raw, Array<YouTubeArchiveHistoryEntry>::class.java)?.toList().orEmpty()
+        }.getOrDefault(emptyList())
+
+        return items.mapNotNullIndexed { index, item -> item.toVideoHistoryEntry(index) }
+    }
+
+    private fun FreeTubeHistoryExportEntry.toVideoHistoryEntry(index: Int): VideoHistoryEntry? {
+        val normalizedVideoId = videoId?.trim().orEmpty()
+        val normalizedTitle = title?.trim().orEmpty()
+        if (normalizedVideoId.isEmpty() || normalizedTitle.isEmpty()) return null
+
+        val durationMs = (lengthSeconds ?: 0L).coerceAtLeast(0L) * 1000L
+        val progress = (watchProgress ?: 0.0).coerceIn(0.0, 1.0)
+        val positionMs = if (durationMs > 0L && progress > 0.0) {
+            (durationMs.toDouble() * progress).roundToLong().coerceIn(0L, durationMs)
+        } else {
+            0L
+        }
+
+        return VideoHistoryEntry(
+            videoId = normalizedVideoId,
+            position = positionMs,
+            duration = durationMs,
+            timestamp = timeWatched ?: (System.currentTimeMillis() - index),
+            title = normalizedTitle,
+            thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(normalizedVideoId),
+            channelName = author?.trim().orEmpty(),
+            channelId = authorId?.trim().orEmpty(),
+            isMusic = false
+        )
+    }
+
+    private fun YouTubeArchiveHistoryEntry.toVideoHistoryEntry(index: Int): VideoHistoryEntry? {
+        if (details != null) return null
+
+        val videoUrl = titleUrl?.trim().orEmpty()
+        val videoId = extractWatchHistoryVideoId(videoUrl)
+        if (videoId.isEmpty()) return null
+
+        val rawTitle = title?.trim().orEmpty()
+        val normalizedTitle = rawTitle.removePrefix("Watched ").trim()
+        if (normalizedTitle.isEmpty()) return null
+
+        val subtitle = subtitles.orEmpty().firstOrNull()
+        return VideoHistoryEntry(
+            videoId = videoId,
+            position = 0L,
+            duration = 0L,
+            timestamp = parseArchiveTimestamp(time) ?: (System.currentTimeMillis() - index),
+            title = normalizedTitle,
+            thumbnailUrl = ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId),
+            channelName = subtitle?.name?.trim().orEmpty(),
+            channelId = extractChannelId(subtitle?.url),
+            isMusic = false
+        )
+    }
+
+    private fun extractWatchHistoryVideoId(url: String): String {
+        return Regex("""[?&]v=([\w-]{10,12})""")
+            .find(url)
+            ?.groupValues
+            ?.getOrNull(1)
+            .orEmpty()
+    }
+
+    private fun extractChannelId(url: String?): String {
+        return Regex("""/channel/([^/?#]+)""")
+            .find(url.orEmpty())
+            ?.groupValues
+            ?.getOrNull(1)
+            .orEmpty()
+    }
+
+    private fun parseArchiveTimestamp(value: String?): Long? {
+        val raw = value?.trim().orEmpty()
+        if (raw.isEmpty()) return null
+        return runCatching { Instant.parse(raw).toEpochMilli() }.getOrNull()
+    }
+
+    private fun readSqliteTimestamp(cursor: android.database.Cursor, columnIndex: Int): Long? {
+        if (cursor.isNull(columnIndex)) return null
+        return when (cursor.getType(columnIndex)) {
+            android.database.Cursor.FIELD_TYPE_INTEGER -> cursor.getLong(columnIndex)
+            android.database.Cursor.FIELD_TYPE_STRING -> {
+                val raw = cursor.getString(columnIndex).orEmpty().trim()
+                raw.toLongOrNull()
+                    ?: runCatching { OffsetDateTime.parse(raw).toInstant().toEpochMilli() }.getOrNull()
+                    ?: parseArchiveTimestamp(raw)
+            }
+            else -> null
+        }
+    }
+
+    private inline fun <T, R> Iterable<T>.mapNotNullIndexed(transform: (index: Int, T) -> R?): List<R> {
+        val destination = ArrayList<R>()
+        forEachIndexed { index, item ->
+            transform(index, item)?.let(destination::add)
+        }
+        return destination
     }
 
     private fun unescapeHtmlEntities(text: String): String = text
@@ -1104,31 +1388,8 @@ class BackupRepository(private val context: Context) {
     ): Result<Int> = withContext(Dispatchers.IO) {
         val tempDb = java.io.File(context.cacheDir, "newpipe_playlists_${System.currentTimeMillis()}.db")
         try {
-            val mimeType = context.contentResolver.getType(uri)
-            val isZip = mimeType == "application/zip" || mimeType == "application/octet-stream" ||
-                uri.lastPathSegment?.endsWith(".zip", ignoreCase = true) == true
-
-            if (isZip) {
-                var foundDb = false
-                context.contentResolver.openInputStream(uri)?.use { raw ->
-                    ZipInputStream(raw.buffered()).use { zip ->
-                        var entry = zip.nextEntry
-                        while (entry != null) {
-                            if (entry.name == "newpipe.db" || entry.name.endsWith("/newpipe.db")) {
-                                tempDb.outputStream().use { zip.copyTo(it) }
-                                foundDb = true
-                                break
-                            }
-                            zip.closeEntry()
-                            entry = zip.nextEntry
-                        }
-                    }
-                }
-                if (!foundDb) return@withContext Result.failure(Exception("invalid_format"))
-            } else {
-                context.contentResolver.openInputStream(uri)?.use { raw ->
-                    tempDb.outputStream().use { raw.copyTo(it) }
-                } ?: return@withContext Result.failure(Exception("invalid_format"))
+            if (!copyNewPipeDatabaseToTempFile(uri, tempDb)) {
+                return@withContext Result.failure(Exception("invalid_format"))
             }
 
             val db = android.database.sqlite.SQLiteDatabase.openDatabase(
@@ -1412,6 +1673,45 @@ class BackupRepository(private val context: Context) {
                     .takeIf { it.isNotBlank() }
             }
             else -> null
+        }
+    }
+
+    private fun extractImportedChannelId(url: String?): String {
+        val normalized = url.orEmpty()
+        return when {
+            normalized.contains("/channel/") -> normalized.substringAfter("/channel/")
+            normalized.contains("/@") -> normalized.substringAfter("/@")
+            normalized.contains("/user/") -> normalized.substringAfter("/user/")
+            else -> ""
+        }.substringBefore("/").substringBefore("?")
+    }
+
+    private fun copyNewPipeDatabaseToTempFile(uri: Uri, tempDb: java.io.File): Boolean {
+        val mimeType = context.contentResolver.getType(uri)
+        val isZip = mimeType == "application/zip" || mimeType == "application/octet-stream" ||
+            uri.lastPathSegment?.endsWith(".zip", ignoreCase = true) == true
+
+        return if (isZip) {
+            var foundDb = false
+            context.contentResolver.openInputStream(uri)?.use { raw ->
+                ZipInputStream(raw.buffered()).use { zip ->
+                    var entry = zip.nextEntry
+                    while (entry != null) {
+                        if (entry.name == "newpipe.db" || entry.name.endsWith("/newpipe.db")) {
+                            tempDb.outputStream().use { zip.copyTo(it) }
+                            foundDb = true
+                            break
+                        }
+                        zip.closeEntry()
+                        entry = zip.nextEntry
+                    }
+                }
+            }
+            foundDb
+        } else {
+            context.contentResolver.openInputStream(uri)?.use { raw ->
+                tempDb.outputStream().use { raw.copyTo(it) }
+            } != null
         }
     }
 
