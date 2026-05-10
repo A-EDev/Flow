@@ -1320,4 +1320,23 @@
     <string name="shorts_quality">Qualité</string>
     <string name="shorts_no_audio_tracks">Aucune piste audio disponible</string>
     <string name="shorts_audio_original">Original</string>
+    <string name="resume">Reprendre</string>
+    <string name="no_watch_data">Aucune donnée de visionnage pour l\'instant</string>
+    <string name="import_subscriptions_section_title">Abonnements</string>
+    <string name="import_history_section_title">Historique</string>
+    <string name="import_freetube_history">Importer l\'historique de Freetube</string>
+    <string name="import_freetube_history_desc">Importez votre historique de visionnage à partir d\'un fichier JSON d\'exportation FreeTube.</string>
+    <string name="import_newpipe_history">Importer l\'historique de NewPipe</string>
+    <string name="play_next_video">Passer à la vidéo suivante</string>
+    <string name="play_next_toast">Va passer à la vidéo suivante</string>
+    <string name="export_engine_data">Exporter le profil de Flow Engine</string>
+    <string name="import_engine_data">Importer les données de Flow Engine</string>
+    <string name="import_engine_success">Le profil de Flow Engine a été restauré avec succès</string>
+    <string name="import_engine_failed">Échec de l\'importation du profil de Flow Engine</string>
+    <string name="master_backup_title">Sauvegarde principale</string>
+    <string name="master_backup_subtitle">Exporter l\'algorithme et les données de l\'application dans un seul fichier</string>
+    <string name="master_backup_export_success">Sauvegarde principale enregistrée avec succès</string>
+    <string name="master_backup_export_failed">Échec de l\'exportation de la sauvegarde principale</string>
+    <string name="import_master_backup_title">Importer la sauvegarde principale</string>
+    <string name="import_master_backup_desc">Restaurer à la fois l\'algorithme et les données de l\'application à partir d\'un seul fichier de sauvegarde principal</string>
 </resources>
