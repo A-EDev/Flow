@@ -54,6 +54,7 @@ fun PlayerAppearanceScreen(
     val brightnessSwipeGesturesEnabled by playerPreferences.brightnessSwipeGesturesEnabled.collectAsState(initial = true)
     val volumeSwipeGesturesEnabled by playerPreferences.volumeSwipeGesturesEnabled.collectAsState(initial = true)
     val showFullscreenTitle by playerPreferences.showFullscreenTitle.collectAsState(initial = false)
+    val adaptivePlayerSizeEnabled by playerPreferences.adaptivePlayerSizeEnabled.collectAsState(initial = true)
 
     var showStyleSheet by remember { mutableStateOf(false) }
 
@@ -237,6 +238,23 @@ fun PlayerAppearanceScreen(
 
             item {
                 SettingsGroup {
+                    SettingsToggleItem(
+                        icon = painterResource(R.drawable.ic_aspect_ratio),
+                        title = stringResource(R.string.player_adaptive_size_title),
+                        subtitle = stringResource(R.string.player_adaptive_size_subtitle),
+                        checked = adaptivePlayerSizeEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                playerPreferences.setAdaptivePlayerSizeEnabled(enabled)
+                            }
+                        }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+
                     SettingsToggleItem(
                         icon = painterResource(R.drawable.ic_progress_bar_style),
                         title = stringResource(R.string.player_show_title_title),

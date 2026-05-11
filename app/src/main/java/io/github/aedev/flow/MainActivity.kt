@@ -63,6 +63,9 @@ class MainActivity : ComponentActivity() {
     // Cached auto-PiP preference
     private var cachedAutoPipEnabled = false
 
+    // Cached background-play preference
+    private var cachedBackgroundPlayEnabled = false
+
     // Cached shorts background-play preference (default OFF — pause on background)
     private var cachedShortsBackgroundPlay = false
 
@@ -101,6 +104,13 @@ class MainActivity : ComponentActivity() {
             io.github.aedev.flow.data.local.PlayerPreferences(applicationContext)
                 .autoPipEnabled
                 .collect { enabled -> cachedAutoPipEnabled = enabled }
+        }
+
+        // Keep background-play preference cached so lifecycle callbacks can read it synchronously
+        lifecycleScope.launch {
+            io.github.aedev.flow.data.local.PlayerPreferences(applicationContext)
+                .backgroundPlayEnabled
+                .collect { enabled -> cachedBackgroundPlayEnabled = enabled }
         }
 
         // Keep shorts background-play preference cached so onStop can read it synchronously
@@ -278,9 +288,19 @@ class MainActivity : ComponentActivity() {
     }
     
     override fun onDestroy() {
+        val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
+        val playerState = playerManager.playerState.value
+        val shouldKeepBackgroundPlayback =
+            cachedBackgroundPlayEnabled &&
+                playerState.currentVideoId != null &&
+                (playerState.playWhenReady || playerState.isPlaying || playerState.isBuffering)
+
+        if (shouldKeepBackgroundPlayback) {
+            handOffVideoPlaybackToBackground()
+        } else if (!isChangingConfigurations) {
+            GlobalPlayerState.release()
+        }
         super.onDestroy()
-        // Release player when app is destroyed
-        GlobalPlayerState.release()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -395,11 +415,11 @@ class MainActivity : ComponentActivity() {
                         !lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
                     ) {
                         pendingAutoPip = false
-                        handOffVideoPlaybackToBackground()
+                        handleBackgroundPlaybackOnStop()
                     }
                 }
             } else {
-                handOffVideoPlaybackToBackground()
+                handleBackgroundPlaybackOnStop()
             }
         }
     }
@@ -435,15 +455,31 @@ class MainActivity : ComponentActivity() {
             playerState.currentVideoId != null &&
             (playerState.playWhenReady || playerState.isPlaying || playerState.isBuffering)
         ) {
-            GlobalPlayerState.currentVideo.value?.let { video ->
-                playerManager.startBackgroundService(
-                    videoId = video.id,
-                    title = video.title.ifEmpty { "Playing..." },
-                    channel = video.channelName,
-                    thumbnail = video.thumbnailUrl
-                )
-            }
+            val video = GlobalPlayerState.currentVideo.value
+            playerManager.startBackgroundService(
+                videoId = video?.id ?: playerState.currentVideoId,
+                title = video?.title?.ifEmpty { "Playing..." } ?: "Playing...",
+                channel = video?.channelName ?: "",
+                thumbnail = video?.thumbnailUrl ?: ""
+            )
             playerManager.continueVideoPlaybackInBackground()
+        }
+    }
+
+    private fun handleBackgroundPlaybackOnStop() {
+        val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
+        val playerState = playerManager.playerState.value
+        val hasActiveVideo =
+            playerState.currentVideoId != null &&
+                (playerState.playWhenReady || playerState.isPlaying || playerState.isBuffering)
+
+        if (!hasActiveVideo) return
+
+        if (cachedBackgroundPlayEnabled) {
+            handOffVideoPlaybackToBackground()
+        } else {
+            playerManager.pause()
+            playerManager.stopBackgroundService()
         }
     }
 

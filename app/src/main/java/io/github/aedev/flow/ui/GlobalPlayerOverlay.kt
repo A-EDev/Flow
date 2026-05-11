@@ -39,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -158,8 +159,10 @@ fun GlobalPlayerOverlay(
     val disableShortsPlayer by playerPreferences.disableShortsPlayer.collectAsState(initial = false)
     val savedSubtitleStyle by playerPreferences.subtitleStyle.collectAsState(initial = SubtitleStyle())
     val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
+    val adaptivePlayerSizeEnabled by playerPreferences.adaptivePlayerSizeEnabled.collectAsState(initial = true)
 
     var videoAspectRatio by remember { mutableFloatStateOf(16f / 9f) }
+    val effectiveVideoAspectRatio = if (adaptivePlayerSizeEnabled) videoAspectRatio else 16f / 9f
     var expandedPlayerBottom by remember { mutableStateOf(0.dp) }
     var pipForcedFullscreen by remember { mutableStateOf(false) }
 
@@ -310,7 +313,7 @@ fun GlobalPlayerOverlay(
     FullscreenEffect(
         isFullscreen = screenState.isFullscreen,
         activity = activity,
-        videoAspectRatio = videoAspectRatio,
+        videoAspectRatio = effectiveVideoAspectRatio,
         lifecycleOwner = lifecycleOwner,
         suppressFullscreenRequest = pipForcedFullscreen
     )
@@ -390,7 +393,7 @@ fun GlobalPlayerOverlay(
         context = context,
         isExpanded = playerSheetState.fraction < 0.1f,
         isFullscreen = screenState.isFullscreen,
-        videoAspectRatio = videoAspectRatio,
+        videoAspectRatio = effectiveVideoAspectRatio,
         onEnterFullscreen = { screenState.isFullscreen = true },
         onExitFullscreen = { screenState.isFullscreen = false }
     )
@@ -548,7 +551,7 @@ fun GlobalPlayerOverlay(
                 isFullscreen = screenState.isFullscreen,
                 thumbnailUrl = video.thumbnailUrl.takeIf { it.isNotEmpty() }
                     ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg",
-                videoAspectRatio = videoAspectRatio,
+                videoAspectRatio = effectiveVideoAspectRatio,
                 bottomPadding = bottomPadding,
                 miniPlayerScale = miniPlayerScale,
                 tapToExpand = true,
@@ -1220,10 +1223,14 @@ private fun MiniPlayerControls(
 
     val scaleMult = sizeScale.coerceIn(1f, 1.6f)
 
-    val baseBgSize  = if (isTablet) 36.dp else 26.dp
-    val baseIconSize = if (isTablet) 28.dp else 22.dp
+    val baseTouchSize = if (isTablet) 44.dp else 36.dp
+    val baseBgSize  = if (isTablet) 34.dp else 24.dp
+    val baseIconSize = if (isTablet) 30.dp else 24.dp
+    val finalTouchSize = baseTouchSize * scaleMult
     val finalBgSize   = baseBgSize   * scaleMult
     val finalIconSize = baseIconSize * scaleMult
+    val topTouchSize = if (isTablet) 50.dp else 42.dp
+    val topBgSize = if (isTablet) 42.dp else 34.dp
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -1233,30 +1240,34 @@ private fun MiniPlayerControls(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(4.dp)
-                .size(if (isTablet) 48.dp else 40.dp)
-                .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                .size(topTouchSize)
         ) {
-            if (playerState.isBuffering) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(if (isTablet) 32.dp else 24.dp),
-                    strokeWidth = 2.dp,
-                    color = Color.White
-                )
-            } else {
-                Icon(
-                    imageVector = when {
-                        playerState.hasEnded -> Icons.Rounded.Replay
-                        playerState.playWhenReady -> Icons.Rounded.Pause
-                        else -> Icons.Rounded.PlayArrow
-                    },
-                    contentDescription = when {
-                        playerState.hasEnded -> "Replay"
-                        playerState.playWhenReady -> "Pause"
-                        else -> "Play"
-                    },
-                    tint = Color.White,
-                    modifier = Modifier.size(if (isTablet) 40.dp else 32.dp)
-                )
+            MiniPlayerButtonBackground(
+                backgroundSize = topBgSize,
+                backgroundAlpha = 0.28f
+            ) {
+                if (playerState.isBuffering) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(if (isTablet) 30.dp else 24.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.White
+                    )
+                } else {
+                    Icon(
+                        imageVector = when {
+                            playerState.hasEnded -> Icons.Rounded.Replay
+                            playerState.playWhenReady -> Icons.Rounded.Pause
+                            else -> Icons.Rounded.PlayArrow
+                        },
+                        contentDescription = when {
+                            playerState.hasEnded -> "Replay"
+                            playerState.playWhenReady -> "Pause"
+                            else -> "Play"
+                        },
+                        tint = Color.White,
+                        modifier = Modifier.size(if (isTablet) 42.dp else 34.dp)
+                    )
+                }
             }
         }
 
@@ -1269,15 +1280,19 @@ private fun MiniPlayerControls(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(4.dp)
-                .size(if (isTablet) 48.dp else 40.dp)
-                .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                .size(topTouchSize)
         ) {
-            Icon(
-                imageVector = Icons.Rounded.Close,
-                contentDescription = "Close",
-                tint = Color.White,
-                modifier = Modifier.size(if (isTablet) 32.dp else 28.dp)
-            )
+            MiniPlayerButtonBackground(
+                backgroundSize = topBgSize,
+                backgroundAlpha = 0.28f
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = "Close",
+                    tint = Color.White,
+                    modifier = Modifier.size(if (isTablet) 34.dp else 30.dp)
+                )
+            }
         }
 
         if (showSkipControls || showNextPrevControls) {
@@ -1290,71 +1305,90 @@ private fun MiniPlayerControls(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (showNextPrevControls) {
-                    IconButton(
-                        onClick = onPrevious,
-                        modifier = Modifier
-                            .size(finalBgSize)
-                            .background(Color.Black.copy(alpha = 0.45f), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.SkipPrevious,
-                            contentDescription = "Previous",
-                            tint = Color.White,
-                            modifier = Modifier.size(finalIconSize)
-                        )
-                    }
+                    MiniPlayerIconButton(
+                        imageVector = Icons.Rounded.SkipPrevious,
+                        contentDescription = "Previous",
+                        touchSize = finalTouchSize,
+                        backgroundSize = finalBgSize,
+                        iconSize = finalIconSize,
+                        onClick = onPrevious
+                    )
                 }
 
                 if (showSkipControls) {
-                    IconButton(
-                        onClick = onSkipBack,
-                        modifier = Modifier
-                            .size(finalBgSize)
-                            .background(Color.Black.copy(alpha = 0.45f), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Replay10,
-                            contentDescription = "Skip Back 10s",
-                            tint = Color.White,
-                            modifier = Modifier.size(finalIconSize)
-                        )
-                    }
+                    MiniPlayerIconButton(
+                        imageVector = Icons.Rounded.Replay10,
+                        contentDescription = "Skip Back 10s",
+                        touchSize = finalTouchSize,
+                        backgroundSize = finalBgSize,
+                        iconSize = finalIconSize,
+                        onClick = onSkipBack
+                    )
                 }
 
                 if (showSkipControls) {
-                    IconButton(
-                        onClick = onSkipForward,
-                        modifier = Modifier
-                            .size(finalBgSize)
-                            .background(Color.Black.copy(alpha = 0.45f), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Forward10,
-                            contentDescription = "Skip Forward 10s",
-                            tint = Color.White,
-                            modifier = Modifier.size(finalIconSize)
-                        )
-                    }
+                    MiniPlayerIconButton(
+                        imageVector = Icons.Rounded.Forward10,
+                        contentDescription = "Skip Forward 10s",
+                        touchSize = finalTouchSize,
+                        backgroundSize = finalBgSize,
+                        iconSize = finalIconSize,
+                        onClick = onSkipForward
+                    )
                 }
 
                 if (showNextPrevControls) {
-                    IconButton(
-                        onClick = onNext,
-                        modifier = Modifier
-                            .size(finalBgSize)
-                            .background(Color.Black.copy(alpha = 0.45f), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.SkipNext,
-                            contentDescription = "Next",
-                            tint = Color.White,
-                            modifier = Modifier.size(finalIconSize)
-                        )
-                    }
+                    MiniPlayerIconButton(
+                        imageVector = Icons.Rounded.SkipNext,
+                        contentDescription = "Next",
+                        touchSize = finalTouchSize,
+                        backgroundSize = finalBgSize,
+                        iconSize = finalIconSize,
+                        onClick = onNext
+                    )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun MiniPlayerIconButton(
+    imageVector: ImageVector,
+    contentDescription: String,
+    touchSize: androidx.compose.ui.unit.Dp,
+    backgroundSize: androidx.compose.ui.unit.Dp,
+    iconSize: androidx.compose.ui.unit.Dp,
+    onClick: () -> Unit
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(touchSize)
+    ) {
+        MiniPlayerButtonBackground(backgroundSize = backgroundSize) {
+            Icon(
+                imageVector = imageVector,
+                contentDescription = contentDescription,
+                tint = Color.White,
+                modifier = Modifier.size(iconSize)
+            )
+        }
+    }
+}
+
+@Composable
+private fun MiniPlayerButtonBackground(
+    backgroundSize: androidx.compose.ui.unit.Dp,
+    backgroundAlpha: Float = 0.36f,
+    content: @Composable BoxScope.() -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(backgroundSize)
+            .background(Color.Black.copy(alpha = backgroundAlpha), CircleShape),
+        contentAlignment = Alignment.Center,
+        content = content
+    )
 }
 
 /** DLNA / UPnP device-picker dialog shown when the cast button is pressed. */

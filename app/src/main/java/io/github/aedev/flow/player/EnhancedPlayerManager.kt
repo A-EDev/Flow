@@ -36,6 +36,7 @@ import io.github.aedev.flow.player.surface.SurfaceManager
 import io.github.aedev.flow.player.tracker.PlaybackTracker
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -99,6 +100,7 @@ class EnhancedPlayerManager private constructor() {
     
     private var isAudioOnlyMode = false
     private var videoTracksDisabled = false
+    @Volatile private var videoSurfaceRestorePending = false
 
     // Queue management
     private var playbackQueue: List<io.github.aedev.flow.data.model.Video> = emptyList()
@@ -824,6 +826,9 @@ class EnhancedPlayerManager private constructor() {
                     startPosition = 0L
                 )
                 play()
+            } catch (e: CancellationException) {
+                Log.d(TAG, "Service-layer playback cancelled for ${video.id} ($reason)")
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Service-layer playback failed for ${video.id}", e)
                 _playerState.value = _playerState.value.copy(
@@ -1133,7 +1138,7 @@ class EnhancedPlayerManager private constructor() {
 
     
     fun continueVideoPlaybackInBackground() {
-        restoreVideoOutput()
+        switchToAudioOnly()
         val p = player
         if (p?.playWhenReady == true && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
             p.play()
@@ -1142,7 +1147,15 @@ class EnhancedPlayerManager private constructor() {
 
     
     fun switchToAudioOnly() {
-        continueVideoPlaybackInBackground()
+        val p = player ?: return
+        isAudioOnlyMode = true
+        videoSurfaceRestorePending = true
+        setVideoTracksDisabled(true)
+        runCatching { p.clearVideoSurface() }
+            .onFailure { Log.w(TAG, "Failed to clear video surface for background playback", it) }
+        if (p.playWhenReady && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
+            p.play()
+        }
     }
 
     fun restoreVideoOutput() {
@@ -1152,6 +1165,14 @@ class EnhancedPlayerManager private constructor() {
         if (p.playWhenReady && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
             p.play()
         }
+    }
+
+    fun isInAudioOnlyMode(): Boolean = isAudioOnlyMode
+
+    fun isVideoSurfaceRestorePending(): Boolean = videoSurfaceRestorePending
+
+    fun markVideoSurfaceRestored() {
+        videoSurfaceRestorePending = false
     }
     
     fun setSurfaceReady(ready: Boolean) {

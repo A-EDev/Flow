@@ -9,10 +9,14 @@ object ThumbnailUrlResolver {
         return if (id.isEmpty()) "" else "https://i.ytimg.com/vi/$id/hq720.jpg"
     }
 
+    fun buildFallbackYoutubeThumbnail(videoId: String): String {
+        val id = videoId.trim()
+        return if (id.isEmpty()) "" else "https://i.ytimg.com/vi/$id/hqdefault.jpg"
+    }
+
     fun normalizeVideoThumbnail(videoId: String, rawUrl: String?): String {
         val raw = rawUrl?.trim().orEmpty()
-        val fallback = buildHighQualityYoutubeThumbnail(videoId)
-        if (raw.isEmpty()) return fallback
+        if (raw.isEmpty()) return buildHighQualityYoutubeThumbnail(videoId)
 
         val match = youtubeVideoThumbnailPattern.find(raw) ?: return raw
         val resolvedVideoId = match.groupValues.getOrNull(1)
@@ -20,6 +24,18 @@ object ThumbnailUrlResolver {
             ?: videoId.trim()
 
         return buildHighQualityYoutubeThumbnail(resolvedVideoId).ifEmpty { raw }
+    }
+
+    fun fallbackVideoThumbnail(videoId: String, rawUrl: String?): String? {
+        val raw = rawUrl?.trim().orEmpty()
+        val resolvedVideoId = youtubeVideoThumbnailPattern.find(raw)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.takeIf { it.isNotBlank() }
+            ?: videoId.trim()
+
+        val fallback = buildFallbackYoutubeThumbnail(resolvedVideoId)
+        return fallback.takeIf { it.isNotEmpty() && it != raw }
     }
 
     fun isYoutubeVideoThumbnail(rawUrl: String?): Boolean {

@@ -139,6 +139,7 @@ class PlayerPreferences(private val context: Context) {
         
         // Fullscreen Player
         val SHOW_FULLSCREEN_TITLE = booleanPreferencesKey("show_fullscreen_title")
+        val ADAPTIVE_PLAYER_SIZE_ENABLED = booleanPreferencesKey("adaptive_player_size_enabled")
         
         // Mini Player Customizations
         val MINI_PLAYER_SCALE = floatPreferencesKey("mini_player_scale")
@@ -823,6 +824,15 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setShowFullscreenTitle(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHOW_FULLSCREEN_TITLE] = enabled
+        }
+    }
+
+    val adaptivePlayerSizeEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.ADAPTIVE_PLAYER_SIZE_ENABLED] ?: true }
+
+    suspend fun setAdaptivePlayerSizeEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.ADAPTIVE_PLAYER_SIZE_ENABLED] = enabled
         }
     }
     

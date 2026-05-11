@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-10
+DATE: 2026-05-11
 
 FEATURES
 - Add new Proxy manager and routing #362
@@ -33,6 +33,7 @@ IMPROVEMENTS
 - Improve topics categories
 - Improve dynamic video player sizing and handling
 - Player settings sheet redesign and Introduce new sheet sidebar in player
+- Add player sizing toggle
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378
@@ -46,7 +47,7 @@ FIXES AND STABILITY
 - Fix pip mode freeze #354
 - Fix low thumbnail quality #403
 - Fix channel avatar on subscription #387
-- Fix background playback #417
+- Fix background playback #417 #434
 - Fix playback issues when playing from shared links #422
 - Fix playlist playback history #413
 

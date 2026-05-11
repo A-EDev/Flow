@@ -59,6 +59,7 @@ import io.github.aedev.flow.data.model.DeArrowResult
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.DeArrowRepository
 import io.github.aedev.flow.ui.theme.extendedColors
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatPremiereDate
 import io.github.aedev.flow.utils.formatViewCount
@@ -118,7 +119,8 @@ fun VideoCard(
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 .thumbnailGradientOverlay()
         ) {
-            AsyncImage(
+            VideoThumbnailImage(
+                videoId = video.id,
                 model = displayThumbnailUrl,
                 contentDescription = displayTitle,
                 modifier = Modifier.fillMaxSize(),
@@ -377,7 +379,8 @@ fun VideoCardHorizontal(
                 .clip(RoundedCornerShape(14.dp)) // Sleek corners
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            AsyncImage(
+            VideoThumbnailImage(
+                videoId = video.id,
                 model = displayThumbnailUrl,
                 contentDescription = displayTitle,
                 modifier = Modifier.fillMaxSize(),
@@ -536,7 +539,8 @@ fun VideoCardFullWidth(
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 .thumbnailGradientOverlay()
         ) {
-            SafeAsyncImage(
+            VideoThumbnailImage(
+                videoId = video.id,
                 model = displayThumbnailUrl,
                 contentDescription = displayTitle,
                 modifier = Modifier.fillMaxSize(),
@@ -847,7 +851,8 @@ fun CompactVideoCard(
                 .clip(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         ) {
-            SafeAsyncImage(
+            VideoThumbnailImage(
+                videoId = video.id,
                 model = displayThumbnailUrl,
                 contentDescription = displayTitle,
                 modifier = Modifier.fillMaxSize(),
@@ -1073,7 +1078,8 @@ private fun ContinueWatchingCard(
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .thumbnailGradientOverlay()
         ) {
-            SafeAsyncImage(
+            VideoThumbnailImage(
+                videoId = entry.videoId,
                 model = entry.thumbnailUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
@@ -1204,7 +1210,8 @@ fun ShortsCard(
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .thumbnailGradientOverlay()
         ) {
-            SafeAsyncImage(
+            VideoThumbnailImage(
+                videoId = video.id,
                 model = video.thumbnailUrl,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
@@ -1236,40 +1243,81 @@ fun ShortsCard(
 }
 
 @Composable
-private fun SafeAsyncImage(
+fun VideoThumbnailImage(
+    videoId: String,
     model: Any?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit
 ) {
-    if (model is ImageVector) {
+    val primaryModel = remember(videoId, model) {
+        when (model) {
+            is String -> model.takeIf { it.isNotBlank() }
+                ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId)
+            null -> ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId)
+            else -> model
+        }
+    }
+    val fallbackModel = remember(videoId, primaryModel) {
+        (primaryModel as? String)?.let { ThumbnailUrlResolver.fallbackVideoThumbnail(videoId, it) }
+    }
+
+    SafeAsyncImage(
+        model = primaryModel,
+        fallbackModel = fallbackModel,
+        contentDescription = contentDescription,
+        modifier = modifier,
+        contentScale = contentScale
+    )
+}
+
+@Composable
+private fun SafeAsyncImage(
+    model: Any?,
+    fallbackModel: Any? = null,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Fit
+) {
+    var currentModel by remember(model, fallbackModel) { mutableStateOf(model) }
+    var didFallback by remember(model, fallbackModel) { mutableStateOf(false) }
+    var hasError by remember(model, fallbackModel) { mutableStateOf(false) }
+
+    if (currentModel is ImageVector) {
         Image(
-            imageVector = model,
+            imageVector = currentModel as ImageVector,
             contentDescription = contentDescription,
             modifier = modifier,
             contentScale = contentScale,
             colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)
         )
     } else {
-        val isValidModel = when (model) {
-            is String -> model.isNotEmpty()
+        val isValidModel = when (currentModel) {
+            is String -> (currentModel as String).isNotEmpty()
             is Int -> true // Resource ID
             else -> false
         }
 
-        if (isValidModel) {
-            var hasError by remember(model) { mutableStateOf(false) }
-            if (hasError) {
-                Box(modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant))
-            } else {
-                AsyncImage(
-                    model = model,
-                    contentDescription = contentDescription,
-                    modifier = modifier,
-                    contentScale = contentScale,
-                    onError = { hasError = true }
-                )
-            }
+        if (isValidModel && !hasError) {
+            AsyncImage(
+                model = currentModel,
+                contentDescription = contentDescription,
+                modifier = modifier,
+                contentScale = contentScale,
+                onError = {
+                    val canFallback = !didFallback &&
+                        fallbackModel is String &&
+                        fallbackModel.isNotEmpty() &&
+                        fallbackModel != currentModel
+
+                    if (canFallback) {
+                        didFallback = true
+                        currentModel = fallbackModel
+                    } else {
+                        hasError = true
+                    }
+                }
+            )
         } else {
             // Fallback placeholder
             Box(modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant))

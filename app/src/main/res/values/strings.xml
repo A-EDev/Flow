@@ -509,6 +509,8 @@
     <string name="player_nav_btn_title">Show Next/Prev Buttons</string>
     <string name="player_nav_btn_subtitle">Show next and previous video buttons on the mini player</string>
     <string name="player_appearance_fullscreen_header">Fullscreen</string>
+    <string name="player_adaptive_size_title">Adaptive Player Size</string>
+    <string name="player_adaptive_size_subtitle">Use the video format for player height. Turn off for fixed 16:9.</string>
     <string name="player_show_title_title">Show Video Title</string>
     <string name="player_show_title_subtitle">Display the video title below the top bar while in fullscreen mode</string>
     <!-- Lyrics Provider -->

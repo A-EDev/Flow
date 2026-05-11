@@ -1328,8 +1328,11 @@ private fun SearchVideoCard(
                 .clip(RoundedCornerShape(14.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            AsyncImage(
-                video.thumbnailUrl, video.title, Modifier.fillMaxSize(),
+            VideoThumbnailImage(
+                videoId = video.id,
+                model = video.thumbnailUrl,
+                contentDescription = video.title,
+                modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
 
@@ -1490,8 +1493,11 @@ private fun SearchVideoCardCompact(
                 .clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            AsyncImage(
-                video.thumbnailUrl, video.title, Modifier.fillMaxSize(),
+            VideoThumbnailImage(
+                videoId = video.id,
+                model = video.thumbnailUrl,
+                contentDescription = video.title,
+                modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
             Surface(

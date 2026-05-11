@@ -7,10 +7,16 @@ import android.widget.FrameLayout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.ui.PlayerView
@@ -27,7 +33,11 @@ fun VideoPlayerSurface(
     onVideoAspectRatioChanged: ((Float) -> Unit)? = null
 ) {
     val context = LocalContext.current
-    
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val currentVideoId = video.id
+    val lastSurfaceBoundVideoId = remember { arrayOfNulls<String>(1) }
+    var surfaceRestoreTrigger by remember { mutableIntStateOf(0) }
+
     val playerView = remember {
         Log.d("EnhancedVideoPlayer", "Creating shared PlayerView (TextureView surface)")
         (LayoutInflater.from(context).inflate(R.layout.video_player_view, null) as PlayerView).apply {
@@ -38,7 +48,7 @@ fun VideoPlayerSurface(
             setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
         }
     }
-    
+
     val videoSizeListener = remember {
         object : Player.Listener {
             override fun onVideoSizeChanged(videoSize: VideoSize) {
@@ -57,26 +67,57 @@ fun VideoPlayerSurface(
         }
     }
 
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
+                surfaceRestoreTrigger++
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val currentSurfaceRestoreTrigger = surfaceRestoreTrigger
+
     AndroidView(
         factory = { playerView },
         update = { view ->
+            @Suppress("UNUSED_VARIABLE")
+            val restoreTrigger = currentSurfaceRestoreTrigger
             val manager = EnhancedPlayerManager.getInstance()
             val newPlayer = manager.getPlayer()
             val oldPlayer = view.player
+            val videoChangedSinceBinding = lastSurfaceBoundVideoId[0] != currentVideoId
+
             if (oldPlayer !== newPlayer) {
                 oldPlayer?.removeListener(videoSizeListener)
                 newPlayer?.addListener(videoSizeListener)
                 view.player = newPlayer
-                if (newPlayer != null &&
-                    newPlayer.playbackState == Player.STATE_IDLE &&
-                    newPlayer.currentMediaItem != null
-                ) {
-                    Log.d("VideoPlayerSurface", "New PlayerView attached; player IDLE with media — calling prepare()")
-                    newPlayer.prepare()
-                }
             }
 
-            // Apply resize mode
+            if (newPlayer != null &&
+                (manager.isInAudioOnlyMode() ||
+                    manager.isVideoSurfaceRestorePending() ||
+                    videoChangedSinceBinding)
+            ) {
+                Log.d("VideoPlayerSurface", "Restoring video output and rebinding PlayerView surface")
+                manager.restoreVideoOutput()
+                view.player = null
+                view.player = newPlayer
+                manager.markVideoSurfaceRestored()
+            }
+            if (newPlayer != null) {
+                lastSurfaceBoundVideoId[0] = currentVideoId
+            }
+
+            if (newPlayer != null &&
+                newPlayer.playbackState == Player.STATE_IDLE &&
+                newPlayer.currentMediaItem != null
+            ) {
+                Log.d("VideoPlayerSurface", "PlayerView attached; player IDLE with media - calling prepare()")
+                newPlayer.prepare()
+            }
+
             view.resizeMode = when (resizeMode) {
                 0 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                 1 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
