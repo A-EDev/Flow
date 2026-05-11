@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.ThumbDownOffAlt
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -54,6 +55,7 @@ fun SponsorBlockSettingsScreen(
     val sponsorBlockEnabled by playerPreferences.sponsorBlockEnabled.collectAsState(initial = false)
     val deArrowEnabled by playerPreferences.deArrowEnabled.collectAsState(initial = false)
     val deArrowBadgeEnabled by playerPreferences.deArrowBadgeEnabled.collectAsState(initial = false)
+    val rytdEnabled by playerPreferences.rytdEnabled.collectAsState(initial = true)
 
     val sbActions = SB_CATEGORIES_AND_LABELS.associate { (category, _) ->
         category to playerPreferences.sbActionForCategory(category).collectAsState(initial = SponsorBlockAction.SKIP).value
@@ -131,6 +133,17 @@ fun SponsorBlockSettingsScreen(
                         subtitle = stringResource(R.string.dearrow_badge_toggle_subtitle),
                         checked = deArrowBadgeEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setDeArrowBadgeEnabled(it) } }
+                    )
+                    HorizontalDivider(
+                        Modifier.padding(start = 56.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.ThumbDownOffAlt,
+                        title = stringResource(R.string.player_settings_rytd_title),
+                        subtitle = stringResource(R.string.player_settings_rytd_subtitle),
+                        checked = rytdEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setRytdEnabled(it) } }
                     )
                 }
             }

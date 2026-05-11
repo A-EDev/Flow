@@ -572,7 +572,11 @@ class VideoPlayerViewModel @Inject constructor(
 
                 val parallelData = supervisorScope {
                     val dislikesDeferred = async(PerformanceDispatcher.networkIO) {
-                        withTimeoutOrNull(5000L) { fetchReturnYouTubeDislike(videoId) }
+                        if (playerPreferences.rytdEnabled.first()) {
+                            withTimeoutOrNull(5000L) { fetchReturnYouTubeDislike(videoId) }
+                        } else {
+                            null
+                        }
                     }
                     
                     val prefsDeferred = async(PerformanceDispatcher.diskIO) {

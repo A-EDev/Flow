@@ -21,6 +21,7 @@ import io.github.aedev.flow.BuildConfig
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.notification.SubscriptionCheckWorker
+import io.github.aedev.flow.notification.UpdateCheckWorker
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,6 +33,7 @@ fun NotificationSettingsScreen(
     val coroutineScope = rememberCoroutineScope()
     val prefs = remember { PlayerPreferences(context) }
 
+    val notificationsEnabled by prefs.notificationsEnabled.collectAsState(initial = true)
     val notifNewVideos by prefs.notifNewVideosEnabled.collectAsState(initial = true)
     val notifDownloads by prefs.notifDownloadsEnabled.collectAsState(initial = true)
     val notifReminders by prefs.notifRemindersEnabled.collectAsState(initial = true)
@@ -87,11 +89,49 @@ fun NotificationSettingsScreen(
             item {
                 SectionHeader(text = stringResource(R.string.notif_check_interval_section_header))
                 SettingsGroup {
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.NotificationsOff,
+                        title = stringResource(R.string.notif_master_toggle),
+                        subtitle = stringResource(R.string.notif_master_toggle_subtitle),
+                        checked = notificationsEnabled,
+                        onCheckedChange = { enabled ->
+                            if (!enabled) {
+                                showIntervalDialog = false
+                            }
+                            coroutineScope.launch {
+                                prefs.setNotificationsEnabled(enabled)
+                                if (enabled) {
+                                    SubscriptionCheckWorker.schedulePeriodicCheck(
+                                        context,
+                                        intervalMinutes = subCheckInterval.toLong()
+                                    )
+                                    if (BuildConfig.UPDATER_ENABLED) {
+                                        UpdateCheckWorker.schedulePeriodicCheck(context)
+                                    }
+                                } else {
+                                    SubscriptionCheckWorker.cancelScheduledChecks(context)
+                                    UpdateCheckWorker.cancelScheduledChecks(context)
+                                }
+                            }
+                        }
+                    )
+                    HorizontalDivider(
+                        Modifier.padding(start = 56.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
                     SettingsItem(
                         icon = Icons.Outlined.Schedule,
                         title = stringResource(R.string.notif_check_interval),
-                        subtitle = stringResource(R.string.notif_check_interval_subtitle_template, currentIntervalLabel),
-                        onClick = { showIntervalDialog = true }
+                        subtitle = if (notificationsEnabled) {
+                            stringResource(R.string.notif_check_interval_subtitle_template, currentIntervalLabel)
+                        } else {
+                            stringResource(R.string.notif_check_interval_disabled)
+                        },
+                        onClick = {
+                            if (notificationsEnabled) {
+                                showIntervalDialog = true
+                            }
+                        }
                     )
                 }
             }
@@ -103,6 +143,7 @@ fun NotificationSettingsScreen(
                         title = stringResource(R.string.notif_type_new_videos),
                         subtitle = stringResource(R.string.notif_type_new_videos_subtitle),
                         checked = notifNewVideos,
+                        enabled = notificationsEnabled,
                         onCheckedChange = { coroutineScope.launch { prefs.setNotifNewVideosEnabled(it) } }
                     )
                     HorizontalDivider(
@@ -114,6 +155,7 @@ fun NotificationSettingsScreen(
                         title = stringResource(R.string.notif_type_downloads),
                         subtitle = stringResource(R.string.notif_type_downloads_subtitle),
                         checked = notifDownloads,
+                        enabled = notificationsEnabled,
                         onCheckedChange = { coroutineScope.launch { prefs.setNotifDownloadsEnabled(it) } }
                     )
                     HorizontalDivider(
@@ -125,6 +167,7 @@ fun NotificationSettingsScreen(
                         title = stringResource(R.string.notif_type_reminders),
                         subtitle = stringResource(R.string.notif_type_reminders_subtitle),
                         checked = notifReminders,
+                        enabled = notificationsEnabled,
                         onCheckedChange = { coroutineScope.launch { prefs.setNotifRemindersEnabled(it) } }
                     )
                     if (BuildConfig.UPDATER_ENABLED) {
@@ -137,6 +180,7 @@ fun NotificationSettingsScreen(
                             title = stringResource(R.string.notif_type_updates),
                             subtitle = stringResource(R.string.notif_type_updates_subtitle),
                             checked = notifUpdates,
+                            enabled = notificationsEnabled,
                             onCheckedChange = { coroutineScope.launch { prefs.setNotifUpdatesEnabled(it) } }
                         )
                     }
@@ -149,6 +193,7 @@ fun NotificationSettingsScreen(
                         title = stringResource(R.string.notif_type_general),
                         subtitle = stringResource(R.string.notif_type_general_subtitle),
                         checked = notifGeneral,
+                        enabled = notificationsEnabled,
                         onCheckedChange = { coroutineScope.launch { prefs.setNotifGeneralEnabled(it) } }
                     )
                 }

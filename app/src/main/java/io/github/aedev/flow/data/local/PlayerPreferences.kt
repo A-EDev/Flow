@@ -123,6 +123,7 @@ class PlayerPreferences(private val context: Context) {
         val DEARROW_BADGE_ENABLED = booleanPreferencesKey("dearrow_badge_enabled")
 
         // Notification preferences
+        val NOTIFICATIONS_ENABLED = booleanPreferencesKey("notifications_enabled")
         val NOTIF_NEW_VIDEOS_ENABLED = booleanPreferencesKey("notif_new_videos_enabled")
         val NOTIF_DOWNLOADS_ENABLED = booleanPreferencesKey("notif_downloads_enabled")
         val NOTIF_REMINDERS_ENABLED = booleanPreferencesKey("notif_reminders_enabled")
@@ -210,6 +211,9 @@ class PlayerPreferences(private val context: Context) {
         val AUTO_BACKUP_FREQUENCY = stringPreferencesKey("auto_backup_frequency")
         val AUTO_BACKUP_FOLDER_URI = stringPreferencesKey("auto_backup_folder_uri")
         val AUTO_BACKUP_TYPE = stringPreferencesKey("auto_backup_type")
+
+        // Return YouTube Dislikes
+        val RYTD_ENABLED = booleanPreferencesKey("rytd_enabled")
     }
     
     // Grid item size preference
@@ -710,6 +714,15 @@ class PlayerPreferences(private val context: Context) {
     }
 
     // ========== NOTIFICATION PREFERENCES ==========
+
+    val notificationsEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.NOTIFICATIONS_ENABLED] ?: true }
+
+    suspend fun setNotificationsEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.NOTIFICATIONS_ENABLED] = enabled
+        }
+    }
 
     val notifNewVideosEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
         .map { preferences -> preferences[Keys.NOTIF_NEW_VIDEOS_ENABLED] ?: true }
@@ -1349,6 +1362,18 @@ class PlayerPreferences(private val context: Context) {
             } else {
                 preferences[Keys.PROXY_PASSWORD] = config.password
             }
+        }
+    }
+
+    // Return YouTube Dislikes
+    val rytdEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.RYTD_ENABLED] ?: true
+        }
+
+    suspend fun setRytdEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.RYTD_ENABLED] = enabled
         }
     }
 

@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-9
+DATE: 2026-05-10
 
 FEATURES
 - Add new Proxy manager and routing #362
@@ -12,6 +12,8 @@ FEATURES
 - Add more data import options #396 #357 #424 #428
 - Add copy video title by long press #426
 - Add playlist video downloads confirmation dialog  #413
+- Add RYD disable option #433
+- Add background worker and notification disable option #411
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361

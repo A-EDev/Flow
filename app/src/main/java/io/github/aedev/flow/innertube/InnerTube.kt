@@ -1,5 +1,7 @@
 package io.github.aedev.flow.innertube
 
+import io.github.aedev.flow.FlowApplication
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.innertube.models.Context
 import io.github.aedev.flow.innertube.models.MediaInfo
 import io.github.aedev.flow.innertube.models.ReturnYouTubeDislikeResponse
@@ -23,6 +25,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.util.encodeBase64
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.Json
 import java.net.Proxy
@@ -749,8 +752,13 @@ class InnerTube {
                         it?.videoPrimaryInfoRenderer != null
                     }?.videoPrimaryInfoRenderer
 
+            val rytdEnabled = PlayerPreferences(FlowApplication.appContext).rytdEnabled.first()
             val returnYouTubeDislikeResponse =
-                returnYouTubeDislike(videoId).body<ReturnYouTubeDislikeResponse>()
+                if (rytdEnabled) {
+                    returnYouTubeDislike(videoId).body<ReturnYouTubeDislikeResponse>()
+                } else {
+                    null
+                }
 
             val bestAudio = playerResponse.streamingData?.adaptiveFormats?.filter { it.isAudio }?.maxByOrNull { it.bitrate }
                 ?: playerResponse.streamingData?.formats?.filter { it.isAudio }?.maxByOrNull { it.bitrate }
@@ -794,9 +802,9 @@ class InnerTube {
                         ?.subscriberCountText
                         ?.simpleText?.split(" ")?.firstOrNull(),
                 uploadDate = baseForTitle?.dateText?.simpleText,
-                viewCount = returnYouTubeDislikeResponse.viewCount,
-                like = returnYouTubeDislikeResponse.likes,
-                dislike = returnYouTubeDislikeResponse.dislikes,
+                viewCount = returnYouTubeDislikeResponse?.viewCount,
+                like = returnYouTubeDislikeResponse?.likes,
+                dislike = returnYouTubeDislikeResponse?.dislikes,
                 mimeType = bestAudio?.mimeType,
                 bitrate = bestAudio?.bitrate?.toLong(),
                 sampleRate = bestAudio?.audioSampleRate,

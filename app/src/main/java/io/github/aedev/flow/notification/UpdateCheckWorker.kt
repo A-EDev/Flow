@@ -4,10 +4,12 @@ import android.content.Context
 import android.util.Log
 import androidx.work.*
 import io.github.aedev.flow.BuildConfig
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.LocalDataManager
 import io.github.aedev.flow.utils.UpdateManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
@@ -25,6 +27,15 @@ class UpdateCheckWorker(
         private const val COOLDOWN_HOURS = 12L
 
         fun schedulePeriodicCheck(context: Context) {
+            val notificationsEnabled = runBlocking {
+                PlayerPreferences(context).notificationsEnabled.first()
+            }
+            if (!notificationsEnabled) {
+                cancelScheduledChecks(context)
+                Log.d(TAG, "Skipping update check scheduling because notifications are disabled")
+                return
+            }
+
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .setRequiresBatteryNotLow(true)
@@ -48,9 +59,19 @@ class UpdateCheckWorker(
             )
             Log.d(TAG, "Scheduled update check every 12 hours")
         }
+
+        fun cancelScheduledChecks(context: Context) {
+            WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+            Log.d(TAG, "Cancelled scheduled update checks")
+        }
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
+        if (!PlayerPreferences(applicationContext).notificationsEnabled.first()) {
+            Log.d(TAG, "Notifications disabled, skipping update check")
+            return@withContext Result.success()
+        }
+
         if (BuildConfig.DEBUG && !isForcedCheck()) {
             Log.d(TAG, "Skipping background update check in DEBUG mode")
             return@withContext Result.success()

@@ -44,6 +44,8 @@ class FlowApplication : Application(), ImageLoaderFactory {
     
     companion object {
         private const val TAG = "FlowApplication"
+        lateinit var appContext: Context
+            private set
     }
 
     override fun attachBaseContext(base: Context) {
@@ -53,6 +55,7 @@ class FlowApplication : Application(), ImageLoaderFactory {
     
     override fun onCreate() {
         super.onCreate()
+        appContext = applicationContext
 
         val playerPreferences = PlayerPreferences(this)
         val selectedLanguage = runBlocking { playerPreferences.appLanguage.first() }

@@ -380,8 +380,11 @@
     <string name="notif_system_settings_subtitle">Open Android settings to manage per-channel permissions</string>
 
     <string name="notif_check_interval_section_header">Feed Check Schedule</string>
+    <string name="notif_master_toggle">Enable notifications</string>
+    <string name="notif_master_toggle_subtitle">Allow Flow to wake up in the background for notification checks and alerts</string>
     <string name="notif_check_interval">New Video Check Interval</string>
     <string name="notif_check_interval_subtitle_template">Check every %s</string>
+    <string name="notif_check_interval_disabled">Background notification checks are disabled</string>
     <string name="notif_check_interval_dialog_title">Check Interval</string>
     <string name="notif_check_interval_dialog_body">How often Flow checks for new videos from your subscribed channels.</string>
     <string name="notif_interval_15m">15 minutes</string>
@@ -690,6 +693,8 @@
     <string name="player_settings_skip_silence_subtitle">Skip parts with no audio</string>
     <string name="player_settings_remember_speed">Remember Playback Speed</string>
     <string name="player_settings_remember_speed_subtitle">Apply the last used playback speed to videos</string>
+    <string name="player_settings_rytd_title">Return YouTube Dislike</string>
+    <string name="player_settings_rytd_subtitle">Fetch dislike counts from the Return YouTube Dislike service</string>
     <string name="player_settings_custom_speeds_title">Custom Playback Speeds</string>
     <string name="player_settings_custom_speeds_subtitle">Set your own speed presets for the player</string>
     <string name="player_settings_custom_speeds_header">Speed Presets</string>
@@ -717,8 +722,8 @@
     <string name="global_loop">Global Video Loop</string>
     <string name="global_loop_subtitle">Loop all videos by default</string>
     <!-- SponsorBlock per-category segment actions (Player Appearance) -->
-    <string name="sb_settings_title">SponsorBlock</string>
-    <string name="sb_settings_subtitle">Segment actions, colors, and contribution</string>
+    <string name="sb_settings_title">SponsorBlock, DeArrow &amp; RYD</string>
+    <string name="sb_settings_subtitle">Segment actions, DeArrow controls, and dislike count settings</string>
     <string name="sb_settings_general_header">General</string>
     <string name="sb_segments_header">SponsorBlock Segment Actions</string>
     <string name="sb_contribute_header">Contribute to SponsorBlock</string>

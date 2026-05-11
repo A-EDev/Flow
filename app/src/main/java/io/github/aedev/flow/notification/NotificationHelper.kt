@@ -188,6 +188,10 @@ object NotificationHelper {
      * Check if notification permission is granted (Android 13+)
      */
     fun hasNotificationPermission(context: Context): Boolean {
+        if (!runBlocking { PlayerPreferences(context).notificationsEnabled.first() }) {
+            return false
+        }
+
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(
                 context,

@@ -3,6 +3,7 @@ package io.github.aedev.flow.notification
 import android.content.Context
 import android.util.Log
 import androidx.work.*
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.network.AppProxyManager
 import kotlinx.coroutines.Dispatchers
@@ -10,6 +11,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -40,6 +42,15 @@ class SubscriptionCheckWorker(
          * @param intervalMinutes How often to check (default: 360 minutes / 6 hours)
          */
         fun schedulePeriodicCheck(context: Context, intervalMinutes: Long = 360) {
+            val notificationsEnabled = runBlocking {
+                PlayerPreferences(context).notificationsEnabled.first()
+            }
+            if (!notificationsEnabled) {
+                cancelScheduledChecks(context)
+                Log.d(TAG, "Skipping subscription check scheduling because notifications are disabled")
+                return
+            }
+
             val constraints = Constraints.Builder()
                 .setRequiredNetworkType(NetworkType.CONNECTED)
                 .setRequiresBatteryNotLow(true)
@@ -98,6 +109,11 @@ class SubscriptionCheckWorker(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         Log.d(TAG, "Starting subscription check via RSS...")
+
+        if (!PlayerPreferences(applicationContext).notificationsEnabled.first()) {
+            Log.d(TAG, "Notifications disabled, skipping subscription check")
+            return@withContext Result.success()
+        }
         
         try {
             val subscriptionRepository = SubscriptionRepository.getInstance(applicationContext)

@@ -652,30 +652,46 @@ fun VideoCleanupEffect(
     uiState: VideoPlayerUiState,
     viewModel: VideoPlayerViewModel
 ) {
-    val currentPos by rememberUpdatedState(currentPosition)
-    val currentDur by rememberUpdatedState(duration)
-    val currentUi by rememberUpdatedState(uiState)
+    var lastKnownPosition by remember(videoId) { mutableLongStateOf(currentPosition) }
+    var lastKnownDuration by remember(videoId) { mutableLongStateOf(duration) }
+    var lastKnownTitle by remember(videoId) { mutableStateOf(video.title) }
+    var lastKnownThumbnail by remember(videoId) {
+        mutableStateOf(
+            video.thumbnailUrl.takeIf { it.isNotEmpty() }
+                ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
+        )
+    }
+    var lastKnownChannelName by remember(videoId) { mutableStateOf(video.channelName) }
+    var lastKnownChannelId by remember(videoId) { mutableStateOf(video.channelId) }
+
+    SideEffect {
+        val streamInfo = uiState.streamInfo
+        val belongsToVideo = streamInfo?.id == videoId || uiState.cachedVideo?.id == videoId
+        if (belongsToVideo) {
+            lastKnownPosition = currentPosition
+            lastKnownDuration = duration
+            lastKnownTitle = streamInfo?.name ?: video.title
+            lastKnownThumbnail = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
+                ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
+                ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
+            lastKnownChannelName = streamInfo?.uploaderName ?: video.channelName
+            lastKnownChannelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
+        }
+    }
 
     DisposableEffect(videoId) {
         onDispose {
-            val streamInfo = currentUi.streamInfo
-            val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
-            val channelName = streamInfo?.uploaderName ?: video.channelName
-            val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
-                ?: video.thumbnailUrl.takeIf { it.isNotEmpty() }
-                ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
-
             viewModel.savePlaybackPosition(
                 videoId = videoId,
-                position = currentPos,
-                duration = currentDur,
-                title = streamInfo?.name ?: video.title,
-                thumbnailUrl = thumbnailUrl,
-                channelName = channelName,
-                channelId = channelId
+                position = lastKnownPosition,
+                duration = lastKnownDuration,
+                title = lastKnownTitle,
+                thumbnailUrl = lastKnownThumbnail,
+                channelName = lastKnownChannelName,
+                channelId = lastKnownChannelId
             )
 
-            viewModel.reportWatchProgress(video, currentPos, currentDur)
+            viewModel.reportWatchProgress(video, lastKnownPosition, lastKnownDuration)
             EnhancedPlayerManager.getInstance().clearCurrentVideo()
             Log.d(TAG, "Video ID changed, cleared player state (player kept alive)")
         }
