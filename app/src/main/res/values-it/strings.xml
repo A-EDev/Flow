@@ -1453,4 +1453,13 @@
     <string name="topic_score_prefix">Punteggio</string>
     <string name="filter_oldest">Meno recenti</string>
     <string name="channel_affinity_cooling">In raffreddamento</string>
+    <string name="download_all">Scarica tutto</string>
+    <string name="download_all_confirmation">Scaricare tutti i %1$d video? Potrebbe occupare spazio di archiviazione significativo.</string>
+    <string name="title_copied">Titolo copiato negli appunti</string>
+    <string name="import_subscriptions_section_title">Iscrizioni</string>
+    <string name="import_history_section_title">Cronologia</string>
+    <string name="import_freetube_history">Importa cronologia di FreeTube</string>
+    <string name="import_freetube_history_desc">Importa la cronologia di visualizzazione da un file di esportazione JSON di FreeTube.</string>
+    <string name="import_newpipe_history">Importa cronologia di NewPipe</string>
+    <string name="import_newpipe_history_desc">Importa la cronologia di visualizzazione da backup ZIP di NewPipe o da un file newpipe.db.</string>
 </resources>
