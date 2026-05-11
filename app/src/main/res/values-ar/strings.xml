@@ -1286,8 +1286,8 @@
     <string name="appearance_role_on_tertiary">علي المرحلة الثالثة</string>
     <string name="appearance_role_outline">Outline</string>
     <string name="deep_flow_mode_title">وضع تعلم Flow العميق</string>
-    <string name="sb_settings_title">SponsorBlock</string>
-    <string name="sb_settings_subtitle">إجراءات التقسيمات، الألوان، و المساهمة</string>
+    <string name="sb_settings_title">SponsorBlock, DeArrow &amp; RYD</string>
+    <string name="sb_settings_subtitle">إجراءات التقسيمات، خيارات DeArrow، و اعدادت عداد عدم الإعجاب</string>
     <string name="sb_settings_general_header">عام</string>
     <string name="group_all">الكل</string>
     <string name="manage_groups">إدارة المجموعات</string>
@@ -1441,4 +1441,18 @@
     <string name="profile_action_export_detail">إحفظ الملف الشخصي الحالي بصيغة JSON</string>
     <string name="profile_action_import">إستيراد الملف الشخصي</string>
     <string name="profile_action_import_detail">إستعادة نسخة احتياطية للملف الشخصي</string>
+    <string name="download_all">تحميل الكل</string>
+    <string name="download_all_confirmation">هل تريد تنزيل جميع فيديوهات %1$d؟ قد يستهلك هذا مساحة تخزين كبيرة.</string>
+    <string name="title_copied">تم نسخ العنوان إلى الحافظة</string>
+    <string name="notif_master_toggle">تمكين الإشعارات</string>
+    <string name="notif_master_toggle_subtitle">إسمح لتطبيق Flow بالعمل في الخلفية لإجراء عمليات فحص الإشعارات والتنبيهات</string>
+    <string name="notif_check_interval_disabled">تم تعطيل التحقق من الإشعارات في الخلفية</string>
+    <string name="player_settings_rytd_title">إرجاع زر عدم الإعجاب</string>
+    <string name="player_settings_rytd_subtitle">استخرج عدد مرات عدم الإعجاب من خدمة إرجاع عدم الإعجاب على Youtube</string>
+    <string name="import_subscriptions_section_title">الإشتراكات</string>
+    <string name="import_history_section_title">السجل</string>
+    <string name="import_freetube_history">استيراد سجل FreeTube</string>
+    <string name="import_freetube_history_desc">‎إسترد سجل المشاهدة الخاص بك من ملف JSON مُصدّر من FreeTube.</string>
+    <string name="import_newpipe_history">إستيراد سجل NewPipe</string>
+    <string name="import_newpipe_history_desc">قم باستيراد سجل المشاهدة الخاص بك من ملف ZIP إحتياطي لـ NewPipe أو ملف newpipe.db.</string>
 </resources>
