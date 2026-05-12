@@ -1507,4 +1507,6 @@
     <string name="notif_check_interval_disabled">Les vérifications de notification en arrière-plan sont désactivées</string>
     <string name="player_settings_rytd_title">Réintroduire le bouton « Je n\'aime pas » sur YouTube</string>
     <string name="player_settings_rytd_subtitle">Récupérer le nombre de « J\'aime pas » à l\'aide du service « Return YouTube Dislike »</string>
+    <string name="player_adaptive_size_title">Taille adaptative du lecteur</string>
+    <string name="player_adaptive_size_subtitle">Utilisez le format vidéo pour la hauteur du lecteur. Désactivez cette option pour un format fixe 16:9.</string>
 </resources>
