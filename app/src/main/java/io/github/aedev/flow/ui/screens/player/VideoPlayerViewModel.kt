@@ -570,15 +570,17 @@ class VideoPlayerViewModel @Inject constructor(
                     Pair(info, lastError)
                 }
 
-                val parallelData = supervisorScope {
-                    val dislikesDeferred = async(PerformanceDispatcher.networkIO) {
-                        if (playerPreferences.rytdEnabled.first()) {
-                            withTimeoutOrNull(5000L) { fetchReturnYouTubeDislike(videoId) }
-                        } else {
-                            null
+                viewModelScope.launch(PerformanceDispatcher.networkIO) {
+                    if (playerPreferences.rytdEnabled.first()) {
+                        withTimeoutOrNull(5000L) { fetchReturnYouTubeDislike(videoId) }?.let { dislikeCount ->
+                            if (_uiState.value.cachedVideo?.id == videoId || _uiState.value.streamInfo?.id == videoId) {
+                                _uiState.update { it.copy(dislikeCount = dislikeCount) }
+                            }
                         }
                     }
-                    
+                }
+
+                val (qualityAndAudioPrefs, downloadedVideo) = supervisorScope {
                     val prefsDeferred = async(PerformanceDispatcher.diskIO) {
                         val preferredQuality = if (isWifi) {
                             playerPreferences.defaultQualityWifi.first()
@@ -597,21 +599,11 @@ class VideoPlayerViewModel @Inject constructor(
                         } catch (e: Exception) { null }
                     }
                     
-                    Triple(
-                        dislikesDeferred.await(),
-                        prefsDeferred.await(),
-                        downloadedDeferred.await()
-                    )
+                    prefsDeferred.await() to downloadedDeferred.await()
                 }
                 
-                val (dislikeCount, qualityAndAudioPrefs, downloadedVideo) = parallelData
                 val preferredQuality = qualityAndAudioPrefs.first
                 val preferredAudioLanguage = qualityAndAudioPrefs.second
-                
-                // Update dislikes immediately
-                dislikeCount?.let { 
-                    _uiState.value = _uiState.value.copy(dislikeCount = it)
-                }
 
                 // Check for offline file immediately (video downloads and audio-only downloads)
                 val localFile = if (downloadedVideo != null) java.io.File(downloadedVideo.filePath) else null

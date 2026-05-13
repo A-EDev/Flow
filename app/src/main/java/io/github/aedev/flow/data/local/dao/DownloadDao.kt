@@ -74,6 +74,10 @@ interface DownloadDao {
     fun getAllDownloadsWithItems(): Flow<List<DownloadWithItems>>
 
     @Transaction
+    @Query("SELECT * FROM downloads ORDER BY createdAt DESC")
+    suspend fun getAllDownloadsWithItemsOnce(): List<DownloadWithItems>
+
+    @Transaction
     @Query("SELECT * FROM downloads WHERE videoId = :videoId")
     suspend fun getDownloadWithItems(videoId: String): DownloadWithItems?
 

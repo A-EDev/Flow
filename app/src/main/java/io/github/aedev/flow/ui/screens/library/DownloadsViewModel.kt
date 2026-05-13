@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -59,13 +60,22 @@ class DownloadsViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            videoDownloadManager.activeDownloads.collect { active ->
-                val videoOnly = active.filter { !it.isAudioOnly }
+            combine(
+                videoDownloadManager.allDownloads,
+                _pendingDeleteIds
+            ) { downloads, pending ->
+                val incomplete = downloads.filter { download ->
+                    download.download.videoId !in pending &&
+                        download.overallStatus != io.github.aedev.flow.data.local.entity.DownloadItemStatus.COMPLETED
+                }
+                incomplete.filter { !it.isAudioOnly } to incomplete.size
+            }.collect { (incomplete, incompleteCount) ->
                 _uiState.update { state ->
                     // Auto-clear merging flags for downloads that are no longer active
-                    val activeIds = videoOnly.map { it.download.videoId }.toSet()
+                    val activeIds = incomplete.map { it.download.videoId }.toSet()
                     state.copy(
-                        activeVideoDownloads = videoOnly,
+                        incompleteVideoDownloads = incomplete,
+                        incompleteDownloadCount = incompleteCount,
                         mergingVideoIds = state.mergingVideoIds.intersect(activeIds)
                     )
                 }
@@ -92,6 +102,11 @@ class DownloadsViewModel @Inject constructor(
     fun deleteVideoDownload(videoId: String) {
         _pendingDeleteIds.update { it + videoId }
         viewModelScope.launch(Dispatchers.IO) {
+            val download = videoDownloadManager.getDownloadWithItems(videoId)
+            if (download?.overallStatus != io.github.aedev.flow.data.local.entity.DownloadItemStatus.COMPLETED) {
+                FlowDownloadService.cancelDownload(appContext, videoId)
+                delay(500L)
+            }
             videoDownloadManager.deleteDownload(videoId)
             _pendingDeleteIds.update { it - videoId }
         }
@@ -113,6 +128,21 @@ class DownloadsViewModel @Inject constructor(
         FlowDownloadService.resumeDownload(appContext, videoId)
     }
 
+    fun removeIncompleteDownloads() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val ids = videoDownloadManager.allDownloads.first()
+                .filter { it.overallStatus != io.github.aedev.flow.data.local.entity.DownloadItemStatus.COMPLETED }
+                .map { it.download.videoId }
+            if (ids.isEmpty()) return@launch
+
+            _pendingDeleteIds.update { it + ids }
+            ids.forEach { videoId -> FlowDownloadService.cancelDownload(appContext, videoId) }
+            delay(500L)
+            videoDownloadManager.deleteIncompleteDownloads()
+            _pendingDeleteIds.update { it - ids.toSet() }
+        }
+    }
+
     fun rescan() {
         viewModelScope.launch {
             _uiState.update { it.copy(isScanning = true) }
@@ -124,10 +154,11 @@ class DownloadsViewModel @Inject constructor(
 
 data class DownloadsUiState(
     val downloadedVideos: List<DownloadedVideo> = emptyList(),
-    val activeVideoDownloads: List<DownloadWithItems> = emptyList(),
+    val incompleteVideoDownloads: List<DownloadWithItems> = emptyList(),
     val downloadedMusic: List<DownloadedTrack> = emptyList(),
     val downloadProgressMap: Map<String, Float> = emptyMap(),
     val mergingVideoIds: Set<String> = emptySet(),
+    val incompleteDownloadCount: Int = 0,
     val isLoading: Boolean = false,
     val isScanning: Boolean = false
 )

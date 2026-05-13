@@ -19,6 +19,7 @@ import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultAllocator
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -54,12 +55,11 @@ class ShortsPlayerPool private constructor() {
         private const val TAG = "ShortsPlayerPool"
         private const val POOL_SIZE = 3
 
-        // Tuned for Shorts: Faster start (1s min buffer), keep max buffer healthy
-        private const val MIN_BUFFER_MS = 5_000 
-        private const val MAX_BUFFER_MS = 25_000
-        private const val BUFFER_FOR_PLAYBACK_MS = 1_000
-        private const val BUFFER_FOR_REBUFFER_MS = 2_000
-        private const val BACK_BUFFER_MS = 5_000
+        private const val MIN_BUFFER_MS = 1_500
+        private const val MAX_BUFFER_MS = 12_000
+        private const val BUFFER_FOR_PLAYBACK_MS = 250
+        private const val BUFFER_FOR_REBUFFER_MS = 750
+        private const val BACK_BUFFER_MS = 2_000
 
         @Volatile
         private var instance: ShortsPlayerPool? = null
@@ -96,7 +96,7 @@ class ShortsPlayerPool private constructor() {
         if (isInitialized) return
 
         Log.d(TAG, "Initializing 3-player pool for Shorts")
-        dataSourceFactory = DefaultDataSource.Factory(context)
+        dataSourceFactory = DefaultDataSource.Factory(context, YouTubeHttpDataSource.Factory())
 
         // Observe audio language preference
         scope.launch {

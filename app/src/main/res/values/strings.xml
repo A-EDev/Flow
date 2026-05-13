@@ -1339,10 +1339,14 @@
     <string name="no_download_streams">No download streams available</string>
     <string name="downloading_template">Downloading %1$s...</string>
     <string name="section_downloading">Downloading</string>
+    <string name="section_incomplete_downloads">Incomplete downloads</string>
     <string name="section_completed">Completed</string>
     <string name="download_status_queued">Queued</string>
     <string name="download_status_paused">Paused</string>
     <string name="download_status_failed">Failed</string>
+    <string name="download_status_cancelled">Cancelled</string>
+    <string name="remove_incomplete_downloads">Remove incomplete downloads</string>
+    <string name="remove_incomplete_downloads_message">Remove %1$d paused, failed, or partial download(s)? Completed downloads will not be touched.</string>
     <string name="audio_track">Audio Track</string>
     <string name="off">Off</string>
     <string name="on">On</string>

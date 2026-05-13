@@ -1167,7 +1167,7 @@ class PlayerPreferences(private val context: Context) {
     // These are the defaults that balance quick playback start with smooth streaming
     val minBufferMs: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            preferences[Keys.MIN_BUFFER_MS] ?: 15_000 // 15s - reduced from 25s for faster start
+            preferences[Keys.MIN_BUFFER_MS] ?: BufferProfile.STABLE.minBuffer
         }
 
     suspend fun setMinBufferMs(ms: Int) {
@@ -1178,7 +1178,7 @@ class PlayerPreferences(private val context: Context) {
 
     val maxBufferMs: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            preferences[Keys.MAX_BUFFER_MS] ?: 50_000 // 50s - reduced from 80s, still plenty for seeking
+            preferences[Keys.MAX_BUFFER_MS] ?: BufferProfile.STABLE.maxBuffer
         }
 
     suspend fun setMaxBufferMs(ms: Int) {
@@ -1189,7 +1189,7 @@ class PlayerPreferences(private val context: Context) {
 
     val bufferForPlaybackMs: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            preferences[Keys.BUFFER_FOR_PLAYBACK_MS] ?: 1_000 // 1s - start playback ASAP (from 1.5s)
+            preferences[Keys.BUFFER_FOR_PLAYBACK_MS] ?: BufferProfile.STABLE.playbackBuffer
         }
 
     suspend fun setBufferForPlaybackMs(ms: Int) {
@@ -1200,7 +1200,7 @@ class PlayerPreferences(private val context: Context) {
     
     val bufferForPlaybackAfterRebufferMs: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            preferences[Keys.BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS] ?: 2_500 // 2.5s - reduced from 4s for faster resume
+            preferences[Keys.BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS] ?: BufferProfile.STABLE.rebufferBuffer
         }
 
     suspend fun setBufferForPlaybackAfterRebufferMs(ms: Int) {
@@ -1621,9 +1621,9 @@ enum class BufferProfile(
     val rebufferBuffer: Int
 ) {
     // Fast Start: Prioritize quick playback start over buffer stability
-    AGGRESSIVE("Fast Start", 10_000, 30_000, 500, 1_500),      
+    AGGRESSIVE("Fast Start", 3_000, 18_000, 250, 750),
     // Balanced: Good default for most connections
-    STABLE("Balanced", 15_000, 50_000, 1_000, 2_500),        
+    STABLE("Balanced", 10_000, 40_000, 750, 1_500),
     // Data Saver: Minimize data usage with smaller buffers
     DATASAVER("Data Saver", 12_000, 25_000, 1_500, 3_000),                   
     // Custom: User-defined values

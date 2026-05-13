@@ -442,7 +442,7 @@ class VideoDownloadManager @Inject constructor(
             val download = downloadDao.getDownloadWithItems(videoId)
                 ?: return@withContext false
 
-            val filePaths = download.items.map { it.filePath }
+            val filePaths = download.items.flatMap { artifactPathsFor(it.filePath) }.distinct()
             val thumbPath = download.download.thumbnailPath
 
             recentlyDeletedPaths.addAll(filePaths)
@@ -472,6 +472,27 @@ class VideoDownloadManager @Inject constructor(
             false
         }
     }
+
+    /**
+     * Delete every non-completed download row and its partial artifacts.
+     * Completed downloads are never touched.
+     */
+    suspend fun deleteIncompleteDownloads(): Int = withContext(Dispatchers.IO) {
+        val incomplete = downloadDao.getAllDownloadsWithItemsOnce()
+            .filter { download ->
+                download.items.isEmpty() ||
+                    download.items.any { it.status != DownloadItemStatus.COMPLETED }
+            }
+
+        var deleted = 0
+        incomplete.forEach { download ->
+            if (deleteDownload(download.download.videoId)) deleted++
+        }
+        deleted
+    }
+
+    private fun artifactPathsFor(path: String): List<String> =
+        listOf(path, "$path.video.tmp", "$path.audio.tmp")
 
     /**
      * Delete a single file from disk.

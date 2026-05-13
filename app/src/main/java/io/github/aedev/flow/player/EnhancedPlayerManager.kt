@@ -490,14 +490,6 @@ class EnhancedPlayerManager private constructor() {
             currentAudioTrack = availableAudioStreams.indexOf(currentAudioStream).coerceAtLeast(0)
         )
 
-        // Wait for surface to be ready
-        val timeout = appContext?.let { ctx ->
-            PlayerPreferences(ctx).surfaceReadyTimeoutMs.first()
-        } ?: PlayerConfig.DEFAULT_SURFACE_TIMEOUT_MS
-        
-        surfaceManager?.awaitSurfaceReady(timeout)
-
-        // Load media — pass startPosition as preservePosition so ExoPlayer seeks right after prepare()
         val resumePos = startPosition.takeIf { it > 0L }
         when {
             localFilePath != null -> loadMediaInternal(null, audioStream, localFilePath = localFilePath, preservePosition = resumePos)

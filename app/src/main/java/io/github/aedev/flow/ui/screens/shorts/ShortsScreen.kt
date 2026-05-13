@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
 
@@ -162,6 +163,7 @@ fun ShortsScreen(
 
                 // Load likes and metadata for the current short
                 LaunchedEffect(pagerState.currentPage) {
+                    delay(750)
                     uiState.shorts.getOrNull(pagerState.currentPage)?.let {
                         viewModel.loadShortDetails(it.id)
                     }
@@ -231,7 +233,7 @@ fun ShortsScreen(
                     playerPool.activatePlayer(settled)
 
                     val currentShort = uiState.shorts.getOrNull(settled)
-                    if (currentShort != null) {
+                    val currentPrepareJob = if (currentShort != null) {
                         launch {
                             try {
                                 val streams = getStreams(currentShort.id)
@@ -245,24 +247,24 @@ fun ShortsScreen(
                                 Log.e("ShortsScreen", "Failed to prepare player for ${currentShort.id}", e)
                             }
                         }
-                    }
+                    } else null
 
-                    // 2. Preload Next
-                    val nextShort = uiState.shorts.getOrNull(settled + 1)
-                    if (nextShort != null) {
-                        launch {
+                    launch {
+                        currentPrepareJob?.join()
+
+                        // 2. Preload Next
+                        val nextShort = uiState.shorts.getOrNull(settled + 1)
+                        if (nextShort != null) {
                             val streams = getStreams(nextShort.id)
                             val vUrl = streams?.first
                             if (vUrl != null) {
                                 playerPool.prepare(settled + 1, nextShort.id, vUrl, streams?.second, false)
                             }
                         }
-                    }
 
-                    // 3. Preload Previous
-                    val prevShort = uiState.shorts.getOrNull(settled - 1)
-                    if (prevShort != null) {
-                        launch {
+                        // 3. Preload Previous
+                        val prevShort = uiState.shorts.getOrNull(settled - 1)
+                        if (prevShort != null) {
                             val streams = getStreams(prevShort.id)
                             val vUrl = streams?.first
                             if (vUrl != null) {

@@ -36,6 +36,7 @@ IMPROVEMENTS
 - Player settings sheet redesign and Introduce new sheet sidebar in player
 - Add player sizing toggle
 - Add paid videos filters #439
+- Improve video and shorts playback performance #442 #425
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378
