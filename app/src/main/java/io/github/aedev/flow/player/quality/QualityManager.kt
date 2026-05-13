@@ -7,6 +7,7 @@ import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.state.QualityOption
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.schabi.newpipe.extractor.stream.VideoStream
 
@@ -134,7 +135,11 @@ class QualityManager(
         val targetHeight = PlayerConfig.calculateInitialQualityTarget(estimatedBandwidth)
         
         val smartStream = availableVideoStreams
-            .sortedBy { kotlin.math.abs(it.height - targetHeight) }
+            .sortedWith(
+                compareBy<VideoStream> { kotlin.math.abs(it.height - targetHeight) }
+                    .thenBy { VideoCodecUtils.playbackCodecRank(it) }
+                    .thenByDescending { it.bitrate }
+            )
             .firstOrNull()
         
         Log.d(TAG, "Smart quality selection: bandwidth=${estimatedBandwidth/1_000_000}Mbps, target=${targetHeight}p, selected=${smartStream?.height}p")
@@ -183,7 +188,12 @@ class QualityManager(
         Log.d(TAG, "Switching to FIXED quality: ${height}p")
         
         // Find the stream matching this height
-        val targetStream = availableVideoStreams.find { it.height == height }
+        val targetStream = availableVideoStreams
+            .filter { it.height == height }
+            .minWithOrNull(
+                compareBy<VideoStream> { VideoCodecUtils.playbackCodecRank(it) }
+                    .thenByDescending { it.bitrate }
+            )
         if (targetStream == null) {
             Log.w(TAG, "No stream found for ${height}p, available: ${availableVideoStreams.map { it.height }}")
             return false
@@ -211,7 +221,11 @@ class QualityManager(
         Log.d(TAG, "Auto quality: Estimated bandwidth ${estimatedBandwidth/1_000_000}Mbps -> targeting ${targetHeight}p")
         
         val targetStream = availableVideoStreams
-            .sortedBy { kotlin.math.abs(it.height - targetHeight) }
+            .sortedWith(
+                compareBy<VideoStream> { kotlin.math.abs(it.height - targetHeight) }
+                    .thenBy { VideoCodecUtils.playbackCodecRank(it) }
+                    .thenByDescending { it.bitrate }
+            )
             .firstOrNull()
         
         if (targetStream != null && targetStream.height != currentVideoStream?.height) {
@@ -329,6 +343,7 @@ class QualityManager(
     private fun switchDashQualitySeamlessly(maxHeight: Int) {
         trackSelector?.let { selector ->
             val params = selector.buildUponParameters()
+                .setPreferredVideoMimeTypes(*PlayerConfig.PREFERRED_VIDEO_MIME_TYPES)
                 .setMaxVideoSize(Int.MAX_VALUE, maxHeight)
                 .setForceHighestSupportedBitrate(false)
                 .build()
@@ -343,7 +358,8 @@ class QualityManager(
     fun applyAdaptiveTrackSelectorDefaults() {
         trackSelector?.let { selector ->
             val params = selector.buildUponParameters()
-                .setAllowVideoMixedMimeTypeAdaptiveness(true)
+                .setPreferredVideoMimeTypes(*PlayerConfig.PREFERRED_VIDEO_MIME_TYPES)
+                .setAllowVideoMixedMimeTypeAdaptiveness(false)
                 .setAllowMultipleAdaptiveSelections(true)
                 .setMaxVideoSize(PlayerConfig.MAX_VIDEO_WIDTH, PlayerConfig.MAX_VIDEO_HEIGHT)
                 .clearVideoSizeConstraints()

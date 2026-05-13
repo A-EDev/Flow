@@ -54,7 +54,8 @@ class PlayerFactory {
         
         return DefaultTrackSelector(context, trackSelectionFactory).apply {
             val builder = buildUponParameters()
-                .setAllowVideoMixedMimeTypeAdaptiveness(true)
+                .setPreferredVideoMimeTypes(*PlayerConfig.PREFERRED_VIDEO_MIME_TYPES)
+                .setAllowVideoMixedMimeTypeAdaptiveness(false)
                 .setAllowMultipleAdaptiveSelections(true)
                 .setForceHighestSupportedBitrate(false)
                 .setViewportSizeToPhysicalDisplaySize(context, true)

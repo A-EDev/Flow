@@ -15,6 +15,7 @@ import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.utils.PerformanceDispatcher
@@ -1435,7 +1436,11 @@ class VideoPlayerViewModel @Inject constructor(
         val videoStream = when (preferredQuality) {
             VideoQuality.AUTO -> null // null signals EnhancedPlayerManager to use adaptive/smart quality
             else -> allVideoStreams
-                .sortedBy { kotlin.math.abs(it.height - preferredQuality.height) }
+                .sortedWith(
+                    compareBy<VideoStream> { kotlin.math.abs(it.height - preferredQuality.height) }
+                        .thenBy { VideoCodecUtils.playbackCodecRank(it) }
+                        .thenByDescending { it.bitrate }
+                )
                 .firstOrNull()
         }
         

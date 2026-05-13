@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.Stream
@@ -123,7 +124,11 @@ class VideoPlaybackResolver(
         if (videoStreams.isEmpty()) return null
         
         // Sort by quality and prefer video-only streams (they can use DASH manifests)
-        val sortedStreams = videoStreams.sortedByDescending { it.height }
+        val sortedStreams = videoStreams.sortedWith(
+            compareByDescending<VideoStream> { it.height }
+                .thenBy { VideoCodecUtils.playbackCodecRank(it) }
+                .thenByDescending { it.bitrate }
+        )
         
         // Try to find a video-only stream first (better for DASH manifest generation)
         val videoOnlyStream = sortedStreams.firstOrNull { it.isVideoOnly }

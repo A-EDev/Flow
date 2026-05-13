@@ -97,7 +97,7 @@ fun DownloadQualityDialog(
                     val muxedStreams = streamInfo?.videoStreams
                         ?.filterIsInstance<VideoStream>() ?: emptyList()
 
-                    val codecPriority = mapOf("av1" to 0, "vp9" to 1, "h264" to 2, "hevc" to 3, "vp8" to 4)
+                    val codecPriority = mapOf("vp9" to 0, "h264" to 1, "vp8" to 2, "hevc" to 3, "av1" to 4)
                     val distinctStreams = (videoOnlyStreams + muxedStreams)
                         .distinctBy { "${it.height}_${VideoPlayerUtils.codecKeyFromStream(it)}" }
                         .sortedWith(

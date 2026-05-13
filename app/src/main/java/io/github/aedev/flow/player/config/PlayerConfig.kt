@@ -3,6 +3,14 @@ package io.github.aedev.flow.player.config
 object PlayerConfig {
     
     const val TAG = "EnhancedPlayerManager"
+
+    val PREFERRED_VIDEO_MIME_TYPES = arrayOf(
+        "video/x-vnd.on2.vp9",
+        "video/avc",
+        "video/x-vnd.on2.vp8",
+        "video/hevc",
+        "video/av01"
+    )
     
     // ===== Cache Configuration =====
     /** Maximum cache size in bytes (500 MB — default) */
