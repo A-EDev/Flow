@@ -19,7 +19,8 @@ class PlaybackTracker(
     private val onSponsorBlockCheck: (Long) -> Long?, // Returns seek position if skip needed
     private val onBufferingDetected: () -> Unit,
     private val onSmoothPlayback: () -> Unit,
-    private val onBandwidthCheckNeeded: () -> Unit
+    private val onBandwidthCheckNeeded: () -> Unit,
+    private val onLivePlaybackTick: (ExoPlayer) -> Unit = {}
 ) {
     companion object {
         private const val TAG = "PlaybackTracker"
@@ -78,6 +79,7 @@ class PlaybackTracker(
             stateFlow.value = stateFlow.value.copy(
                 bufferedPercentage = bufferedPct
             )
+            onLivePlaybackTick(player)
 
             // Periodic auto-save signal (every 30 seconds)
             val currentTime = System.currentTimeMillis()

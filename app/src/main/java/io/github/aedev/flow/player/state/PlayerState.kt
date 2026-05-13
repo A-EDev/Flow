@@ -23,7 +23,9 @@ data class EnhancedPlayerState(
     val hasPrevious: Boolean = false,
     val queueTitle: String? = null,
     val queueSize: Int = 0,
-    val isLooping: Boolean = false
+    val isLooping: Boolean = false,
+    val isLive: Boolean = false,
+    val isAtLiveEdge: Boolean = false
 )
 
 // video quality option for the quality selector.

@@ -7,6 +7,7 @@ import android.util.Log
 import android.view.SurfaceHolder
 import androidx.media3.common.C
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -64,6 +65,7 @@ import org.schabi.newpipe.extractor.stream.VideoStream
 class EnhancedPlayerManager private constructor() {
     companion object {
         private const val TAG = PlayerConfig.TAG
+        private const val LIVE_EDGE_THRESHOLD_MS = 700L
         
         @Volatile
         private var instance: EnhancedPlayerManager? = null
@@ -97,6 +99,8 @@ class EnhancedPlayerManager private constructor() {
     private var currentDurationSeconds: Long = -1
     private var currentDashManifestUrl: String? = null
     private var currentHlsUrl: String? = null
+    private var currentIsLiveStream = false
+    private var preLivePlaybackSpeed: Float? = null
     
     private var isAudioOnlyMode = false
     private var videoTracksDisabled = false
@@ -258,6 +262,15 @@ class EnhancedPlayerManager private constructor() {
                         qm.checkAdaptiveQualityUpgrade(player?.currentPosition ?: 0L)
                     }
                 }
+            },
+            onLivePlaybackTick = { exoPlayer ->
+                updateLiveEdgeState(exoPlayer)
+                if (currentIsLiveStream &&
+                    _playerState.value.playbackSpeed > 1.0f &&
+                    isPlayerAtLiveEdge(exoPlayer)
+                ) {
+                    setPlaybackSpeed(1.0f)
+                }
             }
         )
     }
@@ -405,6 +418,7 @@ class EnhancedPlayerManager private constructor() {
     ) {
         Log.d(TAG, "playLocalFile: videoId=$videoId, path=$filePath, offlineSegments=${savedSegments?.size}, resumePos=$preservePosition")
         resetPlaybackStateForNewVideo(videoId)
+        updateLivePlaybackMode(isLive = false)
         currentVideoId = videoId
         startPlaybackTracker()
 
@@ -451,6 +465,7 @@ class EnhancedPlayerManager private constructor() {
         this.currentDurationSeconds = durationSeconds
         this.currentDashManifestUrl = dashManifestUrl
         this.currentHlsUrl = hlsUrl
+        updateLivePlaybackMode(isLive = !hlsUrl.isNullOrEmpty(), forceLiveSpeedReset = true)
         currentVideoId = videoId
         
         // Process streams using StreamProcessor
@@ -487,7 +502,9 @@ class EnhancedPlayerManager private constructor() {
             availableAudioTracks = StreamProcessor.toAudioTrackOptions(availableAudioStreams),
             availableSubtitles = StreamProcessor.toSubtitleOptions(subtitles),
             currentQuality = if (isAutoMode) 0 else (currentVideoStream?.height ?: 0),
-            currentAudioTrack = availableAudioStreams.indexOf(currentAudioStream).coerceAtLeast(0)
+            currentAudioTrack = availableAudioStreams.indexOf(currentAudioStream).coerceAtLeast(0),
+            isLive = currentIsLiveStream,
+            isAtLiveEdge = false
         )
 
         val resumePos = startPosition.takeIf { it > 0L }
@@ -512,8 +529,37 @@ class EnhancedPlayerManager private constructor() {
         _playerState.value = _playerState.value.copy(
             currentVideoId = videoId, isBuffering = true, error = null,
             hasEnded = false, isPrepared = false, recoveryAttempted = false, currentQuality = 0,
-            playWhenReady = player?.playWhenReady ?: true
+            playWhenReady = player?.playWhenReady ?: true,
+            isAtLiveEdge = false
         )
+    }
+
+    private fun updateLivePlaybackMode(isLive: Boolean, forceLiveSpeedReset: Boolean = false) {
+        if (isLive == currentIsLiveStream) {
+            if (isLive && forceLiveSpeedReset) {
+                setPlaybackSpeed(1.0f)
+            }
+            _playerState.value = _playerState.value.copy(isLive = isLive)
+            return
+        }
+
+        if (isLive) {
+            val currentSpeed = _playerState.value.playbackSpeed
+            if (currentSpeed != 1.0f) {
+                preLivePlaybackSpeed = currentSpeed
+            }
+            setPlaybackSpeed(1.0f)
+        } else {
+            preLivePlaybackSpeed?.let { speed ->
+                if (speed != 1.0f) {
+                    setPlaybackSpeed(speed)
+                }
+            }
+            preLivePlaybackSpeed = null
+        }
+
+        currentIsLiveStream = isLive
+        _playerState.value = _playerState.value.copy(isLive = isLive, isAtLiveEdge = false)
     }
 
     private fun loadMediaInternal(
@@ -986,6 +1032,20 @@ class EnhancedPlayerManager private constructor() {
     fun play() = player?.play()
     fun pause() = player?.pause()
     fun seekTo(position: Long) = player?.seekTo(position)
+
+    fun seekToLiveEdge(resetSpeed: Boolean = true) {
+        val p = player ?: return
+        if (resetSpeed) {
+            setPlaybackSpeed(1.0f)
+        }
+        if (p.currentMediaItem != null) {
+            p.seekToDefaultPosition(p.currentMediaItemIndex)
+        } else {
+            p.seekToDefaultPosition()
+        }
+        updateLiveEdgeState(p)
+    }
+
     fun setScrubbingModeEnabled(enabled: Boolean) {
         player?.setSeekParameters(
             if (enabled) SeekParameters.EXACT else SeekParameters.CLOSEST_SYNC
@@ -1018,6 +1078,7 @@ class EnhancedPlayerManager private constructor() {
         autoplayJob = null
         isAudioOnlyMode = false
         setVideoTracksDisabled(false)
+        updateLivePlaybackMode(isLive = false)
         playbackTracker?.stop()
         player?.stop()
         player?.clearMediaItems()
@@ -1230,6 +1291,7 @@ class EnhancedPlayerManager private constructor() {
     fun clearCurrentVideo() {
         isAudioOnlyMode = false
         setVideoTracksDisabled(false)
+        updateLivePlaybackMode(isLive = false)
         player?.stop()
         player?.clearMediaItems()
         qualityManager?.resetForNewVideo()
@@ -1238,7 +1300,8 @@ class EnhancedPlayerManager private constructor() {
         currentAudioStream = null
         _playerState.value = _playerState.value.copy(
             isPlaying = false, currentVideoId = null, currentQuality = 0,
-            bufferedPercentage = 0f, isBuffering = false, isPrepared = false, hasEnded = false
+            bufferedPercentage = 0f, isBuffering = false, isPrepared = false, hasEnded = false,
+            isLive = false, isAtLiveEdge = false
         )
     }
 
@@ -1259,6 +1322,41 @@ class EnhancedPlayerManager private constructor() {
     }
 
     fun isQueueActive(): Boolean = playbackQueue.isNotEmpty()
+
+    private fun updateLiveEdgeState(player: ExoPlayer) {
+        if (!currentIsLiveStream && !player.isCurrentMediaItemLive) return
+        val atLiveEdge = isPlayerAtLiveEdge(player)
+        if (_playerState.value.isAtLiveEdge != atLiveEdge || !_playerState.value.isLive) {
+            _playerState.value = _playerState.value.copy(
+                isLive = true,
+                isAtLiveEdge = atLiveEdge
+            )
+        }
+    }
+
+    private fun isPlayerAtLiveEdge(player: ExoPlayer): Boolean {
+        if (!currentIsLiveStream && !player.isCurrentMediaItemLive) return false
+
+        val liveOffset = player.currentLiveOffset
+        if (liveOffset != C.TIME_UNSET && liveOffset > 0L) {
+            return liveOffset <= PlayerConfig.LIVE_EDGE_GAP_MS + LIVE_EDGE_THRESHOLD_MS
+        }
+
+        val timeline = player.currentTimeline
+        val windowIndex = player.currentMediaItemIndex
+        if (!timeline.isEmpty && windowIndex >= 0 && windowIndex < timeline.windowCount) {
+            val window = Timeline.Window()
+            timeline.getWindow(windowIndex, window)
+            val defaultPosition = window.defaultPositionMs
+            if (defaultPosition != C.TIME_UNSET) {
+                return player.currentPosition + LIVE_EDGE_THRESHOLD_MS >= defaultPosition
+            }
+        }
+
+        val duration = player.duration
+        return duration > 0L && duration != C.TIME_UNSET &&
+            duration - player.currentPosition <= LIVE_EDGE_THRESHOLD_MS
+    }
 
     fun release() {
         Log.d(TAG, "release() called")

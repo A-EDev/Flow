@@ -27,17 +27,88 @@ import kotlinx.coroutines.delay
 import android.view.OrientationEventListener
 import android.widget.Toast
 import android.provider.Settings
+import androidx.media3.common.C
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
+import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.sponsorblock.SponsorBlockHandler
 
 private const val TAG = "PlayerEffects"
+private const val LIVE_UI_EDGE_THRESHOLD_MS = 1_500L
 
 private fun shouldRestartCompletedPlayback(savedPosition: Long, durationMs: Long): Boolean {
     if (savedPosition <= 0L || durationMs <= 0L) return false
     val remainingMs = durationMs - savedPosition
     return remainingMs <= 1_500L || savedPosition >= (durationMs * 0.98f).toLong()
+}
+
+private fun updateScreenPositionFromPlayer(player: Player, screenState: PlayerScreenState) {
+    if (player.isCurrentMediaItemLive) {
+        updateLiveScreenPosition(player, screenState)
+        return
+    }
+
+    screenState.currentPosition = player.currentPosition.coerceAtLeast(0L)
+    screenState.bufferedPosition = player.bufferedPosition.coerceAtLeast(0L)
+
+    val playerDuration = player.duration
+    if (playerDuration > 0L && playerDuration != C.TIME_UNSET) {
+        screenState.duration = playerDuration
+    }
+}
+
+private fun updateLiveScreenPosition(player: Player, screenState: PlayerScreenState) {
+    val liveEdgePosition = resolveLiveEdgePosition(player, screenState.duration)
+    if (liveEdgePosition <= 0L) {
+        screenState.currentPosition = player.currentPosition.coerceAtLeast(0L)
+        screenState.bufferedPosition = player.bufferedPosition.coerceAtLeast(0L)
+        return
+    }
+
+    val liveOffset = player.currentLiveOffset
+    val behindLiveEdge = if (liveOffset != C.TIME_UNSET && liveOffset > 0L) {
+        (liveOffset - PlayerConfig.LIVE_EDGE_GAP_MS).coerceAtLeast(0L)
+    } else {
+        (liveEdgePosition - player.currentPosition).coerceAtLeast(0L)
+    }
+
+    val isAtLiveEdge = EnhancedPlayerManager.getInstance().playerState.value.isAtLiveEdge ||
+        behindLiveEdge <= LIVE_UI_EDGE_THRESHOLD_MS
+    val displayPosition = if (isAtLiveEdge) {
+        liveEdgePosition
+    } else {
+        (liveEdgePosition - behindLiveEdge).coerceIn(0L, liveEdgePosition)
+    }
+
+    screenState.duration = liveEdgePosition
+    screenState.currentPosition = displayPosition
+    screenState.bufferedPosition = liveEdgePosition
+}
+
+private fun resolveLiveEdgePosition(player: Player, lastKnownDuration: Long): Long {
+    var liveEdgePosition = 0L
+
+    val timeline = player.currentTimeline
+    val windowIndex = player.currentMediaItemIndex
+    if (!timeline.isEmpty && windowIndex >= 0 && windowIndex < timeline.windowCount) {
+        val window = Timeline.Window()
+        timeline.getWindow(windowIndex, window)
+        if (window.defaultPositionMs != C.TIME_UNSET && window.defaultPositionMs > 0L) {
+            liveEdgePosition = maxOf(liveEdgePosition, window.defaultPositionMs)
+        }
+        if (window.durationMs != C.TIME_UNSET && window.durationMs > 0L) {
+            liveEdgePosition = maxOf(liveEdgePosition, window.durationMs)
+        }
+    }
+
+    val playerDuration = player.duration
+    if (playerDuration != C.TIME_UNSET && playerDuration > 0L) {
+        liveEdgePosition = maxOf(liveEdgePosition, playerDuration)
+    }
+
+    return maxOf(liveEdgePosition, lastKnownDuration)
 }
 
 @Composable
@@ -50,15 +121,7 @@ fun PositionTrackingEffect(
         while (isPlaying) {
             EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
                 if (player.playbackState != Player.STATE_IDLE) {
-                    screenState.currentPosition = player.currentPosition.coerceAtLeast(0L)
-                    screenState.bufferedPosition = player.bufferedPosition.coerceAtLeast(0L)
-                    // Only write duration when ExoPlayer reports a valid value.
-                    // player.duration returns C.TIME_UNSET (Long.MIN_VALUE) while buffering/recovering,
-                    // coercing that to 0 would clear the known duration and break the seekbar.
-                    val playerDuration = player.duration
-                    if (playerDuration > 0L) {
-                        screenState.duration = playerDuration
-                    }
+                    updateScreenPositionFromPlayer(player, screenState)
                 }
             }
             delay(50)
@@ -70,13 +133,7 @@ fun PositionTrackingEffect(
             delay(500L)
             EnhancedPlayerManager.getInstance().getPlayer()?.let { player ->
                 if (player.playbackState != Player.STATE_IDLE) {
-                    val playerDuration = player.duration
-                    if (playerDuration > 0L && screenState.duration <= 0L) {
-                        screenState.duration = playerDuration
-                    }
-                    if (!player.isPlaying) {
-                        screenState.currentPosition = player.currentPosition.coerceAtLeast(0L)
-                    }
+                    updateScreenPositionFromPlayer(player, screenState)
                 }
             }
         }
@@ -633,12 +690,20 @@ fun PlaybackStartupRecoveryEffect(
 }
 
 private suspend fun applyRememberedSpeed(context: Context, screenState: PlayerScreenState) {
+    val manager = EnhancedPlayerManager.getInstance()
+    val isLive = manager.playerState.value.isLive || manager.getPlayer()?.isCurrentMediaItemLive == true
+    if (isLive) {
+        manager.setPlaybackSpeed(1.0f)
+        screenState.normalSpeed = 1.0f
+        return
+    }
+
     val prefs = PlayerPreferences(context)
     val remember = prefs.rememberPlaybackSpeed.first()
     if (remember) {
         val speed = prefs.playbackSpeed.first()
         if (speed != 1.0f) {
-            EnhancedPlayerManager.getInstance().setPlaybackSpeed(speed)
+            manager.setPlaybackSpeed(speed)
             screenState.normalSpeed = speed
         }
     }

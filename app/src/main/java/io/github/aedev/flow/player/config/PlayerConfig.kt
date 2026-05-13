@@ -31,6 +31,12 @@ object PlayerConfig {
     
     /** Back buffer duration in milliseconds (15 seconds for instant rewind) */
     const val BACK_BUFFER_DURATION_MS = 15_000
+
+    /** Preferred delay from the true live edge. Keeps YouTube live playback stable. */
+    const val LIVE_EDGE_GAP_MS = 10_000L
+
+    /** Maximum DVR window requested for live streams where the manifest supports it. */
+    const val LIVE_DVR_MAX_OFFSET_MS = 2 * 60 * 60 * 1000L
     
     // ===== Bandwidth Thresholds =====
     /** Initial bandwidth estimate in bits per second (5 Mbps) */

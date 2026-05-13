@@ -93,6 +93,7 @@ fun PremiumControlsOverlay(
     onCastClick: () -> Unit = {},
     isCasting: Boolean = false,
     isLive: Boolean = false,
+    onLiveClick: () -> Unit = {},
     onSleepTimerClick: () -> Unit = {},
     isSleepTimerActive: Boolean = false,
     showRemainingTime: Boolean = false,
@@ -540,7 +541,7 @@ fun PremiumControlsOverlay(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
-                            .clickable { onToggleRemainingTime() }
+                            .clickable { if (isLive) onLiveClick() else onToggleRemainingTime() }
                     ) {
                         Row(
                             modifier = Modifier
@@ -550,6 +551,18 @@ fun PremiumControlsOverlay(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             if (isLive) {
+                                Text(
+                                    text = formatTime(displayedPosition),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = " / ",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = Color.White.copy(alpha = 0.5f),
+                                    modifier = Modifier.padding(horizontal = 2.dp)
+                                )
                                 val dotAlpha by rememberInfiniteTransition(label = "liveDot").animateFloat(
                                     initialValue = 1f,
                                     targetValue = 0.2f,
@@ -653,7 +666,7 @@ fun PremiumControlsOverlay(
                     }
                 }
 
-                if (isLive) {
+                if (isLive && duration <= 0L) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -662,10 +675,15 @@ fun PremiumControlsOverlay(
                             .background(Color.Red)
                     )
                 } else {
+                    val seekDuration = if (isLive) duration.coerceAtLeast(displayedPosition) else duration
                     SeekbarWithPreview(
-                        value = if (duration > 0) displayedPosition.toFloat() / duration.toFloat() else 0f,
+                        value = if (seekDuration > 0) {
+                            (displayedPosition.toFloat() / seekDuration.toFloat()).coerceIn(0f, 1f)
+                        } else {
+                            0f
+                        },
                         onValueChange = { progress ->
-                            val newPosition = (progress * duration).toLong()
+                            val newPosition = (progress * seekDuration).toLong()
                             val playerManager = EnhancedPlayerManager.getInstance()
 
                             scrubPosition = newPosition
@@ -711,7 +729,7 @@ fun PremiumControlsOverlay(
                         seekbarPreviewHelper = seekbarPreviewHelper,
                         chapters = chapters,
                         sponsorSegments = sponsorSegments,
-                        duration = duration,
+                        duration = seekDuration,
                         bufferedValue = bufferedPercentage,
                         modifier = Modifier.fillMaxWidth()
                     )

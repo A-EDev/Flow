@@ -323,6 +323,9 @@ fun PlayerContent(
             },
             isCasting = io.github.aedev.flow.player.CastHelper.isCasting(context),
             isLive = !uiState.hlsUrl.isNullOrEmpty(),
+            onLiveClick = {
+                EnhancedPlayerManager.getInstance().seekToLiveEdge(resetSpeed = true)
+            },
             onSleepTimerClick = { screenState.showSleepTimerSheet = true },
             isSleepTimerActive = io.github.aedev.flow.player.SleepTimerManager.isActive,
             showRemainingTime = showRemainingTime,

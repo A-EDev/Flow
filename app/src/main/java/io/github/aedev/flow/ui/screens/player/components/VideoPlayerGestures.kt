@@ -113,8 +113,12 @@ fun Modifier.videoPlayerControls(
                         lastBackTapTime = now
                         currentOnSeekAccumulate(-(accumulatedBackMs / 1000L).toInt())
                         currentOnShowSeekBackChange(true)
-                        val actualBackBase = EnhancedPlayerManager.getInstance().getPlayer()?.currentPosition
-                            ?: currentPositionValue
+                        val player = EnhancedPlayerManager.getInstance().getPlayer()
+                        val actualBackBase = if (player?.isCurrentMediaItemLive == true) {
+                            currentPositionValue
+                        } else {
+                            player?.currentPosition ?: currentPositionValue
+                        }
                         EnhancedPlayerManager.getInstance().seekTo(
                             (actualBackBase - currentDoubleTapSeekMs).coerceAtLeast(0)
                         )
@@ -132,8 +136,12 @@ fun Modifier.videoPlayerControls(
                         lastForwardTapTime = now
                         currentOnSeekAccumulate((accumulatedForwardMs / 1000L).toInt())
                         currentOnShowSeekForwardChange(true)
-                        val actualForwardBase = EnhancedPlayerManager.getInstance().getPlayer()?.currentPosition
-                            ?: currentPositionValue
+                        val player = EnhancedPlayerManager.getInstance().getPlayer()
+                        val actualForwardBase = if (player?.isCurrentMediaItemLive == true) {
+                            currentPositionValue
+                        } else {
+                            player?.currentPosition ?: currentPositionValue
+                        }
                         EnhancedPlayerManager.getInstance().seekTo(
                             (actualForwardBase + currentDoubleTapSeekMs).coerceAtMost(currentDuration)
                         )

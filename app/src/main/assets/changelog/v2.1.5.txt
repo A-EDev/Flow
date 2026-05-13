@@ -38,6 +38,7 @@ IMPROVEMENTS
 - Add paid videos filters #439
 - Improve video and shorts playback performance #442 #425
 - Prefer VP9/H264 over AV1 for playback #406
+- Improve Live streams handling and UI #435 #416 #390
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

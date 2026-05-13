@@ -930,6 +930,9 @@ fun GlobalPlayerOverlay(
                                 },
                                 isCasting = DlnaCastManager.isCasting,
                                 isLive = !playerUiState.hlsUrl.isNullOrEmpty(),
+                                onLiveClick = {
+                                    EnhancedPlayerManager.getInstance().seekToLiveEdge(resetSpeed = true)
+                                },
                                 onSleepTimerClick = { screenState.showSleepTimerSheet = true },
                                 isSleepTimerActive = io.github.aedev.flow.player.SleepTimerManager.isActive,
                                 showRemainingTime = showRemainingTime,
