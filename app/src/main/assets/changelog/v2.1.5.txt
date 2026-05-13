@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-11
+DATE: 2026-05-13
 
 FEATURES
 - Add new Proxy manager and routing #362
@@ -50,6 +50,7 @@ FIXES AND STABILITY
 - Fix background playback #417 #434
 - Fix playback issues when playing from shared links #422
 - Fix playlist playback history #413
+- Fix album and subscriptions search crashes #443 #445
 
 ENGINE
 - Improve topic maturity detection for better recommendations #281

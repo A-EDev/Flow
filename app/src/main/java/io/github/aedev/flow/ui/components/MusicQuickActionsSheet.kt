@@ -50,6 +50,7 @@ fun MusicQuickActionsSheet(
     onShare: () -> Unit = {},
     onInfoClick: () -> Unit = {},
     onAudioEffectsClick: () -> Unit = {},
+    showPlaylistDialogs: Boolean = true,
     viewModel: MusicPlayerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -57,7 +58,7 @@ fun MusicQuickActionsSheet(
     var showArtistSelection by remember { mutableStateOf(false) }
     
     // Dialogs
-    if (uiState.showCreatePlaylistDialog) {
+    if (showPlaylistDialogs && uiState.showCreatePlaylistDialog) {
         CreatePlaylistDialog(
             onDismiss = { viewModel.showCreatePlaylistDialog(false) },
             onConfirm = { name, desc ->
@@ -66,7 +67,7 @@ fun MusicQuickActionsSheet(
         )
     }
     
-    if (uiState.showAddToPlaylistDialog) {
+    if (showPlaylistDialogs && uiState.showAddToPlaylistDialog) {
         AddToPlaylistDialog(
             playlists = uiState.playlists,
             onDismiss = { viewModel.showAddToPlaylistDialog(false) },

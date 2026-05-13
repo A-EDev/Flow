@@ -460,7 +460,11 @@ class SubscriptionsViewModel : ViewModel() {
     fun refreshFeed() {
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             val channels = _uiState.value.subscribedChannels
-            if (channels.isEmpty()) return@launch
+            if (channels.isEmpty() || isNetworkFetchRunning) {
+                _uiState.update { it.copy(isLoading = true) }
+                _uiState.update { it.copy(isLoading = false) }
+                return@launch
+            }
             fetchAndCacheSubscriptionFeed(
                 channelIds = channels.map { it.id },
                 showLoading = true

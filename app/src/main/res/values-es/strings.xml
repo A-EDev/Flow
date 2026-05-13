@@ -118,6 +118,7 @@
     <plurals name="channels_count">
         <item quantity="one">%d canal</item>
         <item quantity="many">%d canales</item>
+        <item quantity="other">%d canales</item>
     </plurals>
     <string name="empty_offline_title">Desconectado %1$s</string>
     <string name="empty_offline_body">Tu descargado %1$s aparecerá aquí.\nDisfruta de tu contenido incluso sin conexión a internet.</string>

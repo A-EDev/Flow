@@ -3,6 +3,7 @@ package io.github.aedev.flow.ui.screens.subscriptions
 
 import androidx.compose.animation.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -260,9 +261,18 @@ fun SubscriptionsScreen(
 
 
                     // FEED MODE
+                    val pullRefreshState = rememberPullToRefreshState()
+
+                    LaunchedEffect(uiState.isLoading) {
+                        if (!uiState.isLoading) {
+                            pullRefreshState.animateToHidden()
+                        }
+                    }
+
                     PullToRefreshBox(
                         isRefreshing = uiState.isLoading,
                         onRefresh = { viewModel.refreshFeed() },
+                        state = pullRefreshState,
                         modifier = Modifier.fillMaxSize()
                     ) {
                         if (subscribedChannels.isEmpty()) {

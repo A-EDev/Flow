@@ -183,14 +183,14 @@ fun EnhancedMusicPlayerScreen(
         MusicQuickActionsSheet(
             track = uiState.currentTrack!!,
             onDismiss = { showMoreOptions = false },
-            onViewArtist = { 
-                if (uiState.currentTrack!!.channelId.isNotEmpty()) {
-                    onArtistClick(uiState.currentTrack!!.channelId)
+            onViewArtist = { channelId ->
+                if (channelId.isNotEmpty()) {
+                    onArtistClick(channelId)
                 }
             },
-            onViewAlbum = { 
-                if (uiState.currentTrack!!.album.isNotEmpty()) {
-                    onAlbumClick(uiState.currentTrack!!.album)
+            onViewAlbum = { albumId ->
+                if (albumId.isNotEmpty()) {
+                    onAlbumClick(albumId)
                 }
             },
             onShare = { 
@@ -202,7 +202,8 @@ fun EnhancedMusicPlayerScreen(
                 context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
             },
             onInfoClick = { showInfoDialog = true },
-            onAudioEffectsClick = { showAudioSettings = true }
+            onAudioEffectsClick = { showAudioSettings = true },
+            showPlaylistDialogs = false
         )
     }
 

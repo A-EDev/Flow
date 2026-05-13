@@ -98,7 +98,8 @@
     <string name="music_player">Musik-Player</string>
     <string name="library_history_label">Verlauf</string>
     <plurals name="channels_count">
-        <item quantity="one">%d Kanäle</item>
+        <item quantity="one">%d Kanal</item>
+        <item quantity="other">%d Kanäle</item>
     </plurals>
     <string name="tab_videos">Videos</string>
     <string name="tab_music">Musik</string>

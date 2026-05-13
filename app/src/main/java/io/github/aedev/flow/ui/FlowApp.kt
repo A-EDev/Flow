@@ -465,11 +465,11 @@ fun FlowApp(
                     onBackClick = { musicPlayerSheetState.collapse() },
                     onArtistClick = { channelId ->
                         musicPlayerSheetState.collapse()
-                        navController.navigate("artist/$channelId")
+                        navController.navigate("artist/${android.net.Uri.encode(channelId)}")
                     },
                     onAlbumClick = { albumId ->
                         musicPlayerSheetState.collapse()
-                        navController.navigate("album/$albumId")
+                        navController.navigate("musicPlaylist/${android.net.Uri.encode(albumId)}")
                     },
                 )
             }

@@ -77,14 +77,14 @@ fun EnhancedMusicScreen(
         MusicQuickActionsSheet(
             track = selectedTrack!!,
             onDismiss = { showBottomSheet = false },
-            onViewArtist = { 
-                if (selectedTrack!!.channelId.isNotEmpty()) {
-                    onArtistClick(selectedTrack!!.channelId)
+            onViewArtist = { channelId ->
+                if (channelId.isNotEmpty()) {
+                    onArtistClick(channelId)
                 }
             },
-            onViewAlbum = { 
-                if (selectedTrack!!.album.isNotEmpty()) {
-                    onAlbumClick(selectedTrack!!.album)
+            onViewAlbum = { albumId ->
+                if (albumId.isNotEmpty()) {
+                    onAlbumClick(albumId)
                 }
             },
             onShare = { 
