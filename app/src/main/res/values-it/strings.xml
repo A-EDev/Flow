@@ -1469,4 +1469,12 @@
     <string name="player_adaptive_size_subtitle">Usa il formato video per l\'altezza del player. Disattiva per un rapporto fisso 16:9.</string>
     <string name="player_settings_rytd_title">Return YouTube Dislike</string>
     <string name="player_settings_rytd_subtitle">Recupera il conteggio dei \"non mi piace\" dal servizio Return YouTube Dislike</string>
+    <string name="section_incomplete_downloads">Download non completati</string>
+    <string name="download_status_cancelled">Annullato</string>
+    <string name="remove_incomplete_downloads">Rimuovi download non completati</string>
+    <string name="remove_incomplete_downloads_message">Rimuovere %1$d download interrotti, falliti o parziali? I download completati non verranno coinvolti.</string>
+    <string name="player_lock_controls">Blocca controlli</string>
+    <string name="player_unlock_controls">Sblocca controlli</string>
+    <string name="player_settings_overlay_lock_mode">Pulsante della modalità di blocco</string>
+    <string name="player_settings_overlay_lock_mode_subtitle">Mostra un pulsante di blocco nel player per evitare tocchi accidentali</string>
 </resources>
