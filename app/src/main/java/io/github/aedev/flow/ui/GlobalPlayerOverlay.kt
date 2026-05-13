@@ -160,9 +160,14 @@ fun GlobalPlayerOverlay(
     val savedSubtitleStyle by playerPreferences.subtitleStyle.collectAsState(initial = SubtitleStyle())
     val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
     val adaptivePlayerSizeEnabled by playerPreferences.adaptivePlayerSizeEnabled.collectAsState(initial = true)
+    val lockModeEnabled by playerPreferences.overlayLockModeEnabled.collectAsState(initial = false)
 
     var videoAspectRatio by remember { mutableFloatStateOf(16f / 9f) }
-    val effectiveVideoAspectRatio = if (adaptivePlayerSizeEnabled) videoAspectRatio else 16f / 9f
+    val effectiveVideoAspectRatio = if (adaptivePlayerSizeEnabled || screenState.isFullscreen) {
+        videoAspectRatio
+    } else {
+        16f / 9f
+    }
     var expandedPlayerBottom by remember { mutableStateOf(0.dp) }
     var pipForcedFullscreen by remember { mutableStateOf(false) }
 
@@ -178,6 +183,12 @@ fun GlobalPlayerOverlay(
     LaunchedEffect(savedSubtitleStyle) {
         if (screenState.subtitleStyle != savedSubtitleStyle) {
             screenState.subtitleStyle = savedSubtitleStyle
+        }
+    }
+
+    LaunchedEffect(lockModeEnabled) {
+        if (!lockModeEnabled && screenState.isTouchLocked) {
+            screenState.isTouchLocked = false
         }
     }
 
@@ -293,6 +304,7 @@ fun GlobalPlayerOverlay(
         isPlaying = playerState.playWhenReady,
         hasEnded = playerState.hasEnded,
         lastInteractionTimestamp = screenState.lastInteractionTimestamp,
+        isTouchLocked = screenState.isTouchLocked,
         onHideControls = { screenState.showControls = false }
     )
     
@@ -573,7 +585,7 @@ fun GlobalPlayerOverlay(
                     .fillMaxHeight(),
                 videoContent = { modifier ->
                     // ALWAYS use the same video surface
-                    val gestureModifier = if (!isMinimized && !localIsInPipMode) {
+                    val gestureModifier = if (!isMinimized && !localIsInPipMode && !screenState.isTouchLocked) {
                         modifier.videoPlayerControls(
                             isSpeedBoostActive = screenState.isSpeedBoostActive,
                             onSpeedBoostChange = { screenState.isSpeedBoostActive = it },
@@ -823,7 +835,7 @@ fun GlobalPlayerOverlay(
                         
                         // Controls overlay - fully expanded only
                         var showRemainingTime by rememberSaveable { mutableStateOf(false) }
-                        if (!isMinimized && !localIsInPipMode && screenState.showControls) {
+                        if (!isMinimized && !localIsInPipMode && (screenState.showControls || screenState.isTouchLocked)) {
                             PremiumControlsOverlay(
                                 isVisible = true,
                                 isPlaying = playerState.playWhenReady,
@@ -921,7 +933,16 @@ fun GlobalPlayerOverlay(
                                 onSleepTimerClick = { screenState.showSleepTimerSheet = true },
                                 isSleepTimerActive = io.github.aedev.flow.player.SleepTimerManager.isActive,
                                 showRemainingTime = showRemainingTime,
-                                onToggleRemainingTime = { showRemainingTime = !showRemainingTime }
+                                onToggleRemainingTime = { showRemainingTime = !showRemainingTime },
+                                isTouchLocked = screenState.isTouchLocked,
+                                lockModeEnabled = lockModeEnabled,
+                                onTouchLockToggle = {
+                                    if (lockModeEnabled || screenState.isTouchLocked) {
+                                        screenState.isTouchLocked = !screenState.isTouchLocked
+                                        screenState.showControls = true
+                                        screenState.onInteraction()
+                                    }
+                                }
                             )
                         }
                     }

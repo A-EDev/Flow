@@ -11,6 +11,7 @@ import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabs
 import org.schabi.newpipe.extractor.feed.FeedInfo
+import org.schabi.newpipe.extractor.stream.ContentAvailability
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
@@ -216,6 +217,10 @@ object RssSubscriptionService {
 
             val videos = combined.mapNotNull { item ->
                 val videoId = extractVideoId(item.url)
+                if (item.isPaidOrMembersOnly()) {
+                    Log.d(TAG, "[$channelId] Skipping restricted subscription item: $videoId")
+                    return@mapNotNull null
+                }
 
                 val uploadTimeMillis = resolveUploadTimestamp(item)
                     ?: rssDateMap[videoId]
@@ -328,6 +333,11 @@ object RssSubscriptionService {
         if (textual.isBlank()) return null
 
         return parseRelativeUploadDate(textual)
+    }
+
+    private fun StreamInfoItem.isPaidOrMembersOnly(): Boolean {
+        return contentAvailability == ContentAvailability.PAID ||
+            contentAvailability == ContentAvailability.MEMBERSHIP
     }
 
     private fun parseRelativeUploadDate(text: String): Long? {

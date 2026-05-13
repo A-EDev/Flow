@@ -11,6 +11,7 @@ import io.github.aedev.flow.ui.components.SubtitleStyle
 class PlayerScreenState {
     // UI Visibility States
     var showControls by mutableStateOf(true)
+    var isTouchLocked by mutableStateOf(false)
     var isFullscreen by mutableStateOf(false)
     var isInPipMode by mutableStateOf(false)
     var lastInteractionTimestamp by mutableLongStateOf(System.currentTimeMillis())
@@ -84,6 +85,7 @@ class PlayerScreenState {
     fun resetForNewVideo() {
         lastInteractionTimestamp = System.currentTimeMillis()
         showControls = true
+        isTouchLocked = false
         currentPosition = 0L
         duration = 0L
         subtitlesEnabled = false

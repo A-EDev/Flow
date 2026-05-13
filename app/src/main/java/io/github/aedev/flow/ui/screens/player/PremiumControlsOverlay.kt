@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
@@ -96,6 +97,9 @@ fun PremiumControlsOverlay(
     isSleepTimerActive: Boolean = false,
     showRemainingTime: Boolean = false,
     onToggleRemainingTime: () -> Unit = {},
+    isTouchLocked: Boolean = false,
+    lockModeEnabled: Boolean = false,
+    onTouchLockToggle: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -161,9 +165,53 @@ fun PremiumControlsOverlay(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(if (isInitialLoading) Color.Black else Color.Black.copy(alpha = 0.6f))
+                .background(
+                    when {
+                        isTouchLocked -> Color.Transparent
+                        isInitialLoading -> Color.Black
+                        else -> Color.Black.copy(alpha = 0.6f)
+                    }
+                )
         ) {
-            // Top Bar
+            if (isTouchLocked) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    event.changes.forEach { it.consume() }
+                                }
+                            }
+                        }
+                )
+
+                Surface(
+                    color = Color.Black.copy(alpha = 0.42f),
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(color = Color.White),
+                            onClick = onTouchLockToggle
+                        )
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Rounded.LockOpen,
+                            contentDescription = stringResource(R.string.player_unlock_controls),
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            } else {
+                // Top Bar
             if (!isInitialLoading) {
                 Column(
                     modifier = Modifier
@@ -340,7 +388,20 @@ fun PremiumControlsOverlay(
                         }
                     }
 
-                    // Settings Icon
+                    if (lockModeEnabled) {
+                        IconButton(
+                            onClick = onTouchLockToggle,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Lock,
+                                contentDescription = stringResource(R.string.player_lock_controls),
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
                     IconButton(
                         onClick = onSettingsClick,
                         modifier = Modifier.size(40.dp)
@@ -656,7 +717,8 @@ fun PremiumControlsOverlay(
                     )
                 }
             } 
-        } 
+        }
+            } 
         } 
     } 
 }

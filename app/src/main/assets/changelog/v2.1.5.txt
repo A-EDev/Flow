@@ -14,6 +14,7 @@ FEATURES
 - Add playlist video downloads confirmation dialog  #413
 - Add RYD disable option #433
 - Add background worker and notification disable option #411
+- Add new video player controls lock mode #441
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361
@@ -34,6 +35,7 @@ IMPROVEMENTS
 - Improve dynamic video player sizing and handling
 - Player settings sheet redesign and Introduce new sheet sidebar in player
 - Add player sizing toggle
+- Add paid videos filters #439
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

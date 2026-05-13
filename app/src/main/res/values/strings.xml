@@ -1464,6 +1464,8 @@
     <string name="error_extraction_failed_hint">YouTube may have updated its format. Flow will be updated soon — please try again later.</string>
     <string name="error_generic">Failed to load video</string>
     <string name="error_generic_hint">An unknown error occurred. Please try again.</string>
+    <string name="player_lock_controls">Lock controls</string>
+    <string name="player_unlock_controls">Unlock controls</string>
 
     <!-- New Video Player Strings -->
     <string name="player_settings_overlay_controls">Overlay Controls</string>
@@ -1479,6 +1481,8 @@
     <string name="player_settings_overlay_autoplay_subtitle">Show autoplay toggle on the video player overlay</string>
     <string name="player_settings_overlay_sleep_timer">Sleep Timer Button</string>
     <string name="player_settings_overlay_sleep_timer_subtitle">Show sleep timer button on the video player overlay</string>
+    <string name="player_settings_overlay_lock_mode">Lock Mode Button</string>
+    <string name="player_settings_overlay_lock_mode_subtitle">Show a player lock button to block accidental touches</string>
     <string name="player_action_background">Background</string>
     <string name="player_action_copy_link">Copy link</string>
     <string name="player_action_copy_link_at_time">Copy at time</string>

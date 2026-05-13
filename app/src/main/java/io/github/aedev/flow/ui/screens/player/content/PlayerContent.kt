@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,6 +68,7 @@ fun PlayerContent(
     val context = LocalContext.current
     val playerPrefs = remember { PlayerPreferences(context) }
     val deArrowEnabled by playerPrefs.deArrowEnabled.collectAsState(initial = false)
+    val lockModeEnabled by playerPrefs.overlayLockModeEnabled.collectAsState(initial = false)
     val deArrowResult by produceState<DeArrowResult?>(
         initialValue = null,
         key1 = video.id,
@@ -75,6 +77,12 @@ fun PlayerContent(
         value = if (deArrowEnabled) DeArrowRepository.getDeArrowResult(video.id) else null
     }
     val resolvedVideoTitle = deArrowResult?.title ?: uiState.streamInfo?.name ?: video.title
+
+    LaunchedEffect(lockModeEnabled) {
+        if (!lockModeEnabled && screenState.isTouchLocked) {
+            screenState.isTouchLocked = false
+        }
+    }
 
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
@@ -98,30 +106,36 @@ fun PlayerContent(
             .fillMaxWidth()
             .height(height)
             .background(Color.Black)
-            .videoPlayerControls(
-                isSpeedBoostActive = screenState.isSpeedBoostActive,
-                onSpeedBoostChange = { screenState.isSpeedBoostActive = it },
-                showControls = screenState.showControls,
-                onShowControlsChange = { screenState.showControls = it },
-                onShowSeekBackChange = { screenState.showSeekBackAnimation = it },
-                onShowSeekForwardChange = { screenState.showSeekForwardAnimation = it },
-                onSeekAccumulate = { screenState.seekAccumulation = kotlin.math.abs(it) },
-                currentPosition = screenState.currentPosition,
-                duration = screenState.duration,
-                normalSpeed = screenState.normalSpeed,
-                scope = scope,
-                isFullscreen = screenState.isFullscreen,
-                onBrightnessChange = { screenState.brightnessLevel = it },
-                onShowBrightnessChange = { screenState.showBrightnessOverlay = it },
-                onVolumeChange = { screenState.volumeLevel = it },
-                onShowVolumeChange = { screenState.showVolumeOverlay = it },
-                onBack = onBack,
-                brightnessLevel = screenState.brightnessLevel,
-                volumeLevel = screenState.volumeLevel,
-                maxVolume = maxVolume,
-                audioManager = audioManager,
-                activity = activity,
-                onExitFullscreen = { screenState.isFullscreen = false }
+            .then(
+                if (screenState.isTouchLocked) {
+                    Modifier
+                } else {
+                    Modifier.videoPlayerControls(
+                        isSpeedBoostActive = screenState.isSpeedBoostActive,
+                        onSpeedBoostChange = { screenState.isSpeedBoostActive = it },
+                        showControls = screenState.showControls,
+                        onShowControlsChange = { screenState.showControls = it },
+                        onShowSeekBackChange = { screenState.showSeekBackAnimation = it },
+                        onShowSeekForwardChange = { screenState.showSeekForwardAnimation = it },
+                        onSeekAccumulate = { screenState.seekAccumulation = kotlin.math.abs(it) },
+                        currentPosition = screenState.currentPosition,
+                        duration = screenState.duration,
+                        normalSpeed = screenState.normalSpeed,
+                        scope = scope,
+                        isFullscreen = screenState.isFullscreen,
+                        onBrightnessChange = { screenState.brightnessLevel = it },
+                        onShowBrightnessChange = { screenState.showBrightnessOverlay = it },
+                        onVolumeChange = { screenState.volumeLevel = it },
+                        onShowVolumeChange = { screenState.showVolumeOverlay = it },
+                        onBack = onBack,
+                        brightnessLevel = screenState.brightnessLevel,
+                        volumeLevel = screenState.volumeLevel,
+                        maxVolume = maxVolume,
+                        audioManager = audioManager,
+                        activity = activity,
+                        onExitFullscreen = { screenState.isFullscreen = false }
+                    )
+                }
             )
     ) {
         // Video Surface
@@ -211,7 +225,7 @@ fun PlayerContent(
         // Custom Controls Overlay
         var showRemainingTime by rememberSaveable { mutableStateOf(false) }
         PremiumControlsOverlay(
-            isVisible = screenState.showControls && !screenState.isInPipMode,
+            isVisible = (screenState.showControls || screenState.isTouchLocked) && !screenState.isInPipMode,
             isPlaying = playerState.isPlaying,
             hasEnded = playerState.hasEnded,
             isBuffering = playerState.isBuffering,
@@ -312,7 +326,15 @@ fun PlayerContent(
             onSleepTimerClick = { screenState.showSleepTimerSheet = true },
             isSleepTimerActive = io.github.aedev.flow.player.SleepTimerManager.isActive,
             showRemainingTime = showRemainingTime,
-            onToggleRemainingTime = { showRemainingTime = !showRemainingTime }
+            onToggleRemainingTime = { showRemainingTime = !showRemainingTime },
+            isTouchLocked = screenState.isTouchLocked,
+            lockModeEnabled = lockModeEnabled,
+            onTouchLockToggle = {
+                if (lockModeEnabled || screenState.isTouchLocked) {
+                    screenState.isTouchLocked = !screenState.isTouchLocked
+                    screenState.showControls = true
+                }
+            }
         )
     }
 }

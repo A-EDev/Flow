@@ -255,10 +255,11 @@ fun AutoHideControlsEffect(
     isPlaying: Boolean,
     hasEnded: Boolean,
     lastInteractionTimestamp: Long,
+    isTouchLocked: Boolean = false,
     onHideControls: () -> Unit
 ) {
-    LaunchedEffect(showControls, isPlaying, hasEnded, lastInteractionTimestamp) {
-        if (showControls && isPlaying && !hasEnded) {
+    LaunchedEffect(showControls, isPlaying, hasEnded, lastInteractionTimestamp, isTouchLocked) {
+        if (showControls && isPlaying && !hasEnded && !isTouchLocked) {
             delay(3000)
             onHideControls()
         }

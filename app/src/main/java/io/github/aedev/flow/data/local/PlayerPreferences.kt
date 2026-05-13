@@ -136,6 +136,7 @@ class PlayerPreferences(private val context: Context) {
         val OVERLAY_PIP_ENABLED = booleanPreferencesKey("overlay_pip_enabled")
         val OVERLAY_AUTOPLAY_ENABLED = booleanPreferencesKey("overlay_autoplay_enabled")
         val OVERLAY_SLEEPTIMER_ENABLED = booleanPreferencesKey("overlay_sleeptimer_enabled")
+        val OVERLAY_LOCK_MODE_ENABLED = booleanPreferencesKey("overlay_lock_mode_enabled")
         
         // Fullscreen Player
         val SHOW_FULLSCREEN_TITLE = booleanPreferencesKey("show_fullscreen_title")
@@ -814,6 +815,15 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setOverlaySleepTimerEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.OVERLAY_SLEEPTIMER_ENABLED] = enabled
+        }
+    }
+
+    val overlayLockModeEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.OVERLAY_LOCK_MODE_ENABLED] ?: false }
+
+    suspend fun setOverlayLockModeEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.OVERLAY_LOCK_MODE_ENABLED] = enabled
         }
     }
 
