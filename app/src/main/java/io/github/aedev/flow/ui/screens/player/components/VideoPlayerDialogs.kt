@@ -39,6 +39,7 @@ import androidx.compose.ui.window.Dialog
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.*
+import io.github.aedev.flow.player.stream.AudioStreamSelector
 import io.github.aedev.flow.ui.components.SubtitleCustomizer
 import io.github.aedev.flow.ui.components.SubtitleStyle
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
@@ -275,11 +276,14 @@ fun DownloadQualityDialog(
                         }
                         
                         // Show best audio stream
-                        val bestAudio = audioStreams.first()
+                        val bestAudio = AudioStreamSelector.selectPreferredAudioStream(
+                            streams = audioStreams,
+                            preferredAudioLanguage = preferredLang
+                        ) ?: audioStreams.first()
                         item {
                             val bitrate = bestAudio.averageBitrate / 1000
                             val audioFormat = bestAudio.format?.name ?: "M4A"
-                            val audioUrl = bestAudio.url
+                            val audioUrl = bestAudio.content ?: bestAudio.url
 
                             Surface(
                                 onClick = {

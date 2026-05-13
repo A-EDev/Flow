@@ -2,6 +2,8 @@ package io.github.aedev.flow.utils
 
 import android.net.Uri
 import android.util.Log
+import io.github.aedev.flow.FlowApplication
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.ANDROID_CREATOR
@@ -24,11 +26,14 @@ import io.github.aedev.flow.utils.potoken.PoTokenGenerator
 import io.github.aedev.flow.utils.potoken.PoTokenResult
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
+import java.util.Locale
 
 object MusicPlayerUtils {
     private const val TAG = "MusicPlayerUtils"
@@ -344,13 +349,45 @@ object MusicPlayerUtils {
             Log.d(TAG, "No audio formats found")
             return null
         }
+
+        val preferredAudioLanguage = runBlocking {
+            PlayerPreferences(FlowApplication.appContext).preferredAudioLanguage.first()
+        }
+        val preferredFormats = preferredAudioFormats(audioFormats, preferredAudioLanguage)
         
-        val bestFormat = audioFormats.maxByOrNull { format ->
+        val bestFormat = preferredFormats.maxByOrNull { format ->
             format.bitrate + (if (format.mimeType.contains("webm")) 10240 else 0)
         }
         
         Log.d(TAG, "Selected format: ${bestFormat?.mimeType}, bitrate: ${bestFormat?.bitrate}")
         return bestFormat
+    }
+
+    private fun preferredAudioFormats(
+        formats: List<PlayerResponse.StreamingData.Format>,
+        preferredAudioLanguage: String
+    ): List<PlayerResponse.StreamingData.Format> {
+        val normalizedPreference = preferredAudioLanguage.trim().lowercase(Locale.ROOT)
+
+        if (normalizedPreference.isBlank() || normalizedPreference == "original") {
+            val originals = formats.filter { it.isOriginal }
+            if (originals.isNotEmpty()) return originals
+            return formats
+        }
+
+        val languageMatches = formats.filter { format ->
+            val trackId = format.audioTrack?.id.orEmpty()
+            val displayName = format.audioTrack?.displayName.orEmpty()
+            trackId.equals(normalizedPreference, ignoreCase = true) ||
+                trackId.startsWith(normalizedPreference, ignoreCase = true) ||
+                displayName.contains(normalizedPreference, ignoreCase = true)
+        }
+        if (languageMatches.isNotEmpty()) return languageMatches
+
+        val originals = formats.filter { it.isOriginal }
+        if (originals.isNotEmpty()) return originals
+
+        return formats
     }
 
     private fun checkUrl(url: String, userAgent: String): Boolean {

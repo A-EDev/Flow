@@ -11,6 +11,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.InteractionType
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.player.stream.AudioStreamSelector
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -319,6 +320,7 @@ class QuickActionsViewModel @Inject constructor(
                     val bestVp9VideoOnly  = videoOnlyStreams.filter { isVp9Video(it) }.bestForTarget()
                     val bestAnyVideoOnly  = videoOnlyStreams.bestForTarget()
                     val bestCombined      = combinedStreams.bestForTarget()
+                    val preferredAudioLanguage = playerPreferences.preferredAudioLanguage.first()
 
                     // ── Audio selection (codec-aware) ────────────────────────────────────
                     val allAudio = streamInfo.audioStreams ?: emptyList()
@@ -347,7 +349,11 @@ class QuickActionsViewModel @Inject constructor(
                         bestMp4VideoOnly != null &&
                                 bestMp4VideoOnly.height > (bestCombined?.height ?: 0) -> {
                             selectedStream = bestMp4VideoOnly
-                            val aacAudio = allAudio.filter { isAacCompatible(it) }.maxByOrNull { it.averageBitrate }
+                            val aacAudio = AudioStreamSelector.selectPreferredAudioStream(
+                                streams = allAudio,
+                                preferredAudioLanguage = preferredAudioLanguage,
+                                compatibilityFilter = ::isAacCompatible
+                            )
                             audioUrl = aacAudio?.content ?: aacAudio?.url
                             videoCodec = null
                         }
@@ -359,14 +365,21 @@ class QuickActionsViewModel @Inject constructor(
                         bestVp9VideoOnly != null &&
                                 (bestVp9VideoOnly.height > (bestMp4VideoOnly?.height ?: 0)) -> {
                             selectedStream = bestVp9VideoOnly
-                            val opusAudio = allAudio.filter { isOpusCompatible(it) }.maxByOrNull { it.averageBitrate }
-                                ?: allAudio.maxByOrNull { it.averageBitrate }
+                            val opusAudio = AudioStreamSelector.selectPreferredAudioStream(
+                                streams = allAudio,
+                                preferredAudioLanguage = preferredAudioLanguage,
+                                compatibilityFilter = ::isOpusCompatible
+                            )
                             audioUrl = opusAudio?.content ?: opusAudio?.url
                             videoCodec = "vp9"
                         }
                         bestMp4VideoOnly != null -> {
                             selectedStream = bestMp4VideoOnly
-                            val aacAudio = allAudio.filter { isAacCompatible(it) }.maxByOrNull { it.averageBitrate }
+                            val aacAudio = AudioStreamSelector.selectPreferredAudioStream(
+                                streams = allAudio,
+                                preferredAudioLanguage = preferredAudioLanguage,
+                                compatibilityFilter = ::isAacCompatible
+                            )
                             audioUrl = aacAudio?.content ?: aacAudio?.url
                             videoCodec = null
                         }

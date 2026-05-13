@@ -34,13 +34,16 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import io.github.aedev.flow.data.local.PlaylistRepository
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.dao.VideoDao
 import io.github.aedev.flow.data.local.entity.VideoEntity
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.music.YouTubeMusicService
+import io.github.aedev.flow.player.stream.AudioStreamSelector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -855,6 +858,7 @@ class PlaylistDetailViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: PlaylistRepository,
     private val youTubeRepository: io.github.aedev.flow.data.repository.YouTubeRepository,
+    private val playerPreferences: PlayerPreferences,
     private val videoDao: VideoDao,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -910,6 +914,7 @@ class PlaylistDetailViewModel @Inject constructor(
             var successCount = 0
             var processedCount = 0
             val total = videos.size
+            val preferredAudioLanguage = playerPreferences.preferredAudioLanguage.first()
 
             val semaphore = Semaphore(2)
 
@@ -959,7 +964,11 @@ class PlaylistDetailViewModel @Inject constructor(
                             if (selectedStream != null) {
                                 val videoUrl = selectedStream.content ?: selectedStream.url
                                 val audioUrl = if (selectedStream in videoOnlyStreams) {
-                                    val aac = allAudio.filter { isAacAudio(it) }.maxByOrNull { it.averageBitrate }
+                                    val aac = AudioStreamSelector.selectPreferredAudioStream(
+                                        streams = allAudio,
+                                        preferredAudioLanguage = preferredAudioLanguage,
+                                        compatibilityFilter = ::isAacAudio
+                                    )
                                     aac?.content ?: aac?.url
                                 } else null
 

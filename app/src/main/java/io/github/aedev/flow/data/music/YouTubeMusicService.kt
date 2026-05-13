@@ -1,10 +1,14 @@
 package io.github.aedev.flow.data.music
 
 import android.util.Log
+import io.github.aedev.flow.FlowApplication
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.SongItem
+import io.github.aedev.flow.player.stream.AudioStreamSelector
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.ServiceList
@@ -237,9 +241,15 @@ object YouTubeMusicService {
     suspend fun getBestAudioStream(videoId: String): Pair<org.schabi.newpipe.extractor.stream.AudioStream, Long>? = withContext(Dispatchers.IO) {
         try {
             val streamInfo = getStreamInfo(videoId) ?: return@withContext null
-            val audioStream = streamInfo.audioStreams
-                ?.filter { !it.url.isNullOrEmpty() }
-                ?.maxByOrNull { it.averageBitrate }
+            val preferredAudioLanguage = PlayerPreferences(FlowApplication.appContext)
+                .preferredAudioLanguage
+                .first()
+            val audioStream = AudioStreamSelector.selectPreferredAudioStream(
+                streams = streamInfo.audioStreams
+                    ?.filter { !it.url.isNullOrEmpty() }
+                    ?: emptyList(),
+                preferredAudioLanguage = preferredAudioLanguage
+            )
             
             if (audioStream != null) {
                 Pair(audioStream, streamInfo.duration)
@@ -256,9 +266,15 @@ object YouTubeMusicService {
     suspend fun getAudioUrl(videoId: String): String? = withContext(Dispatchers.IO) {
         try {
             val streamInfo = getStreamInfo(videoId)
-            val audioStream = streamInfo?.audioStreams
-                ?.filter { !it.url.isNullOrEmpty() }
-                ?.maxByOrNull { it.averageBitrate }
+            val preferredAudioLanguage = PlayerPreferences(FlowApplication.appContext)
+                .preferredAudioLanguage
+                .first()
+            val audioStream = AudioStreamSelector.selectPreferredAudioStream(
+                streams = streamInfo?.audioStreams
+                    ?.filter { !it.url.isNullOrEmpty() }
+                    ?: emptyList(),
+                preferredAudioLanguage = preferredAudioLanguage
+            )
             
             audioStream?.url
         } catch (e: Exception) {
