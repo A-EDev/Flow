@@ -1049,8 +1049,8 @@
     <string name="dearrow_badge_toggle_subtitle">Affichage d\'un badge sur les vignettes corrigé par DeArrow</string>
     <string name="global_loop">Boucle vidéo globale</string>
     <string name="global_loop_subtitle">Lecture en boucle de toutes les vidéos par défaut</string>
-    <string name="sb_settings_title">SponsorBlock</string>
-    <string name="sb_settings_subtitle">Actions par segment, couleurs et contribution</string>
+    <string name="sb_settings_title">SponsorBlock, DeArrow &amp; RYD</string>
+    <string name="sb_settings_subtitle">Actions par segment, commandes DeArrow et paramètres du nombre de « Je n\'aime pas »</string>
     <string name="sb_settings_general_header">Général</string>
     <string name="sb_segments_header">Actions sur les segments de SponsorBlock</string>
     <string name="sb_contribute_header">Contribuer à SponsorBlock</string>
@@ -1502,4 +1502,11 @@
     <string name="reset_profile_confirm">Réinitialiser</string>
     <string name="taste_chart_profile">Profil</string>
     <string name="taste_chart_now">Maintenant</string>
+    <string name="notif_master_toggle">Activer les notifications</string>
+    <string name="notif_master_toggle_subtitle">Autoriser Flow à s\'activer en arrière-plan pour vérifier les notifications et les alertes</string>
+    <string name="notif_check_interval_disabled">Les vérifications de notification en arrière-plan sont désactivées</string>
+    <string name="player_settings_rytd_title">Réintroduire le bouton « Je n\'aime pas » sur YouTube</string>
+    <string name="player_settings_rytd_subtitle">Récupérer le nombre de « J\'aime pas » à l\'aide du service « Return YouTube Dislike »</string>
+    <string name="player_adaptive_size_title">Taille adaptative du lecteur</string>
+    <string name="player_adaptive_size_subtitle">Utilisez le format vidéo pour la hauteur du lecteur. Désactivez cette option pour un format fixe 16:9.</string>
 </resources>

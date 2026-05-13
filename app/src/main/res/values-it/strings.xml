@@ -1293,8 +1293,8 @@
     <string name="search_channels_hint">Cerca canali…</string>
     <string name="dearrow_badge_toggle">Mostra badge DeArrow</string>
     <string name="dearrow_badge_toggle_subtitle">Mostra un badge sulle miniature corrette da DeArrow</string>
-    <string name="sb_settings_title">SponsorBlock</string>
-    <string name="sb_settings_subtitle">Azioni sui segmenti, colori e contributi</string>
+    <string name="sb_settings_title">SponsorBlock, DeArrow e RYD</string>
+    <string name="sb_settings_subtitle">Azioni suo segmenti, controlli di DeArrow e impostazioni di conteggio dei non mi piace</string>
     <string name="sb_settings_general_header">Generale</string>
     <string name="tap_to_close">Tocca per chiudere</string>
     <string name="channel_search_hint">Cerca nel canale</string>
@@ -1462,4 +1462,11 @@
     <string name="import_freetube_history_desc">Importa la cronologia di visualizzazione da un file di esportazione JSON di FreeTube.</string>
     <string name="import_newpipe_history">Importa cronologia di NewPipe</string>
     <string name="import_newpipe_history_desc">Importa la cronologia di visualizzazione da backup ZIP di NewPipe o da un file newpipe.db.</string>
+    <string name="notif_master_toggle">Abilita notifiche</string>
+    <string name="notif_master_toggle_subtitle">Consenti a Flow di attivarsi in background per il controllo delle notifiche e gli avvisi</string>
+    <string name="notif_check_interval_disabled">Il controllo delle notifiche in background è disabilitato</string>
+    <string name="player_adaptive_size_title">Dimensione del player adattiva</string>
+    <string name="player_adaptive_size_subtitle">Usa il formato video per l\'altezza del player. Disattiva per un rapporto fisso 16:9.</string>
+    <string name="player_settings_rytd_title">Return YouTube Dislike</string>
+    <string name="player_settings_rytd_subtitle">Recupera il conteggio dei \"non mi piace\" dal servizio Return YouTube Dislike</string>
 </resources>
