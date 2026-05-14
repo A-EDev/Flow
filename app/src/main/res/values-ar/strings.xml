@@ -1455,4 +1455,14 @@
     <string name="import_freetube_history_desc">‎إسترد سجل المشاهدة الخاص بك من ملف JSON مُصدّر من FreeTube.</string>
     <string name="import_newpipe_history">إستيراد سجل NewPipe</string>
     <string name="import_newpipe_history_desc">قم باستيراد سجل المشاهدة الخاص بك من ملف ZIP إحتياطي لـ NewPipe أو ملف newpipe.db.</string>
+    <string name="player_adaptive_size_title">ملائمة حجم المشغل</string>
+    <string name="player_adaptive_size_subtitle">إستخدم تنسيق الفيديو لتحديد مقاس مشغل الفيديوهات. قم بإيقافه للحصول على نسبة عرض ثابتة 16:9.</string>
+    <string name="section_incomplete_downloads">تنزيلات غير مكتملة</string>
+    <string name="download_status_cancelled">تم الإلغاء</string>
+    <string name="remove_incomplete_downloads">إزالة التنزيلات غير المكتملة</string>
+    <string name="remove_incomplete_downloads_message">هل تريد حذف %1$d من التنزيلات المتوقفة أو الفاشلة أو الجزئية؟ لن يتم المساس بالتنزيلات المكتملة.</string>
+    <string name="player_lock_controls">قفل التحكم</string>
+    <string name="player_unlock_controls">إلغاء قفل التحكم</string>
+    <string name="player_settings_overlay_lock_mode">زر وضع الغلق</string>
+    <string name="player_settings_overlay_lock_mode_subtitle">أظهر زر قفل المشغل لمنع اللمسات الغير مقصودة</string>
 </resources>
