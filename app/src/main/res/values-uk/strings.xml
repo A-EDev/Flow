@@ -500,7 +500,7 @@
     <string name="content_settings_title">Налаштування контенту</string>
     <string name="content_settings_header_display">Дисплей</string>
     <string name="content_settings_header_home_layout">Макет домашньої сторінки</string>
-    <string name="sb_settings_title">SponsorBlock</string>
+    <string name="sb_settings_title">SponsorBlock, DeArrow &amp; RYD</string>
     <string name="sb_segments_header">Сегменти дії SponsorBlock</string>
     <string name="sb_contribute_header">Вкладатись в SponsorBlock</string>
     <string name="sb_contribute_toggle_title">Вкладатись в SponsorBlock</string>
@@ -704,7 +704,7 @@
     <string name="dearrow_badge_toggle_subtitle">Показувати значок на обкладинках, виправлених DeArrow</string>
     <string name="global_loop">Глобальне зациклення відео</string>
     <string name="global_loop_subtitle">Зациклити всі відео по замовчуванню</string>
-    <string name="sb_settings_subtitle">Дії, кольори та внесок у сегменти</string>
+    <string name="sb_settings_subtitle">Дії сегментів, керування DeArrow та налаштування кількості дизлайків</string>
     <string name="sb_settings_general_header">Головне</string>
     <string name="player_settings_double_tap_seek">Тривалість перемотування подвійним натисканням</string>
     <string name="player_settings_double_tap_seek_subtitle_template">«%d секунд за подвійне натискання</string>
@@ -1254,4 +1254,12 @@
     <string name="location_manual_hint">/storage/emulated/0/…</string>
     <string name="location_manual_confirm">Зберегти</string>
     <string name="location_badge_recommended">Рекомендовано</string>
+    <string name="download_all">Завантажити все</string>
+    <string name="download_all_confirmation">Завантажити всі %1$d відео? Це може зацняти багато місця.</string>
+    <string name="title_copied">Назва скопійована</string>
+    <string name="notif_master_toggle">Увімкнути сповіщення</string>
+    <string name="notif_master_toggle_subtitle">Дозволити Flow працювати і фоні для перевірки сповіщень</string>
+    <string name="notif_check_interval_disabled">Фонові перевірки сповіщень вимкнені</string>
+    <string name="player_adaptive_size_title">Адаптивний розмір програвача</string>
+    <string name="player_settings_rytd_subtitle">Отримати кількість дизлайків з Return YouTube Dislike</string>
 </resources>
