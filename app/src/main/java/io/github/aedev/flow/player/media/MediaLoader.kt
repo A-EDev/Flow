@@ -157,7 +157,13 @@ class MediaLoader(
             val audio = audioStream ?: return null
             val resolver = VideoPlaybackResolver(
                 cacheManager?.getDashDataSourceFactory() ?: dataSourceFactory,
-                cacheManager?.getProgressiveDataSourceFactory() ?: dataSourceFactory
+                cacheManager?.getProgressiveDataSourceFactory() ?: dataSourceFactory,
+                cacheManager?.getLiveDashDataSourceFactory()
+                    ?: cacheManager?.getDashDataSourceFactory()
+                    ?: dataSourceFactory,
+                cacheManager?.getLiveHlsDataSourceFactory()
+                    ?: cacheManager?.getHlsDataSourceFactory()
+                    ?: dataSourceFactory
             )
             
             val selectedStreams = if (audioOnly) {

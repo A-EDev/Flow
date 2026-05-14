@@ -3,6 +3,7 @@ package io.github.aedev.flow.player.resolver
 import android.net.Uri
 import android.util.Log
 import androidx.media3.datasource.DataSource
+import androidx.media3.exoplayer.hls.playlist.DefaultHlsPlaylistTracker
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.MergingMediaSource
 import io.github.aedev.flow.player.stream.VideoCodecUtils
@@ -27,10 +28,13 @@ import org.schabi.newpipe.extractor.stream.VideoStream
  */
 class VideoPlaybackResolver(
     private val dashDataSourceFactory: DataSource.Factory,
-    private val progressiveDataSourceFactory: DataSource.Factory
+    private val progressiveDataSourceFactory: DataSource.Factory,
+    private val liveDashDataSourceFactory: DataSource.Factory = dashDataSourceFactory,
+    private val liveHlsDataSourceFactory: DataSource.Factory = progressiveDataSourceFactory
 ) {
     companion object {
         private const val TAG = "VideoPlaybackResolver"
+        private const val PLAYLIST_STUCK_TARGET_DURATION_COEFFICIENT = 15.0
     }
 
     fun resolve(
@@ -42,7 +46,6 @@ class VideoPlaybackResolver(
     ): MediaSource? {
         Log.d(TAG, "Resolving playback: ${videoStreams.size} video streams, audio=${audioStream != null}, dash=${!dashManifestUrl.isNullOrEmpty()}, hls=${!hlsUrl.isNullOrEmpty()}, duration=${durationSeconds}s")
         
-        // 1. Priority: YouTube DASH for live DVR when available.
         if (!hlsUrl.isNullOrEmpty() && !dashManifestUrl.isNullOrEmpty()) {
             try {
                 Log.d(TAG, "Using YouTube DASH manifest for live DVR playback: ${dashManifestUrl.take(80)}...")
@@ -53,12 +56,11 @@ class VideoPlaybackResolver(
                     .setLiveConfiguration(
                         androidx.media3.common.MediaItem.LiveConfiguration.Builder()
                             .setTargetOffsetMs(PlayerConfig.LIVE_EDGE_GAP_MS)
-                            .setMaxOffsetMs(PlayerConfig.LIVE_DVR_MAX_OFFSET_MS)
                             .build()
                     )
                     .build()
 
-                return androidx.media3.exoplayer.dash.DashMediaSource.Factory(dashDataSourceFactory)
+                return androidx.media3.exoplayer.dash.DashMediaSource.Factory(liveDashDataSourceFactory)
                     .createMediaSource(liveDashItem)
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to build live DASH media source, falling back to HLS", e)
@@ -75,15 +77,20 @@ class VideoPlaybackResolver(
                     .setLiveConfiguration(
                         androidx.media3.common.MediaItem.LiveConfiguration.Builder()
                             .setTargetOffsetMs(PlayerConfig.LIVE_EDGE_GAP_MS)
-                            .setMaxOffsetMs(PlayerConfig.LIVE_DVR_MAX_OFFSET_MS)
                             .build()
                     )
                     .build()
 
-                val cachelessFactory = androidx.media3.datasource.DefaultHttpDataSource.Factory()
-
-                return androidx.media3.exoplayer.hls.HlsMediaSource.Factory(cachelessFactory)
+                return androidx.media3.exoplayer.hls.HlsMediaSource.Factory(liveHlsDataSourceFactory)
                     .setAllowChunklessPreparation(true)
+                    .setPlaylistTrackerFactory { dataSourceFactory, loadErrorHandlingPolicy, playlistParserFactory ->
+                        DefaultHlsPlaylistTracker(
+                            dataSourceFactory,
+                            loadErrorHandlingPolicy,
+                            playlistParserFactory,
+                            PLAYLIST_STUCK_TARGET_DURATION_COEFFICIENT
+                        )
+                    }
                     .createMediaSource(liveItem)
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to build live HLS media source", e)

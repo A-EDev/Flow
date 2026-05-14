@@ -465,6 +465,11 @@ class EnhancedPlayerManager private constructor() {
         this.currentDurationSeconds = durationSeconds
         this.currentDashManifestUrl = dashManifestUrl
         this.currentHlsUrl = hlsUrl
+        val liveDurationMs = if (!hlsUrl.isNullOrEmpty() && durationSeconds > 0) {
+            durationSeconds * 1000L
+        } else {
+            0L
+        }
         updateLivePlaybackMode(isLive = !hlsUrl.isNullOrEmpty(), forceLiveSpeedReset = true)
         currentVideoId = videoId
         
@@ -504,7 +509,8 @@ class EnhancedPlayerManager private constructor() {
             currentQuality = if (isAutoMode) 0 else (currentVideoStream?.height ?: 0),
             currentAudioTrack = availableAudioStreams.indexOf(currentAudioStream).coerceAtLeast(0),
             isLive = currentIsLiveStream,
-            isAtLiveEdge = false
+            isAtLiveEdge = false,
+            liveDurationMs = liveDurationMs
         )
 
         val resumePos = startPosition.takeIf { it > 0L }
@@ -530,7 +536,8 @@ class EnhancedPlayerManager private constructor() {
             currentVideoId = videoId, isBuffering = true, error = null,
             hasEnded = false, isPrepared = false, recoveryAttempted = false, currentQuality = 0,
             playWhenReady = player?.playWhenReady ?: true,
-            isAtLiveEdge = false
+            isAtLiveEdge = false,
+            liveDurationMs = 0L
         )
     }
 
@@ -539,7 +546,10 @@ class EnhancedPlayerManager private constructor() {
             if (isLive && forceLiveSpeedReset) {
                 setPlaybackSpeed(1.0f)
             }
-            _playerState.value = _playerState.value.copy(isLive = isLive)
+            _playerState.value = _playerState.value.copy(
+                isLive = isLive,
+                liveDurationMs = if (isLive) _playerState.value.liveDurationMs else 0L
+            )
             return
         }
 
@@ -559,7 +569,11 @@ class EnhancedPlayerManager private constructor() {
         }
 
         currentIsLiveStream = isLive
-        _playerState.value = _playerState.value.copy(isLive = isLive, isAtLiveEdge = false)
+        _playerState.value = _playerState.value.copy(
+            isLive = isLive,
+            isAtLiveEdge = false,
+            liveDurationMs = if (isLive) _playerState.value.liveDurationMs else 0L
+        )
     }
 
     private fun loadMediaInternal(
@@ -1031,7 +1045,32 @@ class EnhancedPlayerManager private constructor() {
     
     fun play() = player?.play()
     fun pause() = player?.pause()
-    fun seekTo(position: Long) = player?.seekTo(position)
+    fun seekTo(position: Long) {
+        val p = player ?: return
+        val target = if (currentIsLiveStream || p.isCurrentMediaItemLive) {
+            resolveLiveSeekTarget(p, position)
+        } else {
+            position.coerceAtLeast(0L)
+        }
+        p.seekTo(target)
+        if (currentIsLiveStream || p.isCurrentMediaItemLive) {
+            updateLiveEdgeState(p)
+        }
+    }
+
+    private fun resolveLiveSeekTarget(player: ExoPlayer, requestedPositionMs: Long): Long {
+        val playerDuration = player.duration
+            .takeIf { it > 0L && it != C.TIME_UNSET }
+            ?: return requestedPositionMs.coerceAtLeast(0L)
+        val displayedDuration = _playerState.value.liveDurationMs
+
+        if (displayedDuration <= playerDuration + LIVE_EDGE_THRESHOLD_MS) {
+            return requestedPositionMs.coerceIn(0L, playerDuration)
+        }
+
+        val requestedBehindLiveMs = (displayedDuration - requestedPositionMs).coerceAtLeast(0L)
+        return (playerDuration - requestedBehindLiveMs).coerceIn(0L, playerDuration)
+    }
 
     fun seekToLiveEdge(resetSpeed: Boolean = true) {
         val p = player ?: return
@@ -1089,7 +1128,8 @@ class EnhancedPlayerManager private constructor() {
             isBuffering = false,
             isPrepared = false,
             hasEnded = false,
-            currentVideoId = null
+            currentVideoId = null,
+            liveDurationMs = 0L
         )
     }
 
@@ -1301,7 +1341,7 @@ class EnhancedPlayerManager private constructor() {
         _playerState.value = _playerState.value.copy(
             isPlaying = false, currentVideoId = null, currentQuality = 0,
             bufferedPercentage = 0f, isBuffering = false, isPrepared = false, hasEnded = false,
-            isLive = false, isAtLiveEdge = false
+            isLive = false, isAtLiveEdge = false, liveDurationMs = 0L
         )
     }
 

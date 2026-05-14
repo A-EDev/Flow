@@ -25,6 +25,8 @@ class PlayerCacheManager(private val context: Context) {
     private var sharedDashDataSourceFactory: DataSource.Factory? = null
     private var sharedProgressiveDataSourceFactory: DataSource.Factory? = null
     private var sharedHlsDataSourceFactory: DataSource.Factory? = null
+    private var sharedLiveDashDataSourceFactory: DataSource.Factory? = null
+    private var sharedLiveHlsDataSourceFactory: DataSource.Factory? = null
     
     /**
      * Initialize cache and data source factories.
@@ -38,6 +40,8 @@ class PlayerCacheManager(private val context: Context) {
         val dashUpstream = DefaultDataSource.Factory(context, dashHttpFactory)
         val progressiveUpstream = DefaultDataSource.Factory(context, progressiveHttpFactory)
         val hlsUpstream = DefaultDataSource.Factory(context, hlsHttpFactory)
+        sharedLiveDashDataSourceFactory = dashUpstream
+        sharedLiveHlsDataSourceFactory = hlsUpstream
         
         // Legacy/Fallback
         val legacyHttpFactory = YouTubeHttpDataSource.Factory()
@@ -83,6 +87,8 @@ class PlayerCacheManager(private val context: Context) {
             sharedDashDataSourceFactory = dashUpstream
             sharedProgressiveDataSourceFactory = progressiveUpstream
             sharedHlsDataSourceFactory = hlsUpstream
+            sharedLiveDashDataSourceFactory = dashUpstream
+            sharedLiveHlsDataSourceFactory = hlsUpstream
             return false
         }
     }
@@ -96,6 +102,11 @@ class PlayerCacheManager(private val context: Context) {
      * Get the DASH-specific data source factory.
      */
     fun getDashDataSourceFactory(): DataSource.Factory? = sharedDashDataSourceFactory
+
+    /**
+     * Live DASH manifests are timeline data, so keep them off the persistent media cache.
+     */
+    fun getLiveDashDataSourceFactory(): DataSource.Factory? = sharedLiveDashDataSourceFactory
     
     /**
      * Get the progressive media data source factory.
@@ -106,6 +117,11 @@ class PlayerCacheManager(private val context: Context) {
      * Get the HLS data source factory.
      */
     fun getHlsDataSourceFactory(): DataSource.Factory? = sharedHlsDataSourceFactory
+
+    /**
+     * Live HLS playlists move constantly, so use an uncached upstream source for them.
+     */
+    fun getLiveHlsDataSourceFactory(): DataSource.Factory? = sharedLiveHlsDataSourceFactory
     
     /**
      * Get cache size in bytes.
@@ -139,6 +155,8 @@ class PlayerCacheManager(private val context: Context) {
             sharedDashDataSourceFactory = null
             sharedProgressiveDataSourceFactory = null
             sharedHlsDataSourceFactory = null
+            sharedLiveDashDataSourceFactory = null
+            sharedLiveHlsDataSourceFactory = null
             Log.d(TAG, "Cache references cleared (SimpleCache lifecycle managed by SharedPlayerCacheProvider)")
         } catch (e: Exception) {
             Log.w(TAG, "Error releasing cache", e)

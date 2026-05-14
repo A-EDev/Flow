@@ -18,6 +18,7 @@ import org.schabi.newpipe.extractor.ServiceList
 import org.schabi.newpipe.extractor.channel.ChannelInfoItem
 import org.schabi.newpipe.extractor.playlist.PlaylistInfoItem
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
+import org.schabi.newpipe.extractor.stream.StreamType
 
 /**
  * Sealed class representing any unified search result item.
@@ -68,6 +69,14 @@ class SearchPagingSource(
                 val items: List<SearchResultItem> = infoPage.items.mapNotNull { item ->
                     when (item) {
                         is StreamInfoItem -> {
+                            val isLiveStream = item.streamType == StreamType.LIVE_STREAM ||
+                                item.streamType == StreamType.AUDIO_LIVE_STREAM
+                            if (searchFilter?.contentType == io.github.aedev.flow.data.local.ContentType.LIVE &&
+                                !isLiveStream
+                            ) {
+                                return@mapNotNull null
+                            }
+
                             val duration = item.duration.toInt()
                             val uploadDate = item.textualUploadDate ?: ""
 
@@ -117,7 +126,8 @@ class SearchPagingSource(
                                     uploadDate = item.textualUploadDate ?: "",
                                     timestamp = System.currentTimeMillis(),
                                     channelThumbnailUrl = channelThumb,
-                                    isShort = item.duration in 1..60
+                                    isShort = item.duration in 1..60,
+                                    isLive = isLiveStream
                                 )
                             )
                         }
