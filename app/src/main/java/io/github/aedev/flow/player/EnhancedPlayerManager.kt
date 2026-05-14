@@ -3,6 +3,7 @@ package io.github.aedev.flow.player
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.os.SystemClock
 import android.util.Log
 import android.view.SurfaceHolder
 import androidx.media3.common.C
@@ -101,6 +102,9 @@ class EnhancedPlayerManager private constructor() {
     private var currentHlsUrl: String? = null
     private var currentIsLiveStream = false
     private var preLivePlaybackSpeed: Float? = null
+    private var pendingLiveDisplaySeekPositionMs: Long? = null
+    private var pendingLiveDisplaySeekAtMs: Long = 0L
+    private var pendingInitialLiveEdgeSeek = false
     
     private var isAudioOnlyMode = false
     private var videoTracksDisabled = false
@@ -373,6 +377,24 @@ class EnhancedPlayerManager private constructor() {
                 if (playbackState == Player.STATE_BUFFERING) {
                     logBandwidthInfo()
                 }
+
+                if (playbackState == Player.STATE_READY && pendingInitialLiveEdgeSeek) {
+                    player?.let { exoPlayer ->
+                        if (currentIsLiveStream || exoPlayer.isCurrentMediaItemLive) {
+                            pendingInitialLiveEdgeSeek = false
+                            if (exoPlayer.currentMediaItem != null) {
+                                exoPlayer.seekToDefaultPosition(exoPlayer.currentMediaItemIndex)
+                            } else {
+                                exoPlayer.seekToDefaultPosition()
+                            }
+                            val liveEdgePosition = exoPlayer.duration
+                                .takeIf { it > 0L && it != C.TIME_UNSET }
+                                ?: exoPlayer.currentPosition.coerceAtLeast(0L)
+                            markLiveDisplaySeek(liveEdgePosition)
+                            updateLiveEdgeState(exoPlayer)
+                        }
+                    }
+                }
             }
             
             override fun onRenderedFirstFrame() {
@@ -470,7 +492,9 @@ class EnhancedPlayerManager private constructor() {
         } else {
             0L
         }
-        updateLivePlaybackMode(isLive = !hlsUrl.isNullOrEmpty(), forceLiveSpeedReset = true)
+        val isLiveStream = !hlsUrl.isNullOrEmpty()
+        updateLivePlaybackMode(isLive = isLiveStream, forceLiveSpeedReset = true)
+        pendingInitialLiveEdgeSeek = isLiveStream && startPosition <= 0L
         currentVideoId = videoId
         
         // Process streams using StreamProcessor
@@ -529,6 +553,9 @@ class EnhancedPlayerManager private constructor() {
         currentDashManifestUrl = null
         currentHlsUrl = null
         selectedSubtitleIndex = null
+        pendingLiveDisplaySeekPositionMs = null
+        pendingLiveDisplaySeekAtMs = 0L
+        pendingInitialLiveEdgeSeek = false
         
         player?.let { it.stop(); it.clearMediaItems() }
         
@@ -542,6 +569,8 @@ class EnhancedPlayerManager private constructor() {
     }
 
     private fun updateLivePlaybackMode(isLive: Boolean, forceLiveSpeedReset: Boolean = false) {
+        player?.setSeekParameters(if (isLive) SeekParameters.EXACT else SeekParameters.CLOSEST_SYNC)
+
         if (isLive == currentIsLiveStream) {
             if (isLive && forceLiveSpeedReset) {
                 setPlaybackSpeed(1.0f)
@@ -1047,29 +1076,38 @@ class EnhancedPlayerManager private constructor() {
     fun pause() = player?.pause()
     fun seekTo(position: Long) {
         val p = player ?: return
-        val target = if (currentIsLiveStream || p.isCurrentMediaItemLive) {
-            resolveLiveSeekTarget(p, position)
-        } else {
-            position.coerceAtLeast(0L)
+        val isLive = currentIsLiveStream || p.isCurrentMediaItemLive
+        val target = resolveSeekTarget(p, position)
+        if (isLive) {
+            p.setSeekParameters(SeekParameters.EXACT)
+            markLiveDisplaySeek(target)
         }
         p.seekTo(target)
-        if (currentIsLiveStream || p.isCurrentMediaItemLive) {
+        if (isLive) {
             updateLiveEdgeState(p)
         }
     }
 
-    private fun resolveLiveSeekTarget(player: ExoPlayer, requestedPositionMs: Long): Long {
+    fun seekToLiveTimeline(position: Long) {
+        val p = player ?: return
+        val isLive = currentIsLiveStream || p.isCurrentMediaItemLive
+        val target = resolveSeekTarget(p, position)
+        if (isLive) {
+            p.setSeekParameters(SeekParameters.EXACT)
+            markLiveDisplaySeek(target)
+        }
+        p.seekTo(target)
+        if (isLive) {
+            updateLiveEdgeState(p)
+        }
+    }
+
+    private fun resolveSeekTarget(player: ExoPlayer, requestedPositionMs: Long): Long {
         val playerDuration = player.duration
             .takeIf { it > 0L && it != C.TIME_UNSET }
             ?: return requestedPositionMs.coerceAtLeast(0L)
-        val displayedDuration = _playerState.value.liveDurationMs
 
-        if (displayedDuration <= playerDuration + LIVE_EDGE_THRESHOLD_MS) {
-            return requestedPositionMs.coerceIn(0L, playerDuration)
-        }
-
-        val requestedBehindLiveMs = (displayedDuration - requestedPositionMs).coerceAtLeast(0L)
-        return (playerDuration - requestedBehindLiveMs).coerceIn(0L, playerDuration)
+        return requestedPositionMs.coerceIn(0L, playerDuration)
     }
 
     fun seekToLiveEdge(resetSpeed: Boolean = true) {
@@ -1082,13 +1120,35 @@ class EnhancedPlayerManager private constructor() {
         } else {
             p.seekToDefaultPosition()
         }
+        val liveEdgePosition = p.duration
+            .takeIf { it > 0L && it != C.TIME_UNSET }
+            ?: p.currentPosition.coerceAtLeast(0L)
+        markLiveDisplaySeek(liveEdgePosition)
         updateLiveEdgeState(p)
     }
 
+    private fun markLiveDisplaySeek(positionMs: Long) {
+        pendingLiveDisplaySeekPositionMs = positionMs.coerceAtLeast(0L)
+        pendingLiveDisplaySeekAtMs = SystemClock.elapsedRealtime()
+    }
+
+    fun consumeRecentLiveDisplaySeek(maxAgeMs: Long = 2_000L): Long? {
+        val position = pendingLiveDisplaySeekPositionMs ?: return null
+        if (SystemClock.elapsedRealtime() - pendingLiveDisplaySeekAtMs > maxAgeMs) {
+            pendingLiveDisplaySeekPositionMs = null
+            return null
+        }
+        pendingLiveDisplaySeekPositionMs = null
+        return position
+    }
+
     fun setScrubbingModeEnabled(enabled: Boolean) {
-        player?.setSeekParameters(
-            if (enabled) SeekParameters.EXACT else SeekParameters.CLOSEST_SYNC
-        )
+        player?.let { p ->
+            val isLive = currentIsLiveStream || p.isCurrentMediaItemLive
+            p.setSeekParameters(
+                if (enabled || isLive) SeekParameters.EXACT else SeekParameters.CLOSEST_SYNC
+            )
+        }
     }
 
     fun replay() {
@@ -1116,6 +1176,7 @@ class EnhancedPlayerManager private constructor() {
         autoplayJob?.cancel()
         autoplayJob = null
         isAudioOnlyMode = false
+        pendingInitialLiveEdgeSeek = false
         setVideoTracksDisabled(false)
         updateLivePlaybackMode(isLive = false)
         playbackTracker?.stop()

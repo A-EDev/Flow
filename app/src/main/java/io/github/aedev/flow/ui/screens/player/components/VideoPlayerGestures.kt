@@ -78,6 +78,8 @@ fun Modifier.videoPlayerControls(
     var accumulatedBackMs by remember { mutableStateOf(0L) }
     var lastForwardTapTime by remember { mutableStateOf(0L) }
     var lastBackTapTime by remember { mutableStateOf(0L) }
+    var pendingForwardTargetMs by remember { mutableStateOf<Long?>(null) }
+    var pendingBackTargetMs by remember { mutableStateOf<Long?>(null) }
     val accumulationWindowMs = 1000L
 
     this
@@ -104,47 +106,59 @@ fun Modifier.videoPlayerControls(
                         currentOnShowSeekForwardChange(false)
                         accumulatedForwardMs = 0L
                         lastForwardTapTime = 0L
+                        pendingForwardTargetMs = null
 
-                        if (now - lastBackTapTime < accumulationWindowMs) {
+                        val continuingBackSeek = now - lastBackTapTime < accumulationWindowMs
+                        if (continuingBackSeek) {
                             accumulatedBackMs += currentDoubleTapSeekMs
                         } else {
                             accumulatedBackMs = currentDoubleTapSeekMs
+                            pendingBackTargetMs = null
                         }
                         lastBackTapTime = now
                         currentOnSeekAccumulate(-(accumulatedBackMs / 1000L).toInt())
                         currentOnShowSeekBackChange(true)
-                        val player = EnhancedPlayerManager.getInstance().getPlayer()
-                        val actualBackBase = if (player?.isCurrentMediaItemLive == true) {
-                            currentPositionValue
+                        val manager = EnhancedPlayerManager.getInstance()
+                        val player = manager.getPlayer()
+                        val isLive = manager.playerState.value.isLive || player?.isCurrentMediaItemLive == true
+                        val actualBackBase = player?.currentPosition ?: currentPositionValue
+                        val backBase = pendingBackTargetMs?.takeIf { continuingBackSeek } ?: actualBackBase
+                        val target = (backBase - currentDoubleTapSeekMs).coerceAtLeast(0)
+                        pendingBackTargetMs = target
+                        if (isLive) {
+                            manager.seekToLiveTimeline(target)
                         } else {
-                            player?.currentPosition ?: currentPositionValue
+                            manager.seekTo(target)
                         }
-                        EnhancedPlayerManager.getInstance().seekTo(
-                            (actualBackBase - currentDoubleTapSeekMs).coerceAtLeast(0)
-                        )
                     } else if (tapPosition > rightThreshold) {
                         // Seek forward — cancel any in-progress backward animation
                         currentOnShowSeekBackChange(false)
                         accumulatedBackMs = 0L
                         lastBackTapTime = 0L
+                        pendingBackTargetMs = null
 
-                        if (now - lastForwardTapTime < accumulationWindowMs) {
+                        val continuingForwardSeek = now - lastForwardTapTime < accumulationWindowMs
+                        if (continuingForwardSeek) {
                             accumulatedForwardMs += currentDoubleTapSeekMs
                         } else {
                             accumulatedForwardMs = currentDoubleTapSeekMs
+                            pendingForwardTargetMs = null
                         }
                         lastForwardTapTime = now
                         currentOnSeekAccumulate((accumulatedForwardMs / 1000L).toInt())
                         currentOnShowSeekForwardChange(true)
-                        val player = EnhancedPlayerManager.getInstance().getPlayer()
-                        val actualForwardBase = if (player?.isCurrentMediaItemLive == true) {
-                            currentPositionValue
+                        val manager = EnhancedPlayerManager.getInstance()
+                        val player = manager.getPlayer()
+                        val isLive = manager.playerState.value.isLive || player?.isCurrentMediaItemLive == true
+                        val actualForwardBase = player?.currentPosition ?: currentPositionValue
+                        val forwardBase = pendingForwardTargetMs?.takeIf { continuingForwardSeek } ?: actualForwardBase
+                        val target = (forwardBase + currentDoubleTapSeekMs).coerceAtMost(currentDuration)
+                        pendingForwardTargetMs = target
+                        if (isLive) {
+                            manager.seekToLiveTimeline(target)
                         } else {
-                            player?.currentPosition ?: currentPositionValue
+                            manager.seekTo(target)
                         }
-                        EnhancedPlayerManager.getInstance().seekTo(
-                            (actualForwardBase + currentDoubleTapSeekMs).coerceAtMost(currentDuration)
-                        )
                     } else {
                         // Center double tap - play/pause
                         val player = EnhancedPlayerManager.getInstance().getPlayer()

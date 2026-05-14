@@ -111,7 +111,7 @@ fun PremiumControlsOverlay(
     )
     val scrubScope = rememberCoroutineScope()
     
-    var scrubPosition by remember(duration) { mutableStateOf<Long?>(null) }
+    var scrubPosition by remember { mutableStateOf<Long?>(null) }
     var isScrubbing by remember { mutableStateOf(false) }
     var lastScrubSeekAt by remember { mutableLongStateOf(0L) }
     var lastScrubSeekPosition by remember { mutableLongStateOf(Long.MIN_VALUE) }
@@ -691,6 +691,10 @@ fun PremiumControlsOverlay(
                             if (!isScrubbing) {
                                 isScrubbing = true
                                 playerManager.setScrubbingModeEnabled(true)
+                            }
+
+                            if (isLive) {
+                                return@SeekbarWithPreview
                             }
 
                             pendingScrubSeekJob?.cancel()

@@ -978,6 +978,7 @@ class VideoPlayerViewModel @Inject constructor(
         val resumePosition = savedPosition
             .takeIf { it > 500L }
             ?.takeIf { queueSize <= 1 }
+            ?.takeIf { hlsUrl.isNullOrEmpty() }
             ?.takeUnless { shouldRestartCompletedPlayback(it, durationMs) }
             ?: 0L
 

@@ -200,7 +200,11 @@ class QualityManager(
         }
         
         currentVideoStream = targetStream
-        onQualitySwitch(targetStream, currentPosition)
+        if (isDashSource) {
+            switchDashQualitySeamlessly(height)
+        } else {
+            onQualitySwitch(targetStream, currentPosition)
+        }
         
         stateFlow.value = stateFlow.value.copy(currentQuality = height, effectiveQuality = height)
         return true
@@ -214,6 +218,9 @@ class QualityManager(
         manualQualityHeight = null
         
         Log.d(TAG, "Enabling adaptive quality mode")
+        if (isDashSource) {
+            applyAdaptiveTrackSelectorDefaults()
+        }
         
         val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: 2_000_000L
         val targetHeight = PlayerConfig.calculateInitialQualityTarget(estimatedBandwidth)
@@ -342,10 +349,12 @@ class QualityManager(
      */
     private fun switchDashQualitySeamlessly(maxHeight: Int) {
         trackSelector?.let { selector ->
+            val minHeight = (maxHeight - 1).coerceAtLeast(0)
             val params = selector.buildUponParameters()
                 .setPreferredVideoMimeTypes(*PlayerConfig.PREFERRED_VIDEO_MIME_TYPES)
+                .setMinVideoSize(0, minHeight)
                 .setMaxVideoSize(Int.MAX_VALUE, maxHeight)
-                .setForceHighestSupportedBitrate(false)
+                .setForceHighestSupportedBitrate(true)
                 .build()
             selector.setParameters(params)
             Log.d(TAG, "DASH seamless quality switch: constrained max height to ${maxHeight}p")

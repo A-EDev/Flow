@@ -867,7 +867,12 @@ fun GlobalPlayerOverlay(
                                 },
                                 onSeek = { newPosition ->
                                     screenState.onInteraction()
-                                    EnhancedPlayerManager.getInstance().seekTo(newPosition)
+                                    val manager = EnhancedPlayerManager.getInstance()
+                                    if (playerState.isLive) {
+                                        manager.seekToLiveTimeline(newPosition)
+                                    } else {
+                                        manager.seekTo(newPosition)
+                                    }
                                 },
                                 onBack = { playerSheetState.collapse() },
                                 onSettingsClick = { screenState.showSettingsMenu = true },

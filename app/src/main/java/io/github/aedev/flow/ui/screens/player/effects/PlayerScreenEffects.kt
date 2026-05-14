@@ -33,18 +33,19 @@ import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
-import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.sponsorblock.SponsorBlockHandler
 import kotlin.math.roundToLong
 
 private const val TAG = "PlayerEffects"
-private const val LIVE_UI_EDGE_THRESHOLD_MS = 1_500L
-private const val LIVE_UI_CLOCK_RESET_THRESHOLD_MS = 1_500L
-private const val LIVE_UI_CLOCK_STALL_THRESHOLD_MS = 250L
-private const val LIVE_UI_CLOCK_MAX_TICK_MS = 1_000L
+private const val LIVE_DISPLAY_BACKWARD_DRIFT_TOLERANCE_MS = 1_500L
+private const val LIVE_DISPLAY_FORWARD_JUMP_THRESHOLD_MS = 5_000L
+private const val LIVE_DISPLAY_MAX_TICK_MS = 1_000L
+private const val LIVE_DISPLAY_RECENT_SEEK_MS = 2_000L
 
-private var liveUiClockVideoId: String? = null
-private var liveUiClockUpdatedAtMs: Long = 0L
+private var liveDisplayVideoId: String? = null
+private var liveDisplayRawPositionMs: Long = 0L
+private var liveDisplayUpdatedAtMs: Long = 0L
+private var liveDisplayLastSeekAtMs: Long = 0L
 
 private fun shouldRestartCompletedPlayback(savedPosition: Long, durationMs: Long): Boolean {
     if (savedPosition <= 0L || durationMs <= 0L) return false
@@ -69,96 +70,92 @@ private fun updateScreenPositionFromPlayer(player: Player, screenState: PlayerSc
 }
 
 private fun updateLiveScreenPosition(player: Player, screenState: PlayerScreenState) {
-    val managerState = EnhancedPlayerManager.getInstance().playerState.value
-    val now = SystemClock.elapsedRealtime()
+    val manager = EnhancedPlayerManager.getInstance()
+    val managerState = manager.playerState.value
     val videoId = managerState.currentVideoId ?: player.currentMediaItem?.mediaId
-    val sameLiveItem = liveUiClockVideoId == videoId
+    val sameLiveItem = liveDisplayVideoId == videoId
+    val now = SystemClock.elapsedRealtime()
     val elapsedMs = if (sameLiveItem) {
-        (now - liveUiClockUpdatedAtMs).coerceIn(0L, LIVE_UI_CLOCK_MAX_TICK_MS)
+        (now - liveDisplayUpdatedAtMs).coerceIn(0L, LIVE_DISPLAY_MAX_TICK_MS)
     } else {
         0L
     }
-
-    var liveEdgePosition = resolveLiveEdgePosition(player, screenState.duration)
-    val liveClockCanAdvance = elapsedMs > 0L &&
-        managerState.isLive &&
-        player.playbackState != Player.STATE_IDLE &&
-        player.playbackState != Player.STATE_ENDED
-
-    if (liveClockCanAdvance &&
-        screenState.duration > 0L &&
-        liveEdgePosition <= screenState.duration + LIVE_UI_CLOCK_STALL_THRESHOLD_MS
-    ) {
-        liveEdgePosition = screenState.duration + elapsedMs
+    val rawPosition = player.currentPosition.coerceAtLeast(0L)
+    val pendingSeekPosition = manager.consumeRecentLiveDisplaySeek()
+    if (pendingSeekPosition != null) {
+        liveDisplayLastSeekAtMs = now
     }
-
-    if (liveEdgePosition <= 0L) {
-        screenState.currentPosition = player.currentPosition.coerceAtLeast(0L)
-        screenState.bufferedPosition = player.bufferedPosition.coerceAtLeast(0L)
-        liveUiClockVideoId = videoId
-        liveUiClockUpdatedAtMs = now
-        return
-    }
-
-    val liveOffset = player.currentLiveOffset
-    val behindLiveEdge = if (liveOffset != C.TIME_UNSET && liveOffset > 0L) {
-        (liveOffset - PlayerConfig.LIVE_EDGE_GAP_MS).coerceAtLeast(0L)
+    val recentlySeeked = now - liveDisplayLastSeekAtMs <= LIVE_DISPLAY_RECENT_SEEK_MS
+    val previousDisplayPosition = if (sameLiveItem) {
+        screenState.currentPosition.takeIf { it > 0L } ?: liveDisplayRawPositionMs
     } else {
-        (liveEdgePosition - player.currentPosition).coerceAtLeast(0L)
+        rawPosition
+    }
+    val displayPosition = when {
+        pendingSeekPosition != null -> pendingSeekPosition
+        !sameLiveItem -> rawPosition
+        !player.isPlaying -> previousDisplayPosition
+        recentlySeeked -> rawPosition
+        else -> {
+            val rawDelta = rawPosition - previousDisplayPosition
+            when {
+                rawDelta > LIVE_DISPLAY_FORWARD_JUMP_THRESHOLD_MS -> rawPosition
+                rawDelta < -LIVE_DISPLAY_BACKWARD_DRIFT_TOLERANCE_MS -> {
+                    val speed = managerState.playbackSpeed.coerceAtLeast(0.1f)
+                    previousDisplayPosition + (elapsedMs * speed).roundToLong()
+                }
+                else -> {
+                    val speed = managerState.playbackSpeed.coerceAtLeast(0.1f)
+                    maxOf(rawPosition, previousDisplayPosition + (elapsedMs * speed).roundToLong())
+                }
+            }
+        }
+    }.coerceAtLeast(0L)
+
+    val resolvedDuration = resolveLiveTimelineDuration(player) ?: 0L
+    val liveDuration = maxOf(
+        resolvedDuration,
+        managerState.liveDurationMs,
+        if (sameLiveItem) screenState.duration else 0L,
+        displayPosition
+    )
+
+    screenState.duration = liveDuration
+    screenState.currentPosition = displayPosition.coerceAtMost(liveDuration.takeIf { it > 0L } ?: displayPosition)
+    screenState.bufferedPosition = maxOf(
+        player.bufferedPosition.coerceAtLeast(0L),
+        screenState.currentPosition
+    ).let { buffered ->
+        if (liveDuration > 0L) buffered.coerceAtMost(liveDuration) else buffered
     }
 
-    val isAtLiveEdge = managerState.isAtLiveEdge ||
-        behindLiveEdge <= LIVE_UI_EDGE_THRESHOLD_MS
-    val projectedDisplayPosition = if (isAtLiveEdge) {
-        liveEdgePosition
-    } else {
-        (liveEdgePosition - behindLiveEdge).coerceIn(0L, liveEdgePosition)
-    }
-
-    val previousDisplayPosition = screenState.currentPosition
-    val projectedDelta = projectedDisplayPosition - previousDisplayPosition
-    val displayPosition = if (sameLiveItem &&
-        liveClockCanAdvance &&
-        player.isPlaying &&
-        previousDisplayPosition > 0L &&
-        projectedDelta in -LIVE_UI_CLOCK_RESET_THRESHOLD_MS..LIVE_UI_CLOCK_STALL_THRESHOLD_MS
-    ) {
-        val speed = managerState.playbackSpeed.coerceAtLeast(0.1f)
-        (previousDisplayPosition + (elapsedMs * speed).roundToLong()).coerceAtMost(liveEdgePosition)
-    } else {
-        projectedDisplayPosition
-    }
-
-    screenState.duration = liveEdgePosition
-    screenState.currentPosition = displayPosition
-    screenState.bufferedPosition = liveEdgePosition
-    liveUiClockVideoId = videoId
-    liveUiClockUpdatedAtMs = now
+    liveDisplayVideoId = videoId
+    liveDisplayRawPositionMs = rawPosition
+    liveDisplayUpdatedAtMs = now
 }
 
-private fun resolveLiveEdgePosition(player: Player, lastKnownDuration: Long): Long {
-    var liveEdgePosition = 0L
+private fun resolveLiveTimelineDuration(player: Player): Long? {
+    var liveDuration = 0L
 
     val timeline = player.currentTimeline
     val windowIndex = player.currentMediaItemIndex
     if (!timeline.isEmpty && windowIndex >= 0 && windowIndex < timeline.windowCount) {
         val window = Timeline.Window()
         timeline.getWindow(windowIndex, window)
-        if (window.defaultPositionMs != C.TIME_UNSET && window.defaultPositionMs > 0L) {
-            liveEdgePosition = maxOf(liveEdgePosition, window.defaultPositionMs)
-        }
         if (window.durationMs != C.TIME_UNSET && window.durationMs > 0L) {
-            liveEdgePosition = maxOf(liveEdgePosition, window.durationMs)
+            liveDuration = maxOf(liveDuration, window.durationMs)
+        }
+        if (window.defaultPositionMs != C.TIME_UNSET && window.defaultPositionMs > 0L) {
+            liveDuration = maxOf(liveDuration, window.defaultPositionMs)
         }
     }
 
     val playerDuration = player.duration
     if (playerDuration != C.TIME_UNSET && playerDuration > 0L) {
-        liveEdgePosition = maxOf(liveEdgePosition, playerDuration)
+        liveDuration = maxOf(liveDuration, playerDuration)
     }
 
-    val liveDurationFromStreamInfo = EnhancedPlayerManager.getInstance().playerState.value.liveDurationMs
-    return maxOf(liveEdgePosition, lastKnownDuration, liveDurationFromStreamInfo)
+    return liveDuration.takeIf { it > 0L }
 }
 
 @Composable
@@ -623,8 +620,10 @@ fun PlayerInitEffect(
             // Read saved position BEFORE setStreams (DB is correct here because touchHistoryEntry
             // preserves any existing progress instead of wiping it to 0)
             val savedPos = uiState.savedPosition?.first() ?: 0L
+            val isLiveStream = !uiState.hlsUrl.isNullOrEmpty()
             val resumePosition = savedPos.takeUnless {
-                currentPlayerState.queueSize > 1 && shouldRestartCompletedPlayback(it, screenState.duration)
+                isLiveStream ||
+                    currentPlayerState.queueSize > 1 && shouldRestartCompletedPlayback(it, screenState.duration)
             } ?: 0L
 
             EnhancedPlayerManager.getInstance().setStreams(
@@ -663,8 +662,10 @@ fun PlayerInitEffect(
             val audioStreams = streamInfo.audioStreams
             val subtitles = streamInfo.subtitles ?: emptyList()
             val savedPos = uiState.savedPosition?.first() ?: 0L
+            val isLiveStream = !uiState.hlsUrl.isNullOrEmpty()
             val resumePosition = savedPos.takeUnless {
-                currentPlayerState.queueSize > 1 && shouldRestartCompletedPlayback(it, screenState.duration)
+                isLiveStream ||
+                    currentPlayerState.queueSize > 1 && shouldRestartCompletedPlayback(it, screenState.duration)
             } ?: 0L
 
             EnhancedPlayerManager.getInstance().setStreams(
