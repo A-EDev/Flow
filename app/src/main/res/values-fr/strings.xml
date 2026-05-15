@@ -1517,4 +1517,12 @@
     <string name="player_unlock_controls">Commandes de déverrouillage</string>
     <string name="player_settings_overlay_lock_mode">Bouton de verrouillage</string>
     <string name="player_settings_overlay_lock_mode_subtitle">Afficher un bouton de verrouillage du lecteur pour empêcher les touches accidentelles</string>
+    <string name="subscriptions_refresh_progress_template">Actualisation de %1$d chaînes sur %2$d</string>
+    <string name="subscriptions_last_refreshed_template">Dernière mise à jour le %1$s - %2$d vidéos vérifiées</string>
+    <string name="content_settings_comments_preview_title">Aperçu des commentaires</string>
+    <string name="content_settings_comments_preview_subtitle">Afficher l\'aperçu des commentaires sous forme condensée sur l\'écran du lecteur vidéo</string>
+    <string name="content_settings_subs_startup_refresh_title">Actualiser les abonnements au démarrage</string>
+    <string name="content_settings_subs_startup_refresh_subtitle">Consultez votre flux d\'abonnements dès l\'ouverture de l\'application</string>
+    <string name="content_settings_nav_order_title">Ordre de tabulation et valeur par défaut</string>
+    <string name="content_settings_nav_order_subtitle">Utilisez les flèches pour réorganiser les onglets. Sélectionnez l\'onglet par défaut à l\'aide du bouton radio.</string>
 </resources>
