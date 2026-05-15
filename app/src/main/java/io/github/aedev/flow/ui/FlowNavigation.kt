@@ -65,8 +65,12 @@ fun NavGraphBuilder.flowAppGraph(
     playerVisibleState: MutableState<Boolean>, 
     currentTheme: ThemeMode,
     customThemeColors: CustomThemeColors,
+    systemLightThemeMode: ThemeMode,
+    systemDarkThemeMode: ThemeMode,
     onThemeChange: (ThemeMode) -> Unit,
     onCustomThemeColorsChange: (CustomThemeColors) -> Unit,
+    onSystemLightThemeChange: (ThemeMode) -> Unit,
+    onSystemDarkThemeChange: (ThemeMode) -> Unit,
     disableShortsPlayer: Boolean = false,
     defaultStartRoute: String = "home"
 ) {
@@ -418,8 +422,12 @@ fun NavGraphBuilder.flowAppGraph(
         io.github.aedev.flow.ui.screens.settings.AppearanceScreen(
             currentTheme = currentTheme,
             customThemeColors = customThemeColors,
+            systemLightThemeMode = systemLightThemeMode,
+            systemDarkThemeMode = systemDarkThemeMode,
             onThemeChange = onThemeChange,
             onCustomThemeColorsChange = onCustomThemeColorsChange,
+            onSystemLightThemeChange = onSystemLightThemeChange,
+            onSystemDarkThemeChange = onSystemDarkThemeChange,
             onNavigateBack = { navController.popBackStack() }
         )
     }

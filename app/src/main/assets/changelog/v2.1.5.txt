@@ -18,6 +18,9 @@ FEATURES
 - Add new video player controls lock mode #441
 - Add toggle to refresh subscriptions at app startup #435
 - Add navigation tab order controls and default tab selection
+- Add comment disable option
+- Add Material You dynamic color theme #448
+- Add custom light and dark theme choices for System Default #367
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361

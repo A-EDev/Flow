@@ -1,21 +1,59 @@
 package io.github.aedev.flow.ui.theme
 
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 
 enum class ThemeMode {
     LIGHT, DARK, OLED, SYSTEM, LAVENDER_MIST, OCEAN_BLUE, FOREST_GREEN, SUNSET_ORANGE, PURPLE_NEBULA, MIDNIGHT_BLACK,
     ROSE_GOLD, ARCTIC_ICE, CRIMSON_RED, MINTY_FRESH, COSMIC_VOID, SOLAR_FLARE, CYBERPUNK,
     ROYAL_GOLD, NORDIC_HORIZON, ESPRESSO, GUNMETAL,
     MINT_LIGHT, ROSE_LIGHT, SKY_LIGHT, CREAM_LIGHT,
-    MONOCHROME, CUSTOM
+    MONOCHROME, CUSTOM, MATERIAL_YOU
+}
+
+fun ThemeMode.resolveSystemDefault(
+    isSystemDark: Boolean,
+    systemLightThemeMode: ThemeMode = ThemeMode.LIGHT,
+    systemDarkThemeMode: ThemeMode = ThemeMode.DARK
+): ThemeMode {
+    if (this != ThemeMode.SYSTEM) return this
+
+    val selectedMode = if (isSystemDark) systemDarkThemeMode else systemLightThemeMode
+    return if (selectedMode == ThemeMode.SYSTEM) {
+        if (isSystemDark) ThemeMode.DARK else ThemeMode.LIGHT
+    } else {
+        selectedMode
+    }
+}
+
+fun ThemeMode.isEffectivelyDark(
+    isSystemDark: Boolean,
+    systemLightThemeMode: ThemeMode = ThemeMode.LIGHT,
+    systemDarkThemeMode: ThemeMode = ThemeMode.DARK
+): Boolean {
+    return when (resolveSystemDefault(isSystemDark, systemLightThemeMode, systemDarkThemeMode)) {
+        ThemeMode.LIGHT,
+        ThemeMode.MINT_LIGHT,
+        ThemeMode.ROSE_LIGHT,
+        ThemeMode.SKY_LIGHT,
+        ThemeMode.CREAM_LIGHT -> false
+
+        ThemeMode.SYSTEM,
+        ThemeMode.MATERIAL_YOU -> isSystemDark
+
+        else -> true
+    }
 }
 
 data class ExtendedColors(
@@ -386,15 +424,18 @@ private fun customThemeColorScheme(colors: CustomThemeColors): ColorScheme {
 fun FlowTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     customThemeColors: CustomThemeColors = CustomThemeColors.default(),
+    systemLightThemeMode: ThemeMode = ThemeMode.LIGHT,
+    systemDarkThemeMode: ThemeMode = ThemeMode.DARK,
     content: @Composable () -> Unit
 ) {
     val darkTheme = isSystemInDarkTheme()
+    val context = LocalContext.current
     
-    val effectiveThemeMode = if (themeMode == ThemeMode.SYSTEM) {
-        if (darkTheme) ThemeMode.DARK else ThemeMode.LIGHT
-    } else {
-        themeMode
-    }
+    val effectiveThemeMode = themeMode.resolveSystemDefault(
+        isSystemDark = darkTheme,
+        systemLightThemeMode = systemLightThemeMode,
+        systemDarkThemeMode = systemDarkThemeMode
+    )
 
     val colorScheme = when (effectiveThemeMode) {
         ThemeMode.LIGHT -> LightColorScheme
@@ -424,6 +465,13 @@ fun FlowTheme(
         ThemeMode.CREAM_LIGHT -> CreamLightColorScheme
         ThemeMode.MONOCHROME -> MonochromeColorScheme
         ThemeMode.CUSTOM -> customThemeColorScheme(customThemeColors)
+        ThemeMode.MATERIAL_YOU -> {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            } else {
+                if (darkTheme) DarkColorScheme else LightColorScheme
+            }
+        }
     }
 
     val extendedColors = when (effectiveThemeMode) {
@@ -539,6 +587,11 @@ fun FlowTheme(
             textSecondary = Color(customThemeColors.onSurfaceVariant),
             border = Color(customThemeColors.outline),
             success = Color(customThemeColors.tertiary)
+        )
+        ThemeMode.MATERIAL_YOU -> ExtendedColors(
+            textSecondary = colorScheme.onSurfaceVariant,
+            border = colorScheme.outlineVariant,
+            success = colorScheme.tertiary
         )
         else -> ExtendedColors(
             textSecondary = DarkThemeColors.TextSecondary,

@@ -45,6 +45,8 @@ class LocalDataManager @Inject constructor(@ApplicationContext private val conte
         private val BREAK_FREQUENCY = androidx.datastore.preferences.core.intPreferencesKey("break_frequency") // Minutes
 
         private val CUSTOM_THEME_COLORS = stringPreferencesKey("custom_theme_colors")
+        private val SYSTEM_LIGHT_THEME_MODE = stringPreferencesKey("system_light_theme_mode")
+        private val SYSTEM_DARK_THEME_MODE = stringPreferencesKey("system_dark_theme_mode")
 
         val AUTO_BACKUP_LAST_RUN = androidx.datastore.preferences.core.longPreferencesKey("auto_backup_last_run")
     }
@@ -75,6 +77,34 @@ class LocalDataManager @Inject constructor(@ApplicationContext private val conte
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { prefs ->
             prefs[THEME_MODE] = mode.name
+        }
+    }
+
+    val systemLightThemeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
+        parseThemeMode(prefs[SYSTEM_LIGHT_THEME_MODE], ThemeMode.LIGHT)
+    }
+
+    suspend fun setSystemLightThemeMode(mode: ThemeMode) {
+        context.dataStore.edit { prefs ->
+            prefs[SYSTEM_LIGHT_THEME_MODE] = mode.name
+        }
+    }
+
+    val systemDarkThemeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
+        parseThemeMode(prefs[SYSTEM_DARK_THEME_MODE], ThemeMode.DARK)
+    }
+
+    suspend fun setSystemDarkThemeMode(mode: ThemeMode) {
+        context.dataStore.edit { prefs ->
+            prefs[SYSTEM_DARK_THEME_MODE] = mode.name
+        }
+    }
+
+    private fun parseThemeMode(raw: String?, fallback: ThemeMode): ThemeMode {
+        return try {
+            raw?.let { ThemeMode.valueOf(it) } ?: fallback
+        } catch (e: Exception) {
+            fallback
         }
     }
 

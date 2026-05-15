@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -54,8 +55,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -102,6 +101,10 @@ private enum class ThemeCategory(
     CUSTOM(R.string.appearance_category_custom, Icons.Outlined.AutoAwesome)
 }
 
+private enum class SystemThemeSlot {
+    LIGHT, DARK
+}
+
 private data class CustomRoleField(
     val role: CustomColorRole,
     @StringRes val labelRes: Int
@@ -130,8 +133,12 @@ private val CUSTOM_ROLE_FIELDS = listOf(
 fun AppearanceScreen(
     currentTheme: ThemeMode,
     customThemeColors: CustomThemeColors,
+    systemLightThemeMode: ThemeMode,
+    systemDarkThemeMode: ThemeMode,
     onThemeChange: (ThemeMode) -> Unit,
     onCustomThemeColorsChange: (CustomThemeColors) -> Unit,
+    onSystemLightThemeChange: (ThemeMode) -> Unit,
+    onSystemDarkThemeChange: (ThemeMode) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
@@ -139,12 +146,21 @@ fun AppearanceScreen(
 
     var selectedCategory by remember { mutableStateOf<ThemeCategory?>(null) }
     var showCustomizer by remember { mutableStateOf(false) }
+    var systemThemeSlot by remember { mutableStateOf<SystemThemeSlot?>(null) }
     var showAppliedSnackbar by remember { mutableStateOf(false) }
     var lastAppliedTheme by remember { mutableStateOf("") }
 
     val allThemes = remember(customThemeColors) { buildThemeCatalog(customThemeColors) }
+    val systemLightThemes = remember(allThemes) { allThemes.filter { it.category == ThemeCategory.LIGHT } }
+    val systemDarkThemes = remember(allThemes) { allThemes.filter { it.category == ThemeCategory.DARK } }
     val currentThemeInfo = remember(currentTheme, allThemes) {
         allThemes.firstOrNull { it.mode == currentTheme } ?: allThemes.first()
+    }
+    val systemLightThemeInfo = remember(systemLightThemeMode, systemLightThemes) {
+        systemLightThemes.firstOrNull { it.mode == systemLightThemeMode } ?: systemLightThemes.first()
+    }
+    val systemDarkThemeInfo = remember(systemDarkThemeMode, systemDarkThemes) {
+        systemDarkThemes.firstOrNull { it.mode == systemDarkThemeMode } ?: systemDarkThemes.first()
     }
     val filteredThemes = remember(selectedCategory, allThemes) {
         if (selectedCategory == null) allThemes else allThemes.filter { it.category == selectedCategory }
@@ -176,14 +192,51 @@ fun AppearanceScreen(
         )
     }
 
+    val activeSystemThemeSlot = systemThemeSlot
+    if (activeSystemThemeSlot != null) {
+        SystemThemePickerDialog(
+            titleRes = if (activeSystemThemeSlot == SystemThemeSlot.LIGHT) {
+                R.string.appearance_system_light_theme
+            } else {
+                R.string.appearance_system_dark_theme
+            },
+            themes = if (activeSystemThemeSlot == SystemThemeSlot.LIGHT) systemLightThemes else systemDarkThemes,
+            selectedMode = if (activeSystemThemeSlot == SystemThemeSlot.LIGHT) {
+                systemLightThemeInfo.mode
+            } else {
+                systemDarkThemeInfo.mode
+            },
+            onDismiss = { systemThemeSlot = null },
+            onSelect = { mode ->
+                if (activeSystemThemeSlot == SystemThemeSlot.LIGHT) {
+                    onSystemLightThemeChange(mode)
+                } else {
+                    onSystemDarkThemeChange(mode)
+                }
+                systemThemeSlot = null
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Navigate back")
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = androidx.compose.ui.res.stringResource(R.string.appearance_title),
-                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -195,19 +248,11 @@ fun AppearanceScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
-                },
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Navigate back")
-                    }
-                },
-                actions = {
                     IconButton(onClick = { showCustomizer = true }) {
                         Icon(Icons.Outlined.Palette, contentDescription = "Customize theme")
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
-            )
+                }
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
@@ -225,6 +270,15 @@ fun AppearanceScreen(
                 CurrentThemeHero(
                     themeInfo = currentThemeInfo,
                     onCustomize = if (currentThemeInfo.mode == ThemeMode.CUSTOM) ({ showCustomizer = true }) else null
+                )
+            }
+
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                SystemDefaultThemesCard(
+                    lightThemeInfo = systemLightThemeInfo,
+                    darkThemeInfo = systemDarkThemeInfo,
+                    onLightClick = { systemThemeSlot = SystemThemeSlot.LIGHT },
+                    onDarkClick = { systemThemeSlot = SystemThemeSlot.DARK }
                 )
             }
 
@@ -349,6 +403,212 @@ private fun CurrentThemeHero(
                     ColorDot(themeInfo.accentColor)
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SystemDefaultThemesCard(
+    lightThemeInfo: ThemeInfo,
+    darkThemeInfo: ThemeInfo,
+    onLightClick: () -> Unit,
+    onDarkClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text(
+                text = androidx.compose.ui.res.stringResource(R.string.appearance_system_defaults_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = androidx.compose.ui.res.stringResource(R.string.appearance_system_defaults_subtitle),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            SystemThemeChoiceRow(
+                icon = Icons.Outlined.LightMode,
+                labelRes = R.string.appearance_system_light_theme,
+                themeInfo = lightThemeInfo,
+                onClick = onLightClick
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            SystemThemeChoiceRow(
+                icon = Icons.Outlined.DarkMode,
+                labelRes = R.string.appearance_system_dark_theme,
+                themeInfo = darkThemeInfo,
+                onClick = onDarkClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun SystemThemeChoiceRow(
+    icon: ImageVector,
+    @StringRes labelRes: Int,
+    themeInfo: ThemeInfo,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.28f))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(22.dp)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = androidx.compose.ui.res.stringResource(labelRes),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = androidx.compose.ui.res.stringResource(themeInfo.displayNameRes),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        ColorDot(themeInfo.primaryColor)
+        Spacer(modifier = Modifier.width(6.dp))
+        ColorDot(themeInfo.backgroundColor)
+    }
+}
+
+@Composable
+private fun SystemThemePickerDialog(
+    @StringRes titleRes: Int,
+    themes: List<ThemeInfo>,
+    selectedMode: ThemeMode,
+    onDismiss: () -> Unit,
+    onSelect: (ThemeMode) -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            tonalElevation = 6.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = androidx.compose.ui.res.stringResource(titleRes),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(
+                        items = themes,
+                        key = { it.mode.name }
+                    ) { themeInfo ->
+                        ThemePickerRow(
+                            themeInfo = themeInfo,
+                            isSelected = themeInfo.mode == selectedMode,
+                            onClick = { onSelect(themeInfo.mode) }
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(text = androidx.compose.ui.res.stringResource(android.R.string.cancel))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemePickerRow(
+    themeInfo: ThemeInfo,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .background(
+                if (isSelected) themeInfo.primaryColor.copy(alpha = 0.22f)
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.26f)
+            )
+            .border(
+                width = if (isSelected) 2.dp else 1.dp,
+                color = if (isSelected) themeInfo.primaryColor else MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(14.dp)
+            )
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        ColorDot(themeInfo.primaryColor)
+        Spacer(modifier = Modifier.width(8.dp))
+        ColorDot(themeInfo.surfaceColor)
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = androidx.compose.ui.res.stringResource(themeInfo.displayNameRes),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = androidx.compose.ui.res.stringResource(themeInfo.subtitleRes),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "Selected",
+                tint = themeInfo.primaryColor,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
@@ -828,6 +1088,18 @@ private fun buildThemeCatalog(customThemeColors: CustomThemeColors): List<ThemeI
             surfaceColor = Color(0xFF252525),
             onSurfaceColor = Color.White,
             surfaceVariantColor = Color(0xFF333333)
+        ),
+        ThemeInfo(
+            mode = ThemeMode.MATERIAL_YOU,
+            displayNameRes = R.string.theme_name_material_you,
+            subtitleRes = R.string.theme_desc_material_you,
+            category = ThemeCategory.CUSTOM,
+            primaryColor = Color(0xFF6750A4),
+            backgroundColor = Color(0xFFFFFBFE),
+            surfaceColor = Color(0xFFFFFBFE),
+            onSurfaceColor = Color(0xFF1C1B1F),
+            accentColor = Color(0xFF625B71),
+            surfaceVariantColor = Color(0xFFE7E0EC)
         ),
         ThemeInfo(
             mode = ThemeMode.CUSTOM,

@@ -471,6 +471,10 @@
     <string name="appearance_role_on_error">On Error</string>
     <string name="appearance_role_outline">Outline</string>
     <string name="appearance_role_scrim">Scrim</string>
+    <string name="appearance_system_defaults_title">System Default Themes</string>
+    <string name="appearance_system_defaults_subtitle">Choose which theme is used when your device switches between light and dark mode.</string>
+    <string name="appearance_system_light_theme">Light mode theme</string>
+    <string name="appearance_system_dark_theme">Dark mode theme</string>
 
     <!-- App Icon Picker -->
     <string name="app_icon_picker_subtitle">Choose a launcher icon style. The change takes effect immediately and the launcher will briefly refresh.</string>
@@ -526,6 +530,8 @@
     <!-- Theme Names & Descriptions -->
     <string name="theme_name_system_default">System Default</string>
     <string name="theme_desc_system_default">Synchronize with device theme</string>
+    <string name="theme_name_material_you">Material You</string>
+    <string name="theme_desc_material_you">Wallpaper colors on Android 12+</string>
     <string name="theme_name_pure_light">Pure Light</string>
     <string name="theme_desc_pure_light">Clean &amp; minimal</string>
     <string name="theme_name_mint_fresh">Mint Fresh</string>

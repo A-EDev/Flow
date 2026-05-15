@@ -1236,6 +1236,7 @@ private fun getThemeNameRes(theme: ThemeMode): Int {
         ThemeMode.SYSTEM -> io.github.aedev.flow.R.string.theme_name_system_default
         ThemeMode.MONOCHROME -> io.github.aedev.flow.R.string.theme_name_monochrome
         ThemeMode.CUSTOM -> io.github.aedev.flow.R.string.theme_name_custom
+        ThemeMode.MATERIAL_YOU -> io.github.aedev.flow.R.string.theme_name_material_you
     }
 }
 

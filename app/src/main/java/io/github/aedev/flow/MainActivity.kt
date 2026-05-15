@@ -128,6 +128,8 @@ class MainActivity : ComponentActivity() {
         val dataManager = LocalDataManager(applicationContext)
         val initialThemeMode = runBlocking { dataManager.themeMode.first() }
         val initialCustomThemeColors = runBlocking { dataManager.customThemeColors.first() }
+        val initialSystemLightThemeMode = runBlocking { dataManager.systemLightThemeMode.first() }
+        val initialSystemDarkThemeMode = runBlocking { dataManager.systemDarkThemeMode.first() }
 
         handleIntent(intent)
 
@@ -141,6 +143,8 @@ class MainActivity : ComponentActivity() {
             val scope = rememberCoroutineScope()
             var themeMode by remember { mutableStateOf(initialThemeMode) }
             var customThemeColors by remember { mutableStateOf(initialCustomThemeColors) }
+            var systemLightThemeMode by remember { mutableStateOf(initialSystemLightThemeMode) }
+            var systemDarkThemeMode by remember { mutableStateOf(initialSystemDarkThemeMode) }
             // State to control splash visibility
             var showSplash by remember { mutableStateOf(true) }
 
@@ -153,7 +157,12 @@ class MainActivity : ComponentActivity() {
             }
 
             if (pendingCrashLog != null) {
-                FlowTheme(themeMode = themeMode, customThemeColors = customThemeColors) {
+                FlowTheme(
+                    themeMode = themeMode,
+                    customThemeColors = customThemeColors,
+                    systemLightThemeMode = systemLightThemeMode,
+                    systemDarkThemeMode = systemDarkThemeMode
+                ) {
                     CrashReporterScreen(
                         crashLog = pendingCrashLog!!,
                         onClearAndRestart = {
@@ -193,13 +202,30 @@ class MainActivity : ComponentActivity() {
                     customThemeColors = colors
                 }
             }
+
+            LaunchedEffect(Unit) {
+                dataManager.systemLightThemeMode.collect { mode ->
+                    systemLightThemeMode = mode
+                }
+            }
+
+            LaunchedEffect(Unit) {
+                dataManager.systemDarkThemeMode.collect { mode ->
+                    systemDarkThemeMode = mode
+                }
+            }
             
             // Initialize Flow Neuro Engine
             LaunchedEffect(Unit) {
                 io.github.aedev.flow.data.recommendation.FlowNeuroEngine.initialize(applicationContext)
             }
 
-            FlowTheme(themeMode = themeMode, customThemeColors = customThemeColors) {
+            FlowTheme(
+                themeMode = themeMode,
+                customThemeColors = customThemeColors,
+                systemLightThemeMode = systemLightThemeMode,
+                systemDarkThemeMode = systemDarkThemeMode
+            ) {
                 // Show Dialog Overlay if update exists (github flavor only)
                 if (BuildConfig.UPDATER_ENABLED && updateInfo != null) {
                     UpdateDialog(
@@ -255,6 +281,8 @@ class MainActivity : ComponentActivity() {
                     FlowApp(
                         currentTheme = themeMode,
                         customThemeColors = customThemeColors,
+                        systemLightThemeMode = systemLightThemeMode,
+                        systemDarkThemeMode = systemDarkThemeMode,
                         onThemeChange = { newTheme ->
                             themeMode = newTheme
                             scope.launch {
@@ -265,6 +293,18 @@ class MainActivity : ComponentActivity() {
                             customThemeColors = colors
                             scope.launch {
                                 dataManager.setCustomThemeColors(colors)
+                            }
+                        },
+                        onSystemLightThemeChange = { newTheme ->
+                            systemLightThemeMode = newTheme
+                            scope.launch {
+                                dataManager.setSystemLightThemeMode(newTheme)
+                            }
+                        },
+                        onSystemDarkThemeChange = { newTheme ->
+                            systemDarkThemeMode = newTheme
+                            scope.launch {
+                                dataManager.setSystemDarkThemeMode(newTheme)
                             }
                         },
                         deeplinkVideoId = deeplinkVideoId,

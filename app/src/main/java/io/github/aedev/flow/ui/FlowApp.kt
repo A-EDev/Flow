@@ -52,6 +52,7 @@ import io.github.aedev.flow.ui.screens.music.EnhancedMusicPlayerScreen
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.theme.CustomThemeColors
 import io.github.aedev.flow.ui.theme.ThemeMode
+import io.github.aedev.flow.ui.theme.isEffectivelyDark
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
@@ -62,8 +63,12 @@ import kotlinx.coroutines.withContext
 fun FlowApp(
     currentTheme: ThemeMode,
     customThemeColors: CustomThemeColors,
+    systemLightThemeMode: ThemeMode,
+    systemDarkThemeMode: ThemeMode,
     onThemeChange: (ThemeMode) -> Unit,
     onCustomThemeColorsChange: (CustomThemeColors) -> Unit,
+    onSystemLightThemeChange: (ThemeMode) -> Unit,
+    onSystemDarkThemeChange: (ThemeMode) -> Unit,
     deeplinkVideoId: String? = null,
     isShort: Boolean = false,
     onDeeplinkConsumed: () -> Unit = {}
@@ -80,6 +85,8 @@ fun FlowApp(
 
     ApplyStatusBarStyle(
         themeMode = currentTheme,
+        systemLightThemeMode = systemLightThemeMode,
+        systemDarkThemeMode = systemDarkThemeMode,
         isFullscreen = playerUiState.isFullscreen
     )
     
@@ -354,8 +361,12 @@ fun FlowApp(
                             playerVisibleState = playerVisibleState,
                             currentTheme = currentTheme,
                             customThemeColors = customThemeColors,
+                            systemLightThemeMode = systemLightThemeMode,
+                            systemDarkThemeMode = systemDarkThemeMode,
                             onThemeChange = onThemeChange,
                             onCustomThemeColorsChange = onCustomThemeColorsChange,
+                            onSystemLightThemeChange = onSystemLightThemeChange,
+                            onSystemDarkThemeChange = onSystemDarkThemeChange,
                             disableShortsPlayer = disableShortsPlayer,
                             defaultStartRoute = defaultStartRoute
                         )
@@ -564,22 +575,19 @@ private suspend fun refreshSubscriptionsAtStartup(
 @Composable
 private fun ApplyStatusBarStyle(
     themeMode: ThemeMode,
+    systemLightThemeMode: ThemeMode,
+    systemDarkThemeMode: ThemeMode,
     isFullscreen: Boolean
 ) {
     val activity = LocalContext.current as? Activity ?: return
     val view = LocalView.current
     val colorScheme = MaterialTheme.colorScheme
-    val isDarkTheme = when (themeMode) {
-        ThemeMode.LIGHT,
-        ThemeMode.MINT_LIGHT,
-        ThemeMode.ROSE_LIGHT,
-        ThemeMode.SKY_LIGHT,
-        ThemeMode.CREAM_LIGHT -> false
-
-        ThemeMode.SYSTEM -> isSystemInDarkTheme()
-
-        else -> true
-    }
+    val isSystemDark = isSystemInDarkTheme()
+    val isDarkTheme = themeMode.isEffectivelyDark(
+        isSystemDark = isSystemDark,
+        systemLightThemeMode = systemLightThemeMode,
+        systemDarkThemeMode = systemDarkThemeMode
+    )
 
     SideEffect {
         val window = activity.window
