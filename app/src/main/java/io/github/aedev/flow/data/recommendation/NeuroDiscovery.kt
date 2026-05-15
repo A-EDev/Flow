@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2025-2026 Flow | A-EDev
  *
  * This file is part of Flow (https://github.com/A-EDev/Flow).
@@ -99,7 +99,56 @@ internal class NeuroDiscovery(
     }
 
     // ═══════════════════════════════════════════════
-    // TOPIC SELECTION — DIVERSITY ACROSS CATEGORIES
+    // TOPIC CLUSTERING — GROUP CO-OCCURRING TOPICS
+    // ═══════════════════════════════════════════════
+
+    private fun clusterTopics(
+        topics: List<MatureTopic>,
+        brain: UserBrain
+    ): List<List<MatureTopic>> {
+        if (topics.isEmpty()) return emptyList()
+
+        val parent = IntArray(topics.size) { it }
+        fun find(x: Int): Int {
+            var r = x
+            while (parent[r] != r) r = parent[r]
+            parent[x] = r
+            return r
+        }
+        fun union(a: Int, b: Int) { parent[find(a)] = find(b) }
+
+        val nameToIndex = topics.mapIndexed { i, t -> t.name to i }.toMap()
+
+        for (cat in topicCategories) {
+            val catLemmas = cat.topics.map { tokenizer.normalizeLemma(it) }
+            val indicesInCat = catLemmas.mapNotNull { nameToIndex[it] }
+            for (i in 1 until indicesInCat.size) {
+                union(indicesInCat[0], indicesInCat[i])
+            }
+        }
+
+        brain.topicAffinities.entries
+            .filter { it.value > 0.12 }
+            .forEach { (key, _) ->
+                val parts = key.split("|")
+                if (parts.size == 2) {
+                    val ia = nameToIndex[parts[0]]
+                    val ib = nameToIndex[parts[1]]
+                    if (ia != null && ib != null) union(ia, ib)
+                }
+            }
+
+        return topics.indices
+            .groupBy { find(it) }
+            .values
+            .map { indices -> indices.map { topics[it] } }
+            .sortedByDescending { cluster ->
+                cluster.maxOf { it.maturityLevel.ordinal * 100 + (it.score * 100).toInt() }
+            }
+    }
+
+    // ═══════════════════════════════════════════════
+    // TOPIC SELECTION — DIVERSITY ACROSS CLUSTERS
     // ═══════════════════════════════════════════════
 
     private data class TopicSelection(
@@ -115,44 +164,45 @@ internal class NeuroDiscovery(
     }
 
     private fun selectDiverseTopics(
-        matureTopics: List<MatureTopic>
+        matureTopics: List<MatureTopic>,
+        brain: UserBrain
     ): TopicSelection {
         if (matureTopics.isEmpty()) return TopicSelection(
             emptyList(), emptyList(), emptyList(), emptyList()
         )
 
-        val primary = matureTopics.firstOrNull {
-            it.maturityLevel >= TopicMaturity.ESTABLISHED
-        } ?: matureTopics.first()
+        val clusters = clusterTopics(matureTopics, brain)
 
-        val primaryCategory = topicCategories.find { cat ->
-            cat.topics.any { tokenizer.normalizeLemma(it) == primary.name }
+        val clusterReps = clusters.map { cluster ->
+            cluster.maxByOrNull {
+                it.maturityLevel.ordinal * 1000 + (it.score * 1000).toInt()
+            }!!
         }
 
-        val secondary = matureTopics
-            .filter { it.name != primary.name }
+        val primary = clusterReps.firstOrNull {
+            it.maturityLevel >= TopicMaturity.ESTABLISHED
+        } ?: clusterReps.first()
+
+        val primaryClusterIdx = clusters.indexOfFirst { cluster ->
+            cluster.any { it.name == primary.name }
+        }
+        val secondary = clusterReps
+            .filterIndexed { idx, _ -> idx != primaryClusterIdx }
             .sortedWith(
-                compareByDescending<MatureTopic> {
-                    val cat = topicCategories.find { cat ->
-                        cat.topics.any { t ->
-                            tokenizer.normalizeLemma(t) == it.name
-                        }
-                    }
-                    if (cat != null && cat != primaryCategory) 1 else 0
-                }.thenByDescending { it.maturityLevel.ordinal }
+                compareByDescending<MatureTopic> { it.maturityLevel.ordinal }
                     .thenByDescending { it.score }
             )
             .take(4)
 
-        val emerging = matureTopics
+        val representedNames = (listOf(primary) + secondary).map { it.name }.toSet()
+        val emerging = clusterReps
             .filter {
                 it.maturityLevel == TopicMaturity.DEVELOPING &&
-                    it.name != primary.name &&
-                    it.name !in secondary.map { s -> s.name }
+                    it.name !in representedNames
             }
             .take(2)
 
-        val representedCategories = (listOf(primary) + secondary)
+        val representedCategories = (listOf(primary) + secondary + emerging)
             .mapNotNull { topic ->
                 topicCategories.find { cat ->
                     cat.topics.any {
@@ -163,13 +213,13 @@ internal class NeuroDiscovery(
 
         val crossCategory = matureTopics
             .filter { topic ->
-                val cat = topicCategories.find { cat ->
-                    cat.topics.any {
-                        tokenizer.normalizeLemma(it) == topic.name
-                    }
-                }
-                cat != null && cat.name !in representedCategories &&
-                    topic.maturityLevel >= TopicMaturity.DEVELOPING
+                topic.name !in representedNames &&
+                    topic.maturityLevel >= TopicMaturity.DEVELOPING &&
+                    topicCategories.find { cat ->
+                        cat.topics.any {
+                            tokenizer.normalizeLemma(it) == topic.name
+                        }
+                    }?.let { it.name !in representedCategories } == true
             }
             .take(2)
 
@@ -181,9 +231,15 @@ internal class NeuroDiscovery(
         )
     }
 
-    private fun isDiscoveryEligible(topic: MatureTopic): Boolean =
-        topic.hasDiscoveryEvidence ||
-            topic.maturityLevel >= TopicMaturity.DEVELOPING
+    private fun isDiscoveryEligible(
+        topic: MatureTopic,
+        isMatureBrain: Boolean = false
+    ): Boolean {
+        if (topic.hasDiscoveryEvidence) return true
+        if (topic.maturityLevel >= TopicMaturity.DEVELOPING) return true
+        if (isMatureBrain && topic.score >= 0.10) return true
+        return false
+    }
 
     private fun hasDiscoveryEvidence(topic: String, brain: UserBrain): Boolean {
         val base = NeuroScoring.stripDomainTag(topic)
@@ -347,6 +403,7 @@ internal class NeuroDiscovery(
         val persona = personaProvider(brain)
         val blocked = brain.blockedTopics
         val currentYear = Calendar.getInstance().get(Calendar.YEAR)
+        val isMatureBrain = brain.totalInteractions > 50
 
         // Step 1: Analyze topic maturity
         val bucket = TimeBucket.current()
@@ -361,19 +418,20 @@ internal class NeuroDiscovery(
         val matureTopics = analyzeMatureTopics(brain, timeTopicSet)
 
         // Step 2: Select diverse topics
-        val selection = selectDiverseTopics(matureTopics)
+        val selection = selectDiverseTopics(matureTopics, brain)
 
         // Step 3: Generate queries — every strategy is interest-rooted
         val queries = mutableListOf<DiscoveryQuery>()
 
-        addDirectQueries(queries, selection, persona, brain)
-        addCombinationQueries(queries, selection)
+        addDirectQueries(queries, selection, persona, brain, isMatureBrain)
+        addCombinationQueries(queries, selection, isMatureBrain)
         addAffinityQueries(queries, brain)
         addTimeContextQueries(queries, brain, bucket, selection)
         addChannelQueries(queries, brain)
-        addFreshQueries(queries, selection, currentYear, brain)
-        addFormatQueries(queries, selection, brain, persona)
+        addFreshQueries(queries, selection, currentYear, brain, isMatureBrain)
+        addFormatQueries(queries, selection, brain, persona, isMatureBrain)
         addExplorationQueries(queries, brain)
+        if (isMatureBrain) addPreferredTopicAnchors(queries, brain)
 
         // Step 4: Filter, sanitize, balance
         val filtered = queries
@@ -397,10 +455,11 @@ internal class NeuroDiscovery(
         queries: MutableList<DiscoveryQuery>,
         selection: TopicSelection,
         persona: FlowPersona,
-        brain: UserBrain
+        brain: UserBrain,
+        isMatureBrain: Boolean
     ) {
         // Primary interest — always included
-        selection.primary.filter { isDiscoveryEligible(it) }.forEach { topic ->
+        selection.primary.filter { isDiscoveryEligible(it, isMatureBrain) }.forEach { topic ->
             queries.add(
                 DiscoveryQuery(
                     buildNaturalQuery(topic.name, brain),
@@ -420,7 +479,7 @@ internal class NeuroDiscovery(
         }
 
         selection.secondary
-            .filter { isDiscoveryEligible(it) }
+            .filter { isDiscoveryEligible(it, isMatureBrain) }
             .take(secondaryCount)
             .forEach { topic ->
                 queries.add(
@@ -445,10 +504,11 @@ internal class NeuroDiscovery(
 
     private fun addCombinationQueries(
         queries: MutableList<DiscoveryQuery>,
-        selection: TopicSelection
+        selection: TopicSelection,
+        isMatureBrain: Boolean
     ) {
-        val primary = selection.primary.firstOrNull { isDiscoveryEligible(it) } ?: return
-        val secondary = selection.secondary.filter { isDiscoveryEligible(it) }
+        val primary = selection.primary.firstOrNull { isDiscoveryEligible(it, isMatureBrain) } ?: return
+        val secondary = selection.secondary.filter { isDiscoveryEligible(it, isMatureBrain) }
 
         if (secondary.isEmpty()) return
 
@@ -679,10 +739,11 @@ internal class NeuroDiscovery(
         queries: MutableList<DiscoveryQuery>,
         selection: TopicSelection,
         currentYear: Int,
-        brain: UserBrain
+        brain: UserBrain,
+        isMatureBrain: Boolean
     ) {
         val established = selection.allTopics()
-            .filter { it.maturityLevel >= TopicMaturity.ESTABLISHED && isDiscoveryEligible(it) }
+            .filter { it.maturityLevel >= TopicMaturity.ESTABLISHED && isDiscoveryEligible(it, isMatureBrain) }
             .take(2)
 
         established.forEachIndexed { index, topic ->
@@ -716,9 +777,10 @@ internal class NeuroDiscovery(
         queries: MutableList<DiscoveryQuery>,
         selection: TopicSelection,
         brain: UserBrain,
-        persona: FlowPersona
+        persona: FlowPersona,
+        isMatureBrain: Boolean
     ) {
-        val primary = selection.primary.firstOrNull { isDiscoveryEligible(it) } ?: return
+        val primary = selection.primary.firstOrNull { isDiscoveryEligible(it, isMatureBrain) } ?: return
         val v = brain.globalVector
 
         val formatWord = when {
@@ -786,6 +848,47 @@ internal class NeuroDiscovery(
                     QueryStrategy.ADJACENT_EXPLORATION,
                     0.35,
                     "Exploration: $topic"
+                )
+            )
+        }
+    }
+
+    // ═══════════════════════════════════════════════
+    // STRATEGY 9: PREFERRED TOPIC ANCHORS
+    // ═══════════════════════════════════════════════
+
+    private fun addPreferredTopicAnchors(
+        queries: MutableList<DiscoveryQuery>,
+        brain: UserBrain
+    ) {
+        if (brain.preferredTopics.isEmpty()) return
+
+        val existingTokens = queries.flatMap { q ->
+            q.query.lowercase()
+                .split(NeuroTokenizer.WHITESPACE_REGEX)
+                .filter { it.length > 2 }
+                .map { tokenizer.normalizeLemma(it) }
+        }.toSet()
+
+        val blocked = brain.blockedTopics
+        val missing = brain.preferredTopics
+            .map { it.trim() }
+            .filter { pref ->
+                val lemma = tokenizer.normalizeLemma(pref)
+                lemma.length >= 3 &&
+                    lemma !in existingTokens &&
+                    !blocked.any { b -> lemma.contains(b) }
+            }
+            .shuffled()
+            .take(3)
+
+        missing.forEach { topic ->
+            queries.add(
+                DiscoveryQuery(
+                    topic,
+                    QueryStrategy.DEEP_DIVE,
+                    0.45,
+                    "Preferred anchor: $topic"
                 )
             )
         }
@@ -893,7 +996,7 @@ internal class NeuroDiscovery(
                 if (existing.isEmpty() || tokens.isEmpty()) return@any false
                 val intersection = tokens.intersect(existing).size
                 val union = tokens.union(existing).size
-                (intersection.toDouble() / union) > 0.5
+                (intersection.toDouble() / union) > 0.3
             }
 
             if (!isDuplicate) {
@@ -969,7 +1072,7 @@ internal class NeuroDiscovery(
                 topicCountInOutput[topicRoot] ?: 0
             } else 0
 
-            if (topicCount >= 3) continue
+            if (topicCount >= 2) continue
 
             val strategyCount = balanced
                 .count { it.strategy == query.strategy }
@@ -1000,7 +1103,8 @@ internal class NeuroDiscovery(
             .map { tokenizer.normalizeLemma(it) }
             .filter { it !in FILLER_WORDS }
 
-        return words.firstOrNull()
+        if (words.isEmpty()) return null
+        return words.sorted().joinToString("|")
     }
 
     // ═══════════════════════════════════════════════

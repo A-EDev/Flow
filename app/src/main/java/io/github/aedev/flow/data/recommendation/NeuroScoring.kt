@@ -126,7 +126,7 @@ internal object NeuroScoring {
 
     // ── Query Rotation Constants ──
     const val RECENT_QUERY_TOKENS_MAX = 20
-    const val QUERY_OVERLAP_THRESHOLD = 0.6
+    const val QUERY_OVERLAP_THRESHOLD = 0.4
 
     // ── Rejection Pattern Memory ──
     const val REJECTION_EXPIRY_DAYS = 14L

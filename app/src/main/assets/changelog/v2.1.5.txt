@@ -1,6 +1,7 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-13
+DATE: 2026-05-15
+STATUS: PRE-RELEASE
 
 FEATURES
 - Add new Proxy manager and routing #362
@@ -67,3 +68,4 @@ ENGINE
 - Fix recommendation engine concurrency issue
 - Improve brain state persistence
 - Connect YouTube watch history to recommendations #389
+- Add Interest Anchor Queries to improve recommendations

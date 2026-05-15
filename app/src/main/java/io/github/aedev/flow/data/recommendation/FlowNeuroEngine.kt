@@ -627,7 +627,8 @@ class FlowNeuroEngine(private val appContext: Context) {
         if (probationaryCount == 0) return 1.0
 
         val ratio = probationaryCount.toDouble() / topTopics.size.toDouble()
-        return (1.0 - ratio * 0.35).coerceIn(0.60, 1.0)
+        if (ratio <= 0.5) return 1.0
+        return (1.0 - ratio * 0.20).coerceIn(0.75, 1.0)
     }
 
     // =================================================
@@ -990,6 +991,8 @@ class FlowNeuroEngine(private val appContext: Context) {
                 recentQueryTokens = updatedRecentTokens
             )
             scheduleDebouncedSave()
+
+            Log.d(TAG, "Discovery queries (${candidates.size}): ${candidates.take(6)}")
 
             candidates
         } }
