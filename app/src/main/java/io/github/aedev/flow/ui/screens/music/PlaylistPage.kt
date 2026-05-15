@@ -352,7 +352,7 @@ fun PlaylistPage(
                             color = Color.White.copy(alpha = 0.08f)
                         )
                     }
-                    itemsIndexed(orderedDisplayTracks, key = { _, t -> t.videoId }) { index, track ->
+                    itemsIndexed(orderedDisplayTracks, key = { index, t -> "${t.videoId}_$index" }) { index, track ->
                         PlaylistTrackRow(
                             index = index + 1,
                             track = track,

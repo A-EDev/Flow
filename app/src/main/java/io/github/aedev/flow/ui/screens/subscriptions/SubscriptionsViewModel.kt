@@ -42,11 +42,12 @@ class SubscriptionsViewModel : ViewModel() {
 
     private val ytRepository: YouTubeRepository = YouTubeRepository.getInstance()
     private lateinit var cacheDao: io.github.aedev.flow.data.local.dao.CacheDao
-    private lateinit var watchHistoryDao: io.github.aedev.flow.data.local.dao.WatchHistoryDao
     private lateinit var playerPreferences: PlayerPreferences
     private lateinit var subscriptionGroupDao: SubscriptionGroupDao
     private var isInitialized = false
     private var isNetworkFetchRunning = false
+    private var latestFeedVideos: List<Video> = emptyList()
+    private var watchedVideoIds: Set<String> = emptySet()
 
     fun initialize(context: Context) {
         if (isInitialized) return
@@ -57,7 +58,6 @@ class SubscriptionsViewModel : ViewModel() {
         viewHistory = ViewHistory.getInstance(context)
         val db = AppDatabase.getDatabase(context)
         cacheDao = db.cacheDao()
-        watchHistoryDao = db.watchHistoryDao()
         subscriptionGroupDao = db.subscriptionGroupDao()
         
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
@@ -77,6 +77,26 @@ class SubscriptionsViewModel : ViewModel() {
             playerPreferences.subsFullWidthView.collect { fullWidth ->
                 _uiState.update { it.copy(isFullWidthView = fullWidth) }
             }
+        }
+
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            viewHistory.getVideoHistoryFlow()
+                .combine(playerPreferences.hideWatchedVideos) { history, hideWatched ->
+                    // Always remove fully watched videos from Subs; the setting lowers the cutoff.
+                    val threshold = if (hideWatched) 10f else 90f
+                    history
+                        .asSequence()
+                        .filter { it.progressPercentage >= threshold }
+                        .map { it.videoId }
+                        .toHashSet()
+                }
+                .distinctUntilChanged()
+                .collect { ids ->
+                    watchedVideoIds = ids
+                    if (latestFeedVideos.isNotEmpty()) {
+                        updateVideos(latestFeedVideos)
+                    }
+                }
         }
         
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
@@ -107,6 +127,7 @@ class SubscriptionsViewModel : ViewModel() {
                         )
                     }
                     Log.d(TAG, "Cache observer: calling updateVideos with ${videos.size} videos")
+                    latestFeedVideos = videos
                     updateVideos(videos)
                 }
             }
@@ -187,6 +208,7 @@ class SubscriptionsViewModel : ViewModel() {
             ).collect { videos ->
                 Log.i(TAG, "Network emit received: ${videos.size} videos (shorts=${videos.count { it.isShort }}, regular=${videos.count { !it.isShort }})")
                 if (videos.isNotEmpty()) {
+                    latestFeedVideos = videos
                     updateVideos(videos)
                     val entities = videos.map { video ->
                         io.github.aedev.flow.data.local.entity.SubscriptionFeedEntity(
@@ -242,28 +264,8 @@ class SubscriptionsViewModel : ViewModel() {
             .sortedByDescending { it.timestamp }
         Log.i(TAG, "Shorts after per-channel dedup: ${latestShortPerChannel.size}/${shorts.size}")
 
-        // ── Hide-watched preference (applies to both shorts and regular) ──
-        val hideWatched = try {
-            playerPreferences.hideWatchedVideos.first()
-        } catch (e: Exception) {
-            Log.w(TAG, "Could not read hideWatchedVideos preference", e)
-            false
-        }
-
-        // ── Watched IDs (fetched once, shared by both filters) ────────────
-        val watchedIds: Set<String> = if (hideWatched) {
-            try {
-                watchHistoryDao.getWatchedVideoIdsAboveThreshold(minPercent = 10f).toHashSet()
-            } catch (e: Exception) {
-                Log.w(TAG, "Could not read watch history for watched filter", e)
-                emptySet()
-            }
-        } else {
-            emptySet()
-        }
-
-        // ── Shorts watched filter — only when hide-watched is enabled ──────
-        val unwatchedShorts = if (hideWatched && watchedIds.isNotEmpty()) {
+        val watchedIds = watchedVideoIds
+        val unwatchedShorts = if (watchedIds.isNotEmpty()) {
             latestShortPerChannel.filter { it.id !in watchedIds }
         } else {
             latestShortPerChannel
@@ -272,8 +274,7 @@ class SubscriptionsViewModel : ViewModel() {
         Log.i(TAG, "Shorts after watched filter: ${unwatchedShorts.size}/${latestShortPerChannel.size} " +
                 "(${latestShortPerChannel.size - unwatchedShorts.size} hidden as already watched)")
 
-        // ── Hide-watched filter for regular videos ────────────────────────
-        val filteredRegular = if (hideWatched && watchedIds.isNotEmpty()) {
+        val filteredRegular = if (watchedIds.isNotEmpty()) {
             val before = regular.size
             regular.filter { it.id !in watchedIds }.also { filtered ->
                 Log.i(TAG, "Regular videos after watched filter: ${filtered.size}/$before " +
@@ -326,6 +327,7 @@ class SubscriptionsViewModel : ViewModel() {
                         isShort = entity.isShort
                     )
                 }
+                latestFeedVideos = videos
                 updateVideos(videos)
             }
         }

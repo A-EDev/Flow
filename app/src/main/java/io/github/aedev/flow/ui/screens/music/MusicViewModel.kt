@@ -376,7 +376,7 @@ class MusicViewModel @Inject constructor(
     }
 
     fun loadMorePlaylistTracks() {
-        val currentPlaylist = _uiState.value.selectedPlaylist ?: return
+        val currentPlaylist = _uiState.value.selectedPlaylist ?: _uiState.value.playlistDetails ?: return
         val continuation = currentPlaylist.continuation ?: return
         if (_uiState.value.isMoreLoading) return
 
@@ -393,6 +393,7 @@ class MusicViewModel @Inject constructor(
                     )
                     state.copy(
                         selectedPlaylist = updatedPlaylist,
+                        playlistDetails = updatedPlaylist,
                         isMoreLoading = false
                     )
                 }
@@ -692,7 +693,8 @@ class MusicViewModel @Inject constructor(
                 
                 _uiState.value = _uiState.value.copy(
                     isPlaylistLoading = false,
-                    playlistDetails = details
+                    playlistDetails = details,
+                    selectedPlaylist = details
                 )
                 return@launch
             }
@@ -704,7 +706,8 @@ class MusicViewModel @Inject constructor(
                 }
                 _uiState.value = _uiState.value.copy(
                     isPlaylistLoading = false,
-                    playlistDetails = details
+                    playlistDetails = details,
+                    selectedPlaylist = details
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(

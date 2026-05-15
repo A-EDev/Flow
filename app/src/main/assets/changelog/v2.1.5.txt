@@ -40,6 +40,7 @@ IMPROVEMENTS
 - Improve video and shorts playback performance #442 #425
 - Prefer VP9/H264 over AV1 for playback #406
 - Improve Live streams handling and UI #435 #416 #390
+- Improved watched content filtering #451
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378
@@ -58,6 +59,9 @@ FIXES AND STABILITY
 - Fix playlist playback history #413
 - Fix album and subscriptions search crashes #443 #445
 - Fix video downloads and songs playback in wrong language #381 #353
+- Fix large playlist crashing #454
+- Fix video player supression  #453
+- Fix content preference backup #452
 
 ENGINE
 - Improve topic maturity detection for better recommendations #281

@@ -172,6 +172,17 @@ class FlowNeuroEngine(private val appContext: Context) {
         suspend fun removeBlockedTopic(context: Context, topic: String) =
             getInstance(context).removeBlockedTopic(topic)
 
+        suspend fun restoreContentPreferences(
+            context: Context,
+            preferredTopics: Set<String>,
+            blockedTopics: Set<String>,
+            blockedChannels: Set<String>
+        ) = getInstance(context).restoreContentPreferences(
+            preferredTopics,
+            blockedTopics,
+            blockedChannels
+        )
+
         suspend fun unblockChannel(channelId: String) =
             requireInstance().unblockChannel(channelId)
         suspend fun unblockChannel(context: Context, channelId: String) =
@@ -432,6 +443,44 @@ class FlowNeuroEngine(private val appContext: Context) {
                 globalVector = currentUserBrain.globalVector.copy(
                     topics = newTopics
                 )
+            )
+            storage.save(currentUserBrain)
+        }
+    }
+
+    suspend fun restoreContentPreferences(
+        preferredTopics: Set<String>,
+        blockedTopics: Set<String>,
+        blockedChannels: Set<String>
+    ) {
+        initialize()
+        brainMutex.withLock {
+            val normalizedPreferred = preferredTopics
+                .map { it.trim() }
+                .filter { it.isNotBlank() }
+                .toSet()
+            val normalizedBlocked = blockedTopics
+                .map { tokenizer.normalizeLemma(it) }
+                .filter { it.isNotBlank() }
+                .toSet()
+            val newTopics = currentUserBrain.globalVector.topics.toMutableMap()
+            normalizedPreferred.forEach { topic ->
+                newTopics[tokenizer.normalizeLemma(topic)] = maxOf(
+                    newTopics[tokenizer.normalizeLemma(topic)] ?: 0.0,
+                    0.5
+                )
+            }
+            normalizedBlocked.forEach { topic -> newTopics.remove(topic) }
+
+            currentUserBrain = currentUserBrain.copy(
+                preferredTopics = normalizedPreferred.filterNot {
+                    tokenizer.normalizeLemma(it) in normalizedBlocked
+                }.toSet(),
+                blockedTopics = normalizedBlocked,
+                blockedChannels = blockedChannels.filter { it.isNotBlank() }.toSet(),
+                globalVector = currentUserBrain.globalVector.copy(topics = newTopics),
+                hasCompletedOnboarding = currentUserBrain.hasCompletedOnboarding ||
+                    normalizedPreferred.isNotEmpty()
             )
             storage.save(currentUserBrain)
         }

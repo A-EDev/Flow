@@ -214,13 +214,23 @@ fun FlowApp(
     
     // Observe music player state
     val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsStateWithLifecycle()
-    val musicPlayerState by EnhancedMusicPlayerManager.playerState.collectAsStateWithLifecycle()
+    var suppressMusicMiniAfterVideo by remember { mutableStateOf(false) }
 
-    // When a music track is loaded, clear any video state so they don't conflict
-    LaunchedEffect(currentMusicTrack) {
-        if (currentMusicTrack != null) {
-            playerViewModel.clearVideo()
-            playerVisible = false
+    LaunchedEffect(activeVideo?.id) {
+        if (activeVideo != null) {
+            suppressMusicMiniAfterVideo = true
+        }
+    }
+
+    LaunchedEffect(currentMusicTrack?.videoId) {
+        if (currentMusicTrack == null) {
+            suppressMusicMiniAfterVideo = false
+        }
+    }
+
+    LaunchedEffect(currentRoute.value) {
+        if (currentRoute.value == "musicPlayer") {
+            suppressMusicMiniAfterVideo = false
         }
     }
 
@@ -439,6 +449,7 @@ fun FlowApp(
     
     // ===== GLOBAL MUSIC PLAYER OVERLAY =====
     if (currentMusicTrack != null &&
+        !suppressMusicMiniAfterVideo &&
         playerUiState.cachedVideo == null &&
         playerUiState.streamInfo == null
     ) {

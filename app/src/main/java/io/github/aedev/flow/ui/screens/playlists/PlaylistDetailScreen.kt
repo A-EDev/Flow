@@ -229,7 +229,7 @@ fun PlaylistDetailScreen(
             } else {
                 itemsIndexed(
                     items = displayVideos,
-                    key = { _, video -> video.id }
+                    key = { index, video -> "${video.id}_$index" }
                 ) { index, video ->
                     PlaylistVideoItem(
                         video = video,

@@ -23,6 +23,8 @@ import org.schabi.newpipe.extractor.Page
 import org.schabi.newpipe.extractor.exceptions.ExtractionException
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.innertube.models.SongItem
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.flow.first
 import java.util.Locale
@@ -729,17 +731,25 @@ class YouTubeRepository @Inject constructor(
                 nextPage = page.nextPage
             }
 
+            val innertubeVideos = fetchInnertubePlaylistVideos(playlistId)
+            val playlistVideos = if (innertubeVideos.size > allVideos.size) {
+                Log.i(TAG, "Using Innertube playlist result for $playlistId (${innertubeVideos.size} > ${allVideos.size})")
+                innertubeVideos
+            } else {
+                allVideos
+            }
+
             val bestThumbnail = playlistInfo.thumbnails
                 .sortedByDescending { it.height }
-                .firstOrNull()?.url ?: allVideos.firstOrNull()?.thumbnailUrl ?: ""
+                .firstOrNull()?.url ?: playlistVideos.firstOrNull()?.thumbnailUrl ?: ""
 
             io.github.aedev.flow.data.model.Playlist(
                 id = playlistId,
                 name = playlistInfo.name ?: "Unknown Playlist",
                 thumbnailUrl = bestThumbnail,
-                videoCount = allVideos.size,
+                videoCount = playlistVideos.size,
                 description = playlistInfo.description?.content ?: "",
-                videos = allVideos,
+                videos = playlistVideos,
                 isLocal = false
             )
         } catch (e: Exception) {
@@ -758,6 +768,51 @@ class YouTubeRepository @Inject constructor(
         } catch (e: Exception) {
             emptyList()
         }
+    }
+
+    private suspend fun fetchInnertubePlaylistVideos(
+        playlistId: String,
+        maxContinuationPages: Int = 30
+    ): List<Video> {
+        return try {
+            val firstPage = YouTube.playlist(playlistId).getOrNull() ?: return emptyList()
+            val songs = mutableListOf<SongItem>()
+            val seenContinuations = mutableSetOf<String>()
+
+            songs += firstPage.songs
+            var continuation = firstPage.songsContinuation ?: firstPage.continuation
+            var requestCount = 0
+
+            while (continuation != null && requestCount < maxContinuationPages) {
+                if (!seenContinuations.add(continuation)) break
+                val page = YouTube.playlistContinuation(continuation).getOrNull() ?: break
+                if (page.songs.isEmpty() && page.continuation == null) break
+                songs += page.songs
+                continuation = page.continuation
+                requestCount++
+            }
+
+            songs.map { it.toPlaylistVideo() }
+        } catch (e: Exception) {
+            Log.w(TAG, "Innertube playlist fallback failed for $playlistId: ${e.message}")
+            emptyList()
+        }
+    }
+
+    private fun SongItem.toPlaylistVideo(): Video {
+        val artistNames = artists.joinToString(", ") { it.name }
+        val channel = artists.firstOrNull()
+        return Video(
+            id = id,
+            title = title,
+            channelName = artistNames,
+            channelId = channel?.id ?: "",
+            thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(id, thumbnail),
+            duration = duration ?: 0,
+            viewCount = 0,
+            uploadDate = "",
+            isMusic = false
+        )
     }
 
     /**
