@@ -947,7 +947,7 @@
     <string name="appearance_role_secondary">Secondaire</string>
     <string name="appearance_role_tertiary">Tertiaire</string>
     <string name="app_icon_picker_subtitle">Choisissez un style d\'icône pour le lanceur. La modification prend effet immédiatement et le lanceur s\'actualise brièvement.</string>
-    <string name="app_icon_picker_warning">⚠ Attention : la modification des icônes fait appel à un mécanisme du système Android qui peut temporairement faire disparaître le raccourci de l\'application de votre écran d\'accueil. Appuyez longuement sur le lanceur d\'applications pour le rajouter si nécessaire.</string>
+    <string name="app_icon_picker_warning">Attention : la modification des icônes fait appel à un mécanisme du système Android qui peut temporairement faire disparaître le raccourci de l\'application de votre écran d\'accueil. Appuyez longuement sur le lanceur d\'applications pour le rajouter si nécessaire.</string>
     <string name="content_settings_explore_region_picker_title">Sélection rapide de la région dans Explorer</string>
     <string name="content_settings_explore_region_picker_subtitle">Afficher une icône représentant un globe terrestre dans la barre supérieure de l\'écran « Explorer » pour changer instantanément la région en vogue.</string>
     <string name="categories_region_picker_desc">Changer la région en vogue (actuellement : %1$s)</string>
@@ -1082,7 +1082,7 @@
     <string name="settings_item_app_language_subtitle">Utilisez la langue de votre appareil ou sélectionnez-en une manuellement</string>
     <string name="settings_language_dialog_title">Sélectionner la langue de l\'application</string>
     <string name="settings_language_system_default">Paramètres par défaut du système</string>
-    <string name="app_icon_apply_toast">L\'icône a été mise à jour — votre lanceur va s\'actualiser</string>
+    <string name="app_icon_apply_toast">L\'icône a été mise à jour – votre lanceur va s\'actualiser</string>
     <string name="icon_name_flow_red">Flow Rouge</string>
     <string name="icon_name_monochrome">Monochrome</string>
     <string name="icon_name_ghost">Fantôme</string>
@@ -1525,4 +1525,13 @@
     <string name="content_settings_subs_startup_refresh_subtitle">Consultez votre flux d\'abonnements dès l\'ouverture de l\'application</string>
     <string name="content_settings_nav_order_title">Ordre de tabulation et valeur par défaut</string>
     <string name="content_settings_nav_order_subtitle">Utilisez les flèches pour réorganiser les onglets. Sélectionnez l\'onglet par défaut à l\'aide du bouton radio.</string>
+    <string name="appearance_system_defaults_title">Thèmes par défaut du système</string>
+    <string name="appearance_system_defaults_subtitle">Choisissez le thème à utiliser lorsque votre appareil passe du mode clair au mode sombre.</string>
+    <string name="appearance_system_light_theme">Thème en mode clair</string>
+    <string name="appearance_system_dark_theme">Thème en mode sombre</string>
+    <string name="icon_name_flow_light">Flow Light</string>
+    <string name="icon_name_material_sky">Material Sky</string>
+    <string name="icon_name_material_mint">Material Mint</string>
+    <string name="theme_name_material_you">Material You</string>
+    <string name="theme_desc_material_you">Couleurs des fonds d\'écran sur Android 12 et versions ultérieures</string>
 </resources>
