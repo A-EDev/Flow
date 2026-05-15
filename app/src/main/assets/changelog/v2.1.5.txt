@@ -21,6 +21,7 @@ FEATURES
 - Add comment disable option
 - Add Material You dynamic color theme #448
 - Add custom light and dark theme choices for System Default #367
+- Add more app icon variants with updated adaptive icon packaging #400
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361
@@ -47,6 +48,7 @@ IMPROVEMENTS
 - Improve Live streams handling and UI #435 #416 #390
 - Improved watched content filtering #451
 - Improve subscriptions feed UI, count and cache #435
+- Redesign App Icon picker #400
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

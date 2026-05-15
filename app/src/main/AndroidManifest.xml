@@ -209,6 +209,20 @@
             </intent-filter>
         </activity-alias>
 
+        <!-- Flow Light -->
+        <activity-alias
+            android:name=".IconFlowLight"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_flow_light"
+            android:roundIcon="@mipmap/ic_launcher_flow_light_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
         <!-- AMOLED Dark -->
         <activity-alias
             android:name=".IconAmoled"
@@ -258,6 +272,34 @@
             android:exported="true"
             android:icon="@mipmap/ic_launcher_dynamic"
             android:roundIcon="@mipmap/ic_launcher_dynamic_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Material Sky -->
+        <activity-alias
+            android:name=".IconMaterialSky"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_material_sky"
+            android:roundIcon="@mipmap/ic_launcher_material_sky_round"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Material Mint -->
+        <activity-alias
+            android:name=".IconMaterialMint"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher_material_mint"
+            android:roundIcon="@mipmap/ic_launcher_material_mint_round"
             android:targetActivity=".MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

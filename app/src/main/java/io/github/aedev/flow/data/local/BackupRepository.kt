@@ -197,7 +197,16 @@ class BackupRepository(private val context: Context) {
     private fun detectActiveIconSuffix(): String? {
         val pm = context.packageManager
         val pkg = context.packageName
-        val knownSuffixes = listOf(".IconFlowRed", ".IconAmoled", ".IconMonochrome", ".IconGhost", ".IconDynamic")
+        val knownSuffixes = listOf(
+            ".IconFlowRed",
+            ".IconFlowLight",
+            ".IconAmoled",
+            ".IconMonochrome",
+            ".IconGhost",
+            ".IconDynamic",
+            ".IconMaterialSky",
+            ".IconMaterialMint"
+        )
         return knownSuffixes.firstOrNull { suffix ->
             pm.getComponentEnabledSetting(
                 ComponentName(pkg, "io.github.aedev.flow$suffix")
@@ -1874,7 +1883,16 @@ class BackupRepository(private val context: Context) {
                 withContext(Dispatchers.Main) {
                     val pm = context.packageManager
                     val pkg = context.packageName
-                    val allSuffixes = listOf(".IconFlowRed", ".IconAmoled", ".IconMonochrome", ".IconGhost", ".IconDynamic")
+                    val allSuffixes = listOf(
+                        ".IconFlowRed",
+                        ".IconFlowLight",
+                        ".IconAmoled",
+                        ".IconMonochrome",
+                        ".IconGhost",
+                        ".IconDynamic",
+                        ".IconMaterialSky",
+                        ".IconMaterialMint"
+                    )
                     for (suffix in allSuffixes) {
                         val cn = ComponentName(pkg, "io.github.aedev.flow$suffix")
                         val want = if (suffix == savedIconSuffix)

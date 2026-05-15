@@ -478,13 +478,16 @@
 
     <!-- App Icon Picker -->
     <string name="app_icon_picker_subtitle">Choose a launcher icon style. The change takes effect immediately and the launcher will briefly refresh.</string>
-    <string name="app_icon_picker_warning">⚠ Heads up: switching icons uses an Android system mechanism that may briefly remove the app shortcut from your home screen. Long-press the launcher to add it back if needed.</string>
-    <string name="app_icon_apply_toast">Icon updated — your launcher will refresh</string>
+    <string name="app_icon_picker_warning">Heads up: switching icons uses an Android system mechanism that may briefly remove the app shortcut from your home screen. Long-press the launcher to add it back if needed.</string>
+    <string name="app_icon_apply_toast">Icon updated - your launcher will refresh</string>
     <string name="icon_name_flow_red">Flow Red</string>
+    <string name="icon_name_flow_light">Flow Light</string>
     <string name="icon_name_amoled">AMOLED Dark</string>
     <string name="icon_name_monochrome">Monochrome</string>
     <string name="icon_name_ghost">Ghost</string>
     <string name="icon_name_dynamic">Material You</string>
+    <string name="icon_name_material_sky">Material Sky</string>
+    <string name="icon_name_material_mint">Material Mint</string>
 
     <!-- Player Appearance -->
     <string name="player_appearance_title">Player Appearance</string>

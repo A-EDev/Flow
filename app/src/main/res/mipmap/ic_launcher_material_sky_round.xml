@@ -2,11 +2,11 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="oval">
-            <solid android:color="@color/icon_bg_monochrome" />
+            <solid android:color="@color/icon_bg_material_sky" />
         </shape>
     </item>
     <item
-        android:drawable="@drawable/ic_fg_monochrome"
+        android:drawable="@drawable/ic_launcher_foreground"
         android:gravity="center"
         android:width="108dp"
         android:height="108dp" />

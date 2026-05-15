@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.collectLatest
 import android.app.ActivityManager
 import android.content.ComponentCallbacks2
 import android.content.Context
+import android.content.pm.ServiceInfo
 import android.net.wifi.WifiManager
 import android.os.Process
 import android.os.PowerManager
@@ -218,6 +219,14 @@ class VideoPlayerService : Service() {
         val requestedTitle = intent?.getStringExtra(EXTRA_VIDEO_TITLE)
         val requestedChannel = intent?.getStringExtra(EXTRA_VIDEO_CHANNEL)
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !hasStartedForeground) {
+            val started = startForegroundSafely(
+                createPlaceholderNotification(requestedTitle, requestedChannel),
+                startId
+            )
+            if (!started) return START_NOT_STICKY
+        }
+
         intent?.let { handleIntent(it) }
         if (intent?.action == ACTION_STOP || intent?.action == ACTION_CLOSE) {
             return START_NOT_STICKY
@@ -226,23 +235,6 @@ class VideoPlayerService : Service() {
             isPlaying = state.isPlaying
             isPlaybackActive = state.isPlaying || state.isBuffering || state.playWhenReady
             updateLocks(isPlaybackActive)
-        }
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !hasStartedForeground) {
-            try {
-                val video = currentVideo
-                if (video != null) {
-                    showNotification(video, cachedThumbnailBitmap)
-                } else {
-                    startForeground(
-                        NOTIFICATION_ID,
-                        createPlaceholderNotification(requestedTitle, requestedChannel)
-                    )
-                    hasStartedForeground = true
-                }
-            } catch (e: Exception) {
-                Log.w("VideoPlayerService", "Immediate foreground start failed", e)
-            }
         }
 
         // Re-assert this session as the most recently active one whenever a new video
@@ -614,10 +606,33 @@ class VideoPlayerService : Service() {
             .build()
 
         if (!hasStartedForeground && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForeground(NOTIFICATION_ID, notification)
-            hasStartedForeground = true
+            startForegroundSafely(notification)
         } else {
             notificationManager.notify(NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun startForegroundSafely(notification: Notification, startId: Int? = null): Boolean {
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+            hasStartedForeground = true
+            true
+        } catch (e: Exception) {
+            Log.e("VideoPlayerService", "Failed to promote video service to foreground", e)
+            if (startId != null) {
+                stopSelf(startId)
+            } else {
+                stopSelf()
+            }
+            false
         }
     }
 

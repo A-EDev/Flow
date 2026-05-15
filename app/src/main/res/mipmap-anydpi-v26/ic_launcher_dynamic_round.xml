@@ -2,6 +2,6 @@
 
 <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
     <background android:drawable="@color/icon_bg_dynamic" />
-    <foreground android:drawable="@drawable/ic_notification_logo" />
-    <monochrome android:drawable="@drawable/ic_notification_logo" />
+    <foreground android:drawable="@drawable/ic_launcher_dynamic_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_dynamic_foreground" />
 </adaptive-icon>

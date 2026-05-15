@@ -6,7 +6,7 @@
         </shape>
     </item>
     <item
-        android:drawable="@drawable/ic_notification_logo"
+        android:drawable="@drawable/ic_launcher_dynamic_foreground"
         android:gravity="center"
         android:width="108dp"
         android:height="108dp" />

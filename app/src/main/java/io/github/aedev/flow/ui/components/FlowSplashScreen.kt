@@ -40,10 +40,13 @@ private data class SplashIconOption(
 
 private val SPLASH_ICONS = listOf(
     SplashIconOption(".IconFlowRed",    R.drawable.ic_flow_logo),
+    SplashIconOption(".IconFlowLight",  R.drawable.ic_flow_logo),
     SplashIconOption(".IconAmoled",     R.drawable.splash_icon_amoled),
     SplashIconOption(".IconMonochrome", R.drawable.splash_icon_monochrome),
     SplashIconOption(".IconGhost",      R.drawable.splash_icon_ghost),
-    SplashIconOption(".IconDynamic",    R.drawable.ic_notification_logo, isDynamic = true)
+    SplashIconOption(".IconDynamic",    R.drawable.ic_launcher_dynamic_foreground, isDynamic = true),
+    SplashIconOption(".IconMaterialSky", R.drawable.ic_flow_logo),
+    SplashIconOption(".IconMaterialMint", R.drawable.ic_flow_logo)
 )
 
 @Composable
@@ -122,7 +125,7 @@ fun FlowSplashScreen(
             ) {
                 // 1. The Logo — rendered differently for static vs dynamic icons
                 if (activeIcon.isDynamic) {
-                    // Material You: needs a themed background since ic_notification_logo is monochrome
+                    // Material You: use the same padded foreground as Android themed icons.
                     Box(
                         modifier = Modifier
                             .scale(scale.value)
@@ -135,7 +138,7 @@ fun FlowSplashScreen(
                             painter = painterResource(id = activeIcon.drawableRes),
                             contentDescription = "Flow Logo",
                             colorFilter = ColorFilter.tint(colorScheme.onSecondaryContainer),
-                            modifier = Modifier.fillMaxSize(0.72f)
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
                 } else {
