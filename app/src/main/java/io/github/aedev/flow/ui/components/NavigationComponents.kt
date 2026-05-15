@@ -54,12 +54,13 @@ fun FloatingBottomNavBar(
     isShortsEnabled: Boolean = true,
     isMusicEnabled: Boolean = true,
     isSearchEnabled: Boolean = false,
-    isCategoriesEnabled: Boolean = false
+    isCategoriesEnabled: Boolean = false,
+    navOrder: List<Int> = listOf(0, 1, 2, 3, 4, 5, 6)
 ) {
     val shortsIcon = ImageVector.vectorResource(id = R.drawable.ic_shorts)
 
-    val enabledItems = remember(isShortsEnabled, isMusicEnabled, isSearchEnabled, isCategoriesEnabled) {
-        buildList {
+    val enabledItems = remember(isShortsEnabled, isMusicEnabled, isSearchEnabled, isCategoriesEnabled, navOrder) {
+        val items = buildList {
             add(NavItemSpec(0, Icons.Filled.Home,          Icons.Outlined.Home,          R.string.nav_home))
             if (isShortsEnabled)    add(NavItemSpec(1, shortsIcon,                shortsIcon,                   R.string.nav_shorts))
             if (isMusicEnabled)     add(NavItemSpec(2, Icons.Filled.MusicNote,   Icons.Outlined.MusicNote,     R.string.nav_music))
@@ -68,6 +69,8 @@ fun FloatingBottomNavBar(
             if (isSearchEnabled)    add(NavItemSpec(5, Icons.Filled.Search,      Icons.Outlined.Search,        R.string.nav_search))
             if (isCategoriesEnabled)add(NavItemSpec(6, Icons.Filled.Explore,     Icons.Outlined.Explore,       R.string.nav_explore))
         }
+        val order = navOrder.withIndex().associate { it.value to it.index }
+        items.sortedBy { order[it.index] ?: Int.MAX_VALUE }
     }
 
     val visibleItems: List<NavItemSpec>

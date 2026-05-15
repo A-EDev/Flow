@@ -283,13 +283,13 @@ fun SubscriptionsScreen(
                                 state = feedGridState,
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(
-                                    start = 16.dp,
-                                    end = 16.dp,
-                                    top = 16.dp,
+                                    start = if (uiState.isFullWidthView) 16.dp else 0.dp,
+                                    end = if (uiState.isFullWidthView) 16.dp else 0.dp,
+                                    top = 4.dp,
                                     bottom = 80.dp
                                 ),
-                                verticalArrangement = Arrangement.spacedBy(16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                verticalArrangement = Arrangement.spacedBy(if (uiState.isFullWidthView) 16.dp else 0.dp),
+                                horizontalArrangement = Arrangement.spacedBy(if (uiState.isFullWidthView) 16.dp else 0.dp)
                             ) {
                                 // Channel Chips Row
                                 item(span = { GridItemSpan(maxLineSpan) }) {
@@ -302,7 +302,7 @@ fun SubscriptionsScreen(
                                         ) {
                                             LazyRow(
                                                 modifier = Modifier.weight(1f),
-                                                contentPadding = PaddingValues(start = 16.dp, end = 8.dp),
+                                                contentPadding = PaddingValues(start = 12.dp, end = 8.dp),
                                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                                             ) {
                                                 items(subscribedChannels.take(10)) { channel ->
@@ -332,7 +332,7 @@ fun SubscriptionsScreen(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .horizontalScroll(rememberScrollState())
-                                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                                    .padding(horizontal = 12.dp, vertical = 8.dp),
                                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
@@ -360,6 +360,40 @@ fun SubscriptionsScreen(
                                                     )
                                                 }
                                             }
+                                        }
+
+                                        if (uiState.isLoading && uiState.refreshTotalChannels > 0) {
+                                            val progress = uiState.refreshProcessedChannels.toFloat() /
+                                                uiState.refreshTotalChannels.toFloat().coerceAtLeast(1f)
+                                            LinearProgressIndicator(
+                                                progress = { progress.coerceIn(0f, 1f) },
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                                                color = MaterialTheme.colorScheme.primary,
+                                                trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+                                            )
+                                            Text(
+                                                text = stringResource(
+                                                    R.string.subscriptions_refresh_progress_template,
+                                                    uiState.refreshProcessedChannels,
+                                                    uiState.refreshTotalChannels
+                                                ),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+                                            )
+                                        } else if (uiState.lastRefreshText != null) {
+                                            Text(
+                                                text = stringResource(
+                                                    R.string.subscriptions_last_refreshed_template,
+                                                    uiState.lastRefreshText!!,
+                                                    uiState.lastRefreshVideoCount
+                                                ),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+                                            )
                                         }
                                     }
                                 }
@@ -421,6 +455,12 @@ fun SubscriptionsScreen(
             },
             onDelete = { group ->
                 viewModel.deleteGroup(group.name)
+            },
+            onMoveUp = { group ->
+                viewModel.moveGroup(group.name, -1)
+            },
+            onMoveDown = { group ->
+                viewModel.moveGroup(group.name, 1)
             }
         )
     }
@@ -449,7 +489,9 @@ private fun GroupsManagerDialog(
     onDismiss: () -> Unit,
     onCreateNew: () -> Unit,
     onEdit: (SubscriptionGroup) -> Unit,
-    onDelete: (SubscriptionGroup) -> Unit
+    onDelete: (SubscriptionGroup) -> Unit,
+    onMoveUp: (SubscriptionGroup) -> Unit,
+    onMoveDown: (SubscriptionGroup) -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -464,7 +506,7 @@ private fun GroupsManagerDialog(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 } else {
-                    groups.forEach { group ->
+                    groups.forEachIndexed { index, group ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -486,6 +528,20 @@ private fun GroupsManagerDialog(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.padding(end = 8.dp)
                             )
+                            IconButton(
+                                onClick = { onMoveUp(group) },
+                                enabled = index > 0,
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.KeyboardArrowUp, null, modifier = Modifier.size(16.dp))
+                            }
+                            IconButton(
+                                onClick = { onMoveDown(group) },
+                                enabled = index < groups.lastIndex,
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(Icons.Default.KeyboardArrowDown, null, modifier = Modifier.size(16.dp))
+                            }
                             IconButton(onClick = { onEdit(group) }, modifier = Modifier.size(32.dp)) {
                                 Icon(Icons.Default.Edit, null, modifier = Modifier.size(16.dp))
                             }

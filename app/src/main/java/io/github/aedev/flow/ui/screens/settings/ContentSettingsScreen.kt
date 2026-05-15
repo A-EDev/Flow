@@ -10,7 +10,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.Comment
 import androidx.compose.material.icons.outlined.DesktopWindows
+import androidx.compose.material.icons.outlined.DragIndicator
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Language
@@ -18,7 +22,9 @@ import androidx.compose.material.icons.outlined.List
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SmartDisplay
+import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material.icons.outlined.ViewAgenda
+import androidx.compose.material.icons.outlined.VideoLibrary
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.ViewQuilt
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -82,6 +88,10 @@ fun ContentSettingsScreen(
     val videoTitleMaxLines by preferences.videoTitleMaxLines.collectAsState(initial = 1)
     val videoCardActionsEnabled by preferences.videoCardActionsEnabled.collectAsState(initial = false)
     val videoCardMarkWatchedEnabled by preferences.videoCardMarkWatchedEnabled.collectAsState(initial = false)
+    val subscriptionRefreshOnStartup by preferences.subscriptionRefreshOnStartup.collectAsState(initial = false)
+    val commentsPreviewEnabled by preferences.commentsPreviewEnabled.collectAsState(initial = true)
+    val navTabOrder by preferences.navTabOrder.collectAsState(initial = io.github.aedev.flow.data.local.DEFAULT_NAV_TAB_ORDER)
+    val defaultNavTabIndex by preferences.defaultNavTabIndex.collectAsState(initial = 0)
     
     Scaffold(
         topBar = {
@@ -316,6 +326,18 @@ fun ContentSettingsScreen(
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
+                        icon = Icons.Outlined.Comment,
+                        title = stringResource(R.string.content_settings_comments_preview_title),
+                        subtitle = stringResource(R.string.content_settings_comments_preview_subtitle),
+                        checked = commentsPreviewEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setCommentsPreviewEnabled(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
                         icon = Icons.Outlined.VisibilityOff,
                         title = stringResource(R.string.content_settings_hide_watched_title),
                         subtitle = stringResource(R.string.content_settings_hide_watched_subtitle),
@@ -425,6 +447,40 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setCategoriesNavigationEnabled(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Subscriptions,
+                        title = stringResource(R.string.content_settings_subs_startup_refresh_title),
+                        subtitle = stringResource(R.string.content_settings_subs_startup_refresh_subtitle),
+                        checked = subscriptionRefreshOnStartup,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setSubscriptionRefreshOnStartup(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    NavTabOrderSettings(
+                        order = navTabOrder,
+                        defaultTabIndex = defaultNavTabIndex,
+                        onMove = { index, direction ->
+                            val currentIndex = navTabOrder.indexOf(index)
+                            val targetIndex = (currentIndex + direction).coerceIn(0, navTabOrder.lastIndex)
+                            if (currentIndex >= 0 && currentIndex != targetIndex) {
+                                val updated = navTabOrder.toMutableList()
+                                val moved = updated.removeAt(currentIndex)
+                                updated.add(targetIndex, moved)
+                                coroutineScope.launch {
+                                    preferences.setNavTabOrder(updated)
+                                }
+                            }
+                        },
+                        onDefaultSelected = { index ->
+                            coroutineScope.launch {
+                                preferences.setDefaultNavTabIndex(index)
                             }
                         }
                     )
@@ -570,6 +626,103 @@ fun ContentSettingsScreen(
     }
 }
 
+
+@Composable
+private fun NavTabOrderSettings(
+    order: List<Int>,
+    defaultTabIndex: Int,
+    onMove: (index: Int, direction: Int) -> Unit,
+    onDefaultSelected: (Int) -> Unit
+) {
+    Column(modifier = Modifier.padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Outlined.DragIndicator,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(
+                    text = stringResource(R.string.content_settings_nav_order_title),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = stringResource(R.string.content_settings_nav_order_subtitle),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        order.forEachIndexed { position, index ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = defaultTabIndex == index,
+                    onClick = { onDefaultSelected(index) }
+                )
+                Icon(
+                    navTabIcon(index),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = navTabLabel(index),
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(
+                    onClick = { onMove(index, -1) },
+                    enabled = position > 0,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = stringResource(R.string.move_up))
+                }
+                IconButton(
+                    onClick = { onMove(index, 1) },
+                    enabled = position < order.lastIndex,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.move_down))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun navTabLabel(index: Int): String = when (index) {
+    0 -> stringResource(R.string.nav_home)
+    1 -> stringResource(R.string.nav_shorts)
+    2 -> stringResource(R.string.nav_music)
+    3 -> stringResource(R.string.nav_subs)
+    4 -> stringResource(R.string.nav_library)
+    5 -> stringResource(R.string.nav_search)
+    6 -> stringResource(R.string.nav_explore)
+    else -> stringResource(R.string.nav_home)
+}
+
+@Composable
+private fun navTabIcon(index: Int): ImageVector = when (index) {
+    0 -> Icons.Outlined.Home
+    1 -> ImageVector.vectorResource(id = R.drawable.ic_shorts)
+    2 -> Icons.Outlined.MusicNote
+    3 -> Icons.Outlined.Subscriptions
+    4 -> Icons.Outlined.VideoLibrary
+    5 -> Icons.Outlined.Search
+    6 -> Icons.Outlined.Explore
+    else -> Icons.Outlined.Home
+}
 
 @Composable
 private fun LayoutOption(

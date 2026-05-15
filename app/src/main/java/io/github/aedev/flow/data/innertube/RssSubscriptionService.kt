@@ -11,6 +11,7 @@ import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabs
 import org.schabi.newpipe.extractor.feed.FeedInfo
+import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler
 import org.schabi.newpipe.extractor.stream.ContentAvailability
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import java.util.Locale
@@ -23,12 +24,18 @@ object RssSubscriptionService {
     private const val CHANNEL_CHUNK_SIZE = 8
     private const val CHANNEL_BATCH_SIZE = 50
     private val CHANNEL_BATCH_DELAY = (100L..400L)
-    private const val MAX_FEED_AGE_DAYS = 90L
+    private const val MAX_FEED_AGE_DAYS = 180L
 
-    private const val MAX_REGULAR_VIDEOS = 150
-    private const val MAX_SHORTS = 60
+    private const val MAX_REGULAR_VIDEOS = 500
+    private const val MAX_SHORTS = 120
+    private const val MAX_VIDEOS_PER_CHANNEL = 60
+    private const val MAX_SHORTS_PER_CHANNEL = 20
 
-    fun fetchSubscriptionVideos(channelIds: List<String>, maxTotal: Int = 200): Flow<List<Video>> = flow {
+    fun fetchSubscriptionVideos(
+        channelIds: List<String>,
+        maxTotal: Int = 600,
+        onProgress: ((processedChannels: Int, totalChannels: Int) -> Unit)? = null
+    ): Flow<List<Video>> = flow {
         Log.i(TAG, "======== FEED FETCH START: ${channelIds.size} channels ========")
         if (channelIds.isEmpty()) {
             Log.w(TAG, "No channel IDs provided — emitting empty list")
@@ -69,6 +76,7 @@ object RssSubscriptionService {
         val activeChannelIds = channelIds.filter { rssChannelHasRecent[it] != false }
         Log.i(TAG, "Phase 2: Fetching tabs for ${activeChannelIds.size} active channels (${channelIds.size - activeChannelIds.size} skipped as stale)")
 
+        var processedChannels = 0
         val chunks = activeChannelIds.chunked(CHANNEL_CHUNK_SIZE)
         for ((chunkIndex, chunk) in chunks.withIndex()) {
             val count = channelExtractionCount.get()
@@ -97,23 +105,25 @@ object RssSubscriptionService {
             }
 
             chunkVideos.forEach { if (it.isShort) allShorts.add(it) else allRegular.add(it) }
+            processedChannels += chunk.size
+            onProgress?.invoke(processedChannels, activeChannelIds.size)
             Log.d(TAG, "Chunk ${chunkIndex + 1} done: +${chunkVideos.size} (regular=${allRegular.size}, shorts=${allShorts.size})")
 
-            emit(buildFeed(allRegular, allShorts))
+            emit(buildFeed(allRegular, allShorts, maxTotal))
         }
 
-        emit(buildFeed(allRegular, allShorts))
+        emit(buildFeed(allRegular, allShorts, maxTotal))
         Log.i(TAG, "======== FEED FETCH COMPLETE: regular=${allRegular.size.coerceAtMost(MAX_REGULAR_VIDEOS)} shorts=${allShorts.size.coerceAtMost(MAX_SHORTS)} from ${channelIds.size} channels ========")
     }
 
     /** Merge regular and shorts lists with independent caps, sorted by date. */
-    private fun buildFeed(regular: List<Video>, shorts: List<Video>): List<Video> {
+    private fun buildFeed(regular: List<Video>, shorts: List<Video>, maxTotal: Int): List<Video> {
         val r = regular.sortedByDescending { it.timestamp }.take(MAX_REGULAR_VIDEOS)
         val s = shorts
             .sortedByDescending { it.timestamp }
             .distinctBy { it.channelId } 
             .take(MAX_SHORTS)
-        return (r + s).sortedByDescending { it.timestamp }
+        return (r + s).sortedByDescending { it.timestamp }.take(maxTotal)
     }
 
 
@@ -194,18 +204,12 @@ object RssSubscriptionService {
             val (videoItems, shortsItems) = coroutineScope {
                 val videoDeferred = videosTab?.let {
                     async(Dispatchers.IO) {
-                        runCatching {
-                            ChannelTabInfo.getInfo(service, it)
-                                .relatedItems.filterIsInstance<StreamInfoItem>().take(15)
-                        }.getOrElse { emptyList() }
+                        fetchTabItems(it, MAX_VIDEOS_PER_CHANNEL)
                     }
                 }
                 val shortsDeferred = shortsTab?.let {
                     async(Dispatchers.IO) {
-                        runCatching {
-                            ChannelTabInfo.getInfo(service, it)
-                                .relatedItems.filterIsInstance<StreamInfoItem>().take(10)
-                        }.getOrElse { emptyList() }
+                        fetchTabItems(it, MAX_SHORTS_PER_CHANNEL)
                     }
                 }
                 (videoDeferred?.await() ?: emptyList<StreamInfoItem>()) to
@@ -247,6 +251,38 @@ object RssSubscriptionService {
             Log.e(TAG, "[$channelId] ChannelInfo FAILED (${e::class.simpleName}): ${e.message}")
             return emptyList()
         }
+    }
+
+    private fun fetchTabItems(tab: ListLinkHandler, limit: Int): List<StreamInfoItem> {
+        val service = NewPipe.getService(0)
+        val items = mutableListOf<StreamInfoItem>()
+        var nextPage: org.schabi.newpipe.extractor.Page? = null
+
+        runCatching {
+            val tabInfo = ChannelTabInfo.getInfo(service, tab)
+            items += tabInfo.relatedItems.filterIsInstance<StreamInfoItem>()
+            nextPage = tabInfo.nextPage
+        }.getOrElse {
+            Log.w(TAG, "Initial tab fetch failed: ${it::class.simpleName}: ${it.message}")
+            return emptyList()
+        }
+
+        while (items.size < limit && nextPage != null) {
+            val page = nextPage ?: break
+            val moreItems = try {
+                ChannelTabInfo.getMoreItems(service, tab, page)
+            } catch (e: Exception) {
+                Log.w(TAG, "Paged tab fetch failed: ${e::class.simpleName}: ${e.message}")
+                break
+            }
+
+            val newItems = moreItems.items.filterIsInstance<StreamInfoItem>()
+            if (newItems.isEmpty()) break
+            items += newItems
+            nextPage = moreItems.nextPage
+        }
+
+        return items.distinctBy { it.url }.take(limit)
     }
 
     /**

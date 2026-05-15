@@ -161,6 +161,7 @@ fun GlobalPlayerOverlay(
     val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
     val adaptivePlayerSizeEnabled by playerPreferences.adaptivePlayerSizeEnabled.collectAsState(initial = true)
     val lockModeEnabled by playerPreferences.overlayLockModeEnabled.collectAsState(initial = false)
+    val commentsPreviewEnabled by playerPreferences.commentsPreviewEnabled.collectAsState(initial = true)
 
     var videoAspectRatio by remember { mutableFloatStateOf(16f / 9f) }
     val effectiveVideoAspectRatio = if (adaptivePlayerSizeEnabled || screenState.isFullscreen) {
@@ -381,7 +382,9 @@ fun GlobalPlayerOverlay(
             if (current.id != playerUiState.cachedVideo?.id || playerUiState.streamInfo?.id != current.id) {
                 playerViewModel.syncWithCurrentPlayerVideo(current)
             }
-            playerViewModel.loadComments(current.id)
+            if (commentsPreviewEnabled) {
+                playerViewModel.loadComments(current.id)
+            }
         }
     }
     

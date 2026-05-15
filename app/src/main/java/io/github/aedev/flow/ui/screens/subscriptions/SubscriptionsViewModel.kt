@@ -80,9 +80,33 @@ class SubscriptionsViewModel : ViewModel() {
         }
 
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            playerPreferences.selectedSubscriptionGroup.collect { groupName ->
+                _uiState.update { it.copy(selectedGroupName = groupName) }
+                if (latestFeedVideos.isNotEmpty()) {
+                    updateVideos(latestFeedVideos)
+                }
+            }
+        }
+
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            combine(
+                playerPreferences.subscriptionLastRefreshTime,
+                playerPreferences.subscriptionLastRefreshedCount
+            ) { time, count -> time to count }
+                .collect { (time, count) ->
+                    _uiState.update {
+                        it.copy(
+                            lastRefreshTime = time,
+                            lastRefreshText = if (time > 0L) formatTimestamp(time) else null,
+                            lastRefreshVideoCount = count
+                        )
+                    }
+                }
+        }
+
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
             viewHistory.getVideoHistoryFlow()
                 .combine(playerPreferences.hideWatchedVideos) { history, hideWatched ->
-                    // Always remove fully watched videos from Subs; the setting lowers the cutoff.
                     val threshold = if (hideWatched) 10f else 90f
                     history
                         .asSequence()
@@ -111,21 +135,7 @@ class SubscriptionsViewModel : ViewModel() {
             cacheDao.getSubscriptionFeed().collect { cachedFeed ->
                 Log.d(TAG, "Cache observer: ${cachedFeed.size} entries in DB")
                 if (cachedFeed.isNotEmpty()) {
-                    val videos = cachedFeed.map { entity ->
-                         Video(
-                            id = entity.videoId,
-                            title = entity.title,
-                            channelName = entity.channelName,
-                            channelId = entity.channelId,
-                            thumbnailUrl = entity.thumbnailUrl,
-                            duration = entity.duration,
-                            viewCount = entity.viewCount,
-                            uploadDate = entity.uploadDate,
-                            timestamp = entity.timestamp,
-                            channelThumbnailUrl = entity.channelThumbnailUrl,
-                            isShort = entity.isShort
-                        )
-                    }
+                    val videos = cachedFeed.map { it.toVideo() }
                     Log.d(TAG, "Cache observer: calling updateVideos with ${videos.size} videos")
                     latestFeedVideos = videos
                     updateVideos(videos)
@@ -204,39 +214,45 @@ class SubscriptionsViewModel : ViewModel() {
         try {
             io.github.aedev.flow.data.innertube.RssSubscriptionService.fetchSubscriptionVideos(
                 channelIds = channelIds,
-                maxTotal = 200
+                maxTotal = 600,
+                onProgress = { processed, total ->
+                    _uiState.update {
+                        it.copy(
+                            refreshProcessedChannels = processed,
+                            refreshTotalChannels = total
+                        )
+                    }
+                }
             ).collect { videos ->
                 Log.i(TAG, "Network emit received: ${videos.size} videos (shorts=${videos.count { it.isShort }}, regular=${videos.count { !it.isShort }})")
                 if (videos.isNotEmpty()) {
-                    latestFeedVideos = videos
-                    updateVideos(videos)
-                    val entities = videos.map { video ->
-                        io.github.aedev.flow.data.local.entity.SubscriptionFeedEntity(
-                            videoId = video.id,
-                            title = video.title,
-                            channelName = video.channelName,
-                            channelId = video.channelId,
-                            thumbnailUrl = video.thumbnailUrl,
-                            duration = video.duration,
-                            viewCount = video.viewCount,
-                            uploadDate = video.uploadDate,
-                            timestamp = video.timestamp,
-                            channelThumbnailUrl = video.channelThumbnailUrl,
-                            isShort = video.isShort,
-                            cachedAt = System.currentTimeMillis()
-                        )
-                    }
+                    val refreshTime = System.currentTimeMillis()
+                    val entities = videos.map { video -> video.toSubscriptionFeedEntity(refreshTime) }
                     withContext(PerformanceDispatcher.diskIO) {
-                        cacheDao.clearSubscriptionFeed()
                         cacheDao.insertSubscriptionFeed(entities)
+                        playerPreferences.setSubscriptionLastRefresh(refreshTime, videos.size)
                     }
+                    val currentCached = withContext(PerformanceDispatcher.diskIO) {
+                        cacheDao.getSubscriptionFeed().first().map { it.toVideo() }
+                    }
+                    latestFeedVideos = currentCached
+                    updateVideos(currentCached)
                 } else {
                     Log.w(TAG, "Network emit was empty!")
+                    withContext(PerformanceDispatcher.diskIO) {
+                        playerPreferences.setSubscriptionLastRefresh(System.currentTimeMillis(), 0)
+                    }
                 }
             }
         } finally {
             if (showLoading) {
-                _uiState.update { it.copy(isLoading = false) }
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        refreshProcessedChannels = 0,
+                        refreshTotalChannels = 0
+                    )
+                }
             }
             isNetworkFetchRunning = false
         }
@@ -310,23 +326,10 @@ class SubscriptionsViewModel : ViewModel() {
     fun selectGroup(groupName: String?) {
         _uiState.update { it.copy(selectedGroupName = groupName) }
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            playerPreferences.setSelectedSubscriptionGroup(groupName)
             val cached = cacheDao.getSubscriptionFeed().first()
             if (cached.isNotEmpty()) {
-                val videos = cached.map { entity ->
-                    Video(
-                        id = entity.videoId,
-                        title = entity.title,
-                        channelName = entity.channelName,
-                        channelId = entity.channelId,
-                        thumbnailUrl = entity.thumbnailUrl,
-                        duration = entity.duration,
-                        viewCount = entity.viewCount,
-                        uploadDate = entity.uploadDate,
-                        timestamp = entity.timestamp,
-                        channelThumbnailUrl = entity.channelThumbnailUrl,
-                        isShort = entity.isShort
-                    )
-                }
+                val videos = cached.map { it.toVideo() }
                 latestFeedVideos = videos
                 updateVideos(videos)
             }
@@ -362,6 +365,7 @@ class SubscriptionsViewModel : ViewModel() {
                 }
                 if (_uiState.value.selectedGroupName == oldName) {
                     _uiState.update { it.copy(selectedGroupName = newName) }
+                    playerPreferences.setSelectedSubscriptionGroup(newName)
                 }
             }
         }
@@ -373,6 +377,19 @@ class SubscriptionsViewModel : ViewModel() {
             if (_uiState.value.selectedGroupName == name) {
                 selectGroup(null)
             }
+        }
+    }
+
+    fun moveGroup(name: String, direction: Int) {
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            val groups = subscriptionGroupDao.getAllGroupsOnce().toMutableList()
+            val currentIndex = groups.indexOfFirst { it.name == name }
+            val targetIndex = (currentIndex + direction).coerceIn(0, groups.lastIndex)
+            if (currentIndex < 0 || currentIndex == targetIndex) return@launch
+
+            val moved = groups.removeAt(currentIndex)
+            groups.add(targetIndex, moved)
+            subscriptionGroupDao.insertAll(groups.mapIndexed { index, group -> group.copy(sortOrder = index) })
         }
     }
 
@@ -564,7 +581,12 @@ data class SubscriptionsUiState(
     val isShortsShelfEnabled: Boolean = true,
     val notificationStates: Map<String, Boolean> = emptyMap(),
     val groups: List<SubscriptionGroup> = emptyList(),
-    val selectedGroupName: String? = null
+    val selectedGroupName: String? = null,
+    val refreshProcessedChannels: Int = 0,
+    val refreshTotalChannels: Int = 0,
+    val lastRefreshTime: Long = 0L,
+    val lastRefreshText: String? = null,
+    val lastRefreshVideoCount: Int = 0
 )
 
 data class SubscriptionGroup(
@@ -577,5 +599,36 @@ fun SubscriptionGroupEntity.toUiModel() = SubscriptionGroup(
     name = name,
     channelIds = if (channelIds.isBlank()) emptyList() else channelIds.split(",").filter { it.isNotBlank() },
     sortOrder = sortOrder
+)
+
+private fun io.github.aedev.flow.data.local.entity.SubscriptionFeedEntity.toVideo() = Video(
+    id = videoId,
+    title = title,
+    channelName = channelName,
+    channelId = channelId,
+    thumbnailUrl = thumbnailUrl,
+    duration = duration,
+    viewCount = viewCount,
+    uploadDate = uploadDate,
+    timestamp = timestamp,
+    channelThumbnailUrl = channelThumbnailUrl,
+    isShort = isShort
+)
+
+private fun Video.toSubscriptionFeedEntity(
+    cachedAtMillis: Long
+) = io.github.aedev.flow.data.local.entity.SubscriptionFeedEntity(
+    videoId = id,
+    title = title,
+    channelName = channelName,
+    channelId = channelId,
+    thumbnailUrl = thumbnailUrl,
+    duration = duration,
+    viewCount = viewCount,
+    uploadDate = uploadDate,
+    timestamp = timestamp,
+    channelThumbnailUrl = channelThumbnailUrl,
+    isShort = isShort,
+    cachedAt = cachedAtMillis
 )
 

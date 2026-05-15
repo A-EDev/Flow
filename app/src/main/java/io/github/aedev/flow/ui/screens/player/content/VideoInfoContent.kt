@@ -56,6 +56,7 @@ fun VideoInfoContent(
     viewModel: VideoPlayerViewModel,
     screenState: PlayerScreenState,
     comments: List<Comment>,
+    showCommentsPreview: Boolean = true,
     context: Context,
     scope: CoroutineScope,
     snackbarHostState: SnackbarHostState,
@@ -327,12 +328,13 @@ fun VideoInfoContent(
         onDescriptionClick = { screenState.showDescriptionSheet = true }
     )
 
-    // Comments Preview
-    CommentsPreview(
-        latestComment = comments.firstOrNull()?.text,
-        authorAvatar = comments.firstOrNull()?.authorThumbnail,
-        onClick = { screenState.showCommentsSheet = true }
-    )
+    if (showCommentsPreview) {
+        CommentsPreview(
+            latestComment = comments.firstOrNull()?.text,
+            authorAvatar = comments.firstOrNull()?.authorThumbnail,
+            onClick = { screenState.showCommentsSheet = true }
+        )
+    }
 }
 
 /**

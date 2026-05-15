@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-15
+DATE: 2026-05-16
 STATUS: PRE-RELEASE
 
 FEATURES
@@ -16,6 +16,8 @@ FEATURES
 - Add RYD disable option #433
 - Add background worker and notification disable option #411
 - Add new video player controls lock mode #441
+- Add toggle to refresh subscriptions at app startup #435
+- Add navigation tab order controls and default tab selection
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361
@@ -41,6 +43,7 @@ IMPROVEMENTS
 - Prefer VP9/H264 over AV1 for playback #406
 - Improve Live streams handling and UI #435 #416 #390
 - Improved watched content filtering #451
+- Improve subscriptions feed UI, count and cache #435
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

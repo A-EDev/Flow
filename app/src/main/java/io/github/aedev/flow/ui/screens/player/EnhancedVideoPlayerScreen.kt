@@ -57,6 +57,7 @@ fun EnhancedVideoPlayerScreen(
     
     val preferences = remember { PlayerPreferences(context) }
     val showRelatedVideos by preferences.showRelatedVideos.collectAsState(initial = true)
+    val showCommentsPreview by preferences.commentsPreviewEnabled.collectAsState(initial = true)
     val relatedCardStyle by preferences.playerRelatedCardStyle.collectAsState(initial = PlayerRelatedCardStyle.FULL_WIDTH)
     Box(
         modifier = Modifier
@@ -93,6 +94,7 @@ fun EnhancedVideoPlayerScreen(
                             viewModel = viewModel,
                             screenState = screenState,
                             comments = comments,
+                            showCommentsPreview = showCommentsPreview,
                             context = context,
                             scope = scope,
                             snackbarHostState = snackbarHostState,
@@ -128,6 +130,7 @@ fun EnhancedVideoPlayerScreen(
                                     viewModel = viewModel,
                                     screenState = screenState,
                                     comments = comments,
+                                    showCommentsPreview = showCommentsPreview,
                                     context = context,
                                     scope = scope,
                                     snackbarHostState = snackbarHostState,

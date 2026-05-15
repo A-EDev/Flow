@@ -67,7 +67,8 @@ fun NavGraphBuilder.flowAppGraph(
     customThemeColors: CustomThemeColors,
     onThemeChange: (ThemeMode) -> Unit,
     onCustomThemeColorsChange: (CustomThemeColors) -> Unit,
-    disableShortsPlayer: Boolean = false
+    disableShortsPlayer: Boolean = false,
+    defaultStartRoute: String = "home"
 ) {
     // =============================================
     // ONBOARDING (First-time user experience)
@@ -77,8 +78,8 @@ fun NavGraphBuilder.flowAppGraph(
         showBottomNav.value = false
         OnboardingScreen(
             onComplete = {
-                // Navigate to home and clear the backstack so user can't go back to onboarding
-                navController.navigate("home") {
+                // Navigate to the selected default tab and clear the backstack so user can't go back to onboarding
+                navController.navigate(defaultStartRoute) {
                     popUpTo("onboarding") { inclusive = true }
                 }
             }

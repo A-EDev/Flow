@@ -31,6 +31,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.local.AppDatabase
+import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.SubscriptionRepository
+import io.github.aedev.flow.data.local.entity.SubscriptionFeedEntity
+import io.github.aedev.flow.data.innertube.RssSubscriptionService
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
@@ -47,7 +52,10 @@ import io.github.aedev.flow.ui.screens.music.EnhancedMusicPlayerScreen
 import io.github.aedev.flow.ui.screens.player.VideoPlayerViewModel
 import io.github.aedev.flow.ui.theme.CustomThemeColors
 import io.github.aedev.flow.ui.theme.ThemeMode
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 
 @UnstableApi
 @Composable
@@ -75,12 +83,16 @@ fun FlowApp(
         isFullscreen = playerUiState.isFullscreen
     )
     
-    val preferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
+    val preferences = remember { PlayerPreferences(context) }
     val isShortsNavigationEnabled by preferences.shortsNavigationEnabled.collectAsState(initial = true)
     val isMusicNavigationEnabled by preferences.musicNavigationEnabled.collectAsState(initial = true)
     val isSearchNavigationEnabled by preferences.searchNavigationEnabled.collectAsState(initial = false)
     val isCategoriesNavigationEnabled by preferences.categoriesNavigationEnabled.collectAsState(initial = false)
     val disableShortsPlayer by preferences.disableShortsPlayer.collectAsState(initial = false)
+    val navTabOrder by preferences.navTabOrder.collectAsState(initial = io.github.aedev.flow.data.local.DEFAULT_NAV_TAB_ORDER)
+    val defaultNavTabIndex by preferences.defaultNavTabIndex.collectAsState(initial = 0)
+    val subscriptionRefreshOnStartup by preferences.subscriptionRefreshOnStartup.collectAsState(initial = false)
+    val defaultStartRoute = navRouteForIndex(defaultNavTabIndex)
     
     // Mini Player Customizations
     val miniPlayerScale by preferences.miniPlayerScale.collectAsState(initial = 0.45f)
@@ -97,6 +109,12 @@ fun FlowApp(
         FlowNeuroEngine.initialize(context)
         DeepFlowManager.initialize(context)
         needsOnboarding = FlowNeuroEngine.needsOnboarding()
+    }
+
+    LaunchedEffect(subscriptionRefreshOnStartup) {
+        if (subscriptionRefreshOnStartup) {
+            refreshSubscriptionsAtStartup(context.applicationContext, preferences)
+        }
     }
 
     LaunchedEffect(snackbarHostState) {
@@ -296,7 +314,7 @@ fun FlowApp(
                 if (needsOnboarding != null) {
                     NavHost(
                         navController = navController,
-                        startDestination = if (needsOnboarding == true) "onboarding" else "home",
+                        startDestination = if (needsOnboarding == true) "onboarding" else defaultStartRoute,
                         enterTransition = {
                             fadeIn(animationSpec = tween(250, easing = FastOutSlowInEasing)) +
                             slideInHorizontally(
@@ -338,7 +356,8 @@ fun FlowApp(
                             customThemeColors = customThemeColors,
                             onThemeChange = onThemeChange,
                             onCustomThemeColorsChange = onCustomThemeColorsChange,
-                            disableShortsPlayer = disableShortsPlayer
+                            disableShortsPlayer = disableShortsPlayer,
+                            defaultStartRoute = defaultStartRoute
                         )
                     }
                 }
@@ -364,17 +383,9 @@ fun FlowApp(
                 isMusicEnabled = isMusicNavigationEnabled,
                 isSearchEnabled = isSearchNavigationEnabled,
                 isCategoriesEnabled = isCategoriesNavigationEnabled,
+                navOrder = navTabOrder,
                 onItemSelected = { index ->
-                    val route = when (index) {
-                        0 -> "home"
-                        1 -> "shorts"
-                        2 -> "music"
-                        3 -> "subscriptions"
-                        4 -> "library"
-                        5 -> "search"
-                        6 -> "categories"
-                        else -> "home"
-                    }
+                    val route = navRouteForIndex(index)
 
                     val activeRoute = navController.currentBackStackEntry?.destination?.route
                     if (activeRoute == route) {
@@ -498,6 +509,56 @@ fun FlowApp(
             )
     )
   } 
+}
+
+private fun navRouteForIndex(index: Int): String = when (index) {
+    0 -> "home"
+    1 -> "shorts"
+    2 -> "music"
+    3 -> "subscriptions"
+    4 -> "library"
+    5 -> "search"
+    6 -> "categories"
+    else -> "home"
+}
+
+private suspend fun refreshSubscriptionsAtStartup(
+    context: android.content.Context,
+    preferences: PlayerPreferences
+) = withContext(Dispatchers.IO) {
+    runCatching {
+        val subscriptions = SubscriptionRepository.getInstance(context).getAllSubscriptions().first()
+        if (subscriptions.isEmpty()) return@runCatching
+
+        val cacheDao = AppDatabase.getDatabase(context).cacheDao()
+        RssSubscriptionService.fetchSubscriptionVideos(
+            channelIds = subscriptions.map { it.channelId },
+            maxTotal = 600
+        ).collect { videos ->
+            if (videos.isEmpty()) return@collect
+            val refreshTime = System.currentTimeMillis()
+            val entities = videos.map { video ->
+                SubscriptionFeedEntity(
+                    videoId = video.id,
+                    title = video.title,
+                    channelName = video.channelName,
+                    channelId = video.channelId,
+                    thumbnailUrl = video.thumbnailUrl,
+                    duration = video.duration,
+                    viewCount = video.viewCount,
+                    uploadDate = video.uploadDate,
+                    timestamp = video.timestamp,
+                    channelThumbnailUrl = video.channelThumbnailUrl,
+                    isShort = video.isShort,
+                    cachedAt = refreshTime
+                )
+            }
+            cacheDao.insertSubscriptionFeed(entities)
+            preferences.setSubscriptionLastRefresh(refreshTime, videos.size)
+        }
+    }.onFailure {
+        android.util.Log.w("FlowApp", "Startup subscription refresh failed: ${it.message}")
+    }
 }
 
 @Composable

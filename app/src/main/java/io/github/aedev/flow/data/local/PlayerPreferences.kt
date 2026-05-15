@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.map
 private val Context.playerPreferencesDataStore: DataStore<Preferences> by preferencesDataStore(name = "player_preferences")
 
 const val DEEP_FLOW_NEVER_EXPIRES_HOURS = 0
+val DEFAULT_NAV_TAB_ORDER = listOf(0, 1, 2, 3, 4, 5, 6)
 
 class PlayerPreferences(private val context: Context) {
     
@@ -153,6 +154,14 @@ class PlayerPreferences(private val context: Context) {
 
         // Subscriptions feed view mode
         val SUBS_FULL_WIDTH_VIEW = booleanPreferencesKey("subs_full_width_view")
+        val SUBS_SELECTED_GROUP = stringPreferencesKey("subs_selected_group")
+        val SUBS_REFRESH_ON_STARTUP = booleanPreferencesKey("subs_refresh_on_startup")
+        val SUBS_LAST_REFRESH_TIME = longPreferencesKey("subs_last_refresh_time")
+        val SUBS_LAST_REFRESHED_COUNT = intPreferencesKey("subs_last_refreshed_count")
+
+        // Navigation tab preferences
+        val NAV_TAB_ORDER = stringPreferencesKey("nav_tab_order")
+        val DEFAULT_NAV_TAB_INDEX = intPreferencesKey("default_nav_tab_index")
 
         // Remember playback speed
         val REMEMBER_PLAYBACK_SPEED = booleanPreferencesKey("remember_playback_speed")
@@ -200,6 +209,9 @@ class PlayerPreferences(private val context: Context) {
 
         // Show app logo icon in home screen top bar
         val SHOW_APP_LOGO_ICON = booleanPreferencesKey("show_app_logo_icon")
+
+        // Player comments preview
+        val COMMENTS_PREVIEW_ENABLED = booleanPreferencesKey("comments_preview_enabled")
 
         // Deep Flow (Incognito / No-Engine) mode
         val DEEP_FLOW_ACTIVE = booleanPreferencesKey("deep_flow_active")
@@ -984,6 +996,74 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setSubsFullWidthView(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SUBS_FULL_WIDTH_VIEW] = enabled
+        }
+    }
+
+    val selectedSubscriptionGroup: Flow<String?> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.SUBS_SELECTED_GROUP]?.takeIf { it.isNotBlank() } }
+
+    suspend fun setSelectedSubscriptionGroup(groupName: String?) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            if (groupName.isNullOrBlank()) {
+                preferences.remove(Keys.SUBS_SELECTED_GROUP)
+            } else {
+                preferences[Keys.SUBS_SELECTED_GROUP] = groupName
+            }
+        }
+    }
+
+    val subscriptionRefreshOnStartup: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.SUBS_REFRESH_ON_STARTUP] ?: false }
+
+    suspend fun setSubscriptionRefreshOnStartup(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SUBS_REFRESH_ON_STARTUP] = enabled
+        }
+    }
+
+    val subscriptionLastRefreshTime: Flow<Long> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.SUBS_LAST_REFRESH_TIME] ?: 0L }
+
+    val subscriptionLastRefreshedCount: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.SUBS_LAST_REFRESHED_COUNT] ?: 0 }
+
+    suspend fun setSubscriptionLastRefresh(timeMillis: Long, count: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SUBS_LAST_REFRESH_TIME] = timeMillis
+            preferences[Keys.SUBS_LAST_REFRESHED_COUNT] = count
+        }
+    }
+
+    val navTabOrder: Flow<List<Int>> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.NAV_TAB_ORDER]
+                ?.split(",")
+                ?.mapNotNull { it.toIntOrNull() }
+                ?.takeIf { it.isNotEmpty() }
+                ?: DEFAULT_NAV_TAB_ORDER
+        }
+
+    suspend fun setNavTabOrder(order: List<Int>) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.NAV_TAB_ORDER] = order.distinct().joinToString(",")
+        }
+    }
+
+    val defaultNavTabIndex: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.DEFAULT_NAV_TAB_INDEX] ?: 0 }
+
+    suspend fun setDefaultNavTabIndex(index: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DEFAULT_NAV_TAB_INDEX] = index
+        }
+    }
+
+    val commentsPreviewEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.COMMENTS_PREVIEW_ENABLED] ?: true }
+
+    suspend fun setCommentsPreviewEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.COMMENTS_PREVIEW_ENABLED] = enabled
         }
     }
 
