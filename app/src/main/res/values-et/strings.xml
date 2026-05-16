@@ -306,4 +306,23 @@
     <string name="action_want_more">Tahaks veel selliseid</string>
     <string name="action_not_interested">Pole huvitatud</string>
     <string name="settings_item_diagnostics">Diagnostika</string>
+    <string name="no_groups_yet">Gruppe veel pole. Oma sisuvoo filtreerimiseks loo mõni.</string>
+    <string name="settings_title">Seadistused</string>
+    <string name="settings_flow_engine_header">Flow sisumootor</string>
+    <string name="settings_active_learning">AKTIIVÕPE</string>
+    <string name="settings_reset_brain_title">Kas lähtestad Flow isiksuse?</string>
+    <string name="settings_reset_brain_body">Järgnevaga kustutad täielikult su „Flow Brain“ huvide profiili.\n\n• Kõik õpitud teemad ununevad.\n• Isiksuseomadused taastuvad neutraalsele tasemele.\n• Soovitused taastuvad vaikimisi valikuteks.\n\nSeda toimingut ei saa tagasi võtta.</string>
+    <string name="settings_reset_everything">Lähtesta kõik</string>
+    <string name="settings_analyzing_interactions">Analüüsin sinu suhestumisi…</string>
+    <string name="settings_view_analytics">Vaata analüüsi tulemusi</string>
+    <string name="settings_header_appearance">Välimus</string>
+    <string name="settings_header_content_playback">Sisu ja taasesitus</string>
+    <string name="settings_header_data_management">Andmehaldus</string>
+    <string name="settings_header_about">Rakenduse teave</string>
+    <string name="settings_header_notifications">Teavitused</string>
+    <string name="settings_item_notifications">Teavituste eelistused</string>
+    <string name="settings_item_notifications_subtitle">Halda Flow saadetavaid teavitusi</string>
+    <string name="notif_settings_title">Teavituste eelistused</string>
+    <string name="notif_type_new_videos">Uued videod</string>
+    <string name="notif_type_new_videos_subtitle">Teavita, kui tellitud kanalitesse laaditakse üles uusi videoid</string>
 </resources>
