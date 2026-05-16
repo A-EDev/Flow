@@ -79,6 +79,7 @@ fun PlayerSettingsScreen(
     val backgroundPlayEnabled by playerPreferences.backgroundPlayEnabled.collectAsState(initial = false)
     val shortsBackgroundPlay by playerPreferences.shortsBackgroundPlay.collectAsState(initial = false)
     val shortsPlaybackMode by playerPreferences.shortsPlaybackMode.collectAsState(initial = "loop")
+    val shortsAutoScrollSeconds by playerPreferences.shortsAutoScrollSeconds.collectAsState(initial = 10)
     val preferredAudioLanguage by playerPreferences.preferredAudioLanguage.collectAsState(initial = "original")
     val playDuringCalls by playerPreferences.playDuringCalls.collectAsState(initial = false)
     val currentLyricsProvider by playerPreferences.preferredLyricsProvider.collectAsState(initial = "LRCLIB")
@@ -248,10 +249,14 @@ fun PlayerSettingsScreen(
                     SettingsClickItem(
                         icon = Icons.Outlined.SwapVert,
                         title = stringResource(R.string.player_settings_shorts_playback_mode_title),
-                        subtitle = if (shortsPlaybackMode == "loop") 
-                            stringResource(R.string.player_settings_shorts_playback_mode_loop)
-                        else 
-                            stringResource(R.string.player_settings_shorts_playback_mode_auto_next),
+                        subtitle = when (shortsPlaybackMode) {
+                            "auto_next" -> stringResource(R.string.player_settings_shorts_playback_mode_auto_next)
+                            "auto_interval" -> stringResource(
+                                R.string.player_settings_shorts_playback_mode_auto_interval_summary,
+                                shortsAutoScrollSeconds
+                            )
+                            else -> stringResource(R.string.player_settings_shorts_playback_mode_loop)
+                        },
                         onClick = { showShortsPlaybackModeDialog = true }
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
@@ -562,8 +567,11 @@ fun PlayerSettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
-                    listOf("loop" to R.string.player_settings_shorts_playback_mode_loop,
-                           "auto_next" to R.string.player_settings_shorts_playback_mode_auto_next).forEach { (mode, labelRes) ->
+                    listOf(
+                        "loop" to R.string.player_settings_shorts_playback_mode_loop,
+                        "auto_next" to R.string.player_settings_shorts_playback_mode_auto_next,
+                        "auto_interval" to R.string.player_settings_shorts_playback_mode_auto_interval
+                    ).forEach { (mode, labelRes) ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -584,6 +592,35 @@ fun PlayerSettingsScreen(
                             Text(
                                 text = stringResource(labelRes),
                                 style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(visible = shortsPlaybackMode == "auto_interval") {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp)
+                        ) {
+                            Text(
+                                text = stringResource(
+                                    R.string.player_settings_shorts_auto_scroll_seconds_template,
+                                    shortsAutoScrollSeconds
+                                ),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                            Slider(
+                                value = shortsAutoScrollSeconds.toFloat(),
+                                onValueChange = { value ->
+                                    coroutineScope.launch {
+                                        playerPreferences.setShortsAutoScrollSeconds(value.toInt())
+                                    }
+                                },
+                                valueRange = 5f..20f,
+                                steps = 14,
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }

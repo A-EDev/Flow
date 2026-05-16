@@ -127,7 +127,8 @@ class HomeViewModel @Inject constructor(
                         HomeFeedCache.filterOut(videoId = event.videoId)
                         _uiState.update { state ->
                             state.copy(
-                                videos = state.videos.filter { it.id != event.videoId }
+                                videos = state.videos.filter { it.id != event.videoId },
+                                shorts = state.shorts.filter { it.id != event.videoId }
                             )
                         }
                         // Full clear — topic signals changed, discovery queries will differ
@@ -137,7 +138,8 @@ class HomeViewModel @Inject constructor(
                         HomeFeedCache.filterOut(videoId = event.videoId)
                         _uiState.update { state ->
                             state.copy(
-                                videos = state.videos.filter { it.id != event.videoId }
+                                videos = state.videos.filter { it.id != event.videoId },
+                                shorts = state.shorts.filter { it.id != event.videoId }
                             )
                         }
                     }
@@ -170,7 +172,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             viewHistory?.getVideoHistoryFlow()?.collect { history ->
                 val inProgress = history
-                    .filter { it.progressPercentage in 3f..90f }
+                    .filter { !it.isShort && it.progressPercentage in 3f..90f }
                     .sortedByDescending { it.timestamp }
                     .take(20)
                 _uiState.update { it.copy(continueWatchingVideos = inProgress) }
@@ -299,6 +301,7 @@ class HomeViewModel @Inject constructor(
                 // Extract shorts from all sources for the shelf, ranked by FlowNeuro
                 val feedShorts = (rawSubs.extractShorts() + rawDiscovery.extractShorts() + rawViral.extractShorts())
                     .distinctBy { it.id }
+                    .filterWatched(watchedVideoIds.value)
                 if (feedShorts.isNotEmpty() && playerPreferences.homeShortsShelfEnabled.first()) {
                     val rankedShorts = FlowNeuroEngine.rank(feedShorts, userSubs)
                     _uiState.update { state ->
@@ -503,6 +506,7 @@ class HomeViewModel @Inject constructor(
                 
                 // Extract shorts for shelf — rank through FlowNeuro
                 val moreShorts = rawVideos.extractShorts()
+                    .filterWatched(watchedVideoIds.value)
                 if (moreShorts.isNotEmpty() && playerPreferences.homeShortsShelfEnabled.first()) {
                     val subs = subscriptionRepository.getAllSubscriptionIds()
                     val rankedMore = FlowNeuroEngine.rank(moreShorts, subs)

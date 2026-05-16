@@ -237,8 +237,12 @@ fun SubscriptionsScreen(
                                     onChannelClick("https://youtube.com/channel/${channel.id}") 
                                 },
                                 isNotificationsEnabled = uiState.notificationStates[channel.id] ?: false,
+                                areShortsExcluded = channel.id in uiState.excludedShortsChannelIds,
                                 onNotificationChange = { enabled ->
                                     viewModel.updateNotificationState(channel.id, enabled)
+                                },
+                                onShortsExcludeChange = { excluded ->
+                                    viewModel.setShortsChannelExcluded(channel.id, excluded)
                                 },
                                 onUnsubscribe = {
                                     scope.launch {
@@ -733,7 +737,9 @@ fun SubscriptionManagerItem(
     onClick: () -> Unit,
     onUnsubscribe: () -> Unit,
     isNotificationsEnabled: Boolean = false,
-    onNotificationChange: (Boolean) -> Unit = {}
+    areShortsExcluded: Boolean = false,
+    onNotificationChange: (Boolean) -> Unit = {},
+    onShortsExcludeChange: (Boolean) -> Unit = {}
 ) {
     Row(
         modifier = Modifier
@@ -809,6 +815,27 @@ fun SubscriptionManagerItem(
                         expanded = false
                     },
                     leadingIcon = { Icon(Icons.Rounded.NotificationsOff, null) }
+                )
+                HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            androidx.compose.ui.res.stringResource(
+                                if (areShortsExcluded) R.string.show_channel_shorts
+                                else R.string.hide_channel_shorts
+                            )
+                        )
+                    },
+                    onClick = {
+                        onShortsExcludeChange(!areShortsExcluded)
+                        expanded = false
+                    },
+                    leadingIcon = {
+                        Icon(
+                            if (areShortsExcluded) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            null
+                        )
+                    }
                 )
                 HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.surfaceVariant)
                 DropdownMenuItem(

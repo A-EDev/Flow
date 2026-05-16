@@ -73,7 +73,8 @@ class ViewHistory private constructor(private val context: Context) {
         thumbnailUrl: String = "",
         channelName: String = "",
         channelId: String = "",
-        isMusic: Boolean = false
+        isMusic: Boolean = false,
+        isShort: Boolean = false
     ) {
         if (PlayerPreferences(context).isDeepFlowCurrentlyActive()) return
 
@@ -88,7 +89,8 @@ class ViewHistory private constructor(private val context: Context) {
                 thumbnailUrl = thumbnail,
                 channelName  = channelName,
                 channelId    = channelId,
-                isMusic      = isMusic
+                isMusic      = isMusic,
+                isShort      = isShort
             )
         )
     }
@@ -104,7 +106,8 @@ class ViewHistory private constructor(private val context: Context) {
         thumbnailUrl: String = "",
         channelName: String = "",
         channelId: String = "",
-        duration: Long = 0L
+        duration: Long = 0L,
+        isShort: Boolean = false
     ) {
         if (PlayerPreferences(context).isDeepFlowCurrentlyActive()) return
 
@@ -120,7 +123,8 @@ class ViewHistory private constructor(private val context: Context) {
                 thumbnailUrl = thumbnail,
                 channelName  = channelName,
                 channelId    = channelId,
-                isMusic      = false
+                isMusic      = false,
+                isShort      = isShort
             )
         )
     }
@@ -142,7 +146,8 @@ class ViewHistory private constructor(private val context: Context) {
                 thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(entry.videoId, entry.thumbnailUrl),
                 channelName  = entry.channelName,
                 channelId    = entry.channelId,
-                isMusic      = entry.isMusic
+                isMusic      = entry.isMusic,
+                isShort      = entry.isShort
             )
         }
         dao.insertAll(entities)
@@ -183,6 +188,9 @@ class ViewHistory private constructor(private val context: Context) {
     /** Music history, newest first. */
     fun getMusicHistoryFlow(): Flow<List<VideoHistoryEntry>> =
         dao.getMusicHistory().map { list -> list.map { it.toDomain() } }
+
+    suspend fun getWatchedShortIdsAboveThreshold(minPercent: Float = 90f): Set<String> =
+        dao.getWatchedShortIdsAboveThreshold(minPercent).toHashSet()
 
     /** Efficient count without loading all rows — use this instead of list.size. */
     fun getVideoCount(): Flow<Int> = dao.getVideoCount()
@@ -256,7 +264,8 @@ data class VideoHistoryEntry(
     val thumbnailUrl: String,
     val channelName: String = "",
     val channelId: String = "",
-    val isMusic: Boolean = false
+    val isMusic: Boolean = false,
+    val isShort: Boolean = false
 ) {
     val progressPercentage: Float
         get() = if (duration > 0) (position.toFloat() / duration.toFloat()) * 100f else 0f

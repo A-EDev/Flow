@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.SubscriptionRepository
+import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.ShortVideo
 import io.github.aedev.flow.data.model.toShortVideo
 import io.github.aedev.flow.data.model.toVideo
@@ -49,7 +50,8 @@ class ShortsViewModel @Inject constructor(
     private val shortsRepository: ShortsRepository,
     private val likedVideosRepository: LikedVideosRepository,
     private val subscriptionRepository: SubscriptionRepository,
-    private val playlistRepository: PlaylistRepository
+    private val playlistRepository: PlaylistRepository,
+    private val viewHistory: ViewHistory
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(ShortsUiState())
@@ -200,13 +202,6 @@ class ShortsViewModel @Inject constructor(
                     }
                 }
                 
-                if (shorts.isNotEmpty()) {
-                    val idsToPreload = shorts.take(3).map { it.id }
-                    viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                        preResolveStreams(idsToPreload)
-                    }
-                }
-
                 _uiState.value = _uiState.value.copy(
                     shorts = shorts,
                     currentIndex = startIndex,
@@ -326,6 +321,9 @@ class ShortsViewModel @Inject constructor(
      * Get stream info for a specific video. Used by the player.
      */
     suspend fun getVideoStreamInfo(videoId: String) = shortsRepository.resolveStreamInfo(videoId)
+
+    suspend fun getPlaybackStreams(videoId: String, targetHeight: Int, preferredAudioLanguage: String) =
+        shortsRepository.resolvePlaybackStreams(videoId, targetHeight, preferredAudioLanguage)
     
     // USER ACTIONS
     suspend fun toggleLike(short: ShortVideo) {
@@ -369,6 +367,67 @@ class ShortsViewModel @Inject constructor(
                 playlistRepository.removeFromSavedShorts(video.id)
             } else {
                 playlistRepository.addToSavedShorts(video)
+            }
+        }
+    }
+
+    fun recordShortProgress(short: ShortVideo, positionMs: Long, durationMs: Long) {
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            val video = short.toVideo()
+            val safeDuration = when {
+                durationMs > 0L -> durationMs
+                video.duration > 0 -> video.duration * 1000L
+                else -> 60_000L
+            }
+            val safePosition = positionMs
+                .coerceAtLeast(1_000L)
+                .coerceAtMost(safeDuration)
+
+            viewHistory.savePlaybackPosition(
+                videoId = video.id,
+                position = safePosition,
+                duration = safeDuration,
+                title = video.title,
+                thumbnailUrl = video.thumbnailUrl,
+                channelName = video.channelName,
+                channelId = video.channelId,
+                isMusic = false,
+                isShort = true
+            )
+        }
+    }
+
+    fun recordShortWatched(short: ShortVideo, positionMs: Long, durationMs: Long) {
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            val video = short.toVideo()
+            val safeDuration = when {
+                durationMs > 0L -> durationMs
+                video.duration > 0 -> video.duration * 1000L
+                else -> positionMs.coerceAtLeast(1_000L)
+            }
+            val watchedPosition = positionMs.coerceAtLeast((safeDuration * 0.9f).toLong())
+
+            viewHistory.savePlaybackPosition(
+                videoId = video.id,
+                position = watchedPosition.coerceAtMost(safeDuration),
+                duration = safeDuration,
+                title = video.title,
+                thumbnailUrl = video.thumbnailUrl,
+                channelName = video.channelName,
+                channelId = video.channelId,
+                isMusic = false,
+                isShort = true
+            )
+
+            runCatching {
+                FlowNeuroEngine.onVideoInteraction(
+                    video.copy(isShort = true),
+                    InteractionType.WATCHED,
+                    percentWatched = (watchedPosition.toFloat() / safeDuration.toFloat()).coerceIn(0f, 1f)
+                )
+                FlowNeuroEngine.recordSeenShorts(listOf(video.id))
+            }.onFailure { e ->
+                Log.w(TAG, "Failed to record watched short in FlowNeuro", e)
             }
         }
     }

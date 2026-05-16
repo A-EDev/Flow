@@ -19,7 +19,8 @@ import io.github.aedev.flow.data.model.Video
     indices = [
         Index(value = ["videoId"], unique = true),
         Index(value = ["timestamp"]),
-        Index(value = ["isMusic"])
+        Index(value = ["isMusic"]),
+        Index(value = ["isShort"])
     ]
 )
 data class WatchHistoryEntity(
@@ -31,7 +32,8 @@ data class WatchHistoryEntity(
     val thumbnailUrl: String,
     val channelName: String,
     val channelId: String,
-    val isMusic: Boolean
+    val isMusic: Boolean,
+    val isShort: Boolean = false
 ) {
     fun toDomain() = VideoHistoryEntry(
         videoId = videoId,
@@ -42,7 +44,8 @@ data class WatchHistoryEntity(
         thumbnailUrl = thumbnailUrl,
         channelName = channelName,
         channelId = channelId,
-        isMusic = isMusic
+        isMusic = isMusic,
+        isShort = isShort
     )
 
     /** Reconstruct a lightweight [Video] from history metadata (no stream info). */
@@ -54,7 +57,8 @@ data class WatchHistoryEntity(
         thumbnailUrl = thumbnailUrl,
         duration = if (duration > 0) (duration / 1000).toInt() else 0,
         viewCount = 0,
-        uploadDate = ""
+        uploadDate = "",
+        isShort = isShort
     )
 
     companion object {
@@ -67,7 +71,8 @@ data class WatchHistoryEntity(
             thumbnailUrl = entry.thumbnailUrl,
             channelName  = entry.channelName,
             channelId    = entry.channelId,
-            isMusic      = entry.isMusic
+            isMusic      = entry.isMusic,
+            isShort      = entry.isShort
         )
     }
 }

@@ -1080,7 +1080,8 @@ class VideoPlayerViewModel @Inject constructor(
                 thumbnailUrl = video.thumbnailUrl.takeIf { it.isNotEmpty() }
                     ?: "https://i.ytimg.com/vi/${video.id}/hq720.jpg",
                 channelName = video.channelName,
-                channelId   = video.channelId
+                channelId   = video.channelId,
+                isShort     = video.isShort
             )
         }
     }

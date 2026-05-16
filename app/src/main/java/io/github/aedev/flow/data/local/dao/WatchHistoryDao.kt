@@ -74,8 +74,17 @@ interface WatchHistoryDao {
     """)
     suspend fun getWatchedVideoIdsAboveThreshold(minPercent: Float = 10f): List<String>
 
+    @Query("""
+        SELECT videoId FROM watch_history
+        WHERE isMusic = 0
+        AND isShort = 1
+        AND duration > 0
+        AND (CAST(position AS REAL) / CAST(duration AS REAL)) * 100 >= :minPercent
+    """)
+    suspend fun getWatchedShortIdsAboveThreshold(minPercent: Float = 90f): List<String>
+
     /**
-     * Returns the most recently watched non-music video **only if that specific video
+     * Returns the most recently watched non-music, non-Short video **only if that specific video
      * is still in progress**.  By restricting to the maximum timestamp we avoid the
      * "stack fallback" problem where finishing one video causes the previous unfinished
      * video to pop up in the continue-watching mini-player instead.
@@ -89,11 +98,12 @@ interface WatchHistoryDao {
     @Query("""
         SELECT * FROM watch_history
         WHERE isMusic = 0
+        AND isShort = 0
         AND duration > 0
         AND position > 0
         AND (CAST(position AS REAL) / CAST(duration AS REAL)) < 0.95
         AND (duration - position) > 30000
-        AND timestamp = (SELECT MAX(timestamp) FROM watch_history WHERE isMusic = 0)
+        AND timestamp = (SELECT MAX(timestamp) FROM watch_history WHERE isMusic = 0 AND isShort = 0)
         LIMIT 1
     """)
     suspend fun getLatestUnfinishedVideo(): WatchHistoryEntity?

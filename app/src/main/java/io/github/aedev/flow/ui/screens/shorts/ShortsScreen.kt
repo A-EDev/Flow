@@ -176,15 +176,21 @@ fun ShortsScreen(
                     }
                 }
 
-                // Pre-resolve streams for adjacent pages
+                // Pre-resolve lightweight playback streams for the visible page and near neighbors.
                 LaunchedEffect(pagerState.currentPage) {
                     val currentIdx = pagerState.currentPage
                     val idsToPreload = listOfNotNull(
+                        uiState.shorts.getOrNull(currentIdx)?.id,
                         uiState.shorts.getOrNull(currentIdx + 1)?.id,
                         uiState.shorts.getOrNull(currentIdx + 2)?.id
                     )
                     if (idsToPreload.isNotEmpty()) {
-                        viewModel.preResolveStreams(idsToPreload)
+                        val preferredLang = audioLangPref.preferredAudioLanguage.first()
+                        idsToPreload.forEach { id ->
+                            launch {
+                                viewModel.getPlaybackStreams(id, shortsTargetHeight, preferredLang)
+                            }
+                        }
                     }
                 }
 
@@ -192,88 +198,34 @@ fun ShortsScreen(
                 LaunchedEffect(pagerState.settledPage) {
                     val settled = pagerState.settledPage
                     val playerPool = ShortsPlayerPool.getInstance()
+                    playerPool.initialize(context)
 
-                    suspend fun getStreams(id: String, preferredAudioUrl: String? = null): Pair<String?, String?>? {
-                        val streamInfo = viewModel.getVideoStreamInfo(id) ?: return null
-                        val targetH = shortsTargetHeight
-                        val allVideoStreams = (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
-                        val videoStream = if (targetH == 0) {
-                            allVideoStreams.maxByOrNull { it.height }
-                        } else {
-                            allVideoStreams.filter { it.height <= targetH }.maxByOrNull { it.height }
-                                ?: allVideoStreams.minByOrNull { it.height } 
-                        }
-
-                        val preferredLang = audioLangPref.preferredAudioLanguage.first()
-                        val audioCandidates = streamInfo.audioStreams
-                            ?.sortedByDescending { it.averageBitrate } ?: emptyList()
-
-                        val audioStream = when (preferredLang) {
-                            "original" -> {
-                                audioCandidates.firstOrNull { stream ->
-                                    stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
-                                } ?: audioCandidates.firstOrNull { stream ->
-                                    stream.audioTrackType != org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED
-                                } ?: audioCandidates.firstOrNull()
+                    suspend fun prepareShort(index: Int, short: ShortVideo, shouldPlay: Boolean) {
+                        try {
+                            val preferredLang = audioLangPref.preferredAudioLanguage.first()
+                            val streams = viewModel.getPlaybackStreams(short.id, shortsTargetHeight, preferredLang)
+                            if (streams != null) {
+                                playerPool.prepare(index, short.id, streams.videoUrl, streams.audioUrl, shouldPlay)
+                            } else {
+                                Log.w("ShortsScreen", "No stream URL resolved for ${short.id}")
                             }
-                            else -> {
-                                audioCandidates.firstOrNull { a ->
-                                    val lang = a.audioLocale?.language ?: ""
-                                    lang.startsWith(preferredLang, true)
-                                } ?: audioCandidates.firstOrNull { stream ->
-                                    stream.audioTrackType == org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL
-                                } ?: audioCandidates.firstOrNull()
-                            }
+                        } catch (e: Exception) {
+                            Log.e("ShortsScreen", "Failed to prepare player for ${short.id}", e)
                         }
-
-                        return (videoStream?.content ?: videoStream?.url) to (audioStream?.content ?: audioStream?.url)
                     }
 
-                    // 1. Activate Current
                     playerPool.activatePlayer(settled)
 
-                    val currentShort = uiState.shorts.getOrNull(settled)
-                    val currentPrepareJob = if (currentShort != null) {
-                        launch {
-                            try {
-                                val streams = getStreams(currentShort.id)
-                                val vUrl = streams?.first
-                                if (vUrl != null) {
-                                    playerPool.prepare(settled, currentShort.id, vUrl, streams?.second, true)
-                                } else {
-                                    Log.w("ShortsScreen", "No stream URL resolved for ${currentShort.id}")
-                                }
-                            } catch (e: Exception) {
-                                Log.e("ShortsScreen", "Failed to prepare player for ${currentShort.id}", e)
-                            }
-                        }
-                    } else null
-
-                    launch {
-                        currentPrepareJob?.join()
-
-                        // 2. Preload Next
-                        val nextShort = uiState.shorts.getOrNull(settled + 1)
-                        if (nextShort != null) {
-                            val streams = getStreams(nextShort.id)
-                            val vUrl = streams?.first
-                            if (vUrl != null) {
-                                playerPool.prepare(settled + 1, nextShort.id, vUrl, streams?.second, false)
-                            }
-                        }
-
-                        // 3. Preload Previous
-                        val prevShort = uiState.shorts.getOrNull(settled - 1)
-                        if (prevShort != null) {
-                            val streams = getStreams(prevShort.id)
-                            val vUrl = streams?.first
-                            if (vUrl != null) {
-                                playerPool.prepare(settled - 1, prevShort.id, vUrl, streams?.second, false)
-                            }
-                        }
+                    uiState.shorts.getOrNull(settled)?.let { currentShort ->
+                        launch { prepareShort(settled, currentShort, shouldPlay = true) }
+                    }
+                    uiState.shorts.getOrNull(settled + 1)?.let { nextShort ->
+                        launch { prepareShort(settled + 1, nextShort, shouldPlay = false) }
+                    }
+                    uiState.shorts.getOrNull(settled - 1)?.let { prevShort ->
+                        launch { prepareShort(settled - 1, prevShort, shouldPlay = false) }
                     }
 
-                    // 4. Cleanup distant players
                     playerPool.releaseUnusedPlayers(settled)
                 }
 

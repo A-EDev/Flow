@@ -181,8 +181,9 @@ class PlayerPreferences(private val context: Context) {
         // Shorts background playback
         val SHORTS_BACKGROUND_PLAY = booleanPreferencesKey("shorts_background_play")
 
-        // Shorts playback mode: "loop" (default) or "auto_next"
+        // Shorts playback mode: "loop" (default), "auto_next", or "auto_interval"
         val SHORTS_PLAYBACK_MODE = stringPreferencesKey("shorts_playback_mode")
+        val SHORTS_AUTO_SCROLL_SECONDS = intPreferencesKey("shorts_auto_scroll_seconds")
 
         // Cache size
         val MEDIA_CACHE_SIZE_MB = intPreferencesKey("media_cache_size_mb")
@@ -217,6 +218,7 @@ class PlayerPreferences(private val context: Context) {
         val SUBSCRIPTION_SHOW_VIDEOS = booleanPreferencesKey("subscription_show_videos")
         val SUBSCRIPTION_SHOW_SHORTS = booleanPreferencesKey("subscription_show_shorts")
         val SUBSCRIPTION_SHOW_LIVE = booleanPreferencesKey("subscription_show_live")
+        val SUBSCRIPTION_SHORTS_EXCLUDED_CHANNELS = stringSetPreferencesKey("subscription_shorts_excluded_channels")
 
         // Deep Flow (Incognito / No-Engine) mode
         val DEEP_FLOW_ACTIVE = booleanPreferencesKey("deep_flow_active")
@@ -1175,6 +1177,31 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setShortsPlaybackMode(mode: String) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHORTS_PLAYBACK_MODE] = mode
+        }
+    }
+
+    val shortsAutoScrollSeconds: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            (preferences[Keys.SHORTS_AUTO_SCROLL_SECONDS] ?: 10).coerceIn(5, 20)
+        }
+
+    suspend fun setShortsAutoScrollSeconds(seconds: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHORTS_AUTO_SCROLL_SECONDS] = seconds.coerceIn(5, 20)
+        }
+    }
+
+    val subscriptionShortsExcludedChannels: Flow<Set<String>> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SUBSCRIPTION_SHORTS_EXCLUDED_CHANNELS].orEmpty()
+        }
+
+    suspend fun setSubscriptionShortsChannelExcluded(channelId: String, excluded: Boolean) {
+        if (channelId.isBlank()) return
+        context.playerPreferencesDataStore.edit { preferences ->
+            val current = preferences[Keys.SUBSCRIPTION_SHORTS_EXCLUDED_CHANNELS].orEmpty()
+            preferences[Keys.SUBSCRIPTION_SHORTS_EXCLUDED_CHANNELS] =
+                if (excluded) current + channelId else current - channelId
         }
     }
 

@@ -50,6 +50,7 @@ class SubscriptionsViewModel : ViewModel() {
     private var isNetworkFetchRunning = false
     private var latestFeedVideos: List<Video> = emptyList()
     private var watchedVideoIds: Set<String> = emptySet()
+    private var excludedShortsChannelIds: Set<String> = emptySet()
 
     fun initialize(context: Context) {
         if (isInitialized) return
@@ -92,6 +93,18 @@ class SubscriptionsViewModel : ViewModel() {
                             showSubscriptionLive = showLive
                         )
                     }
+                    if (latestFeedVideos.isNotEmpty()) {
+                        updateVideos(latestFeedVideos)
+                    }
+                }
+        }
+
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            playerPreferences.subscriptionShortsExcludedChannels
+                .distinctUntilChanged()
+                .collect { ids ->
+                    excludedShortsChannelIds = ids
+                    _uiState.update { it.copy(excludedShortsChannelIds = ids) }
                     if (latestFeedVideos.isNotEmpty()) {
                         updateVideos(latestFeedVideos)
                     }
@@ -348,11 +361,11 @@ class SubscriptionsViewModel : ViewModel() {
             filteredRegular
         }
 
-        val groupFilteredShorts = if (allowedChannelIds != null) {
+        val groupFilteredShorts = (if (allowedChannelIds != null) {
             unwatchedShorts.filter { it.channelId in allowedChannelIds }
         } else {
             unwatchedShorts
-        }
+        }).filter { it.channelId !in excludedShortsChannelIds }
 
         _uiState.update { it.copy(recentVideos = groupFilteredRegular, shorts = groupFilteredShorts) }
     }
@@ -563,6 +576,12 @@ class SubscriptionsViewModel : ViewModel() {
         }
     }
 
+    fun setShortsChannelExcluded(channelId: String, excluded: Boolean) {
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            playerPreferences.setSubscriptionShortsChannelExcluded(channelId, excluded)
+        }
+    }
+
     fun toggleViewMode() {
         val newValue = !_uiState.value.isFullWidthView
         _uiState.update { it.copy(isFullWidthView = newValue) }
@@ -624,7 +643,8 @@ data class SubscriptionsUiState(
     val lastRefreshVideoCount: Int = 0,
     val showSubscriptionVideos: Boolean = true,
     val showSubscriptionShorts: Boolean = true,
-    val showSubscriptionLive: Boolean = true
+    val showSubscriptionLive: Boolean = true,
+    val excludedShortsChannelIds: Set<String> = emptySet()
 )
 
 data class SubscriptionGroup(

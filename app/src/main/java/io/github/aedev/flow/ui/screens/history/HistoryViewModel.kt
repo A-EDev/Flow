@@ -114,7 +114,8 @@ class HistoryViewModel : ViewModel() {
                                     ),
                                     channelName  = video.channelName,
                                     channelId    = video.channelId,
-                                    isMusic      = stub.isMusic
+                                    isMusic      = stub.isMusic,
+                                    isShort      = stub.isShort || video.isShort
                                 )
                             )
                         } catch (_: Exception) { /* skip individual failures */ }

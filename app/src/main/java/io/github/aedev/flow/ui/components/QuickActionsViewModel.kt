@@ -217,7 +217,8 @@ class QuickActionsViewModel @Inject constructor(
                     thumbnailUrl = thumbnailUrl,
                     channelName = video.channelName,
                     channelId = video.channelId,
-                    isMusic = false
+                    isMusic = false,
+                    isShort = video.isShort
                 )
 
                 _watchedVideoIds.update { it + video.id }

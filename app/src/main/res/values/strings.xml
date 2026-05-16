@@ -37,6 +37,8 @@
     <string name="cancel">Cancel</string>
     <string name="empty_watch_history">No Watch History</string>
     <string name="empty_watch_history_body">Videos you watch will appear here</string>
+    <string name="history_tab_videos">Videos</string>
+    <string name="history_tab_shorts">Shorts</string>
     <string name="liked">"Liked "</string>
     <string name="liked_music">Liked Music</string>
     <string name="liked_videos">Liked Videos</string>
@@ -246,6 +248,8 @@
     <string name="search_channels_hint">Search channels…</string>
     <string name="toggle_view_mode">Toggle View Mode</string>
     <string name="unsubscribed_from_template">Unsubscribed from %1$s</string>
+    <string name="hide_channel_shorts">Hide Shorts from this channel</string>
+    <string name="show_channel_shorts">Show Shorts from this channel</string>
     <string name="videos_count_template">%1$d videos</string>
     <string name="playlists_count_template">%1$d playlists</string>
     <string name="shorts_count_template">%1$d shorts</string>
@@ -712,8 +716,11 @@
     <string name="player_settings_shorts_playback_mode_title">Shorts Playback Mode</string>
     <string name="player_settings_shorts_playback_mode_loop">Loop (repeat current short)</string>
     <string name="player_settings_shorts_playback_mode_auto_next">Auto Play Next (advance to next short)</string>
+    <string name="player_settings_shorts_playback_mode_auto_interval">Auto-scroll after custom time</string>
+    <string name="player_settings_shorts_playback_mode_auto_interval_summary">Auto-scroll every %1$d seconds</string>
     <string name="player_settings_shorts_playback_mode_dialog_title">Shorts Playback Mode</string>
     <string name="player_settings_shorts_playback_mode_dialog_body">Choose how Shorts should behave when the current short finishes playing:</string>
+    <string name="player_settings_shorts_auto_scroll_seconds_template">%1$d seconds</string>
     <string name="player_settings_autoplay">Autoplay</string>
     <string name="player_settings_autoplay_subtitle">Automatically play the next video</string>
     <string name="player_settings_skip_silence">Skip Silence</string>
@@ -1337,6 +1344,7 @@
 
     <!-- Shorts Player Features -->
     <string name="shorts_audio_track">Audio Track</string>
+    <string name="shorts_auto_scroll_active_template">Auto %1$ds</string>
     <string name="shorts_quality">Quality</string>
     <string name="shorts_no_audio_tracks">No audio tracks available</string>
     <string name="shorts_audio_original">Original</string>

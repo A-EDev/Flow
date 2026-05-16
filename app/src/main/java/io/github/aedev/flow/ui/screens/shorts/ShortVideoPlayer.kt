@@ -76,6 +76,7 @@ fun ShortVideoPage(
     val context = LocalContext.current
     val playerPreferences = remember { io.github.aedev.flow.data.local.PlayerPreferences(context) }
     val shortsPlaybackMode by playerPreferences.shortsPlaybackMode.collectAsState(initial = "loop")
+    val shortsAutoScrollSeconds by playerPreferences.shortsAutoScrollSeconds.collectAsState(initial = 10)
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val playerPool = remember { ShortsPlayerPool.getInstance() }
@@ -103,6 +104,10 @@ fun ShortVideoPage(
     var showLikeAnimation by remember { mutableStateOf(false) }
     var isFastForwarding by remember { mutableStateOf(false) }
     var hasStartedPlaying by remember { mutableStateOf(false) }
+    var hasAutoAdvanced by remember(video.id, isActive, shortsPlaybackMode, shortsAutoScrollSeconds) { mutableStateOf(false) }
+    var hasRecordedWatched by remember(video.id, isActive) { mutableStateOf(false) }
+    var hasTouchedHistory by remember(video.id, isActive) { mutableStateOf(false) }
+    var lastProgressSavedAt by remember(video.id, isActive) { mutableStateOf(0L) }
     var isDragging by remember { mutableStateOf(false) }
     var dragProgress by remember { mutableStateOf(0f) }
 
@@ -180,12 +185,58 @@ fun ShortVideoPage(
     }
 
     // ── Add listener to detect when video ends (for auto-play-next) ──
-    DisposableEffect(isActive, pageIndex, shortsPlaybackMode) {
+    fun requestAutoAdvance() {
+        if (!hasAutoAdvanced) {
+            hasAutoAdvanced = true
+            onVideoEnded()
+        }
+    }
+
+    fun recordShortWatched(positionMs: Long = currentPosition, durationMs: Long = duration) {
+        if (!hasRecordedWatched) {
+            hasRecordedWatched = true
+            viewModel.recordShortWatched(video.toShortVideo(), positionMs, durationMs)
+        }
+    }
+
+    fun recordShortProgress(positionMs: Long = currentPosition, durationMs: Long = duration) {
+        if (!hasRecordedWatched) {
+            hasTouchedHistory = true
+            lastProgressSavedAt = positionMs
+            viewModel.recordShortProgress(video.toShortVideo(), positionMs, durationMs)
+        }
+    }
+
+    val latestPosition by rememberUpdatedState(currentPosition)
+    val latestDuration by rememberUpdatedState(duration)
+    val latestHasStartedPlaying by rememberUpdatedState(hasStartedPlaying)
+    val latestHasRecordedWatched by rememberUpdatedState(hasRecordedWatched)
+
+    DisposableEffect(video.id, isActive) {
+        onDispose {
+            if (
+                isActive &&
+                !latestHasRecordedWatched &&
+                (latestHasStartedPlaying || latestPosition >= 1_000L)
+            ) {
+                viewModel.recordShortProgress(video.toShortVideo(), latestPosition, latestDuration)
+            }
+        }
+    }
+
+    DisposableEffect(isActive, pageIndex, shortsPlaybackMode, shortsAutoScrollSeconds) {
         val player = playerPool.getPlayerForIndex(pageIndex)
         val eventListener = object : androidx.media3.common.Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == androidx.media3.common.Player.STATE_ENDED && shortsPlaybackMode == "auto_next") {
-                    onVideoEnded()
+                if (playbackState == androidx.media3.common.Player.STATE_ENDED) {
+                    val endedDuration = player?.duration?.coerceAtLeast(0L) ?: duration
+                    recordShortWatched(
+                        positionMs = endedDuration.takeIf { it > 0L } ?: currentPosition,
+                        durationMs = endedDuration
+                    )
+                    if (shortsPlaybackMode == "auto_next" || shortsPlaybackMode == "auto_interval") {
+                        requestAutoAdvance()
+                    }
                 }
             }
         }
@@ -224,6 +275,33 @@ fun ShortVideoPage(
     }
 
     // ── Pause indicator auto-hide ──
+    LaunchedEffect(isActive, currentPosition, duration, isPlaying, isBuffering, isDragging, shortsPlaybackMode, shortsAutoScrollSeconds) {
+        if (!isActive || isDragging || isBuffering || !isPlaying) return@LaunchedEffect
+
+        val safeDuration = duration.coerceAtLeast(0L)
+        if (!hasTouchedHistory && currentPosition >= 1_500L) {
+            recordShortProgress(currentPosition, safeDuration)
+        } else if (hasTouchedHistory && currentPosition - lastProgressSavedAt >= 5_000L) {
+            recordShortProgress(currentPosition, safeDuration)
+        }
+
+        if (!hasRecordedWatched && safeDuration > 0L && currentPosition >= (safeDuration * 0.9f).toLong()) {
+            recordShortWatched(currentPosition, safeDuration)
+        }
+
+        if (shortsPlaybackMode == "auto_interval" && !hasAutoAdvanced) {
+            val intervalMs = shortsAutoScrollSeconds.coerceIn(5, 20) * 1000L
+            val shouldWaitForEnd = safeDuration in 1..intervalMs
+            if (!shouldWaitForEnd && currentPosition >= intervalMs) {
+                recordShortWatched(
+                    positionMs = currentPosition,
+                    durationMs = safeDuration.takeIf { it > 0L } ?: intervalMs
+                )
+                requestAutoAdvance()
+            }
+        }
+    }
+
     LaunchedEffect(showPauseIndicator) {
         if (showPauseIndicator) {
             delay(600)
@@ -322,6 +400,40 @@ fun ShortVideoPage(
         }
 
         // ── Buffering Indicator ──
+        AnimatedVisibility(
+            visible = isActive && shortsPlaybackMode == "auto_interval",
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(top = 56.dp, end = 16.dp)
+        ) {
+            Surface(
+                color = Color.Black.copy(alpha = 0.55f),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Timer,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = stringResource(R.string.shorts_auto_scroll_active_template, shortsAutoScrollSeconds),
+                        color = Color.White,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
         if (isBuffering) {
             CircularProgressIndicator(
                 modifier = Modifier

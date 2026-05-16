@@ -53,6 +53,16 @@ fun HistoryScreen(
     
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
+    var selectedHistoryTab by remember { mutableStateOf(0) }
+    val displayEntries = remember(uiState.historyEntries, selectedHistoryTab, isMusic) {
+        if (isMusic) {
+            uiState.historyEntries
+        } else if (selectedHistoryTab == 1) {
+            uiState.historyEntries.filter { it.isShort }
+        } else {
+            uiState.historyEntries.filter { !it.isShort }
+        }
+    }
     
     // Initialize
     LaunchedEffect(Unit) {
@@ -131,15 +141,32 @@ fun HistoryScreen(
                 }
                 
                 else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 80.dp),
-                        verticalArrangement = Arrangement.spacedBy(0.dp)
-                    ) {
-                        items(
-                            items = uiState.historyEntries,
-                            key = { it.videoId }
-                        ) { entry ->
+                    if (!isMusic) {
+                        TabRow(selectedTabIndex = selectedHistoryTab) {
+                            Tab(
+                                selected = selectedHistoryTab == 0,
+                                onClick = { selectedHistoryTab = 0 },
+                                text = { Text(stringResource(R.string.history_tab_videos)) }
+                            )
+                            Tab(
+                                selected = selectedHistoryTab == 1,
+                                onClick = { selectedHistoryTab = 1 },
+                                text = { Text(stringResource(R.string.history_tab_shorts)) }
+                            )
+                        }
+                    }
+                    if (displayEntries.isEmpty()) {
+                        EmptyHistoryState(modifier = Modifier.fillMaxSize())
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 80.dp),
+                            verticalArrangement = Arrangement.spacedBy(0.dp)
+                        ) {
+                            items(
+                                items = displayEntries,
+                                key = { it.videoId }
+                            ) { entry ->
                             if (isMusic) {
                                 MusicTrackRow(
                                     track = MusicTrack(
@@ -191,6 +218,7 @@ fun HistoryScreen(
                                 )
                             }
                         }
+                    }
                     }
                 }
             }

@@ -22,6 +22,9 @@ FEATURES
 - Add Material You dynamic color theme #448
 - Add custom light and dark theme choices for System Default #367
 - Add more app icon variants with updated adaptive icon packaging #400
+- Add shorts history #285
+- Add time based shorts auto scroll #398
+- Add block shorts from channels #285
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361
@@ -49,6 +52,7 @@ IMPROVEMENTS
 - Improved watched content filtering #451
 - Improve subscriptions feed UI, count, content and cache #435
 - Redesign App Icon picker #400
+- Improve shorts UI and performance #446
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378
