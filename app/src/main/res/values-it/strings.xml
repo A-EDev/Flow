@@ -58,7 +58,7 @@
     <string name="play">Riproduci</string>
     <string name="next">Successivo</string>
     <string name="repeat">Ripeti</string>
-    <string name="loading_track">Caricamento brano in corso…</string>
+    <string name="loading_track">Caricamento brano…</string>
     <string name="error_occurred">Si è verificato un errore</string>
     <string name="playing_from">Riproducendo da</string>
     <string name="autoplay">Riproduzione automatica</string>
@@ -381,8 +381,8 @@
     <string name="appearance_role_outline">Contorno</string>
     <string name="appearance_role_scrim">Scrim</string>
     <string name="app_icon_picker_subtitle">Scegli uno stile per l\'icona del launcher. La modifica ha effetto immediato e il launcher si aggiornerà brevemente.</string>
-    <string name="app_icon_picker_warning">⚠ Attenzione: il cambio dell\'icona utilizza un meccanismo di sistema Android che potrebbe rimuovere brevemente il collegamento dell\'app dalla schermata home. Tieni premuto sul launcher per aggiungerlo nuovamente se necessario.</string>
-    <string name="app_icon_apply_toast">Icona aggiornata — il tuo launcher si aggiornerà</string>
+    <string name="app_icon_picker_warning">Attenzione: il cambio dell\'icona utilizza un meccanismo di sistema Android che potrebbe rimuovere brevemente il collegamento dell\'app dalla schermata home. Tieni premuto sul launcher per aggiungerlo nuovamente se necessario.</string>
+    <string name="app_icon_apply_toast">Icona aggiornata - il tuo launcher si aggiornerà</string>
     <string name="icon_name_flow_red">Rosso Flow</string>
     <string name="icon_name_amoled">AMOLED scuro</string>
     <string name="icon_name_monochrome">Monocromatica</string>
@@ -686,7 +686,7 @@
     <string name="btn_back">Indietro</string>
     <string name="back">Indietro</string>
     <string name="btn_close">Chiudi</string>
-    <string name="loading_shorts">Caricamento shorts in corso…</string>
+    <string name="loading_shorts">Caricamento shorts…</string>
     <string name="error_short_load">Si è verificato un errore</string>
     <string name="share_short_template">Guarda questo Short: https://youtu.be/%1$s</string>
     <string name="speed_2x">Velocità 2x</string>
@@ -1034,7 +1034,7 @@
     <string name="action_add_to_favorites">Aggiungi ai preferiti</string>
     <string name="action_listen_now">Ascolta ora</string>
     <string name="action_play_all">Riproduci tutto</string>
-    <string name="loading_music">Caricamento musica in corso…</string>
+    <string name="loading_music">Caricamento musica…</string>
     <string name="screen_title_music">MUSICA</string>
     <string name="section_listen_again">Ascolta di nuovo</string>
     <string name="section_quick_picks">Scelte rapide</string>
@@ -1477,4 +1477,21 @@
     <string name="player_unlock_controls">Sblocca controlli</string>
     <string name="player_settings_overlay_lock_mode">Pulsante della modalità di blocco</string>
     <string name="player_settings_overlay_lock_mode_subtitle">Mostra un pulsante di blocco nel player per evitare tocchi accidentali</string>
+    <string name="subscriptions_refresh_progress_template">Aggiornando %1$d di %2$d canali</string>
+    <string name="subscriptions_last_refreshed_template">Ultimo aggiornamento %1$s - %2$d video verificati</string>
+    <string name="appearance_system_defaults_title">Temi predefiniti di sistema</string>
+    <string name="appearance_system_defaults_subtitle">Scegli quale tema viene utilizzato quando il dispositivo passa dalla modalità chiara a quella scura.</string>
+    <string name="appearance_system_light_theme">Tema modalità chiara</string>
+    <string name="appearance_system_dark_theme">Tema modalità scura</string>
+    <string name="icon_name_flow_light">Flow Light</string>
+    <string name="icon_name_material_sky">Material Sky</string>
+    <string name="icon_name_material_mint">Material Mint</string>
+    <string name="theme_name_material_you">Material You</string>
+    <string name="theme_desc_material_you">Colori dello sfondo su Android 12+</string>
+    <string name="content_settings_comments_preview_title">Anteprima dei commenti</string>
+    <string name="content_settings_comments_preview_subtitle">Mostra l\'anteprima compatta dei commenti nella schermata del player video</string>
+    <string name="content_settings_subs_startup_refresh_title">Aggiorna le iscrizioni all\'avvio</string>
+    <string name="content_settings_subs_startup_refresh_subtitle">Controlla il feed delle iscrizioni all\'apertura dell\'app</string>
+    <string name="content_settings_nav_order_title">Ordine delle schede e predefinita</string>
+    <string name="content_settings_nav_order_subtitle">Usa le frecce per riorganizzare le schede. Seleziona la scheda predefinita con il pulsante di opzione.</string>
 </resources>
