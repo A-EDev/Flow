@@ -793,4 +793,5 @@
     <string name="theme_name_material_you">Материальный дизайн - ты (Material You)</string>
     <string name="theme_desc_material_you">Цвета обоев в Android 12 и выше</string>
     <string name="theme_name_monochrome">Монохромный</string>
+    <string name="error_age_restricted_hint">Это видео доступно только авторизованным пользователям, подтвердившим свой возраст.</string>
 </resources>
