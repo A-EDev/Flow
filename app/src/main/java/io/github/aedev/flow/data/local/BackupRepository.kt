@@ -1807,6 +1807,7 @@ class BackupRepository(private val context: Context) {
         try {
             var appDataJson: String? = null
             var brainBytes: ByteArray? = null
+            var contentPreferences: ContentPreferencesBackup? = null
 
             context.contentResolver.openInputStream(uri)?.use { raw ->
                 ZipInputStream(raw).use { zip ->
@@ -1829,11 +1830,21 @@ class BackupRepository(private val context: Context) {
             appDataJson?.let { json ->
                 val backupData = parseBackupJson(json)
                     ?: return@withContext Result.failure(Exception("Invalid app data in backup"))
-                importBackupData(backupData)
+                contentPreferences = backupData.contentPreferences
+                importBackupData(backupData, restoreContentPreferences = false)
             }
 
             brainBytes?.let { bytes ->
                 FlowNeuroEngine.importBrainFromStream(context, bytes.inputStream())
+            }
+
+            contentPreferences?.let { preferences ->
+                FlowNeuroEngine.restoreContentPreferences(
+                    context = context,
+                    preferredTopics = preferences.preferredTopics,
+                    blockedTopics = preferences.blockedTopics,
+                    blockedChannels = preferences.blockedChannels
+                )
             }
 
             Result.success(Unit)
@@ -1842,7 +1853,10 @@ class BackupRepository(private val context: Context) {
         }
     }
 
-    private suspend fun importBackupData(backupData: BackupData) {
+    private suspend fun importBackupData(
+        backupData: BackupData,
+        restoreContentPreferences: Boolean = true
+    ) {
         backupData.viewHistory?.let { entries ->
             if (entries.isNotEmpty()) viewHistory.bulkSaveHistoryEntries(entries)
         }
@@ -1867,13 +1881,15 @@ class BackupRepository(private val context: Context) {
                 }
             }
         }
-        backupData.contentPreferences?.let { preferences ->
-            FlowNeuroEngine.restoreContentPreferences(
-                context = context,
-                preferredTopics = preferences.preferredTopics,
-                blockedTopics = preferences.blockedTopics,
-                blockedChannels = preferences.blockedChannels
-            )
+        if (restoreContentPreferences) {
+            backupData.contentPreferences?.let { preferences ->
+                FlowNeuroEngine.restoreContentPreferences(
+                    context = context,
+                    preferredTopics = preferences.preferredTopics,
+                    blockedTopics = preferences.blockedTopics,
+                    blockedChannels = preferences.blockedChannels
+                )
+            }
         }
         backupData.settings?.let { settings ->
             playerPreferences.restoreData(settings)

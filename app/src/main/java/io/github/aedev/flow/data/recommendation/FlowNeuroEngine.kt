@@ -513,6 +513,15 @@ class FlowNeuroEngine(private val appContext: Context) {
 
     suspend fun completeOnboarding(selectedTopics: Set<String>) {
         brainMutex.withLock {
+            if (selectedTopics.isEmpty()) {
+                currentUserBrain = currentUserBrain.copy(
+                    hasCompletedOnboarding = true
+                )
+                storage.save(currentUserBrain)
+                Log.i(TAG, "Onboarding completed without replacing existing topics")
+                return
+            }
+
             val topicList = selectedTopics.toList()
             val newTopics = mutableMapOf<String, Double>()
 
