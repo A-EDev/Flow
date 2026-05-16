@@ -41,7 +41,6 @@ fun PlaylistsScreen(
     onBackClick: () -> Unit,
     onPlaylistClick: (PlaylistInfo) -> Unit,
     onNavigateToWatchLater: () -> Unit,
-    onNavigateToLikedVideos: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlaylistsViewModel = hiltViewModel()
 ) {
@@ -110,16 +109,6 @@ fun PlaylistsScreen(
                             title = stringResource(R.string.watch_later),
                             count = uiState.watchLaterCount,
                             onClick = onNavigateToWatchLater
-                        )
-                    }
-                    
-                    // Liked Videos
-                    item {
-                        SpecialPlaylistCard(
-                            icon = Icons.Outlined.ThumbUp,
-                            title = stringResource(R.string.liked_videos),
-                            count = uiState.likedVideosCount,
-                            onClick = onNavigateToLikedVideos
                         )
                     }
                     
@@ -541,7 +530,6 @@ class PlaylistsViewModel @Inject constructor(
 data class PlaylistsUiState(
     val isLoading: Boolean = false,
     val watchLaterCount: Int = 0,
-    val likedVideosCount: Int = 0,
     val playlists: List<PlaylistInfo> = emptyList(),
     val savedPlaylists: List<PlaylistInfo> = emptyList()
 )

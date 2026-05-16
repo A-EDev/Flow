@@ -28,7 +28,7 @@ import io.github.aedev.flow.ui.screens.home.HomeScreen
 import io.github.aedev.flow.ui.screens.history.HistoryScreen
 import io.github.aedev.flow.ui.screens.library.LibraryScreen
 import io.github.aedev.flow.ui.screens.library.WatchLaterScreen
-import io.github.aedev.flow.ui.screens.likedvideos.LikedVideosScreen
+import io.github.aedev.flow.ui.screens.likedvideos.LikesScreen
 import io.github.aedev.flow.ui.screens.playlists.PlaylistsScreen
 import io.github.aedev.flow.ui.screens.playlists.PlaylistDetailScreen
 import io.github.aedev.flow.ui.screens.notifications.NotificationScreen
@@ -208,7 +208,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.navigate("musicPlaylists")
             },
             onNavigateToLikedVideos = { 
-                navController.navigate("likedVideos")
+                navController.navigate("likes")
             },
             onNavigateToWatchLater = {
                 navController.navigate("watchLater")
@@ -521,29 +521,42 @@ fun NavGraphBuilder.flowAppGraph(
     composable("history") {
         currentRoute.value = "history"
         showBottomNav.value = false
+        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
         HistoryScreen(
             onVideoClick = { track ->
                 navController.navigate("player/${track.videoId}")
             },
-            onBackClick = { navController.popBackStack() },
-            onArtistClick = { channelId ->
-                navController.navigate("channel?url=$channelId")
-            }
+            onShortClick = { videoId ->
+                navController.navigate("shorts?startVideoId=$videoId")
+            },
+            onMusicClick = { track, queue ->
+                musicPlayerViewModel.loadAndPlayTrack(track, queue, "History")
+                val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                val encodedTitle = android.net.Uri.encode(track.title)
+                val encodedArtist = android.net.Uri.encode(track.artist)
+                navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
+            },
+            onBackClick = { navController.popBackStack() }
         )
     }
 
-    // Liked Videos Screen
-    composable("likedVideos") {
-        currentRoute.value = "likedVideos"
+    // Likes Screen
+    composable("likes") {
+        currentRoute.value = "likes"
         showBottomNav.value = false
-        LikedVideosScreen(
+        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
+        LikesScreen(
             onVideoClick = { track ->
                 navController.navigate("player/${track.videoId}")
             },
-            onBackClick = { navController.popBackStack() },
-            onArtistClick = { channelId ->
-                navController.navigate("channel?url=$channelId")
-            }
+            onMusicClick = { track, queue ->
+                musicPlayerViewModel.loadAndPlayTrack(track, queue, "Likes")
+                val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
+                val encodedTitle = android.net.Uri.encode(track.title)
+                val encodedArtist = android.net.Uri.encode(track.artist)
+                navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
+            },
+            onBackClick = { navController.popBackStack() }
         )
     }
 
@@ -577,8 +590,7 @@ fun NavGraphBuilder.flowAppGraph(
             onPlaylistClick = { playlist ->
                 navController.navigate("playlist/${playlist.id}")
             },
-            onNavigateToWatchLater = { navController.navigate("watchLater") },
-            onNavigateToLikedVideos = { navController.navigate("likedVideos") }
+            onNavigateToWatchLater = { navController.navigate("watchLater") }
         )
     }
 
@@ -590,48 +602,6 @@ fun NavGraphBuilder.flowAppGraph(
             onBackClick = { navController.popBackStack() },
             onPlaylistClick = { playlist ->
                 navController.navigate("musicPlaylist/${playlist.id}")
-            },
-            onNavigateToLikedMusic = { navController.navigate("likedMusic") },
-            onNavigateToMusicHistory = { navController.navigate("musicHistory") }
-        )
-    }
-
-    composable("likedMusic") {
-        currentRoute.value = "likedMusic"
-        showBottomNav.value = false
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
-        LikedVideosScreen(
-            onBackClick = { navController.popBackStack() },
-            onVideoClick = { track ->
-                musicPlayerViewModel.loadAndPlayTrack(track, emptyList(), "Liked Music")
-                val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
-                val encodedTitle = android.net.Uri.encode(track.title)
-                val encodedArtist = android.net.Uri.encode(track.artist)
-                navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
-            },
-            isMusic = true,
-            onArtistClick = { channelId ->
-                navController.navigate("artist/$channelId")
-            }
-        )
-    }
-
-    composable("musicHistory") {
-        currentRoute.value = "musicHistory"
-        showBottomNav.value = false
-        val musicPlayerViewModel: MusicPlayerViewModel = hiltViewModel()
-        HistoryScreen(
-            onBackClick = { navController.popBackStack() },
-            onVideoClick = { track ->
-                musicPlayerViewModel.loadAndPlayTrack(track, emptyList(), "Music History")
-                val encodedUrl = android.net.Uri.encode(track.thumbnailUrl)
-                val encodedTitle = android.net.Uri.encode(track.title)
-                val encodedArtist = android.net.Uri.encode(track.artist)
-                navController.navigate("musicPlayer/${track.videoId}?title=$encodedTitle&artist=$encodedArtist&thumbnailUrl=$encodedUrl")
-            },
-            isMusic = true,
-            onArtistClick = { channelId ->
-                navController.navigate("artist/$channelId")
             }
         )
     }

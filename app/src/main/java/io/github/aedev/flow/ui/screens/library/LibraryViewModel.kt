@@ -31,10 +31,10 @@ class LibraryViewModel @Inject constructor(
         viewHistory = ViewHistory.getInstance(context)
         playlistRepository = PlaylistRepository(context)
         
-        // Load liked videos count (excluding music)
+        // Load all likes count (videos + music)
         viewModelScope.launch {
-            likedVideosRepository.getLikedVideosFlow().collect { likedVideos ->
-                _uiState.update { it.copy(likedVideosCount = likedVideos.size) }
+            likedVideosRepository.getAllLikedVideos().collect { likes ->
+                _uiState.update { it.copy(likedVideosCount = likes.size) }
             }
         }
         

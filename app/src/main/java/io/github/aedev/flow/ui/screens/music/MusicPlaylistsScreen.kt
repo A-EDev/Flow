@@ -29,8 +29,6 @@ import io.github.aedev.flow.ui.screens.playlists.PlaylistInfo
 fun MusicPlaylistsScreen(
     onBackClick: () -> Unit,
     onPlaylistClick: (PlaylistInfo) -> Unit,
-    onNavigateToLikedMusic: () -> Unit,
-    onNavigateToMusicHistory: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MusicPlaylistsViewModel = hiltViewModel()
 ) {
@@ -86,24 +84,6 @@ fun MusicPlaylistsScreen(
                 ) {
                     item {
                         MusicLibrarySectionHeader(stringResource(R.string.header_your_collection))
-                    }
-                    
-                    item {
-                        MusicLibraryCard(
-                            icon = Icons.Default.Favorite,
-                            title = stringResource(R.string.liked_music),
-                            subtitle = stringResource(R.string.subtitle_liked_music),
-                            onClick = onNavigateToLikedMusic
-                        )
-                    }
-
-                    item {
-                        MusicLibraryCard(
-                            icon = Icons.Default.History,
-                            title = stringResource(R.string.library_history_label),
-                            subtitle = stringResource(R.string.subtitle_history),
-                            onClick = onNavigateToMusicHistory
-                        )
                     }
                     
                     item {

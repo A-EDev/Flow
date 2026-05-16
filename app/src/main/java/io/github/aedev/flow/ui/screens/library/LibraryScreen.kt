@@ -115,7 +115,7 @@ fun LibraryScreen(
                 LibraryCard(
                     icon = Icons.Outlined.ThumbUp,
                     title = context.getString(R.string.library_liked_videos_label),
-                    subtitle = stringResource(R.string.videos_count_template, uiState.likedVideosCount),
+                    subtitle = stringResource(R.string.likes_count_template, uiState.likedVideosCount),
                     onClick = onNavigateToLikedVideos
                 )
             }

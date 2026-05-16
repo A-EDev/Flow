@@ -9,6 +9,7 @@ import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.local.VideoHistoryEntry
 import io.github.aedev.flow.data.local.entity.WatchHistoryEntity
 import io.github.aedev.flow.data.local.entity.VideoEntity
+import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.Dispatchers
@@ -26,7 +27,7 @@ class HistoryViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(HistoryUiState())
     val uiState: StateFlow<HistoryUiState> = _uiState.asStateFlow()
 
-    fun initialize(context: Context, isMusic: Boolean = false) {
+    fun initialize(context: Context) {
         viewHistory = ViewHistory.getInstance(context)
         val videoDao = AppDatabase.getDatabase(context).videoDao()
         val watchHistoryDao = AppDatabase.getDatabase(context).watchHistoryDao()
@@ -34,13 +35,12 @@ class HistoryViewModel : ViewModel() {
         // Load history and enrich any entries that are missing metadata
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val flow = if (isMusic) viewHistory.getMusicHistoryFlow() else viewHistory.getVideoHistoryFlow()
-            flow.collect { history ->
+            viewHistory.getAllHistory().collect { history ->
                 val enriched = history.map { entry ->
                     var e = entry
 
                     val needsEnrichment = e.title.isEmpty() || e.channelName.isEmpty()
-                    val dbVideo = if (needsEnrichment) videoDao.getVideo(e.videoId) else null
+                    val dbVideo = if (needsEnrichment || e.isShort) videoDao.getVideo(e.videoId) else null
 
                     if (e.thumbnailUrl.isEmpty()) {
                         e = e.copy(
@@ -63,11 +63,36 @@ class HistoryViewModel : ViewModel() {
                     e
                 }
 
+                val shortVideos = mutableMapOf<String, Video>()
+                enriched
+                    .filter { it.isShort }
+                    .forEach { entry ->
+                        val video = videoDao.getVideo(entry.videoId)?.toDomain()?.copy(
+                            isShort = true,
+                            isMusic = entry.isMusic,
+                            timestamp = entry.timestamp
+                        )
+                        if (video != null) {
+                            shortVideos[video.id] = video
+                        }
+                    }
+
                 _uiState.update {
-                    it.copy(historyEntries = enriched, isLoading = false)
+                    it.copy(
+                        historyEntries = enriched,
+                        shortVideos = shortVideos,
+                        isLoading = false
+                    )
                 }
 
-                val stubs = enriched.filter { it.title.isEmpty() || it.channelName.isEmpty() }.take(30)
+                val stubs = enriched
+                    .filter { entry ->
+                        entry.title.isEmpty() ||
+                            entry.channelName.isEmpty() ||
+                            (entry.isShort && !shortVideos.containsKey(entry.videoId))
+                    }
+                    .distinctBy { it.videoId }
+                    .take(30)
                 if (stubs.isNotEmpty()) {
                     enrichFromApi(stubs, videoDao, watchHistoryDao)
                 }
@@ -143,6 +168,7 @@ class HistoryViewModel : ViewModel() {
 
 data class HistoryUiState(
     val historyEntries: List<VideoHistoryEntry> = emptyList(),
+    val shortVideos: Map<String, Video> = emptyMap(),
     val isLoading: Boolean = false
 )
 
