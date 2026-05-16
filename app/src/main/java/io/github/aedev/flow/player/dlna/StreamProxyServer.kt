@@ -1,22 +1,14 @@
 package io.github.aedev.flow.player.dlna
 
 import android.content.Context
-import android.media.MediaCodec
-import android.media.MediaExtractor
-import android.media.MediaFormat
-import android.media.MediaMuxer
 import android.net.wifi.WifiManager
-import android.os.Build
-import android.os.ParcelFileDescriptor
 import android.util.Log
-import androidx.annotation.RequiresApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.InetAddress
@@ -44,11 +36,17 @@ import java.util.concurrent.atomic.AtomicBoolean
  * - Supports HEAD requests (required for some renderers to probe content)
  * - Streams data in chunks without buffering the entire video in memory
  * - Handles multiple concurrent connections (audio + video streams)
+ * - Generates HLS master playlists (.m3u8) with video variants + audio,
+ *   allowing renderers to handle adaptive quality selection and
+ *   synchronized audio/video playback natively.
  *
  * Usage:
  *   val proxy = StreamProxyServer.getInstance()
  *   proxy.start(context)
+ *   // Single stream:
  *   val localUrl = proxy.registerStream(youtubeStreamUrl, contentType)
+ *   // HLS (multiple video qualities + audio):
+ *   val m3u8 = proxy.registerHlsCast(videoVariants, audioUrl, ...)
  *   proxy.stop()
  */
 class StreamProxyServer private constructor() {
@@ -57,8 +55,6 @@ class StreamProxyServer private constructor() {
         private const val TAG = "StreamProxy"
         private const val BUFFER_SIZE = 64 * 1024 // 64KB chunks
         private const val MAX_CONNECTIONS = 8
-        // MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_2_TS (API 26+)
-        private const val MUXER_OUTPUT_MPEG_2_TS = 8
 
         @Volatile
         private var instance: StreamProxyServer? = null
@@ -97,9 +93,8 @@ class StreamProxyServer private constructor() {
         val contentLength: Long = -1
     )
 
-    private data class MuxEntry(val videoUrl: String, val audioUrl: String)
 
-    private val muxedStreams = ConcurrentHashMap<String, MuxEntry>()
+    private val hlsPlaylists = ConcurrentHashMap<String, String>()
 
     /**
      * Starts the proxy server on a random available port.
@@ -144,7 +139,7 @@ class StreamProxyServer private constructor() {
     fun stop() {
         isRunning.set(false)
         streams.clear()
-        muxedStreams.clear()
+        hlsPlaylists.clear()
         try {
             serverSocket?.close()
         } catch (e: Exception) {
@@ -165,7 +160,7 @@ class StreamProxyServer private constructor() {
     fun registerStream(realUrl: String, contentType: String = "video/mp4"): String {
         if (!isRunning.get()) {
             Log.w(TAG, "Proxy not running, cannot register stream")
-            return realUrl 
+            return realUrl
         }
 
         val pathId = java.util.UUID.randomUUID().toString().take(8)
@@ -173,7 +168,6 @@ class StreamProxyServer private constructor() {
 
         val contentLength = probeContentLength(realUrl)
 
-        streams.clear()
         streams[path] = StreamEntry(realUrl, contentType, contentLength)
 
         val proxyUrl = "http://$localAddress:$localPort$path"
@@ -181,29 +175,142 @@ class StreamProxyServer private constructor() {
         return proxyUrl
     }
 
+    // ── HLS Playlist Generation ───────────────────────────────────────────────
+
     /**
-     * Registers two adaptive streams (video-only + audio-only) for on-the-fly MPEG-TS muxing.
-     * The returned URL, when fetched by a DLNA renderer, produces a single merged stream so
-     * the renderer gets both video and audio.  Requires API 26+ (Android 8.0).
-     *
-     * @param videoUrl  Direct video-only stream URL (googlevideo.com)
-     * @param audioUrl  Direct audio-only stream URL (googlevideo.com)
-     * @return Local proxy URL served as video/mp2t
+     * Registers multiple video quality variants + audio and generates an HLS
+     * master playlist (.m3u8) that the DLNA renderer fetches.
+     * @param videoVariants List of video quality options (360p, 720p, 1080p, etc.)
+     * @param audioUrl      Direct audio-only stream URL (googlevideo.com)
+     * @param audioMime     MIME type of the audio stream
+     * @param audioBitrate  Bitrate of the audio stream in bps
+     * @param audioCodec    Codec string for audio (e.g., "mp4a.40.2")
+     * @param durationSeconds Approximate duration of the video in seconds
+     * @return Local URL to the generated master .m3u8 playlist
      */
-    @RequiresApi(Build.VERSION_CODES.O)
-    fun registerMuxedStream(videoUrl: String, audioUrl: String): String {
-        if (!isRunning.get()) {
-            Log.w(TAG, "Proxy not running, cannot register muxed stream")
-            return videoUrl
+    fun registerHlsCast(
+        videoVariants: List<CastStreamVariant>,
+        audioUrl: String,
+        audioMime: String = "audio/mp4",
+        audioBitrate: Int = 128_000,
+        audioCodec: String = "mp4a.40.2",
+        durationSeconds: Long = 0
+    ): String {
+        if (!isRunning.get() || videoVariants.isEmpty()) {
+            Log.w(TAG, "Proxy not running or no variants, cannot register HLS")
+            return videoVariants.firstOrNull()?.url ?: ""
         }
-        val pathId = java.util.UUID.randomUUID().toString().take(8)
-        val path = "/m/$pathId"
-        muxedStreams.clear()
-        muxedStreams[path] = MuxEntry(videoUrl, audioUrl)
-        val proxyUrl = "http://$localAddress:$localPort$path"
-        Log.i(TAG, "Registered muxed stream: $proxyUrl")
-        return proxyUrl
+
+        val sessionId = java.util.UUID.randomUUID().toString().take(8)
+        val durationSec = if (durationSeconds > 0) durationSeconds else 7200
+        val targetDuration = durationSec + 1
+
+        val proxyAudioUrl = registerStream(audioUrl, audioMime)
+        val audioMediaPath = "/h/audio_$sessionId.m3u8"
+        val audioMediaPlaylist = buildMediaPlaylist(proxyAudioUrl, durationSec, targetDuration)
+        hlsPlaylists[audioMediaPath] = audioMediaPlaylist
+
+        val audioMediaUrl = "http://$localAddress:$localPort$audioMediaPath"
+
+        data class VariantEntry(
+            val mediaUrl: String,
+            val variant: CastStreamVariant,
+            val proxyUrl: String
+        )
+
+        val variantEntries = videoVariants.mapIndexed { index, variant ->
+            val proxyVideoUrl = registerStream(variant.url, variant.mime)
+            val videoMediaPath = "/h/v${variant.height}p_${sessionId}_$index.m3u8"
+            val videoMediaPlaylist = buildMediaPlaylist(proxyVideoUrl, durationSec, targetDuration)
+            hlsPlaylists[videoMediaPath] = videoMediaPlaylist
+
+            val videoMediaUrl = "http://$localAddress:$localPort$videoMediaPath"
+            VariantEntry(videoMediaUrl, variant, proxyVideoUrl)
+        }
+
+        val masterPlaylist = buildMasterPlaylist(
+            variantEntries = variantEntries.map { Triple(it.mediaUrl, it.variant, it.proxyUrl) },
+            audioMediaUrl = audioMediaUrl,
+            audioBitrate = audioBitrate,
+            audioCodec = audioCodec
+        )
+
+        val masterPath = "/h/master_$sessionId.m3u8"
+        hlsPlaylists[masterPath] = masterPlaylist
+
+        val masterUrl = "http://$localAddress:$localPort$masterPath"
+        Log.i(TAG, "Registered HLS cast: $masterUrl " +
+            "(${variantEntries.size} variants, audio=${audioBitrate/1000}kbps)")
+        variantEntries.forEach { entry ->
+            Log.d(TAG, "  Variant: ${entry.variant.width}x${entry.variant.height} " +
+                "${entry.variant.bitrate/1000}kbps")
+        }
+
+        return masterUrl
     }
+
+    /**
+     * Builds an HLS media playlist for a single stream (video or audio).
+     * Uses a single segment covering the entire file since YouTube streams
+     * are progressive MP4 downloads, not segmented.
+     */
+    private fun buildMediaPlaylist(
+        proxyStreamUrl: String,
+        durationSeconds: Long,
+        targetDuration: Long
+    ): String {
+        return buildString {
+            appendLine("#EXTM3U")
+            appendLine("#EXT-X-VERSION:3")
+            appendLine("#EXT-X-TARGETDURATION:$targetDuration")
+            appendLine("#EXT-X-PLAYLIST-TYPE:VOD")
+            appendLine("#EXTINF:${durationSeconds}.0,")
+            appendLine(proxyStreamUrl)
+            appendLine("#EXT-X-ENDLIST")
+        }
+    }
+
+    /**
+     * Builds the HLS master playlist with:
+     * - Audio declared via #EXT-X-MEDIA
+     * - Video variants declared via #EXT-X-STREAM-INF (sorted by resolution)
+     */
+    private fun buildMasterPlaylist(
+        variantEntries: List<Triple<String, CastStreamVariant, String>>,
+        audioMediaUrl: String,
+        audioBitrate: Int,
+        audioCodec: String
+    ): String {
+        val sorted = variantEntries.sortedBy { it.second.height }
+
+        return buildString {
+            appendLine("#EXTM3U")
+            appendLine("#EXT-X-VERSION:3")
+            appendLine()
+
+            // Audio group
+            appendLine("#EXT-X-MEDIA:TYPE=AUDIO," +
+                "GROUP-ID=\"audio\"," +
+                "NAME=\"Default\"," +
+                "DEFAULT=YES," +
+                "AUTOSELECT=YES," +
+                "URI=\"$audioMediaUrl\"")
+            appendLine()
+
+            // Video variants
+            for ((mediaUrl, variant, _) in sorted) {
+                val totalBandwidth = variant.bitrate + audioBitrate
+                appendLine("#EXT-X-STREAM-INF:" +
+                    "BANDWIDTH=$totalBandwidth," +
+                    "RESOLUTION=${variant.width}x${variant.height}," +
+                    "CODECS=\"${variant.codec},$audioCodec\"," +
+                    "AUDIO=\"audio\"")
+                appendLine(mediaUrl)
+            }
+        }
+    }
+
+    // ── Request Handling ──────────────────────────────────────────────────────
 
     /**
      * Handles an incoming HTTP request from a DLNA renderer.
@@ -240,26 +347,23 @@ class StreamProxyServer private constructor() {
             val method = parts[0].uppercase()
             val path = parts[1]
 
-            // Muxed stream endpoint (/m/…) — MPEG-TS merged video+audio (API 26+)
-            if (path.startsWith("/m/")) {
-                val muxEntry = muxedStreams[path]
-                if (muxEntry == null) {
-                    Log.w(TAG, "Unknown mux path: $path")
+            // HLS playlist endpoint (/h/…)
+            if (path.startsWith("/h/") && path.endsWith(".m3u8")) {
+                val playlist = hlsPlaylists[path]
+                if (playlist == null) {
+                    Log.w(TAG, "Unknown HLS playlist path: $path")
                     sendError(output, 404, "Not Found")
                     return
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    when (method) {
-                        "HEAD" -> handleMuxedHead(output)
-                        "GET"  -> handleMuxedGet(output, muxEntry)
-                        else   -> sendError(output, 405, "Method Not Allowed")
-                    }
-                } else {
-                    sendError(output, 501, "Not Implemented")
+                when (method) {
+                    "HEAD" -> handlePlaylistHead(output, playlist)
+                    "GET"  -> handlePlaylistGet(output, playlist)
+                    else   -> sendError(output, 405, "Method Not Allowed")
                 }
                 return
             }
 
+            // Direct stream proxy endpoint (/s/…)
             val streamEntry = streams[path]
             if (streamEntry == null) {
                 Log.w(TAG, "Unknown path: $path")
@@ -280,6 +384,40 @@ class StreamProxyServer private constructor() {
             } catch (_: Exception) {}
         }
     }
+
+    // ── HLS playlist serving ──────────────────────────────────────────────────
+
+    private fun handlePlaylistHead(output: OutputStream, playlist: String) {
+        val bytes = playlist.toByteArray(Charsets.UTF_8)
+        val headers = buildString {
+            append("HTTP/1.1 200 OK\r\n")
+            append("Content-Type: application/vnd.apple.mpegurl\r\n")
+            append("Content-Length: ${bytes.size}\r\n")
+            append("Access-Control-Allow-Origin: *\r\n")
+            append("Connection: close\r\n")
+            append("\r\n")
+        }
+        output.write(headers.toByteArray())
+        output.flush()
+    }
+
+    private fun handlePlaylistGet(output: OutputStream, playlist: String) {
+        val bytes = playlist.toByteArray(Charsets.UTF_8)
+        val headers = buildString {
+            append("HTTP/1.1 200 OK\r\n")
+            append("Content-Type: application/vnd.apple.mpegurl\r\n")
+            append("Content-Length: ${bytes.size}\r\n")
+            append("Access-Control-Allow-Origin: *\r\n")
+            append("Connection: close\r\n")
+            append("\r\n")
+        }
+        output.write(headers.toByteArray())
+        output.write(bytes)
+        output.flush()
+        Log.d(TAG, "Served HLS playlist (${bytes.size} bytes)")
+    }
+
+    // ── Direct stream proxy ───────────────────────────────────────────────────
 
     /**
      * Handles HEAD requests. DLNA renderers use this to probe
@@ -389,160 +527,8 @@ class StreamProxyServer private constructor() {
         }
     }
 
-    /**
-     * Returns headers for a muxed MPEG-TS stream (no Content-Length because it is live-generated).
-     */
-    @RequiresApi(Build.VERSION_CODES.O)
-    private fun handleMuxedHead(output: OutputStream) {
-        val headers = "HTTP/1.1 200 OK\r\n" +
-            "Content-Type: video/mp2t\r\n" +
-            "Accept-Ranges: none\r\n" +
-            "transferMode.dlna.org: Streaming\r\n" +
-            "contentFeatures.dlna.org: DLNA.ORG_OP=00;DLNA.ORG_CI=0;" +
-                "DLNA.ORG_FLAGS=01700000000000000000000000000000\r\n" +
-            "Connection: close\r\n\r\n"
-        output.write(headers.toByteArray())
-        output.flush()
-    }
+    // ── Utility ───────────────────────────────────────────────────────────────
 
-    /**
-     * Streams a real-time muxed MPEG-TS response from a video-only and an audio-only source.
-     *
-     * Internally uses [MediaExtractor] to read samples from each remote URL and [MediaMuxer]
-     * (MPEG_2_TS format) to interleave them.  A [ParcelFileDescriptor] pipe connects the muxer
-     * output to this HTTP response, so the renderer receives a continuous MPEG-TS stream.
-     *
-     * The MPEG-TS container is streamable without a seek table, making it ideal for DLNA.
-     */
-    @RequiresApi(Build.VERSION_CODES.O)
-    private fun handleMuxedGet(output: OutputStream, entry: MuxEntry) {
-        val pipe = ParcelFileDescriptor.createPipe()
-        val readFd = pipe[0]
-        val writeFd = pipe[1]
-        val videoExtractor = MediaExtractor()
-        val audioExtractor = MediaExtractor()
-
-        try {
-            val extractorHeaders = mapOf(
-                "User-Agent" to
-                    "Mozilla/5.0 (Linux; Android ${Build.VERSION.RELEASE}) AppleWebKit/537.36"
-            )
-            videoExtractor.setDataSource(entry.videoUrl, extractorHeaders)
-            audioExtractor.setDataSource(entry.audioUrl, extractorHeaders)
-
-            val vTrack = (0 until videoExtractor.trackCount).firstOrNull {
-                videoExtractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)
-                    ?.startsWith("video/") == true
-            } ?: throw IOException("No video track in ${entry.videoUrl.take(60)}")
-
-            val aTrack = (0 until audioExtractor.trackCount).firstOrNull {
-                audioExtractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)
-                    ?.startsWith("audio/") == true
-            } ?: throw IOException("No audio track in ${entry.audioUrl.take(60)}")
-
-            videoExtractor.selectTrack(vTrack)
-            audioExtractor.selectTrack(aTrack)
-
-            val muxer = MediaMuxer(writeFd.fileDescriptor, MUXER_OUTPUT_MPEG_2_TS)
-            val muxVTrack = muxer.addTrack(videoExtractor.getTrackFormat(vTrack))
-            val muxATrack = muxer.addTrack(audioExtractor.getTrackFormat(aTrack))
-            muxer.start()
-
-            // Send HTTP headers before blocking on the pipe read
-            output.write(("HTTP/1.1 200 OK\r\n" +
-                "Content-Type: video/mp2t\r\n" +
-                "Accept-Ranges: none\r\n" +
-                "transferMode.dlna.org: Streaming\r\n" +
-                "contentFeatures.dlna.org: DLNA.ORG_OP=00;DLNA.ORG_CI=0;" +
-                    "DLNA.ORG_FLAGS=01700000000000000000000000000000\r\n" +
-                "Connection: close\r\n\r\n").toByteArray())
-            output.flush()
-
-            // Mux thread: reads samples from both extractors → writes MPEG-TS to writeFd.
-            // Owns videoExtractor, audioExtractor, muxer, and writeFd; releases all on exit.
-            Thread {
-                try {
-                    val buf = java.nio.ByteBuffer.allocate(1024 * 1024) // 1 MB sample buffer
-                    val info = MediaCodec.BufferInfo()
-                    var vDone = false
-                    var aDone = false
-                    while (!vDone || !aDone) {
-                        val vTime = if (!vDone) videoExtractor.sampleTime else Long.MAX_VALUE
-                        val aTime = if (!aDone) audioExtractor.sampleTime else Long.MAX_VALUE
-                        if (aTime <= vTime && !aDone) {
-                            buf.clear()
-                            val sz = audioExtractor.readSampleData(buf, 0)
-                            if (sz < 0) {
-                                aDone = true
-                            } else {
-                                val keyFrame = if (audioExtractor.sampleFlags and
-                                        MediaExtractor.SAMPLE_FLAG_SYNC != 0)
-                                    MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
-                                info.set(0, sz, audioExtractor.sampleTime, keyFrame)
-                                muxer.writeSampleData(muxATrack, buf, info)
-                                audioExtractor.advance()
-                            }
-                        } else if (!vDone) {
-                            buf.clear()
-                            val sz = videoExtractor.readSampleData(buf, 0)
-                            if (sz < 0) {
-                                vDone = true
-                            } else {
-                                val keyFrame = if (videoExtractor.sampleFlags and
-                                        MediaExtractor.SAMPLE_FLAG_SYNC != 0)
-                                    MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
-                                info.set(0, sz, videoExtractor.sampleTime, keyFrame)
-                                muxer.writeSampleData(muxVTrack, buf, info)
-                                videoExtractor.advance()
-                            }
-                        }
-                    }
-                    try { muxer.stop() } catch (_: Exception) {}
-                    Log.i(TAG, "Mux thread finished successfully")
-                } catch (e: Exception) {
-                    // Broken pipe when renderer disconnects — normal shutdown path
-                    Log.d(TAG, "Mux thread ended: ${e.message}")
-                } finally {
-                    try { muxer.release() } catch (_: Exception) {}
-                    try { writeFd.close() } catch (_: Exception) {}
-                    videoExtractor.release()
-                    audioExtractor.release()
-                }
-            }.also { it.isDaemon = true; it.name = "dlna-mux"; it.start() }
-
-            // Stream pipe output to the DLNA renderer
-            try {
-                ParcelFileDescriptor.AutoCloseInputStream(readFd).use { pipeIn ->
-                    val buf = ByteArray(BUFFER_SIZE)
-                    var total = 0L
-                    while (true) {
-                        val n = pipeIn.read(buf)
-                        if (n == -1) break
-                        output.write(buf, 0, n)
-                        total += n
-                    }
-                    output.flush()
-                    Log.d(TAG, "Muxed stream: ${total / 1024}KB sent")
-                }
-            } catch (_: SocketException) {
-                // Renderer closed connection — mux thread will see broken pipe and exit
-            }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "handleMuxedGet failed (${e.javaClass.simpleName}): ${e.message}" +
-                " — falling back to video-only relay")
-            // Release resources that the mux thread never took ownership of
-            videoExtractor.release()
-            audioExtractor.release()
-            try { writeFd.close() } catch (_: Exception) {}
-            try { readFd.close() } catch (_: Exception) {}
-            handleGet(output, StreamEntry(entry.videoUrl, "video/mp4"), null)
-        }
-    }
-
-    /**
-     * Sends an HTTP error response to the client.
-     */
     private fun sendError(output: OutputStream, code: Int, message: String) {
         val response = "HTTP/1.1 $code $message\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
         try {
@@ -551,10 +537,6 @@ class StreamProxyServer private constructor() {
         } catch (_: Exception) {}
     }
 
-    /**
-     * Probes the content length of a URL with a HEAD request.
-     * Returns -1 if unknown.
-     */
     private fun probeContentLength(url: String): Long {
         return try {
             val request = Request.Builder().url(url).head().build()
@@ -568,9 +550,6 @@ class StreamProxyServer private constructor() {
         }
     }
 
-    /**
-     * Gets the device's WiFi IP address for the local proxy URL.
-     */
     private fun getDeviceIpAddress(context: Context): String {
         try {
             val wifiManager = context.applicationContext
@@ -610,9 +589,6 @@ class StreamProxyServer private constructor() {
         return "127.0.0.1"
     }
 
-    /**
-     * Reads a line from an InputStream (HTTP protocol uses \r\n line endings).
-     */
     private fun readLine(input: InputStream): String? {
         val sb = StringBuilder()
         while (true) {

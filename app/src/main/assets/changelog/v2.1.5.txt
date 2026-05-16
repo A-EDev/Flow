@@ -70,6 +70,7 @@ FIXES AND STABILITY
 - Fix large playlist crashing #454
 - Fix video player supression  #453
 - Fix content preference backup #452
+- Fix low resolution casting #299
 
 ENGINE
 - Improve topic maturity detection for better recommendations #281

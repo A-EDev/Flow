@@ -34,9 +34,8 @@ object CastHelper {
         // The caller (GlobalPlayerOverlay) switches to the Compose dialog directly.
     }
 
-    /** Send video to the selected DLNA device. */
     fun castTo(device: DlnaDevice, videoUrl: String, title: String) {
-        DlnaCastManager.castTo(device, videoUrl, title)
+        DlnaCastManager.castTo(device = device, title = title, fallbackVideoUrl = videoUrl)
     }
 
     /** Stop casting and return playback to the phone. */

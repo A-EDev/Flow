@@ -2,7 +2,6 @@ package io.github.aedev.flow.player.dlna
 
 import android.content.Context
 import android.net.wifi.WifiManager
-import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
@@ -257,39 +256,51 @@ object DlnaCastManager {
     // ── Control ────────────────────────────────────────────────────────────────
 
     /**
+     * Casts video to a DLNA renderer.
+     *
      * YouTube's googlevideo.com URLs are IP-locked and session-bound.
      * DLNA renderers can't fetch them directly (403 Forbidden).
      * The proxy runs on the phone and relays the stream, so the renderer
      * connects to the phone instead of YouTube.
-     *
-     * Also accepts an optional audioUrl for devices that support
-     * separate audio streams.
      */
     fun castTo(
         device: DlnaDevice,
-        videoUrl: String,
         title: String,
-        audioUrl: String? = null
+        videoVariants: List<CastStreamVariant> = emptyList(),
+        audioUrl: String? = null,
+        audioMime: String = "audio/mp4",
+        audioBitrate: Int = 128_000,
+        audioCodec: String = "mp4a.40.2",
+        durationSeconds: Long = 0,
+        fallbackVideoUrl: String? = null
     ) {
         scope.launch {
             try {
-                val proxyVideoUrl: String
+                val castUrl: String
                 val contentType: String
 
-                if (audioUrl != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    proxyVideoUrl = proxy.registerMuxedStream(videoUrl, audioUrl)
-                    contentType = "video/mp2t"
-                    Log.i(TAG, "Casting muxed MPEG-TS: $proxyVideoUrl")
+                if (videoVariants.isNotEmpty() && audioUrl != null) {
+                    castUrl = proxy.registerHlsCast(
+                        videoVariants = videoVariants,
+                        audioUrl = audioUrl,
+                        audioMime = audioMime,
+                        audioBitrate = audioBitrate,
+                        audioCodec = audioCodec,
+                        durationSeconds = durationSeconds
+                    )
+                    contentType = "application/vnd.apple.mpegurl"
+                    Log.i(TAG, "Casting via HLS: $castUrl " +
+                        "(${videoVariants.size} variants, audio=${audioBitrate/1000}kbps)")
                 } else {
-                    contentType = guessContentType(videoUrl, "video/mp4")
-                    proxyVideoUrl = proxy.registerStream(videoUrl, contentType)
-                    if (audioUrl != null) {
-                        proxy.registerStream(audioUrl, guessContentType(audioUrl, "audio/mp4"))
-                    }
-                    Log.i(TAG, "Casting via proxy: $proxyVideoUrl")
+                    val url = fallbackVideoUrl
+                        ?: videoVariants.firstOrNull()?.url
+                        ?: return@launch
+                    contentType = guessContentType(url, "video/mp4")
+                    castUrl = proxy.registerStream(url, contentType)
+                    Log.i(TAG, "Casting single stream via proxy: $castUrl")
                 }
 
-                setAVTransportUri(device, proxyVideoUrl, title, contentType)
+                setAVTransportUri(device, castUrl, title, contentType)
                 delay(500)
                 play(device)
                 _currentDevice.value = device

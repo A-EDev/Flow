@@ -1153,38 +1153,85 @@ fun GlobalPlayerOverlay(
                 isCasting = DlnaCastManager.isCasting,
                 videoTitle = video.title,
                 onDeviceSelected = { device ->
-                    var streamUrl = ""
-                    var castAudioUrl: String? = null
                     val streamInfo = playerUiState.streamInfo
+
                     if (streamInfo != null) {
-                        val bestMuxed = streamInfo.videoStreams
-                            ?.filter { it.height > 0 }
-                            ?.maxByOrNull { it.height }
+                        val duration = streamInfo.duration
 
-                        if (bestMuxed != null) {
-                            streamUrl = bestMuxed.content ?: bestMuxed.url ?: ""
+                        val videoVariants = (streamInfo.videoOnlyStreams ?: emptyList())
+                            .filter { it.height > 0 }
+                            .filter {
+                                val mime = it.format?.mimeType ?: ""
+                                mime.contains("mp4") || mime.contains("avc")
+                            }
+                            .sortedByDescending { it.height }
+                            .map { stream ->
+                                io.github.aedev.flow.player.dlna.CastStreamVariant(
+                                    url = stream.content ?: stream.url ?: "",
+                                    width = stream.width.takeIf { it > 0 } ?: (stream.height * 16 / 9),
+                                    height = stream.height,
+                                    bitrate = stream.bitrate.takeIf { it > 0 } ?: 2_500_000,
+                                    mime = "video/mp4",
+                                    codec = stream.codec?.takeIf { it.isNotBlank() } ?: "avc1.64001F"
+                                )
+                            }
+                            .filter { it.url.isNotEmpty() }
+
+                        val bestAudio = streamInfo.audioStreams
+                            ?.filter {
+                                val mime = it.format?.mimeType ?: ""
+                                mime.contains("mp4") || mime.contains("m4a") || mime.contains("aac")
+                            }
+                            ?.maxByOrNull { it.bitrate }
+
+                        val audioUrl = bestAudio?.let { it.content ?: it.url }
+                        val audioBitrate = bestAudio?.bitrate?.takeIf { it > 0 } ?: 128_000
+                        val audioCodec = bestAudio?.codec?.takeIf { it?.isNotBlank() == true } ?: "mp4a.40.2"
+                        val audioMime = bestAudio?.format?.mimeType?.let {
+                            if (it.contains("mp4") || it.contains("m4a")) "audio/mp4" else it
+                        } ?: "audio/mp4"
+
+                        if (videoVariants.isNotEmpty() && audioUrl != null) {
+                            android.util.Log.d("DlnaCast", "HLS cast: ${videoVariants.size} variants, " +
+                                "audio=${audioBitrate/1000}kbps")
+
+                            DlnaCastManager.castTo(
+                                device = device,
+                                title = video.title,
+                                videoVariants = videoVariants,
+                                audioUrl = audioUrl,
+                                audioMime = audioMime,
+                                audioBitrate = audioBitrate,
+                                audioCodec = audioCodec,
+                                durationSeconds = duration
+                            )
                         } else {
-                            val bestVideoOnly = (streamInfo.videoOnlyStreams ?: emptyList())
-                                .filter { it.height > 0 && it.height <= 1080 }
-                                .filter { it.format?.mimeType?.contains("mp4") == true }
-                                .maxByOrNull { it.height }
+                            val bestMuxed = streamInfo.videoStreams
+                                ?.filter { it.height > 0 }
+                                ?.maxByOrNull { it.height }
+                            val muxedUrl = bestMuxed?.let { it.content ?: it.url }
+                                ?: EnhancedPlayerManager.getInstance().getPlayer()
+                                    ?.currentMediaItem?.localConfiguration?.uri?.toString()
 
-                            if (bestVideoOnly != null) {
-                                streamUrl = bestVideoOnly.content ?: bestVideoOnly.url ?: ""
-                                castAudioUrl = streamInfo.audioStreams
-                                    ?.filter { it.format?.mimeType?.contains("mp4") == true }
-                                    ?.maxByOrNull { it.bitrate }
-                                    ?.url
+                            if (muxedUrl != null && muxedUrl.isNotEmpty() && !muxedUrl.startsWith("local://")) {
+                                android.util.Log.d("DlnaCast", "Fallback to pre-muxed: ${bestMuxed?.height}p")
+                                DlnaCastManager.castTo(
+                                    device = device,
+                                    title = video.title,
+                                    fallbackVideoUrl = muxedUrl
+                                )
                             }
                         }
-                    }
-                    if (streamUrl.isEmpty()) {
-                        streamUrl = EnhancedPlayerManager.getInstance().getPlayer()
-                            ?.currentMediaItem?.localConfiguration?.uri?.toString() ?: ""
-                    }
-
-                    if (streamUrl.isNotEmpty() && !streamUrl.startsWith("local://")) {
-                        DlnaCastManager.castTo(device, streamUrl, video.title, castAudioUrl)
+                    } else {
+                        val playerUrl = EnhancedPlayerManager.getInstance().getPlayer()
+                            ?.currentMediaItem?.localConfiguration?.uri?.toString()
+                        if (playerUrl != null && playerUrl.isNotEmpty() && !playerUrl.startsWith("local://")) {
+                            DlnaCastManager.castTo(
+                                device = device,
+                                title = video.title,
+                                fallbackVideoUrl = playerUrl
+                            )
+                        }
                     }
                     showDlnaDialog = false
                 },
