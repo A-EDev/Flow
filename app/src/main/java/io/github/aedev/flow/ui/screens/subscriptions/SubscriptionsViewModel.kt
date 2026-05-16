@@ -22,6 +22,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import androidx.room.withTransaction
 
 class SubscriptionsViewModel : ViewModel() {
     companion object {
@@ -42,6 +43,7 @@ class SubscriptionsViewModel : ViewModel() {
 
     private val ytRepository: YouTubeRepository = YouTubeRepository.getInstance()
     private lateinit var cacheDao: io.github.aedev.flow.data.local.dao.CacheDao
+    private lateinit var database: AppDatabase
     private lateinit var playerPreferences: PlayerPreferences
     private lateinit var subscriptionGroupDao: SubscriptionGroupDao
     private var isInitialized = false
@@ -56,9 +58,9 @@ class SubscriptionsViewModel : ViewModel() {
         subscriptionRepository = SubscriptionRepository.getInstance(context)
         playerPreferences = PlayerPreferences(context)
         viewHistory = ViewHistory.getInstance(context)
-        val db = AppDatabase.getDatabase(context)
-        cacheDao = db.cacheDao()
-        subscriptionGroupDao = db.subscriptionGroupDao()
+        database = AppDatabase.getDatabase(context)
+        cacheDao = database.cacheDao()
+        subscriptionGroupDao = database.subscriptionGroupDao()
         
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             subscriptionGroupDao.getAllGroups().collect { entities ->
@@ -71,6 +73,29 @@ class SubscriptionsViewModel : ViewModel() {
             playerPreferences.shortsShelfEnabled.collect { enabled ->
                 _uiState.update { it.copy(isShortsShelfEnabled = enabled) }
             }
+        }
+
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            combine(
+                playerPreferences.subscriptionShowVideos,
+                playerPreferences.subscriptionShowShorts,
+                playerPreferences.subscriptionShowLive
+            ) { showVideos, showShorts, showLive ->
+                Triple(showVideos, showShorts, showLive)
+            }
+                .distinctUntilChanged()
+                .collect { (showVideos, showShorts, showLive) ->
+                    _uiState.update {
+                        it.copy(
+                            showSubscriptionVideos = showVideos,
+                            showSubscriptionShorts = showShorts,
+                            showSubscriptionLive = showLive
+                        )
+                    }
+                    if (latestFeedVideos.isNotEmpty()) {
+                        updateVideos(latestFeedVideos)
+                    }
+                }
         }
 
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
@@ -212,6 +237,7 @@ class SubscriptionsViewModel : ViewModel() {
         }
 
         try {
+            var finalVideos: List<Video> = emptyList()
             io.github.aedev.flow.data.innertube.RssSubscriptionService.fetchSubscriptionVideos(
                 channelIds = channelIds,
                 maxTotal = 600,
@@ -226,23 +252,24 @@ class SubscriptionsViewModel : ViewModel() {
             ).collect { videos ->
                 Log.i(TAG, "Network emit received: ${videos.size} videos (shorts=${videos.count { it.isShort }}, regular=${videos.count { !it.isShort }})")
                 if (videos.isNotEmpty()) {
-                    val refreshTime = System.currentTimeMillis()
-                    val entities = videos.map { video -> video.toSubscriptionFeedEntity(refreshTime) }
-                    withContext(PerformanceDispatcher.diskIO) {
-                        cacheDao.insertSubscriptionFeed(entities)
-                        playerPreferences.setSubscriptionLastRefresh(refreshTime, videos.size)
-                    }
-                    val currentCached = withContext(PerformanceDispatcher.diskIO) {
-                        cacheDao.getSubscriptionFeed().first().map { it.toVideo() }
-                    }
-                    latestFeedVideos = currentCached
-                    updateVideos(currentCached)
+                    finalVideos = videos
+                    updateVideos(videos)
                 } else {
                     Log.w(TAG, "Network emit was empty!")
-                    withContext(PerformanceDispatcher.diskIO) {
-                        playerPreferences.setSubscriptionLastRefresh(System.currentTimeMillis(), 0)
-                    }
                 }
+            }
+            if (finalVideos.isNotEmpty()) {
+                val refreshTime = System.currentTimeMillis()
+                val entities = finalVideos.map { video -> video.toSubscriptionFeedEntity(refreshTime) }
+                withContext(PerformanceDispatcher.diskIO) {
+                    database.withTransaction {
+                        cacheDao.clearSubscriptionFeed()
+                        cacheDao.insertSubscriptionFeed(entities)
+                    }
+                    playerPreferences.setSubscriptionLastRefresh(refreshTime, finalVideos.size)
+                }
+                latestFeedVideos = finalVideos
+                updateVideos(finalVideos)
             }
         } finally {
             if (showLoading) {
@@ -268,7 +295,15 @@ class SubscriptionsViewModel : ViewModel() {
 
 
     private suspend fun updateVideos(videos: List<Video>) {
-        val sortedVideos = videos.sortedByDescending { it.timestamp }
+        val sortedVideos = videos
+            .filter { video ->
+                when {
+                    video.isShort -> _uiState.value.showSubscriptionShorts
+                    video.isLive -> _uiState.value.showSubscriptionLive
+                    else -> _uiState.value.showSubscriptionVideos
+                }
+            }
+            .sortedByDescending { it.timestamp }
 
         val (shorts, regular) = sortedVideos.partition { video -> video.isShort }
         Log.i(TAG, "updateVideos: total=${sortedVideos.size} → regular=${regular.size}, shorts=${shorts.size}")
@@ -586,7 +621,10 @@ data class SubscriptionsUiState(
     val refreshTotalChannels: Int = 0,
     val lastRefreshTime: Long = 0L,
     val lastRefreshText: String? = null,
-    val lastRefreshVideoCount: Int = 0
+    val lastRefreshVideoCount: Int = 0,
+    val showSubscriptionVideos: Boolean = true,
+    val showSubscriptionShorts: Boolean = true,
+    val showSubscriptionLive: Boolean = true
 )
 
 data class SubscriptionGroup(
@@ -612,7 +650,8 @@ private fun io.github.aedev.flow.data.local.entity.SubscriptionFeedEntity.toVide
     uploadDate = uploadDate,
     timestamp = timestamp,
     channelThumbnailUrl = channelThumbnailUrl,
-    isShort = isShort
+    isShort = isShort,
+    isLive = isLive
 )
 
 private fun Video.toSubscriptionFeedEntity(
@@ -629,6 +668,7 @@ private fun Video.toSubscriptionFeedEntity(
     timestamp = timestamp,
     channelThumbnailUrl = channelThumbnailUrl,
     isShort = isShort,
+    isLive = isLive,
     cachedAt = cachedAtMillis
 )
 

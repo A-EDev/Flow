@@ -16,6 +16,7 @@ data class SubscriptionFeedEntity(
     val timestamp: Long = System.currentTimeMillis(),
     val channelThumbnailUrl: String,
     val isShort: Boolean = false,
+    val isLive: Boolean = false,
     val cachedAt: Long = System.currentTimeMillis()
 )
 

@@ -35,6 +35,7 @@ fun PlayerBottomSheetsContainer(
     completeVideo: Video,
     disableShortsPlayer: Boolean,
     comments: List<Comment>,
+    commentsEnabled: Boolean = true,
     isLoadingComments: Boolean,
     isLoadingMoreComments: Boolean = false,
     hasMoreComments: Boolean = false,
@@ -133,7 +134,7 @@ fun PlayerBottomSheetsContainer(
     }
 
     // Comments Bottom Sheet
-    if (screenState.showCommentsSheet) {
+    if (screenState.showCommentsSheet && commentsEnabled) {
         FlowCommentsBottomSheet(
             comments = sortedComments,
             isLoading = isLoadingComments,

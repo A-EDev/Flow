@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import androidx.media3.common.util.UnstableApi
+import androidx.room.withTransaction
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.local.AppDatabase
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -541,14 +542,19 @@ private suspend fun refreshSubscriptionsAtStartup(
         val subscriptions = SubscriptionRepository.getInstance(context).getAllSubscriptions().first()
         if (subscriptions.isEmpty()) return@runCatching
 
-        val cacheDao = AppDatabase.getDatabase(context).cacheDao()
+        val database = AppDatabase.getDatabase(context)
+        val cacheDao = database.cacheDao()
+        var finalVideos: List<Video> = emptyList()
         RssSubscriptionService.fetchSubscriptionVideos(
             channelIds = subscriptions.map { it.channelId },
             maxTotal = 600
         ).collect { videos ->
             if (videos.isEmpty()) return@collect
+            finalVideos = videos
+        }
+        if (finalVideos.isNotEmpty()) {
             val refreshTime = System.currentTimeMillis()
-            val entities = videos.map { video ->
+            val entities = finalVideos.map { video ->
                 SubscriptionFeedEntity(
                     videoId = video.id,
                     title = video.title,
@@ -561,11 +567,15 @@ private suspend fun refreshSubscriptionsAtStartup(
                     timestamp = video.timestamp,
                     channelThumbnailUrl = video.channelThumbnailUrl,
                     isShort = video.isShort,
+                    isLive = video.isLive,
                     cachedAt = refreshTime
                 )
             }
-            cacheDao.insertSubscriptionFeed(entities)
-            preferences.setSubscriptionLastRefresh(refreshTime, videos.size)
+            database.withTransaction {
+                cacheDao.clearSubscriptionFeed()
+                cacheDao.insertSubscriptionFeed(entities)
+            }
+            preferences.setSubscriptionLastRefresh(refreshTime, finalVideos.size)
         }
     }.onFailure {
         android.util.Log.w("FlowApp", "Startup subscription refresh failed: ${it.message}")

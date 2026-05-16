@@ -236,6 +236,7 @@ fun VideoInfoSection(
 fun CommentsPreview(
     latestComment: String?,
     authorAvatar: String?,
+    showPreviewText: Boolean = true,
     onClick: () -> Unit
 ) {
     Surface(
@@ -256,7 +257,7 @@ fun CommentsPreview(
                 )
             }
             
-            if (!latestComment.isNullOrBlank()) {
+            if (showPreviewText && !latestComment.isNullOrBlank()) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     AsyncImage(
@@ -287,7 +288,7 @@ fun CommentsPreview(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-            } else {
+            } else if (showPreviewText) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Add a comment...",

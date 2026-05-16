@@ -89,7 +89,11 @@ fun ContentSettingsScreen(
     val videoCardActionsEnabled by preferences.videoCardActionsEnabled.collectAsState(initial = false)
     val videoCardMarkWatchedEnabled by preferences.videoCardMarkWatchedEnabled.collectAsState(initial = false)
     val subscriptionRefreshOnStartup by preferences.subscriptionRefreshOnStartup.collectAsState(initial = false)
+    val commentsEnabled by preferences.commentsEnabled.collectAsState(initial = true)
     val commentsPreviewEnabled by preferences.commentsPreviewEnabled.collectAsState(initial = true)
+    val subscriptionShowVideos by preferences.subscriptionShowVideos.collectAsState(initial = true)
+    val subscriptionShowShorts by preferences.subscriptionShowShorts.collectAsState(initial = true)
+    val subscriptionShowLive by preferences.subscriptionShowLive.collectAsState(initial = true)
     val navTabOrder by preferences.navTabOrder.collectAsState(initial = io.github.aedev.flow.data.local.DEFAULT_NAV_TAB_ORDER)
     val defaultNavTabIndex by preferences.defaultNavTabIndex.collectAsState(initial = 0)
     
@@ -327,9 +331,22 @@ fun ContentSettingsScreen(
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
                         icon = Icons.Outlined.Comment,
+                        title = stringResource(R.string.content_settings_comments_enabled_title),
+                        subtitle = stringResource(R.string.content_settings_comments_enabled_subtitle),
+                        checked = commentsEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setCommentsEnabled(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Comment,
                         title = stringResource(R.string.content_settings_comments_preview_title),
                         subtitle = stringResource(R.string.content_settings_comments_preview_subtitle),
                         checked = commentsPreviewEnabled,
+                        enabled = commentsEnabled,
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setCommentsPreviewEnabled(enabled)
@@ -459,6 +476,42 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setSubscriptionRefreshOnStartup(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.VideoLibrary,
+                        title = stringResource(R.string.content_settings_subs_show_videos_title),
+                        subtitle = stringResource(R.string.content_settings_subs_show_videos_subtitle),
+                        checked = subscriptionShowVideos,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setSubscriptionShowVideos(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = androidx.compose.ui.graphics.vector.ImageVector.vectorResource(id = R.drawable.ic_shorts),
+                        title = stringResource(R.string.content_settings_subs_show_shorts_title),
+                        subtitle = stringResource(R.string.content_settings_subs_show_shorts_subtitle),
+                        checked = subscriptionShowShorts,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setSubscriptionShowShorts(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Subscriptions,
+                        title = stringResource(R.string.content_settings_subs_show_live_title),
+                        subtitle = stringResource(R.string.content_settings_subs_show_live_subtitle),
+                        checked = subscriptionShowLive,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setSubscriptionShowLive(enabled)
                             }
                         }
                     )

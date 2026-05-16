@@ -14,6 +14,7 @@ import org.schabi.newpipe.extractor.feed.FeedInfo
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler
 import org.schabi.newpipe.extractor.stream.ContentAvailability
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
+import org.schabi.newpipe.extractor.stream.StreamType
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -30,6 +31,7 @@ object RssSubscriptionService {
     private const val MAX_SHORTS = 120
     private const val MAX_VIDEOS_PER_CHANNEL = 60
     private const val MAX_SHORTS_PER_CHANNEL = 20
+    private const val MAX_LIVE_PER_CHANNEL = 20
 
     fun fetchSubscriptionVideos(
         channelIds: List<String>,
@@ -76,7 +78,10 @@ object RssSubscriptionService {
         val activeChannelIds = channelIds.filter { rssChannelHasRecent[it] != false }
         Log.i(TAG, "Phase 2: Fetching tabs for ${activeChannelIds.size} active channels (${channelIds.size - activeChannelIds.size} skipped as stale)")
 
-        var processedChannels = 0
+        var processedChannels = channelIds.size - activeChannelIds.size
+        if (processedChannels > 0) {
+            onProgress?.invoke(processedChannels, channelIds.size)
+        }
         val chunks = activeChannelIds.chunked(CHANNEL_CHUNK_SIZE)
         for ((chunkIndex, chunk) in chunks.withIndex()) {
             val count = channelExtractionCount.get()
@@ -106,7 +111,7 @@ object RssSubscriptionService {
 
             chunkVideos.forEach { if (it.isShort) allShorts.add(it) else allRegular.add(it) }
             processedChannels += chunk.size
-            onProgress?.invoke(processedChannels, activeChannelIds.size)
+            onProgress?.invoke(processedChannels, channelIds.size)
             Log.d(TAG, "Chunk ${chunkIndex + 1} done: +${chunkVideos.size} (regular=${allRegular.size}, shorts=${allShorts.size})")
 
             emit(buildFeed(allRegular, allShorts, maxTotal))
@@ -195,13 +200,14 @@ object RssSubscriptionService {
 
             val videosTab = channelInfo.tabs.find { it.contentFilters.contains(ChannelTabs.VIDEOS) }
             val shortsTab = channelInfo.tabs.find { it.contentFilters.contains(ChannelTabs.SHORTS) }
+            val liveTab = channelInfo.tabs.find { it.contentFilters.contains(ChannelTabs.LIVESTREAMS) }
 
-            if (videosTab == null && shortsTab == null) {
+            if (videosTab == null && shortsTab == null && liveTab == null) {
                 Log.w(TAG, "[$channelId] No VIDEOS or SHORTS tab found — returning empty")
                 return emptyList()
             }
 
-            val (videoItems, shortsItems) = coroutineScope {
+            val (videoItems, shortsItems, liveItems) = coroutineScope {
                 val videoDeferred = videosTab?.let {
                     async(Dispatchers.IO) {
                         fetchTabItems(it, MAX_VIDEOS_PER_CHANNEL)
@@ -212,12 +218,21 @@ object RssSubscriptionService {
                         fetchTabItems(it, MAX_SHORTS_PER_CHANNEL)
                     }
                 }
-                (videoDeferred?.await() ?: emptyList<StreamInfoItem>()) to
-                        (shortsDeferred?.await() ?: emptyList())
+                val liveDeferred = liveTab?.let {
+                    async(Dispatchers.IO) {
+                        fetchTabItems(it, MAX_LIVE_PER_CHANNEL)
+                    }
+                }
+                Triple(
+                    videoDeferred?.await() ?: emptyList(),
+                    shortsDeferred?.await() ?: emptyList(),
+                    liveDeferred?.await() ?: emptyList()
+                )
             }
 
             val shortsUrls = shortsItems.map { it.url }.toHashSet()
-            val combined = (videoItems + shortsItems).distinctBy { it.url }
+            val liveUrls = liveItems.map { it.url }.toHashSet()
+            val combined = (videoItems + shortsItems + liveItems).distinctBy { it.url }
 
             val videos = combined.mapNotNull { item ->
                 val videoId = extractVideoId(item.url)
@@ -238,12 +253,13 @@ object RssSubscriptionService {
                         channelId = channelId,
                         channelAvatar = channelAvatar,
                         forceShort = item.url in shortsUrls,
+                        forceLive = item.url in liveUrls,
                         overrideTimestamp = uploadTimeMillis
                     )
                 }
             }
 
-            Log.i(TAG, "[$channelId] RESULT: ${videos.size} videos (${videos.count { it.isShort }} shorts, ${videos.count { !it.isShort }} regular)")
+            Log.i(TAG, "[$channelId] RESULT: ${videos.size} videos (${videos.count { it.isShort }} shorts, ${videos.count { it.isLive }} live)")
             return videos
         } catch (e: CancellationException) {
             throw e
@@ -296,6 +312,7 @@ object RssSubscriptionService {
         channelId: String,
         channelAvatar: String?,
         forceShort: Boolean = false,
+        forceLive: Boolean = false,
         overrideTimestamp: Long? = null
     ): Video {
         val videoId = extractVideoId(item.url)
@@ -328,8 +345,15 @@ object RssSubscriptionService {
                 ?: item.uploaderAvatars?.maxByOrNull { it.height }?.url
                 ?: "",
             isShort = forceShort || item.isShortFormContent,
-            isLive = item.streamType == org.schabi.newpipe.extractor.stream.StreamType.LIVE_STREAM
+            isLive = forceLive || item.isLiveStream()
         )
+    }
+
+    private fun StreamInfoItem.isLiveStream(): Boolean {
+        return streamType == StreamType.LIVE_STREAM ||
+            streamType == StreamType.AUDIO_LIVE_STREAM ||
+            streamType == StreamType.POST_LIVE_STREAM ||
+            streamType == StreamType.POST_LIVE_AUDIO_STREAM
     }
 
     /** Format a millisecond timestamp as a human-readable relative string. */

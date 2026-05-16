@@ -211,7 +211,12 @@ class PlayerPreferences(private val context: Context) {
         val SHOW_APP_LOGO_ICON = booleanPreferencesKey("show_app_logo_icon")
 
         // Player comments preview
+        val COMMENTS_ENABLED = booleanPreferencesKey("comments_enabled")
         val COMMENTS_PREVIEW_ENABLED = booleanPreferencesKey("comments_preview_enabled")
+
+        val SUBSCRIPTION_SHOW_VIDEOS = booleanPreferencesKey("subscription_show_videos")
+        val SUBSCRIPTION_SHOW_SHORTS = booleanPreferencesKey("subscription_show_shorts")
+        val SUBSCRIPTION_SHOW_LIVE = booleanPreferencesKey("subscription_show_live")
 
         // Deep Flow (Incognito / No-Engine) mode
         val DEEP_FLOW_ACTIVE = booleanPreferencesKey("deep_flow_active")
@@ -1064,6 +1069,42 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setCommentsPreviewEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.COMMENTS_PREVIEW_ENABLED] = enabled
+        }
+    }
+
+    val commentsEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.COMMENTS_ENABLED] ?: true }
+
+    suspend fun setCommentsEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.COMMENTS_ENABLED] = enabled
+        }
+    }
+
+    val subscriptionShowVideos: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.SUBSCRIPTION_SHOW_VIDEOS] ?: true }
+
+    suspend fun setSubscriptionShowVideos(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SUBSCRIPTION_SHOW_VIDEOS] = enabled
+        }
+    }
+
+    val subscriptionShowShorts: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.SUBSCRIPTION_SHOW_SHORTS] ?: true }
+
+    suspend fun setSubscriptionShowShorts(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SUBSCRIPTION_SHOW_SHORTS] = enabled
+        }
+    }
+
+    val subscriptionShowLive: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.SUBSCRIPTION_SHOW_LIVE] ?: true }
+
+    suspend fun setSubscriptionShowLive(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SUBSCRIPTION_SHOW_LIVE] = enabled
         }
     }
 

@@ -18,7 +18,7 @@ FEATURES
 - Add new video player controls lock mode #441
 - Add toggle to refresh subscriptions at app startup #435
 - Add navigation tab order controls and default tab selection
-- Add comment disable option
+- Add comment and comment preview disable options
 - Add Material You dynamic color theme #448
 - Add custom light and dark theme choices for System Default #367
 - Add more app icon variants with updated adaptive icon packaging #400
@@ -47,7 +47,7 @@ IMPROVEMENTS
 - Prefer VP9/H264 over AV1 for playback #406
 - Improve Live streams handling and UI #435 #416 #390
 - Improved watched content filtering #451
-- Improve subscriptions feed UI, count and cache #435
+- Improve subscriptions feed UI, count, content and cache #435
 - Redesign App Icon picker #400
 
 FIXES AND STABILITY

@@ -56,6 +56,7 @@ fun VideoInfoContent(
     viewModel: VideoPlayerViewModel,
     screenState: PlayerScreenState,
     comments: List<Comment>,
+    commentsEnabled: Boolean = true,
     showCommentsPreview: Boolean = true,
     context: Context,
     scope: CoroutineScope,
@@ -328,10 +329,11 @@ fun VideoInfoContent(
         onDescriptionClick = { screenState.showDescriptionSheet = true }
     )
 
-    if (showCommentsPreview) {
+    if (commentsEnabled) {
         CommentsPreview(
-            latestComment = comments.firstOrNull()?.text,
-            authorAvatar = comments.firstOrNull()?.authorThumbnail,
+            latestComment = if (showCommentsPreview) comments.firstOrNull()?.text else null,
+            authorAvatar = if (showCommentsPreview) comments.firstOrNull()?.authorThumbnail else null,
+            showPreviewText = showCommentsPreview,
             onClick = { screenState.showCommentsSheet = true }
         )
     }
