@@ -8,6 +8,7 @@ import io.github.aedev.flow.data.local.BackupRepository
 import io.github.aedev.flow.notification.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,6 +33,10 @@ import javax.inject.Inject
 class ImportViewModel @Inject constructor(
     @ApplicationContext private val context: Context
 ) : ViewModel() {
+
+    init {
+        NotificationHelper.cancelImportNotification(context)
+    }
 
     sealed class State {
         object Idle : State()
@@ -154,19 +159,26 @@ class ImportViewModel @Inject constructor(
         val label = "YouTube Takeout"
         viewModelScope.launch {
             startProgress(label, 0, 0)
-            val result = backupRepo.importYouTubeTakeout(uri) { stepLabel, current, total ->
-                updateProgress("$label – $stepLabel", current, total)
-            }
-            NotificationHelper.cancelImportNotification(context)
-            if (result.isSuccess) {
-                val summary = result.getOrNull() ?: ""
-                _state.value = State.Success(label, message = summary)
-                if (NotificationHelper.hasNotificationPermission(context)) {
-                    NotificationHelper.showImportComplete(context, label, 0, summary)
+            try {
+                val result = backupRepo.importYouTubeTakeout(uri) { stepLabel, current, total ->
+                    updateProgress("$label – $stepLabel", current, total)
                 }
-            } else {
-                val msg = result.exceptionOrNull()?.message ?: "Unknown error"
-                _state.value = State.Error(label, msg)
+                if (result.isSuccess) {
+                    val summary = result.getOrNull() ?: ""
+                    _state.value = State.Success(label, message = summary)
+                    if (NotificationHelper.hasNotificationPermission(context)) {
+                        NotificationHelper.showImportComplete(context, label, 0, summary)
+                    }
+                } else {
+                    val msg = result.exceptionOrNull()?.message ?: "Unknown error"
+                    _state.value = State.Error(label, msg)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.value = State.Error(label, e.message ?: "Unknown error")
+            } finally {
+                NotificationHelper.cancelImportNotification(context)
             }
         }
     }
@@ -177,16 +189,23 @@ class ImportViewModel @Inject constructor(
         val successMessage = "Master backup restored successfully"
         viewModelScope.launch {
             startProgress(label, 0, 0)
-            val result = backupRepo.importMasterBackup(uri)
-            NotificationHelper.cancelImportNotification(context)
-            if (result.isSuccess) {
-                _state.value = State.Success(label, message = successMessage)
-                if (NotificationHelper.hasNotificationPermission(context)) {
-                    NotificationHelper.showImportComplete(context, label, 0, successMessage)
+            try {
+                val result = backupRepo.importMasterBackup(uri)
+                if (result.isSuccess) {
+                    _state.value = State.Success(label, message = successMessage)
+                    if (NotificationHelper.hasNotificationPermission(context)) {
+                        NotificationHelper.showImportComplete(context, label, 0, successMessage)
+                    }
+                } else {
+                    val msg = result.exceptionOrNull()?.message ?: "Unknown error"
+                    _state.value = State.Error(label, msg)
                 }
-            } else {
-                val msg = result.exceptionOrNull()?.message ?: "Unknown error"
-                _state.value = State.Error(label, msg)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _state.value = State.Error(label, e.message ?: "Unknown error")
+            } finally {
+                NotificationHelper.cancelImportNotification(context)
             }
         }
     }

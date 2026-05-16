@@ -126,7 +126,7 @@ object RssSubscriptionService {
         val r = regular.sortedByDescending { it.timestamp }.take(MAX_REGULAR_VIDEOS)
         val s = shorts
             .sortedByDescending { it.timestamp }
-            .distinctBy { it.channelId } 
+            .distinctBy { it.channelId.ifBlank { it.id } }
             .take(MAX_SHORTS)
         return (r + s).sortedByDescending { it.timestamp }.take(maxTotal)
     }
@@ -244,11 +244,13 @@ object RssSubscriptionService {
                 val uploadTimeMillis = resolveUploadTimestamp(item)
                     ?: rssDateMap[videoId]
 
-                val isOld = uploadTimeMillis != null && uploadTimeMillis <= minimumDateMillis
-                if (isOld) {
-                    null
-                } else {
-                    streamInfoItemToVideo(
+                when {
+                    uploadTimeMillis == null -> {
+                        Log.d(TAG, "[$channelId] Skipping undated subscription item: $videoId")
+                        null
+                    }
+                    uploadTimeMillis <= minimumDateMillis -> null
+                    else -> streamInfoItemToVideo(
                         item = item,
                         channelId = channelId,
                         channelAvatar = channelAvatar,
@@ -414,13 +416,13 @@ object RssSubscriptionService {
 
         val value = Regex("(\\d+)").find(normalized)?.groupValues?.getOrNull(1)?.toLongOrNull() ?: return null
         val unitMillis = when {
-            normalized.contains("second") -> 1_000L
-            normalized.contains("minute") -> 60_000L
-            normalized.contains("hour") -> 3_600_000L
-            normalized.contains("day") -> 86_400_000L
-            normalized.contains("week") -> 7L * 86_400_000L
-            normalized.contains("month") -> 30L * 86_400_000L
-            normalized.contains("year") -> 365L * 86_400_000L
+            normalized.contains("second") || normalized.endsWith("s") -> 1_000L
+            normalized.contains("minute") || normalized.endsWith("m") -> 60_000L
+            normalized.contains("hour") || normalized.endsWith("h") -> 3_600_000L
+            normalized.contains("day") || normalized.endsWith("d") -> 86_400_000L
+            normalized.contains("week") || normalized.endsWith("w") -> 7L * 86_400_000L
+            normalized.contains("month") || normalized.endsWith("mo") -> 30L * 86_400_000L
+            normalized.contains("year") || normalized.endsWith("y") -> 365L * 86_400_000L
             else -> return null
         }
 

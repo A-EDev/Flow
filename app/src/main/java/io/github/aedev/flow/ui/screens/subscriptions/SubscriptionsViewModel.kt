@@ -308,6 +308,7 @@ class SubscriptionsViewModel : ViewModel() {
 
 
     private suspend fun updateVideos(videos: List<Video>) {
+        val sortNow = System.currentTimeMillis()
         val sortedVideos = videos
             .filter { video ->
                 when {
@@ -316,7 +317,7 @@ class SubscriptionsViewModel : ViewModel() {
                     else -> _uiState.value.showSubscriptionVideos
                 }
             }
-            .sortedByDescending { it.timestamp }
+            .withStableUploadSortKeys(sortNow)
 
         val (shorts, regular) = sortedVideos.partition { video -> video.isShort }
         Log.i(TAG, "updateVideos: total=${sortedVideos.size} → regular=${regular.size}, shorts=${shorts.size}")
@@ -324,8 +325,8 @@ class SubscriptionsViewModel : ViewModel() {
         // ── 1 short per channel (most recent first) ──────────────────
         val latestShortPerChannel = shorts
             .groupBy { it.channelId }
-            .flatMap { (_, channelShorts) -> channelShorts.sortedByDescending { it.timestamp }.take(1) }
-            .sortedByDescending { it.timestamp }
+            .flatMap { (_, channelShorts) -> channelShorts.withStableUploadSortKeys(sortNow).take(1) }
+            .withStableUploadSortKeys(sortNow)
         Log.i(TAG, "Shorts after per-channel dedup: ${latestShortPerChannel.size}/${shorts.size}")
 
         val watchedIds = watchedVideoIds
@@ -441,10 +442,27 @@ class SubscriptionsViewModel : ViewModel() {
         }
     }
 
-    private fun parseRelativeTime(dateString: String): Long {
+    private fun List<Video>.withStableUploadSortKeys(now: Long): List<Video> =
+        map { video -> SortableVideo(video, effectiveUploadTimestamp(video, now)) }
+            .sortedWith(
+                compareByDescending<SortableVideo> { it.uploadTimestamp }
+                    .thenByDescending { it.video.viewCount }
+                    .thenBy { it.video.id }
+            )
+            .map { it.video }
+
+    private fun effectiveUploadTimestamp(video: Video, now: Long): Long =
+        parseRelativeTime(video.uploadDate, now) ?: video.timestamp
+
+    private data class SortableVideo(
+        val video: Video,
+        val uploadTimestamp: Long
+    )
+
+    private fun parseRelativeTime(dateString: String, now: Long): Long? {
         try {
-            val now = System.currentTimeMillis()
             val text = dateString.lowercase().trim()
+            if (text.isBlank() || text == "unknown") return null
             
             if (text.contains("scheduled") || text.contains("premiere")) return now + 86400000L
             if (text.contains("live")) return now + 3600000L // Boost live streams
@@ -454,19 +472,19 @@ class SubscriptionsViewModel : ViewModel() {
             val value = valueLine?.filter { it.isDigit() }?.toLongOrNull() ?: 1L
             
             val multiplier = when {
-                text.contains("second") -> 1000L
-                text.contains("minute") -> 60000L
-                text.contains("hour") -> 3600000L
-                text.contains("day") -> 86400000L
-                text.contains("week") -> 604800000L
-                text.contains("month") -> 2592000000L
-                text.contains("year") -> 31536000000L
-                else -> 86400000L
+                text.contains("second") || text.endsWith("s ago") || text.matches(Regex("\\d+s")) -> 1000L
+                text.contains("minute") || text.endsWith("m ago") || text.matches(Regex("\\d+m")) -> 60000L
+                text.contains("hour") || text.endsWith("h ago") || text.matches(Regex("\\d+h")) -> 3600000L
+                text.contains("day") || text.endsWith("d ago") || text.matches(Regex("\\d+d")) -> 86400000L
+                text.contains("week") || text.endsWith("w ago") || text.matches(Regex("\\d+w")) -> 604800000L
+                text.contains("month") || text.contains("mo ago") || text.matches(Regex("\\d+mo")) -> 2592000000L
+                text.contains("year") || text.endsWith("y ago") || text.matches(Regex("\\d+y")) -> 31536000000L
+                else -> return null
             }
             
             return now - (value * multiplier)
         } catch (e: Exception) {
-            return System.currentTimeMillis() 
+            return null
         }
     }
     

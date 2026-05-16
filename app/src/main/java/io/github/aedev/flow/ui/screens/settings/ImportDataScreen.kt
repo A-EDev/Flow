@@ -219,19 +219,7 @@ fun ImportDataScreen(
 
     val importMasterLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
-        onResult = { uri ->
-            uri?.let {
-                scope.launch {
-                    val result = backupRepo.importMasterBackup(it)
-                    snackbarHostState.showSnackbar(
-                        context.getString(
-                            if (result.isSuccess) R.string.import_master_backup_success
-                            else R.string.import_master_backup_failed
-                        )
-                    )
-                }
-            }
-        }
+        onResult = { uri -> uri?.let { importViewModel.importMasterBackup(it) } }
     )
 
     Scaffold(

@@ -147,6 +147,7 @@ class YouTubeRepository @Inject constructor(
                 .filterIsInstance<StreamInfoItem>()
                 .map { it.toVideo() }
                 .filter { it.duration in 1..60 } // Actual shorts are <= 60s
+                .sortedByDescending { it.timestamp }
             
             Pair(shorts, infoItems.nextPage)
         } catch (e: Exception) {
@@ -988,13 +989,13 @@ class YouTubeRepository @Inject constructor(
             ?: return null
 
         val unitMillis = when {
-            normalized.contains("second") -> 1_000L
-            normalized.contains("minute") -> 60_000L
-            normalized.contains("hour") -> 3_600_000L
-            normalized.contains("day") -> 86_400_000L
-            normalized.contains("week") -> 7L * 86_400_000L
-            normalized.contains("month") -> 30L * 86_400_000L
-            normalized.contains("year") -> 365L * 86_400_000L
+            normalized.contains("second") || normalized.endsWith("s") -> 1_000L
+            normalized.contains("minute") || normalized.endsWith("m") -> 60_000L
+            normalized.contains("hour") || normalized.endsWith("h") -> 3_600_000L
+            normalized.contains("day") || normalized.endsWith("d") -> 86_400_000L
+            normalized.contains("week") || normalized.endsWith("w") -> 7L * 86_400_000L
+            normalized.contains("month") || normalized.endsWith("mo") -> 30L * 86_400_000L
+            normalized.contains("year") || normalized.endsWith("y") -> 365L * 86_400_000L
             else -> return null
         }
 

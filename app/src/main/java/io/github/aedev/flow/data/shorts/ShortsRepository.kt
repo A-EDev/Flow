@@ -187,6 +187,7 @@ class ShortsRepository private constructor(private val context: Context) {
                     ?.let { deduplicateByTitle(it) }
                     ?.map { it.toShortVideo() }
                     ?.let { filterWatchedShorts(it) }
+                    ?.let { orderShortsNewestFirst(it) }
                     .orEmpty()
 
                 if (newCandidates.isNotEmpty()) {
@@ -230,7 +231,7 @@ class ShortsRepository private constructor(private val context: Context) {
                 null
             }
             if (newPipeResult != null && newPipeResult.shorts.isNotEmpty()) {
-                val reRanked = reRankWithFlowNeuro(newPipeResult.shorts, userSubs)
+                val reRanked = orderShortsNewestFirst(reRankWithFlowNeuro(newPipeResult.shorts, userSubs))
                 val result = newPipeResult.copy(shorts = reRanked)
                 result.shorts.forEach { shortsCache.put(it.id, it) }
                 markAsShown(result.shorts.map { it.id })
@@ -247,6 +248,7 @@ class ShortsRepository private constructor(private val context: Context) {
             .let { deduplicateByTitle(it) }
             .map { it.toShortVideo() }
             .let { filterWatchedShorts(it) }
+            .let { orderShortsNewestFirst(it) }
 
         markAsShown(candidateShorts.map { it.id })
         candidateShorts.forEach { shortsCache.put(it.id, it) }
@@ -340,7 +342,7 @@ class ShortsRepository private constructor(private val context: Context) {
                 null
             } ?: metadataEnriched
 
-            val reRanked = reRankWithFlowNeuro(enriched, userSubs)
+            val reRanked = orderShortsNewestFirst(reRankWithFlowNeuro(enriched, userSubs))
             val enrichedResult = result.copy(shorts = reRanked)
             enrichedResult.shorts.forEach { shortsCache.put(it.id, it) }
             markAsShown(enrichedResult.shorts.map { it.id })
@@ -361,7 +363,7 @@ class ShortsRepository private constructor(private val context: Context) {
                 fetchFromNewPipe()
             }
             if (fallback != null) {
-                val reRanked = reRankWithFlowNeuro(fallback.shorts, userSubs)
+                val reRanked = orderShortsNewestFirst(reRankWithFlowNeuro(fallback.shorts, userSubs))
                 val rankedFallback = fallback.copy(shorts = reRanked)
                 rankedFallback.shorts.forEach { shortsCache.put(it.id, it) }
                 markAsShown(rankedFallback.shorts.map { it.id })
@@ -420,6 +422,9 @@ class ShortsRepository private constructor(private val context: Context) {
         return result
     }
 
+    private fun orderShortsNewestFirst(shorts: List<ShortVideo>): List<ShortVideo> =
+        shorts.sortedByDescending { it.timestamp }
+
     // FLOWNEURO RE-RANKING — YouTube algo primary, FlowNeuro personalization    
     /**
      * Re-rank shorts using FlowNeuroEngine.
@@ -449,10 +454,10 @@ class ShortsRepository private constructor(private val context: Context) {
             val reRanked = rankedIds.mapNotNull { shortById[it] }
             FlowNeuroEngine.recordFeedImpressions(listOf(pinned.toVideo()) + ranked)
             Log.d(TAG, "✓ FlowNeuro re-ranked ${reRanked.size} shorts")
-            listOf(pinned) + reRanked
+            orderShortsNewestFirst(listOf(pinned) + reRanked)
         } catch (e: Exception) {
             Log.w(TAG, "FlowNeuro re-ranking failed, using original order: ${e.message}")
-            shorts
+            orderShortsNewestFirst(shorts)
         }
     }
     
@@ -639,7 +644,7 @@ class ShortsRepository private constructor(private val context: Context) {
     suspend fun getHomeFeedShorts(): List<ShortVideo> = withContext(Dispatchers.IO) {
         try {
             val result = getShortsFeed()
-            filterWatchedShorts(result.shorts).take(20)
+            orderShortsNewestFirst(filterWatchedShorts(result.shorts)).take(20)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to get home feed shorts", e)
             emptyList()
@@ -768,6 +773,7 @@ class ShortsRepository private constructor(private val context: Context) {
             .map { it.toShortVideo() }
             .filter { it.id !in recentlyShownIds }
             .let { filterWatchedShorts(it) }
+            .let { orderShortsNewestFirst(it) }
         
         return ShortsSequenceResult(shorts, null)
     }

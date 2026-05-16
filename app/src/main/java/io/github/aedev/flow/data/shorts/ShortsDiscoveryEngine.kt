@@ -249,6 +249,7 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
     private suspend fun fetchShortsForChannel(channelId: String): List<Video> {
         val uploads = youtubeRepository.getChannelUploads(channelId, UPLOADS_PER_CHANNEL)
         return uploads.filter { v -> v.duration in 1..120 || v.isShort }
+            .sortedByDescending { it.timestamp }
     }
 
     // ── Phase 2: Topic Discovery Shorts ──
@@ -459,6 +460,7 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
 
         val isShort = item.isShortFormContent == true ||
                 url.contains("/shorts/", ignoreCase = true)
+        val timestamp = resolveUploadTimestamp(item) ?: System.currentTimeMillis()
 
         return Video(
             id = videoId,
@@ -473,6 +475,7 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
             viewCount = if (item.viewCount >= 0) item.viewCount else 0L,
             likeCount = 0L,
             uploadDate = item.textualUploadDate ?: "",
+            timestamp = timestamp,
             isShort = isShort,
             isLive = false,
             description = ""
@@ -480,6 +483,44 @@ class ShortsDiscoveryEngine private constructor(private val appContext: Context)
     }
 
     // ── Cache Management ──
+    private fun resolveUploadTimestamp(item: StreamInfoItem): Long? {
+        item.uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli()
+            ?.takeIf { it > 0L }
+            ?.let { return it }
+
+        return parseRelativeUploadDate(item.textualUploadDate)
+    }
+
+    private fun parseRelativeUploadDate(textualDate: String?): Long? {
+        val raw = textualDate?.trim().orEmpty()
+        if (raw.isBlank()) return null
+
+        val normalized = raw.lowercase()
+            .replace("streamed", "")
+            .replace("premiered", "")
+            .replace("ago", "")
+            .trim()
+
+        val now = System.currentTimeMillis()
+        if (normalized.contains("just now") || normalized.contains("today")) return now
+        if (normalized.contains("yesterday")) return now - 24L * 60L * 60L * 1000L
+
+        val value = Regex("(\\d+)").find(normalized)?.groupValues?.getOrNull(1)?.toLongOrNull()
+            ?: return null
+        val unitMillis = when {
+            normalized.contains("second") || normalized.endsWith("s") -> 1_000L
+            normalized.contains("minute") || normalized.endsWith("m") -> 60_000L
+            normalized.contains("hour") || normalized.endsWith("h") -> 3_600_000L
+            normalized.contains("day") || normalized.endsWith("d") -> 86_400_000L
+            normalized.contains("week") || normalized.endsWith("w") -> 7L * 86_400_000L
+            normalized.contains("month") || normalized.endsWith("mo") -> 30L * 86_400_000L
+            normalized.contains("year") || normalized.endsWith("y") -> 365L * 86_400_000L
+            else -> return null
+        }
+
+        return now - (value * unitMillis)
+    }
+
     fun clearCaches() {
         synchronized(channelShortsCache) { channelShortsCache.clear() }
         synchronized(discoveryCache) { discoveryCache.clear() }
