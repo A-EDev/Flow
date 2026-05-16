@@ -1542,4 +1542,12 @@
     <string name="content_settings_subs_show_shorts_subtitle">Afficher les courts métrages dans le flux d\'abonnement</string>
     <string name="content_settings_subs_show_live_title">Diffusions en direct sur abonnement</string>
     <string name="content_settings_subs_show_live_subtitle">Afficher les diffusions en direct et récemment terminées dans le flux d\'abonnement</string>
+    <string name="history_tab_videos">Vidéos</string>
+    <string name="history_tab_shorts">Shorts</string>
+    <string name="hide_channel_shorts">Masquer les Shorts de cette chaîne</string>
+    <string name="show_channel_shorts">Afficher les Shorts de cette chaîne</string>
+    <string name="player_settings_shorts_playback_mode_auto_interval">Défilement automatique après une durée personnalisée</string>
+    <string name="player_settings_shorts_playback_mode_auto_interval_summary">Défilement automatique toutes les %1$d secondes</string>
+    <string name="player_settings_shorts_auto_scroll_seconds_template">%1$d secondes</string>
+    <string name="shorts_auto_scroll_active_template">Auto %1$ds</string>
 </resources>
