@@ -1533,4 +1533,6 @@
     <string name="playlist_sort_manual">يدوي</string>
     <string name="playlist_sort_date_added_newest">تاريخ الإضافة (الأحدث)</string>
     <string name="playlist_sort_date_added_oldest">تاريخ الإضافة (الأقدم)</string>
+    <string name="player_settings_overlay_speed_indicator">مؤشر سرعة التشغيل</string>
+    <string name="player_settings_overlay_speed_indicator_subtitle">إعرض السرعة الحالية على واجهة مشغل الفيديو</string>
 </resources>
