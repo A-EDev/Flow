@@ -19,7 +19,7 @@
     <string name="library_playlists_label">Playlists</string>
     <string name="library_music_playlists_label">Playlists musicales</string>
     <string name="library_music_playlists_subtitle">Vos collections musicales</string>
-    <string name="library_liked_videos_label">Vidéos « J\'aime »</string>
+    <string name="library_liked_videos_label">J\'aime</string>
     <string name="library_saved_shorts_label">Shorts enregistrés</string>
     <string name="library_watch_later_label">À regarder plus tard</string>
     <string name="library_downloads_label">Téléchargements</string>
@@ -37,9 +37,9 @@
     <string name="empty_watch_history_body">Les vidéos que vous regardez apparaîtront ici</string>
     <string name="liked">"Aimé "</string>
     <string name="liked_music">Musique « J\'aime »</string>
-    <string name="liked_videos">Vidéos Aimées</string>
+    <string name="liked_videos">J\'aime</string>
     <string name="share_song">Partager la chanson</string>
-    <string name="empty_liked">Aucune Vidéo Aimée</string>
+    <string name="empty_liked">Pas de « J\'aime »</string>
     <string name="empty_liked_body">Les vidéos que vous aimez apparaîtront ici</string>
     <string name="song">Chanson</string>
     <string name="video">Vidéo</string>
@@ -1550,4 +1550,24 @@
     <string name="player_settings_shorts_playback_mode_auto_interval_summary">Défilement automatique toutes les %1$d secondes</string>
     <string name="player_settings_shorts_auto_scroll_seconds_template">%1$d secondes</string>
     <string name="shorts_auto_scroll_active_template">Auto %1$ds</string>
+    <string name="search_watch_history">Consulter l\'historique des recherches</string>
+    <string name="history_filter_all_years">Tous les ans</string>
+    <string name="history_sort_newest">Les plus récents en premier</string>
+    <string name="history_sort_oldest">Les plus anciens en premier</string>
+    <string name="history_no_results">Aucun historique correspondant</string>
+    <string name="history_no_results_body">Essayez une autre recherche ou un autre filtre</string>
+    <string name="empty_liked_videos">Aucune vidéo aimée</string>
+    <string name="empty_liked_music">Aucune musique préférée</string>
+    <string name="empty_liked_music_body">Les titres que vous aimez s\'afficheront ici</string>
+    <string name="likes_count_template">%1$d mentions « J\'aime »</string>
+    <string name="playlist_sort_options">Options de tri des playlists</string>
+    <string name="playlist_sort_manual">Manuel</string>
+    <string name="playlist_sort_date_added_newest">Date d\'ajout (la plus récente)</string>
+    <string name="playlist_sort_date_added_oldest">Date d\'ajout (la plus ancienne)</string>
+    <string name="playlist_sort_most_popular">Les plus populaires</string>
+    <string name="playlist_sort_date_published_newest">Date de publication (la plus récente)</string>
+    <string name="playlist_sort_date_published_oldest">Date de publication (la plus ancienne)</string>
+    <string name="remove_selected_videos_title">Supprimer %1$d vidéo(s) ?</string>
+    <string name="remove_selected_playlist_text">Ils seront supprimés de cette playlist.</string>
+    <string name="remove_selected_watch_later_text">Ils seront supprimés de la playlist « À regarder plus tard ».</string>
 </resources>
