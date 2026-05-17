@@ -36,6 +36,8 @@ import io.github.aedev.flow.ui.screens.player.util.VideoErrorMapper
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 
@@ -85,9 +87,23 @@ class VideoPlayerViewModel @Inject constructor(
     // DisposableEffect fires multiple times for the same video.
     private var lastReportedVideoId: String? = null
     private var lastReportedTimestamp: Long = 0L
+    private var activeLoadJob: Job? = null
+    private var playbackLoadToken: Long = 0L
     
     private val _canGoPrevious = MutableStateFlow(false)
     val canGoPrevious: StateFlow<Boolean> = _canGoPrevious.asStateFlow()
+
+    private fun nextPlaybackLoadToken(): Long {
+        playbackLoadToken += 1L
+        return playbackLoadToken
+    }
+
+    private fun isPlaybackLoadCurrent(token: Long): Boolean = playbackLoadToken == token
+
+    private fun cancelActivePlaybackLoad() {
+        activeLoadJob?.cancel()
+        activeLoadJob = null
+    }
 
     val downloadedVideoIds = videoDownloadManager.downloadedVideos
         .map { list -> list.map { it.video.id }.toSet() }
@@ -334,6 +350,8 @@ class VideoPlayerViewModel @Inject constructor(
      * This should be called when the video player is dismissed.
      */
     fun clearVideo() {
+        nextPlaybackLoadToken()
+        cancelActivePlaybackLoad()
         EnhancedPlayerManager.getInstance().stop()
         EnhancedPlayerManager.getInstance().stopBackgroundService()
         EnhancedPlayerManager.getInstance().clearAll()
@@ -532,8 +550,11 @@ class VideoPlayerViewModel @Inject constructor(
             localFilePath = null,
             localFileVideoId = null
         )
-        
-        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+
+        cancelActivePlaybackLoad()
+        val loadToken = nextPlaybackLoadToken()
+
+        activeLoadJob = viewModelScope.launch(PerformanceDispatcher.networkIO) {
             Log.d("VideoPlayerViewModel", "Starting loadVideoInfo for $videoId")
             var isOfflineAvailable = false
             
@@ -574,7 +595,7 @@ class VideoPlayerViewModel @Inject constructor(
                 viewModelScope.launch(PerformanceDispatcher.networkIO) {
                     if (playerPreferences.rytdEnabled.first()) {
                         withTimeoutOrNull(5000L) { fetchReturnYouTubeDislike(videoId) }?.let { dislikeCount ->
-                            if (_uiState.value.cachedVideo?.id == videoId || _uiState.value.streamInfo?.id == videoId) {
+                            if (isPlaybackLoadCurrent(loadToken) && (_uiState.value.cachedVideo?.id == videoId || _uiState.value.streamInfo?.id == videoId)) {
                                 _uiState.update { it.copy(dislikeCount = dislikeCount) }
                             }
                         }
@@ -614,6 +635,8 @@ class VideoPlayerViewModel @Inject constructor(
                     Log.d("VideoPlayerViewModel", "Found offline video at ${localFile?.absolutePath}")
                     val sbJson = videoDownloadManager.getSponsorBlockData(videoId)
                     val offlineSegments = deserializeSponsorBlockSegments(sbJson)
+                    ensureActive()
+                    if (!isPlaybackLoadCurrent(loadToken)) return@launch
                     _uiState.update { 
                         it.copy(
                             localFilePath = localFile?.absolutePath,
@@ -630,6 +653,8 @@ class VideoPlayerViewModel @Inject constructor(
                     Log.d("VideoPlayerViewModel", "Loading video $videoId with preferred quality: ${preferredQuality.label} (isWifi=$isWifi)")
 
                     val (streamInfo, streamError) = streamInfoDeferred.await()
+                    ensureActive()
+                    if (!isPlaybackLoadCurrent(loadToken)) return@withTimeout
                     
                     // Extract related videos directly from the stream info (avoids extra network call)
                     val relatedVideos = if (streamInfo != null) {
@@ -674,13 +699,15 @@ class VideoPlayerViewModel @Inject constructor(
                                 thumbnailUrl = realThumbnail ?: currentCached?.thumbnailUrl ?: "",
                                 duration = streamInfo.duration.toInt().takeIf { it > 0 } ?: (currentCached?.duration ?: 0)
                             )
-                            GlobalPlayerState.setCurrentVideo(enrichedVideo)
-                            EnhancedPlayerManager.getInstance().startBackgroundService(
-                                videoId   = videoId,
-                                title     = realTitle,
-                                channel   = realChannel ?: "",
-                                thumbnail = realThumbnail ?: ""
-                            )
+                            if (isPlaybackLoadCurrent(loadToken)) {
+                                GlobalPlayerState.setCurrentVideo(enrichedVideo)
+                                EnhancedPlayerManager.getInstance().startBackgroundService(
+                                    videoId   = videoId,
+                                    title     = realTitle,
+                                    channel   = realChannel ?: "",
+                                    thumbnail = realThumbnail ?: ""
+                                )
+                            }
                         }
 
                         val availableQualities = extractAvailableQualities(streamInfo)
@@ -755,6 +782,9 @@ class VideoPlayerViewModel @Inject constructor(
                             hlsUrl = streamInfo.hlsUrl
                         )
 
+                        ensureActive()
+                        if (!isPlaybackLoadCurrent(loadToken)) return@withTimeout
+
                         prepareLoadedMediaForPlayback(
                             videoId = videoId,
                             streamInfo = streamInfo,
@@ -768,7 +798,8 @@ class VideoPlayerViewModel @Inject constructor(
                             localFilePath = localFilePath,
                             offlineSegments = offlineSegments,
                             hlsUrl = streamInfo.hlsUrl,
-                            isAdaptiveMode = preferredQuality == VideoQuality.AUTO
+                            isAdaptiveMode = preferredQuality == VideoQuality.AUTO,
+                            loadToken = loadToken
                         )
 
                         // PARALLEL FETCH: Channel info and stream sizes simultaneously
@@ -858,15 +889,17 @@ class VideoPlayerViewModel @Inject constructor(
                                 val channelResult = channelDeferred.await()
                                 val sizesResult = sizesDeferred.await()
                                 
-                                channelResult?.let { (subCount, avatarUrl) ->
-                                    _uiState.value = _uiState.value.copy(
-                                        channelSubscriberCount = subCount.takeIf { it > 0L },
-                                        channelAvatarUrl = avatarUrl
-                                    )
-                                }
-                                
-                                sizesResult?.let { sizes ->
-                                    _uiState.value = _uiState.value.copy(streamSizes = sizes)
+                                if (isPlaybackLoadCurrent(loadToken)) {
+                                    channelResult?.let { (subCount, avatarUrl) ->
+                                        _uiState.value = _uiState.value.copy(
+                                            channelSubscriberCount = subCount.takeIf { it > 0L },
+                                            channelAvatarUrl = avatarUrl
+                                        )
+                                    }
+                                    
+                                    sizesResult?.let { sizes ->
+                                        _uiState.value = _uiState.value.copy(streamSizes = sizes)
+                                    }
                                 }
                             }
                         }
@@ -875,36 +908,40 @@ class VideoPlayerViewModel @Inject constructor(
                         if (isOfflineAvailable) {
                             Log.d("VideoPlayerViewModel", "Using offline video for $videoId (Network fetch failed)")
                             val sbJson = videoDownloadManager.getSponsorBlockData(videoId)
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    error = null,
-                                    errorHint = null,
-                                    relatedVideos = relatedVideos,
-                                    localFilePath = localFile?.absolutePath,
-                                    offlineSponsorBlockSegments = deserializeSponsorBlockSegments(sbJson)
-                                )
+                            if (isPlaybackLoadCurrent(loadToken)) {
+                                _uiState.update {
+                                    it.copy(
+                                        isLoading = false,
+                                        error = null,
+                                        errorHint = null,
+                                        relatedVideos = relatedVideos,
+                                        localFilePath = localFile?.absolutePath,
+                                        offlineSponsorBlockSegments = deserializeSponsorBlockSegments(sbJson)
+                                    )
+                                }
                             }
                         } else {
                             Log.e("VideoPlayerViewModel", "Stream info is null for $videoId and no offline copy found.")
                             val videoError = VideoErrorMapper.from(context, streamError, videoId)
-                            _uiState.update {
-                                it.copy(
-                                    isLoading = false,
-                                    relatedVideos = relatedVideos,
-                                    error = videoError.message,
-                                    errorHint = videoError.hint
-                                )
+                            if (isPlaybackLoadCurrent(loadToken)) {
+                                _uiState.update {
+                                    it.copy(
+                                        isLoading = false,
+                                        relatedVideos = relatedVideos,
+                                        error = videoError.message,
+                                        errorHint = videoError.hint
+                                    )
+                                }
                             }
                         }
                     }
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 Log.e("VideoPlayerViewModel", "Video info load timed out for $videoId after 30s")
-                if (isOfflineAvailable) {
+                if (isPlaybackLoadCurrent(loadToken) && isOfflineAvailable) {
                      Log.d("VideoPlayerViewModel", "Ignoring timeout, playing offline video")
                      _uiState.update { it.copy(isLoading = false, error = null, errorHint = null) }
-                } else {
+                } else if (isPlaybackLoadCurrent(loadToken)) {
                     val videoError = VideoErrorMapper.fromTimeout(context)
                     _uiState.update { 
                         it.copy(
@@ -917,10 +954,10 @@ class VideoPlayerViewModel @Inject constructor(
             } catch (e: Exception) {
                 Log.e("VideoPlayerViewModel", "Exception loading video $videoId", e)
                 
-                if (isOfflineAvailable) {
+                if (isPlaybackLoadCurrent(loadToken) && isOfflineAvailable) {
                      Log.d("VideoPlayerViewModel", "Ignoring exception, playing offline video")
                      _uiState.update { it.copy(isLoading = false, error = null, errorHint = null) }
-                } else {
+                } else if (isPlaybackLoadCurrent(loadToken)) {
                     // Final fallback if everything fails
                     val downloadedVideo = videoDownloadManager.downloadedVideos.map { list -> 
                         list.find { it.video.id == videoId } 
@@ -947,6 +984,10 @@ class VideoPlayerViewModel @Inject constructor(
                         }
                     }
                 }
+            } finally {
+                if (isPlaybackLoadCurrent(loadToken)) {
+                    activeLoadJob = null
+                }
             }
         }
     }
@@ -963,8 +1004,10 @@ class VideoPlayerViewModel @Inject constructor(
         localFilePath: String?,
         offlineSegments: List<SponsorBlockSegment>?,
         hlsUrl: String?,
-        isAdaptiveMode: Boolean
+        isAdaptiveMode: Boolean,
+        loadToken: Long
     ) = withContext(Dispatchers.Main) {
+        if (!isPlaybackLoadCurrent(loadToken)) return@withContext
         val manager = EnhancedPlayerManager.getInstance()
         if (manager.isPreparedForPlayback(videoId)) return@withContext
 
@@ -1004,6 +1047,7 @@ class VideoPlayerViewModel @Inject constructor(
             )
         }
 
+        if (!isPlaybackLoadCurrent(loadToken)) return@withContext
         manager.play()
     }
 

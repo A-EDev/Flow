@@ -177,12 +177,12 @@ class SubscriptionsViewModel : ViewModel() {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             cacheDao.getSubscriptionFeed().collect { cachedFeed ->
                 Log.d(TAG, "Cache observer: ${cachedFeed.size} entries in DB")
-                if (cachedFeed.isNotEmpty()) {
-                    val videos = cachedFeed.map { it.toVideo() }
-                    Log.d(TAG, "Cache observer: calling updateVideos with ${videos.size} videos")
-                    latestFeedVideos = videos
-                    updateVideos(videos)
-                }
+                
+                val videos = cachedFeed.map { it.toVideo() }
+                Log.d(TAG, "Cache observer: calling updateVideos with ${videos.size} videos")
+                latestFeedVideos = videos
+                updateVideos(videos)
+                
             }
         }
 

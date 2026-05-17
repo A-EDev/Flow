@@ -809,8 +809,7 @@ fun VideoCleanupEffect(
             )
 
             viewModel.reportWatchProgress(video, lastKnownPosition, lastKnownDuration)
-            EnhancedPlayerManager.getInstance().clearCurrentVideo()
-            Log.d(TAG, "Video ID changed, cleared player state (player kept alive)")
+            Log.d(TAG, "Video cleanup disposed for $videoId")
         }
     }
 }

@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import io.github.aedev.flow.data.local.AppDatabase
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -77,6 +78,10 @@ class SubscriptionRepository private constructor(private val context: Context) {
                 preferences[stringPreferencesKey(SUBSCRIPTIONS_ORDER_KEY)] = orderList.joinToString(",")
             }
         }
+
+        AppDatabase.getDatabase(context)
+            .cacheDao()
+            .deleteSubscriptionFeedForChannel(channelId)
     }
     
     /**
