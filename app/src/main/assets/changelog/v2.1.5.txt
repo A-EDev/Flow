@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-17
+DATE: 2026-05-18
 STATUS: PRE-RELEASE
 
 FEATURES
@@ -26,6 +26,7 @@ FEATURES
 - Add time based shorts auto scroll #398
 - Add block shorts from channels #285
 - Add new watch history search #393
+- Add new sorting options in playlists
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361
@@ -55,6 +56,7 @@ IMPROVEMENTS
 - Redesign App Icon picker #400
 - Improve shorts UI and performance #446
 - Watch history and likes screens redesign
+- Improve playlists and library screens UI design
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

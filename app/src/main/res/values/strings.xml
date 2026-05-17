@@ -1163,6 +1163,17 @@
     <string name="playlist_metadata_private_template">Playlist • Private • %1$d videos</string>
     <string name="playlist_metadata_public_template">Playlist • Public • %1$d videos</string>
 
+    <string name="playlist_sort_options">Playlist sort options</string>
+    <string name="playlist_sort_manual">Manual</string>
+    <string name="playlist_sort_date_added_newest">Date added (newest)</string>
+    <string name="playlist_sort_date_added_oldest">Date added (oldest)</string>
+    <string name="playlist_sort_most_popular">Most popular</string>
+    <string name="playlist_sort_date_published_newest">Date published (newest)</string>
+    <string name="playlist_sort_date_published_oldest">Date published (oldest)</string>
+    <string name="remove_selected_videos_title">Remove %1$d video(s)?</string>
+    <string name="remove_selected_playlist_text">They will be removed from this playlist.</string>
+    <string name="remove_selected_watch_later_text">They will be removed from Watch later.</string>
+
     <!-- Onboarding -->
     <string name="welcome_to_flow">Welcome to Flow</string>
     <string name="onboarding_subtitle">Tell us what you\'re interested in</string>

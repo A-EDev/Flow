@@ -39,21 +39,9 @@ fun MusicPlaylistsScreen(
     
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        text = stringResource(R.string.screen_title_music_library),
-                        style = MaterialTheme.typography.headlineMedium
-                    ) 
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.Filled.ArrowBack, stringResource(R.string.btn_back))
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+            MusicPlaylistLibraryTopBar(
+                title = stringResource(R.string.screen_title_music_library),
+                onBackClick = onBackClick
             )
         },
         floatingActionButton = {
@@ -178,6 +166,35 @@ fun MusicPlaylistsScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun MusicPlaylistLibraryTopBar(
+    title: String,
+    onBackClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBackClick) {
+                Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+        }
     }
 }
 

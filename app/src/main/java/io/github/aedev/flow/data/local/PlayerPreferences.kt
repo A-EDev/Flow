@@ -193,6 +193,7 @@ class PlayerPreferences(private val context: Context) {
 
         // App icon — stores the component suffix of the currently selected launcher icon
         val APP_ICON_SUFFIX = stringPreferencesKey("app_icon_suffix")
+        val PLAYLIST_SORT_ORDER = stringPreferencesKey("playlist_sort_order")
 
         // Video title display — max lines in the player info section (0 = no limit)
         val VIDEO_TITLE_MAX_LINES = intPreferencesKey("video_title_max_lines")
@@ -1242,6 +1243,17 @@ class PlayerPreferences(private val context: Context) {
     }
 
     // Video title max lines in the player info section — 0 means no limit (Int.MAX_VALUE)
+    val playlistSortOrder: Flow<String> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.PLAYLIST_SORT_ORDER] ?: "manual"
+        }
+
+    suspend fun setPlaylistSortOrder(order: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.PLAYLIST_SORT_ORDER] = order
+        }
+    }
+
     val videoTitleMaxLines: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences ->
             preferences[Keys.VIDEO_TITLE_MAX_LINES] ?: 1

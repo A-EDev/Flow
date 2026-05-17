@@ -3,8 +3,11 @@ package io.github.aedev.flow.ui.screens.playlists
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -13,15 +16,19 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.CheckBox
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
@@ -29,9 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.data.local.PlayerPreferences
@@ -44,6 +49,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -69,7 +75,7 @@ import io.github.aedev.flow.ui.components.ReorderHandle
 import io.github.aedev.flow.ui.components.ThumbnailWatchProgress
 import io.github.aedev.flow.ui.components.rememberReorderableLazyListState
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun PlaylistDetailScreen(
     onNavigateBack: () -> Unit,
@@ -82,164 +88,208 @@ fun PlaylistDetailScreen(
     val isDownloadingPlaylist by viewModel.isDownloadingPlaylist.collectAsState()
     val playlistDownloadProgress by viewModel.playlistDownloadProgress.collectAsState()
     val currentDownloadingTitle by viewModel.currentDownloadingTitle.collectAsState()
+    val sortOrder by viewModel.sortOrder.collectAsState()
 
     var showEditDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showOptionsMenu by remember { mutableStateOf(false) }
     var showMergeDialog by remember { mutableStateOf(false) }
     var showDownloadAllDialog by remember { mutableStateOf(false) }
+    var showSortSheet by remember { mutableStateOf(false) }
+    var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var showRemoveSelectedDialog by remember { mutableStateOf(false) }
     val isUserCreatedPlaylist = uiState.isLocalPlaylist && !uiState.isSaved
+    val canReorder = isUserCreatedPlaylist && sortOrder == PlaylistSortOrder.MANUAL
+    val inSelectionMode = selectedIds.isNotEmpty()
     val listState = rememberLazyListState()
     var displayVideos by remember { mutableStateOf(uiState.videos) }
+    var heroTitleBottomPx by remember { mutableIntStateOf(Int.MAX_VALUE) }
+    var topBarBottomPx by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(uiState.videos) {
-        displayVideos = uiState.videos
+    LaunchedEffect(uiState.videos, sortOrder) {
+        displayVideos = uiState.videos.sortedForPlaylist(sortOrder)
+        selectedIds = selectedIds.intersect(uiState.videos.map { it.id }.toSet())
     }
 
     val reorderState = rememberReorderableLazyListState(
         listState = listState,
         itemIndexOffset = 1,
         onMove = { from, to ->
-            displayVideos = displayVideos.toMutableList().apply {
-                add(to, removeAt(from))
+            if (canReorder) {
+                displayVideos = displayVideos.toMutableList().apply {
+                    add(to, removeAt(from))
+                }
             }
         },
         onDragStopped = {
-            if (isUserCreatedPlaylist) {
+            if (canReorder) {
                 viewModel.reorderVideos(displayVideos.map { it.id })
             }
         }
     )
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { }, // Moved to header
-                navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, stringResource(R.string.btn_back))
-                    }
-                },
-                actions = {
-                    if (!isUserCreatedPlaylist) {
-                        IconButton(onClick = { showMergeDialog = true }) {
-                            Icon(
-                                imageVector = Icons.Default.PlaylistAdd,
-                                contentDescription = stringResource(R.string.add_all_to_playlist)
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                if (uiState.isSaved) viewModel.unsaveFromLibrary()
-                                else viewModel.saveToLibrary()
-                            }
-                        ) {
-                            Icon(
-                                imageVector = if (uiState.isSaved) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
-                                contentDescription = if (uiState.isSaved) "Remove from library" else "Save to library",
-                                tint = if (uiState.isSaved) MaterialTheme.colorScheme.primary else LocalContentColor.current
-                            )
-                        }
-                    }
-                    if (isUserCreatedPlaylist) {
-                        IconButton(onClick = { showOptionsMenu = true }) {
-                            Icon(Icons.Default.MoreVert, stringResource(R.string.more_options))
-                        }
-                        DropdownMenu(
-                            expanded = showOptionsMenu,
-                            onDismissRequest = { showOptionsMenu = false }
-                        ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.edit_playlist_action)) },
-                            onClick = {
-                                showOptionsMenu = false
-                                showEditDialog = true
-                            },
-                            leadingIcon = { Icon(Icons.Default.Edit, null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.delete_playlist_action)) },
-                            onClick = {
-                                showOptionsMenu = false
-                                showDeleteDialog = true
-                            },
-                            leadingIcon = { Icon(Icons.Default.Delete, null) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text(if (uiState.isPrivate) stringResource(R.string.make_public_action) else stringResource(R.string.make_private_action)) },
-                            onClick = {
-                                showOptionsMenu = false
-                                viewModel.togglePrivacy()
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    if (uiState.isPrivate) Icons.Default.Lock else Icons.Default.Public,
-                                    null
-                                )
-                            }
-                        )
-                    }
-                }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
-                )
+    BackHandler(enabled = inSelectionMode) { selectedIds = emptySet() }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        val heroThumbnail = displayVideos.firstOrNull()?.thumbnailUrl ?: uiState.thumbnailUrl
+        val showCollapsedTopBarTitle by remember {
+            derivedStateOf {
+                heroTitleBottomPx <= topBarBottomPx
+            }
+        }
+
+        if (heroThumbnail.isNotEmpty()) {
+            AsyncImage(
+                model = heroThumbnail,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(420.dp)
+                    .blur(90.dp),
+                alpha = 0.55f,
+                contentScale = ContentScale.Crop
             )
-        },
-        modifier = modifier
-    ) { paddingValues ->
-        LazyColumn(
-            state = listState,
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(420.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.35f),
+                            Color.Black.copy(alpha = 0.42f),
+                            MaterialTheme.colorScheme.background.copy(alpha = 0.88f),
+                            MaterialTheme.colorScheme.background
+                        )
+                    )
+                )
+        )
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background),
-            contentPadding = PaddingValues(bottom = 16.dp)
-        ) {
-            // Playlist Header
-            item {
-                PlaylistHeader(
-                    name = uiState.playlistName,
-                    description = uiState.description,
-                    videoCount = uiState.videos.size,
-                    thumbnailUrl = displayVideos.firstOrNull()?.thumbnailUrl ?: uiState.thumbnailUrl,
-                    isPrivate = uiState.isPrivate,
-                    onPlayAll = {
-                        onPlayPlaylist(uiState.videos, 0)
-                    },
-                    onShuffle = {
-                        val shuffled = uiState.videos.shuffled()
-                        onPlayPlaylist(shuffled, 0)
-                    },
-                    onDownloadAll = { showDownloadAllDialog = true },
-                    isDownloading = isDownloadingPlaylist,
-                    downloadProgress = playlistDownloadProgress,
-                    currentDownloadingTitle = currentDownloadingTitle
-                )
-            }
+                .padding(top = 420.dp)
+                .background(MaterialTheme.colorScheme.background)
+        )
 
-            // Video List
-            if (displayVideos.isEmpty()) {
+        Scaffold(
+            topBar = {
+                PlaylistDetailTopBar(
+                    title = uiState.playlistName,
+                    showTitle = showCollapsedTopBarTitle,
+                    inSelectionMode = inSelectionMode,
+                    selectedCount = selectedIds.size,
+                    allSelected = selectedIds.size == displayVideos.size && displayVideos.isNotEmpty(),
+                    isUserCreatedPlaylist = isUserCreatedPlaylist,
+                    isWatchLater = uiState.isWatchLater,
+                    isSaved = uiState.isSaved,
+                    showOptionsMenu = showOptionsMenu,
+                    onNavigateBack = onNavigateBack,
+                    onClearSelection = { selectedIds = emptySet() },
+                    onSelectAll = {
+                        selectedIds =
+                            if (selectedIds.size == displayVideos.size) emptySet()
+                            else displayVideos.map { it.id }.toSet()
+                    },
+                    onDeleteSelected = { showRemoveSelectedDialog = true },
+                    onMergeClick = { showMergeDialog = true },
+                    onSaveToggle = {
+                        if (uiState.isSaved) viewModel.unsaveFromLibrary()
+                        else viewModel.saveToLibrary()
+                    },
+                    onOptionsClick = { showOptionsMenu = true },
+                    onOptionsDismiss = { showOptionsMenu = false },
+                    onEditClick = {
+                        showOptionsMenu = false
+                        showEditDialog = true
+                    },
+                    onDeletePlaylistClick = {
+                        showOptionsMenu = false
+                        showDeleteDialog = true
+                    },
+                    onTogglePrivacy = {
+                        showOptionsMenu = false
+                        viewModel.togglePrivacy()
+                    },
+                    isPrivate = uiState.isPrivate,
+                    onBottomPositioned = { topBarBottomPx = it }
+                )
+            },
+            modifier = Modifier.fillMaxSize(),
+            containerColor = Color.Transparent
+        ) { paddingValues ->
+            LazyColumn(
+                state = listState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentPadding = PaddingValues(bottom = 16.dp)
+            ) {
                 item {
-                    EmptyPlaylistState(
-                        modifier = Modifier.padding(32.dp)
-                    )
+                    Column {
+                        PlaylistHeader(
+                            name = uiState.playlistName,
+                            description = uiState.description,
+                            videoCount = uiState.videos.size,
+                            thumbnailUrl = heroThumbnail,
+                            isPrivate = uiState.isPrivate,
+                            isWatchLater = uiState.isWatchLater,
+                            onPlayAll = {
+                                if (displayVideos.isNotEmpty()) onPlayPlaylist(displayVideos, 0)
+                            },
+                            onShuffle = {
+                                val shuffled = displayVideos.shuffled()
+                                if (shuffled.isNotEmpty()) onPlayPlaylist(shuffled, 0)
+                            },
+                            onDownloadAll = { showDownloadAllDialog = true },
+                            isDownloading = isDownloadingPlaylist,
+                            downloadProgress = playlistDownloadProgress,
+                            currentDownloadingTitle = currentDownloadingTitle,
+                            onTitleBottomPositioned = { heroTitleBottomPx = it }
+                        )
+                        PlaylistSortButton(
+                            sortOrder = sortOrder,
+                            onClick = { showSortSheet = true },
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                    }
                 }
-            } else {
-                itemsIndexed(
-                    items = displayVideos,
-                    key = { index, video -> "${video.id}_$index" }
-                ) { index, video ->
-                    PlaylistVideoItem(
-                        video = video,
-                        position = index + 1,
-                        reorderModifier = if (isUserCreatedPlaylist) reorderState.itemModifier(index) else Modifier,
-                        dragHandleModifier = if (isUserCreatedPlaylist) reorderState.handleModifier(index) else Modifier,
-                        showDragHandle = isUserCreatedPlaylist,
-                        onVideoClick = { onPlayPlaylist(displayVideos, index) },
-                        onRemove = { viewModel.removeVideo(video.id) }
-                    )
+
+                if (displayVideos.isEmpty()) {
+                    item {
+                        EmptyPlaylistState(
+                            modifier = Modifier.padding(32.dp),
+                            isWatchLater = uiState.isWatchLater
+                        )
+                    }
+                } else {
+                    itemsIndexed(
+                        items = displayVideos,
+                        key = { _, video -> video.id }
+                    ) { index, video ->
+                        val isSelected = video.id in selectedIds
+                        PlaylistVideoItem(
+                            video = video,
+                            position = index + 1,
+                            isSelected = isSelected,
+                            inSelectionMode = inSelectionMode,
+                            reorderModifier = if (canReorder) reorderState.itemModifier(index) else Modifier,
+                            dragHandleModifier = if (canReorder && !inSelectionMode) reorderState.handleModifier(index) else Modifier,
+                            showDragHandle = canReorder,
+                            onVideoClick = {
+                                if (inSelectionMode) {
+                                    selectedIds = if (isSelected) selectedIds - video.id else selectedIds + video.id
+                                } else {
+                                    onPlayPlaylist(displayVideos, index)
+                                }
+                            },
+                            onLongClick = {
+                                if (!reorderState.isDragging) selectedIds = selectedIds + video.id
+                            },
+                            onRemove = { viewModel.removeVideo(video.id) },
+                            isWatchLater = uiState.isWatchLater
+                        )
+                    }
                 }
             }
         }
@@ -317,6 +367,180 @@ fun PlaylistDetailScreen(
             }
         )
     }
+
+    if (showRemoveSelectedDialog) {
+        AlertDialog(
+            onDismissRequest = { showRemoveSelectedDialog = false },
+            icon = { Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error) },
+            title = {
+                Text(stringResource(R.string.remove_selected_videos_title, selectedIds.size))
+            },
+            text = {
+                Text(
+                    if (uiState.isWatchLater) stringResource(R.string.remove_selected_watch_later_text)
+                    else stringResource(R.string.remove_selected_playlist_text)
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.removeVideos(selectedIds)
+                        selectedIds = emptySet()
+                        showRemoveSelectedDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.remove), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRemoveSelectedDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showSortSheet) {
+        PlaylistSortSheet(
+            selected = sortOrder,
+            onSelected = {
+                viewModel.setSortOrder(it)
+                showSortSheet = false
+            },
+            onDismiss = { showSortSheet = false }
+        )
+    }
+}
+
+@Composable
+private fun PlaylistDetailTopBar(
+    title: String,
+    showTitle: Boolean,
+    inSelectionMode: Boolean,
+    selectedCount: Int,
+    allSelected: Boolean,
+    isUserCreatedPlaylist: Boolean,
+    isWatchLater: Boolean,
+    isSaved: Boolean,
+    showOptionsMenu: Boolean,
+    onNavigateBack: () -> Unit,
+    onClearSelection: () -> Unit,
+    onSelectAll: () -> Unit,
+    onDeleteSelected: () -> Unit,
+    onMergeClick: () -> Unit,
+    onSaveToggle: () -> Unit,
+    onOptionsClick: () -> Unit,
+    onOptionsDismiss: () -> Unit,
+    onEditClick: () -> Unit,
+    onDeletePlaylistClick: () -> Unit,
+    onTogglePrivacy: () -> Unit,
+    isPrivate: Boolean,
+    onBottomPositioned: (Int) -> Unit
+) {
+    val backgroundColor =
+        if (inSelectionMode || showTitle) MaterialTheme.colorScheme.background.copy(alpha = 0.92f)
+        else Color.Transparent
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { coordinates ->
+                onBottomPositioned(
+                    (coordinates.positionInRoot().y + coordinates.size.height).toInt()
+                )
+            },
+        color = backgroundColor
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = if (inSelectionMode) onClearSelection else onNavigateBack) {
+                Icon(
+                    imageVector = if (inSelectionMode) Icons.Default.Close else Icons.Default.ArrowBack,
+                    contentDescription = if (inSelectionMode) "Cancel selection" else stringResource(R.string.btn_back)
+                )
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                if (inSelectionMode || showTitle) {
+                    Text(
+                        text = if (inSelectionMode) stringResource(R.string.selected_count_template, selectedCount) else title,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            if (inSelectionMode) {
+                IconButton(onClick = onSelectAll) {
+                    Icon(
+                        imageVector = if (allSelected) Icons.Outlined.CheckBox else Icons.Default.SelectAll,
+                        contentDescription = if (allSelected) "Deselect all" else "Select all"
+                    )
+                }
+                IconButton(onClick = onDeleteSelected) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete selected",
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                }
+            } else {
+                if (!isUserCreatedPlaylist) {
+                    IconButton(onClick = onMergeClick) {
+                        Icon(
+                            imageVector = Icons.Default.PlaylistAdd,
+                            contentDescription = stringResource(R.string.add_all_to_playlist)
+                        )
+                    }
+                    if (!isWatchLater) {
+                        IconButton(onClick = onSaveToggle) {
+                            Icon(
+                                imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
+                                contentDescription = if (isSaved) "Remove from library" else "Save to library",
+                                tint = if (isSaved) MaterialTheme.colorScheme.primary else LocalContentColor.current
+                            )
+                        }
+                    }
+                }
+                if (isUserCreatedPlaylist && !isWatchLater) {
+                    Box {
+                        IconButton(onClick = onOptionsClick) {
+                            Icon(Icons.Default.MoreVert, stringResource(R.string.more_options))
+                        }
+                        DropdownMenu(
+                            expanded = showOptionsMenu,
+                            onDismissRequest = onOptionsDismiss
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.edit_playlist_action)) },
+                                onClick = onEditClick,
+                                leadingIcon = { Icon(Icons.Default.Edit, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.delete_playlist_action)) },
+                                onClick = onDeletePlaylistClick,
+                                leadingIcon = { Icon(Icons.Default.Delete, null) }
+                            )
+                            DropdownMenuItem(
+                                text = { Text(if (isPrivate) stringResource(R.string.make_public_action) else stringResource(R.string.make_private_action)) },
+                                onClick = onTogglePrivacy,
+                                leadingIcon = {
+                                    Icon(
+                                        if (isPrivate) Icons.Default.Lock else Icons.Default.Public,
+                                        null
+                                    )
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -326,12 +550,14 @@ private fun PlaylistHeader(
     videoCount: Int,
     thumbnailUrl: String,
     isPrivate: Boolean,
+    isWatchLater: Boolean,
     onPlayAll: () -> Unit,
     onShuffle: () -> Unit,
     onDownloadAll: () -> Unit = {},
     isDownloading: Boolean = false,
     downloadProgress: Float = 0f,
     currentDownloadingTitle: String? = null,
+    onTitleBottomPositioned: (Int) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -377,6 +603,11 @@ private fun PlaylistHeader(
         ) {
             Text(
                 text = name,
+                modifier = Modifier.onGloballyPositioned { coordinates ->
+                    onTitleBottomPositioned(
+                        (coordinates.positionInRoot().y + coordinates.size.height).toInt()
+                    )
+                },
                 style = MaterialTheme.typography.headlineMedium.copy(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.5).sp
@@ -491,28 +722,120 @@ private fun PlaylistHeader(
 }
 
 @Composable
+private fun PlaylistSortButton(
+    sortOrder: PlaylistSortOrder,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = stringResource(sortOrder.labelRes),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium
+            )
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = stringResource(R.string.playlist_sort_options),
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlaylistSortSheet(
+    selected: PlaylistSortOrder,
+    onSelected: (PlaylistSortOrder) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberFlowSheetState(),
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp)
+        ) {
+            PlaylistSortOrder.values().forEach { option ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelected(option) }
+                        .padding(horizontal = 24.dp, vertical = 18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    Icon(
+                        imageVector = if (option == selected) Icons.Default.Check else Icons.Default.Sort,
+                        contentDescription = null,
+                        tint = if (option == selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = stringResource(option.labelRes),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = if (option == selected) FontWeight.SemiBold else FontWeight.Normal
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 private fun PlaylistVideoItem(
     video: Video,
     position: Int,
+    isSelected: Boolean,
+    inSelectionMode: Boolean,
     reorderModifier: Modifier,
     dragHandleModifier: Modifier,
     showDragHandle: Boolean,
     onVideoClick: () -> Unit,
+    onLongClick: () -> Unit,
     onRemove: () -> Unit,
+    isWatchLater: Boolean,
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
+    val selectionBg = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.24f) else Color.Transparent
 
     Row(
         modifier = modifier
             .then(reorderModifier)
             .fillMaxWidth()
-            .clickable(onClick = onVideoClick)
+            .background(selectionBg)
+            .combinedClickable(
+                onClick = onVideoClick,
+                onLongClick = {
+                    if (!inSelectionMode) onLongClick()
+                }
+            )
             .padding(vertical = 12.dp, horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (showDragHandle) {
+        if (inSelectionMode) {
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = { onVideoClick() },
+                modifier = Modifier.size(24.dp)
+            )
+        } else if (showDragHandle) {
             ReorderHandle(
                 modifier = dragHandleModifier,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
@@ -599,10 +922,13 @@ private fun PlaylistVideoItem(
                 )
 
                 val premiereDate = formatPremiereDate(video.uploadDate)
+                val uploadDate = remember(video.uploadDate, video.timestamp) {
+                    video.formattedPlaylistUploadDate()
+                }
                 Text(
                     text = if (video.viewCount < 0L)
                            premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
-                           else stringResource(R.string.video_metadata_short_template, formatViewCount(video.viewCount), video.uploadDate),
+                           else stringResource(R.string.video_metadata_short_template, formatViewCount(video.viewCount), uploadDate),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (video.viewCount < 0L) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
@@ -611,65 +937,76 @@ private fun PlaylistVideoItem(
             }
         }
 
-        // More Options
-        Box {
-            IconButton(
-                onClick = { showMenu = true },
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = stringResource(R.string.more_options),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+        if (!inSelectionMode) {
+            Box {
+                IconButton(
+                    onClick = { showMenu = true },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = stringResource(R.string.more_options),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
 
-            DropdownMenu(
-                expanded = showMenu,
-                onDismissRequest = { showMenu = false }
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.remove_from_playlist_action)) },
-                    onClick = {
-                        onRemove()
-                        showMenu = false
-                    },
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error
-                        )
-                    }
-                )
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(
+                                    if (isWatchLater) R.string.remove_from_watch_later
+                                    else R.string.remove_from_playlist_action
+                                )
+                            )
+                        },
+                        onClick = {
+                            onRemove()
+                            showMenu = false
+                        },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun EmptyPlaylistState(modifier: Modifier = Modifier) {
+private fun EmptyPlaylistState(
+    modifier: Modifier = Modifier,
+    isWatchLater: Boolean = false
+) {
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Icon(
-            imageVector = Icons.Default.PlaylistPlay,
+            imageVector = if (isWatchLater) Icons.Default.WatchLater else Icons.Default.PlaylistPlay,
             contentDescription = null,
             modifier = Modifier.size(80.dp),
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
         )
 
         Text(
-            text = stringResource(R.string.playlist_empty_title),
+            text = stringResource(if (isWatchLater) R.string.no_videos_saved else R.string.playlist_empty_title),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold
         )
 
         Text(
-            text = stringResource(R.string.playlist_empty_desc),
+            text = stringResource(if (isWatchLater) R.string.no_videos_saved_body else R.string.playlist_empty_desc),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -746,6 +1083,98 @@ private fun formatViewCount(count: Long): String {
         count >= 1_000_000 -> String.format("%.1f%s views", count / 1_000_000.0, "M")
         count >= 1_000 -> String.format("%.1f%s views", count / 1_000.0, "K")
         else -> "$count views"
+    }
+}
+
+enum class PlaylistSortOrder(val storageValue: String, val labelRes: Int) {
+    MANUAL("manual", R.string.playlist_sort_manual),
+    DATE_ADDED_NEWEST("date_added_newest", R.string.playlist_sort_date_added_newest),
+    DATE_ADDED_OLDEST("date_added_oldest", R.string.playlist_sort_date_added_oldest),
+    MOST_POPULAR("most_popular", R.string.playlist_sort_most_popular),
+    DATE_PUBLISHED_NEWEST("date_published_newest", R.string.playlist_sort_date_published_newest),
+    DATE_PUBLISHED_OLDEST("date_published_oldest", R.string.playlist_sort_date_published_oldest);
+
+    companion object {
+        fun fromStorageValue(value: String?): PlaylistSortOrder =
+            values().firstOrNull { it.storageValue == value } ?: MANUAL
+    }
+}
+
+private fun List<Video>.sortedForPlaylist(sortOrder: PlaylistSortOrder): List<Video> {
+    return when (sortOrder) {
+        PlaylistSortOrder.MANUAL,
+        PlaylistSortOrder.DATE_ADDED_NEWEST -> this
+        PlaylistSortOrder.DATE_ADDED_OLDEST -> asReversed()
+        PlaylistSortOrder.MOST_POPULAR -> sortedByDescending { it.viewCount }
+        PlaylistSortOrder.DATE_PUBLISHED_NEWEST -> sortedByDescending { it.effectivePlaylistUploadTimestamp() }
+        PlaylistSortOrder.DATE_PUBLISHED_OLDEST -> sortedBy { it.effectivePlaylistUploadTimestamp() }
+    }
+}
+
+private fun Video.formattedPlaylistUploadDate(now: Long = System.currentTimeMillis()): String {
+    val timestamp = effectivePlaylistUploadTimestamp(now)
+    return if (timestamp > 0L) formatRelativeTime(timestamp, now) else uploadDate
+}
+
+private fun Video.effectivePlaylistUploadTimestamp(now: Long = System.currentTimeMillis()): Long {
+    val relativeDuration = parseRelativeDurationMillis(uploadDate)
+    if (timestamp <= 0L) {
+        return relativeDuration?.let { now - it } ?: 0L
+    }
+    if (relativeDuration == null) return timestamp
+
+    val timestampAge = now - timestamp
+    return if (timestampAge > relativeDuration + 30L * 60L * 1000L) {
+        timestamp
+    } else {
+        now - relativeDuration
+    }
+}
+
+private fun parseRelativeDurationMillis(text: String): Long? {
+    val normalized = text.lowercase()
+        .replace("streamed", "")
+        .replace("premiered", "")
+        .replace("ago", "")
+        .trim()
+    if (normalized.isBlank() || normalized == "unknown") return null
+    if (normalized.contains("just now") || normalized == "today") return 0L
+    if (normalized.contains("yesterday")) return 24L * 60L * 60L * 1000L
+
+    val value = Regex("(\\d+)").find(normalized)?.groupValues?.getOrNull(1)?.toLongOrNull()
+        ?: return null
+    val unit = when {
+        normalized.contains("second") || normalized.matches(Regex(".*\\d+\\s*s$")) -> 1_000L
+        normalized.contains("minute") || normalized.matches(Regex(".*\\d+\\s*m$")) -> 60_000L
+        normalized.contains("hour") || normalized.matches(Regex(".*\\d+\\s*h$")) -> 3_600_000L
+        normalized.contains("day") || normalized.matches(Regex(".*\\d+\\s*d$")) -> 86_400_000L
+        normalized.contains("week") || normalized.matches(Regex(".*\\d+\\s*w$")) -> 7L * 86_400_000L
+        normalized.contains("month") || normalized.matches(Regex(".*\\d+\\s*mo$")) -> 30L * 86_400_000L
+        normalized.contains("year") || normalized.matches(Regex(".*\\d+\\s*y$")) -> 365L * 86_400_000L
+        else -> return null
+    }
+    return value * unit
+}
+
+private fun formatRelativeTime(timestamp: Long, now: Long): String {
+    val diff = (now - timestamp).coerceAtLeast(0L)
+    val seconds = diff / 1000L
+    val minutes = seconds / 60L
+    val hours = minutes / 60L
+    val days = hours / 24L
+    val weeks = days / 7L
+    val months = days / 30L
+    val years = days / 365L
+
+    return when {
+        years > 0 -> "${years}y ago"
+        months > 0 -> "${months}mo ago"
+        weeks > 0 -> "${weeks}w ago"
+        days > 0 -> "${days}d ago"
+        hours > 0 -> "${hours}h ago"
+        minutes > 0 -> "${minutes}m ago"
+        seconds > 10 -> "${seconds}s ago"
+        else -> "Just now"
     }
 }
 
@@ -872,11 +1301,17 @@ class PlaylistDetailViewModel @Inject constructor(
         val videos: List<Video> = emptyList(),
         val thumbnailUrl: String = "",
         val isLocalPlaylist: Boolean = false,
-        val isSaved: Boolean = false
+        val isSaved: Boolean = false,
+        val isWatchLater: Boolean = false
     )
 
     private val _uiState = MutableStateFlow(UiState())
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
+
+    val sortOrder: StateFlow<PlaylistSortOrder> =
+        playerPreferences.playlistSortOrder
+            .map { PlaylistSortOrder.fromStorageValue(it) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000L), PlaylistSortOrder.MANUAL)
 
     // ── Playlist download state ──────────────────────────────────────────────
     private val _isDownloadingPlaylist = MutableStateFlow(false)
@@ -890,6 +1325,12 @@ class PlaylistDetailViewModel @Inject constructor(
 
     init {
         loadPlaylist()
+    }
+
+    fun setSortOrder(order: PlaylistSortOrder) {
+        viewModelScope.launch {
+            playerPreferences.setPlaylistSortOrder(order.storageValue)
+        }
     }
 
     /**
@@ -1025,6 +1466,32 @@ class PlaylistDetailViewModel @Inject constructor(
 
     private fun loadPlaylist() {
         viewModelScope.launch {
+            if (playlistId == PlaylistRepository.WATCH_LATER_ID) {
+                _uiState.update {
+                    it.copy(
+                        playlistName = context.getString(R.string.watch_later),
+                        description = "",
+                        isPrivate = true,
+                        isLocalPlaylist = true,
+                        isSaved = false,
+                        isWatchLater = true
+                    )
+                }
+                repository.getVideoOnlyWatchLaterFlow().collect { videos ->
+                    _uiState.update {
+                        it.copy(
+                            videos = videos,
+                            thumbnailUrl = videos.firstOrNull()?.thumbnailUrl.orEmpty()
+                        )
+                    }
+                    val stubs = videos.filter { it.title.isEmpty() }.take(50)
+                    if (stubs.isNotEmpty()) {
+                        enrichMetadata(stubs)
+                    }
+                }
+                return@launch
+            }
+
             // Try Local first
             val localInfo = repository.getPlaylistInfo(playlistId)
             if (localInfo != null) {
@@ -1035,7 +1502,8 @@ class PlaylistDetailViewModel @Inject constructor(
                     isPrivate = localInfo.isPrivate,
                     thumbnailUrl = localInfo.thumbnailUrl,
                     isLocalPlaylist = true,
-                    isSaved = isSaved
+                    isSaved = isSaved,
+                    isWatchLater = false
                 )}
                 repository.getPlaylistVideosFlow(playlistId).collect { videos ->
                     _uiState.update { it.copy(videos = videos) }
@@ -1056,7 +1524,8 @@ class PlaylistDetailViewModel @Inject constructor(
                             videos = details.videos,
                             thumbnailUrl = details.thumbnailUrl,
                             isLocalPlaylist = false,
-                            isSaved = false
+                            isSaved = false,
+                            isWatchLater = false
                         )}
                     } else {
                         // Fallback to Music Service if regular fails (e.g. music playlist)
@@ -1082,7 +1551,8 @@ class PlaylistDetailViewModel @Inject constructor(
                                 videos = videos,
                                 thumbnailUrl = musicDetails.thumbnailUrl,
                                 isLocalPlaylist = false,
-                                isSaved = false
+                                isSaved = false,
+                                isWatchLater = false
                             )}
                         }
                     }
@@ -1123,6 +1593,15 @@ class PlaylistDetailViewModel @Inject constructor(
     fun removeVideo(videoId: String) {
         viewModelScope.launch {
             repository.removeVideoFromPlaylist(playlistId, videoId)
+        }
+    }
+
+    fun removeVideos(videoIds: Set<String>) {
+        if (videoIds.isEmpty()) return
+        viewModelScope.launch {
+            videoIds.forEach { videoId ->
+                repository.removeVideoFromPlaylist(playlistId, videoId)
+            }
         }
     }
 

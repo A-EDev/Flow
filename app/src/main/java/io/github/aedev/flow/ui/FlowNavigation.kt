@@ -19,6 +19,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import androidx.hilt.navigation.compose.hiltViewModel
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.data.local.PlaylistRepository
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.ui.components.PlayerSheetValue
@@ -27,7 +28,6 @@ import io.github.aedev.flow.ui.components.MusicPlayerSheetState
 import io.github.aedev.flow.ui.screens.home.HomeScreen
 import io.github.aedev.flow.ui.screens.history.HistoryScreen
 import io.github.aedev.flow.ui.screens.library.LibraryScreen
-import io.github.aedev.flow.ui.screens.library.WatchLaterScreen
 import io.github.aedev.flow.ui.screens.likedvideos.LikesScreen
 import io.github.aedev.flow.ui.screens.playlists.PlaylistsScreen
 import io.github.aedev.flow.ui.screens.playlists.PlaylistDetailScreen
@@ -211,7 +211,7 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.navigate("likes")
             },
             onNavigateToWatchLater = {
-                navController.navigate("watchLater")
+                navController.navigate("playlist/${PlaylistRepository.WATCH_LATER_ID}")
             },
             onNavigateToSavedShorts = {
                 navController.navigate("savedShorts")
@@ -560,27 +560,6 @@ fun NavGraphBuilder.flowAppGraph(
         )
     }
 
-    // Watch Later Screen
-    composable("watchLater") {
-        currentRoute.value = "watchLater"
-        showBottomNav.value = false
-        WatchLaterScreen(
-            onBackClick = { navController.popBackStack() },
-            onVideoClick = { video ->
-                if (video.isMusic) {
-                    navController.navigate("musicPlayer/${video.id}")
-                } else if (video.isShort && !disableShortsPlayer) {
-                    navController.navigate("shorts?startVideoId=${video.id}")
-                } else {
-                    navController.navigate("player/${video.id}")
-                }
-            },
-            onPlayPlaylist = { videos, index ->
-                playerViewModel.playPlaylist(videos, index, "Watch Later")
-            }
-        )
-    }
-
     // Playlists Screen
     composable("playlists") {
         currentRoute.value = "playlists"
@@ -590,7 +569,7 @@ fun NavGraphBuilder.flowAppGraph(
             onPlaylistClick = { playlist ->
                 navController.navigate("playlist/${playlist.id}")
             },
-            onNavigateToWatchLater = { navController.navigate("watchLater") }
+            onNavigateToWatchLater = { navController.navigate("playlist/${PlaylistRepository.WATCH_LATER_ID}") }
         )
     }
 

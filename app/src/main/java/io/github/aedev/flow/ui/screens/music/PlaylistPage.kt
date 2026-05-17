@@ -36,6 +36,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -91,6 +93,8 @@ fun PlaylistPage(
         all.filter { it.videoId !in deletedTrackIds.value }
     }
     var orderedDisplayTracks by remember { mutableStateOf(displayTracks) }
+    var heroTitleBottomPx by remember { mutableIntStateOf(Int.MAX_VALUE) }
+    var topBarBottomPx by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(displayTracks) {
         orderedDisplayTracks = displayTracks
@@ -178,7 +182,11 @@ fun PlaylistPage(
         )
     }
 
-    val isScrolled = scrollState.firstVisibleItemIndex > 0
+    val showCollapsedTopBarTitle by remember {
+        derivedStateOf {
+            heroTitleBottomPx <= topBarBottomPx
+        }
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
 
@@ -222,7 +230,7 @@ fun PlaylistPage(
             containerColor = Color.Transparent,
             topBar = {
                 PlaylistTopBar(
-                    isScrolled = isScrolled,
+                    showTitle = showCollapsedTopBarTitle,
                     title = playlistDetails.title,
                     onBackClick = onBackClick,
                     showSearchToggle = isUserPlaylist,
@@ -240,7 +248,8 @@ fun PlaylistPage(
                     isSaved = isSaved,
                     onSaveToggle = onSaveToggle,
                     showMergeButton = !isUserPlaylist,
-                    onMergeClick = { showMergeDialog = true }
+                    onMergeClick = { showMergeDialog = true },
+                    onBottomPositioned = { topBarBottomPx = it }
                 )
             }
         ) { paddingValues ->
@@ -273,7 +282,8 @@ fun PlaylistPage(
                         onDownloadClick = {
                             if (!isDownloading) playlistsViewModel.downloadPlaylistTracks(playlistDetails)
                         },
-                        onArtistClick = onArtistClick
+                        onArtistClick = onArtistClick,
+                        onTitleBottomPositioned = { heroTitleBottomPx = it }
                     )
                 }
 
@@ -392,7 +402,7 @@ fun PlaylistPage(
 
 @Composable
 private fun PlaylistTopBar(
-    isScrolled: Boolean,
+    showTitle: Boolean,
     title: String,
     onBackClick: () -> Unit,
     showSearchToggle: Boolean,
@@ -402,69 +412,76 @@ private fun PlaylistTopBar(
     isSaved: Boolean = false,
     onSaveToggle: (() -> Unit)? = null,
     showMergeButton: Boolean = false,
-    onMergeClick: (() -> Unit)? = null
+    onMergeClick: (() -> Unit)? = null,
+    onBottomPositioned: (Int) -> Unit
 ) {
-    val bgColor = if (isScrolled)
+    val bgColor = if (showTitle)
         MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
     else Color.Transparent
 
-    Box(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .background(bgColor)
-            .statusBarsPadding()
-            .height(56.dp)
-            .padding(horizontal = 4.dp)
+            .onGloballyPositioned { coordinates ->
+                onBottomPositioned(
+                    (coordinates.positionInRoot().y + coordinates.size.height).toInt()
+                )
+            },
+        color = bgColor
     ) {
-        IconButton(onClick = onBackClick, modifier = Modifier.align(Alignment.CenterStart)) {
-            Icon(
-                imageVector = Icons.Default.ArrowBack,
-                contentDescription = stringResource(R.string.btn_back),
-                tint = Color.White
-            )
-        }
-        if (isScrolled) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                color = Color.White,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = 56.dp)
-            )
-        }
-        if (showSearchToggle) {
-            IconButton(
-                onClick = onSearchToggle,
-                modifier = Modifier.align(Alignment.CenterEnd)
-            ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBackClick) {
                 Icon(
-                    imageVector = if (searchActive) Icons.Default.Close else Icons.Default.Search,
-                    contentDescription = if (searchActive) "Close search" else "Add songs",
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = stringResource(R.string.btn_back),
                     tint = Color.White
                 )
             }
-        }
-        if (showSaveButton || showMergeButton) {
-            Row(modifier = Modifier.align(Alignment.CenterEnd)) {
-                if (showMergeButton && onMergeClick != null) {
-                    IconButton(onClick = onMergeClick) {
-                        Icon(
-                            imageVector = Icons.Default.PlaylistAdd,
-                            contentDescription = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.add_all_to_playlist),
-                            tint = Color.White
-                        )
-                    }
+            Box(modifier = Modifier.weight(1f)) {
+                if (showTitle) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = Color.White
+                    )
                 }
-                if (showSaveButton && onSaveToggle != null) {
-                    IconButton(onClick = onSaveToggle) {
-                        Icon(
-                            imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
-                            contentDescription = if (isSaved) "Remove from library" else "Save to library",
-                            tint = if (isSaved) MaterialTheme.colorScheme.primary else Color.White
-                        )
+            }
+
+            if (showSearchToggle) {
+                IconButton(onClick = onSearchToggle) {
+                    Icon(
+                        imageVector = if (searchActive) Icons.Default.Close else Icons.Default.Search,
+                        contentDescription = if (searchActive) "Close search" else "Add songs",
+                        tint = Color.White
+                    )
+                }
+            }
+            if (showSaveButton || showMergeButton) {
+                Row {
+                    if (showMergeButton && onMergeClick != null) {
+                        IconButton(onClick = onMergeClick) {
+                            Icon(
+                                imageVector = Icons.Default.PlaylistAdd,
+                                contentDescription = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.add_all_to_playlist),
+                                tint = Color.White
+                            )
+                        }
+                    }
+                    if (showSaveButton && onSaveToggle != null) {
+                        IconButton(onClick = onSaveToggle) {
+                            Icon(
+                                imageVector = if (isSaved) Icons.Default.Bookmark else Icons.Outlined.BookmarkBorder,
+                                contentDescription = if (isSaved) "Remove from library" else "Save to library",
+                                tint = if (isSaved) MaterialTheme.colorScheme.primary else Color.White
+                            )
+                        }
                     }
                 }
             }
@@ -482,7 +499,8 @@ private fun PlaylistCenteredHeader(
     onPlayClick: () -> Unit,
     onShuffleClick: () -> Unit,
     onDownloadClick: () -> Unit,
-    onArtistClick: (String) -> Unit
+    onArtistClick: (String) -> Unit,
+    onTitleBottomPositioned: (Int) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -519,7 +537,13 @@ private fun PlaylistCenteredHeader(
             color = Color.White,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 24.dp)
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .onGloballyPositioned { coordinates ->
+                    onTitleBottomPositioned(
+                        (coordinates.positionInRoot().y + coordinates.size.height).toInt()
+                    )
+                }
         )
 
         Spacer(modifier = Modifier.height(6.dp))
