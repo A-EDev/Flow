@@ -57,6 +57,7 @@ IMPROVEMENTS
 - Improve shorts UI and performance #446
 - Watch history and likes screens redesign
 - Improve playlists and library screens UI design
+- Improve subtitle handling #271
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

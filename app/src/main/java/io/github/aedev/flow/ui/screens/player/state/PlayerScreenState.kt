@@ -5,7 +5,6 @@ import android.media.AudioManager
 import androidx.compose.runtime.*
 import io.github.aedev.flow.player.seekbarpreview.SeekbarPreviewThumbnailHelper
 import io.github.aedev.flow.ui.components.CommentSortFilter
-import io.github.aedev.flow.ui.components.SubtitleCue
 import io.github.aedev.flow.ui.components.SubtitleStyle
 
 class PlayerScreenState {
@@ -57,7 +56,6 @@ class PlayerScreenState {
     
     // Subtitle States
     var subtitlesEnabled by mutableStateOf(false)
-    var currentSubtitles by mutableStateOf<List<SubtitleCue>>(emptyList())
     var selectedSubtitleUrl by mutableStateOf<String?>(null)
     var subtitleStyle by mutableStateOf(SubtitleStyle())
     
@@ -89,7 +87,6 @@ class PlayerScreenState {
         currentPosition = 0L
         duration = 0L
         subtitlesEnabled = false
-        currentSubtitles = emptyList()
         selectedSubtitleUrl = null
         seekbarPreviewHelper = null
         showBrightnessOverlay = false
@@ -142,16 +139,14 @@ class PlayerScreenState {
         isFullscreen = !isFullscreen
     }
     
-    fun enableSubtitles(url: String, subtitles: List<SubtitleCue>) {
+    fun enableSubtitles(url: String) {
         selectedSubtitleUrl = url
-        currentSubtitles = subtitles
-        subtitlesEnabled = subtitles.isNotEmpty()
+        subtitlesEnabled = true
     }
     
     fun disableSubtitles() {
         subtitlesEnabled = false
         selectedSubtitleUrl = null
-        currentSubtitles = emptyList()
     }
 
     fun onInteraction() {

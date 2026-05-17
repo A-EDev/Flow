@@ -58,6 +58,7 @@ class PlayerFactory {
                 .setAllowVideoMixedMimeTypeAdaptiveness(false)
                 .setAllowMultipleAdaptiveSelections(true)
                 .setForceHighestSupportedBitrate(false)
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
                 .setViewportSizeToPhysicalDisplaySize(context, true)
                 .setMaxVideoSize(PlayerConfig.MAX_VIDEO_WIDTH, PlayerConfig.MAX_VIDEO_HEIGHT)
             

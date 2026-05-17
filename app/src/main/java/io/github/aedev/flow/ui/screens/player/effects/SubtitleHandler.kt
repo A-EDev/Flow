@@ -7,78 +7,10 @@ import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.seekbarpreview.SeekbarPreviewThumbnailHelper
 import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
-import io.github.aedev.flow.ui.components.SubtitleCue
-import io.github.aedev.flow.ui.components.fetchSubtitles
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import org.schabi.newpipe.extractor.stream.StreamInfo
 
 private const val TAG = "SubtitleHandler"
-
-object SubtitleHandler {
-    
-    /**
-     * Load subtitles from a URL
-     */
-    suspend fun loadSubtitles(url: String): List<SubtitleCue> {
-        return try {
-            Log.d(TAG, "Loading subtitles from: $url")
-            val subtitles = fetchSubtitles(url)
-            Log.d(TAG, "Loaded ${subtitles.size} subtitle cues")
-            subtitles
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to load subtitles", e)
-            emptyList()
-        }
-    }
-}
-
-/**
- * Effect to load subtitles when URL changes
- */
-@Composable
-fun SubtitleLoadEffect(
-    selectedSubtitleUrl: String?,
-    onSubtitlesLoaded: (List<SubtitleCue>) -> Unit,
-    onSubtitlesEnabled: (Boolean) -> Unit
-) {
-    LaunchedEffect(selectedSubtitleUrl) {
-        selectedSubtitleUrl?.let { url ->
-            try {
-                Log.d(TAG, "Selected subtitle URL changed: $url")
-                val subtitles = fetchSubtitles(url)
-                onSubtitlesLoaded(subtitles)
-                onSubtitlesEnabled(subtitles.isNotEmpty())
-                Log.d(TAG, "Subtitles loaded: ${subtitles.size} cues")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to load subtitles from URL", e)
-                onSubtitlesLoaded(emptyList())
-                onSubtitlesEnabled(false)
-            }
-        }
-    }
-}
-
-/**
- * Effect to load subtitles using PlayerScreenState
- */
-@Composable
-fun SubtitleLoadEffectWithState(screenState: PlayerScreenState) {
-    LaunchedEffect(screenState.selectedSubtitleUrl) {
-        screenState.selectedSubtitleUrl?.let { url ->
-            try {
-                Log.d(TAG, "Selected subtitle URL changed: $url")
-                val subtitles = fetchSubtitles(url)
-                screenState.currentSubtitles = subtitles
-                screenState.subtitlesEnabled = subtitles.isNotEmpty()
-                Log.d(TAG, "Subtitles loaded: ${subtitles.size} cues, enabled: ${screenState.subtitlesEnabled}")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to load subtitles from URL", e)
-                screenState.currentSubtitles = emptyList()
-                screenState.subtitlesEnabled = false
-            }
-        }
-    }
-}
 
 /**
  * Seekbar preview helper initialization effect

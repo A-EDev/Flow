@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.player.components
 
 import android.util.Log
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.foundation.layout.fillMaxSize
@@ -116,6 +117,10 @@ fun VideoPlayerSurface(
             ) {
                 Log.d("VideoPlayerSurface", "PlayerView attached; player IDLE with media - calling prepare()")
                 newPlayer.prepare()
+            }
+
+            view.subtitleView?.let { subtitleView ->
+                subtitleView.visibility = View.GONE
             }
 
             view.resizeMode = when (resizeMode) {

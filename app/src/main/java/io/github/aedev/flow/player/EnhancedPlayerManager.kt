@@ -8,7 +8,9 @@ import android.util.Log
 import android.view.SurfaceHolder
 import androidx.media3.common.C
 import androidx.media3.common.Player
+import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.Timeline
+import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -415,6 +417,10 @@ class EnhancedPlayerManager private constructor() {
             override fun onPlayerError(error: PlaybackException) {
                 errorHandler?.handleError(error, player)
             }
+
+            override fun onTracksChanged(tracks: Tracks) {
+                applySubtitleTrackSelection()
+            }
         })
     }
     
@@ -500,7 +506,7 @@ class EnhancedPlayerManager private constructor() {
         // Process streams using StreamProcessor
         availableVideoStreams = StreamProcessor.processVideoStreams(videoStreams)
         availableAudioStreams = StreamProcessor.processAudioStreams(audioStreams)
-        availableSubtitles = subtitles
+        availableSubtitles = StreamProcessor.processSubtitleStreams(subtitles)
         
         // Ensure playback tracker is running
         startPlaybackTracker()
@@ -529,7 +535,7 @@ class EnhancedPlayerManager private constructor() {
             effectiveQuality = currentVideoStream?.height ?: 0,
             availableQualities = qualityManager?.buildQualityOptions() ?: emptyList(),
             availableAudioTracks = StreamProcessor.toAudioTrackOptions(availableAudioStreams),
-            availableSubtitles = StreamProcessor.toSubtitleOptions(subtitles),
+            availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles),
             currentQuality = if (isAutoMode) 0 else (currentVideoStream?.height ?: 0),
             currentAudioTrack = availableAudioStreams.indexOf(currentAudioStream).coerceAtLeast(0),
             isLive = currentIsLiveStream,
@@ -553,6 +559,7 @@ class EnhancedPlayerManager private constructor() {
         currentDashManifestUrl = null
         currentHlsUrl = null
         selectedSubtitleIndex = null
+        disableTextTracks()
         pendingLiveDisplaySeekPositionMs = null
         pendingLiveDisplaySeekAtMs = 0L
         pendingInitialLiveEdgeSeek = false
@@ -611,7 +618,7 @@ class EnhancedPlayerManager private constructor() {
         preservePosition: Long? = null,
         localFilePath: String? = null,
         audioOnly: Boolean = false
-    ) {
+    ): Boolean {
         if (audioOnly) {
             setVideoTracksDisabled(true)
         } else if (videoStream != null || localFilePath != null) {
@@ -620,7 +627,7 @@ class EnhancedPlayerManager private constructor() {
 
         if (localFilePath != null) {
             Log.d(TAG, "loadMediaInternal: Playing local file: $localFilePath")
-            mediaLoader?.loadMedia(
+            return mediaLoader?.loadMedia(
                 player = player,
                 context = appContext,
                 videoStream = videoStream,
@@ -633,13 +640,13 @@ class EnhancedPlayerManager private constructor() {
                 currentDurationSeconds = currentDurationSeconds,
                 preservePosition = preservePosition,
                 localFilePath = localFilePath,
-                audioOnly = false
-            )
-            return
+                audioOnly = false,
+                subtitleStreams = availableSubtitles
+            ) ?: false
         }
 
-        val audio = audioStream ?: availableAudioStreams.firstOrNull() ?: return
-        mediaLoader?.loadMedia(
+        val audio = audioStream ?: availableAudioStreams.firstOrNull() ?: return false
+        return mediaLoader?.loadMedia(
             player = player,
             context = appContext,
             videoStream = videoStream,
@@ -652,8 +659,9 @@ class EnhancedPlayerManager private constructor() {
             currentDurationSeconds = currentDurationSeconds,
             preservePosition = preservePosition,
             localFilePath = localFilePath,
-            audioOnly = audioOnly
-        )
+            audioOnly = audioOnly,
+            subtitleStreams = availableSubtitles
+        ) ?: false
     }
 
     private fun setVideoTracksDisabled(disabled: Boolean) {
@@ -1229,9 +1237,67 @@ class EnhancedPlayerManager private constructor() {
     }
 
     fun selectSubtitle(index: Int?) {
-        if (selectedSubtitleIndex != index) {
-            selectedSubtitleIndex = index
-            Log.d(TAG, "Subtitle selected: $index")
+        val resolvedIndex = index?.takeIf { it in availableSubtitles.indices }
+        if (selectedSubtitleIndex != resolvedIndex) {
+            selectedSubtitleIndex = resolvedIndex
+            Log.d(TAG, "Subtitle selected: $resolvedIndex")
+            applySubtitleTrackSelection()
+        }
+    }
+
+    private fun applySubtitleTrackSelection() {
+        val selector = trackSelector ?: return
+        val index = selectedSubtitleIndex
+        if (index == null) {
+            disableTextTracks()
+            return
+        }
+
+        val subtitleId = MediaLoader.subtitleTrackId(index)
+        val textTrackGroup = player?.currentTracks?.groups
+            ?.asSequence()
+            ?.filter { it.type == C.TRACK_TYPE_TEXT }
+            ?.firstOrNull { group ->
+                (0 until group.length).any { trackIndex ->
+                    group.getTrackFormat(trackIndex).id == subtitleId
+                }
+            }
+
+        if (textTrackGroup == null) {
+            val subtitle = availableSubtitles.getOrNull(index)
+            selector.setParameters(
+                selector.buildUponParameters()
+                    .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                    .setPreferredTextLanguage(subtitle?.languageTag ?: subtitle?.locale?.toLanguageTag())
+                    .build()
+            )
+            return
+        }
+
+        val mediaTrackGroup = textTrackGroup.getMediaTrackGroup()
+        val trackIndex = (0 until textTrackGroup.length).firstOrNull { groupTrackIndex ->
+            textTrackGroup.getTrackFormat(groupTrackIndex).id == subtitleId
+        } ?: 0
+
+        selector.setParameters(
+            selector.buildUponParameters()
+                .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
+                .setOverrideForType(TrackSelectionOverride(mediaTrackGroup, trackIndex))
+                .build()
+        )
+    }
+
+    private fun disableTextTracks() {
+        trackSelector?.let { selector ->
+            selector.setParameters(
+                selector.buildUponParameters()
+                    .clearOverridesOfType(C.TRACK_TYPE_TEXT)
+                    .setPreferredTextLanguage(null)
+                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                    .build()
+            )
         }
     }
 

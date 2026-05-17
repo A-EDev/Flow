@@ -2,9 +2,12 @@ package io.github.aedev.flow.player.renderer
 
 import android.content.Context
 import android.os.Handler
+import android.os.Looper
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
+import androidx.media3.exoplayer.text.TextOutput
+import androidx.media3.exoplayer.text.TextRenderer
 import androidx.media3.exoplayer.video.VideoRendererEventListener
 import java.util.ArrayList
 
@@ -35,6 +38,20 @@ open class CustomRenderersFactory(context: Context) : DefaultRenderersFactory(co
                 eventListener,
                 MAX_DROPPED_VIDEO_FRAME_COUNT_TO_NOTIFY
             )
+        )
+    }
+
+    override fun buildTextRenderers(
+        context: Context,
+        output: TextOutput,
+        outputLooper: Looper,
+        extensionRendererMode: Int,
+        out: ArrayList<Renderer>
+    ) {
+        out.add(
+            TextRenderer(output, outputLooper).apply {
+                experimentalSetLegacyDecodingEnabled(true)
+            }
         )
     }
 }

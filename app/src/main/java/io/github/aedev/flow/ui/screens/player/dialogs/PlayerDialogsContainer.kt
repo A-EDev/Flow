@@ -107,6 +107,7 @@ fun PlayerDialogsContainer(
                 screenState.subtitlesEnabled = true
             },
             onDisableSubtitles = {
+                EnhancedPlayerManager.getInstance().selectSubtitle(null)
                 screenState.disableSubtitles()
             },
             onShowStyleCustomizer = {
@@ -154,6 +155,7 @@ fun PlayerDialogsContainer(
                 screenState.subtitlesEnabled = true
             },
             onDisableSubtitles = {
+                EnhancedPlayerManager.getInstance().selectSubtitle(null)
                 screenState.disableSubtitles()
             },
             onAutoplayToggle = { viewModel.toggleAutoplay(it) },
