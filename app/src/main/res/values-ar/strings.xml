@@ -524,7 +524,7 @@
     <string name="action_search">بحث</string>
     <string name="content_preferences_title">تفضيلات المحتوى</string>
     <string name="content_preferences_subtitle">خصّص ما تراه</string>
-    <string name="interests_tab">الاهتمامات</string>
+    <string name="interests_tab">الإهتمامات</string>
     <string name="blocked_tab">محظور</string>
     <string name="topics_count_template">%1$d مواضيع</string>
     <string name="hidden_count_template">%1$d مخفي</string>
@@ -568,7 +568,7 @@
     <string name="no_watch_data">لا يوجد بيانات للمشاهدات حتى الآن</string>
     <string name="bedtime_reminder_title">تذكير قبل النوم</string>
     <string name="bedtime_reminder_subtitle">احصل على إشعار عندما يحين وقت النوم</string>
-    <string name="break_reminder_title">تذكير بالاستراحة</string>
+    <string name="break_reminder_title">تذكير بالإستراحة</string>
     <string name="break_reminder_subtitle">خذ فترات راحة منتظمة أثناء المشاهدة</string>
     <string name="sleep_window">نافذة النوم:</string>
     <string name="frequency_description">كم مرة يجب أن يتم تذكيرك</string>
@@ -1470,7 +1470,7 @@
     <string name="appearance_system_defaults_title">سمات النظام الإفتراضية</string>
     <string name="appearance_system_defaults_subtitle">إختر السمة التي سيتم استخدامها عند تبديل جهازك بين الوضع الفاتح والوضع الداكن.</string>
     <string name="appearance_system_light_theme">الوضع الفاتح</string>
-    <string name="appearance_system_dark_theme">‫الوضع الداكن</string>
+    <string name="appearance_system_dark_theme">الوضع الداكن</string>
     <string name="icon_name_flow_light">Flow فاتح</string>
     <string name="icon_name_material_sky">Material Sky</string>
     <string name="icon_name_material_mint">Material Mint</string>
@@ -1481,7 +1481,7 @@
     <string name="content_settings_subs_startup_refresh_title">‏تحديث الإشتراكات عند فتح التطبيق</string>
     <string name="content_settings_subs_startup_refresh_subtitle">يتم التحقق من موجز اشتراكاتك عند فتح التطبيق</string>
     <string name="content_settings_nav_order_title">ترتيب علامة التبويب و الإفتراضي</string>
-    <string name="content_settings_nav_order_subtitle">‪إستخدم الأسهم لإعادة ترتيب علامات التبويب. حدد علامة التبويب الافتراضية باستخدام زر الإختيار.</string>
+    <string name="content_settings_nav_order_subtitle">إستخدم الأسهم لإعادة ترتيب علامات التبويب. حدد علامة التبويب الإفتراضية بإستخدام زر الإختيار.</string>
     <string name="content_settings_comments_enabled_title">التعليقات</string>
     <string name="content_settings_comments_enabled_subtitle">تحميل قسم التعليقات وعرضه على شاشة مشغل الفيديو</string>
     <string name="content_settings_subs_show_videos_title">فيديوهات الإشتراك</string>
@@ -1490,4 +1490,27 @@
     <string name="content_settings_subs_show_shorts_subtitle">‏عرض الفيديوهات القصيرة في موجز الإشتراكات</string>
     <string name="content_settings_subs_show_live_title">البث المباشر للإشتراك</string>
     <string name="content_settings_subs_show_live_subtitle">عرض البث المباشر والبث الذي انتهى مؤخرًا في موجز الإشتراك</string>
+    <string name="history_tab_videos">الفيديوهات</string>
+    <string name="history_tab_shorts">الشورتز</string>
+    <string name="hide_channel_shorts">إخفاء الفيديوهات القصيرة من هذه القناة</string>
+    <string name="show_channel_shorts">أظهر الفيديوهات القصيرة للقناة</string>
+    <string name="proxy_settings_description">قم بتهيئة وكيل HTTP أو SOCKS5 اختياري للطلبات البعيدة. يبقى Local casting و LAN discovery مباشر.</string>
+    <string name="player_settings_shorts_playback_mode_auto_interval">التمرير التلقائي بعد وقت محدد</string>
+    <string name="player_settings_shorts_playback_mode_auto_interval_summary">التمرير التلقائي كل %1$d ثانية</string>
+    <string name="player_settings_shorts_auto_scroll_seconds_template">%1$d ثانية</string>
+    <string name="shorts_auto_scroll_active_template">تلقائي %1$ds</string>
+    <string name="metric_suppressed">Suppressed</string>
+    <string name="metric_suppressed_detail">cooldown items</string>
+    <string name="taste_pacing">Pacing</string>
+    <string name="taste_live_affinity">Live affinity</string>
+    <string name="taste_live_affinity_detail">How much live content fits the profile</string>
+    <string name="time_bucket_pace">التقدم</string>
+    <string name="channel_affinity_score">درجة التقارب</string>
+    <string name="discovery_status_subtitle">الإستفسارات والضوابط التي تشكل حاليًا عملية الاستكشاف</string>
+    <string name="discovery_queries">Queries</string>
+    <string name="discovery_query_memory">Query Memory</string>
+    <string name="discovery_query_memory_detail">recent token sets</string>
+    <string name="discovery_rejections">مرفوض</string>
+    <string name="discovery_shorts_seen">Shorts تم رؤيته</string>
+    <string name="discovery_shorts_seen_detail">repeat guard</string>
 </resources>
