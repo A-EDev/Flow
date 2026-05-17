@@ -16,6 +16,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.data.local.PlayerPreferences
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
@@ -33,6 +34,10 @@ class SubscriptionsViewModel : ViewModel() {
          */
         private const val FEED_CACHE_TTL_MS = 30 * 60 * 1000L // 30 minutes
         private const val SOFT_REFRESH_MAX_AGE_MS = 10 * 60 * 1000L // 10 minutes
+        private const val SUBSCRIPTION_CACHE_WINDOW_MS = 60L * 24L * 60L * 60L * 1000L
+        private const val MAX_SUBSCRIPTION_CACHE_ITEMS = 600
+        private const val SUSPICIOUS_FRESH_TIMESTAMP_MS = 5L * 60L * 1000L
+        private const val RELATIVE_TIME_TICK_MS = 60L * 1000L
     }
 
     private lateinit var subscriptionRepository: SubscriptionRepository
@@ -145,10 +150,10 @@ class SubscriptionsViewModel : ViewModel() {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             viewHistory.getVideoHistoryFlow()
                 .combine(playerPreferences.hideWatchedVideos) { history, hideWatched ->
-                    val threshold = if (hideWatched) 10f else 90f
+                    if (!hideWatched) return@combine emptySet<String>()
                     history
                         .asSequence()
-                        .filter { it.progressPercentage >= threshold }
+                        .filter { it.progressPercentage >= 10f }
                         .map { it.videoId }
                         .toHashSet()
                 }
@@ -177,6 +182,15 @@ class SubscriptionsViewModel : ViewModel() {
                     Log.d(TAG, "Cache observer: calling updateVideos with ${videos.size} videos")
                     latestFeedVideos = videos
                     updateVideos(videos)
+                }
+            }
+        }
+
+        viewModelScope.launch(PerformanceDispatcher.diskIO) {
+            while (true) {
+                delay(RELATIVE_TIME_TICK_MS)
+                if (latestFeedVideos.isNotEmpty()) {
+                    updateVideos(latestFeedVideos)
                 }
             }
         }
@@ -250,10 +264,15 @@ class SubscriptionsViewModel : ViewModel() {
         }
 
         try {
+            val cachedBeforeFetch = withContext(PerformanceDispatcher.diskIO) {
+                cacheDao.getSubscriptionFeed().first().map { it.toVideo() }
+            }
+            val cachedVideoIds = cachedBeforeFetch.map { it.id }.toHashSet()
             var finalVideos: List<Video> = emptyList()
             io.github.aedev.flow.data.innertube.RssSubscriptionService.fetchSubscriptionVideos(
                 channelIds = channelIds,
                 maxTotal = 600,
+                knownVideoIds = cachedVideoIds,
                 onProgress = { processed, total ->
                     _uiState.update {
                         it.copy(
@@ -266,23 +285,37 @@ class SubscriptionsViewModel : ViewModel() {
                 Log.i(TAG, "Network emit received: ${videos.size} videos (shorts=${videos.count { it.isShort }}, regular=${videos.count { !it.isShort }})")
                 if (videos.isNotEmpty()) {
                     finalVideos = videos
-                    updateVideos(videos)
+                    val previewVideos = mergeSubscriptionFeed(
+                        freshVideos = videos,
+                        cachedVideos = cachedBeforeFetch,
+                        now = System.currentTimeMillis()
+                    )
+                    updateVideos(previewVideos)
                 } else {
                     Log.w(TAG, "Network emit was empty!")
                 }
             }
+            val refreshTime = System.currentTimeMillis()
             if (finalVideos.isNotEmpty()) {
-                val refreshTime = System.currentTimeMillis()
-                val entities = finalVideos.map { video -> video.toSubscriptionFeedEntity(refreshTime) }
+                val mergedVideos = mergeSubscriptionFeed(
+                    freshVideos = finalVideos,
+                    cachedVideos = cachedBeforeFetch,
+                    now = refreshTime
+                )
+                val entities = mergedVideos.map { video -> video.toSubscriptionFeedEntity(refreshTime) }
                 withContext(PerformanceDispatcher.diskIO) {
                     database.withTransaction {
                         cacheDao.clearSubscriptionFeed()
                         cacheDao.insertSubscriptionFeed(entities)
                     }
-                    playerPreferences.setSubscriptionLastRefresh(refreshTime, finalVideos.size)
+                    playerPreferences.setSubscriptionLastRefresh(refreshTime, mergedVideos.size)
                 }
-                latestFeedVideos = finalVideos
-                updateVideos(finalVideos)
+                latestFeedVideos = mergedVideos
+                updateVideos(mergedVideos)
+            } else if (cachedBeforeFetch.isNotEmpty()) {
+                withContext(PerformanceDispatcher.diskIO) {
+                    playerPreferences.setSubscriptionLastRefresh(refreshTime, cachedBeforeFetch.size)
+                }
             }
         } finally {
             if (showLoading) {
@@ -306,6 +339,21 @@ class SubscriptionsViewModel : ViewModel() {
     }
 
 
+
+    private fun mergeSubscriptionFeed(
+        freshVideos: List<Video>,
+        cachedVideos: List<Video>,
+        now: Long
+    ): List<Video> {
+        val cutoff = now - SUBSCRIPTION_CACHE_WINDOW_MS
+        return (freshVideos + cachedVideos)
+            .asSequence()
+            .filter { video -> effectiveUploadTimestamp(video, now) >= cutoff || video.isLive || video.isUpcoming }
+            .distinctBy { it.id }
+            .toList()
+            .withStableUploadSortKeys(now)
+            .take(MAX_SUBSCRIPTION_CACHE_ITEMS)
+    }
 
     private suspend fun updateVideos(videos: List<Video>) {
         val sortNow = System.currentTimeMillis()
@@ -368,7 +416,12 @@ class SubscriptionsViewModel : ViewModel() {
             unwatchedShorts
         }).filter { it.channelId !in excludedShortsChannelIds }
 
-        _uiState.update { it.copy(recentVideos = groupFilteredRegular, shorts = groupFilteredShorts) }
+        _uiState.update {
+            it.copy(
+                recentVideos = groupFilteredRegular.withRelativeUploadDates(sortNow),
+                shorts = groupFilteredShorts.withRelativeUploadDates(sortNow)
+            )
+        }
     }
     
 
@@ -451,8 +504,52 @@ class SubscriptionsViewModel : ViewModel() {
             )
             .map { it.video }
 
-    private fun effectiveUploadTimestamp(video: Video, now: Long): Long =
-        parseRelativeTime(video.uploadDate, now) ?: video.timestamp
+    private fun List<Video>.withRelativeUploadDates(now: Long): List<Video> =
+        map { video ->
+            val uploadTimestamp = effectiveUploadTimestamp(video, now)
+            if (uploadTimestamp > 0L) {
+                video.copy(uploadDate = formatRelativeTime(uploadTimestamp, now))
+            } else {
+                video
+            }
+        }
+
+    private fun effectiveUploadTimestamp(video: Video, now: Long): Long {
+        val parsedRelative = parseRelativeTime(video.uploadDate, now)
+        val timestamp = video.timestamp
+        val timestampLooksLikeFallbackNow =
+            timestamp in (now - SUSPICIOUS_FRESH_TIMESTAMP_MS)..(now + SUSPICIOUS_FRESH_TIMESTAMP_MS)
+        val relativeDateIsClearlyOlder =
+            parsedRelative != null && parsedRelative < now - SUSPICIOUS_FRESH_TIMESTAMP_MS
+
+        return when {
+            timestamp <= 0L -> parsedRelative ?: 0L
+            timestampLooksLikeFallbackNow && relativeDateIsClearlyOlder -> parsedRelative ?: timestamp
+            else -> timestamp
+        }
+    }
+
+    private fun formatRelativeTime(timestamp: Long, now: Long): String {
+        val diff = (now - timestamp).coerceAtLeast(0L)
+        val seconds = diff / 1000L
+        val minutes = seconds / 60L
+        val hours = minutes / 60L
+        val days = hours / 24L
+        val weeks = days / 7L
+        val months = days / 30L
+        val years = days / 365L
+
+        return when {
+            years > 0 -> "${years}y ago"
+            months > 0 -> "${months}mo ago"
+            weeks > 0 -> "${weeks}w ago"
+            days > 0 -> "${days}d ago"
+            hours > 0 -> "${hours}h ago"
+            minutes > 0 -> "${minutes}m ago"
+            seconds > 10 -> "${seconds}s ago"
+            else -> "Just now"
+        }
+    }
 
     private data class SortableVideo(
         val video: Video,

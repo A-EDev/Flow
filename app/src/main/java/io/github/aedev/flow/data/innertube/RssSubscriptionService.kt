@@ -25,7 +25,7 @@ object RssSubscriptionService {
     private const val CHANNEL_CHUNK_SIZE = 8
     private const val CHANNEL_BATCH_SIZE = 50
     private val CHANNEL_BATCH_DELAY = (100L..400L)
-    private const val MAX_FEED_AGE_DAYS = 180L
+    private const val MAX_FEED_AGE_DAYS = 60L
 
     private const val MAX_REGULAR_VIDEOS = 500
     private const val MAX_SHORTS = 120
@@ -36,6 +36,7 @@ object RssSubscriptionService {
     fun fetchSubscriptionVideos(
         channelIds: List<String>,
         maxTotal: Int = 600,
+        knownVideoIds: Set<String> = emptySet(),
         onProgress: ((processedChannels: Int, totalChannels: Int) -> Unit)? = null
     ): Flow<List<Video>> = flow {
         Log.i(TAG, "======== FEED FETCH START: ${channelIds.size} channels ========")
@@ -61,7 +62,7 @@ object RssSubscriptionService {
             val results = coroutineScope {
                 chunk.map { channelId ->
                     async(Dispatchers.IO) {
-                        channelId to fetchRssDates(channelId, minimumDateMillis)
+                        channelId to fetchRssDates(channelId, minimumDateMillis, knownVideoIds)
                     }
                 }.awaitAll()
             }
@@ -142,7 +143,11 @@ object RssSubscriptionService {
      * RSS provides accurate dates for ALL recent uploads (including shorts)
      * but doesn't tell us duration or whether something is a short.
      */
-    private fun fetchRssDates(channelId: String, minimumDateMillis: Long): RssResult {
+    private fun fetchRssDates(
+        channelId: String,
+        minimumDateMillis: Long,
+        knownVideoIds: Set<String>
+    ): RssResult {
         val channelUrl = "$YOUTUBE_URL/channel/$channelId"
         return try {
             val feedInfo = FeedInfo.getInfo(channelUrl)
@@ -154,19 +159,23 @@ object RssSubscriptionService {
 
             val timestamps = mutableMapOf<String, Long>()
             var newestTimestamp = 0L
+            var newestVideoId = ""
 
             for (item in feedItems) {
                 val t = item.uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli() ?: continue
                 val videoId = extractVideoId(item.url)
                 timestamps[videoId] = t
-                if (t > newestTimestamp) newestTimestamp = t
+                if (t > newestTimestamp) {
+                    newestTimestamp = t
+                    newestVideoId = videoId
+                }
             }
 
             if (timestamps.isEmpty()) {
                 RssResult(hasRecent = true, videoTimestamps = emptyMap())
             } else {
                 RssResult(
-                    hasRecent = newestTimestamp > minimumDateMillis,
+                    hasRecent = newestTimestamp > minimumDateMillis && newestVideoId !in knownVideoIds,
                     videoTimestamps = timestamps
                 )
             }

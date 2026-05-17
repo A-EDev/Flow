@@ -544,16 +544,19 @@ private suspend fun refreshSubscriptionsAtStartup(
 
         val database = AppDatabase.getDatabase(context)
         val cacheDao = database.cacheDao()
+        val cachedEntities = cacheDao.getSubscriptionFeed().first()
         var finalVideos: List<Video> = emptyList()
         RssSubscriptionService.fetchSubscriptionVideos(
             channelIds = subscriptions.map { it.channelId },
-            maxTotal = 600
+            maxTotal = 600,
+            knownVideoIds = cachedEntities.map { it.videoId }.toHashSet()
         ).collect { videos ->
             if (videos.isEmpty()) return@collect
             finalVideos = videos
         }
         if (finalVideos.isNotEmpty()) {
             val refreshTime = System.currentTimeMillis()
+            val cutoff = refreshTime - 60L * 24L * 60L * 60L * 1000L
             val entities = finalVideos.map { video ->
                 SubscriptionFeedEntity(
                     videoId = video.id,
@@ -571,11 +574,20 @@ private suspend fun refreshSubscriptionsAtStartup(
                     cachedAt = refreshTime
                 )
             }
+            val mergedEntities = (entities + cachedEntities)
+                .asSequence()
+                .filter { entity -> entity.timestamp >= cutoff || entity.isLive }
+                .distinctBy { it.videoId }
+                .sortedByDescending { it.timestamp }
+                .take(600)
+                .toList()
             database.withTransaction {
                 cacheDao.clearSubscriptionFeed()
-                cacheDao.insertSubscriptionFeed(entities)
+                cacheDao.insertSubscriptionFeed(mergedEntities)
             }
-            preferences.setSubscriptionLastRefresh(refreshTime, finalVideos.size)
+            preferences.setSubscriptionLastRefresh(refreshTime, mergedEntities.size)
+        } else if (cachedEntities.isNotEmpty()) {
+            preferences.setSubscriptionLastRefresh(System.currentTimeMillis(), cachedEntities.size)
         }
     }.onFailure {
         android.util.Log.w("FlowApp", "Startup subscription refresh failed: ${it.message}")
