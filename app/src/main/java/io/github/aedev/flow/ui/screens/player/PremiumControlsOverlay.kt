@@ -62,6 +62,7 @@ fun PremiumControlsOverlay(
     duration: Long,
     qualityLabel: String?,
     videoTitle: String?,
+    playbackSpeed: Float = 1.0f,
     resizeMode: Int,
     onResizeClick: () -> Unit,
     onPlayPause: () -> Unit,
@@ -69,6 +70,7 @@ fun PremiumControlsOverlay(
     onBack: () -> Unit,
     onSettingsClick: () -> Unit,
     onQualityClick: () -> Unit = {},
+    onSpeedClick: () -> Unit = {},
     onFullscreenClick: () -> Unit,
     isFullscreen: Boolean,
     isPipSupported: Boolean = false,
@@ -150,30 +152,37 @@ fun PremiumControlsOverlay(
     val overlayPipEnabled by playerPreferences.overlayPipEnabled.collectAsState(initial = false)
     val overlayAutoplayEnabled by playerPreferences.overlayAutoplayEnabled.collectAsState(initial = false)
     val overlaySleepTimerEnabled by playerPreferences.overlaySleepTimerEnabled.collectAsState(initial = false)
+    val overlaySpeedIndicatorEnabled by playerPreferences.overlaySpeedIndicatorEnabled.collectAsState(initial = false)
     val showFullscreenTitle by playerPreferences.showFullscreenTitle.collectAsState(initial = false)
-    val fullscreenSeekbarBottomPadding = if (isFullscreen) 20.dp else 0.dp
+    val fullscreenSeekbarBottomPadding = if (isFullscreen) 30.dp else 0.dp
+    val compactQualityLabel = remember(qualityLabel) { qualityLabel?.toCompactQualityLabel() }
+    val speedIndicatorLabel = remember(playbackSpeed) { playbackSpeed.toSpeedIndicatorLabel() }
+
 
     val isInitialLoading = isBuffering && duration <= 0L && currentPosition <= 0L
 
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn(animationSpec = tween(300)),
-        exit = fadeOut(animationSpec = tween(300)),
+    Box(
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(windowInsets)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    when {
-                        isTouchLocked -> Color.Transparent
-                        isInitialLoading -> Color.Black
-                        else -> Color.Black.copy(alpha = 0.6f)
-                    }
-                )
+        AnimatedVisibility(
+            visible = isVisible,
+            enter = fadeIn(animationSpec = tween(300)),
+            exit = fadeOut(animationSpec = tween(300)),
+            modifier = Modifier.matchParentSize()
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        when {
+                            isTouchLocked -> Color.Transparent
+                            isInitialLoading -> Color.Black
+                            else -> Color.Black.copy(alpha = 0.24f)
+                        }
+                    )
+            ) {
             if (isTouchLocked) {
                 Box(
                     modifier = Modifier
@@ -218,15 +227,21 @@ fun PremiumControlsOverlay(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.TopStart)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colors = listOf(Color.Black.copy(alpha = 0.38f), Color.Transparent)
+                            )
+                        )
                 ) {
                 Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Row(
+                    modifier = Modifier.weight(1f),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -249,24 +264,19 @@ fun PremiumControlsOverlay(
                             modifier = Modifier.size(32.dp)
                         )
                     }
-                    
-                    // Quality Label Pill
-                    if (qualityLabel != null) {
-                        Surface(
-                            color = Color.Black.copy(alpha = 0.3f),
-                            shape = RoundedCornerShape(4.dp),
+
+                    if (isFullscreen && showFullscreenTitle && !videoTitle.isNullOrBlank()) {
+                        Text(
+                            text = videoTitle,
+                            color = Color.White,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .clickable { onQualityClick() }
-                        ) {
-                            Text(
-                                text = if (qualityLabel.all { it.isDigit() }) "${qualityLabel}p" else qualityLabel,
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
-                            )
-                        }
+                                .weight(1f)
+                                .padding(end = 8.dp)
+                        )
                     }
 
                     // PiP Button
@@ -305,6 +315,30 @@ fun PremiumControlsOverlay(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    if (overlaySpeedIndicatorEnabled) {
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier
+                                .height(32.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { onSpeedClick() }
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.padding(horizontal = 10.dp)
+                            ) {
+                                Text(
+                                    text = speedIndicatorLabel,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+
                     // Resize Button (Only in Fullscreen)
                     if (isFullscreen) {
                         IconButton(
@@ -416,20 +450,6 @@ fun PremiumControlsOverlay(
                     }
                 }
             }
-                if (isFullscreen && showFullscreenTitle && !videoTitle.isNullOrBlank()) {
-                    Text(
-                        text = videoTitle,
-                        color = Color.White,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp)
-                            .padding(bottom = 8.dp)
-                    )
-                }
                 }
         }
 
@@ -522,22 +542,22 @@ fun PremiumControlsOverlay(
                         .align(Alignment.BottomCenter)
                         .background(
                             brush = Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.6f))
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.44f))
                             )
                         )
-                        .padding(start = 14.dp, end = 14.dp, top = 0.dp, bottom = fullscreenSeekbarBottomPadding)
+                        .padding(start = 0.dp, end = 0.dp, top = 0.dp, bottom = fullscreenSeekbarBottomPadding)
                 ) {
                 // Duration and Chapter pills row
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 4.dp, bottom = 0.dp),
+                        .padding(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 0.dp),
                     horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Time Pill
                     Surface(
-                        color = Color.Black.copy(alpha = 0.3f),
+                        color = Color.Black.copy(alpha = 0.4f),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .clip(RoundedCornerShape(12.dp))
@@ -616,7 +636,7 @@ fun PremiumControlsOverlay(
                         Spacer(modifier = Modifier.width(6.dp))
                         
                         Surface(
-                            color = Color.Black.copy(alpha = 0.3f),
+                            color = Color.Black.copy(alpha = 0.4f),
                             shape = RoundedCornerShape(12.dp),
                             modifier = Modifier
                                 .clip(RoundedCornerShape(12.dp))
@@ -648,12 +668,37 @@ fun PremiumControlsOverlay(
                     }
 
                     Spacer(modifier = Modifier.weight(1f))
+                    if (compactQualityLabel != null) {
+                        Surface(
+                            color = Color.Black.copy(alpha = 0.4f),
+                            shape = CircleShape,
+                            modifier = Modifier
+                                .height(32.dp)
+                                .widthIn(min = 32.dp)
+                                .clip(CircleShape)
+                                .clickable { onQualityClick() }
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.padding(horizontal = 14.dp)
+                            ) {
+                                Text(
+                                    text = compactQualityLabel,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+
                     Box(
                         modifier = Modifier
-                            .padding(4.dp)
                             .size(32.dp)
                             .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.3f))
+                            .background(Color.Black.copy(alpha = 0.4f))
                             .clickable(onClick = onFullscreenClick),
                         contentAlignment = Alignment.Center
                     ) {
@@ -735,13 +780,97 @@ fun PremiumControlsOverlay(
                         sponsorSegments = sponsorSegments,
                         duration = seekDuration,
                         bufferedValue = bufferedPercentage,
+                        edgeAligned = !isFullscreen,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
             } 
         }
             } 
-        } 
+        }
+        }
+
+        if (!isVisible && !isFullscreen && !isInitialLoading && !isTouchLocked) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+            ) {
+                if (isLive && duration <= 0L) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(Color.Red)
+                    )
+                } else {
+                    val seekDuration = if (isLive) duration.coerceAtLeast(displayedPosition) else duration
+                    SeekbarWithPreview(
+                        value = if (seekDuration > 0) {
+                            (displayedPosition.toFloat() / seekDuration.toFloat()).coerceIn(0f, 1f)
+                        } else {
+                            0f
+                        },
+                        onValueChange = { progress ->
+                            val newPosition = (progress * seekDuration).toLong()
+                            val playerManager = EnhancedPlayerManager.getInstance()
+
+                            scrubPosition = newPosition
+
+                            if (!isScrubbing) {
+                                isScrubbing = true
+                                playerManager.setScrubbingModeEnabled(true)
+                            }
+
+                            if (isLive) {
+                                return@SeekbarWithPreview
+                            }
+
+                            pendingScrubSeekJob?.cancel()
+
+                            val now = SystemClock.elapsedRealtime()
+                            val remainingDelay = (LIVE_SCRUB_SEEK_INTERVAL_MS - (now - lastScrubSeekAt)).coerceAtLeast(0L)
+                            val movedFarEnough = lastScrubSeekPosition == Long.MIN_VALUE ||
+                                abs(newPosition - lastScrubSeekPosition) >= LIVE_SCRUB_IMMEDIATE_DELTA_MS
+
+                            if (remainingDelay == 0L || movedFarEnough) {
+                                onSeek(newPosition)
+                                lastScrubSeekAt = now
+                                lastScrubSeekPosition = newPosition
+                            } else {
+                                pendingScrubSeekJob = scrubScope.launch {
+                                    delay(remainingDelay)
+                                    val targetPosition = scrubPosition ?: return@launch
+                                    onSeek(targetPosition)
+                                    lastScrubSeekAt = SystemClock.elapsedRealtime()
+                                    lastScrubSeekPosition = targetPosition
+                                }
+                            }
+                        },
+                        onValueChangeFinished = {
+                            pendingScrubSeekJob?.cancel()
+                            pendingScrubSeekJob = null
+                            scrubPosition?.let { targetPosition ->
+                                onSeek(targetPosition)
+                                lastScrubSeekPosition = targetPosition
+                            }
+                            lastScrubSeekAt = 0L
+                            lastScrubSeekPosition = Long.MIN_VALUE
+                            isScrubbing = false
+                            EnhancedPlayerManager.getInstance().setScrubbingModeEnabled(false)
+                        },
+                        seekbarPreviewHelper = seekbarPreviewHelper,
+                        chapters = chapters,
+                        sponsorSegments = sponsorSegments,
+                        duration = seekDuration,
+                        bufferedValue = bufferedPercentage,
+                        edgeAligned = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+        }
     } 
 }
 
@@ -762,7 +891,6 @@ fun SleekLoadingAnimation(modifier: Modifier = Modifier) {
 
     Canvas(modifier = modifier) {
         val strokeWidth = 4.dp.toPx()
-        val size = size.minDimension - strokeWidth
         
         // Draw background track
         drawArc(
@@ -787,6 +915,32 @@ fun SleekLoadingAnimation(modifier: Modifier = Modifier) {
                 style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
             )
         }
+    }
+}
+
+private fun String.toCompactQualityLabel(): String {
+    val height = Regex("""\d+""").find(this)?.value?.toIntOrNull()
+    return when (height) {
+        3840, 2160 -> "4K"
+        2560, 1440 -> "QHD"
+        1920, 1080 -> "FHD"
+        1280, 720 -> "HD"
+        854, 480 -> "SD"
+        640, 360 -> "360p"
+        426, 240 -> "240p"
+        256, 144 -> "LD"
+        null -> this
+        else -> "${height}p"
+    }
+}
+
+private fun Float.toSpeedIndicatorLabel(): String {
+    val speed = coerceIn(0.1f, 10.0f)
+    return if (kotlin.math.abs(speed - speed.toInt()) < 0.01f) {
+        "${speed.toInt()}x"
+    } else {
+        val rounded = kotlin.math.round(speed * 100f) / 100f
+        "${rounded.toString().trimEnd('0').trimEnd('.')}x"
     }
 }
 

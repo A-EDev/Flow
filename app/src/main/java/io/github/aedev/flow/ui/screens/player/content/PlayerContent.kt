@@ -236,6 +236,7 @@ fun PlayerContent(
             else 
                 playerState.currentQuality.toString(),
             videoTitle = resolvedVideoTitle,
+            playbackSpeed = playerState.playbackSpeed,
             resizeMode = screenState.resizeMode,
             onResizeClick = { screenState.cycleResizeMode() },
             onPlayPause = {
@@ -263,6 +264,8 @@ fun PlayerContent(
                 }
             },
             onSettingsClick = { screenState.showSettingsMenu = true },
+            onQualityClick = { screenState.showQualitySelector = true },
+            onSpeedClick = { screenState.showPlaybackSpeedSelector = true },
             onFullscreenClick = { screenState.toggleFullscreen() },
             isFullscreen = screenState.isFullscreen,
             isPipSupported = isPipSupported,

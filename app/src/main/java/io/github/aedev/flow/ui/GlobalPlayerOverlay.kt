@@ -833,9 +833,9 @@ fun GlobalPlayerOverlay(
                         
                         // Controls overlay - fully expanded only
                         var showRemainingTime by rememberSaveable { mutableStateOf(false) }
-                        if (!isMinimized && !localIsInPipMode && (screenState.showControls || screenState.isTouchLocked)) {
+                        if (!isMinimized && !localIsInPipMode && (screenState.showControls || screenState.isTouchLocked || !screenState.isFullscreen)) {
                             PremiumControlsOverlay(
-                                isVisible = true,
+                                isVisible = screenState.showControls || screenState.isTouchLocked,
                                 isPlaying = playerState.playWhenReady,
                                 hasEnded = playerState.hasEnded,
                                 isBuffering = playerState.isBuffering,
@@ -846,6 +846,7 @@ fun GlobalPlayerOverlay(
                                 else 
                                     playerState.currentQuality.toString(),
                                 videoTitle = playerUiState.streamInfo?.name ?: video.title,
+                                playbackSpeed = playerState.playbackSpeed,
                                 resizeMode = screenState.resizeMode,
                                 onResizeClick = { 
                                     screenState.onInteraction()
@@ -875,6 +876,7 @@ fun GlobalPlayerOverlay(
                                 onBack = { playerSheetState.collapse() },
                                 onSettingsClick = { screenState.showSettingsMenu = true },
                                 onQualityClick = { screenState.showQualitySelector = true },
+                                onSpeedClick = { screenState.showPlaybackSpeedSelector = true },
                                 onFullscreenClick = { screenState.toggleFullscreen() },
                                 isFullscreen = screenState.isFullscreen,
                                 isPipSupported = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && 

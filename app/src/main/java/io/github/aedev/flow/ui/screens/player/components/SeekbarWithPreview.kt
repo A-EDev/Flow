@@ -19,6 +19,7 @@ import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -85,7 +86,8 @@ fun SeekbarWithPreview(
     chapters: List<StreamSegment> = emptyList(),
     sponsorSegments: List<SponsorBlockSegment> = emptyList(),
     duration: Long = 0L,
-    bufferedValue: Float = 0f
+    bufferedValue: Float = 0f,
+    edgeAligned: Boolean = false
 ) {
     val previewEnabled = false
     var previewPosition by remember { mutableFloatStateOf(0f) }
@@ -186,16 +188,19 @@ fun SeekbarWithPreview(
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(trackHeight)
+                .height(if (edgeAligned) 32.dp else trackHeight)
         ) {
-            val height = size.height
+            val trackHeightPx = trackHeight.toPx()
             val width = size.width
+            val trackTop = if (edgeAligned) size.height - trackHeightPx else 0f
+            val trackCenterY = trackTop + trackHeightPx / 2f
             
             // Draw inactive track (background)
             drawRoundRect(
                 color = Color.White.copy(alpha = 0.15f),
-                size = Size(width, height),
-                cornerRadius = CornerRadius(height / 2)
+                topLeft = Offset(0f, trackTop),
+                size = Size(width, trackHeightPx),
+                cornerRadius = CornerRadius(trackHeightPx / 2)
             )
             
             // Draw buffer track (the NewPipe feature)
@@ -203,8 +208,9 @@ fun SeekbarWithPreview(
                 val bufferWidth = width * bufferedValue.coerceIn(0f, 1f)
                 drawRoundRect(
                     color = Color.White.copy(alpha = 0.5f), // Increased visibility for buffer
-                    size = Size(bufferWidth, height),
-                    cornerRadius = CornerRadius(height / 2)
+                    topLeft = Offset(0f, trackTop),
+                    size = Size(bufferWidth, trackHeightPx),
+                    cornerRadius = CornerRadius(trackHeightPx / 2)
                 )
             }
             
@@ -231,9 +237,9 @@ fun SeekbarWithPreview(
                          
                          drawRoundRect(
                              color = segmentColor,
-                             topLeft = Offset(startX, 0f),
-                             size = Size(segWidth, height),
-                             cornerRadius = CornerRadius(height / 2)
+                             topLeft = Offset(startX, trackTop),
+                             size = Size(segWidth, trackHeightPx),
+                             cornerRadius = CornerRadius(trackHeightPx / 2)
                          )
                      }
                 }
@@ -243,8 +249,9 @@ fun SeekbarWithPreview(
             val activeWidth = width * internalValue
             drawRoundRect(
                 color = primaryColor,
-                size = Size(activeWidth, height),
-                cornerRadius = CornerRadius(height / 2)
+                topLeft = Offset(0f, trackTop),
+                size = Size(activeWidth, trackHeightPx),
+                cornerRadius = CornerRadius(trackHeightPx / 2)
             )
             
             // Draw Chapter Separators (Gaps)
@@ -262,13 +269,38 @@ fun SeekbarWithPreview(
                             // Draw a clear line to simulate a gap
                             drawLine(
                                 color = Color.Black.copy(alpha = 0.8f), 
-                                start = Offset(gapX, 0f), 
-                                end = Offset(gapX, height),
+                                start = Offset(gapX, trackTop), 
+                                end = Offset(gapX, trackTop + trackHeightPx),
                                 strokeWidth = gapWidth
                             )
                         }
                     }
                 }
+            }
+
+            if (edgeAligned && thumbScale > 0f) {
+                val thumbRadius = 7.dp.toPx() * thumbScale
+                val thumbX = if (width > thumbRadius * 2f) {
+                    (width * internalValue).coerceIn(thumbRadius, width - thumbRadius)
+                } else {
+                    width * internalValue
+                }
+                drawCircle(
+                    color = primaryColor.copy(alpha = 0.24f),
+                    radius = thumbRadius + 8.dp.toPx(),
+                    center = Offset(thumbX, trackCenterY)
+                )
+                drawCircle(
+                    color = Color.White,
+                    radius = thumbRadius,
+                    center = Offset(thumbX, trackCenterY)
+                )
+                drawCircle(
+                    color = primaryColor,
+                    radius = thumbRadius,
+                    center = Offset(thumbX, trackCenterY),
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 3.dp.toPx())
+                )
             }
         }
 
@@ -299,23 +331,27 @@ fun SeekbarWithPreview(
                 inactiveTrackColor = Color.Transparent
             ),
             thumb = {
-                Box(
-                    modifier = Modifier
-                        .size(14.dp)
-                        .scale(thumbScale)
-                        .background(Color.White, CircleShape)
-                        .border(3.dp, primaryColor, CircleShape)
-                        .then(
-                            if (isInteracting) {
-                                Modifier.background(
-                                    Brush.radialGradient(
-                                        colors = listOf(primaryColor.copy(alpha = 0.4f), Color.Transparent),
-                                        radius = 40f
+                if (edgeAligned) {
+                    Spacer(modifier = Modifier.size(0.dp))
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(14.dp)
+                            .scale(thumbScale)
+                            .background(Color.White, CircleShape)
+                            .border(3.dp, primaryColor, CircleShape)
+                            .then(
+                                if (isInteracting) {
+                                    Modifier.background(
+                                        Brush.radialGradient(
+                                            colors = listOf(primaryColor.copy(alpha = 0.4f), Color.Transparent),
+                                            radius = 40f
+                                        )
                                     )
-                                )
-                            } else Modifier
-                        )
-                )
+                                } else Modifier
+                            )
+                    )
+                }
             }
         )
         } 

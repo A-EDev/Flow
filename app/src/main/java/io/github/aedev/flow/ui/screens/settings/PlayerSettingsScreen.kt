@@ -72,6 +72,7 @@ fun PlayerSettingsScreen(
     val overlayAutoplayEnabled by playerPreferences.overlayAutoplayEnabled.collectAsState(initial = false)
     val overlaySleepTimerEnabled by playerPreferences.overlaySleepTimerEnabled.collectAsState(initial = true)
     val overlayLockModeEnabled by playerPreferences.overlayLockModeEnabled.collectAsState(initial = false)
+    val overlaySpeedIndicatorEnabled by playerPreferences.overlaySpeedIndicatorEnabled.collectAsState(initial = false)
     
     val autoplayEnabled by playerPreferences.autoplayEnabled.collectAsState(initial = true)
     val skipSilenceEnabled by playerPreferences.skipSilenceEnabled.collectAsState(initial = false)
@@ -204,6 +205,14 @@ fun PlayerSettingsScreen(
                         subtitle = stringResource(R.string.player_settings_overlay_lock_mode_subtitle),
                         checked = overlayLockModeEnabled,
                         onCheckedChange = { coroutineScope.launch { playerPreferences.setOverlayLockModeEnabled(it) } }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Speed,
+                        title = stringResource(R.string.player_settings_overlay_speed_indicator),
+                        subtitle = stringResource(R.string.player_settings_overlay_speed_indicator_subtitle),
+                        checked = overlaySpeedIndicatorEnabled,
+                        onCheckedChange = { coroutineScope.launch { playerPreferences.setOverlaySpeedIndicatorEnabled(it) } }
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     SettingsSwitchItem(
