@@ -1570,4 +1570,6 @@
     <string name="remove_selected_videos_title">Supprimer %1$d vidéo(s) ?</string>
     <string name="remove_selected_playlist_text">Ils seront supprimés de cette playlist.</string>
     <string name="remove_selected_watch_later_text">Ils seront supprimés de la playlist « À regarder plus tard ».</string>
+    <string name="player_settings_overlay_speed_indicator">Indicateur de vitesse de lecture</string>
+    <string name="player_settings_overlay_speed_indicator_subtitle">Afficher la vitesse actuelle dans la fenêtre superposée du lecteur vidéo</string>
 </resources>
