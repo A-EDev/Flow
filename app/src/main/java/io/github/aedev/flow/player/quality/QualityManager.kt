@@ -69,7 +69,7 @@ class QualityManager(
      * Update available video streams.
      */
     fun setAvailableStreams(streams: List<VideoStream>) {
-        availableVideoStreams = streams.distinctBy { it.getContent() }.sortedByDescending { it.height }
+        availableVideoStreams = streams.distinctBy { it.getContent() }.sortedByDescending { qualityHeight(it) }
     }
     
     /**
@@ -77,7 +77,7 @@ class QualityManager(
      */
     fun setCurrentStream(stream: VideoStream?) {
         currentVideoStream = stream
-        lastAdaptiveQualityHeight = stream?.height ?: 0
+        lastAdaptiveQualityHeight = stream?.let(::qualityHeight) ?: 0
     }
     
     /**
@@ -141,6 +141,10 @@ class QualityManager(
      */
     fun getWorkingStreams(): List<VideoStream> = 
         availableVideoStreams.filter { !failedStreamUrls.contains(it.getContent()) }
+
+    private fun qualityHeight(stream: VideoStream): Int {
+        return normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(stream))
+    }
     
     /**
      * Select smart initial quality based on bandwidth.
@@ -151,13 +155,13 @@ class QualityManager(
         
         val smartStream = availableVideoStreams
             .sortedWith(
-                compareBy<VideoStream> { kotlin.math.abs(it.height - targetHeight) }
+                compareBy<VideoStream> { kotlin.math.abs(qualityHeight(it) - targetHeight) }
                     .thenBy { VideoCodecUtils.playbackCodecRank(it) }
                     .thenByDescending { it.bitrate }
             )
             .firstOrNull()
         
-        Log.d(TAG, "Smart quality selection: bandwidth=${estimatedBandwidth/1_000_000}Mbps, target=${targetHeight}p, selected=${smartStream?.height}p")
+        Log.d(TAG, "Smart quality selection: bandwidth=${estimatedBandwidth/1_000_000}Mbps, target=${targetHeight}p, selected=${smartStream?.let(::qualityHeight)}p")
         
         return smartStream
     }
@@ -169,7 +173,7 @@ class QualityManager(
         return listOf(
             QualityOption(height = 0, label = "Auto", bitrate = 0L)
         ) + availableVideoStreams
-            .groupBy { normalizeQualityHeight(it.height) }
+            .groupBy { qualityHeight(it) }
             .toSortedMap(compareByDescending { it })
             .map { (height, streams) ->
                 QualityOption(
@@ -204,25 +208,25 @@ class QualityManager(
         
         // Find the stream matching this height
         val targetStream = availableVideoStreams
-            .filter { normalizeQualityHeight(it.height) == height }
+            .filter { qualityHeight(it) == height }
             .minWithOrNull(
                 compareBy<VideoStream> { VideoCodecUtils.playbackCodecRank(it) }
                     .thenByDescending { it.bitrate }
             )
         if (targetStream == null) {
-            Log.w(TAG, "No stream found for ${height}p, available: ${availableVideoStreams.map { normalizeQualityHeight(it.height) }}")
+            Log.w(TAG, "No stream found for ${height}p, available: ${availableVideoStreams.map { qualityHeight(it) }}")
             return false
         }
         
+        val targetHeight = qualityHeight(targetStream)
         currentVideoStream = targetStream
         if (isDashSource) {
-            switchDashQualitySeamlessly(targetStream.height)
+            switchDashQualitySeamlessly(targetStream.height, targetHeight)
         } else {
             onQualitySwitch(targetStream, currentPosition)
         }
         
-        val normalizedHeight = normalizeQualityHeight(targetStream.height)
-        stateFlow.value = stateFlow.value.copy(currentQuality = normalizedHeight, effectiveQuality = normalizedHeight)
+        stateFlow.value = stateFlow.value.copy(currentQuality = targetHeight, effectiveQuality = targetHeight)
         return true
     }
     
@@ -245,24 +249,25 @@ class QualityManager(
         
         val targetStream = availableVideoStreams
             .sortedWith(
-                compareBy<VideoStream> { kotlin.math.abs(it.height - targetHeight) }
+                compareBy<VideoStream> { kotlin.math.abs(qualityHeight(it) - targetHeight) }
                     .thenBy { VideoCodecUtils.playbackCodecRank(it) }
                     .thenByDescending { it.bitrate }
             )
             .firstOrNull()
         
-        if (targetStream != null && targetStream.height != currentVideoStream?.height) {
+        if (targetStream != null && qualityHeight(targetStream) != currentVideoStream?.let(::qualityHeight)) {
+            val selectedHeight = qualityHeight(targetStream)
             currentVideoStream = targetStream
             onQualitySwitch(targetStream, currentPosition)
             
             stateFlow.value = stateFlow.value.copy(
                 currentQuality = 0,
-                effectiveQuality = normalizeQualityHeight(targetStream.height)
+                effectiveQuality = selectedHeight
             )
-            lastAdaptiveQualityHeight = targetStream.height
+            lastAdaptiveQualityHeight = selectedHeight
         } else {
             stateFlow.value = stateFlow.value.copy(currentQuality = 0)
-            lastAdaptiveQualityHeight = currentVideoStream?.height ?: 0
+            lastAdaptiveQualityHeight = currentVideoStream?.let(::qualityHeight) ?: 0
         }
     }
     
@@ -273,7 +278,7 @@ class QualityManager(
     fun checkAdaptiveQualityUpgrade(currentPosition: Long) {
         if (!isAdaptiveQualityEnabled || availableVideoStreams.isEmpty()) return
         
-        val currentHeight = currentVideoStream?.height ?: return
+        val currentHeight = currentVideoStream?.let(::qualityHeight) ?: return
         val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: return
         
         val targetHeight = PlayerConfig.calculateTargetQualityForBandwidth(estimatedBandwidth)
@@ -281,15 +286,16 @@ class QualityManager(
         // Only upgrade if target is significantly higher than current
         if (targetHeight > currentHeight) {
             val nextHigherStream = availableVideoStreams
-                .filter { it.height > currentHeight && it.height <= targetHeight }
-                .minByOrNull { it.height }
+                .filter { qualityHeight(it) > currentHeight && qualityHeight(it) <= targetHeight }
+                .minByOrNull { qualityHeight(it) }
             
             if (nextHigherStream != null) {
+                val nextHeight = qualityHeight(nextHigherStream)
                 val streamBitrate = nextHigherStream.bitrate.toLong()
                 val requiredBandwidth = (streamBitrate * PlayerConfig.QUALITY_UPGRADE_THRESHOLD).toLong()
                 
                 if (estimatedBandwidth > requiredBandwidth || streamBitrate == 0L) {
-                    Log.d(TAG, "Adaptive UPGRADE: ${currentHeight}p -> ${nextHigherStream.height}p (bandwidth: ${estimatedBandwidth/1_000_000}Mbps)")
+                    Log.d(TAG, "Adaptive UPGRADE: ${currentHeight}p -> ${nextHeight}p (bandwidth: ${estimatedBandwidth/1_000_000}Mbps)")
                     performAdaptiveQualitySwitch(nextHigherStream, currentPosition)
                 }
             }
@@ -302,21 +308,22 @@ class QualityManager(
     fun checkAdaptiveQualityDowngrade(forceCheck: Boolean, currentPosition: Long) {
         if (!isAdaptiveQualityEnabled || availableVideoStreams.isEmpty()) return
         
-        val currentHeight = currentVideoStream?.height ?: return
+        val currentHeight = currentVideoStream?.let(::qualityHeight) ?: return
         val estimatedBandwidth = bandwidthMeter?.bitrateEstimate ?: 1_000_000L
         
         val nextLowerStream = availableVideoStreams
-            .filter { it.height < currentHeight }
-            .maxByOrNull { it.height }
+            .filter { qualityHeight(it) < currentHeight }
+            .maxByOrNull { qualityHeight(it) }
         
         if (nextLowerStream != null) {
+            val nextHeight = qualityHeight(nextLowerStream)
             if (forceCheck) {
-                Log.d(TAG, "Adaptive DOWNGRADE (buffering): ${currentHeight}p -> ${nextLowerStream.height}p")
+                Log.d(TAG, "Adaptive DOWNGRADE (buffering): ${currentHeight}p -> ${nextHeight}p")
                 performAdaptiveQualitySwitch(nextLowerStream, currentPosition)
             } else {
                 val currentStreamBitrate = currentVideoStream?.bitrate?.toLong() ?: 0L
                 if (currentStreamBitrate > 0 && estimatedBandwidth < (currentStreamBitrate * PlayerConfig.QUALITY_DOWNGRADE_THRESHOLD).toLong()) {
-                    Log.d(TAG, "Adaptive DOWNGRADE (low bandwidth): ${currentHeight}p -> ${nextLowerStream.height}p (bandwidth: ${estimatedBandwidth/1_000_000}Mbps)")
+                    Log.d(TAG, "Adaptive DOWNGRADE (low bandwidth): ${currentHeight}p -> ${nextHeight}p (bandwidth: ${estimatedBandwidth/1_000_000}Mbps)")
                     performAdaptiveQualitySwitch(nextLowerStream, currentPosition)
                 }
             }
@@ -330,9 +337,10 @@ class QualityManager(
      * Includes time-based debounce to prevent rapid switching.
      */
     private fun performAdaptiveQualitySwitch(targetStream: VideoStream, currentPosition: Long) {
+        val targetHeight = qualityHeight(targetStream)
         // Don't switch if we just switched recently (same height debounce)
-        if (targetStream.height == lastAdaptiveQualityHeight) {
-            Log.d(TAG, "Adaptive: Skipping switch, already at ${targetStream.height}p")
+        if (targetHeight == lastAdaptiveQualityHeight) {
+            Log.d(TAG, "Adaptive: Skipping switch, already at ${targetHeight}p")
             return
         }
         
@@ -343,18 +351,18 @@ class QualityManager(
         }
         
         currentVideoStream = targetStream
-        lastAdaptiveQualityHeight = targetStream.height
+        lastAdaptiveQualityHeight = targetHeight
         lastQualitySwitchTime = now
         
         if (isDashSource) {
-            switchDashQualitySeamlessly(targetStream.height)
+            switchDashQualitySeamlessly(targetStream.height, targetHeight)
         } else {
             onQualitySwitch(targetStream, currentPosition)
         }
         
         stateFlow.value = stateFlow.value.copy(
             currentQuality = 0,
-            effectiveQuality = normalizeQualityHeight(targetStream.height)
+            effectiveQuality = targetHeight
         )
     }
     
@@ -363,7 +371,7 @@ class QualityManager(
      * This constrains the maximum video height, letting ExoPlayer
      * do a smooth in-buffer quality switch without interrupting playback.
      */
-    private fun switchDashQualitySeamlessly(maxHeight: Int) {
+    private fun switchDashQualitySeamlessly(maxHeight: Int, qualityHeight: Int) {
         trackSelector?.let { selector ->
             val minHeight = (maxHeight - 1).coerceAtLeast(0)
             val params = selector.buildUponParameters()
@@ -373,7 +381,7 @@ class QualityManager(
                 .setForceHighestSupportedBitrate(true)
                 .build()
             selector.setParameters(params)
-            Log.d(TAG, "DASH seamless quality switch: constrained max height to ${maxHeight}p")
+            Log.d(TAG, "DASH seamless quality switch: constrained raw max height to ${maxHeight}px for ${qualityHeight}p")
         }
     }
     
@@ -457,17 +465,18 @@ class QualityManager(
         val lowerQualityStream = workingStreams
             .sortedWith(compareBy(
                 { it.format?.mimeType?.contains("webm", ignoreCase = true) == true },
-                { it.height }
+                { qualityHeight(it) }
             ))
             .firstOrNull()
         
         if (lowerQualityStream != null) {
-            Log.w(TAG, "Downgrading quality to ${lowerQualityStream.height}p (${lowerQualityStream.format?.mimeType}) - Failed: ${failedStreamUrls.size}/${availableVideoStreams.size}")
+            val lowerHeight = qualityHeight(lowerQualityStream)
+            Log.w(TAG, "Downgrading quality to ${lowerHeight}p (${lowerQualityStream.format?.mimeType}) - Failed: ${failedStreamUrls.size}/${availableVideoStreams.size}")
             currentVideoStream = lowerQualityStream
             streamErrorCount = 0
             
             stateFlow.value = stateFlow.value.copy(
-                currentQuality = normalizeQualityHeight(lowerQualityStream.height),
+                currentQuality = lowerHeight,
                 isBuffering = true
             )
             
@@ -484,18 +493,19 @@ class QualityManager(
     fun downgradeQualityDueToBandwidth(): VideoStream? {
         if (!isAdaptiveQualityEnabled) return null
         
-        val currentHeight = currentVideoStream?.height ?: return null
+        val currentHeight = currentVideoStream?.let(::qualityHeight) ?: return null
         
         val lowerQualityStream = availableVideoStreams
-            .filter { it.height < currentHeight }
-            .maxByOrNull { it.height }
+            .filter { qualityHeight(it) < currentHeight }
+            .maxByOrNull { qualityHeight(it) }
             
         if (lowerQualityStream != null) {
-            Log.w(TAG, "Bandwidth adaptation: Downgrading from ${currentHeight}p to ${lowerQualityStream.height}p")
+            val lowerHeight = qualityHeight(lowerQualityStream)
+            Log.w(TAG, "Bandwidth adaptation: Downgrading from ${currentHeight}p to ${lowerHeight}p")
             currentVideoStream = lowerQualityStream
             
             stateFlow.value = stateFlow.value.copy(
-                effectiveQuality = normalizeQualityHeight(lowerQualityStream.height)
+                effectiveQuality = lowerHeight
             )
             
             return lowerQualityStream

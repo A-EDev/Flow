@@ -11,7 +11,9 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.recommendation.InteractionType
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.player.stream.AudioStreamSelector
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -309,12 +311,16 @@ class QuickActionsViewModel @Inject constructor(
                                fname.contains("vp9") || fname.contains("webm")
                     }
 
+                    fun qualityHeight(s: org.schabi.newpipe.extractor.stream.VideoStream): Int {
+                        return QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(s))
+                    }
+
                     fun List<org.schabi.newpipe.extractor.stream.VideoStream>.bestForTarget():
                             org.schabi.newpipe.extractor.stream.VideoStream? {
                         if (isEmpty()) return null
-                        if (targetHeight == 0) return maxByOrNull { it.height } // AUTO
-                        return filter { it.height <= targetHeight }.maxByOrNull { it.height }
-                            ?: minByOrNull { it.height } // fallback: lowest if nothing fits
+                        if (targetHeight == 0) return maxByOrNull { qualityHeight(it) } // AUTO
+                        return filter { qualityHeight(it) <= targetHeight }.maxByOrNull { qualityHeight(it) }
+                            ?: minByOrNull { qualityHeight(it) } // fallback: lowest if nothing fits
                     }
 
                     val bestMp4VideoOnly  = videoOnlyStreams.filter { isMp4Video(it) }.bestForTarget()
@@ -348,7 +354,7 @@ class QuickActionsViewModel @Inject constructor(
 
                     when {
                         bestMp4VideoOnly != null &&
-                                bestMp4VideoOnly.height > (bestCombined?.height ?: 0) -> {
+                                qualityHeight(bestMp4VideoOnly) > (bestCombined?.let(::qualityHeight) ?: 0) -> {
                             selectedStream = bestMp4VideoOnly
                             val aacAudio = AudioStreamSelector.selectPreferredAudioStream(
                                 streams = allAudio,
@@ -364,7 +370,7 @@ class QuickActionsViewModel @Inject constructor(
                             videoCodec = null
                         }
                         bestVp9VideoOnly != null &&
-                                (bestVp9VideoOnly.height > (bestMp4VideoOnly?.height ?: 0)) -> {
+                                (qualityHeight(bestVp9VideoOnly) > (bestMp4VideoOnly?.let(::qualityHeight) ?: 0)) -> {
                             selectedStream = bestVp9VideoOnly
                             val opusAudio = AudioStreamSelector.selectPreferredAudioStream(
                                 streams = allAudio,
@@ -410,7 +416,7 @@ class QuickActionsViewModel @Inject constructor(
                             context = context,
                             video = fullVideo,
                             url = videoUrl,
-                            quality = "${selectedStream.height}p",
+                            quality = "${qualityHeight(selectedStream)}p",
                             audioUrl = audioUrl,
                             videoCodec = videoCodec
                         )

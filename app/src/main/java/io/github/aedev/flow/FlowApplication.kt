@@ -27,12 +27,14 @@ import org.conscrypt.Conscrypt
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.utils.AppLanguageManager
+import io.github.aedev.flow.utils.potoken.NewPipePoTokenProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor
 
 @HiltAndroidApp
 class FlowApplication : Application(), ImageLoaderFactory {
@@ -76,6 +78,7 @@ class FlowApplication : Application(), ImageLoaderFactory {
             val country = ContentCountry("US")
             val localization = Localization("en", "US")
             NewPipe.init(NewPipeDownloader.getInstance(this), localization, country)
+            YoutubeStreamExtractor.setPoTokenProvider(NewPipePoTokenProvider)
             Log.d(TAG, "NewPipe initialized successfully with en-US settings")
         } catch (e: Exception) {
             // Log error but don't crash the app

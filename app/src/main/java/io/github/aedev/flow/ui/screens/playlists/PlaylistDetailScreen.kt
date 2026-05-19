@@ -1391,16 +1391,22 @@ class PlaylistDetailViewModel @Inject constructor(
                             }
 
                             // Prefer video-only MP4 ≤720p for offline storage efficiency
+                            fun qualityHeight(s: org.schabi.newpipe.extractor.stream.VideoStream): Int {
+                                return io.github.aedev.flow.player.quality.QualityManager.normalizeQualityHeight(
+                                    io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils.qualityHeightFromStream(s)
+                                )
+                            }
+
                             val bestVideoOnly = videoOnlyStreams
-                                .filter { isMp4(it) && it.height <= 720 }
-                                .maxByOrNull { it.height }
-                                ?: videoOnlyStreams.filter { isMp4(it) }.maxByOrNull { it.height }
+                                .filter { isMp4(it) && qualityHeight(it) <= 720 }
+                                .maxByOrNull { qualityHeight(it) }
+                                ?: videoOnlyStreams.filter { isMp4(it) }.maxByOrNull { qualityHeight(it) }
 
                             val bestCombined = combinedStreams.filter { isMp4(it) }
-                                .maxByOrNull { it.height }
+                                .maxByOrNull { qualityHeight(it) }
 
                             val selectedStream = bestVideoOnly ?: bestCombined
-                                ?: (videoOnlyStreams + combinedStreams).maxByOrNull { it.height }
+                                ?: (videoOnlyStreams + combinedStreams).maxByOrNull { qualityHeight(it) }
 
                             if (selectedStream != null) {
                                 val videoUrl = selectedStream.content ?: selectedStream.url
@@ -1420,7 +1426,7 @@ class PlaylistDetailViewModel @Inject constructor(
                                 val videoCodec = io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
                                     .codecKeyFromStream(selectedStream)
 
-                                val qualityLabel = "${selectedStream.height}p"
+                                val qualityLabel = "${qualityHeight(selectedStream)}p"
                                 val fullVideo = video.copy(
                                     thumbnailUrl = video.thumbnailUrl.ifBlank {
                                         streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: ""

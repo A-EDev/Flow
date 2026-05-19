@@ -14,6 +14,8 @@ import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.pages.NewPipeExtractor
+import io.github.aedev.flow.player.quality.QualityManager
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -531,11 +533,14 @@ class ShortsRepository private constructor(private val context: Context) {
 
         val streamInfo = resolveStreamInfo(videoId) ?: return null
         val allVideoStreams = (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
+        fun qualityHeight(stream: org.schabi.newpipe.extractor.stream.VideoStream): Int {
+            return QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(stream))
+        }
         val videoStream = if (targetHeight == 0) {
-            allVideoStreams.maxByOrNull { it.height }
+            allVideoStreams.maxByOrNull { qualityHeight(it) }
         } else {
-            allVideoStreams.filter { it.height <= targetHeight }.maxByOrNull { it.height }
-                ?: allVideoStreams.minByOrNull { it.height }
+            allVideoStreams.filter { qualityHeight(it) <= targetHeight }.maxByOrNull { qualityHeight(it) }
+                ?: allVideoStreams.minByOrNull { qualityHeight(it) }
         }
 
         val audioCandidates = streamInfo.audioStreams

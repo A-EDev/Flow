@@ -115,7 +115,7 @@ class VideoPlaybackResolver(
                 Log.w(TAG, "Failed to use YouTube DASH manifest, trying generated manifests", e)
             }
         } else if (useSpecificStream) {
-            Log.d(TAG, "User selected specific quality (${videoStreams.firstOrNull()?.height}p) - bypassing YouTube DASH URL")
+            Log.d(TAG, "User selected specific quality (${videoStreams.firstOrNull()?.let(VideoCodecUtils::qualityHeightFromStream)}p) - bypassing YouTube DASH URL")
         }
 
         // 3. Generate DASH manifests from progressive streams (NewPipe approach)
@@ -154,7 +154,7 @@ class VideoPlaybackResolver(
         
         // Sort by quality and prefer video-only streams (they can use DASH manifests)
         val sortedStreams = videoStreams.sortedWith(
-            compareByDescending<VideoStream> { it.height }
+            compareByDescending<VideoStream> { VideoCodecUtils.qualityHeightFromStream(it) }
                 .thenBy { VideoCodecUtils.playbackCodecRank(it) }
                 .thenByDescending { it.bitrate }
         )
@@ -183,7 +183,7 @@ class VideoPlaybackResolver(
         }
         
         val deliveryMethod = stream.deliveryMethod
-        Log.d(TAG, "Creating video source: ${stream.height}p, delivery=${deliveryMethod}, videoOnly=${stream.isVideoOnly}")
+        Log.d(TAG, "Creating video source: ${VideoCodecUtils.qualityHeightFromStream(stream)}p, delivery=${deliveryMethod}, videoOnly=${stream.isVideoOnly}")
         
         return try {
             when (deliveryMethod) {
@@ -262,7 +262,7 @@ class VideoPlaybackResolver(
         val itagItem = stream.itagItem 
             ?: throw IllegalStateException("No ItagItem for DASH stream")
             
-        Log.d(TAG, "Generating OTF DASH manifest for ${stream.height}p video")
+        Log.d(TAG, "Generating OTF DASH manifest for ${VideoCodecUtils.qualityHeightFromStream(stream)}p video")
         val manifestString = ManifestGenerator.generateOtfManifest(stream, itagItem, durationSeconds)
         
         return if (manifestString != null) {
@@ -284,7 +284,7 @@ class VideoPlaybackResolver(
         val itagItem = stream.itagItem
         
         if (itagItem != null && durationSeconds > 0) {
-            Log.d(TAG, "Generating progressive DASH manifest for ${stream.height}p to avoid throttling")
+            Log.d(TAG, "Generating progressive DASH manifest for ${VideoCodecUtils.qualityHeightFromStream(stream)}p to avoid throttling")
             val manifestString = ManifestGenerator.generateProgressiveManifest(stream, itagItem, durationSeconds)
             
             if (manifestString != null) {
@@ -347,7 +347,7 @@ class VideoPlaybackResolver(
      * Fallback: Create standard progressive video source (may be throttled!)
      */
     private fun createProgressiveSource(stream: VideoStream): MediaSource {
-        Log.d(TAG, "Creating progressive video source for ${stream.height}p (WARNING: may be throttled)")
+        Log.d(TAG, "Creating progressive video source for ${VideoCodecUtils.qualityHeightFromStream(stream)}p (WARNING: may be throttled)")
         val item = androidx.media3.common.MediaItem.Builder()
             .setUri(stream.content)
             .setMimeType(stream.format?.mimeType ?: androidx.media3.common.MimeTypes.VIDEO_MP4)

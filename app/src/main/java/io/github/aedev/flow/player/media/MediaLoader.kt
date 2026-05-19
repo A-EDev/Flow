@@ -18,6 +18,7 @@ import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.resolver.VideoPlaybackResolver
 import io.github.aedev.flow.player.state.EnhancedPlayerState
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.surface.SurfaceManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.schabi.newpipe.extractor.stream.AudioStream
@@ -86,7 +87,7 @@ class MediaLoader(
                     reattachSurface(exoPlayer)
                 }
 
-                Log.d(TAG, "Preparing media: video=${videoStream?.height ?: -1}p audioOnly=$audioOnly surfaceReady=${surfaceManager?.isSurfaceReady}")
+                Log.d(TAG, "Preparing media: video=${videoStream?.let(VideoCodecUtils::qualityHeightFromStream) ?: -1}p audioOnly=$audioOnly surfaceReady=${surfaceManager?.isSurfaceReady}")
                 
                 val ctx = context ?: throw IllegalStateException("Context not initialized")
                 val dataSourceFactory = cacheManager?.getDataSourceFactory()
@@ -187,7 +188,7 @@ class MediaLoader(
             } else {
                 listOfNotNull(currentVideoStream ?: availableVideoStreams.firstOrNull())
             }
-            Log.d(TAG, "Passing ${selectedStreams.size} stream(s) to resolver: ${selectedStreams.map { "${it.height}p" }}")
+            Log.d(TAG, "Passing ${selectedStreams.size} stream(s) to resolver: ${selectedStreams.map { "${VideoCodecUtils.qualityHeightFromStream(it)}p" }}")
             resolver.resolve(
                 selectedStreams,
                 audio,

@@ -56,6 +56,7 @@ import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.ui.components.DraggablePlayerLayout
 import io.github.aedev.flow.ui.components.PlayerDraggableState
 import io.github.aedev.flow.ui.components.rememberPlayerDraggableState
@@ -1182,7 +1183,7 @@ fun GlobalPlayerOverlay(
                                 val mime = it.format?.mimeType ?: ""
                                 mime.contains("mp4") || mime.contains("avc")
                             }
-                            .sortedByDescending { it.height }
+                            .sortedByDescending { VideoCodecUtils.qualityHeightFromStream(it) }
                             .map { stream ->
                                 io.github.aedev.flow.player.dlna.CastStreamVariant(
                                     url = stream.content ?: stream.url ?: "",
@@ -1226,13 +1227,13 @@ fun GlobalPlayerOverlay(
                         } else {
                             val bestMuxed = streamInfo.videoStreams
                                 ?.filter { it.height > 0 }
-                                ?.maxByOrNull { it.height }
+                                ?.maxByOrNull { VideoCodecUtils.qualityHeightFromStream(it) }
                             val muxedUrl = bestMuxed?.let { it.content ?: it.url }
                                 ?: EnhancedPlayerManager.getInstance().getPlayer()
                                     ?.currentMediaItem?.localConfiguration?.uri?.toString()
 
                             if (muxedUrl != null && muxedUrl.isNotEmpty() && !muxedUrl.startsWith("local://")) {
-                                android.util.Log.d("DlnaCast", "Fallback to pre-muxed: ${bestMuxed?.height}p")
+                                android.util.Log.d("DlnaCast", "Fallback to pre-muxed: ${bestMuxed?.let(VideoCodecUtils::qualityHeightFromStream)}p")
                                 DlnaCastManager.castTo(
                                     device = device,
                                     title = video.title,

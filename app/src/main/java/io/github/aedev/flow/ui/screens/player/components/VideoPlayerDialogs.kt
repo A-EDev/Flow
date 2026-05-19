@@ -100,9 +100,11 @@ fun DownloadQualityDialog(
 
                     val codecPriority = mapOf("vp9" to 0, "h264" to 1, "vp8" to 2, "hevc" to 3, "av1" to 4)
                     val distinctStreams = (videoOnlyStreams + muxedStreams)
-                        .distinctBy { "${it.height}_${VideoPlayerUtils.codecKeyFromStream(it)}" }
+                        .distinctBy {
+                            "${VideoPlayerUtils.qualityHeightFromStream(it)}_${VideoPlayerUtils.codecKeyFromStream(it)}"
+                        }
                         .sortedWith(
-                            compareByDescending<VideoStream> { it.height }
+                            compareByDescending<VideoStream> { VideoPlayerUtils.qualityHeightFromStream(it) }
                                 .thenBy { codecPriority[VideoPlayerUtils.codecKeyFromStream(it)] ?: 99 }
                         )
 
@@ -115,9 +117,10 @@ fun DownloadQualityDialog(
                     items(distinctStreams) { stream ->
                         val codecKey   = VideoPlayerUtils.codecKeyFromStream(stream)
                         val codecLabel = VideoPlayerUtils.codecLabelFromKey(codecKey)
-                        val qualityLabel = "$codecLabel ${stream.height}p"
+                        val qualityHeight = VideoPlayerUtils.qualityHeightFromStream(stream)
+                        val qualityLabel = "$codecLabel ${qualityHeight}p"
 
-                        val sizeInBytes = streamSizes[VideoPlayerUtils.streamSizeKey(stream.height, codecKey)]
+                        val sizeInBytes = streamSizes[VideoPlayerUtils.streamSizeKey(qualityHeight, codecKey)]
                         val sizeText = if (sizeInBytes != null && sizeInBytes > 0) {
                             val mb = sizeInBytes / (1024.0 * 1024.0)
                             String.format("~%.2f MB", mb)
@@ -125,9 +128,9 @@ fun DownloadQualityDialog(
 
                         // Resolution badge
                         val resBadge = when {
-                            stream.height >= 2160 -> "4K"
-                            stream.height >= 1440 -> "2K"
-                            stream.height >= 1080 -> "HD"
+                            qualityHeight >= 2160 -> "4K"
+                            qualityHeight >= 1440 -> "2K"
+                            qualityHeight >= 1080 -> "HD"
                             else                  -> null
                         }
 

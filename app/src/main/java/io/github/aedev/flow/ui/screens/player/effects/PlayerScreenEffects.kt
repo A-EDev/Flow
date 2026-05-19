@@ -620,7 +620,8 @@ fun PlayerInitEffect(
             // Read saved position BEFORE setStreams (DB is correct here because touchHistoryEntry
             // preserves any existing progress instead of wiping it to 0)
             val savedPos = uiState.savedPosition?.first() ?: 0L
-            val isLiveStream = !uiState.hlsUrl.isNullOrEmpty()
+            val isLiveStream = streamInfo?.streamType == org.schabi.newpipe.extractor.stream.StreamType.LIVE_STREAM ||
+                streamInfo?.streamType == org.schabi.newpipe.extractor.stream.StreamType.POST_LIVE_STREAM
             val resumePosition = savedPos.takeUnless {
                 isLiveStream ||
                     currentPlayerState.queueSize > 1 && shouldRestartCompletedPlayback(it, screenState.duration)
@@ -637,6 +638,7 @@ fun PlayerInitEffect(
                 dashManifestUrl = streamInfo?.dashMpdUrl,
                 localFilePath = uiState.localFilePath,
                 hlsUrl = uiState.hlsUrl,
+                streamType = streamInfo?.streamType,
                 startPosition = resumePosition
             )
             
@@ -662,7 +664,8 @@ fun PlayerInitEffect(
             val audioStreams = streamInfo.audioStreams
             val subtitles = streamInfo.subtitles ?: emptyList()
             val savedPos = uiState.savedPosition?.first() ?: 0L
-            val isLiveStream = !uiState.hlsUrl.isNullOrEmpty()
+            val isLiveStream = streamInfo.streamType == org.schabi.newpipe.extractor.stream.StreamType.LIVE_STREAM ||
+                streamInfo.streamType == org.schabi.newpipe.extractor.stream.StreamType.POST_LIVE_STREAM
             val resumePosition = savedPos.takeUnless {
                 isLiveStream ||
                     currentPlayerState.queueSize > 1 && shouldRestartCompletedPlayback(it, screenState.duration)
@@ -679,6 +682,7 @@ fun PlayerInitEffect(
                 dashManifestUrl = streamInfo.dashMpdUrl,
                 localFilePath = uiState.localFilePath,
                 hlsUrl = uiState.hlsUrl,
+                streamType = streamInfo.streamType,
                 startPosition = resumePosition
             )
 

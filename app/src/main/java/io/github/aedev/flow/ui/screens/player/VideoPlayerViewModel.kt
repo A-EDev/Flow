@@ -15,6 +15,7 @@ import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
@@ -873,6 +874,10 @@ class VideoPlayerViewModel @Inject constructor(
 
                         val subtitles = extractSubtitles(streamInfo)
                         val chapters = streamInfo.streamSegments ?: emptyList()
+                        val liveHlsUrl = streamInfo.hlsUrl.takeIf {
+                            streamInfo.streamType == StreamType.LIVE_STREAM ||
+                                streamInfo.streamType == StreamType.POST_LIVE_STREAM
+                        }
                         
                         // Load saved playback position
                         val savedPosition = viewHistory.getPlaybackPosition(videoId)
@@ -902,7 +907,7 @@ class VideoPlayerViewModel @Inject constructor(
                             localFilePath = localFilePath,
                             localFileVideoId = if (localFilePath != null) videoId else null,
                             offlineSponsorBlockSegments = offlineSegments,
-                            hlsUrl = streamInfo.hlsUrl,
+                            hlsUrl = liveHlsUrl,
                             isUpcoming = false,
                             upcomingReleaseTimeMs = null
                         )
@@ -922,7 +927,7 @@ class VideoPlayerViewModel @Inject constructor(
                             savedPosition = savedPosition.first(),
                             localFilePath = localFilePath,
                             offlineSegments = offlineSegments,
-                            hlsUrl = streamInfo.hlsUrl,
+                            hlsUrl = liveHlsUrl,
                             isAdaptiveMode = preferredQuality == VideoQuality.AUTO,
                             loadToken = loadToken
                         )
@@ -982,7 +987,7 @@ class VideoPlayerViewModel @Inject constructor(
                                                 playerResponse.streamingData?.formats?.forEach { format ->
                                                     if (format.height != null && format.contentLength != null) {
                                                         val codecKey = VideoPlayerUtils.codecKeyFromMimeType(format.mimeType)
-                                                        val key = VideoPlayerUtils.streamSizeKey(format.height, codecKey)
+                                                        val key = VideoPlayerUtils.streamSizeKey(qualityHeightFromFormat(format.qualityLabel, format.height), codecKey)
                                                         sizes[key] = format.contentLength
                                                     }
                                                 }
@@ -996,7 +1001,7 @@ class VideoPlayerViewModel @Inject constructor(
                                                             else -> bestAnyAudioSize
                                                         }
                                                         val totalSize = format.contentLength + audioSize
-                                                        val key = VideoPlayerUtils.streamSizeKey(format.height, codecKey)
+                                                        val key = VideoPlayerUtils.streamSizeKey(qualityHeightFromFormat(format.qualityLabel, format.height), codecKey)
                                                         val currentSize = sizes[key] ?: 0L
                                                         if (totalSize > currentSize) sizes[key] = totalSize
                                                     }
@@ -1172,6 +1177,7 @@ class VideoPlayerViewModel @Inject constructor(
                 durationSeconds = streamInfo.duration,
                 dashManifestUrl = streamInfo.dashMpdUrl,
                 hlsUrl = hlsUrl,
+                streamType = streamInfo.streamType,
                 startPosition = resumePosition
             )
         }
@@ -1612,14 +1618,20 @@ class VideoPlayerViewModel @Inject constructor(
             VideoQuality.AUTO -> null // null signals EnhancedPlayerManager to use adaptive/smart quality
             else -> allVideoStreams
                 .sortedWith(
-                    compareBy<VideoStream> { kotlin.math.abs(it.height - preferredQuality.height) }
+                    compareBy<VideoStream> {
+                        kotlin.math.abs(
+                            QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) - preferredQuality.height
+                        )
+                    }
                         .thenBy { VideoCodecUtils.playbackCodecRank(it) }
                         .thenByDescending { it.bitrate }
                 )
                 .firstOrNull()
         }
         
-        val actualQuality = videoStream?.let { VideoQuality.fromHeight(it.height) } ?: VideoQuality.AUTO
+        val actualQuality = videoStream?.let {
+            VideoQuality.fromHeight(QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)))
+        } ?: VideoQuality.AUTO
         val safeAudio = audioStream ?: streamInfo.audioStreams.firstOrNull()
 
         return Triple(videoStream, safeAudio, actualQuality)
@@ -1640,13 +1652,19 @@ class VideoPlayerViewModel @Inject constructor(
     private fun extractAvailableQualities(streamInfo: StreamInfo): List<VideoQuality> {
         val heights = (streamInfo.videoStreams + streamInfo.videoOnlyStreams)
             .filterIsInstance<VideoStream>()
-            .map { it.height }
+            .map { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) }
             .distinct()
             .sorted()
         
         return heights.map { height ->
             VideoQuality.fromHeight(height)
         }.distinct() + listOf(VideoQuality.AUTO)
+    }
+
+    private fun qualityHeightFromFormat(qualityLabel: String?, fallbackHeight: Int): Int {
+        val labelHeight = qualityLabel
+            ?.let { Regex("""(\d+)p""").find(it)?.groupValues?.getOrNull(1)?.toIntOrNull() }
+        return QualityManager.normalizeQualityHeight(labelHeight ?: fallbackHeight)
     }
     
     private fun extractSubtitles(streamInfo: StreamInfo): List<SubtitleInfo> {

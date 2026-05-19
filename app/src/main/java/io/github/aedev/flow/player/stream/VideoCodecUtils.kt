@@ -4,6 +4,8 @@ import android.net.Uri
 import org.schabi.newpipe.extractor.stream.VideoStream
 
 object VideoCodecUtils {
+    private val QUALITY_HEIGHT_REGEX = Regex("""(\d+)p""")
+
     private val AV1_ITAGS = setOf(394, 395, 396, 397, 398, 399, 400, 401, 571, 694, 695, 696, 697, 698, 699, 700, 701)
     private val VP9_ITAGS = setOf(
         242, 243, 244, 245, 246, 247, 248, 271, 272,
@@ -69,6 +71,19 @@ object VideoCodecUtils {
         else -> key.uppercase()
     }
 
+    fun qualityHeightFromStream(stream: VideoStream): Int {
+        parseQualityHeight(stream.resolution)?.let { return it }
+        parseQualityHeight(stream.quality)?.let { return it }
+        parseQualityHeight(stream.itagItem?.resolutionString)?.let { return it }
+        return normalizeFallbackHeight(stream.height)
+    }
+
+    fun qualityLabelFromStream(stream: VideoStream): String {
+        return stream.resolution
+            .takeIf { it.isNotBlank() && it != VideoStream.RESOLUTION_UNKNOWN }
+            ?: "${qualityHeightFromStream(stream)}p"
+    }
+
     fun playbackCodecRank(stream: VideoStream): Int = playbackCodecRank(codecKeyFromStream(stream))
 
     fun playbackCodecRank(codecKey: String): Int = when (codecKey) {
@@ -78,5 +93,25 @@ object VideoCodecUtils {
         "hevc" -> 3
         "av1" -> 4
         else -> 5
+    }
+
+    private fun parseQualityHeight(value: String?): Int? {
+        if (value.isNullOrBlank()) return null
+        return QUALITY_HEIGHT_REGEX.find(value)?.groupValues?.getOrNull(1)?.toIntOrNull()
+    }
+
+    private fun normalizeFallbackHeight(rawHeight: Int): Int {
+        return when {
+            rawHeight <= 0 -> 0
+            rawHeight in setOf(2160, 1440, 1080, 720, 480, 360, 240, 144) -> rawHeight
+            rawHeight >= 3300 -> 2160
+            rawHeight in 2400..3299 -> 1440
+            rawHeight in 1800..2399 -> 1080
+            rawHeight in 1200..1799 -> 720
+            rawHeight in 800..1199 -> 480
+            rawHeight in 560..799 -> 360
+            rawHeight in 300..559 -> 240
+            else -> 144
+        }
     }
 }

@@ -1,5 +1,6 @@
 package io.github.aedev.flow.player.factory
 
+import android.app.ActivityManager
 import android.content.Context
 import android.util.Log
 import androidx.media3.common.AudioAttributes
@@ -79,26 +80,49 @@ class PlayerFactory {
      */
     fun createLoadControl(context: Context): DefaultLoadControl {
         val allocator = DefaultAllocator(true, PlayerConfig.ALLOCATOR_BUFFER_SIZE)
+        val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+        val memoryClassMb = activityManager?.memoryClass ?: 256
+        val isLowMemoryDevice = activityManager?.isLowRamDevice == true || memoryClassMb <= 256
+        val maxSafeMinBufferMs = if (isLowMemoryDevice) {
+            PlayerConfig.LOW_MEMORY_MAX_SAFE_MAIN_MIN_BUFFER_MS
+        } else {
+            PlayerConfig.MAX_SAFE_MAIN_MIN_BUFFER_MS
+        }
+        val maxSafeBufferMs = if (isLowMemoryDevice) {
+            PlayerConfig.LOW_MEMORY_MAX_SAFE_MAIN_BUFFER_MS
+        } else {
+            PlayerConfig.MAX_SAFE_MAIN_BUFFER_MS
+        }
+        val targetBufferBytes = when {
+            isLowMemoryDevice -> PlayerConfig.LOW_MEMORY_MAIN_TARGET_BUFFER_BYTES
+            memoryClassMb <= 384 -> PlayerConfig.MID_MEMORY_MAIN_TARGET_BUFFER_BYTES
+            else -> PlayerConfig.MAIN_TARGET_BUFFER_BYTES
+        }
+        val backBufferMs = if (isLowMemoryDevice) {
+            PlayerConfig.LOW_MEMORY_BACK_BUFFER_DURATION_MS
+        } else {
+            PlayerConfig.BACK_BUFFER_DURATION_MS
+        }
         
         // Fetch buffer settings from preferences
         val prefs = PlayerPreferences(context)
         val minBufferMs = runBlocking { prefs.minBufferMs.first() }
-            .coerceIn(2_500, PlayerConfig.MAX_SAFE_MAIN_MIN_BUFFER_MS)
+            .coerceIn(2_500, maxSafeMinBufferMs)
         val maxBufferMs = runBlocking { prefs.maxBufferMs.first() }
-            .coerceIn(minBufferMs + 5_000, PlayerConfig.MAX_SAFE_MAIN_BUFFER_MS)
+            .coerceIn(minBufferMs + 5_000, maxSafeBufferMs)
         val bufferForPlaybackMs = runBlocking { prefs.bufferForPlaybackMs.first() }
             .coerceIn(250, minBufferMs)
         val bufferRebufferMs = runBlocking { prefs.bufferForPlaybackAfterRebufferMs.first() }
             .coerceIn(750, maxBufferMs)
 
-        Log.d(TAG, "Buffer config: min=${minBufferMs}ms, max=${maxBufferMs}ms, playback=${bufferForPlaybackMs}ms, rebuffer=${bufferRebufferMs}ms")
+        Log.d(TAG, "Buffer config: min=${minBufferMs}ms, max=${maxBufferMs}ms, playback=${bufferForPlaybackMs}ms, rebuffer=${bufferRebufferMs}ms, target=${targetBufferBytes / 1024 / 1024}MB, back=${backBufferMs}ms, heap=${memoryClassMb}MB")
 
         return DefaultLoadControl.Builder()
             .setAllocator(allocator)
             .setBufferDurationsMs(minBufferMs, maxBufferMs, bufferForPlaybackMs, bufferRebufferMs)
-            .setBackBuffer(PlayerConfig.BACK_BUFFER_DURATION_MS, true)
-            .setPrioritizeTimeOverSizeThresholds(true)
-            .setTargetBufferBytes(PlayerConfig.MAIN_TARGET_BUFFER_BYTES)
+            .setBackBuffer(backBufferMs, true)
+            .setPrioritizeTimeOverSizeThresholds(false)
+            .setTargetBufferBytes(targetBufferBytes)
             .build()
     }
     

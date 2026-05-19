@@ -21,7 +21,7 @@ object StreamProcessor {
         return streams
             .distinctBy { it.getContent() }
             .sortedWith(
-                compareByDescending<VideoStream> { it.height }
+                compareByDescending<VideoStream> { VideoCodecUtils.qualityHeightFromStream(it) }
                     .thenBy { VideoCodecUtils.playbackCodecRank(it) }
                     .thenByDescending { it.bitrate }
             )

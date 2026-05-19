@@ -36,6 +36,7 @@ import io.github.aedev.flow.player.service.BackgroundServiceManager
 import io.github.aedev.flow.player.sponsorblock.SponsorBlockHandler
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.stream.StreamProcessor
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.surface.SurfaceManager
 import io.github.aedev.flow.player.tracker.PlaybackTracker
 
@@ -481,9 +482,10 @@ class EnhancedPlayerManager private constructor() {
         dashManifestUrl: String? = null,
         localFilePath: String? = null,
         hlsUrl: String? = null,
+        streamType: StreamType? = null,
         startPosition: Long = 0L
     ) {
-        Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.height})")
+        Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.let(VideoCodecUtils::qualityHeightFromStream)})")
         resetPlaybackStateForNewVideo(videoId)
         isAudioOnlyMode = false
         setVideoTracksDisabled(false)
@@ -494,13 +496,15 @@ class EnhancedPlayerManager private constructor() {
         
         this.currentDurationSeconds = durationSeconds
         this.currentDashManifestUrl = dashManifestUrl
-        this.currentHlsUrl = hlsUrl
-        val liveDurationMs = if (!hlsUrl.isNullOrEmpty() && durationSeconds > 0) {
+        val useLiveManifest = streamType == StreamType.LIVE_STREAM ||
+            streamType == StreamType.POST_LIVE_STREAM
+        this.currentHlsUrl = hlsUrl.takeIf { useLiveManifest }
+        val liveDurationMs = if (!currentHlsUrl.isNullOrEmpty() && durationSeconds > 0) {
             durationSeconds * 1000L
         } else {
             0L
         }
-        val isLiveStream = !hlsUrl.isNullOrEmpty()
+        val isLiveStream = !currentHlsUrl.isNullOrEmpty()
         updateLivePlaybackMode(isLive = isLiveStream, forceLiveSpeedReset = true)
         pendingInitialLiveEdgeSeek = isLiveStream && startPosition <= 0L
         currentVideoId = videoId
@@ -521,7 +525,7 @@ class EnhancedPlayerManager private constructor() {
         if (videoStream != null) {
             currentVideoStream = videoStream
             qualityManager?.setCurrentStream(currentVideoStream)
-            qualityManager?.setManualMode(videoStream.height)
+            qualityManager?.setManualMode(VideoCodecUtils.qualityHeightFromStream(videoStream))
         } else {
             val smartStream = qualityManager?.selectSmartInitialQuality()
             currentVideoStream = smartStream ?: availableVideoStreams.firstOrNull()
@@ -534,11 +538,11 @@ class EnhancedPlayerManager private constructor() {
         // Update state with available options
         _playerState.value = _playerState.value.copy(
             currentVideoId = videoId,
-            effectiveQuality = currentVideoStream?.height?.let(QualityManager::normalizeQualityHeight) ?: 0,
+            effectiveQuality = currentVideoStream?.let { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) } ?: 0,
             availableQualities = qualityManager?.buildQualityOptions() ?: emptyList(),
             availableAudioTracks = StreamProcessor.toAudioTrackOptions(availableAudioStreams),
             availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles),
-            currentQuality = if (isAutoMode) 0 else (currentVideoStream?.height?.let(QualityManager::normalizeQualityHeight) ?: 0),
+            currentQuality = if (isAutoMode) 0 else (currentVideoStream?.let { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) } ?: 0),
             currentAudioTrack = availableAudioStreams.indexOf(currentAudioStream).coerceAtLeast(0),
             isLive = currentIsLiveStream,
             isAtLiveEdge = false,
@@ -914,6 +918,7 @@ class EnhancedPlayerManager private constructor() {
                     durationSeconds = streamInfo.duration,
                     dashManifestUrl = streamInfo.dashMpdUrl,
                     hlsUrl = streamInfo.hlsUrl,
+                    streamType = streamInfo.streamType,
                     startPosition = 0L
                 )
                 play()
@@ -988,7 +993,11 @@ class EnhancedPlayerManager private constructor() {
 
         val videoStream = when (preferredQuality) {
             VideoQuality.AUTO -> null
-            else -> videoStreams.minByOrNull { kotlin.math.abs(it.height - preferredQuality.height) }
+            else -> videoStreams.minByOrNull {
+                kotlin.math.abs(
+                    QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) - preferredQuality.height
+                )
+            }
         }
         return videoStream to audioStream
     }
@@ -1550,7 +1559,7 @@ class EnhancedPlayerManager private constructor() {
         val video = currentVideoStream ?: return
         val audio = currentAudioStream ?: availableAudioStreams.firstOrNull() ?: return
         val pos = preservePosition ?: player?.currentPosition ?: 0L
-        Log.d(TAG, "Reloading ${video.height}p at ${pos}ms ($reason)")
+        Log.d(TAG, "Reloading ${VideoCodecUtils.qualityHeightFromStream(video)}p at ${pos}ms ($reason)")
         player?.stop()
         player?.clearMediaItems()
         loadMediaInternal(video, audio, pos)
@@ -1573,7 +1582,9 @@ class EnhancedPlayerManager private constructor() {
 
                 currentVideoStream?.let { stream ->
                     if (qualityManager?.hasStreamFailed(stream.getContent()) == true) {
-                        val working = qualityManager?.getWorkingStreams()?.maxByOrNull { it.height }
+                        val working = qualityManager?.getWorkingStreams()?.maxByOrNull {
+                            VideoCodecUtils.qualityHeightFromStream(it)
+                        }
                         if (working != null) {
                             currentVideoStream = working
                             qualityManager?.resetStreamErrors()

@@ -24,6 +24,10 @@ object VideoPlayerUtils {
 
     fun codecLabelFromKey(key: String): String = VideoCodecUtils.codecLabelFromKey(key)
 
+    fun qualityHeightFromStream(stream: VideoStream): Int = VideoCodecUtils.qualityHeightFromStream(stream)
+
+    fun qualityLabelFromStream(stream: VideoStream): String = VideoCodecUtils.qualityLabelFromStream(stream)
+
     /**
      * Composite key used in `VideoPlayerUiState.streamSizes` and in the
      * download dialog to look up the total size of a (resolution, codec) pair.
