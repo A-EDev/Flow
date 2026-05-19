@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -64,7 +65,7 @@ import kotlinx.coroutines.delay
 fun SubscriptionsScreen(
     onVideoClick: (Video) -> Unit,
     onShortClick: (String) -> Unit = {},
-    onChannelClick: (String) -> Unit = {},
+    onChannelClick: (Channel) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: SubscriptionsViewModel = viewModel()
 ) {
@@ -117,6 +118,28 @@ fun SubscriptionsScreen(
     }
     
     val subscribedChannels = uiState.subscribedChannels
+    val videoSubscriptions = remember(subscribedChannels) { subscribedChannels.filterNot { it.isMusic } }
+    val musicSubscriptions = remember(subscribedChannels) { subscribedChannels.filter { it.isMusic } }
+    val topChannels = remember(videoSubscriptions, musicSubscriptions) {
+        (videoSubscriptions + musicSubscriptions)
+            .distinctBy(Channel::id)
+            .take(15)
+    }
+    val openChannel: (Channel) -> Unit = remember(onChannelClick) { { channel -> onChannelClick(channel) } }
+    val openVideoChannel: (String) -> Unit = remember(subscribedChannels, onChannelClick) {
+        { channelRef ->
+            val matchedChannel = subscribedChannels.firstOrNull { channel ->
+                channel.id == channelRef || channel.url == channelRef || channelRef.endsWith(channel.id)
+            } ?: Channel(
+                id = channelRef.substringAfterLast('/'),
+                name = "",
+                thumbnailUrl = "",
+                subscriberCount = 0L,
+                url = channelRef
+            )
+            onChannelClick(matchedChannel)
+        }
+    }
     val videos = uiState.recentVideos
 
     Scaffold(
@@ -151,7 +174,10 @@ fun SubscriptionsScreen(
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background,
                         scrolledContainerColor = MaterialTheme.colorScheme.surface
-                    )
+                    ),
+
+                    windowInsets = WindowInsets(0.dp)
+
                 )
             } else {
                 Surface(
@@ -207,58 +233,118 @@ fun SubscriptionsScreen(
             
             AnimatedContent(targetState = isManagingSubs) { manageMode ->
                 if (manageMode) {
-                    // MANAGEMENT MODE
-                    val filteredChannels = remember(subscribedChannels, searchQuery) {
-                        if (searchQuery.isBlank()) subscribedChannels
-                        else subscribedChannels.filter { it.name.contains(searchQuery, ignoreCase = true) }
-                    }
-
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        item {
-                            Text(
-                                text = pluralStringResource(
-                                    id = R.plurals.channels_count,
-                                    count = filteredChannels.size,
-                                    filteredChannels.size
-                                ),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.secondary,
-                                modifier = Modifier.padding(bottom = 8.dp)
-                            )
+                    var selectedTabIndex by remember { mutableIntStateOf(0) }
+                
+                    val activeList = remember(subscribedChannels, selectedTabIndex) {
+                        if (selectedTabIndex == 0) {
+                            subscribedChannels.filterNot { it.isMusic }
+                        } else {
+                            subscribedChannels.filter { it.isMusic }
                         }
-                        items(filteredChannels) { channel ->
-                            SubscriptionManagerItem(
-                                channel = channel,
-                                onClick = { 
-                                    onChannelClick("https://youtube.com/channel/${channel.id}") 
-                                },
-                                isNotificationsEnabled = uiState.notificationStates[channel.id] ?: false,
-                                areShortsExcluded = channel.id in uiState.excludedShortsChannelIds,
-                                onNotificationChange = { enabled ->
-                                    viewModel.updateNotificationState(channel.id, enabled)
-                                },
-                                onShortsExcludeChange = { excluded ->
-                                    viewModel.setShortsChannelExcluded(channel.id, excluded)
-                                },
-                                onUnsubscribe = {
-                                    scope.launch {
-                                        val sub = viewModel.getSubscriptionOnce(channel.id)
-                                        viewModel.unsubscribe(channel.id)
-                                        val result = snackbarHostState.showSnackbar(
-                                            context.getString(R.string.unsubscribed_from_template, channel.name),
-                                            actionLabel = context.getString(R.string.undo),
-                                            duration = SnackbarDuration.Short
-                                        )
-                                        if (result == SnackbarResult.ActionPerformed) {
-                                            sub?.let { viewModel.subscribeChannel(it) }
+                    }
+                
+                    val filteredChannels = remember(activeList, searchQuery) {
+                        if (searchQuery.isBlank()) activeList
+                        else activeList.filter { it.name.contains(searchQuery, ignoreCase = true) }
+                    }
+                
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        SingleChoiceSegmentedButtonRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp) // Fixed empty space by reducing vertical padding
+                        ) {
+                            SegmentedButton(
+                                selected = selectedTabIndex == 0,
+                                onClick = { selectedTabIndex = 0 },
+                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                                icon = { } 
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.OndemandVideo,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(stringResource(R.string.subscriptions_video_section_title))
+                                }
+                            }
+                            SegmentedButton(
+                                selected = selectedTabIndex == 1,
+                                onClick = { selectedTabIndex = 1 },
+                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                                icon = { } 
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.MusicNote,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(stringResource(R.string.subscriptions_music_section_title))
+                                }
+                            }
+                        }
+
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            item {
+                                Text(
+                                    text = pluralStringResource(
+                                        id = R.plurals.channels_count,
+                                        count = filteredChannels.size,
+                                        filteredChannels.size
+                                    ),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                )
+                            }
+                
+                            items(filteredChannels, key = { it.id }) { channel ->
+                                SubscriptionManagerItem(
+                                    channel = channel,
+                                    onClick = { openChannel(channel) },
+                                    isNotificationsEnabled = uiState.notificationStates[channel.id] ?: false,
+                                    areShortsExcluded = channel.id in uiState.excludedShortsChannelIds,
+                                    onNotificationChange = { enabled ->
+                                        viewModel.updateNotificationState(channel.id, enabled)
+                                    },
+                                    onShortsExcludeChange = { excluded ->
+                                        viewModel.setShortsChannelExcluded(channel.id, excluded)
+                                    },
+                                    onUnsubscribe = {
+                                        scope.launch {
+                                            val sub = viewModel.getSubscriptionOnce(channel.id)
+                                            viewModel.unsubscribe(channel.id)
+                                            val result = snackbarHostState.showSnackbar(
+                                                context.getString(R.string.unsubscribed_from_template, channel.name),
+                                                actionLabel = context.getString(R.string.undo),
+                                                duration = SnackbarDuration.Short
+                                            )
+                                            if (result == SnackbarResult.ActionPerformed) {
+                                                sub?.let { viewModel.subscribeChannel(it) }
+                                            }
                                         }
                                     }
+                                )
+                            }
+                
+                            if (filteredChannels.isEmpty()) {                
+                                item {
+                                    Text(
+                                        text = stringResource(R.string.no_subscriptions_found),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 16.dp)
+                                    )
                                 }
-                            )
+                            }
                         }
                     }
                 } else {
@@ -298,36 +384,14 @@ fun SubscriptionsScreen(
                                 // Channel Chips Row
                                 item(span = { GridItemSpan(maxLineSpan) }) {
                                     Column {
-                                        Row(
+                                        CompactSubscriptionsHeader(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(vertical = 12.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            LazyRow(
-                                                modifier = Modifier.weight(1f),
-                                                contentPadding = PaddingValues(start = 12.dp, end = 8.dp),
-                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                            ) {
-                                                items(subscribedChannels.take(10)) { channel ->
-                                                    ChannelAvatarItem(
-                                                        channel = channel,
-                                                        isSelected = false,
-                                                        onClick = {
-                                                            onChannelClick("https://youtube.com/channel/${channel.id}")
-                                                        }
-                                                    )
-                                                }
-                                            }
-                                            
-                                            // View All Button
-                                            TextButton(
-                                                onClick = { isManagingSubs = true },
-                                                modifier = Modifier.padding(end = 8.dp)
-                                            ) {
-                                                Text(androidx.compose.ui.res.stringResource(R.string.view_all_button_label), fontWeight = FontWeight.Bold)
-                                            }
-                                        }
+                                                .padding(top = 8.dp, bottom = 12.dp),
+                                            channels = topChannels,
+                                            onChannelClick = openChannel,
+                                            onViewAllClick = { isManagingSubs = true }
+                                        )
                                         
                                         HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
 
@@ -421,13 +485,13 @@ fun SubscriptionsScreen(
                                         VideoCardFullWidth(
                                             video = video,
                                             onClick = { onVideoClick(video) },
-                                            onChannelClick = onChannelClick
+                                            onChannelClick = openVideoChannel
                                         )
                                     } else {
                                         VideoCardHorizontal(
                                             video = video,
                                             onClick = { onVideoClick(video) },
-                                            onChannelClick = onChannelClick
+                                            onChannelClick = openVideoChannel
                                         )
                                     }
                                 }
@@ -483,6 +547,89 @@ fun SubscriptionsScreen(
                 }
                 showCreateGroupDialog = false
             }
+        )
+    }
+}
+
+@Composable
+private fun CompactSubscriptionsHeader(
+    channels: List<Channel>,
+    onChannelClick: (Channel) -> Unit,
+    onViewAllClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.subscriptions_quick_access_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (channels.any { it.isMusic }) {
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.subscriptions_music_chip_label),
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            }
+        }
+
+        LazyRow(
+            contentPadding = PaddingValues(start = 12.dp, end = 8.dp, top = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(channels, key = { it.id }) { channel ->
+                ChannelAvatarItem(
+                    channel = channel,
+                    isSelected = false,
+                    onClick = { onChannelClick(channel) }
+                )
+            }
+            item(key = "view_all") {
+                AllSubscriptionsAvatarItem(onClick = onViewAllClick)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SubscriptionSectionHeader(title: String, count: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            text = count.toString(),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -701,7 +848,7 @@ fun ChannelAvatarItem(
                 .then(if (isSelected) Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)) else Modifier),
             contentAlignment = Alignment.Center
         ) {
-             AsyncImage(
+            AsyncImage(
                 model = channel.thumbnailUrl,
                 contentDescription = channel.name,
                 modifier = Modifier
@@ -710,6 +857,15 @@ fun ChannelAvatarItem(
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentScale = ContentScale.Crop
             )
+            if (channel.isMusic) {
+                ChannelTypeBadge(
+                    icon = Icons.Default.MusicNote,
+                    contentDescription = stringResource(R.string.subscriptions_music_badge_cd),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .offset(x = 2.dp, y = 2.dp)
+                )
+            }
             if (isSelected) {
                 Box(
                     modifier = Modifier.matchParentSize().clip(CircleShape).background(Color.Black.copy(alpha = 0.3f)),
@@ -728,6 +884,66 @@ fun ChannelAvatarItem(
             color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
         )
+    }
+}
+
+@Composable
+private fun AllSubscriptionsAvatarItem(onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(64.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.ArrowForward,
+                contentDescription = stringResource(R.string.view_all_button_label),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.view_all_button_label),
+            style = MaterialTheme.typography.labelSmall,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun ChannelTypeBadge(
+    icon: ImageVector,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    shape: Shape = CircleShape
+) {
+    Surface(
+        modifier = modifier,
+        shape = shape,
+        color = MaterialTheme.colorScheme.primary,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        shadowElevation = 2.dp,
+        tonalElevation = 2.dp
+    ) {
+        Box(
+            modifier = Modifier.padding(4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(12.dp)
+            )
+        }
     }
 }
 
@@ -760,15 +976,42 @@ fun SubscriptionManagerItem(
         )
         
         Spacer(modifier = Modifier.width(16.dp))
-        
-        Text(
-            text = channel.name,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
+
+        Column(
             modifier = Modifier.weight(1f),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = channel.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            if (channel.isMusic) {
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MusicNote,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.subscriptions_music_chip_label),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            }
+        }
         
         Box {
             var expanded by remember { mutableStateOf(false) }

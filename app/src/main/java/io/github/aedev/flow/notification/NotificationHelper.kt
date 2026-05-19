@@ -711,6 +711,53 @@ object NotificationHelper {
         }
     }
 
+    fun showUpcomingVideoLiveNotification(
+        context: Context,
+        videoId: String,
+        title: String,
+        channelName: String,
+        thumbnailUrl: String?
+    ) {
+        if (!hasNotificationPermission(context)) return
+        if (!runBlocking { PlayerPreferences(context).notifRemindersEnabled.first() }) return
+
+        val intent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("open_video_id", videoId)
+        }
+
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            videoId.hashCode(),
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val builder = NotificationCompat.Builder(context, CHANNEL_REMINDERS)
+            .setSmallIcon(R.drawable.ic_notification_logo)
+            .setContentTitle("Video is live")
+            .setContentText("$channelName is now live: $title")
+            .setStyle(NotificationCompat.BigTextStyle().bigText("$channelName is now live: $title"))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+
+        runBlocking {
+            val bitmap = thumbnailUrl?.let { getBitmapFromUrl(it) }
+            if (bitmap != null) {
+                builder.setLargeIcon(bitmap)
+            }
+        }
+
+        try {
+            with(NotificationManagerCompat.from(context)) {
+                notify(NOTIFICATION_REMINDER + videoId.hashCode(), builder.build())
+            }
+        } catch (e: SecurityException) {
+            e.printStackTrace()
+        }
+    }
+
     /**
      * Cancel all notifications
      */

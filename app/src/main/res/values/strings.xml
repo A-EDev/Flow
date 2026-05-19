@@ -174,11 +174,23 @@
     <string name="video_metadata_short_template">%1$s • %2$s</string>
     <string name="premiere_soon">Premieres soon</string>
     <string name="premiere_date_prefix">Premieres %1$s</string>
+    <string name="upcoming_video_overlay_title">This video is scheduled. Playback will unlock when it goes live.</string>
+    <string name="upcoming_video_reminder_action">Remind me</string>
+    <string name="upcoming_video_reminder_enabled">Reminder set</string>
+    <string name="upcoming_video_reminder_badge">Reminder enabled</string>
     <string name="file_size">File Size</string>
     <string name="quality">Quality</string>
     <string name="duration">Duration</string>
     <string name="copied_to_clipboard">Copied %1$s</string>
     <string name="unknown">Unknown</string>
+    <string name="subscriptions_video_section_title">Video subscriptions</string>
+    <string name="subscriptions_music_section_title">Music subscriptions</string>
+    <string name="subscriptions_quick_access_title">Quick access</string>
+    <string name="subscriptions_compact_header">Jump into your latest subscribed channels.</string>
+    <string name="subscriptions_compact_header_with_music">Music channels are marked inline so the feed stays compact.</string>
+    <string name="subscriptions_music_chip_label">Music</string>
+    <string name="subscriptions_music_badge_cd">Music subscription</string>
+    <string name="no_subscriptions_found">No subscriptions found</string>
 
     <!-- Comments -->
     <string name="comments">Comments</string>

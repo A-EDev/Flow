@@ -30,6 +30,7 @@ data class Channel(
     val subscriberCount: Long,
     val description: String = "",
     val isSubscribed: Boolean = false,
+    val isMusic: Boolean = false,
     val url: String = "" // Full channel URL for navigation
 )
 

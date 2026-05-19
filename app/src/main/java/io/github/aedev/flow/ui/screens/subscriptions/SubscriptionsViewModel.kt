@@ -209,7 +209,8 @@ class SubscriptionsViewModel : ViewModel() {
                             name = sub.channelName,
                             thumbnailUrl = sub.channelThumbnail,
                             subscriberCount = 0L,
-                            isSubscribed = true
+                            isSubscribed = true,
+                            isMusic = sub.isMusic
                         )
                     }
                     _uiState.update { it.copy(subscribedChannels = channels) }
@@ -348,7 +349,7 @@ class SubscriptionsViewModel : ViewModel() {
         val cutoff = now - SUBSCRIPTION_CACHE_WINDOW_MS
         return (freshVideos + cachedVideos)
             .asSequence()
-            .filter { video -> effectiveUploadTimestamp(video, now) >= cutoff || video.isLive || video.isUpcoming }
+            .filter { video -> effectiveUploadTimestamp(video, now) >= cutoff || video.isUpcoming }
             .distinctBy { it.id }
             .toList()
             .withStableUploadSortKeys(now)
@@ -786,7 +787,8 @@ private fun io.github.aedev.flow.data.local.entity.SubscriptionFeedEntity.toVide
     timestamp = timestamp,
     channelThumbnailUrl = channelThumbnailUrl,
     isShort = isShort,
-    isLive = isLive
+    isLive = isLive && uploadDate.containsLiveMarker(),
+    isUpcoming = isUpcoming
 )
 
 private fun Video.toSubscriptionFeedEntity(
@@ -804,6 +806,15 @@ private fun Video.toSubscriptionFeedEntity(
     channelThumbnailUrl = channelThumbnailUrl,
     isShort = isShort,
     isLive = isLive,
+    isUpcoming = isUpcoming,
     cachedAt = cachedAtMillis
 )
+
+private fun String.containsLiveMarker(): Boolean {
+    val text = lowercase()
+    return text.contains("live") ||
+        text.contains("stream") ||
+        text.contains("watching") ||
+        text.contains("started")
+}
 

@@ -163,7 +163,7 @@ class SubscriptionRepository private constructor(private val context: Context) {
     }
     
     private fun serializeChannel(channel: ChannelSubscription): String {
-        return "${channel.channelId}|${channel.channelName}|${channel.channelThumbnail}|${channel.subscribedAt}|${channel.lastVideoId ?: ""}|${channel.lastCheckTime}|${channel.isNotificationEnabled}"
+        return "${channel.channelId}|${channel.channelName}|${channel.channelThumbnail}|${channel.subscribedAt}|${channel.lastVideoId ?: ""}|${channel.lastCheckTime}|${channel.isNotificationEnabled}|${channel.isMusic}"
     }
     
     private fun deserializeChannel(data: String): ChannelSubscription? {
@@ -177,7 +177,8 @@ class SubscriptionRepository private constructor(private val context: Context) {
                     subscribedAt = parts[3].toLong(),
                     lastVideoId = if (parts.size > 4 && parts[4].isNotEmpty()) parts[4] else null,
                     lastCheckTime = if (parts.size > 5 && parts[5].isNotEmpty()) parts[5].toLong() else 0L,
-                    isNotificationEnabled = if (parts.size > 6 && parts[6].isNotEmpty()) parts[6].toBoolean() else false
+                    isNotificationEnabled = if (parts.size > 6 && parts[6].isNotEmpty()) parts[6].toBoolean() else false,
+                    isMusic = if (parts.size > 7 && parts[7].isNotEmpty()) parts[7].toBoolean() else false
                 )
             } else {
                 null
@@ -230,5 +231,6 @@ data class ChannelSubscription(
     val subscribedAt: Long = System.currentTimeMillis(),
     val lastVideoId: String? = null,
     val lastCheckTime: Long = 0L,
-    val isNotificationEnabled: Boolean = false
+    val isNotificationEnabled: Boolean = false,
+    val isMusic: Boolean = false
 )

@@ -101,6 +101,17 @@ fun formatLikeCount(count: Int): String {
  */
 fun formatPremiereDate(dateString: String): String? {
     if (dateString.isBlank()) return null
+    val date = parsePremiereDate(dateString) ?: return null
+    val out = java.text.SimpleDateFormat("M/d/yy, h:mm a", java.util.Locale.US)
+    out.timeZone = java.util.TimeZone.getDefault()
+    return out.format(date)
+}
+
+fun parsePremiereTimestamp(dateString: String): Long? =
+    parsePremiereDate(dateString)?.time
+
+private fun parsePremiereDate(dateString: String): java.util.Date? {
+    if (dateString.isBlank()) return null
     val formats = listOf(
         "yyyy-MM-dd HH:mm",
         "yyyy-MM-dd'T'HH:mm:ssXXX",
@@ -120,12 +131,6 @@ fun formatPremiereDate(dateString: String): String? {
             if (date != null) break
         } catch (_: Exception) {}
     }
-    return if (date != null) {
-        val out = java.text.SimpleDateFormat("M/d/yy, h:mm a", java.util.Locale.US)
-        out.timeZone = java.util.TimeZone.getDefault()
-        out.format(date)
-    } else {
-        null
-    }
+    return date
 }
 

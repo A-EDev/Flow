@@ -571,12 +571,13 @@ private suspend fun refreshSubscriptionsAtStartup(
                     channelThumbnailUrl = video.channelThumbnailUrl,
                     isShort = video.isShort,
                     isLive = video.isLive,
+                    isUpcoming = video.isUpcoming,
                     cachedAt = refreshTime
                 )
             }
             val mergedEntities = (entities + cachedEntities)
                 .asSequence()
-                .filter { entity -> entity.timestamp >= cutoff || entity.isLive }
+                .filter { entity -> entity.timestamp >= cutoff || entity.isUpcoming }
                 .distinctBy { it.videoId }
                 .sortedByDescending { it.timestamp }
                 .take(600)

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
 import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.rounded.NotificationsActive
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -68,6 +69,25 @@ import kotlinx.coroutines.flow.collectLatest
 private const val AVATAR_TAG = "ChannelAvatarImage"
 
 @Composable
+private fun UpcomingReminderBadge(modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(999.dp),
+        color = Color.Black.copy(alpha = 0.7f),
+        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.2f))
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.NotificationsActive,
+            contentDescription = stringResource(R.string.upcoming_video_reminder_badge),
+            tint = Color.White,
+            modifier = Modifier
+                .size(20.dp)
+                .padding(4.dp)
+        )
+    }
+}
+
+@Composable
 fun VideoCard(
     video: Video,
     modifier: Modifier = Modifier,
@@ -95,6 +115,7 @@ fun VideoCard(
     val displayTitle = deArrowResult?.title ?: video.title
     val displayThumbnailUrl = deArrowResult?.thumbnailUrl ?: video.thumbnailUrl
     val videoCardActionsEnabled by playerPrefs.videoCardActionsEnabled.collectAsState(initial = false)
+    val upcomingReminderIds by playerPrefs.upcomingVideoReminderIds.collectAsState(initial = emptySet())
     val quickActionsVm: QuickActionsViewModel = hiltViewModel()
     val interactionSource = remember { MutableInteractionSource() }
     Column(
@@ -161,6 +182,14 @@ fun VideoCard(
                         fontWeight = FontWeight.Bold
                     )
                 }
+            }
+
+            if (video.id in upcomingReminderIds) {
+                UpcomingReminderBadge(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp)
+                )
             }
 
             // Watch progress bar
@@ -349,6 +378,7 @@ fun VideoCardHorizontal(
     }
     val displayTitle = deArrowResult?.title ?: video.title
     val displayThumbnailUrl = deArrowResult?.thumbnailUrl ?: video.thumbnailUrl
+    val upcomingReminderIds by playerPrefs.upcomingVideoReminderIds.collectAsState(initial = emptySet())
     val watchProgress by produceState<Float?>(initialValue = null, video.id) {
         ViewHistory.getInstance(context).getVideoHistory(video.id).collectLatest { entry ->
             value = if (entry != null && entry.duration > 0 && entry.progressPercentage >= 3f) {
@@ -417,6 +447,14 @@ fun VideoCardHorizontal(
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                     )
                 }
+            }
+
+            if (video.id in upcomingReminderIds) {
+                UpcomingReminderBadge(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                )
             }
 
             // Watch progress bar
@@ -511,6 +549,7 @@ fun VideoCardFullWidth(
     val displayThumbnailUrl = deArrowResultFullWidth?.thumbnailUrl ?: video.thumbnailUrl
     val videoCardActionsEnabledFW by playerPrefsFullWidth.videoCardActionsEnabled.collectAsState(initial = false)
     val videoCardMarkWatchedEnabledFW by playerPrefsFullWidth.videoCardMarkWatchedEnabled.collectAsState(initial = false)
+    val upcomingReminderIds by playerPrefsFullWidth.upcomingVideoReminderIds.collectAsState(initial = emptySet())
     val quickActionsVmFW: QuickActionsViewModel = hiltViewModel()
     val watchedVideoIdsFW by quickActionsVmFW.watchedVideoIds.collectAsState()
     val isWatchedFW = remember(watchedVideoIdsFW, watchProgress, video.id) {
@@ -581,6 +620,14 @@ fun VideoCardFullWidth(
                         fontWeight = FontWeight.Bold
                     )
                 }
+            }
+
+            if (video.id in upcomingReminderIds) {
+                UpcomingReminderBadge(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp)
+                )
             }
 
             // Watch progress bar

@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.innertube
 import android.util.Log
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
+import io.github.aedev.flow.utils.parsePremiereTimestamp
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -337,6 +338,9 @@ object RssSubscriptionService {
             ?: System.currentTimeMillis()
 
         val rawDate = item.textualUploadDate
+        val upcomingReleaseTimeMs = rawDate?.let(::parsePremiereTimestamp)
+            ?: overrideTimestamp?.takeIf { it > System.currentTimeMillis() + 60_000L }
+        val isUpcoming = !forceLive && upcomingReleaseTimeMs != null
         val uploadDateStr = when {
             rawDate != null && !rawDate.contains("T") && !rawDate.contains("+") -> rawDate
             else -> formatRelativeTime(uploadTimeMillis)
@@ -356,15 +360,14 @@ object RssSubscriptionService {
                 ?: item.uploaderAvatars?.maxByOrNull { it.height }?.url
                 ?: "",
             isShort = forceShort || item.isShortFormContent,
-            isLive = forceLive || item.isLiveStream()
+            isLive = forceLive || item.isActiveLiveStream(),
+            isUpcoming = isUpcoming
         )
     }
 
-    private fun StreamInfoItem.isLiveStream(): Boolean {
+    private fun StreamInfoItem.isActiveLiveStream(): Boolean {
         return streamType == StreamType.LIVE_STREAM ||
-            streamType == StreamType.AUDIO_LIVE_STREAM ||
-            streamType == StreamType.POST_LIVE_STREAM ||
-            streamType == StreamType.POST_LIVE_AUDIO_STREAM
+            streamType == StreamType.AUDIO_LIVE_STREAM
     }
 
     /** Format a millisecond timestamp as a human-readable relative string. */

@@ -225,6 +225,7 @@ class PlayerPreferences(private val context: Context) {
         val SUBSCRIPTION_SHOW_SHORTS = booleanPreferencesKey("subscription_show_shorts")
         val SUBSCRIPTION_SHOW_LIVE = booleanPreferencesKey("subscription_show_live")
         val SUBSCRIPTION_SHORTS_EXCLUDED_CHANNELS = stringSetPreferencesKey("subscription_shorts_excluded_channels")
+        val UPCOMING_VIDEO_REMINDER_IDS = stringSetPreferencesKey("upcoming_video_reminder_ids")
 
         // Deep Flow (Incognito / No-Engine) mode
         val DEEP_FLOW_ACTIVE = booleanPreferencesKey("deep_flow_active")
@@ -1258,6 +1259,20 @@ class PlayerPreferences(private val context: Context) {
             val current = preferences[Keys.SUBSCRIPTION_SHORTS_EXCLUDED_CHANNELS].orEmpty()
             preferences[Keys.SUBSCRIPTION_SHORTS_EXCLUDED_CHANNELS] =
                 if (excluded) current + channelId else current - channelId
+        }
+    }
+
+    val upcomingVideoReminderIds: Flow<Set<String>> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.UPCOMING_VIDEO_REMINDER_IDS].orEmpty()
+        }
+
+    suspend fun setUpcomingVideoReminder(videoId: String, enabled: Boolean) {
+        if (videoId.isBlank()) return
+        context.playerPreferencesDataStore.edit { preferences ->
+            val current = preferences[Keys.UPCOMING_VIDEO_REMINDER_IDS].orEmpty()
+            preferences[Keys.UPCOMING_VIDEO_REMINDER_IDS] =
+                if (enabled) current + videoId else current - videoId
         }
     }
 

@@ -53,12 +53,13 @@ IMPROVEMENTS
 - Prefer VP9/H264 over AV1 for playback #406
 - Improve Live streams handling and UI #435 #416 #390
 - Improved watched content filtering #451
-- Improve subscriptions feed UI, count, content and cache #435
+- Improve subscriptions feed UI, count, content and cache #435 #468
 - Redesign App Icon picker #400
 - Improve shorts UI and performance #446
 - Watch history and likes screens redesign
 - Improve playlists and library screens UI design
 - Improve subtitle handling #271
+- Improve upcoming videos handling and add a reminder #470
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

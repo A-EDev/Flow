@@ -635,7 +635,8 @@ class MusicViewModel @Inject constructor(
                     io.github.aedev.flow.data.local.ChannelSubscription(
                         channelId = artist.channelId,
                         channelName = artist.name,
-                        channelThumbnail = artist.thumbnailUrl
+                        channelThumbnail = artist.thumbnailUrl,
+                        isMusic = true
                     )
                 )
             }

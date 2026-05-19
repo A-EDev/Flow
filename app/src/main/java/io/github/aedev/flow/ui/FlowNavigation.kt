@@ -185,7 +185,8 @@ fun NavGraphBuilder.flowAppGraph(
                 if (video.isShort && !disableShortsPlayer) {
                     navController.navigate("shorts?startVideoId=${video.id}")
                 } else {
-                    navController.navigate("player/${video.id}")
+                    playerViewModel.playVideo(video)
+                    GlobalPlayerState.setCurrentVideo(video)
                 }
             },
             onShortClick = { videoId ->
@@ -195,9 +196,14 @@ fun NavGraphBuilder.flowAppGraph(
                     navController.navigate("shorts?startVideoId=$videoId")
                 }
             },
-            onChannelClick = { channelUrl ->
-                val encodedUrl = channelUrl.replace("/", "%2F").replace(":", "%3A")
-                navController.navigate("channel?url=$encodedUrl")
+            onChannelClick = { channel ->
+                if (channel.isMusic && channel.id.isNotBlank()) {
+                    navController.navigate("artist/${channel.id}")
+                } else {
+                    val channelUrl = channel.url.ifBlank { "https://youtube.com/channel/${channel.id}" }
+                    val encodedUrl = channelUrl.replace("/", "%2F").replace(":", "%3A")
+                    navController.navigate("channel?url=$encodedUrl")
+                }
             }
         )
     }

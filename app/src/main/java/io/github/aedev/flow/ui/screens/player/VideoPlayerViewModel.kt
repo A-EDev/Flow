@@ -18,7 +18,9 @@ import io.github.aedev.flow.player.GlobalPlayerState
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
+import io.github.aedev.flow.notification.UpcomingVideoReminderWorker
 import io.github.aedev.flow.utils.PerformanceDispatcher
+import io.github.aedev.flow.utils.parsePremiereTimestamp
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
@@ -234,6 +236,17 @@ class VideoPlayerViewModel @Inject constructor(
                 }
             }
         }
+
+        viewModelScope.launch {
+            combine(
+                playerPreferences.upcomingVideoReminderIds,
+                uiState.map { it.cachedVideo?.id }.distinctUntilChanged()
+            ) { reminderIds, videoId ->
+                videoId != null && videoId in reminderIds
+            }.collect { isReminderSet ->
+                _uiState.update { it.copy(isUpcomingReminderSet = isReminderSet) }
+            }
+        }
     }
     
     fun initializeViewHistory(context: Context) {
@@ -273,11 +286,78 @@ class VideoPlayerViewModel @Inject constructor(
         _uiState.update { it.copy(resumedInMiniPlayer = false) }
     }
 
+    private fun resolveUpcomingReleaseTime(video: Video): Long? {
+        if (!video.isUpcoming) return null
+        val now = System.currentTimeMillis()
+        return when {
+            video.timestamp > now + 60_000L -> video.timestamp
+            else -> parsePremiereTimestamp(video.uploadDate)
+        }?.takeIf { it > now }
+    }
+
+    private fun applyUpcomingState(video: Video, preserveQueueTitle: String? = _uiState.value.queueTitle): Boolean {
+        if (!video.isUpcoming) return false
+        _uiState.update {
+            it.copy(
+                cachedVideo = video,
+                isRestoredSession = false,
+                resumedInMiniPlayer = it.resumedInMiniPlayer,
+                isLoading = false,
+                error = null,
+                errorHint = null,
+                metadataError = null,
+                streamInfo = null,
+                videoStream = null,
+                audioStream = null,
+                savedPosition = null,
+                relatedVideos = emptyList(),
+                isSubscribed = false,
+                likeState = null,
+                hlsUrl = null,
+                localFilePath = null,
+                localFileVideoId = null,
+                queueTitle = preserveQueueTitle,
+                isUpcoming = true,
+                upcomingReleaseTimeMs = resolveUpcomingReleaseTime(video)
+            )
+        }
+        return true
+    }
+
+    fun toggleUpcomingReminder() {
+        val state = _uiState.value
+        val video = state.cachedVideo ?: return
+        val releaseTimeMs = state.upcomingReleaseTimeMs ?: resolveUpcomingReleaseTime(video) ?: return
+        if (!state.isUpcoming) return
+
+        viewModelScope.launch {
+            val enableReminder = !state.isUpcomingReminderSet
+            playerPreferences.setUpcomingVideoReminder(video.id, enableReminder)
+            if (enableReminder) {
+                UpcomingVideoReminderWorker.scheduleReminder(
+                    context = context,
+                    videoId = video.id,
+                    releaseTimeMs = releaseTimeMs,
+                    title = video.title,
+                    channelName = video.channelName,
+                    thumbnailUrl = video.thumbnailUrl
+                )
+            } else {
+                UpcomingVideoReminderWorker.cancelReminder(context, video.id)
+            }
+            _uiState.update { it.copy(isUpcomingReminderSet = enableReminder) }
+        }
+    }
+
     fun syncWithCurrentPlayerVideo(video: Video) {
         val state = _uiState.value
         val alreadySynced = state.cachedVideo?.id == video.id &&
             (state.streamInfo?.id == video.id || state.isLoading)
         if (alreadySynced) return
+
+        if (applyUpcomingState(video)) {
+            return
+        }
 
         _uiState.update {
             it.copy(
@@ -296,7 +376,9 @@ class VideoPlayerViewModel @Inject constructor(
                 likeState = null,
                 hlsUrl = null,
                 localFilePath = null,
-                localFileVideoId = null
+                localFileVideoId = null,
+                isUpcoming = false,
+                upcomingReleaseTimeMs = null
             )
         }
         loadVideoInfo(video.id, isWifi = detectIsWifi(), forceRefresh = true)
@@ -332,7 +414,9 @@ class VideoPlayerViewModel @Inject constructor(
             savedPosition = null,
             relatedVideos = emptyList(),
             isSubscribed = false,
-            likeState = null
+            likeState = null,
+            isUpcoming = false,
+            upcomingReleaseTimeMs = null
         )
         saveHistoryEntry(video)
         EnhancedPlayerManager.getInstance().startBackgroundService(
@@ -341,6 +425,9 @@ class VideoPlayerViewModel @Inject constructor(
             channel   = video.channelName,
             thumbnail = video.thumbnailUrl
         )
+        if (applyUpcomingState(video)) {
+            return
+        }
         // Start loading streams
         loadVideoInfo(video.id, isWifi = detectIsWifi(), forceRefresh = true)
     }
@@ -419,6 +506,9 @@ class VideoPlayerViewModel @Inject constructor(
     fun retryLoadVideo() {
         val videoId = _uiState.value.cachedVideo?.id ?: return
         Log.d("VideoPlayerViewModel", "Retrying video load for $videoId")
+        if (applyUpcomingState(_uiState.value.cachedVideo ?: return)) {
+            return
+        }
         _uiState.update { it.copy(error = null, errorHint = null, isLoading = true) }
         loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true)
     }
@@ -448,7 +538,9 @@ class VideoPlayerViewModel @Inject constructor(
                 relatedVideos = emptyList(),
                 isSubscribed = false,
                 likeState = null,
-                queueTitle = title
+                queueTitle = title,
+                isUpcoming = false,
+                upcomingReleaseTimeMs = null
             )
         }
         saveHistoryEntry(startVideo)
@@ -458,6 +550,9 @@ class VideoPlayerViewModel @Inject constructor(
             channel   = startVideo.channelName,
             thumbnail = startVideo.thumbnailUrl
         )
+        if (applyUpcomingState(startVideo, preserveQueueTitle = title)) {
+            return
+        }
         // Start loading the first video
         loadVideoInfo(startVideo.id, isWifi = detectIsWifi(), forceRefresh = true)
     }
@@ -509,6 +604,30 @@ class VideoPlayerViewModel @Inject constructor(
         val currentState = _uiState.value
         Log.d("VideoPlayerViewModel", "loadVideoInfo: Request=$videoId. Current=${currentState.streamInfo?.id}, IsLoading=${currentState.isLoading}, ForceRefresh=$forceRefresh")
 
+        currentState.cachedVideo
+            ?.takeIf { it.id == videoId && it.isUpcoming }
+            ?.let { cachedVideo ->
+                val releaseTimeMs = resolveUpcomingReleaseTime(cachedVideo)
+                if (releaseTimeMs == null || releaseTimeMs > System.currentTimeMillis()) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = null,
+                            errorHint = null,
+                            metadataError = null,
+                            streamInfo = null,
+                            videoStream = null,
+                            audioStream = null,
+                            localFilePath = null,
+                            localFileVideoId = null,
+                            isUpcoming = true,
+                            upcomingReleaseTimeMs = releaseTimeMs
+                        )
+                    }
+                    return
+                }
+            }
+
         // Don't reload if already loaded the same video successfully (unless forceRefresh)
         if (!forceRefresh && currentState.streamInfo?.id == videoId && !currentState.isLoading && currentState.error == null) {
             Log.d("VideoPlayerViewModel", "Video $videoId already loaded successfully. Skipping.")
@@ -548,7 +667,9 @@ class VideoPlayerViewModel @Inject constructor(
             likeState = null,
             hlsUrl = null,
             localFilePath = null,
-            localFileVideoId = null
+            localFileVideoId = null,
+            isUpcoming = false,
+            upcomingReleaseTimeMs = null
         )
 
         cancelActivePlaybackLoad()
@@ -644,7 +765,9 @@ class VideoPlayerViewModel @Inject constructor(
                             offlineSponsorBlockSegments = offlineSegments,
                             error = null,
                             errorHint = null,
-                            isLoading = false
+                            isLoading = false,
+                            isUpcoming = false,
+                            upcomingReleaseTimeMs = null
                         )
                     }
                 }
@@ -779,7 +902,9 @@ class VideoPlayerViewModel @Inject constructor(
                             localFilePath = localFilePath,
                             localFileVideoId = if (localFilePath != null) videoId else null,
                             offlineSponsorBlockSegments = offlineSegments,
-                            hlsUrl = streamInfo.hlsUrl
+                            hlsUrl = streamInfo.hlsUrl,
+                            isUpcoming = false,
+                            upcomingReleaseTimeMs = null
                         )
 
                         ensureActive()
@@ -916,7 +1041,9 @@ class VideoPlayerViewModel @Inject constructor(
                                         errorHint = null,
                                         relatedVideos = relatedVideos,
                                         localFilePath = localFile?.absolutePath,
-                                        offlineSponsorBlockSegments = deserializeSponsorBlockSegments(sbJson)
+                                        offlineSponsorBlockSegments = deserializeSponsorBlockSegments(sbJson),
+                                        isUpcoming = false,
+                                        upcomingReleaseTimeMs = null
                                     )
                                 }
                             }
@@ -970,7 +1097,9 @@ class VideoPlayerViewModel @Inject constructor(
                                 isLoading = false,
                                 error = null,
                                 errorHint = null,
-                                localFilePath = downloadedVideo.filePath
+                                localFilePath = downloadedVideo.filePath,
+                                isUpcoming = false,
+                                upcomingReleaseTimeMs = null
                             )
                         }
                     } else {
@@ -1617,6 +1746,9 @@ data class VideoPlayerUiState(
     val shouldDismissPlayer: Boolean = false,
     val isRestoredSession: Boolean = false,
     val resumedInMiniPlayer: Boolean = false,
+    val isUpcoming: Boolean = false,
+    val upcomingReleaseTimeMs: Long? = null,
+    val isUpcomingReminderSet: Boolean = false,
     /** SponsorBlock segments loaded from local DB for offline playback. Null when streaming online. */
     val offlineSponsorBlockSegments: List<SponsorBlockSegment>? = null
 )

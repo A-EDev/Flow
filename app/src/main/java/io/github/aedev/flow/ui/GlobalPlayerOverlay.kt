@@ -27,6 +27,9 @@ import androidx.compose.material.icons.rounded.Forward10
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.NotificationsActive
+import androidx.compose.material.icons.rounded.Schedule
 import android.widget.Toast
 import io.github.aedev.flow.player.error.PlayerDiagnostics
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -797,9 +800,19 @@ fun GlobalPlayerOverlay(
                                     .padding(end = 16.dp, bottom = 80.dp)
                             )
 
+                            if (playerUiState.isUpcoming) {
+                                UpcomingVideoOverlay(
+                                    title = video.title,
+                                    releaseTimeMs = playerUiState.upcomingReleaseTimeMs,
+                                    isReminderSet = playerUiState.isUpcomingReminderSet,
+                                    onToggleReminder = playerViewModel::toggleUpcomingReminder,
+                                    modifier = Modifier.align(Alignment.Center)
+                                )
+                            }
+
                             // ── Error overlay — icon + title only; details/actions in body panel ──
                             val errorMsg  = playerUiState.error
-                            if (errorMsg != null) {
+                            if (errorMsg != null && !playerUiState.isUpcoming) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
@@ -833,7 +846,7 @@ fun GlobalPlayerOverlay(
                         
                         // Controls overlay - fully expanded only
                         var showRemainingTime by rememberSaveable { mutableStateOf(false) }
-                        if (!isMinimized && !localIsInPipMode && (screenState.showControls || screenState.isTouchLocked || !screenState.isFullscreen)) {
+                        if (!playerUiState.isUpcoming && !isMinimized && !localIsInPipMode && (screenState.showControls || screenState.isTouchLocked || !screenState.isFullscreen)) {
                             PremiumControlsOverlay(
                                 isVisible = screenState.showControls || screenState.isTouchLocked,
                                 isPlaying = playerState.playWhenReady,
@@ -1284,6 +1297,99 @@ fun GlobalPlayerOverlay(
             },
             renderChaptersSheet = !canUseFullscreenSidePanel
         )
+    }
+}
+
+@Composable
+private fun UpcomingVideoOverlay(
+    title: String,
+    releaseTimeMs: Long?,
+    isReminderSet: Boolean,
+    onToggleReminder: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var nowMs by remember(releaseTimeMs) { mutableStateOf(System.currentTimeMillis()) }
+
+    LaunchedEffect(releaseTimeMs) {
+        if (releaseTimeMs == null) return@LaunchedEffect
+        while (true) {
+            nowMs = System.currentTimeMillis()
+            delay(1000)
+        }
+    }
+
+    Surface(
+        modifier = modifier
+            .padding(horizontal = 24.dp)
+            .widthIn(max = 420.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = Color.Black.copy(alpha = 0.78f),
+        tonalElevation = 0.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Schedule,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(42.dp)
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center,
+                maxLines = 2
+            )
+            Text(
+                text = stringResource(R.string.upcoming_video_overlay_title),
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.78f),
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = releaseTimeMs?.let { formatCountdown(it - nowMs) }
+                    ?: stringResource(R.string.premiere_soon),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            if (releaseTimeMs != null) {
+                FilledTonalButton(onClick = onToggleReminder) {
+                    Icon(
+                        imageVector = if (isReminderSet) Icons.Rounded.NotificationsActive else Icons.Rounded.Notifications,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(
+                            if (isReminderSet) R.string.upcoming_video_reminder_enabled
+                            else R.string.upcoming_video_reminder_action
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun formatCountdown(remainingMs: Long): String {
+    if (remainingMs <= 0L) return "00:00"
+    val totalSeconds = remainingMs / 1000L
+    val days = totalSeconds / 86_400L
+    val hours = (totalSeconds % 86_400L) / 3_600L
+    val minutes = (totalSeconds % 3_600L) / 60L
+    val seconds = totalSeconds % 60L
+    return when {
+        days > 0L -> String.format(Locale.US, "%dd %02dh %02dm", days, hours, minutes)
+        hours > 0L -> String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
+        else -> String.format(Locale.US, "%02d:%02d", minutes, seconds)
     }
 }
 
