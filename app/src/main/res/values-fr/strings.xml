@@ -1572,4 +1572,10 @@
     <string name="remove_selected_watch_later_text">Ils seront supprimés de la playlist « À regarder plus tard ».</string>
     <string name="player_settings_overlay_speed_indicator">Indicateur de vitesse de lecture</string>
     <string name="player_settings_overlay_speed_indicator_subtitle">Afficher la vitesse actuelle dans la fenêtre superposée du lecteur vidéo</string>
+    <string name="player_fullscreen_seekbar_width_title">Largeur de la barre de défilement en plein écran</string>
+    <string name="player_fullscreen_seekbar_width_subtitle">%1$d décimales de remplissage de chaque côté</string>
+    <string name="player_fullscreen_seekbar_width_full">Pleine largeur</string>
+    <string name="player_fullscreen_seekbar_width_default">Par défaut</string>
+    <string name="player_fullscreen_seekbar_width_custom">Personnalisé</string>
+    <string name="player_fullscreen_seekbar_width_value">%1$d dp</string>
 </resources>
