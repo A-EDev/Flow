@@ -1292,4 +1292,19 @@
     <string name="content_settings_comments_enabled_subtitle">Завантажувати та показувати коментарі на екрані програвача</string>
     <string name="content_settings_comments_preview_title">Попередній перегляд коментарів</string>
     <string name="content_settings_comments_preview_subtitle">Показувати останній коментар у картці</string>
+    <string name="player_fullscreen_seekbar_width_title">Ширина часової шкали у повному екрані</string>
+    <string name="player_fullscreen_seekbar_width_subtitle">Відступ %1$d dp з кожного боку</string>
+    <string name="player_fullscreen_seekbar_width_full">Повна ширина</string>
+    <string name="player_fullscreen_seekbar_width_default">Звичайна</string>
+    <string name="player_fullscreen_seekbar_width_custom">Власна</string>
+    <string name="player_fullscreen_seekbar_width_value">%1$d dp</string>
+    <string name="content_settings_subs_startup_refresh_title">Оновлювати підписки під час запуску</string>
+    <string name="content_settings_subs_startup_refresh_subtitle">Перевіряти стрічку підписок під час відкриття додатка</string>
+    <string name="content_settings_subs_show_videos_title">Відео з підписок</string>
+    <string name="content_settings_subs_show_videos_subtitle">Показувати звичайні відео у стрічці підписок</string>
+    <string name="content_settings_subs_show_shorts_title">Shorts з підписок</string>
+    <string name="content_settings_subs_show_shorts_subtitle">Показувати Shorts у стрічці підписок</string>
+    <string name="content_settings_subs_show_live_title">Ефіри з підписок</string>
+    <string name="content_settings_subs_show_live_subtitle">Показувати прямі ефіри та нещодавні трансляції у стрічці підписок</string>
+    <string name="content_settings_nav_order_title">Порядок вкладок і вкладка за замовчуванням</string>
 </resources>

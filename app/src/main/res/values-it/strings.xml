@@ -1532,4 +1532,10 @@
     <string name="shorts_auto_scroll_active_template">Auto %1$ds</string>
     <string name="player_settings_overlay_speed_indicator">Indicatore di velocità di riproduzione</string>
     <string name="player_settings_overlay_speed_indicator_subtitle">Mostra la velocità attuale sul player video</string>
+    <string name="player_fullscreen_seekbar_width_title">Larghezza della barra di riproduzione a schermo intero</string>
+    <string name="player_fullscreen_seekbar_width_subtitle">%1$d dp di spaziatura su ogni lato</string>
+    <string name="player_fullscreen_seekbar_width_full">Larghezza intera</string>
+    <string name="player_fullscreen_seekbar_width_default">Predefinita</string>
+    <string name="player_fullscreen_seekbar_width_custom">Personalizzata</string>
+    <string name="player_fullscreen_seekbar_width_value">%1$d dp</string>
 </resources>
