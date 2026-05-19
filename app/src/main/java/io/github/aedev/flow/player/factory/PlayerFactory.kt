@@ -82,10 +82,14 @@ class PlayerFactory {
         
         // Fetch buffer settings from preferences
         val prefs = PlayerPreferences(context)
-        val minBufferMs = runBlocking { prefs.minBufferMs.first() }.coerceAtLeast(2_500)
-        val maxBufferMs = runBlocking { prefs.maxBufferMs.first() }.coerceAtLeast(minBufferMs + 5_000)
-        val bufferForPlaybackMs = runBlocking { prefs.bufferForPlaybackMs.first() }.coerceAtLeast(250)
-        val bufferRebufferMs = runBlocking { prefs.bufferForPlaybackAfterRebufferMs.first() }.coerceAtLeast(750)
+        val minBufferMs = runBlocking { prefs.minBufferMs.first() }
+            .coerceIn(2_500, PlayerConfig.MAX_SAFE_MAIN_MIN_BUFFER_MS)
+        val maxBufferMs = runBlocking { prefs.maxBufferMs.first() }
+            .coerceIn(minBufferMs + 5_000, PlayerConfig.MAX_SAFE_MAIN_BUFFER_MS)
+        val bufferForPlaybackMs = runBlocking { prefs.bufferForPlaybackMs.first() }
+            .coerceIn(250, minBufferMs)
+        val bufferRebufferMs = runBlocking { prefs.bufferForPlaybackAfterRebufferMs.first() }
+            .coerceIn(750, maxBufferMs)
 
         Log.d(TAG, "Buffer config: min=${minBufferMs}ms, max=${maxBufferMs}ms, playback=${bufferForPlaybackMs}ms, rebuffer=${bufferRebufferMs}ms")
 
@@ -94,7 +98,7 @@ class PlayerFactory {
             .setBufferDurationsMs(minBufferMs, maxBufferMs, bufferForPlaybackMs, bufferRebufferMs)
             .setBackBuffer(PlayerConfig.BACK_BUFFER_DURATION_MS, true)
             .setPrioritizeTimeOverSizeThresholds(true)
-            .setTargetBufferBytes(C.LENGTH_UNSET)
+            .setTargetBufferBytes(PlayerConfig.MAIN_TARGET_BUFFER_BYTES)
             .build()
     }
     

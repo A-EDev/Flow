@@ -32,6 +32,18 @@ object PlayerConfig {
     /** Back buffer duration in milliseconds (15 seconds for instant rewind) */
     const val BACK_BUFFER_DURATION_MS = 15_000
 
+    /** Hard runtime cap for main-player max buffer */
+    const val MAX_SAFE_MAIN_BUFFER_MS = 60_000
+
+    /** Hard runtime cap for main-player min buffer so low-RAM devices do not over-retain media. */
+    const val MAX_SAFE_MAIN_MIN_BUFFER_MS = 30_000
+
+    /** Explicit target buffer budget for the main player. */
+    const val MAIN_TARGET_BUFFER_BYTES = 24 * 1024 * 1024
+
+    /** Explicit target buffer budget per shorts player in the pooled shorts stack. */
+    const val SHORTS_TARGET_BUFFER_BYTES = 8 * 1024 * 1024
+
     /** Preferred delay from the true live edge. Keeps YouTube live playback stable. */
     const val LIVE_EDGE_GAP_MS = 10_000L
 

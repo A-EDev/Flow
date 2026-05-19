@@ -19,6 +19,7 @@ import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultAllocator
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -154,7 +155,7 @@ class ShortsPlayerPool private constructor() {
             )
             .setBackBuffer(BACK_BUFFER_MS, true)
             .setPrioritizeTimeOverSizeThresholds(true)
-            .setTargetBufferBytes(C.LENGTH_UNSET)
+            .setTargetBufferBytes(PlayerConfig.SHORTS_TARGET_BUFFER_BYTES)
             .build()
 
         val trackSelector = DefaultTrackSelector(

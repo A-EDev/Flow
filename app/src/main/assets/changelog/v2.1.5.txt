@@ -81,6 +81,8 @@ FIXES AND STABILITY
 - Fix video player supression  #453
 - Fix content preference backup #452
 - Fix low resolution casting #299
+- Fix shorts player disable option #466
+- Fix music playlist delete path #471
 
 ENGINE
 - Improve topic maturity detection for better recommendations #281

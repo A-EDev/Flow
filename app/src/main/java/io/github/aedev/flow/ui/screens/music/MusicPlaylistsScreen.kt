@@ -115,7 +115,7 @@ fun MusicPlaylistsScreen(
                                 onClick = { onPlaylistClick(playlist) },
                                 onDownload = {},
                                 onRename = {},
-                                onDelete = {}
+                                onDelete = { playlistToDelete = playlist }
                             )
                         }
                     }

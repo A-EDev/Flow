@@ -116,7 +116,12 @@ fun NavGraphBuilder.flowAppGraph(
                 }
             },
             onShortClick = { video ->
-                navController.navigate("shorts?startVideoId=${video.id}")
+                if (disableShortsPlayer) {
+                    playerViewModel.playVideo(video)
+                    GlobalPlayerState.setCurrentVideo(video)
+                } else {
+                    navController.navigate("shorts?startVideoId=${video.id}")
+                }
             },
             onSearchClick = {
                 navController.navigate("search")
@@ -184,7 +189,11 @@ fun NavGraphBuilder.flowAppGraph(
                 }
             },
             onShortClick = { videoId ->
-                navController.navigate("shorts?startVideoId=$videoId")
+                if (disableShortsPlayer) {
+                    navController.navigate("player/$videoId")
+                } else {
+                    navController.navigate("shorts?startVideoId=$videoId")
+                }
             },
             onChannelClick = { channelUrl ->
                 val encodedUrl = channelUrl.replace("/", "%2F").replace(":", "%3A")
@@ -508,7 +517,11 @@ fun NavGraphBuilder.flowAppGraph(
                 }
             },
             onShortClick = { videoId ->
-                navController.navigate("shorts?startVideoId=$videoId")
+                if (disableShortsPlayer) {
+                    navController.navigate("player/$videoId")
+                } else {
+                    navController.navigate("shorts?startVideoId=$videoId")
+                }
             },
             onPlaylistClick = { playlistId ->
                 navController.navigate("playlist/$playlistId")
@@ -527,7 +540,11 @@ fun NavGraphBuilder.flowAppGraph(
                 navController.navigate("player/${track.videoId}")
             },
             onShortClick = { videoId ->
-                navController.navigate("shorts?startVideoId=$videoId")
+                if (disableShortsPlayer) {
+                    navController.navigate("player/$videoId")
+                } else {
+                    navController.navigate("shorts?startVideoId=$videoId")
+                }
             },
             onMusicClick = { track, queue ->
                 musicPlayerViewModel.loadAndPlayTrack(track, queue, "History")
