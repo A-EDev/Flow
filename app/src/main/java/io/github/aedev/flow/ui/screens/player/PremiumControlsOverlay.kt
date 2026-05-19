@@ -42,9 +42,12 @@ import kotlinx.coroutines.launch
 
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.zIndex
 import io.github.aedev.flow.R
 import io.github.aedev.flow.player.CastHelper
+import io.github.aedev.flow.data.local.DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.ui.components.pressScale
 import org.schabi.newpipe.extractor.stream.StreamSegment
 import kotlin.math.abs
@@ -154,7 +157,16 @@ fun PremiumControlsOverlay(
     val overlaySleepTimerEnabled by playerPreferences.overlaySleepTimerEnabled.collectAsState(initial = false)
     val overlaySpeedIndicatorEnabled by playerPreferences.overlaySpeedIndicatorEnabled.collectAsState(initial = false)
     val showFullscreenTitle by playerPreferences.showFullscreenTitle.collectAsState(initial = false)
+    val fullscreenSeekbarHorizontalPaddingDp by playerPreferences.fullscreenSeekbarHorizontalPaddingDp.collectAsState(
+        initial = DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
+    )
     val fullscreenSeekbarBottomPadding = if (isFullscreen) 30.dp else 0.dp
+    val topControlHorizontalPadding = if (isFullscreen) 56.dp else 20.dp
+    val topControlVerticalPadding = if (isFullscreen) 8.dp else 0.dp
+    val bottomControlHorizontalPadding = if (isFullscreen) 56.dp else 10.dp
+    val bottomControlsSeekbarOverlap = if (isFullscreen) 0.dp else 14.dp
+    val seekbarHorizontalPadding = if (isFullscreen) fullscreenSeekbarHorizontalPaddingDp.dp else 0.dp
+    val chapterMaxWidth = if (isFullscreen) 240.dp else 96.dp
     val compactQualityLabel = remember(qualityLabel) { qualityLabel?.toCompactQualityLabel() }
     val speedIndicatorLabel = remember(playbackSpeed) { playbackSpeed.toSpeedIndicatorLabel() }
 
@@ -236,7 +248,7 @@ fun PremiumControlsOverlay(
                 Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                    .padding(horizontal = topControlHorizontalPadding, vertical = topControlVerticalPadding),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -551,7 +563,14 @@ fun PremiumControlsOverlay(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 10.dp, end = 10.dp, top = 4.dp, bottom = 0.dp),
+                        .zIndex(1f)
+                        .offset(y = bottomControlsSeekbarOverlap)
+                        .padding(
+                            start = bottomControlHorizontalPadding,
+                            end = bottomControlHorizontalPadding,
+                            top = if (isFullscreen) 4.dp else 0.dp,
+                            bottom = 0.dp
+                        ),
                     horizontalArrangement = Arrangement.Start,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -654,7 +673,7 @@ fun PremiumControlsOverlay(
                                     fontWeight = FontWeight.Medium,
                                     maxLines = 1,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                    modifier = Modifier.widthIn(max = 160.dp)
+                                    modifier = Modifier.widthIn(max = chapterMaxWidth)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
@@ -781,7 +800,9 @@ fun PremiumControlsOverlay(
                         duration = seekDuration,
                         bufferedValue = bufferedPercentage,
                         edgeAligned = !isFullscreen,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = seekbarHorizontalPadding)
                     )
                 }
             } 
@@ -920,15 +941,16 @@ fun SleekLoadingAnimation(modifier: Modifier = Modifier) {
 
 private fun String.toCompactQualityLabel(): String {
     val height = Regex("""\d+""").find(this)?.value?.toIntOrNull()
+        ?.let(QualityManager::normalizeQualityHeight)
     return when (height) {
-        3840, 2160 -> "4K"
-        2560, 1440 -> "QHD"
-        1920, 1080 -> "FHD"
-        1280, 720 -> "HD"
-        854, 480 -> "SD"
-        640, 360 -> "360p"
-        426, 240 -> "240p"
-        256, 144 -> "LD"
+        2160 -> "4K"
+        1440 -> "QHD"
+        1080 -> "FHD"
+        720 -> "HD"
+        480 -> "SD"
+        360 -> "360p"
+        240 -> "240p"
+        144 -> "144p"
         null -> this
         else -> "${height}p"
     }

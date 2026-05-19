@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-18
+DATE: 2026-05-19
 STATUS: PRE-RELEASE
 
 FEATURES
@@ -27,6 +27,7 @@ FEATURES
 - Add block shorts from channels #285
 - Add new watch history search #393
 - Add new sorting options in playlists
+- Add new player seekbar width customization
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361

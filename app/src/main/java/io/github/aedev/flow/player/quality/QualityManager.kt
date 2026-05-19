@@ -20,6 +20,21 @@ class QualityManager(
 ) {
     companion object {
         private const val TAG = "QualityManager"
+
+        fun normalizeQualityHeight(rawHeight: Int): Int {
+            return when {
+                rawHeight <= 0 -> 0
+                rawHeight in setOf(2160, 1440, 1080, 720, 480, 360, 240, 144) -> rawHeight
+                rawHeight >= 3300 -> 2160
+                rawHeight in 2400..3299 -> 1440
+                rawHeight in 1800..2399 -> 1080
+                rawHeight in 1200..1799 -> 720
+                rawHeight in 800..1199 -> 480
+                rawHeight in 560..799 -> 360
+                rawHeight in 300..559 -> 240
+                else -> 144
+            }
+        }
     }
     
     // Quality mode tracking
@@ -91,8 +106,8 @@ class QualityManager(
      */
     fun setManualMode(height: Int) {
         isAdaptiveQualityEnabled = false
-        manualQualityHeight = height
-        Log.d(TAG, "Manual quality mode set: ${height}p (adaptive disabled)")
+        manualQualityHeight = normalizeQualityHeight(height)
+        Log.d(TAG, "Manual quality mode set: ${manualQualityHeight}p (adaptive disabled)")
     }
     
     /**
@@ -154,13 +169,13 @@ class QualityManager(
         return listOf(
             QualityOption(height = 0, label = "Auto", bitrate = 0L)
         ) + availableVideoStreams
-            .distinctBy { it.height }
-            .sortedByDescending { it.height }
-            .map { 
+            .groupBy { normalizeQualityHeight(it.height) }
+            .toSortedMap(compareByDescending { it })
+            .map { (height, streams) ->
                 QualityOption(
-                    height = it.height,
-                    label = "${it.height}p",
-                    bitrate = it.bitrate.toLong()
+                    height = height,
+                    label = "${height}p",
+                    bitrate = streams.maxOfOrNull { it.bitrate.toLong() } ?: 0L
                 )
             }
     }
@@ -189,24 +204,25 @@ class QualityManager(
         
         // Find the stream matching this height
         val targetStream = availableVideoStreams
-            .filter { it.height == height }
+            .filter { normalizeQualityHeight(it.height) == height }
             .minWithOrNull(
                 compareBy<VideoStream> { VideoCodecUtils.playbackCodecRank(it) }
                     .thenByDescending { it.bitrate }
             )
         if (targetStream == null) {
-            Log.w(TAG, "No stream found for ${height}p, available: ${availableVideoStreams.map { it.height }}")
+            Log.w(TAG, "No stream found for ${height}p, available: ${availableVideoStreams.map { normalizeQualityHeight(it.height) }}")
             return false
         }
         
         currentVideoStream = targetStream
         if (isDashSource) {
-            switchDashQualitySeamlessly(height)
+            switchDashQualitySeamlessly(targetStream.height)
         } else {
             onQualitySwitch(targetStream, currentPosition)
         }
         
-        stateFlow.value = stateFlow.value.copy(currentQuality = height, effectiveQuality = height)
+        val normalizedHeight = normalizeQualityHeight(targetStream.height)
+        stateFlow.value = stateFlow.value.copy(currentQuality = normalizedHeight, effectiveQuality = normalizedHeight)
         return true
     }
     
@@ -241,7 +257,7 @@ class QualityManager(
             
             stateFlow.value = stateFlow.value.copy(
                 currentQuality = 0,
-                effectiveQuality = targetStream.height
+                effectiveQuality = normalizeQualityHeight(targetStream.height)
             )
             lastAdaptiveQualityHeight = targetStream.height
         } else {
@@ -338,7 +354,7 @@ class QualityManager(
         
         stateFlow.value = stateFlow.value.copy(
             currentQuality = 0,
-            effectiveQuality = targetStream.height
+            effectiveQuality = normalizeQualityHeight(targetStream.height)
         )
     }
     
@@ -451,7 +467,7 @@ class QualityManager(
             streamErrorCount = 0
             
             stateFlow.value = stateFlow.value.copy(
-                currentQuality = lowerQualityStream.height,
+                currentQuality = normalizeQualityHeight(lowerQualityStream.height),
                 isBuffering = true
             )
             
@@ -479,7 +495,7 @@ class QualityManager(
             currentVideoStream = lowerQualityStream
             
             stateFlow.value = stateFlow.value.copy(
-                effectiveQuality = lowerQualityStream.height
+                effectiveQuality = normalizeQualityHeight(lowerQualityStream.height)
             )
             
             return lowerQualityStream

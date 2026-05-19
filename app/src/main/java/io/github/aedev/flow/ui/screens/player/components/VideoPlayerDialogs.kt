@@ -1045,17 +1045,7 @@ private fun PlayerSettingsQualityPage(
 }
 
 private fun QualityOption.displayLabel(): String {
-    return when (height) {
-        3840, 2160 -> "2160p / 4K"
-        2560, 1440 -> "1440p / QHD"
-        1920, 1080 -> "1080p / FHD"
-        1280, 720 -> "720p / HD"
-        854, 480 -> "480p / SD"
-        640, 360 -> "360p"
-        426, 240 -> "240p"
-        256, 144 -> "144p / LD"
-        else -> label.takeIf { it.isNotBlank() } ?: "${height}p"
-    }
+    return label.takeIf { it.isNotBlank() } ?: "${height}p"
 }
 
 @Composable

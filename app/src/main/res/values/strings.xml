@@ -536,6 +536,12 @@
     <string name="player_adaptive_size_subtitle">Use the video format for player height. Turn off for fixed 16:9.</string>
     <string name="player_show_title_title">Show Video Title</string>
     <string name="player_show_title_subtitle">Display the video title below the top bar while in fullscreen mode</string>
+    <string name="player_fullscreen_seekbar_width_title">Fullscreen Seekbar Width</string>
+    <string name="player_fullscreen_seekbar_width_subtitle">%1$d dp padding on each side</string>
+    <string name="player_fullscreen_seekbar_width_full">Full width</string>
+    <string name="player_fullscreen_seekbar_width_default">Default</string>
+    <string name="player_fullscreen_seekbar_width_custom">Custom</string>
+    <string name="player_fullscreen_seekbar_width_value">%1$d dp</string>
     <!-- Lyrics Provider -->
     <string name="lyrics_provider_title">Lyrics Provider</string>
     <string name="lyrics_provider_subtitle">Choose your preferred source for song lyrics</string>

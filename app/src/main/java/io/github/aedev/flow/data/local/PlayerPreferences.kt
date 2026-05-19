@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.map
 private val Context.playerPreferencesDataStore: DataStore<Preferences> by preferencesDataStore(name = "player_preferences")
 
 const val DEEP_FLOW_NEVER_EXPIRES_HOURS = 0
+const val DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP = 48
+const val MAX_FULLSCREEN_SEEKBAR_PADDING_DP = 120
 val DEFAULT_NAV_TAB_ORDER = listOf(0, 1, 2, 3, 4, 5, 6)
 
 class PlayerPreferences(private val context: Context) {
@@ -143,6 +145,8 @@ class PlayerPreferences(private val context: Context) {
         // Fullscreen Player
         val SHOW_FULLSCREEN_TITLE = booleanPreferencesKey("show_fullscreen_title")
         val ADAPTIVE_PLAYER_SIZE_ENABLED = booleanPreferencesKey("adaptive_player_size_enabled")
+        val FULLSCREEN_SEEKBAR_PADDING_MODE = stringPreferencesKey("fullscreen_seekbar_padding_mode")
+        val FULLSCREEN_SEEKBAR_CUSTOM_PADDING_DP = intPreferencesKey("fullscreen_seekbar_custom_padding_dp")
         
         // Mini Player Customizations
         val MINI_PLAYER_SCALE = floatPreferencesKey("mini_player_scale")
@@ -875,6 +879,47 @@ class PlayerPreferences(private val context: Context) {
             preferences[Keys.ADAPTIVE_PLAYER_SIZE_ENABLED] = enabled
         }
     }
+
+    val fullscreenSeekbarPaddingMode: Flow<FullscreenSeekbarPaddingMode> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.FULLSCREEN_SEEKBAR_PADDING_MODE]
+                ?.let { storedMode -> runCatching { FullscreenSeekbarPaddingMode.valueOf(storedMode) }.getOrNull() }
+                ?: FullscreenSeekbarPaddingMode.DEFAULT
+        }
+
+    suspend fun setFullscreenSeekbarPaddingMode(mode: FullscreenSeekbarPaddingMode) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.FULLSCREEN_SEEKBAR_PADDING_MODE] = mode.name
+        }
+    }
+
+    val fullscreenSeekbarCustomPaddingDp: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            (preferences[Keys.FULLSCREEN_SEEKBAR_CUSTOM_PADDING_DP] ?: DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP)
+                .coerceIn(0, MAX_FULLSCREEN_SEEKBAR_PADDING_DP)
+        }
+
+    suspend fun setFullscreenSeekbarCustomPaddingDp(paddingDp: Int) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.FULLSCREEN_SEEKBAR_CUSTOM_PADDING_DP] =
+                paddingDp.coerceIn(0, MAX_FULLSCREEN_SEEKBAR_PADDING_DP)
+        }
+    }
+
+    val fullscreenSeekbarHorizontalPaddingDp: Flow<Int> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            val mode = preferences[Keys.FULLSCREEN_SEEKBAR_PADDING_MODE]
+                ?.let { storedMode -> runCatching { FullscreenSeekbarPaddingMode.valueOf(storedMode) }.getOrNull() }
+                ?: FullscreenSeekbarPaddingMode.DEFAULT
+            val customPadding = (preferences[Keys.FULLSCREEN_SEEKBAR_CUSTOM_PADDING_DP] ?: DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP)
+                .coerceIn(0, MAX_FULLSCREEN_SEEKBAR_PADDING_DP)
+
+            when (mode) {
+                FullscreenSeekbarPaddingMode.FULL_WIDTH -> 0
+                FullscreenSeekbarPaddingMode.DEFAULT -> DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
+                FullscreenSeekbarPaddingMode.CUSTOM -> customPadding
+            }
+        }
     
     // Subtitles
     val subtitlesEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
@@ -1830,10 +1875,16 @@ enum class VideoQuality(val label: String, val height: Int) {
 
 enum class SliderStyle {
     DEFAULT,
-    METROLIST,      
-    METROLIST_SLIM, 
+    METROLIST,
+    METROLIST_SLIM,
     SQUIGGLY,
-    SLIM         
+    SLIM
+}
+
+enum class FullscreenSeekbarPaddingMode {
+    FULL_WIDTH,
+    DEFAULT,
+    CUSTOM
 }
 
 enum class HomeViewMode {

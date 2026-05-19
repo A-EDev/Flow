@@ -353,7 +353,9 @@ class EnhancedPlayerManager private constructor() {
         player?.addListener(object : Player.Listener {
             override fun onVideoSizeChanged(videoSize: VideoSize) {
                 if (videoSize.height > 0) {
-                    _playerState.value = _playerState.value.copy(effectiveQuality = videoSize.height)
+                    _playerState.value = _playerState.value.copy(
+                        effectiveQuality = QualityManager.normalizeQualityHeight(videoSize.height)
+                    )
                 }
             }
 
@@ -532,11 +534,11 @@ class EnhancedPlayerManager private constructor() {
         // Update state with available options
         _playerState.value = _playerState.value.copy(
             currentVideoId = videoId,
-            effectiveQuality = currentVideoStream?.height ?: 0,
+            effectiveQuality = currentVideoStream?.height?.let(QualityManager::normalizeQualityHeight) ?: 0,
             availableQualities = qualityManager?.buildQualityOptions() ?: emptyList(),
             availableAudioTracks = StreamProcessor.toAudioTrackOptions(availableAudioStreams),
             availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles),
-            currentQuality = if (isAutoMode) 0 else (currentVideoStream?.height ?: 0),
+            currentQuality = if (isAutoMode) 0 else (currentVideoStream?.height?.let(QualityManager::normalizeQualityHeight) ?: 0),
             currentAudioTrack = availableAudioStreams.indexOf(currentAudioStream).coerceAtLeast(0),
             isLive = currentIsLiveStream,
             isAtLiveEdge = false,
