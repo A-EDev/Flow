@@ -245,7 +245,7 @@
     <string name="appearance_themes_count_filtered">%1$d %2$s المواضيع</string>
     <string name="appearance_applied_toast">محدد: %1$s</string>
     <string name="app_icon_picker_subtitle">اختر نمط أيقونة المشغل. سيتم تطبيق التغيير فورًا وسيتم تحديث المشغل لفترة وجيزة.</string>
-    <string name="app_icon_picker_warning">تنبيه: قد يؤدي تغيير الأيقونات إلى إزالة اختصار التطبيق من شاشتك الرئيسية مؤقتًا باستخدام آلية نظام أندرويد. اضغط مطولًا على مشغل التطبيقات لإعادته مرة أخري إذا لزم الأمر.</string>
+    <string name="app_icon_picker_warning">تنبيه: تغيير الأيقونات يستخدم آلية في نظام أندرويد و التي تؤدي إلى إزالة إختصار التطبيق من شاشتك الرئيسية. اضغط مطولاً على مشغل التطبيقات لإعادتها مرة أخري إذا لزم الأمر.</string>
     <string name="icon_name_amoled">AMOLED مظلم</string>
     <string name="icon_name_monochrome">أحادي اللون (رمادي)</string>
     <string name="icon_name_ghost">شبحي</string>
@@ -330,14 +330,14 @@
     <string name="shorts">شورتز</string>
     <string name="subscribers">المشتركون</string>
     <string name="library_section_header">محتواك</string>
-    <string name="library_liked_videos_label">مقاطع الفيديو التي أعجبتني</string>
+    <string name="library_liked_videos_label">الإعجابات</string>
     <string name="library_saved_shorts_label">الشورتز المحفوظة</string>
     <string name="library_settings_data_header"><![CDATA[الإعدادات والبيانات]]></string>
     <string name="library_manage_data_label">أدر البيانات</string>
     <string name="about">حول</string>
     <string name="empty_description">لا يوجد وصف</string>
     <string name="clear_watch_history_alert_body">هذا سيزيل كل المقاطع من سجل المشاهدة. لا يمكنك التراجع عن هذا الإجراء.</string>
-    <string name="empty_liked">لا مقاطع معجب بها</string>
+    <string name="empty_liked">لا إعجابات</string>
     <string name="empty_liked_body">المقاطع المعجب بها ستظهر هنا</string>
     <string name="video">مقطع</string>
     <string name="up_next">التالي</string>
@@ -1031,7 +1031,7 @@
     <string name="library_manage_data_subtitle">مسح ذاكرة التخزين المؤقت و التاريخ</string>
     <string name="clear">مسح</string>
     <string name="liked_music">موسيقى أعجبتني</string>
-    <string name="liked_videos">مقاطع الفيديو التي أعجبتني</string>
+    <string name="liked_videos">الإعجابات</string>
     <string name="share_song">مشاركة الأغنية</string>
     <string name="song">أغنية</string>
     <string name="playing_from">اللعب من</string>
@@ -1045,8 +1045,8 @@
     <string name="check_out_video_template">تحقق من هذا الفيديو: %1$s\nhttps://youtube.com/watch?v=%2$s</string>
     <string name="video_marked_not_interested">تم وضع علامة \"غير مهتم\" على الفيديو</string>
     <string name="play_mode_suggestion_title">اقتراح وضع اللعب</string>
-    <string name="empty_offline_title">غير متصل %1$s</string>
-    <string name="empty_offline_body">الملف المحمل %1$s سيظهر هنا.\nاستمتع بمحتواك حتى بدون اتصال بالإنترنت.</string>
+    <string name="empty_offline_title">%1$s المحلية</string>
+    <string name="empty_offline_body">ملفات %1$s المحملة ستظهر هنا.\nاستمتع بمحتواك حتى بدون اتصال بالإنترنت.</string>
     <string name="cd_video_thumbnail">صورة مصغرة للفيديو لـ %1$s</string>
     <string name="cd_track_artwork">غلاف الأغنية لـ %1$s</string>
     <string name="watch_later_unsave">إلغاء حفظ المشاهدة لاحقًا</string>
@@ -1345,7 +1345,7 @@
     <string name="settings_item_app_language">لغة التطبيق</string>
     <string name="settings_item_app_language_subtitle">استخدم لغة جهازك أو اختر لغة يدويًا</string>
     <string name="settings_language_dialog_title">إختر لغة التطبيق</string>
-    <string name="settings_language_system_default">‌الافتراضي للنظام</string>
+    <string name="settings_language_system_default">‌الإفتراضي للنظام</string>
     <string name="support_flow_patreon">إدعم Flow على Patreon</string>
     <string name="select_text">حدد النص</string>
     <string name="resume">إستأنف</string>
@@ -1513,4 +1513,26 @@
     <string name="discovery_rejections">مرفوض</string>
     <string name="discovery_shorts_seen">Shorts تم رؤيته</string>
     <string name="discovery_shorts_seen_detail">repeat guard</string>
+    <string name="search_watch_history">البحث في سجل المشاهدة</string>
+    <string name="history_filter_all_years">كل الوقت</string>
+    <string name="history_sort_newest">الأحدث أولاً</string>
+    <string name="history_sort_oldest">الأقدم أولاً</string>
+    <string name="history_no_results">لا يوجد سجل مطابق</string>
+    <string name="history_no_results_body">جرب بحثًا أو فلتر مختلف</string>
+    <string name="empty_liked_videos">لا توجد مقاطع فيديو أعجبتك</string>
+    <string name="playlist_sort_most_popular">الأكثر رواجاً</string>
+    <string name="playlist_sort_date_published_newest">وقت النشر (الأحدث)</string>
+    <string name="playlist_sort_date_published_oldest">وقت النشر (الأقدم)</string>
+    <string name="remove_selected_videos_title">هل تريد حذف %1$d فيديو؟</string>
+    <string name="remove_selected_playlist_text">سيتم حذفها من قائمة التشغيل هذه.</string>
+    <string name="remove_selected_watch_later_text">سيتم حذفها من المشاهدة لاحقاً.</string>
+    <string name="empty_liked_music_body">ستظهر الأغاني التي تعجبك هنا</string>
+    <string name="empty_liked_music">لا يوجد موسيقى أعجبتك</string>
+    <string name="likes_count_template">%1$d إعجاب</string>
+    <string name="playlist_sort_options">‏خيارات فرز قائمة التشغيل</string>
+    <string name="playlist_sort_manual">يدوي</string>
+    <string name="playlist_sort_date_added_newest">تاريخ الإضافة (الأحدث)</string>
+    <string name="playlist_sort_date_added_oldest">تاريخ الإضافة (الأقدم)</string>
+    <string name="player_settings_overlay_speed_indicator">مؤشر سرعة التشغيل</string>
+    <string name="player_settings_overlay_speed_indicator_subtitle">إعرض السرعة الحالية على واجهة مشغل الفيديو</string>
 </resources>
