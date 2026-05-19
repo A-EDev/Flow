@@ -1186,7 +1186,7 @@
     <string name="template_preamp">مضخم أولي: %1$.1f dB</string>
     <string name="template_gain">%1$.1f ديسبل</string>
     <string name="template_q">%1$.1f</string>
-    <string name="now_playing">قيد التشغيل</string>
+    <string name="now_playing">يعرض الآن</string>
     <string name="player_settings_overlay_controls">متحكمات التراكب</string>
     <string name="player_settings_shorts_background_play">تشغيل الفيديوهات القصيرة في الخلفية</string>
     <string name="player_settings_shorts_background_play_subtitle">استمر في تشغيل الفيديوهات القصيرة عندما يكون التطبيق في الخلفية</string>
