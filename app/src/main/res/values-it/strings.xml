@@ -849,14 +849,14 @@
     <string name="download_settings_title">Impostazioni dei download</string>
     <string name="permissions_header">Autorizzazioni</string>
     <string name="files_access_title">Accesso ai file</string>
-    <string name="files_access_granted_subtitle">Autorizzato — i download appaiono immediatamente</string>
-    <string name="files_access_denied_subtitle">Non autorizzato — tocca per abilitare e visualizzare tutti i download</string>
+    <string name="files_access_granted_subtitle">Consentito — i download appaiono immediatamente</string>
+    <string name="files_access_denied_subtitle">Non consentito — tocca per abilitare e visualizzare tutti i download</string>
     <string name="media_access_title">Accesso a foto e video</string>
-    <string name="media_access_granted_subtitle">Autorizzato</string>
-    <string name="media_access_denied_subtitle">Non autorizzato — tocca per abilitare</string>
+    <string name="media_access_granted_subtitle">Consentito</string>
+    <string name="media_access_denied_subtitle">Non consentito — tocca per abilitare</string>
     <string name="audio_access_title">Accesso a musica e audio</string>
-    <string name="audio_access_granted_subtitle">Autorizzato</string>
-    <string name="audio_access_denied_subtitle">Non autorizzato — tocca per abilitare</string>
+    <string name="audio_access_granted_subtitle">Consentito</string>
+    <string name="audio_access_denied_subtitle">Non consentito — tocca per abilitare</string>
     <string name="storage_header">Archiviazione</string>
     <string name="internal_storage_label">Archiviazione interna</string>
     <string name="free_space_template">%1$s libero</string>
@@ -1538,4 +1538,16 @@
     <string name="player_fullscreen_seekbar_width_default">Predefinita</string>
     <string name="player_fullscreen_seekbar_width_custom">Personalizzata</string>
     <string name="player_fullscreen_seekbar_width_value">%1$d dp</string>
+    <string name="upcoming_video_overlay_title">Questo video è programmato. La riproduzione sarà disponibile all\'inizio della diretta.</string>
+    <string name="upcoming_video_reminder_action">Avvisami</string>
+    <string name="upcoming_video_reminder_enabled">Promemoria impostato</string>
+    <string name="upcoming_video_reminder_badge">Promemoria abilitato</string>
+    <string name="subscriptions_video_section_title">Iscrizioni video</string>
+    <string name="subscriptions_music_section_title">Iscrizioni musicali</string>
+    <string name="subscriptions_quick_access_title">Accesso rapido</string>
+    <string name="subscriptions_compact_header">Vai subito ai tuoi ultimi canali iscritti.</string>
+    <string name="subscriptions_compact_header_with_music">I canali musicali sono contrassegnati in linea per mantenere il feed compatto.</string>
+    <string name="subscriptions_music_chip_label">Musica</string>
+    <string name="subscriptions_music_badge_cd">Iscrizioni musicali</string>
+    <string name="no_subscriptions_found">Nessuna iscrizione trovata</string>
 </resources>
