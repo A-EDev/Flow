@@ -323,7 +323,7 @@
     <string name="content_settings_related_card_style_subtitle">اختر كيفية ظهور مقاطع الفيديو ذات الصلة في لوحة المشغل</string>
     <string name="content_settings_related_card_compact">مدمج</string>
     <string name="content_settings_related_card_compact_desc">الصورة المصغرة و المعلومات جنبًا إلى جنب</string>
-    <string name="content_settings_related_card_full_width">العرض الكامل</string>
+    <string name="content_settings_related_card_full_width">عرض كامل</string>
     <string name="content_settings_related_card_full_width_desc">صورة مصغرة كبيرة مع العنوان أسفله</string>
     <string name="subscriptions_search_placeholder">إبحث في الاشتراكات...</string>
     <string name="empty_subscriptions_body">اشترك بالقنوات لترى\nأحدث مقاطعهم هنا</string>
@@ -655,7 +655,7 @@
     <string name="download_settings_title">إعدادات التحميل</string>
     <string name="storage_header">التخزين</string>
     <string name="internal_storage_label">التخزين الداخلي</string>
-    <string name="free_space_template">%1$s متاحة</string>
+    <string name="free_space_template">%1$s المساحة الفارغة</string>
     <string name="total_space_template">المجموع: %1$s</string>
     <string name="location_label">الموقع</string>
     <string name="internal_app_storage_label">التخزين الداخلي للتطبيق</string>
@@ -1044,7 +1044,7 @@
     <string name="bitrate_label">معدل البت</string>
     <string name="check_out_video_template">تحقق من هذا الفيديو: %1$s\nhttps://youtube.com/watch?v=%2$s</string>
     <string name="video_marked_not_interested">تم وضع علامة \"غير مهتم\" على الفيديو</string>
-    <string name="play_mode_suggestion_title">اقتراح وضع اللعب</string>
+    <string name="play_mode_suggestion_title">إقتراح وضع التشغيل</string>
     <string name="empty_offline_title">%1$s المحلية</string>
     <string name="empty_offline_body">ملفات %1$s المحملة ستظهر هنا.\nاستمتع بمحتواك حتى بدون اتصال بالإنترنت.</string>
     <string name="cd_video_thumbnail">صورة مصغرة للفيديو لـ %1$s</string>
@@ -1535,4 +1535,22 @@
     <string name="playlist_sort_date_added_oldest">تاريخ الإضافة (الأقدم)</string>
     <string name="player_settings_overlay_speed_indicator">مؤشر سرعة التشغيل</string>
     <string name="player_settings_overlay_speed_indicator_subtitle">إعرض السرعة الحالية على واجهة مشغل الفيديو</string>
+    <string name="upcoming_video_overlay_title">‎هذا الفيديو مُجدول. سيتم إتاحة التشغيل عند بدء البث المباشر.</string>
+    <string name="upcoming_video_reminder_action">ذكرني</string>
+    <string name="upcoming_video_reminder_badge">تم تفعيل التذكير</string>
+    <string name="subscriptions_video_section_title">إشتراكات الفيديو</string>
+    <string name="subscriptions_music_section_title">إشتراكات الموسيقى</string>
+    <string name="subscriptions_quick_access_title">الوصول السريع</string>
+    <string name="subscriptions_compact_header">‎إنتقل إلى أحدث قنواتك التي اشتركت بها.</string>
+    <string name="subscriptions_compact_header_with_music">‏يتم تمييز قنوات الموسيقى بشكل مضمن للحفاظ على حجم البث صغيرًا.</string>
+    <string name="subscriptions_music_badge_cd">‎إشتراك الموسيقى</string>
+    <string name="no_subscriptions_found">لم يتم العثور على أي إشتراكات</string>
+    <string name="player_fullscreen_seekbar_width_title">حجم عرض شريط التقدم في وضع ملء الشاشة</string>
+    <string name="player_fullscreen_seekbar_width_subtitle">%1$d dp ملء علي كل جانب</string>
+    <string name="player_fullscreen_seekbar_width_full">العرض الكامل</string>
+    <string name="player_fullscreen_seekbar_width_default">الإفتراضي</string>
+    <string name="player_fullscreen_seekbar_width_custom">‏مخصص</string>
+    <string name="player_fullscreen_seekbar_width_value">%1$d dp</string>
+    <string name="upcoming_video_reminder_enabled">التذكير محدد</string>
+    <string name="subscriptions_music_chip_label">الموسيقى</string>
 </resources>
