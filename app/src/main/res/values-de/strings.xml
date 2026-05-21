@@ -617,4 +617,11 @@
     <string name="skip_button_title">Schaltflächen „Überspringen“ anzeigen</string>
     <string name="player_adaptive_size_title">Anpassung der Player-Größe</string>
     <string name="player_adaptive_size_subtitle">Verwende das Videoformat für die Höhe des Players. Deaktiviere diese Option für ein festes 16:9-Seitenverhältnis.</string>
+    <string name="appearance_system_light_theme">Helles Design</string>
+    <string name="appearance_system_dark_theme">Dunkles Design</string>
+    <string name="icon_name_material_sky">Material Sky</string>
+    <string name="player_fullscreen_seekbar_width_subtitle">%1$d Dezimalstellen auf jeder Seite</string>
+    <string name="player_fullscreen_seekbar_width_full">Volle Breite</string>
+    <string name="player_fullscreen_seekbar_width_default">Standard</string>
+    <string name="player_fullscreen_seekbar_width_custom">Benutzerdefiniert</string>
 </resources>
