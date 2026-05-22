@@ -1578,4 +1578,16 @@
     <string name="player_fullscreen_seekbar_width_default">Par défaut</string>
     <string name="player_fullscreen_seekbar_width_custom">Personnalisé</string>
     <string name="player_fullscreen_seekbar_width_value">%1$d dp</string>
+    <string name="upcoming_video_overlay_title">Cette vidéo est programmée. Elle sera disponible dès sa mise en ligne.</string>
+    <string name="upcoming_video_reminder_action">Rappelle-le-moi</string>
+    <string name="upcoming_video_reminder_enabled">Ensemble de rappels</string>
+    <string name="upcoming_video_reminder_badge">Rappel activé</string>
+    <string name="subscriptions_video_section_title">Abonnements vidéo</string>
+    <string name="subscriptions_music_section_title">Abonnements musicaux</string>
+    <string name="subscriptions_quick_access_title">Accès rapide</string>
+    <string name="subscriptions_compact_header">Accédez directement à vos dernières chaînes abonnées.</string>
+    <string name="subscriptions_compact_header_with_music">Les chaînes musicales sont indiquées en ligne afin que le flux reste concis.</string>
+    <string name="subscriptions_music_chip_label">Musique</string>
+    <string name="subscriptions_music_badge_cd">Abonnement musical</string>
+    <string name="no_subscriptions_found">Aucun abonnement trouvé</string>
 </resources>
