@@ -1590,4 +1590,6 @@
     <string name="subscriptions_music_chip_label">Musique</string>
     <string name="subscriptions_music_badge_cd">Abonnement musical</string>
     <string name="no_subscriptions_found">Aucun abonnement trouvé</string>
+    <string name="player_appearance_remember_brightness_title">N\'oubliez pas la luminosité</string>
+    <string name="player_appearance_remember_brightness_subtitle">Conserver le dernier réglage de luminosité du lecteur pour les prochaines vidéos</string>
 </resources>
