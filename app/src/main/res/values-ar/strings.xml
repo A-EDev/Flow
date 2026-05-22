@@ -1553,4 +1553,6 @@
     <string name="player_fullscreen_seekbar_width_value">%1$d dp</string>
     <string name="upcoming_video_reminder_enabled">التذكير محدد</string>
     <string name="subscriptions_music_chip_label">الموسيقى</string>
+    <string name="player_appearance_remember_brightness_title">تذكر مستوي السطوع</string>
+    <string name="player_appearance_remember_brightness_subtitle">أعد إستخدام مستوى سطوع المشغل الأخير في مقاطع الفيديو التالية</string>
 </resources>
