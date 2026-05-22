@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-19
+DATE: 2026-05-22
 STATUS: PRE-RELEASE
 
 FEATURES
@@ -60,6 +60,7 @@ IMPROVEMENTS
 - Improve playlists and library screens UI design
 - Improve subtitle handling #271
 - Improve upcoming videos handling and add a reminder #470
+- Improve mini video player animaton #464
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378
@@ -95,3 +96,6 @@ ENGINE
 - Improve brain state persistence
 - Connect YouTube watch history to recommendations #389
 - Add Interest Anchor Queries to improve recommendations
+
+CORE:
+- Add native channel content extraction via InnerTube API

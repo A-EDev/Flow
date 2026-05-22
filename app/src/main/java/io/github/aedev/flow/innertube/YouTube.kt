@@ -28,6 +28,7 @@ import io.github.aedev.flow.innertube.models.getItems
 import io.github.aedev.flow.innertube.models.oddElements
 import io.github.aedev.flow.innertube.models.response.AccountMenuResponse
 import io.github.aedev.flow.innertube.models.response.BrowseResponse
+import io.github.aedev.flow.innertube.models.response.ChannelVideosResponse
 import io.github.aedev.flow.innertube.models.response.CreatePlaylistResponse
 import io.github.aedev.flow.innertube.models.response.EditPlaylistResponse
 import io.github.aedev.flow.innertube.models.response.FeedbackResponse
@@ -74,6 +75,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import java.net.Proxy
+import java.util.Locale
 import kotlin.random.Random
 
 /**
@@ -82,6 +84,8 @@ import kotlin.random.Random
  */
 object YouTube {
     private val innerTube = InnerTube()
+    private const val CHANNEL_VIDEOS_PARAMS = "EgZ2aWRlb3PyBgQKAjoA"
+    private const val CHANNEL_LIVE_PARAMS = "EgdzdHJlYW1z8gYECgJ6AA%3D%3D"
 
     var locale: YouTubeLocale
         get() = innerTube.locale
@@ -276,6 +280,184 @@ object YouTube {
         ChannelVideoSearchResult(videos = videos, continuation = nextContinuation)
     }
 
+    suspend fun channelVideos(
+        channelId: String,
+        channelName: String,
+        channelThumbnailUrl: String,
+    ): Result<ChannelVideoSearchResult> =
+        channelVideosPage(channelId, channelName, channelThumbnailUrl, CHANNEL_VIDEOS_PARAMS, false)
+
+    suspend fun channelVideosContinuation(
+        continuation: String,
+        channelId: String,
+        channelName: String,
+        channelThumbnailUrl: String,
+    ): Result<ChannelVideoSearchResult> =
+        channelVideosPage(channelId, channelName, channelThumbnailUrl, null, false, continuation)
+
+    suspend fun channelLiveStreams(
+        channelId: String,
+        channelName: String,
+        channelThumbnailUrl: String,
+    ): Result<ChannelVideoSearchResult> =
+        channelVideosPage(channelId, channelName, channelThumbnailUrl, CHANNEL_LIVE_PARAMS, true)
+
+    suspend fun channelLiveStreamsContinuation(
+        continuation: String,
+        channelId: String,
+        channelName: String,
+        channelThumbnailUrl: String,
+    ): Result<ChannelVideoSearchResult> =
+        channelVideosPage(channelId, channelName, channelThumbnailUrl, null, true, continuation)
+
+    private suspend fun channelVideosPage(
+        channelId: String,
+        channelName: String,
+        channelThumbnailUrl: String,
+        params: String?,
+        isLive: Boolean,
+        continuation: String? = null,
+    ): Result<ChannelVideoSearchResult> = runCatching {
+        val httpResponse = innerTube.channelBrowse(
+            client = WEB,
+            channelId = if (continuation == null) channelId else null,
+            params = params,
+            continuation = continuation,
+        )
+        val rawBody = httpResponse.bodyAsText()
+        val lenientJson = Json { ignoreUnknownKeys = true; explicitNulls = false }
+        val response = lenientJson.decodeFromString<ChannelVideosResponse>(rawBody)
+        parseChannelVideosResponse(response, channelId, channelName, channelThumbnailUrl, isLive)
+    }
+
+    private fun parseChannelVideosResponse(
+        response: ChannelVideosResponse,
+        channelId: String,
+        channelName: String,
+        channelThumbnailUrl: String,
+        isLive: Boolean,
+    ): ChannelVideoSearchResult {
+        val metadata = response.metadata?.channelMetadataRenderer
+        val resolvedChannelId = metadata?.externalChannelId
+            ?: metadata?.externalId
+            ?: channelId
+        val resolvedChannelName = metadata?.title?.takeIf { it.isNotBlank() } ?: channelName
+        val resolvedThumbnail = metadata?.avatar?.thumbnails
+            ?.maxByOrNull { it.width ?: 0 }
+            ?.url
+            ?: channelThumbnailUrl
+
+        val richItems = mutableListOf<ChannelVideosResponse.RichItem>()
+        response.onResponseReceivedActions
+            ?.flatMap { it.appendContinuationItemsAction?.continuationItems.orEmpty() }
+            ?.let { richItems += it }
+
+        response.continuationContents?.richGridContinuation?.contents
+            ?.let { richItems += it }
+
+        val tabs = response.contents?.twoColumnBrowseResultsRenderer?.tabs.orEmpty()
+        val selectedTab = tabs.firstOrNull { it.tabRenderer?.selected == true }?.tabRenderer
+            ?: tabs.firstOrNull { it.tabRenderer?.content?.richGridRenderer != null }?.tabRenderer
+            ?: tabs.firstOrNull { it.expandableTabRenderer?.content?.richGridRenderer != null }?.expandableTabRenderer
+        selectedTab?.content?.richGridRenderer?.contents?.let { richItems += it }
+
+        val videos = mutableListOf<io.github.aedev.flow.data.model.Video>()
+        var nextContinuation: String? = null
+        richItems.forEach { richItem ->
+            val content = richItem.richItemRenderer?.content
+            content?.lockupViewModel
+                ?.let { parseLockupViewModel(it, resolvedChannelId, resolvedChannelName, resolvedThumbnail, isLive) }
+                ?.let { videos.add(it) }
+            content?.videoRenderer
+                ?.let { parseBrowseVideoRenderer(it, resolvedChannelId, resolvedChannelName, resolvedThumbnail, isLive) }
+                ?.let { videos.add(it) }
+            richItem.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token
+                ?.let { nextContinuation = it }
+        }
+
+        return ChannelVideoSearchResult(
+            videos = videos.distinctBy { it.id },
+            continuation = nextContinuation,
+        )
+    }
+
+    private fun parseLockupViewModel(
+        lockup: ChannelVideosResponse.LockupViewModel,
+        channelId: String,
+        channelName: String,
+        channelThumbnailUrl: String,
+        isLive: Boolean,
+    ): io.github.aedev.flow.data.model.Video? {
+        val videoId = lockup.contentId ?: return null
+        val metadata = lockup.metadata?.lockupMetadataViewModel
+        val title = metadata?.title?.content?.takeIf { it.isNotBlank() } ?: return null
+        val thumbnail = lockup.contentImage?.thumbnailViewModel?.image?.sources
+            ?.maxByOrNull { it.width ?: 0 }
+            ?.url
+            ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
+        val durationText = lockup.contentImage?.thumbnailViewModel?.overlays
+            ?.firstNotNullOfOrNull { overlay ->
+                overlay.thumbnailBottomOverlayViewModel
+                    ?.badges
+                    ?.firstNotNullOfOrNull { it.thumbnailBadgeViewModel?.text }
+            }
+        val parts = metadata?.metadata?.contentMetadataViewModel?.metadataRows
+            ?.firstOrNull()
+            ?.metadataParts
+            ?.mapNotNull { it.text?.content?.takeIf(String::isNotBlank) }
+            .orEmpty()
+        val viewsText = parts.firstOrNull { it.contains("view", ignoreCase = true) || it.contains("watching", ignoreCase = true) }
+            ?: parts.firstOrNull()
+        val uploadText = parts.firstOrNull {
+            !it.contains("view", ignoreCase = true) && !it.contains("watching", ignoreCase = true)
+        }.orEmpty()
+
+        return io.github.aedev.flow.data.model.Video(
+            id = videoId,
+            title = title,
+            channelName = channelName,
+            channelId = channelId,
+            thumbnailUrl = thumbnail,
+            duration = parseLengthText(durationText),
+            viewCount = parseViewCountText(viewsText),
+            uploadDate = uploadText,
+            timestamp = parseRelativeUploadDate(uploadText) ?: System.currentTimeMillis(),
+            channelThumbnailUrl = channelThumbnailUrl,
+            isLive = isLive || viewsText?.contains("watching", ignoreCase = true) == true,
+        )
+    }
+
+    private fun parseBrowseVideoRenderer(
+        r: ChannelVideosResponse.VideoRenderer,
+        channelId: String,
+        channelName: String,
+        channelThumbnailUrl: String,
+        isLive: Boolean,
+    ): io.github.aedev.flow.data.model.Video? {
+        val videoId = r.videoId ?: return null
+        val title = r.title?.textValue()?.takeIf { it.isNotBlank() } ?: return null
+        val thumbnail = r.thumbnail?.thumbnails?.maxByOrNull { it.width ?: 0 }?.url
+            ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
+        val uploadText = r.publishedTimeText?.textValue().orEmpty()
+        val viewsText = r.viewCountText?.textValue()
+        return io.github.aedev.flow.data.model.Video(
+            id = videoId,
+            title = title,
+            channelName = channelName,
+            channelId = channelId,
+            thumbnailUrl = thumbnail,
+            duration = parseLengthText(r.lengthText?.textValue()),
+            viewCount = parseViewCountText(viewsText),
+            uploadDate = uploadText,
+            timestamp = parseRelativeUploadDate(uploadText) ?: System.currentTimeMillis(),
+            channelThumbnailUrl = channelThumbnailUrl,
+            isLive = isLive || viewsText?.contains("watching", ignoreCase = true) == true,
+        )
+    }
+
+    private fun ChannelVideosResponse.SimpleText.textValue(): String? =
+        simpleText ?: runs?.joinToString("") { it.text.orEmpty() }
+
     private fun parseChannelSearchResponse(
         response: io.github.aedev.flow.innertube.models.response.ChannelSearchResponse,
         channelId: String,
@@ -361,8 +543,53 @@ object YouTube {
 
     private fun parseViewCountText(text: String?): Long {
         if (text.isNullOrBlank()) return 0L
-        val digits = text.filter { it.isDigit() || it == ',' }
-        return digits.replace(",", "").toLongOrNull() ?: 0L
+        val normalized = text.lowercase(Locale.US)
+            .replace(",", "")
+            .replace("views", "")
+            .replace("view", "")
+            .replace("watching", "")
+            .trim()
+        val number = Regex("""(\d+(?:\.\d+)?)""").find(normalized)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toDoubleOrNull()
+            ?: return 0L
+        val multiplier = when {
+            normalized.contains("b") -> 1_000_000_000.0
+            normalized.contains("m") -> 1_000_000.0
+            normalized.contains("k") -> 1_000.0
+            else -> 1.0
+        }
+        return (number * multiplier).toLong()
+    }
+
+    private fun parseRelativeUploadDate(text: String?): Long? {
+        val normalized = text?.lowercase(Locale.US)
+            ?.replace("streamed", "")
+            ?.replace("premiered", "")
+            ?.replace("live", "")
+            ?.replace("ago", "")
+            ?.trim()
+            ?: return null
+
+        if (normalized.isBlank()) return null
+        if (normalized.contains("just now") || normalized.contains("today")) return System.currentTimeMillis()
+        if (normalized.contains("yesterday")) return System.currentTimeMillis() - 24L * 60L * 60L * 1000L
+
+        val value = Regex("""(\d+)""").find(normalized)?.groupValues?.getOrNull(1)?.toLongOrNull()
+            ?: return null
+        val unitMillis = when {
+            normalized.contains("second") || normalized.endsWith("s") -> 1_000L
+            normalized.contains("minute") || normalized.endsWith("m") -> 60_000L
+            normalized.contains("hour") || normalized.endsWith("h") -> 3_600_000L
+            normalized.contains("day") || normalized.endsWith("d") -> 86_400_000L
+            normalized.contains("week") || normalized.endsWith("w") -> 7L * 86_400_000L
+            normalized.contains("month") || normalized.endsWith("mo") -> 30L * 86_400_000L
+            normalized.contains("year") || normalized.endsWith("y") -> 365L * 86_400_000L
+            else -> return null
+        }
+
+        return System.currentTimeMillis() - (value * unitMillis)
     }
 
     suspend fun album(browseId: String, withSongs: Boolean = true): Result<AlbumPage> = runCatching {

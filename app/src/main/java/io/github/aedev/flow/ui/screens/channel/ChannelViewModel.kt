@@ -225,7 +225,15 @@ class ChannelViewModel : ViewModel() {
                 val videosTab = currentVideosTab
                 if (videosTab != null) {
                     viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                        loadAllPages(videosTab, channelInfo, _videosAll)
+                        loadAllPagesInnertube(
+                            channelId = channelInfo.id,
+                            channelName = channelInfo.name,
+                            channelThumbnailUrl = channelInfo.bestAvatarUrl(),
+                            isLive = false,
+                            fallbackTab = videosTab,
+                            channelInfo = channelInfo,
+                            target = _videosAll,
+                        )
                     }
                 }
 
@@ -240,7 +248,15 @@ class ChannelViewModel : ViewModel() {
                 val liveTab = currentLiveTab
                 if (liveTab != null) {
                     viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                        loadAllPages(liveTab, channelInfo, _liveAll)
+                        loadAllPagesInnertube(
+                            channelId = channelInfo.id,
+                            channelName = channelInfo.name,
+                            channelThumbnailUrl = channelInfo.bestAvatarUrl(),
+                            isLive = true,
+                            fallbackTab = liveTab,
+                            channelInfo = channelInfo,
+                            target = _liveAll,
+                        )
                     }
                 }
 
@@ -478,6 +494,82 @@ class ChannelViewModel : ViewModel() {
      * incrementally into [target]. This allows filters (Popular/Latest/Oldest)
      * to operate on the full video list rather than just the first batch.
      */
+    private suspend fun loadAllPagesInnertube(
+        channelId: String,
+        channelName: String,
+        channelThumbnailUrl: String,
+        isLive: Boolean,
+        fallbackTab: ListLinkHandler,
+        channelInfo: ChannelInfo,
+        target: MutableStateFlow<List<Video>>
+    ) {
+        _isLoadingAllVideos.value = true
+        try {
+            val accumulated = mutableListOf<Video>()
+            val initial = if (isLive) {
+                io.github.aedev.flow.innertube.YouTube.channelLiveStreams(
+                    channelId = channelId,
+                    channelName = channelName,
+                    channelThumbnailUrl = channelThumbnailUrl,
+                )
+            } else {
+                io.github.aedev.flow.innertube.YouTube.channelVideos(
+                    channelId = channelId,
+                    channelName = channelName,
+                    channelThumbnailUrl = channelThumbnailUrl,
+                )
+            }.getOrElse { e ->
+                Log.w(TAG, "Innertube channel ${if (isLive) "live" else "videos"} initial load failed", e)
+                loadAllPages(fallbackTab, channelInfo, target)
+                return
+            }
+
+            accumulated += initial.videos
+            target.value = accumulated.distinctBy { it.id }
+
+            if (accumulated.isEmpty()) {
+                loadAllPages(fallbackTab, channelInfo, target)
+                return
+            }
+
+            var continuation = initial.continuation
+            var pagesLoaded = 1
+            while (continuation != null && pagesLoaded < MAX_PAGES) {
+                delay(PAGE_DELAY_MS)
+                val pageToken = continuation ?: break
+                val moreResult = if (isLive) {
+                    io.github.aedev.flow.innertube.YouTube.channelLiveStreamsContinuation(
+                        continuation = pageToken,
+                        channelId = channelId,
+                        channelName = channelName,
+                        channelThumbnailUrl = channelThumbnailUrl,
+                    )
+                } else {
+                    io.github.aedev.flow.innertube.YouTube.channelVideosContinuation(
+                        continuation = pageToken,
+                        channelId = channelId,
+                        channelName = channelName,
+                        channelThumbnailUrl = channelThumbnailUrl,
+                    )
+                }
+                if (moreResult.isFailure) {
+                    val e = moreResult.exceptionOrNull()
+                    Log.w(TAG, "Innertube channel ${if (isLive) "live" else "videos"} paging stopped", e)
+                    break
+                }
+                val more = moreResult.getOrThrow()
+
+                if (more.videos.isEmpty()) break
+                accumulated += more.videos
+                target.value = accumulated.distinctBy { it.id }
+                continuation = more.continuation
+                pagesLoaded++
+            }
+        } finally {
+            _isLoadingAllVideos.value = false
+        }
+    }
+
     private suspend fun loadAllPages(
         tab: ListLinkHandler,
         channelInfo: ChannelInfo,
@@ -514,6 +606,11 @@ class ChannelViewModel : ViewModel() {
             _isLoadingAllVideos.value = false
         }
     }
+
+    private fun ChannelInfo.bestAvatarUrl(): String =
+        avatars.maxByOrNull { it.height }?.url
+            ?: avatars.firstOrNull()?.url
+            ?: ""
 
     private fun StreamInfoItem.toChannelVideo(channelInfo: ChannelInfo): Video {
         val videoId = when {

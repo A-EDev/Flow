@@ -217,10 +217,41 @@ object RssSubscriptionService {
                 return emptyList()
             }
 
-            val (videoItems, shortsItems, liveItems) = coroutineScope {
+            val (regularVideos, shortsItems, liveItems) = coroutineScope {
                 val videoDeferred = videosTab?.let {
                     async(Dispatchers.IO) {
-                        fetchTabItems(it, MAX_VIDEOS_PER_CHANNEL)
+                        val innertubeVideos = fetchVideosTabInnertube(
+                            channelId = channelId,
+                            channelName = channelInfo.name,
+                            channelAvatar = channelAvatar,
+                            limit = MAX_VIDEOS_PER_CHANNEL,
+                        )
+                        innertubeVideos.ifEmpty {
+                            fetchTabItems(it, MAX_VIDEOS_PER_CHANNEL).mapNotNull { item ->
+                                val videoId = extractVideoId(item.url)
+                                if (item.isPaidOrMembersOnly()) {
+                                    Log.d(TAG, "[$channelId] Skipping restricted subscription item: $videoId")
+                                    return@mapNotNull null
+                                }
+
+                                val uploadTimeMillis = resolveUploadTimestamp(item)
+                                    ?: rssDateMap[videoId]
+
+                                when {
+                                    uploadTimeMillis == null -> {
+                                        Log.d(TAG, "[$channelId] Skipping undated subscription item: $videoId")
+                                        null
+                                    }
+                                    uploadTimeMillis <= minimumDateMillis -> null
+                                    else -> streamInfoItemToVideo(
+                                        item = item,
+                                        channelId = channelId,
+                                        channelAvatar = channelAvatar,
+                                        overrideTimestamp = uploadTimeMillis
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
                 val shortsDeferred = shortsTab?.let {
@@ -242,9 +273,9 @@ object RssSubscriptionService {
 
             val shortsUrls = shortsItems.map { it.url }.toHashSet()
             val liveUrls = liveItems.map { it.url }.toHashSet()
-            val combined = (videoItems + shortsItems + liveItems).distinctBy { it.url }
+            val combined = (shortsItems + liveItems).distinctBy { it.url }
 
-            val videos = combined.mapNotNull { item ->
+            val tabVideos = combined.mapNotNull { item ->
                 val videoId = extractVideoId(item.url)
                 if (item.isPaidOrMembersOnly()) {
                     Log.d(TAG, "[$channelId] Skipping restricted subscription item: $videoId")
@@ -270,6 +301,8 @@ object RssSubscriptionService {
                     )
                 }
             }
+            val videos = (regularVideos.filter { it.timestamp > minimumDateMillis } + tabVideos)
+                .distinctBy { it.id }
 
             Log.i(TAG, "[$channelId] RESULT: ${videos.size} videos (${videos.count { it.isShort }} shorts, ${videos.count { it.isLive }} live)")
             return videos
@@ -311,6 +344,47 @@ object RssSubscriptionService {
         }
 
         return items.distinctBy { it.url }.take(limit)
+    }
+
+    private suspend fun fetchVideosTabInnertube(
+        channelId: String,
+        channelName: String,
+        channelAvatar: String?,
+        limit: Int
+    ): List<Video> {
+        val items = mutableListOf<Video>()
+        val initial = io.github.aedev.flow.innertube.YouTube.channelVideos(
+            channelId = channelId,
+            channelName = channelName,
+            channelThumbnailUrl = channelAvatar.orEmpty(),
+        ).getOrElse {
+            Log.w(TAG, "[$channelId] Innertube videos initial fetch failed: ${it::class.simpleName}: ${it.message}")
+            return emptyList()
+        }
+
+        items += initial.videos
+        var continuation = initial.continuation
+
+        while (items.size < limit && continuation != null) {
+            val pageToken = continuation ?: break
+            val moreResult = io.github.aedev.flow.innertube.YouTube.channelVideosContinuation(
+                continuation = pageToken,
+                channelId = channelId,
+                channelName = channelName,
+                channelThumbnailUrl = channelAvatar.orEmpty(),
+            )
+            if (moreResult.isFailure) {
+                val e = moreResult.exceptionOrNull()
+                Log.w(TAG, "[$channelId] Innertube videos continuation failed: ${e?.let { it::class.simpleName }}: ${e?.message}")
+                break
+            }
+            val more = moreResult.getOrThrow()
+            if (more.videos.isEmpty()) break
+            items += more.videos
+            continuation = more.continuation
+        }
+
+        return items.distinctBy { it.id }.take(limit)
     }
 
     /**

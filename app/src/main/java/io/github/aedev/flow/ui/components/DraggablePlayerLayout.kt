@@ -74,6 +74,7 @@ class PlayerDraggableState(
     var cachedTargetY by mutableFloatStateOf(0f)
 
     val miniSizeScale = Animatable(1f)
+    var isShrinkingToCorner by mutableStateOf(false)
 
     /** True while the floating mini player is in wide (enlarged) mode. */
     val isInlineMode: Boolean get() = miniSizeScale.value > 1.5f
@@ -87,6 +88,7 @@ class PlayerDraggableState(
     fun expand() {
         corner = MiniPlayerCorner.BottomRight
         scope.launch {
+            isShrinkingToCorner = false
             val anim = playerExpandSpring()
             launch { miniSizeScale.animateTo(1f, anim) }
             launch { expandFraction.animateTo(0f, anim) }
@@ -103,6 +105,9 @@ class PlayerDraggableState(
         screenWidth: Float = 0f,
         margin: Float = 0f,
         baseMiniWidth: Float = 0f,
+        screenHeight: Float = 0f,
+        minY: Float = 0f,
+        bottomNavPad: Float = 0f,
         isTablet: Boolean = false,
         isFoldable: Boolean = false
     ) {
@@ -115,17 +120,30 @@ class PlayerDraggableState(
             .coerceAtLeast(baseMiniWidth)
         val effectiveBase = baseMiniWidth.coerceAtLeast(1f)
         val targetScale   = (maxWideWidth / effectiveBase).coerceAtLeast(1f)
+        val targetWidth = (effectiveBase * targetScale).coerceAtMost(maxWideWidth)
+        val targetHeight = targetWidth * (9f / 16f)
+        val targetMaxY = if (screenHeight > 0f) {
+            (screenHeight - targetHeight - bottomNavPad - margin).coerceAtLeast(minY)
+        } else {
+            offsetY.value
+        }
 
         val isLargeScreen = isTablet || isFoldable
         val targetX = if (isLargeScreen) {
-            val newMaxX = (screenWidth - (effectiveBase * targetScale) - margin)
+            val newMaxX = (screenWidth - targetWidth - margin)
                 .coerceAtLeast(margin)
             offsetX.value.coerceIn(margin, newMaxX)
         } else {
-            ((screenWidth - (effectiveBase * targetScale)) / 2f).coerceAtLeast(margin)
+            ((screenWidth - targetWidth) / 2f).coerceAtLeast(margin)
+        }
+        val targetY = if (screenHeight > 0f) {
+            offsetY.value.coerceIn(minY, targetMaxY)
+        } else {
+            offsetY.value
         }
 
         scope.launch {
+            isShrinkingToCorner = false
             launch {
                 miniSizeScale.animateTo(
                     targetScale,
@@ -138,11 +156,18 @@ class PlayerDraggableState(
                     miniResizeSpring()
                 )
             }
+            launch {
+                offsetY.animateTo(
+                    targetY,
+                    miniResizeSpring()
+                )
+            }
         }
     }
 
     fun collapse() {
         scope.launch {
+            isShrinkingToCorner = false
             val anim = playerExpandSpring()
             if (cachedTargetX == 0f && cachedTargetY == 0f) {
                 expandFraction.snapTo(1f)
@@ -152,6 +177,50 @@ class PlayerDraggableState(
                 launch { offsetY.animateTo(cachedTargetY, anim) }
             }
             launch { miniSizeScale.animateTo(1f, anim) }
+        }
+    }
+
+    fun shrinkToCorner(
+        baseMiniWidth: Float,
+        screenWidth: Float,
+        margin: Float,
+        minY: Float,
+        screenHeight: Float,
+        bottomNavPad: Float
+    ) {
+        val normalMiniWidth = baseMiniWidth
+        val normalMiniHeight = normalMiniWidth * (9f / 16f)
+        val normalMaxX = (screenWidth - normalMiniWidth - margin).coerceAtLeast(margin)
+        val normalMaxY = (screenHeight - normalMiniHeight - bottomNavPad - margin).coerceAtLeast(minY)
+
+        val targetX = when (corner) {
+            MiniPlayerCorner.TopLeft,
+            MiniPlayerCorner.BottomLeft -> margin
+            MiniPlayerCorner.TopRight,
+            MiniPlayerCorner.BottomRight -> normalMaxX
+        }
+        val targetY = when (corner) {
+            MiniPlayerCorner.TopLeft,
+            MiniPlayerCorner.TopRight -> minY
+            MiniPlayerCorner.BottomLeft,
+            MiniPlayerCorner.BottomRight -> normalMaxY
+        }
+
+        cachedTargetX = targetX
+        cachedTargetY = targetY
+        scope.launch {
+            isShrinkingToCorner = true
+            val anim = miniResizeSpring()
+            try {
+                val jobs = listOf(
+                    launch { miniSizeScale.animateTo(1f, anim) },
+                    launch { offsetX.animateTo(targetX, anim) },
+                    launch { offsetY.animateTo(targetY, anim) }
+                )
+                jobs.forEach { it.join() }
+            } finally {
+                isShrinkingToCorner = false
+            }
         }
     }
 
@@ -263,8 +332,6 @@ fun DraggablePlayerLayout(
 
             val isWideMode = currentSizeScale > 1.5f
 
-            val phoneCenteredX = ((screenWidth - miniWidth) / 2f).coerceAtLeast(margin)
-
             val expandedVideoWidth  = if (isSplitLayout) screenWidth * 0.65f else screenWidth
             val baseVideoHeight     = expandedVideoWidth * (9f / 16f)
             val clampedAspect       = videoAspectRatio.coerceAtMost(2.0f)
@@ -288,27 +355,45 @@ fun DraggablePlayerLayout(
             val minY = statusBarHeight + topBarPad + margin
             val maxY = (screenHeight - miniHeight - bottomNavPad - margin).coerceAtLeast(minY)
 
-            LaunchedEffect(minX, maxX, minY, maxY) {
-                state.offsetX.updateBounds(lowerBound = minX, upperBound = maxX)
-                state.offsetY.updateBounds(lowerBound = minY, upperBound = maxY)
+            val normalMiniWidth = baseMiniWidth
+            val normalMiniHeight = normalMiniWidth * (9f / 16f)
+            val normalMaxX = (screenWidth - normalMiniWidth - margin).coerceAtLeast(margin)
+            val normalMaxY = (screenHeight - normalMiniHeight - bottomNavPad - margin).coerceAtLeast(minY)
+            val stablePhoneCenteredX = ((screenWidth - maxWideWidth) / 2f).coerceAtLeast(margin)
+            val stableWideHeight = maxWideWidth * (9f / 16f)
+            val stableWideMaxY = (screenHeight - stableWideHeight - bottomNavPad - margin).coerceAtLeast(minY)
+            val stableWideTargetY = when (state.corner) {
+                MiniPlayerCorner.TopLeft,
+                MiniPlayerCorner.TopRight -> minY
+                MiniPlayerCorner.BottomLeft,
+                MiniPlayerCorner.BottomRight -> stableWideMaxY
             }
 
             val targetMiniX = when {
-                isWideMode && !isLargeScreen -> phoneCenteredX
+                state.isShrinkingToCorner -> when (state.corner) {
+                    MiniPlayerCorner.TopLeft,
+                    MiniPlayerCorner.BottomLeft -> margin
+                    MiniPlayerCorner.TopRight,
+                    MiniPlayerCorner.BottomRight -> normalMaxX
+                }
+                isWideMode && !isLargeScreen -> stablePhoneCenteredX
                 isWideMode && isLargeScreen  ->
-                    state.offsetX.value.coerceIn(minX, maxX)
+                    state.cachedTargetX.takeIf { it != 0f } ?: state.offsetX.value.coerceIn(minX, maxX)
                 else -> when (state.corner) {
                     MiniPlayerCorner.TopLeft,
-                    MiniPlayerCorner.BottomLeft  -> minX
+                    MiniPlayerCorner.BottomLeft  -> margin
                     MiniPlayerCorner.TopRight,
-                    MiniPlayerCorner.BottomRight -> maxX
+                    MiniPlayerCorner.BottomRight -> normalMaxX
                 }
             }
-            val targetMiniY = when (state.corner) {
-                MiniPlayerCorner.TopLeft,
-                MiniPlayerCorner.TopRight    -> minY
-                MiniPlayerCorner.BottomLeft,
-                MiniPlayerCorner.BottomRight -> maxY
+            val targetMiniY = when {
+                isWideMode && !state.isShrinkingToCorner -> stableWideTargetY
+                else -> when (state.corner) {
+                    MiniPlayerCorner.TopLeft,
+                    MiniPlayerCorner.TopRight    -> minY
+                    MiniPlayerCorner.BottomLeft,
+                    MiniPlayerCorner.BottomRight -> normalMaxY
+                }
             }
 
             SideEffect {
@@ -319,7 +404,7 @@ fun DraggablePlayerLayout(
             LaunchedEffect(
                 state.expandFraction.targetValue,
                 targetMiniX, targetMiniY,
-                isWideMode, isLargeScreen, phoneCenteredX
+                isWideMode, isLargeScreen
             ) {
                 if (state.expandFraction.targetValue > 0.5f && !state.isDragging) {
                     kotlinx.coroutines.delay(50)
@@ -327,7 +412,13 @@ fun DraggablePlayerLayout(
                     if (isWideMode && !isLargeScreen) {
                         launch {
                             state.offsetX.animateTo(
-                                phoneCenteredX,
+                                stablePhoneCenteredX,
+                                miniSnapSpring()
+                            )
+                        }
+                        launch {
+                            state.offsetY.animateTo(
+                                stableWideTargetY,
                                 miniSnapSpring()
                             )
                         }
@@ -337,6 +428,15 @@ fun DraggablePlayerLayout(
                             launch {
                                 state.offsetX.animateTo(
                                     clampedX,
+                                    miniSnapSpring()
+                                )
+                            }
+                        }
+                        val clampedY = state.offsetY.value.coerceIn(minY, stableWideMaxY)
+                        if (kotlin.math.abs(state.offsetY.value - clampedY) > 1f) {
+                            launch {
+                                state.offsetY.animateTo(
+                                    clampedY,
                                     miniSnapSpring()
                                 )
                             }
@@ -481,7 +581,7 @@ fun DraggablePlayerLayout(
             val _screenWidth     = rememberUpdatedState(screenWidth)
             val _miniWidth       = rememberUpdatedState(miniWidth)
             val _margin          = rememberUpdatedState(margin)
-            val _phoneCenteredX  = rememberUpdatedState(phoneCenteredX)
+            val _stablePhoneCenteredX = rememberUpdatedState(stablePhoneCenteredX)
             val _tapToExpand     = rememberUpdatedState(tapToExpand)
             val _onFullscreenGesture = rememberUpdatedState(onFullscreenGesture)
             val _isLandscape     = rememberUpdatedState(isLandscape)
@@ -492,6 +592,8 @@ fun DraggablePlayerLayout(
             val _isFoldable      = rememberUpdatedState(isFoldable)
             val _isLargeScreen   = rememberUpdatedState(isLargeScreen)
             val _maxWideWidth    = rememberUpdatedState(maxWideWidth)
+            val _screenHeight    = rememberUpdatedState(screenHeight)
+            val _bottomNavPad    = rememberUpdatedState(bottomNavPad)
 
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 Box(
@@ -603,7 +705,7 @@ fun DraggablePlayerLayout(
                                                     } else {
                                                         launch {
                                                             state.offsetX.animateTo(
-                                                                _phoneCenteredX.value,
+                                                                _stablePhoneCenteredX.value,
                                                                 miniResizeSpring()
                                                             )
                                                         }
@@ -635,7 +737,7 @@ fun DraggablePlayerLayout(
                                                 _isLargeScreen.value ->
                                                     state.offsetX.value.coerceIn(_margin.value, newMaxX)
                                                 newScale > 1.5f ->
-                                                    _phoneCenteredX.value
+                                                    _stablePhoneCenteredX.value
                                                 else ->
                                                     state.offsetX.value.coerceIn(minX, newMaxX)
                                             }
@@ -653,18 +755,8 @@ fun DraggablePlayerLayout(
                                 var lastTapTime = 0L
                                 var singleTapJob: Job? = null
                                 awaitEachGesture {
-                                    val minX        = _minX.value
-                                    val maxX        = _maxX.value
-                                    val minY        = _minY.value
-                                    val maxY        = _maxY.value
-                                    val statusBarH  = _statusBarH.value
-                                    val targetMiniX = _targetMiniX.value
-                                    val targetMiniY = _targetMiniY.value
-                                    val screenWidth = _screenWidth.value
-                                    val miniWidth   = _miniWidth.value
-                                    val margin      = _margin.value
-                                    val isLargeScreen = _isLargeScreen.value
-                                    val phoneCenteredX = _phoneCenteredX.value
+                                    val gestureTargetMiniX = _targetMiniX.value
+                                    val gestureTargetMiniY = _targetMiniY.value
 
                                     val down = awaitFirstDown(requireUnconsumed = false)
                                     val downConsumedByChild = down.isConsumed
@@ -686,11 +778,13 @@ fun DraggablePlayerLayout(
                                             state.expandFraction.stop()
                                             state.offsetX.stop()
                                             state.offsetY.stop()
-                                            state.offsetX.snapTo(targetMiniX)
-                                            state.offsetY.snapTo(targetMiniY)
+                                            state.offsetX.snapTo(gestureTargetMiniX)
+                                            state.offsetY.snapTo(gestureTargetMiniY)
                                         }
                                     } else if (isMiniDrag) {
                                         state.scope.launch {
+                                            state.offsetX.stop()
+                                            state.offsetY.stop()
                                             state.dragScale.animateTo(
                                                 0.97f,
                                                 spring(dampingRatio = 0.7f, stiffness = 600f)
@@ -742,8 +836,6 @@ fun DraggablePlayerLayout(
                                     var cumulativeDragY = startDragY
                                     var totalMovement   = 0f
                                     val startFraction   = state.expandFraction.value
-                                    val collapseTravel  =
-                                        (targetMiniY - statusBarH).coerceAtLeast(1f)
                                     var totalUpwardDrag = 0f
 
                                     if (hasCrossedSlop) {
@@ -758,6 +850,8 @@ fun DraggablePlayerLayout(
                                                 if (isCollapseDrag && detectedDirection == 1) {
                                                     change.consume()
                                                     cumulativeDragY += delta.y
+                                                    val collapseTravel =
+                                                        (_targetMiniY.value - _statusBarH.value).coerceAtLeast(1f)
                                                     val rawFraction =
                                                         (startFraction +
                                                             cumulativeDragY / collapseTravel)
@@ -774,22 +868,26 @@ fun DraggablePlayerLayout(
                                                     if (totalMovement >
                                                         viewConfiguration.touchSlop * 0.5f) {
                                                         change.consume()
+                                                        val currentMinX = _minX.value
+                                                        val currentMaxX = _maxX.value
+                                                        val currentMinY = _minY.value
+                                                        val currentMaxY = _maxY.value
                                                         val rawY     = state.offsetY.value + delta.y
-                                                        val clampedY = rawY.coerceIn(minY, maxY)
+                                                        val clampedY = rawY.coerceIn(currentMinY, currentMaxY)
 
                                                         when {
-                                                            state.isInlineMode && !isLargeScreen -> {
+                                                            state.isInlineMode && !_isLargeScreen.value -> {
                                                                 snapJob?.cancel()
                                                                 snapJob = state.scope.launch {
                                                                     state.offsetY.snapTo(clampedY)
-                                                                    state.offsetX.snapTo(phoneCenteredX)
+                                                                    state.offsetX.snapTo(_stablePhoneCenteredX.value)
                                                                 }
                                                             }
                                                             else -> {
                                                                 val rawX     =
                                                                     state.offsetX.value + delta.x
                                                                 val clampedX =
-                                                                    rawX.coerceIn(minX, maxX)
+                                                                    rawX.coerceIn(currentMinX, currentMaxX)
                                                                 snapJob?.cancel()
                                                                 snapJob = state.scope.launch {
                                                                     state.offsetX.snapTo(clampedX)
@@ -830,13 +928,23 @@ fun DraggablePlayerLayout(
                                                 singleTapJob?.cancel()
                                                 lastTapTime = 0L
                                                 if (state.isInlineMode) {
-                                                    state.collapse()
+                                                    state.shrinkToCorner(
+                                                        baseMiniWidth = _baseMiniWidth.value,
+                                                        screenWidth = _screenWidth.value,
+                                                        margin = _margin.value,
+                                                        minY = _minY.value,
+                                                        screenHeight = _screenHeight.value,
+                                                        bottomNavPad = _bottomNavPad.value
+                                                    )
                                                 } else {
                                                     state.expandWide(
                                                         miniPlayerScale = _miniPlayerScale.value,
-                                                        screenWidth     = screenWidth,
-                                                        margin          = margin,
+                                                        screenWidth     = _screenWidth.value,
+                                                        margin          = _margin.value,
                                                         baseMiniWidth   = _baseMiniWidth.value,
+                                                        screenHeight    = _screenHeight.value,
+                                                        minY            = _minY.value,
+                                                        bottomNavPad    = _bottomNavPad.value,
                                                         isTablet        = _isTablet.value,
                                                         isFoldable      = _isFoldable.value
                                                     )
@@ -883,24 +991,28 @@ fun DraggablePlayerLayout(
                                     val velX     = velocity.x
                                     val currentX = state.offsetX.value
                                     val currentY = state.offsetY.value
+                                    val currentMinX = _minX.value
+                                    val currentMaxX = _maxX.value
+                                    val currentMinY = _minY.value
+                                    val currentMaxY = _maxY.value
 
                                     val originX = when (state.corner) {
                                         MiniPlayerCorner.TopLeft,
-                                        MiniPlayerCorner.BottomLeft  -> minX
+                                        MiniPlayerCorner.BottomLeft  -> currentMinX
                                         MiniPlayerCorner.TopRight,
-                                        MiniPlayerCorner.BottomRight -> maxX
+                                        MiniPlayerCorner.BottomRight -> currentMaxX
                                     }
                                     val originY = when (state.corner) {
                                         MiniPlayerCorner.TopLeft,
-                                        MiniPlayerCorner.TopRight    -> minY
+                                        MiniPlayerCorner.TopRight    -> currentMinY
                                         MiniPlayerCorner.BottomLeft,
-                                        MiniPlayerCorner.BottomRight -> maxY
+                                        MiniPlayerCorner.BottomRight -> currentMaxY
                                     }
 
                                     val deltaFromOriginX = currentX - originX
                                     val deltaFromOriginY = currentY - originY
-                                    val totalTravelX = (maxX - minX).coerceAtLeast(1f)
-                                    val totalTravelY = (maxY - minY).coerceAtLeast(1f)
+                                    val totalTravelX = (currentMaxX - currentMinX).coerceAtLeast(1f)
+                                    val totalTravelY = (currentMaxY - currentMinY).coerceAtLeast(1f)
                                     val switchThresholdX = totalTravelX * 0.15f
                                     val switchThresholdY = totalTravelY * 0.15f
                                     val projectedDeltaX  = deltaFromOriginX + velX * 0.3f
@@ -941,18 +1053,18 @@ fun DraggablePlayerLayout(
 
                                     if (state.isInlineMode) {
                                         state.corner = newCorner
-                                        if (isLargeScreen) {
+                                        if (_isLargeScreen.value) {
                                             state.scope.launch {
                                                 launch {
                                                     state.offsetX.animateTo(
-                                                        if (goLeft) minX else maxX,
+                                                        if (goLeft) currentMinX else currentMaxX,
                                                         miniSnapSpring(),
                                                         initialVelocity = velX
                                                     )
                                                 }
                                                 launch {
                                                     state.offsetY.animateTo(
-                                                        if (goTop) minY else maxY,
+                                                        if (goTop) currentMinY else currentMaxY,
                                                         miniSnapSpring(),
                                                         initialVelocity = velY
                                                     )
@@ -962,13 +1074,13 @@ fun DraggablePlayerLayout(
                                             state.scope.launch {
                                                 launch {
                                                     state.offsetX.animateTo(
-                                                        phoneCenteredX,
+                                                        _stablePhoneCenteredX.value,
                                                         miniSnapSpring()
                                                     )
                                                 }
                                                 launch {
                                                     state.offsetY.animateTo(
-                                                        if (goTop) minY else maxY,
+                                                        if (goTop) currentMinY else currentMaxY,
                                                         miniSnapSpring(),
                                                         initialVelocity = velY
                                                     )
@@ -978,7 +1090,7 @@ fun DraggablePlayerLayout(
                                         return@awaitEachGesture
                                     }
 
-                                    val centerX         = (minX + maxX) / 2f
+                                    val centerX         = (currentMinX + currentMaxX) / 2f
                                     val isNearRightEdge = currentX > centerX
                                     val isNearLeftEdge  = currentX < centerX
                                     val isHorizontalFling = abs(velX) > abs(velY) * 3f
@@ -990,8 +1102,8 @@ fun DraggablePlayerLayout(
                                     if (isHorizontalFling &&
                                         (canDismissRight || canDismissLeft)) {
                                         val offScreenX =
-                                            if (!goLeft) screenWidth + miniWidth
-                                            else -(miniWidth + margin)
+                                            if (!goLeft) _screenWidth.value + _miniWidth.value
+                                            else -(_miniWidth.value + _margin.value)
                                         state.scope.launch {
                                             launch {
                                                 state.offsetX.animateTo(
@@ -1008,14 +1120,14 @@ fun DraggablePlayerLayout(
                                         state.scope.launch {
                                             launch {
                                                 state.offsetX.animateTo(
-                                                    if (goLeft) minX else maxX,
+                                                    if (goLeft) currentMinX else currentMaxX,
                                                     miniSnapSpring(),
                                                     initialVelocity = velX
                                                 )
                                             }
                                             launch {
                                                 state.offsetY.animateTo(
-                                                    if (goTop) minY else maxY,
+                                                    if (goTop) currentMinY else currentMaxY,
                                                     miniSnapSpring(),
                                                     initialVelocity = velY
                                                 )
