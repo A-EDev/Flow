@@ -28,6 +28,7 @@ FEATURES
 - Add new watch history search #393
 - Add new sorting options in playlists
 - Add new player seekbar width customization
+- Add remeber brightness toggle #474
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361
@@ -61,6 +62,7 @@ IMPROVEMENTS
 - Improve subtitle handling #271
 - Improve upcoming videos handling and add a reminder #470
 - Improve mini video player animaton #464
+- Improve sponsor skip button placement #476
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378
@@ -85,6 +87,8 @@ FIXES AND STABILITY
 - Fix low resolution casting #299
 - Fix shorts player disable option #466
 - Fix music playlist delete path #471
+- Fix LazyColumn crash #479
+- Fix player jitter #478
 
 ENGINE
 - Improve topic maturity detection for better recommendations #281

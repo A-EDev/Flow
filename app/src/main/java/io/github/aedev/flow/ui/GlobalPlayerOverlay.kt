@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui
 
 import android.content.Context
 import android.content.pm.ActivityInfo
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
@@ -46,7 +47,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -157,6 +160,8 @@ fun GlobalPlayerOverlay(
 
     val playerPreferences = remember { PlayerPreferences(context) }
     val brightnessSwipeGesturesEnabled by playerPreferences.brightnessSwipeGesturesEnabled.collectAsState(initial = true)
+    val rememberBrightnessEnabled by playerPreferences.rememberBrightnessEnabled.collectAsState(initial = false)
+    val rememberedBrightnessLevel by playerPreferences.rememberedBrightnessLevel.collectAsState(initial = -1f)
     val volumeSwipeGesturesEnabled by playerPreferences.volumeSwipeGesturesEnabled.collectAsState(initial = true)
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
@@ -188,6 +193,16 @@ fun GlobalPlayerOverlay(
     LaunchedEffect(savedSubtitleStyle) {
         if (screenState.subtitleStyle != savedSubtitleStyle) {
             screenState.subtitleStyle = savedSubtitleStyle
+        }
+    }
+
+    LaunchedEffect(rememberBrightnessEnabled, rememberedBrightnessLevel) {
+        if (rememberBrightnessEnabled) {
+            screenState.brightnessLevel = if (rememberedBrightnessLevel < 0f) {
+                WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+            } else {
+                rememberedBrightnessLevel.coerceIn(0f, 1f)
+            }
         }
     }
 
@@ -235,6 +250,24 @@ fun GlobalPlayerOverlay(
     val config = LocalConfiguration.current
     val isLandscape = config.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
     val isTablet = config.smallestScreenWidthDp >= 600
+    val windowInsetDensity = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    val sponsorSkipEndPadding = with(windowInsetDensity) {
+        maxOf(
+            WindowInsets.displayCutout.getRight(this, layoutDirection),
+            WindowInsets.systemBars.getRight(this, layoutDirection)
+        ).toDp() + 16.dp
+    }
+    val sponsorSkipBottomInset = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
+
+    val updateBrightnessLevel: (Float) -> Unit = { brightnessLevel ->
+        screenState.brightnessLevel = brightnessLevel
+        if (rememberBrightnessEnabled) {
+            scope.launch {
+                playerPreferences.setRememberedBrightnessLevel(brightnessLevel)
+            }
+        }
+    }
 
     LaunchedEffect(isLandscape, isTablet, localIsInPipMode) {
         if (isLandscape && !isTablet && !localIsInPipMode && playerSheetState.currentValue == PlayerSheetValue.Expanded) {
@@ -332,6 +365,7 @@ fun GlobalPlayerOverlay(
         activity = activity,
         videoAspectRatio = effectiveVideoAspectRatio,
         lifecycleOwner = lifecycleOwner,
+        fullscreenBrightnessLevel = if (rememberBrightnessEnabled) screenState.brightnessLevel else null,
         suppressFullscreenRequest = pipForcedFullscreen
     )
     
@@ -469,6 +503,24 @@ fun GlobalPlayerOverlay(
     // ===== UI =====
     val isMinimized = playerSheetState.fraction > 0.5f
     val density = LocalDensity.current
+    val controlsOverlayVisible =
+        !playerUiState.isUpcoming &&
+            !isMinimized &&
+            !localIsInPipMode &&
+            (screenState.showControls || screenState.isTouchLocked || !screenState.isFullscreen)
+    val floatingSponsorSkipBottomPadding = if (isLandscape && !isTablet) {
+        if (controlsOverlayVisible) {
+            maxOf(sponsorSkipBottomInset + 220.dp, 232.dp)
+        } else {
+            maxOf(sponsorSkipBottomInset + 96.dp, 104.dp)
+        }
+    } else {
+        if (controlsOverlayVisible) {
+            maxOf(sponsorSkipBottomInset + 116.dp, 124.dp)
+        } else {
+            maxOf(sponsorSkipBottomInset + 80.dp, 80.dp)
+        }
+    }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val fullScreenHeight = constraints.maxHeight.toFloat()
@@ -604,7 +656,7 @@ fun GlobalPlayerOverlay(
                             normalSpeed = screenState.normalSpeed,
                             scope = scope,
                             isFullscreen = screenState.isFullscreen,
-                            onBrightnessChange = { screenState.brightnessLevel = it },
+                            onBrightnessChange = updateBrightnessLevel,
                             onShowBrightnessChange = { screenState.showBrightnessOverlay = it },
                             onVolumeChange = { 
                                 screenState.volumeLevel = it 
@@ -787,20 +839,6 @@ fun GlobalPlayerOverlay(
                                     )
                                 }
                             }
-
-                            // SponsorBlock manual skip button — shown for MUTE / NOTIFY / IGNORE segments
-                            SponsorBlockSkipButton(
-                                sponsorSegments = sponsorSegments,
-                                currentPositionMs = screenState.currentPosition,
-                                categoryActions = EnhancedPlayerManager.getInstance().sbCategoryActions,
-                                onSkipClick = { endPositionMs ->
-                                    EnhancedPlayerManager.getInstance().seekTo(endPositionMs)
-                                },
-                                modifier = Modifier
-                                    .align(Alignment.BottomEnd)
-                                    .padding(end = 16.dp, bottom = 80.dp)
-                            )
-
                             if (playerUiState.isUpcoming) {
                                 UpcomingVideoOverlay(
                                     title = video.title,
@@ -897,7 +935,7 @@ fun GlobalPlayerOverlay(
                                     io.github.aedev.flow.player.PictureInPictureHelper.isPipSupported(context) &&
                                     pipPreferences.manualPipButtonEnabled,
                                 onPipClick = {
-                                    PictureInPictureHelper.enterPipMode(
+                                    PictureInPictureHelper.requestPlayerPipMode(
                                         activity = activity,
                                         isPlaying = playerState.isPlaying
                                     )
@@ -1052,6 +1090,31 @@ fun GlobalPlayerOverlay(
             }
         )
 
+        if (!playerUiState.isUpcoming && !isMinimized && !localIsInPipMode) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .width(fullscreenPlayerWidth)
+                    .fillMaxHeight()
+                    .zIndex(3f)
+            ) {
+                SponsorBlockSkipButton(
+                    sponsorSegments = sponsorSegments,
+                    currentPositionMs = screenState.currentPosition,
+                    categoryActions = EnhancedPlayerManager.getInstance().sbCategoryActions,
+                    onSkipClick = { endPositionMs ->
+                        EnhancedPlayerManager.getInstance().seekTo(endPositionMs)
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(
+                            end = sponsorSkipEndPadding,
+                            bottom = floatingSponsorSkipBottomPadding
+                        )
+                )
+            }
+        }
+
         if (fullscreenSidePanelWidth > 1.dp) {
             Box(
                 modifier = Modifier
@@ -1113,7 +1176,7 @@ fun GlobalPlayerOverlay(
                             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
                                 PictureInPictureHelper.isPipSupported(context)
                             ) {
-                                PictureInPictureHelper.enterPipMode(
+                                PictureInPictureHelper.requestPlayerPipMode(
                                     activity = activity,
                                     isPlaying = playerState.isPlaying
                                 )

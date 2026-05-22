@@ -58,6 +58,7 @@ fun PlayerAppearanceScreen(
     
     val currentSliderStyle by playerPreferences.sliderStyle.collectAsState(initial = SliderStyle.DEFAULT)
     val brightnessSwipeGesturesEnabled by playerPreferences.brightnessSwipeGesturesEnabled.collectAsState(initial = true)
+    val rememberBrightnessEnabled by playerPreferences.rememberBrightnessEnabled.collectAsState(initial = false)
     val volumeSwipeGesturesEnabled by playerPreferences.volumeSwipeGesturesEnabled.collectAsState(initial = true)
     val showFullscreenTitle by playerPreferences.showFullscreenTitle.collectAsState(initial = false)
     val adaptivePlayerSizeEnabled by playerPreferences.adaptivePlayerSizeEnabled.collectAsState(initial = true)
@@ -225,6 +226,23 @@ fun PlayerAppearanceScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 playerPreferences.setBrightnessSwipeGesturesEnabled(enabled)
+                            }
+                        }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+
+                    SettingsToggleItem(
+                        icon = painterResource(R.drawable.ic_swipe_gesture),
+                        title = stringResource(R.string.player_appearance_remember_brightness_title),
+                        subtitle = stringResource(R.string.player_appearance_remember_brightness_subtitle),
+                        checked = rememberBrightnessEnabled,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                playerPreferences.setRememberBrightnessEnabled(enabled)
                             }
                         }
                     )

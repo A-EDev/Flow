@@ -87,6 +87,8 @@ class PlayerPreferences(private val context: Context) {
         val PREFERRED_LYRICS_PROVIDER = stringPreferencesKey("preferred_lyrics_provider")
         val SWIPE_GESTURES_ENABLED = booleanPreferencesKey("swipe_gestures_enabled")
         val BRIGHTNESS_SWIPE_GESTURES_ENABLED = booleanPreferencesKey("brightness_swipe_gestures_enabled")
+        val REMEMBER_BRIGHTNESS_ENABLED = booleanPreferencesKey("remember_brightness_enabled")
+        val REMEMBERED_BRIGHTNESS_LEVEL = floatPreferencesKey("remembered_brightness_level")
         val VOLUME_SWIPE_GESTURES_ENABLED = booleanPreferencesKey("volume_swipe_gestures_enabled")
         val CONTINUE_WATCHING_ENABLED = booleanPreferencesKey("continue_watching_enabled")
         val SHOW_RELATED_VIDEOS = booleanPreferencesKey("show_related_videos")
@@ -269,6 +271,16 @@ class PlayerPreferences(private val context: Context) {
                 ?: true
         }
 
+    val rememberBrightnessEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.REMEMBER_BRIGHTNESS_ENABLED] ?: false
+        }
+
+    val rememberedBrightnessLevel: Flow<Float> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.REMEMBERED_BRIGHTNESS_LEVEL] ?: -1f
+        }
+
     val volumeSwipeGesturesEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
         .map { preferences ->
             preferences[Keys.VOLUME_SWIPE_GESTURES_ENABLED]
@@ -285,6 +297,18 @@ class PlayerPreferences(private val context: Context) {
     suspend fun setBrightnessSwipeGesturesEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.BRIGHTNESS_SWIPE_GESTURES_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setRememberBrightnessEnabled(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.REMEMBER_BRIGHTNESS_ENABLED] = enabled
+        }
+    }
+
+    suspend fun setRememberedBrightnessLevel(level: Float) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.REMEMBERED_BRIGHTNESS_LEVEL] = if (level < 0f) -1f else level.coerceIn(0f, 1f)
         }
     }
 

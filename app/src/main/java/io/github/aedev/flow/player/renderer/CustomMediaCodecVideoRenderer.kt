@@ -7,11 +7,6 @@ import androidx.media3.exoplayer.mediacodec.MediaCodecSelector
 import androidx.media3.exoplayer.video.MediaCodecVideoRenderer
 import androidx.media3.exoplayer.video.VideoRendererEventListener
 
-/**
- * A [MediaCodecVideoRenderer] which always enables the output surface workaround.
- * This aligns with NewPipe's implementation to handle devices with incorrect
- * [android.media.MediaCodec.setOutputSurface] implementations.
- */
 class CustomMediaCodecVideoRenderer(
     context: Context,
     codecAdapterFactory: MediaCodecAdapter.Factory,
@@ -31,8 +26,7 @@ class CustomMediaCodecVideoRenderer(
     eventListener,
     maxDroppedFramesToNotify
 ) {
-
     override fun codecNeedsSetOutputSurfaceWorkaround(name: String): Boolean {
-         return true
+        return true
     }
-}
+} 

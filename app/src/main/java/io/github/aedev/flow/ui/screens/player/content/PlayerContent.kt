@@ -271,7 +271,7 @@ fun PlayerContent(
             isPipSupported = isPipSupported,
             onPipClick = {
                 activity?.let { act ->
-                    PictureInPictureHelper.enterPipMode(
+                    PictureInPictureHelper.requestPlayerPipMode(
                         activity = act,
                         isPlaying = playerState.isPlaying
                     )

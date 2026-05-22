@@ -40,6 +40,7 @@ import io.github.aedev.flow.utils.FlowCrashHandler
 import io.github.aedev.flow.utils.UpdateManager
 import io.github.aedev.flow.utils.UpdateInfo
 import io.github.aedev.flow.network.AppProxyManager
+import io.github.aedev.flow.player.PictureInPictureHelper
 import io.github.aedev.flow.ui.components.UpdateDialog
 import io.github.aedev.flow.BuildConfig
 import androidx.activity.SystemBarStyle
@@ -479,13 +480,33 @@ class MainActivity : ComponentActivity() {
         
         // Only enter PiP for video, not for music (which uses background service)
         if (isVideoPlaying && !isMusicPlaying && cachedAutoPipEnabled) {
-            pendingAutoPip = true
-            enterPictureInPictureMode(
-                android.app.PictureInPictureParams.Builder()
-                    .setAspectRatio(android.util.Rational(16, 9))
-                    .build()
+            enterPlayerPictureInPictureMode(
+                aspectRatioWidth = 16,
+                aspectRatioHeight = 9,
+                isPlaying = true
             )
         }
+    }
+
+    fun enterPlayerPictureInPictureMode(
+        aspectRatioWidth: Int = 16,
+        aspectRatioHeight: Int = 9,
+        isPlaying: Boolean = true
+    ): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return false
+
+        pendingAutoPip = true
+        val entered = PictureInPictureHelper.enterPipMode(
+            activity = this,
+            aspectRatioWidth = aspectRatioWidth,
+            aspectRatioHeight = aspectRatioHeight,
+            isPlaying = isPlaying,
+            autoEnterEnabled = false
+        )
+        if (!entered) {
+            pendingAutoPip = false
+        }
+        return entered
     }
 
     private fun handOffVideoPlaybackToBackground() {

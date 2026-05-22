@@ -40,7 +40,7 @@ fun VideoPlayerSurface(
     var surfaceRestoreTrigger by remember { mutableIntStateOf(0) }
 
     val playerView = remember {
-        Log.d("EnhancedVideoPlayer", "Creating shared PlayerView (TextureView surface)")
+        Log.d("EnhancedVideoPlayer", "Creating shared PlayerView")
         (LayoutInflater.from(context).inflate(R.layout.video_player_view, null) as PlayerView).apply {
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,

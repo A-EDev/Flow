@@ -31,7 +31,7 @@ object PipModeHandler {
      */
     fun enterPipMode(activity: Activity?, isPlaying: Boolean) {
         activity?.let { act ->
-            PictureInPictureHelper.enterPipMode(
+            PictureInPictureHelper.requestPlayerPipMode(
                 activity = act,
                 isPlaying = isPlaying
             )

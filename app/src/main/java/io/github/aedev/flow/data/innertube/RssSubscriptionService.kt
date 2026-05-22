@@ -40,8 +40,9 @@ object RssSubscriptionService {
         knownVideoIds: Set<String> = emptySet(),
         onProgress: ((processedChannels: Int, totalChannels: Int) -> Unit)? = null
     ): Flow<List<Video>> = flow {
-        Log.i(TAG, "======== FEED FETCH START: ${channelIds.size} channels ========")
-        if (channelIds.isEmpty()) {
+        val uniqueChannelIds = channelIds.distinct()
+        Log.i(TAG, "======== FEED FETCH START: ${uniqueChannelIds.size} channels (requested=${channelIds.size}) ========")
+        if (uniqueChannelIds.isEmpty()) {
             Log.w(TAG, "No channel IDs provided — emitting empty list")
             emit(emptyList())
             return@flow
@@ -57,8 +58,8 @@ object RssSubscriptionService {
         val rssDateMap = mutableMapOf<String, Long>()
         val rssChannelHasRecent = mutableMapOf<String, Boolean>()
 
-        Log.i(TAG, "Phase 1: Fetching RSS dates for all ${channelIds.size} channels")
-        val rssChunks = channelIds.chunked(CHANNEL_CHUNK_SIZE)
+        Log.i(TAG, "Phase 1: Fetching RSS dates for all ${uniqueChannelIds.size} channels")
+        val rssChunks = uniqueChannelIds.chunked(CHANNEL_CHUNK_SIZE)
         for ((ci, chunk) in rssChunks.withIndex()) {
             val results = coroutineScope {
                 chunk.map { channelId ->
@@ -75,14 +76,14 @@ object RssSubscriptionService {
                 delay(CHANNEL_BATCH_DELAY.random())
             }
         }
-        Log.i(TAG, "Phase 1 complete: RSS dates for ${rssDateMap.size} videos from ${channelIds.size} channels")
+        Log.i(TAG, "Phase 1 complete: RSS dates for ${rssDateMap.size} videos from ${uniqueChannelIds.size} channels")
 
-        val activeChannelIds = channelIds.filter { rssChannelHasRecent[it] != false }
-        Log.i(TAG, "Phase 2: Fetching tabs for ${activeChannelIds.size} active channels (${channelIds.size - activeChannelIds.size} skipped as stale)")
+        val activeChannelIds = uniqueChannelIds.filter { rssChannelHasRecent[it] != false }
+        Log.i(TAG, "Phase 2: Fetching tabs for ${activeChannelIds.size} active channels (${uniqueChannelIds.size - activeChannelIds.size} skipped as stale)")
 
-        var processedChannels = channelIds.size - activeChannelIds.size
+        var processedChannels = uniqueChannelIds.size - activeChannelIds.size
         if (processedChannels > 0) {
-            onProgress?.invoke(processedChannels, channelIds.size)
+            onProgress?.invoke(processedChannels, uniqueChannelIds.size)
         }
         val chunks = activeChannelIds.chunked(CHANNEL_CHUNK_SIZE)
         for ((chunkIndex, chunk) in chunks.withIndex()) {
@@ -113,24 +114,31 @@ object RssSubscriptionService {
 
             chunkVideos.forEach { if (it.isShort) allShorts.add(it) else allRegular.add(it) }
             processedChannels += chunk.size
-            onProgress?.invoke(processedChannels, channelIds.size)
+            onProgress?.invoke(processedChannels, uniqueChannelIds.size)
             Log.d(TAG, "Chunk ${chunkIndex + 1} done: +${chunkVideos.size} (regular=${allRegular.size}, shorts=${allShorts.size})")
 
             emit(buildFeed(allRegular, allShorts, maxTotal))
         }
 
         emit(buildFeed(allRegular, allShorts, maxTotal))
-        Log.i(TAG, "======== FEED FETCH COMPLETE: regular=${allRegular.size.coerceAtMost(MAX_REGULAR_VIDEOS)} shorts=${allShorts.size.coerceAtMost(MAX_SHORTS)} from ${channelIds.size} channels ========")
+        Log.i(TAG, "======== FEED FETCH COMPLETE: regular=${allRegular.size.coerceAtMost(MAX_REGULAR_VIDEOS)} shorts=${allShorts.size.coerceAtMost(MAX_SHORTS)} from ${uniqueChannelIds.size} channels ========")
     }
 
     /** Merge regular and shorts lists with independent caps, sorted by date. */
     private fun buildFeed(regular: List<Video>, shorts: List<Video>, maxTotal: Int): List<Video> {
-        val r = regular.sortedByDescending { it.timestamp }.take(MAX_REGULAR_VIDEOS)
+        val r = regular
+            .sortedByDescending { it.timestamp }
+            .distinctBy { it.id }
+            .take(MAX_REGULAR_VIDEOS)
         val s = shorts
             .sortedByDescending { it.timestamp }
+            .distinctBy { it.id }
             .distinctBy { it.channelId.ifBlank { it.id } }
             .take(MAX_SHORTS)
-        return (r + s).sortedByDescending { it.timestamp }.take(maxTotal)
+        return (r + s)
+            .sortedByDescending { it.timestamp }
+            .distinctBy { it.id }
+            .take(maxTotal)
     }
 
 

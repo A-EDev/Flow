@@ -175,7 +175,7 @@ fun PlayerDialogsContainer(
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O &&
                     io.github.aedev.flow.player.PictureInPictureHelper.isPipSupported(context)) {
                     screenState.showSettingsMenu = false
-                    io.github.aedev.flow.player.PictureInPictureHelper.enterPipMode(
+                    io.github.aedev.flow.player.PictureInPictureHelper.requestPlayerPipMode(
                         activity = context as androidx.activity.ComponentActivity,
                         isPlaying = playerState.isPlaying
                     )

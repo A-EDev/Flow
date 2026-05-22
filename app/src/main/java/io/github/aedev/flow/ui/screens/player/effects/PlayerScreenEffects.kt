@@ -433,6 +433,7 @@ fun FullscreenEffect(
     activity: Activity?,
     videoAspectRatio: Float = 16f / 9f,
     lifecycleOwner: LifecycleOwner,
+    fullscreenBrightnessLevel: Float? = null,
     suppressFullscreenRequest: Boolean = false
 ) {
     var resumeTrigger by remember { mutableIntStateOf(0) }
@@ -460,6 +461,16 @@ fun FullscreenEffect(
                 val insetsController = WindowCompat.getInsetsController(act.window, act.window.decorView)
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
                 insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
+                fullscreenBrightnessLevel?.let { brightnessLevel ->
+                    val layoutParams = act.window.attributes
+                    layoutParams.screenBrightness = if (brightnessLevel < 0f) {
+                        WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                    } else {
+                        brightnessLevel.coerceIn(0f, 1f)
+                    }
+                    act.window.attributes = layoutParams
+                }
             } else {
                 // Return to unspecified mode when exiting fullscreen
                 act.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED

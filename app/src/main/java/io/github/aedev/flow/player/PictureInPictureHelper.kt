@@ -14,6 +14,7 @@ import android.util.Rational
 import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import io.github.aedev.flow.R
+import io.github.aedev.flow.MainActivity
 
 /**
  * Helper class for Picture-in-Picture mode support
@@ -66,6 +67,30 @@ object PictureInPictureHelper {
         } catch (e: Exception) {
             e.printStackTrace()
             false
+        }
+    }
+
+    fun requestPlayerPipMode(
+        activity: Activity,
+        aspectRatioWidth: Int = 16,
+        aspectRatioHeight: Int = 9,
+        isPlaying: Boolean = true,
+        autoEnterEnabled: Boolean = false
+    ): Boolean {
+        return if (activity is MainActivity) {
+            activity.enterPlayerPictureInPictureMode(
+                aspectRatioWidth = aspectRatioWidth,
+                aspectRatioHeight = aspectRatioHeight,
+                isPlaying = isPlaying
+            )
+        } else {
+            enterPipMode(
+                activity = activity,
+                aspectRatioWidth = aspectRatioWidth,
+                aspectRatioHeight = aspectRatioHeight,
+                isPlaying = isPlaying,
+                autoEnterEnabled = autoEnterEnabled
+            )
         }
     }
     
