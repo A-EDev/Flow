@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-22
+DATE: 2026-05-23
 STATUS: PRE-RELEASE
 
 FEATURES
@@ -103,3 +103,4 @@ ENGINE
 
 CORE:
 - Add native channel content extraction via InnerTube API
+- Bump NewPipeExtractor version to v0.26.2

@@ -35,8 +35,6 @@ fun VideoPlayerSurface(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
-    val currentVideoId = video.id
-    val lastSurfaceBoundVideoId = remember { arrayOfNulls<String>(1) }
     var surfaceRestoreTrigger by remember { mutableIntStateOf(0) }
 
     val playerView = remember {
@@ -88,7 +86,6 @@ fun VideoPlayerSurface(
             val manager = EnhancedPlayerManager.getInstance()
             val newPlayer = manager.getPlayer()
             val oldPlayer = view.player
-            val videoChangedSinceBinding = lastSurfaceBoundVideoId[0] != currentVideoId
 
             if (oldPlayer !== newPlayer) {
                 oldPlayer?.removeListener(videoSizeListener)
@@ -96,19 +93,9 @@ fun VideoPlayerSurface(
                 view.player = newPlayer
             }
 
-            if (newPlayer != null &&
-                (manager.isInAudioOnlyMode() ||
-                    manager.isVideoSurfaceRestorePending() ||
-                    videoChangedSinceBinding)
-            ) {
-                Log.d("VideoPlayerSurface", "Restoring video output and rebinding PlayerView surface")
+            if (newPlayer != null && manager.isInAudioOnlyMode()) {
+                Log.d("VideoPlayerSurface", "Restoring video output after audio-only background mode")
                 manager.restoreVideoOutput()
-                view.player = null
-                view.player = newPlayer
-                manager.markVideoSurfaceRestored()
-            }
-            if (newPlayer != null) {
-                lastSurfaceBoundVideoId[0] = currentVideoId
             }
 
             if (newPlayer != null &&

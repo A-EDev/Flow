@@ -1380,10 +1380,7 @@ class EnhancedPlayerManager private constructor() {
     fun switchToAudioOnly() {
         val p = player ?: return
         isAudioOnlyMode = true
-        videoSurfaceRestorePending = true
         setVideoTracksDisabled(true)
-        runCatching { p.clearVideoSurface() }
-            .onFailure { Log.w(TAG, "Failed to clear video surface for background playback", it) }
         if (p.playWhenReady && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
             p.play()
         }
