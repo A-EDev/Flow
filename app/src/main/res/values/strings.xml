@@ -134,7 +134,6 @@
     <string name="cd_delete_download">Delete %1$s</string>
     <string name="cd_video_thumbnail">Video thumbnail for %1$s</string>
     <string name="cd_track_artwork">Track artwork for %1$s</string>
-
     <!-- Save to Playlist Dialog -->
     <string name="save_to">Save to...</string>
     <string name="watch_later">Watch later</string>
@@ -145,7 +144,6 @@
     <string name="playlist_name">Name</string>
     <string name="playlist_description_optional">Description (optional)</string>
     <string name="create">Create</string>
-
     <!-- Video Quick Actions -->
     <string name="save_to_playlist">Save to playlist</string>
     <string name="not_interested">Not interested</string>
@@ -155,7 +153,6 @@
     <string name="i_like_this">I want more like this</string>
     <string name="i_like_this_toast">Got it! You\'ll see more content like this.</string>
     <string name="go_to_channel">Go to channel</string>
-
     <!-- Media Info Dialog -->
     <string name="track_info">Track Information</string>
     <string name="track_info_subtitle">Detailed technical and social metrics</string>
@@ -166,7 +163,6 @@
     <string name="uploaded">Uploaded</string>
     <string name="itag">iTag</string>
     <string name="mime_type">Mime Type</string>
-
     <!-- Video Status & Metadata -->
     <string name="status_upcoming">UPCOMING</string>
     <string name="status_live">LIVE</string>
@@ -191,7 +187,6 @@
     <string name="subscriptions_music_chip_label">Music</string>
     <string name="subscriptions_music_badge_cd">Music subscription</string>
     <string name="no_subscriptions_found">No subscriptions found</string>
-
     <!-- Comments -->
     <string name="comments">Comments</string>
     <string name="filter_top">Top</string>
@@ -207,14 +202,12 @@
     <string name="pinned_comment">Pinned comment</string>
     <string name="pinned_by_creator">Pinned by creator</string>
     <string name="tap_to_close">Tap to close</string>
-
     <!-- Update Dialog -->
     <string name="new_update_available">New Update Available</string>
     <string name="update_available_template">%1$s is now available</string>
     <string name="release_notes">RELEASE NOTES</string>
     <string name="update_flow">Update Flow</string>
     <string name="maybe_later">Maybe later</string>
-
     <!-- Navigation -->
     <string name="nav_home">Home</string>
     <string name="nav_shorts">Shorts</string>
@@ -224,7 +217,6 @@
     <string name="notifications">Notifications</string>
     <string name="search">Search</string>
     <string name="settings">Settings</string>
-
     <string name="select_artist">Select Artist</string>
     <string name="description">Description</string>
     <string name="copy_description">Copy description</string>
@@ -283,7 +275,6 @@
     <string name="explicit">E</string>
     <string name="no_videos_saved">No videos saved</string>
     <string name="no_videos_saved_body">Videos you save to watch later will appear here</string>
-
     <!-- Search Screen -->
     <string name="search_hint">Search</string>
     <string name="search_videos_channels_placeholder">Search videos, channels...</string>
@@ -293,7 +284,6 @@
     <string name="videos_header">Videos</string>
     <string name="end_of_results">End of results</string>
     <string name="clear_search_history">Clear search history</string>
-    
     <!-- Search Filters -->
     <string name="filter_upload_date">Upload date</string>
     <string name="filter_duration">Duration</string>
@@ -315,7 +305,6 @@
     <string name="sort_upload_date">Upload date</string>
     <string name="sort_view_count">View count</string>
     <string name="sort_rating">Rating</string>
-
     <!-- Channel Screen -->
     <string name="channel_default_title">Channel</string>
     <string name="channel_banner">Channel banner</string>
@@ -332,13 +321,11 @@
     <string name="no_playlists_found">No playlists found</string>
     <string name="subscribers_count_template">%1$s subscribers</string>
     <string name="views_count_short_template">%1$s views</string>
-
     <!-- Channel Search -->
     <string name="channel_search_hint">Search in channel</string>
     <string name="channel_search_open">Search in channel</string>
     <string name="channel_search_close">Close search</string>
     <string name="channel_search_no_results">No results found for "%1$s"</string>
-
     <!-- History Screen -->
     <string name="music_history">Music History</string>
     <string name="remove_from_history">Remove from history</string>
@@ -346,14 +333,12 @@
     <string name="time_today">Today</string>
     <string name="time_yesterday">Yesterday</string>
     <string name="time_earlier">Earlier</string>
-
     <!-- Notifications Screen -->
     <string name="clear_all_notifications">Clear all notifications</string>
     <string name="delete">Delete</string>
     <string name="dismiss">Dismiss</string>
     <string name="peace_and_quiet">Peace and quiet</string>
     <string name="notifications_empty_body">You\'re all caught up! New updates from your subscriptions will appear here.</string>
-
     <!-- Settings Screen -->
     <string name="settings_title">Settings</string>
     <string name="settings_flow_engine_header">Flow Engine</string>
@@ -363,7 +348,6 @@
     <string name="settings_reset_everything">Reset Everything</string>
     <string name="settings_analyzing_interactions">Analyzing your interactions...</string>
     <string name="settings_view_analytics">View Analytics</string>
-
     <!-- Deep Flow Mode -->
     <string name="deep_flow_mode_title">Deep Flow Mode</string>
     <string name="deep_flow_mode_subtitle">Pause learning — browse without influencing your profile</string>
@@ -385,7 +369,6 @@
     <string name="deep_flow_duration_8h">8 hours</string>
     <string name="deep_flow_duration_12h">12 hours</string>
     <string name="deep_flow_duration_24h">24 hours</string>
-
     <string name="settings_header_appearance">Appearance</string>
     <string name="settings_header_content_playback">Content &amp; Playback</string>
     <string name="settings_header_data_management">Data Management</string>
@@ -406,7 +389,6 @@
     <string name="notif_type_general_subtitle">Miscellaneous app alerts and announcements</string>
     <string name="notif_system_settings">System Notification Settings</string>
     <string name="notif_system_settings_subtitle">Open Android settings to manage per-channel permissions</string>
-
     <string name="notif_check_interval_section_header">Feed Check Schedule</string>
     <string name="notif_master_toggle">Enable notifications</string>
     <string name="notif_master_toggle_subtitle">Allow Flow to wake up in the background for notification checks and alerts</string>
@@ -423,7 +405,6 @@
     <string name="notif_interval_6h">6 hours (default)</string>
     <string name="notif_interval_12h">12 hours</string>
     <string name="notif_interval_24h">24 hours</string>
-
     <string name="settings_item_theme">Theme</string>
     <string name="settings_item_app_icon">App Icon</string>
     <string name="settings_item_app_icon_subtitle">Customize your launcher icon</string>
@@ -456,13 +437,11 @@
     <string name="settings_item_about_flow_subtitle">Version, License, Contributors</string>
     <string name="settings_item_support">Support &amp; Donations</string>
     <string name="settings_item_support_subtitle">Help support the development of Flow</string>
-    
     <string name="settings_region_dialog_title">Select Region</string>
-        <string name="settings_language_dialog_title">Select App Language</string>
-        <string name="settings_language_system_default">System default</string>
+    <string name="settings_language_dialog_title">Select App Language</string>
+    <string name="settings_language_system_default">System default</string>
     <string name="settings_export_success">Data exported successfully</string>
     <string name="settings_export_failed">Export failed: %1$s</string>
-
     <!-- Appearance Screen -->
     <string name="appearance_title">Appearance</string>
     <string name="appearance_subtitle">Personalize your Flow experience</string>
@@ -501,7 +480,6 @@
     <string name="appearance_system_defaults_subtitle">Choose which theme is used when your device switches between light and dark mode.</string>
     <string name="appearance_system_light_theme">Light mode theme</string>
     <string name="appearance_system_dark_theme">Dark mode theme</string>
-
     <!-- App Icon Picker -->
     <string name="app_icon_picker_subtitle">Choose a launcher icon style. The change takes effect immediately and the launcher will briefly refresh.</string>
     <string name="app_icon_picker_warning">Heads up: switching icons uses an Android system mechanism that may briefly remove the app shortcut from your home screen. Long-press the launcher to add it back if needed.</string>
@@ -514,7 +492,6 @@
     <string name="icon_name_dynamic">Material You</string>
     <string name="icon_name_material_sky">Material Sky</string>
     <string name="icon_name_material_mint">Material Mint</string>
-
     <!-- Player Appearance -->
     <string name="player_appearance_title">Player Appearance</string>
     <string name="player_appearance_header">Customize Player Controls</string>
@@ -562,8 +539,6 @@
     <string name="lyrics_provider_lrclib">LrcLib</string>
     <string name="lyrics_provider_better_lyrics">Better Lyrics</string>
     <string name="lyrics_provider_simpmusic">SimpMusic</string>
-
-
     <!-- Theme Names & Descriptions -->
     <string name="theme_name_system_default">System Default</string>
     <string name="theme_desc_system_default">Synchronize with device theme</string>
@@ -621,7 +596,6 @@
     <string name="theme_desc_espresso">Rich &amp; warm</string>
     <string name="theme_name_gunmetal">Gunmetal</string>
     <string name="theme_desc_gunmetal">Industrial edge</string>
-
     <!-- Content Settings -->
     <string name="content_settings_title">Content Settings</string>
     <string name="content_settings_header_display">Display</string>
@@ -720,7 +694,6 @@
     <string name="player_settings_mini_player_continue_watching_title">Continue Watching Mini Player</string>
     <string name="player_settings_mini_player_continue_watching_subtitle">Automatically pop up the last watched video</string>
     <string name="player_mini_player_continue_watching_label">Continue watching</string>
-
     <!-- Player Settings -->
     <string name="player_settings_title">Player Settings</string>
     <string name="proxy_settings_title">Proxy Settings</string>
@@ -827,9 +800,9 @@
     <string name="section_algorithm">Algorithm</string>
     <string name="section_options">Options</string>
     <!-- Channel blocking -->
-    <string name="dont_show_channel">Don&#x2019;t show this channel</string>
+    <string name="dont_show_channel">Don’t show this channel</string>
     <string name="dont_show_channel_desc">Remove from your recommendations</string>
-    <string name="channel_blocked_toast">%1$s won&#x2019;t appear in your feed</string>
+    <string name="channel_blocked_toast">%1$s won’t appear in your feed</string>
     <!-- Misc -->
     <string name="btn_save">Save</string>
     <string name="btn_cancel">Cancel</string>
@@ -849,7 +822,6 @@
     <string name="player_settings_double_tap_seek_subtitle_template">%ds per side double-tap</string>
     <string name="player_settings_double_tap_seek_dialog_title">Double-Tap Seek Duration</string>
     <string name="player_settings_double_tap_seek_dialog_body">Choose how many seconds to seek when double-tapping the left or right side of the player.</string>
-
     <!-- Video Quality Settings -->
     <string name="video_quality_title">Video Quality</string>
     <string name="video_quality_warning">High definition uses more data</string>
@@ -863,7 +835,6 @@
     <string name="quality_1080p_full_hd">1080p Full HD</string>
     <string name="quality_1440p_qhd">1440p QHD</string>
     <string name="quality_2160p_4k">2160p 4K</string>
-
     <!-- Buffer Settings -->
     <string name="buffer_settings_title">Buffer Settings</string>
     <string name="buffer_settings_desc">Configure video buffering behavior to optimize for your network connection.</string>
@@ -914,7 +885,6 @@
     <string name="action_description">Description</string>
     <string name="action_subscribe">Subscribe</string>
     <string name="action_search">Search</string>
-
     <!-- User Preferences Screen -->
     <string name="content_preferences_title">Content Preferences</string>
     <string name="content_preferences_subtitle">Customize what you see</string>
@@ -941,7 +911,6 @@
     <string name="desc_remove_topic">Remove %1$s</string>
     <string name="desc_unblock_topic">Unblock %1$s</string>
     <string name="selected_count_template">%1$d selected</string>
-
     <!-- Time Management Screen -->
     <string name="time_management_title">Time management</string>
     <string name="time_management_subtitle">Track and control your screen time</string>
@@ -972,7 +941,6 @@
     <string name="bedtime_start_title">Bedtime Start</string>
     <string name="bedtime_end_title">Wake Up Time</string>
     <string name="confirm">Confirm</string>
-
     <!-- Sleep Timer -->
     <string name="sleep_timer">Sleep Timer</string>
     <string name="sleep_timer_duration">Duration</string>
@@ -992,7 +960,6 @@
     <string name="sleep_timer_close_app">Close app when timer ends</string>
     <string name="sleep_timer_close_app_desc">Exit app to preserve battery</string>
     <string name="sleep_timer_will_close_app">App will close when timer ends</string>
-
     <!-- Search History Settings Screen -->
     <string name="search_history_title">Search &amp; History</string>
     <string name="save_search_history_title">Save Search History</string>
@@ -1019,7 +986,6 @@
     <string name="period_six_months">6 months</string>
     <string name="period_one_year">1 year</string>
     <string name="days_count_template">%1$d days</string>
-
     <!-- Import Data Screen -->
     <string name="import_data_title">Import Data</string>
     <string name="import_flow_backup_success">Flow backup imported successfully</string>
@@ -1042,7 +1008,6 @@
     <string name="import_libretube_playlists_desc">Import your LibreTube local playlists from a backup JSON file.</string>
     <string name="import_yt_takeout_all">Import from Google Takeout</string>
     <string name="import_yt_takeout_all_desc">Import your YouTube subscriptions, watch history, and playlists all at once from a Google Takeout ZIP file.</string>
-
     <!-- Music Apps Import -->
     <string name="import_music_apps_section_title">Music Apps</string>
     <string name="import_music_apps_section_subtitle">Import your music library from other players</string>
@@ -1056,7 +1021,6 @@
     <string name="import_freetube_history_desc">Import your watch history from a FreeTube export JSON file.</string>
     <string name="import_newpipe_history">Import NewPipe History</string>
     <string name="import_newpipe_history_desc">Import your watch history from a NewPipe backup ZIP or newpipe.db file.</string>
-
     <!-- YouTube Data Import (Watch History & Playlists) -->
     <string name="import_yt_data_section_title">YouTube Data</string>
     <string name="import_yt_data_section_subtitle">Import additional data from YouTube Takeout</string>
@@ -1068,11 +1032,10 @@
     <string name="import_yt_music_playlist_desc">Import a music playlist from YouTube Music Takeout CSV. Appears under Music Playlists.</string>
     <string name="import_yt_history_success_template">Imported %1$d entries from your YouTube watch history</string>
     <string name="import_yt_history_failed_template">Failed to import watch history: %1$s</string>
-    <string name="import_yt_playlist_success_template">Imported playlist &#8220;%1$s&#8221; with %2$d videos</string>
+    <string name="import_yt_playlist_success_template">Imported playlist “%1$s” with %2$d videos</string>
     <string name="import_yt_playlist_failed_template">Failed to import playlist: %1$s</string>
     <string name="import_yt_history_empty_error">No watch history entries found in this file. Make sure it is a YouTube Takeout watch-history.html file.</string>
     <string name="import_yt_playlist_empty_error">No videos found in this CSV. Make sure it is a YouTube Takeout playlist CSV file.</string>
-
     <!-- Download Settings Screen -->
     <string name="download_settings_title">Download Settings</string>
     <string name="permissions_header">Permissions</string>
@@ -1101,7 +1064,6 @@
     <string name="concurrent_threads_title">Concurrent Threads</string>
     <string name="threads_per_download_template">%1$d threads per download</string>
     <string name="performance_optimization_note">Using more threads can increase speed but may use more battery and heat up the device.</string>
-
     <string name="location_dialog_subtitle">Choose where downloaded files are saved on your device.</string>
     <string name="location_preset_header">Preset Locations</string>
     <string name="location_custom_header">Custom Location</string>
@@ -1120,7 +1082,6 @@
     <string name="location_badge_active">Active</string>
     <string name="select_threads_count_desc">Select threads count (1-8):</string>
     <string name="threads_count_label">%1$d threads</string>
-
     <!-- Donations Screen -->
     <string name="support_donations_title">Support &amp; Donations</string>
     <string name="support_flow_dev_title">Support Flow Development</string>
@@ -1129,7 +1090,6 @@
     <string name="thank_you_support_message">Thank you for your support! ❤️</string>
     <string name="address_copied_toast">Address copied to clipboard</string>
     <string name="donation_address_clip_label">Donation Address</string>
-
     <!-- About Screen -->
     <string name="about_creator">Creator</string>
     <string name="about_website">Website</string>
@@ -1163,7 +1123,7 @@
     <string name="support_dev_subtitle">Support development</string>
     <string name="btn_ok">OK</string>
     <string name="btn_copy">Copy</string>
-    <string name="github_label">GitHub</string>    
+    <string name="github_label">GitHub</string>
     <!-- Playlists & Playlist Details -->
     <string name="new_playlist_button">New Playlist</string>
     <string name="your_playlists_header">Your Playlists</string>
@@ -1182,7 +1142,6 @@
     <string name="delete_playlist_dialog_text">This will permanently delete \'%1$s\' and all its videos.</string>
     <string name="playlist_metadata_private_template">Playlist • Private • %1$d videos</string>
     <string name="playlist_metadata_public_template">Playlist • Public • %1$d videos</string>
-
     <string name="playlist_sort_options">Playlist sort options</string>
     <string name="playlist_sort_manual">Manual</string>
     <string name="playlist_sort_date_added_newest">Date added (newest)</string>
@@ -1193,7 +1152,6 @@
     <string name="remove_selected_videos_title">Remove %1$d video(s)?</string>
     <string name="remove_selected_playlist_text">They will be removed from this playlist.</string>
     <string name="remove_selected_watch_later_text">They will be removed from Watch later.</string>
-
     <!-- Onboarding -->
     <string name="welcome_to_flow">Welcome to Flow</string>
     <string name="onboarding_subtitle">Tell us what you\'re interested in</string>
@@ -1203,7 +1161,6 @@
     <string name="onboarding_btn_continue">Continue</string>
     <string name="cd_collapse_category">Collapse</string>
     <string name="cd_expand_category">Expand</string>
-
     <!-- Categories -->
     <string name="category_gaming">Gaming</string>
     <string name="category_music">Music</string>
@@ -1215,7 +1172,6 @@
     <string name="category_creative">Creative</string>
     <string name="category_science_nature">Science &amp; Nature</string>
     <string name="category_news_current_events">News &amp; Current Events</string>
-
     <!-- Flow Personality Screen -->
     <string name="flow_control_center">Flow Control Center</string>
     <string name="action_refresh">Refresh</string>
@@ -1243,7 +1199,6 @@
     <string name="interactions_level_template">%1$d interactions • Level %2$d</string>
     <string name="export_profile_data">Export Profile Data</string>
     <string name="flow_neural_profile_export_subject">Flow Neural Profile Export</string>
-
     <!-- Music Playlists Screen -->
     <string name="screen_title_music_library">Music Library</string>
     <string name="header_your_collection">Your Collection</string>
@@ -1252,7 +1207,6 @@
     <string name="empty_music_playlists">No music playlists yet</string>
     <string name="rename_playlist_title">Rename Playlist</string>
     <string name="action_rename">Rename</string>
-
     <string name="link_copied">Link copied</string>
     <string name="copy_video_link">Copy video link</string>
     <string name="copy_channel_link">Copy channel link</string>
@@ -1276,7 +1230,6 @@
     <string name="label_explicit">Explicit</string>
     <string name="duration_with_dot_template"> • %1$s</string>
     <string name="status_downloaded">Downloaded</string>
-    
     <string name="title_create_playlist">Create Playlist</string>
     <string name="label_playlist_name">Playlist Name</string>
     <string name="placeholder_playlist_name">My Awesome Playlist</string>
@@ -1292,7 +1245,6 @@
     <string name="action_listen_now">Listen Now</string>
     <string name="action_play_all">Play all</string>
     <string name="loading_music">Loading music...</string>
-
     <!-- Enhanced Music Screen -->
     <string name="screen_title_music">MUSIC</string>
     <string name="section_listen_again">Listen again</string>
@@ -1314,10 +1266,8 @@
     <string name="subtitle_community_playlists">Community Playlists</string>
     <string name="playlist_author_community">Community Playlist</string>
     <string name="playlist_description_community">Curated playlist of %1$s music from our community</string>
-
     <!-- Music Player Screen -->
     <string name="radio">Radio</string>
-    
     <!-- Audio Settings -->
     <string name="audio_settings_title">Audio Settings</string>
     <string name="label_preset">Preset</string>
@@ -1332,10 +1282,8 @@
     <string name="template_freq">%1$dHz</string>
     <string name="template_gain">%1$.1fdB</string>
     <string name="template_q">%1$.1f</string>
-    
     <!-- Player -->
     <string name="now_playing">NOW PLAYING</string>
-    
     <!-- Music Search Screen -->
     <string name="voice_search_prompt">Speak to search music</string>
     <string name="search_music_placeholder">Search music</string>
@@ -1356,7 +1304,6 @@
     <string name="top_picks_for_you">Top Picks for You</string>
     <string name="no_results_found">No results found</string>
     <string name="no_tracks_available">No tracks available</string>
-
     <!-- Library Screen -->
     <string name="tab_favorites">Favorites</string>
     <string name="create_playlist_subtitle">Organize your music</string>
@@ -1382,7 +1329,6 @@
     <string name="resize_fit">Fit</string>
     <string name="resize_fill">Fill</string>
     <string name="resize_zoom">Zoom</string>
-
     <!-- Shorts Player Features -->
     <string name="shorts_audio_track">Audio Track</string>
     <string name="shorts_auto_scroll_active_template">Auto %1$ds</string>
@@ -1390,14 +1336,12 @@
     <string name="shorts_no_audio_tracks">No audio tracks available</string>
     <string name="shorts_audio_original">Original</string>
     <string name="shorts_audio_dubbed">Dubbed</string>
-
     <!-- Shorts Quality Settings -->
     <string name="shorts_quality_settings_title">Shorts Video Quality</string>
     <string name="shorts_quality_settings_subtitle">Quality when watching Shorts</string>
     <string name="shorts_quality_warning">Higher quality uses more data. Shorts use vertical video streams.</string>
     <string name="shorts_quality_wifi_header">Shorts Wi-Fi Quality</string>
     <string name="shorts_quality_cellular_header">Shorts Cellular Quality</string>
-
     <!-- Video Queue / Play Next -->
     <string name="play_next_video">Play Next</string>
     <string name="play_next_video_desc">Insert at start of video queue</string>
@@ -1406,7 +1350,6 @@
     <string name="added_to_queue_toast">Added to queue</string>
     <string name="play_next_toast">Will play next</string>
     <string name="no_active_queue_toast">No active video queue. Start playing a video first.</string>
-
     <!-- Player Dialogs -->
     <string name="download_video">Download Video</string>
     <string name="select_quality">Select your preferred quality</string>
@@ -1432,20 +1375,17 @@
     <string name="done">Done</string>
     <string name="playlist_queue">Playlist queue</string>
     <string name="next_up">Next</string>
-
     <!-- Cast / Chromecast -->
     <string name="cast_to_tv">Cast to TV</string>
     <string name="cast_connecting">Connecting to cast device…</string>
     <string name="cast_connected">Casting</string>
     <string name="cast_disconnected">Cast disconnected</string>
-
     <!-- Check for Updates -->
     <string name="check_for_updates">Check for Updates</string>
     <string name="check_for_updates_subtitle">Tap to check for the latest version</string>
     <string name="checking_for_updates">Checking for updates…</string>
     <string name="flow_is_up_to_date">Flow is up to date!</string>
     <string name="update_check_failed">Couldn\'t check for updates. Check your connection.</string>
-
     <!-- Export / Import Flow Engine data (Settings + ImportDataScreen) -->
     <string name="export_engine_data">Export Engine Profile</string>
     <string name="export_engine_data_subtitle">Back up your AI personality &amp; learning data</string>
@@ -1455,7 +1395,6 @@
     <string name="import_engine_data_desc">Restore your AI personality profile from a backup file</string>
     <string name="import_engine_success">Engine profile restored successfully</string>
     <string name="import_engine_failed">Failed to import engine profile</string>
-
     <!-- Master Backup -->
     <string name="master_backup_title">Master Backup</string>
     <string name="master_backup_subtitle">Export brain and app data in one file</string>
@@ -1465,7 +1404,6 @@
     <string name="import_master_backup_desc">Restore both app data and engine profile from a single master backup file</string>
     <string name="import_master_backup_success">Master backup restored successfully</string>
     <string name="import_master_backup_failed">Failed to import master backup</string>
-
     <!-- Automated Backups -->
     <string name="auto_backup_title">Automated Backups</string>
     <string name="auto_backup_subtitle">Schedule automatic backups to a folder</string>
@@ -1491,7 +1429,6 @@
     <string name="auto_backup_success">Backup completed successfully</string>
     <string name="auto_backup_failed">Backup failed</string>
     <string name="auto_backup_notification_channel">Automated Backups</string>
-
     <!-- Export Data Screen -->
     <string name="export_data_screen_title">Export Data</string>
     <string name="export_data_section_header">Choose Export Type</string>
@@ -1502,7 +1439,6 @@
     <string name="export_newpipe_subs_failed">Failed to export NewPipe subscriptions</string>
     <string name="export_app_data_title">App Data Backup</string>
     <string name="export_app_data_desc">Export your subscriptions, watch history, playlists, and settings</string>
-
     <!-- Video Player Errors -->
     <string name="error_age_restricted">Age-restricted content</string>
     <string name="error_age_restricted_hint">This video is only available to signed-in users who have verified their age.</string>
@@ -1544,7 +1480,6 @@
     <string name="error_generic_hint">An unknown error occurred. Please try again.</string>
     <string name="player_lock_controls">Lock controls</string>
     <string name="player_unlock_controls">Unlock controls</string>
-
     <!-- New Video Player Strings -->
     <string name="player_settings_overlay_controls">Overlay Controls</string>
     <string name="player_settings_overlay_cast">Cast Button</string>
@@ -1571,7 +1506,6 @@
     <string name="player_action_dislike">Dislike</string>
     <string name="action_want_more">Want more like this</string>
     <string name="action_not_interested">Not interested</string>
-
     <!-- Diagnostics screen -->
     <string name="settings_item_diagnostics">Diagnostics</string>
     <string name="settings_item_diagnostics_subtitle">View error logs and crash reports</string>
@@ -1587,19 +1521,16 @@
     <string name="diagnostics_no_session_logs">No warnings or errors in this session.</string>
     <string name="diagnostics_loading">Reading logs…</string>
     <string name="diagnostics_copied">Report copied to clipboard</string>
-
     <!-- Merge/Add entire playlist into another playlist (#263) -->
     <string name="add_all_to_playlist">Add to my playlist</string>
     <string name="merge_playlist_dialog_title">Add all songs to…</string>
-    <string name="merge_playlist_success">Added %1$d songs to &#8220;%2$s&#8221;</string>
+    <string name="merge_playlist_success">Added %1$d songs to “%2$s”</string>
     <string name="merge_playlist_no_playlists">No playlists yet. Create one first!</string>
-
     <!-- Profile Export/Import Toasts -->
     <string name="profile_export_success">Profile exported successfully</string>
     <string name="profile_export_failed">Export failed</string>
     <string name="profile_import_success">Profile imported successfully</string>
     <string name="profile_import_failed">Import failed - invalid file</string>
-
     <!-- Learning Stats Section -->
     <string name="learning_stats_title">Learning Signals</string>
     <string name="learning_stats_subtitle">What the engine currently remembers</string>
@@ -1619,11 +1550,9 @@
     <string name="metric_filters_detail">blocked items</string>
     <string name="metric_suppressed">Suppressed</string>
     <string name="metric_suppressed_detail">cooldown items</string>
-
     <!-- Profile Maturity Section -->
     <string name="profile_maturity_label">Profile maturity</string>
     <string name="profile_maturity_detail">Higher maturity means the profile has enough signals to be stable</string>
-
     <!-- Taste Shape Section -->
     <string name="taste_shape_title">Taste Shape</string>
     <string name="taste_shape_subtitle">Global profile compared with the active time context</string>
@@ -1636,12 +1565,10 @@
     <string name="taste_live_affinity_detail">How much live content fits the profile</string>
     <string name="taste_topic_breadth">Topic breadth</string>
     <string name="taste_topic_breadth_detail">%1$d topics in the global vector</string>
-
     <!-- Interest Weights Section -->
     <string name="interest_weights_title">Interest Weights</string>
     <string name="interest_weights_subtitle">Highest weighted topics after probation and evidence checks</string>
     <string name="interest_weights_empty">No topic weights yet.</string>
-
     <!-- Time Patterns Section -->
     <string name="time_patterns_title">Time Patterns</string>
     <string name="time_patterns_subtitle">Swipe through weekday and weekend context vectors</string>
@@ -1652,7 +1579,6 @@
     <string name="time_bucket_pace">Pace</string>
     <string name="time_bucket_complexity">Complexity</string>
     <string name="time_bucket_duration">Duration</string>
-
     <!-- Time Bucket Display Names -->
     <string name="time_bucket_weekday_morning">Weekday morning</string>
     <string name="time_bucket_weekday_afternoon">Weekday afternoon</string>
@@ -1662,19 +1588,16 @@
     <string name="time_bucket_weekend_afternoon">Weekend afternoon</string>
     <string name="time_bucket_weekend_evening">Weekend evening</string>
     <string name="time_bucket_weekend_night">Weekend night</string>
-
     <!-- Time Bucket Windows -->
     <string name="time_window_morning">6 AM - 12 PM</string>
     <string name="time_window_afternoon">12 PM - 6 PM</string>
     <string name="time_window_evening">6 PM - 12 AM</string>
     <string name="time_window_night">12 AM - 6 AM</string>
-
     <!-- Channel Affinity Section -->
     <string name="channel_affinity_strong">Strong</string>
     <string name="channel_affinity_balanced">Balanced</string>
     <string name="channel_affinity_cooling">Cooling</string>
     <string name="channel_affinity_score">affinity score</string>
-
     <!-- Discovery Status Section -->
     <string name="discovery_status_title">Discovery Status</string>
     <string name="discovery_status_subtitle">Queries and guardrails currently shaping exploration</string>
@@ -1686,7 +1609,6 @@
     <string name="discovery_rejections_detail">topic patterns</string>
     <string name="discovery_shorts_seen">Shorts Seen</string>
     <string name="discovery_shorts_seen_detail">repeat guard</string>
-
     <!-- Blocked Content Section -->
     <string name="blocked_content_title">Filters</string>
     <string name="blocked_content_subtitle">Topics and channels excluded from recommendations</string>
@@ -1695,7 +1617,6 @@
     <string name="blocked_item_unblock_topic">Unblock topic</string>
     <string name="blocked_item_unblock_channel">Unblock channel</string>
     <string name="blocked_item_showing_count">Showing %1$d of %2$d</string>
-
     <!-- Profile Data Section -->
     <string name="profile_data_title">Profile Data</string>
     <string name="profile_data_subtitle">Backup, restore, or reset the local recommendation profile</string>
@@ -1705,17 +1626,13 @@
     <string name="profile_action_import_detail">Restore a profile backup</string>
     <string name="profile_action_reset">Reset profile</string>
     <string name="profile_action_reset_detail">Erase learned preferences and start fresh</string>
-
     <!-- Reset Profile Dialog -->
     <string name="reset_profile_dialog_title">Reset profile?</string>
     <string name="reset_profile_dialog_message">This clears the local recommendation profile and starts learning again from zero.</string>
     <string name="reset_profile_confirm">Reset</string>
-
     <!-- Taste Chart Labels -->
     <string name="taste_chart_profile">Profile</string>
     <string name="taste_chart_now">Now</string>
-
     <!-- Topic Evidence -->
-    <string name="topic_score_prefix">Score</string>
+    <string name="topic_score_prefix"></string>
 </resources>
-
