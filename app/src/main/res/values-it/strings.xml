@@ -1450,7 +1450,7 @@
     <string name="reset_profile_confirm">Reimposta</string>
     <string name="taste_chart_profile">Profilo</string>
     <string name="taste_chart_now">Adesso</string>
-    <string name="topic_score_prefix">Punteggio</string>
+    <string name="topic_score_prefix">Evidenze a supporto</string>
     <string name="filter_oldest">Meno recenti</string>
     <string name="channel_affinity_cooling">In raffreddamento</string>
     <string name="download_all">Scarica tutto</string>
@@ -1550,4 +1550,6 @@
     <string name="subscriptions_music_chip_label">Musica</string>
     <string name="subscriptions_music_badge_cd">Iscrizioni musicali</string>
     <string name="no_subscriptions_found">Nessuna iscrizione trovata</string>
+    <string name="player_appearance_remember_brightness_title">Ricorda la luminosità</string>
+    <string name="player_appearance_remember_brightness_subtitle">Usa l\'ultimo livello di luminosità del player per i video successivi</string>
 </resources>
