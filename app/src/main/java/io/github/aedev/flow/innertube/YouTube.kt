@@ -1637,6 +1637,7 @@ object YouTube {
                  loudnessDb = null,
                  lastModified = null,
                  signatureCipher = null,
+                 cipher = null,
                  audioTrack = null
              )
         }

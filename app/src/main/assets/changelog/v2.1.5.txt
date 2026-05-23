@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-23
+DATE: 2026-05-24
 STATUS: PRE-RELEASE
 
 FEATURES
@@ -63,6 +63,7 @@ IMPROVEMENTS
 - Improve upcoming videos handling and add a reminder #470
 - Improve mini video player animaton #464
 - Improve sponsor skip button placement #476
+- Improve music playback speed and simpmusic issues
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

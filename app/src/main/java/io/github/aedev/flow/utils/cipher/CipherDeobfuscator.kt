@@ -30,6 +30,16 @@ object CipherDeobfuscator {
     private var cipherWebView: CipherWebView? = null
     private var currentPlayerHash: String? = null
 
+    @Volatile
+    private var cachedSignatureTimestamp: Int? = null
+
+    fun getSignatureTimestamp(): Int? = cachedSignatureTimestamp
+
+    fun invalidateSignatureTimestamp() {
+        Log.d(TAG, "Invalidating signature timestamp")
+        cachedSignatureTimestamp = null
+    }
+
     /**
      * Deobfuscate a signatureCipher stream URL.
      * Returns the full URL with deobfuscated signature, or null if failed.
@@ -141,6 +151,8 @@ object CipherDeobfuscator {
         Log.d(TAG, "Got player JS: hash=$hash, length=${playerJs.length}")
 
         val analysis = FunctionNameExtractor.analyzePlayerJs(playerJs, knownHash = hash)
+        cachedSignatureTimestamp = analysis.signatureTimestamp
+        Log.d(TAG, "Extracted signatureTimestamp: $cachedSignatureTimestamp")
 
         if (analysis.sigInfo == null) {
             Log.e(TAG, "Could not extract signature function info from player JS")

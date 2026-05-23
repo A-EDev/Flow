@@ -55,17 +55,30 @@ class LyricsHelper(
         title: String,
         artist: String,
         duration: Int,
-        album: String? = null
+        album: String? = null,
+        context: android.content.Context? = null
     ): Pair<List<LyricsEntry>, String>? {
         cache[videoId]?.let { cached ->
-            Log.d(TAG, "Returning cached lyrics for $videoId")
-            return cached to "Cache"
+            Log.d(TAG, "Returning in-memory cached lyrics for $videoId")
+            return cached to "MemoryCache"
         }
 
-        val wordSyncResult = fetchWordSyncParallel(videoId, title, artist, duration, album)
+        val targetContext = context ?: io.github.aedev.flow.FlowApplication.appContext
+        val diskCached = LyricsCacheManager.getLyrics(targetContext, videoId)
+        if (!diskCached.isNullOrEmpty()) {
+            cache[videoId] = diskCached
+            return diskCached to "DiskCache"
+        }
+
+        val cleanedTitle = LyricsUtils.cleanTitle(title)
+        val cleanedArtist = LyricsUtils.cleanArtist(artist)
+        Log.d(TAG, "Cache miss. Querying network providers: cleanedTitle=\"$cleanedTitle\", cleanedArtist=\"$cleanedArtist\"")
+
+        val wordSyncResult = fetchWordSyncParallel(videoId, cleanedTitle, cleanedArtist, duration, album)
         if (wordSyncResult != null) {
             cache[videoId] = wordSyncResult.first
-            Log.d(TAG, "Word-sync lyrics from ${wordSyncResult.second}")
+            Log.d(TAG, "Word-sync lyrics fetched from ${wordSyncResult.second}")
+            LyricsCacheManager.saveLyrics(targetContext, videoId, wordSyncResult.first)
             return wordSyncResult
         }
 
@@ -74,14 +87,15 @@ class LyricsHelper(
             try {
                 Log.d(TAG, "Fallback: trying ${provider.name}")
                 val result = withTimeoutOrNull(FALLBACK_TIMEOUT_MS) {
-                    provider.getLyrics(videoId, title, artist, duration, album)
+                    provider.getLyrics(videoId, cleanedTitle, cleanedArtist, duration, album)
                 } ?: continue
 
                 if (result.isSuccess) {
                     val entries = result.getOrNull()
                     if (!entries.isNullOrEmpty()) {
                         cache[videoId] = entries
-                        Log.d(TAG, "Line-sync lyrics from ${provider.name} (${entries.size} lines)")
+                        Log.d(TAG, "Line-sync lyrics fetched from ${provider.name} (${entries.size} lines)")
+                        LyricsCacheManager.saveLyrics(targetContext, videoId, entries)
                         return entries to provider.name
                     }
                 }

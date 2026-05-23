@@ -44,22 +44,42 @@ object MusicPlayerUtils {
             .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
             .build()
 
+    @Volatile
+    private var cachedSignatureTimestamp: Int? = null
+
+    private val validationHttpClient: OkHttpClient by lazy {
+        AppProxyManager.applyTo(OkHttpClient.Builder())
+            .connectTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(2, java.util.concurrent.TimeUnit.SECONDS)
+            .build()
+    }
+
     private val poTokenGenerator = PoTokenGenerator()
 
     private val MAIN_CLIENT: YouTubeClient = WEB_REMIX
 
     private val STREAM_FALLBACK_CLIENTS: Array<YouTubeClient> = arrayOf(
+        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
         TVHTML5,
-        ANDROID_VR_1_43_32,
+        ANDROID_VR_1_43_32,      
         ANDROID_VR_1_61_48,
         ANDROID_CREATOR,
         IPADOS,
         ANDROID_VR_NO_AUTH,
         MOBILE,
-        TVHTML5_SIMPLY_EMBEDDED_PLAYER,
         IOS,
         WEB,
         WEB_CREATOR
+    )
+
+    private val FAST_DIRECT_STREAM_CLIENTS: Array<YouTubeClient> = arrayOf(
+        ANDROID_VR_1_43_32,
+        ANDROID_VR_1_61_48,
+        ANDROID_VR_NO_AUTH,
+        IPADOS,
+        MOBILE,
+        IOS,
+        ANDROID_CREATOR
     )
 
     // Request deduplication - prevents duplicate fetches for same video
@@ -88,6 +108,8 @@ object MusicPlayerUtils {
         videoRefreshTimestamps[videoId] = System.currentTimeMillis()
         activeRequests.remove(videoId)
         resultCache.remove(videoId)
+        cachedSignatureTimestamp = null
+        io.github.aedev.flow.utils.cipher.CipherDeobfuscator.invalidateSignatureTimestamp()
     }
 
     suspend fun playerResponseForPlayback(
@@ -170,43 +192,124 @@ object MusicPlayerUtils {
         mainPlayerResponse = YouTube.player(videoId, playlistId, MAIN_CLIENT, sts, poToken?.playerRequestPoToken).getOrNull()
         
         if (mainPlayerResponse?.playabilityStatus?.status == "OK") {
-            extraction = tryExtract(mainPlayerResponse, MAIN_CLIENT, videoId, validate = false)
+            extraction = tryExtract(
+                response = mainPlayerResponse,
+                client = MAIN_CLIENT,
+                videoId = videoId,
+                validate = false,
+                requireDirectUrl = true,
+                allowCipherFallback = false,
+                allowNewPipeFallback = false,
+                allowStreamInfoFallback = false
+            )
             if (extraction != null) {
                 response = mainPlayerResponse
                 usedClient = MAIN_CLIENT
-                Log.i(TAG, "MAIN_CLIENT success")
+                Log.i(TAG, "MAIN_CLIENT direct URL success")
+            } else {
+                Log.d(TAG, "MAIN_CLIENT has no direct playable audio URL; skipping cipher on fast path")
             }
         }
 
         if (usedClient == null) {
-            Log.d(TAG, "MAIN_CLIENT failed or invalid. Starting fallback...")
+            Log.d(TAG, "Starting fast direct stream fallback...")
             
-            for ((index, client) in STREAM_FALLBACK_CLIENTS.withIndex()) {
+            val fastClients = (FAST_DIRECT_STREAM_CLIENTS.asSequence() + STREAM_FALLBACK_CLIENTS.asSequence())
+                .distinctBy { "${it.clientName}:${it.clientVersion}:${it.clientId}" }
+                .toList()
+
+            for ((index, client) in fastClients.withIndex()) {
                 if (client.loginRequired && !isLoggedIn()) {
                     Log.d(TAG, "Skipping ${client.clientName} - requires login")
                     continue
                 }
                 
-                Log.d(TAG, "Trying fallback ${index + 1}/${STREAM_FALLBACK_CLIENTS.size}: ${client.clientName}")
+                Log.d(TAG, "Trying direct fallback ${index + 1}/${fastClients.size}: ${client.clientName}")
                 
                 try {
                     val clientPoToken = if (client.useWebPoTokens) poToken?.playerRequestPoToken else null
                     val fallbackResponse = YouTube.player(videoId, playlistId, client, sts, clientPoToken).getOrNull()
                     
                     if (fallbackResponse?.playabilityStatus?.status == "OK") {
-                        val skipValidation = index == STREAM_FALLBACK_CLIENTS.size - 1
-                        val result = tryExtract(fallbackResponse, client, videoId, validate = !skipValidation)
+                        val result = tryExtract(
+                            response = fallbackResponse,
+                            client = client,
+                            videoId = videoId,
+                            validate = true,
+                            requireDirectUrl = true,
+                            allowCipherFallback = false,
+                            allowNewPipeFallback = false,
+                            allowStreamInfoFallback = false
+                        )
                         
                         if (result != null) {
                             response = fallbackResponse
                             extraction = result
                             usedClient = client
-                            Log.i(TAG, "Fallback success with ${client.clientName}")
+                            Log.i(TAG, "Direct fallback success with ${client.clientName}")
                             break
                         }
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "Client ${client.clientName} threw exception: ${e.message}")
+                }
+            }
+        }
+
+        if (usedClient == null) {
+            Log.d(TAG, "No direct stream URL resolved; using slow cipher/NewPipe rescue path...")
+
+            if (mainPlayerResponse?.playabilityStatus?.status == "OK") {
+                extraction = tryExtract(
+                    response = mainPlayerResponse,
+                    client = MAIN_CLIENT,
+                    videoId = videoId,
+                    validate = false,
+                    requireDirectUrl = false,
+                    allowCipherFallback = true,
+                    allowNewPipeFallback = true,
+                    allowStreamInfoFallback = true
+                )
+                if (extraction != null) {
+                    response = mainPlayerResponse
+                    usedClient = MAIN_CLIENT
+                    Log.i(TAG, "Slow rescue success with ${MAIN_CLIENT.clientName}")
+                }
+            }
+
+            if (usedClient == null) {
+                for ((index, client) in STREAM_FALLBACK_CLIENTS.withIndex()) {
+                    if (client.loginRequired && !isLoggedIn()) {
+                        continue
+                    }
+
+                    try {
+                        val clientPoToken = if (client.useWebPoTokens) poToken?.playerRequestPoToken else null
+                        val fallbackResponse = YouTube.player(videoId, playlistId, client, sts, clientPoToken).getOrNull()
+
+                        if (fallbackResponse?.playabilityStatus?.status == "OK") {
+                            val result = tryExtract(
+                                response = fallbackResponse,
+                                client = client,
+                                videoId = videoId,
+                                validate = index != STREAM_FALLBACK_CLIENTS.lastIndex,
+                                requireDirectUrl = false,
+                                allowCipherFallback = true,
+                                allowNewPipeFallback = true,
+                                allowStreamInfoFallback = index == STREAM_FALLBACK_CLIENTS.lastIndex
+                            )
+
+                            if (result != null) {
+                                response = fallbackResponse
+                                extraction = result
+                                usedClient = client
+                                Log.i(TAG, "Slow fallback success with ${client.clientName}")
+                                break
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Slow fallback ${client.clientName} threw exception: ${e.message}")
+                    }
                 }
             }
         }
@@ -260,13 +363,24 @@ object MusicPlayerUtils {
         response: PlayerResponse?, 
         client: YouTubeClient,
         videoId: String,
-        validate: Boolean = true
+        validate: Boolean = true,
+        requireDirectUrl: Boolean = false,
+        allowCipherFallback: Boolean = true,
+        allowNewPipeFallback: Boolean = true,
+        allowStreamInfoFallback: Boolean = true
     ): Pair<PlayerResponse.StreamingData.Format, String>? {
         if (response?.playabilityStatus?.status != "OK") return null
         
-        val format = findBestAudioFormat(response) ?: return null
+        val format = findBestAudioFormat(response, requireDirectUrl) ?: return null
         
-        val url = findUrlOrNull(format, videoId, response)
+        val url = findUrlOrNull(
+            format = format,
+            videoId = videoId,
+            playerResponse = response,
+            allowCipherFallback = allowCipherFallback,
+            allowNewPipeFallback = allowNewPipeFallback,
+            allowStreamInfoFallback = allowStreamInfoFallback
+        )
         if (url == null) {
             Log.d(TAG, "Could not find stream URL for format ${format.itag}")
             return null
@@ -286,7 +400,10 @@ object MusicPlayerUtils {
     private suspend fun findUrlOrNull(
         format: PlayerResponse.StreamingData.Format,
         videoId: String,
-        playerResponse: PlayerResponse
+        playerResponse: PlayerResponse,
+        allowCipherFallback: Boolean,
+        allowNewPipeFallback: Boolean,
+        allowStreamInfoFallback: Boolean
     ): String? {
         // 1. Direct URL from format
         if (!format.url.isNullOrEmpty()) {
@@ -295,8 +412,8 @@ object MusicPlayerUtils {
         }
 
         // 2. SignatureCipher deobfuscation via CipherDeobfuscator
-        val signatureCipher = format.signatureCipher
-        if (!signatureCipher.isNullOrEmpty()) {
+        val signatureCipher = format.signatureCipher ?: format.cipher
+        if (allowCipherFallback && !signatureCipher.isNullOrEmpty()) {
             Log.d(TAG, "Format has signatureCipher, using CipherDeobfuscator")
             val deobfuscatedUrl = CipherDeobfuscator.deobfuscateStreamUrl(signatureCipher, videoId)
             if (deobfuscatedUrl != null) {
@@ -306,30 +423,34 @@ object MusicPlayerUtils {
         }
 
         // 3. NewPipe deobfuscation
-        val deobfuscatedUrl = NewPipeExtractor.getStreamUrl(format, videoId)
-        if (deobfuscatedUrl != null) {
-            Log.d(TAG, "URL obtained via NewPipe")
-            return deobfuscatedUrl
+        if (allowNewPipeFallback) {
+            val deobfuscatedUrl = NewPipeExtractor.getStreamUrl(format, videoId)
+            if (deobfuscatedUrl != null) {
+                Log.d(TAG, "URL obtained via NewPipe")
+                return deobfuscatedUrl
+            }
         }
 
         // 4. StreamInfo fallback
-        val streamUrls = YouTube.getNewPipeStreamUrls(videoId)
-        if (streamUrls.isNotEmpty()) {
-            val exactMatch = streamUrls.find { it.first == format.itag }?.second
-            if (exactMatch != null) {
-                Log.d(TAG, "URL obtained from StreamInfo (exact itag match)")
-                return exactMatch
-            }
+        if (allowStreamInfoFallback) {
+            val streamUrls = YouTube.getNewPipeStreamUrls(videoId)
+            if (streamUrls.isNotEmpty()) {
+                val exactMatch = streamUrls.find { it.first == format.itag }?.second
+                if (exactMatch != null) {
+                    Log.d(TAG, "URL obtained from StreamInfo (exact itag match)")
+                    return exactMatch
+                }
 
-            val audioStream = streamUrls.find { urlPair ->
-                playerResponse.streamingData?.adaptiveFormats?.any {
-                    it.itag == urlPair.first && it.mimeType.startsWith("audio/")
-                } == true
-            }?.second
+                val audioStream = streamUrls.find { urlPair ->
+                    playerResponse.streamingData?.adaptiveFormats?.any {
+                        it.itag == urlPair.first && it.mimeType.startsWith("audio/")
+                    } == true
+                }?.second
 
-            if (audioStream != null) {
-                Log.d(TAG, "Audio stream URL obtained from StreamInfo")
-                return audioStream
+                if (audioStream != null) {
+                    Log.d(TAG, "Audio stream URL obtained from StreamInfo")
+                    return audioStream
+                }
             }
         }
 
@@ -337,12 +458,16 @@ object MusicPlayerUtils {
         return null
     }
 
-    private fun findBestAudioFormat(response: PlayerResponse): PlayerResponse.StreamingData.Format? {
+    private fun findBestAudioFormat(
+        response: PlayerResponse,
+        requireDirectUrl: Boolean = false
+    ): PlayerResponse.StreamingData.Format? {
         val adaptiveFormats = response.streamingData?.adaptiveFormats ?: emptyList()
         
         val audioFormats = adaptiveFormats.filter { format ->
             format.mimeType.startsWith("audio/") &&
-                format.audioTrack?.isAutoDubbed != true 
+                format.audioTrack?.isAutoDubbed != true &&
+                (!requireDirectUrl || !format.url.isNullOrEmpty())
         }
         
         if (audioFormats.isEmpty()) {
@@ -391,28 +516,14 @@ object MusicPlayerUtils {
     }
 
     private fun checkUrl(url: String, userAgent: String): Boolean {
-        try {
+        return try {
             val reqBuilder = Request.Builder()
                 .url(url)
                 .header("User-Agent", userAgent)
                 .head()
             YouTube.cookie?.let { reqBuilder.header("Cookie", it) }
-            httpClient.newCall(reqBuilder.build()).execute().use { response ->
-                if (response.isSuccessful) return true
-            }
-        } catch (e: Exception) {
-            // HEAD might not be supported, try GET
-        }
-
-        return try {
-            val reqBuilder = Request.Builder()
-                .url(url)
-                .header("User-Agent", userAgent)
-                .header("Range", "bytes=0-100")
-                .get()
-            YouTube.cookie?.let { reqBuilder.header("Cookie", it) }
-            httpClient.newCall(reqBuilder.build()).execute().use { response ->
-                response.isSuccessful || response.code == 206
+            validationHttpClient.newCall(reqBuilder.build()).execute().use { response ->
+                response.isSuccessful
             }
         } catch (e: Exception) {
             Log.d(TAG, "URL validation failed: ${e.message}")
@@ -421,13 +532,32 @@ object MusicPlayerUtils {
     }
 
     private fun getSignatureTimestamp(videoId: String): Int? {
+        cachedSignatureTimestamp?.let {
+            Log.d(TAG, "Returning cached session signature timestamp: $it")
+            return it
+        }
+
+        try {
+            val deobfuscatorSts = io.github.aedev.flow.utils.cipher.CipherDeobfuscator.getSignatureTimestamp()
+            if (deobfuscatorSts != null) {
+                Log.d(TAG, "Signature timestamp obtained from CipherDeobfuscator: $deobfuscatorSts")
+                cachedSignatureTimestamp = deobfuscatorSts
+                return deobfuscatorSts
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to get signature timestamp from CipherDeobfuscator: ${e.message}")
+        }
+
         return try {
             NewPipeExtractor.getSignatureTimestamp(videoId)
-                .onSuccess { Log.d(TAG, "Signature timestamp: $it") }
-                .onFailure { Log.w(TAG, "Failed to get signature timestamp: ${it.message}") }
+                .onSuccess { 
+                    Log.d(TAG, "Signature timestamp from NewPipeExtractor: $it") 
+                    cachedSignatureTimestamp = it
+                }
+                .onFailure { Log.w(TAG, "Failed to get signature timestamp from NewPipe: ${it.message}") }
                 .getOrNull()
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting signature timestamp", e)
+            Log.e(TAG, "Error getting signature timestamp from NewPipe", e)
             null
         }
     }

@@ -1,9 +1,12 @@
 package io.github.aedev.flow.data.lyrics
 
+import kotlinx.serialization.Serializable
+
 /**
  * Represents a single line of lyrics with optional word-level timestamps.
  * All time values are in milliseconds for consistency with ExoPlayer's currentPosition.
  */
+@Serializable
 data class LyricsEntry(
     val time: Long,           
     val text: String,
@@ -18,6 +21,7 @@ data class LyricsEntry(
  * Word-level timestamp for karaoke-style highlighting.
  * All times are in milliseconds.
  */
+@Serializable
 data class WordTimestamp(
     val text: String,
     val startTime: Long,  

@@ -190,13 +190,16 @@ object SimpMusicLyrics {
 
                 val wordTimestamps = item.l?.mapNotNull { word ->
                     val trimmed = word.c.trim()
-                    if (trimmed.isBlank()) return@mapNotNull null
-                    val wordStartMs = ((item.ts + word.o) * 1000).toLong()
-                    WordTimestamp(
-                        text = trimmed,
-                        startTime = wordStartMs,
-                        endTime = (item.te * 1000).toLong()
-                    )
+                    if (trimmed.isBlank()) {
+                        null
+                    } else {
+                        val wordStartMs = ((item.ts + word.o) * 1000).toLong()
+                        WordTimestamp(
+                            text = trimmed,
+                            startTime = wordStartMs,
+                            endTime = (item.te * 1000).toLong()
+                        )
+                    }
                 }
 
                 val refinedWords = wordTimestamps?.mapIndexed { index, wt ->
@@ -215,7 +218,7 @@ object SimpMusicLyrics {
                 )
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse richSync JSON", e)
+            Log.w(TAG, "Failed to parse richSync JSON: ${e.message}")
             null
         }
     }

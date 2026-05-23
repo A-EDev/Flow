@@ -222,4 +222,18 @@ object LyricsUtils {
         }
         return lines.lastIndex
     }
+
+    fun cleanTitle(title: String): String {
+        return title
+            .replace(Regex("\\s*[(\\[].*?[)\\]]"), "")
+            .replace(Regex("(?i)\\b(official video|official audio|lyrics|lyric video|hq|hd|audio|video|clip)\\b"), "")
+            .trim()
+    }
+
+    fun cleanArtist(artist: String): String {
+        return artist
+            .replace(Regex("(?i)\\s*-\\s*Topic"), "")
+            .split(Regex("(?i)\\s+(feat\\.?|ft\\.?|featuring|&|,|vs\\.?)\\s+"))[0]
+            .trim()
+    }
 }
