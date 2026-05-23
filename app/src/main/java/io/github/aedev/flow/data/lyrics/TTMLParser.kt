@@ -2,9 +2,14 @@ package io.github.aedev.flow.data.lyrics
 
 import android.util.Xml
 import org.xmlpull.v1.XmlPullParser
+import org.w3c.dom.Element
+import org.w3c.dom.Node
 import java.io.StringReader
+import javax.xml.parsers.DocumentBuilderFactory
 
 object TTMLParser {
+    private const val TTML_PARAMETER_NS = "http://www.w3.org/ns/ttml#parameter"
+    private const val TTML_METADATA_NS = "http://www.w3.org/ns/ttml#metadata"
 
     data class ParsedLine(
         val startTimeMs: Long,
@@ -19,6 +24,284 @@ object TTMLParser {
         val endTimeMs: Long,
         val hasTrailingSpace: Boolean
     )
+
+    private data class DomSpan(
+        val text: String,
+        val startTimeMs: Long,
+        val endTimeMs: Long,
+        val hasTrailingSpace: Boolean
+    )
+
+    /**
+     * Robust TTML parser based on Metrolist's implementation.
+     *
+     * Keeps word timing, background lines, agent tags, global offsets, nested spans,
+     * and tracks whose <p> timing is only present on child spans.
+     */
+    fun parseTTMLToLyricsEntries(xmlData: String): List<LyricsEntry> {
+        if (xmlData.isBlank()) return emptyList()
+
+        return try {
+            val factory = DocumentBuilderFactory.newInstance().apply {
+                isNamespaceAware = true
+                trySetFeature("http://xml.org/sax/features/external-general-entities", false)
+                trySetFeature("http://xml.org/sax/features/external-parameter-entities", false)
+                trySetFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+                try {
+                    isExpandEntityReferences = false
+                } catch (_: Exception) {
+                }
+            }
+            val doc = factory.newDocumentBuilder().parse(xmlData.byteInputStream())
+            val root = doc.documentElement ?: return emptyList()
+            val offsetMs = readGlobalOffsetMs(root)
+            val result = mutableListOf<LyricsEntry>()
+            findChild(root, "body")?.let { walkDom(it, result, offsetMs, null) }
+            result.sorted()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
+    }
+
+    private fun DocumentBuilderFactory.trySetFeature(name: String, enabled: Boolean) {
+        try {
+            setFeature(name, enabled)
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun readGlobalOffsetMs(root: Element): Long {
+        val audio = findChild(findChild(root, "head"), "metadata")
+            ?.let { findChild(it, "audio") }
+        return audio?.getAttribute("lyricOffset")?.toDoubleOrNull()?.let { (it * 1000).toLong() }
+            ?: 0L
+    }
+
+    private fun walkDom(element: Element, result: MutableList<LyricsEntry>, offsetMs: Long, parentAgent: String?) {
+        val name = element.localName ?: element.nodeName.substringAfterLast(':')
+        var agent = parentAgent
+        when (name) {
+            "div" -> element.ttmlAttr("agent").takeIf { it.isNotBlank() }?.let { agent = it }
+            "p" -> {
+                parseParagraph(element, result, offsetMs, agent)
+                return
+            }
+        }
+
+        var child = element.firstChild
+        while (child != null) {
+            if (child is Element) walkDom(child, result, offsetMs, agent)
+            child = child.nextSibling
+        }
+    }
+
+    private fun parseParagraph(p: Element, result: MutableList<LyricsEntry>, offsetMs: Long, divAgent: String?) {
+        val beginAttr = p.timingAttr("begin").ifEmpty { findFirstSpanBegin(p).orEmpty() }
+        if (beginAttr.isBlank()) return
+
+        val startMs = parseTime(beginAttr) + offsetMs
+        val agent = p.ttmlAttr("agent").ifEmpty { divAgent }
+        val isBackground = p.ttmlAttr("role") == "x-bg"
+        val spans = mutableListOf<DomSpan>()
+        val backgroundLines = mutableListOf<LyricsEntry>()
+
+        var child = p.firstChild
+        while (child != null) {
+            if (child is Element) {
+                val name = child.localName ?: child.nodeName.substringAfterLast(':')
+                if (name == "span") {
+                    when (child.ttmlAttr("role")) {
+                        "x-bg" -> {
+                            if (isBackground) {
+                                parseWordSpan(child, offsetMs, spans, child)
+                            } else {
+                                parseBackgroundSpan(child, startMs, offsetMs)?.let { backgroundLines += it }
+                            }
+                        }
+                        "x-translation", "x-roman" -> Unit
+                        else -> parseWordSpan(child, offsetMs, spans, child)
+                    }
+                }
+            }
+            child = child.nextSibling
+        }
+
+        val words = mergeSpansIntoWords(spans)
+        val text = if (words.isNotEmpty()) {
+            buildLineText(words)
+        } else {
+            directText(p).trim()
+        }
+
+        if (text.isNotBlank()) {
+            result += LyricsEntry(
+                time = startMs,
+                text = text,
+                words = words.takeIf { it.isNotEmpty() },
+                agent = agent,
+                isBackground = isBackground
+            )
+        }
+        result += backgroundLines
+    }
+
+    private fun parseBackgroundSpan(span: Element, parentStartMs: Long, offsetMs: Long): LyricsEntry? {
+        val startMs = span.timingAttr("begin")
+            .takeIf { it.isNotBlank() }
+            ?.let { parseTime(it) + offsetMs }
+            ?: parentStartMs
+        val spans = mutableListOf<DomSpan>()
+
+        var hasChildSpans = false
+        var child = span.firstChild
+        while (child != null) {
+            if (child is Element) {
+                val name = child.localName ?: child.nodeName.substringAfterLast(':')
+                if (name == "span") {
+                    hasChildSpans = true
+                    val role = child.ttmlAttr("role")
+                    if (role != "x-translation" && role != "x-roman") {
+                        parseWordSpan(child, offsetMs, spans, child)
+                    }
+                }
+            }
+            child = child.nextSibling
+        }
+
+        val words = mergeSpansIntoWords(spans)
+        val text = when {
+            words.isNotEmpty() -> buildLineText(words)
+            !hasChildSpans -> span.textContent.orEmpty().trim()
+            else -> directText(span).trim()
+        }
+        if (text.isBlank()) return null
+
+        return LyricsEntry(
+            time = startMs,
+            text = text,
+            words = words.takeIf { it.isNotEmpty() },
+            agent = "bg",
+            isBackground = true
+        )
+    }
+
+    private fun parseWordSpan(span: Element, offsetMs: Long, spans: MutableList<DomSpan>, node: Node) {
+        val begin = span.timingAttr("begin")
+        val end = span.timingAttr("end")
+        val text = span.textContent.orEmpty()
+        if (begin.isBlank() || end.isBlank()) return
+
+        val next = node.nextSibling
+        val hasTrailingSpace = (text.lastOrNull()?.isWhitespace() == true) ||
+            (next?.nodeType == Node.TEXT_NODE && next.textContent?.firstOrNull()?.isWhitespace() == true)
+        spans += DomSpan(
+            text = text,
+            startTimeMs = parseTime(begin) + offsetMs,
+            endTimeMs = parseTime(end) + offsetMs,
+            hasTrailingSpace = hasTrailingSpace
+        )
+    }
+
+    private fun mergeSpansIntoWords(spans: List<DomSpan>): List<WordTimestamp> {
+        if (spans.isEmpty()) return emptyList()
+
+        val words = mutableListOf<WordTimestamp>()
+        var text = StringBuilder(spans.first().text)
+        var start = spans.first().startTimeMs
+        var end = spans.first().endTimeMs
+
+        for (i in 1 until spans.size) {
+            val previous = spans[i - 1]
+            val current = spans[i]
+            if (previous.hasTrailingSpace && !previous.text.endsWith('-')) {
+                text.toString().trim().takeIf { it.isNotEmpty() }?.let {
+                    words += WordTimestamp(it, start, end)
+                }
+                text = StringBuilder(current.text)
+                start = current.startTimeMs
+            } else {
+                text.append(current.text)
+            }
+            end = current.endTimeMs
+        }
+
+        text.toString().trim().takeIf { it.isNotEmpty() }?.let {
+            words += WordTimestamp(it, start, end)
+        }
+        return words
+    }
+
+    private fun buildLineText(words: List<WordTimestamp>): String = buildString {
+        words.forEachIndexed { index, word ->
+            append(word.text)
+            if (!word.text.endsWith('-') && index < words.lastIndex) append(' ')
+        }
+    }.trim()
+
+    private fun directText(element: Element): String {
+        val sb = StringBuilder()
+        var child = element.firstChild
+        while (child != null) {
+            if (child.nodeType == Node.TEXT_NODE) {
+                sb.append(child.textContent)
+            } else if (child is Element) {
+                val name = child.localName ?: child.nodeName.substringAfterLast(':')
+                val role = child.ttmlAttr("role")
+                if (name == "span" && role != "x-bg" && role != "x-translation" && role != "x-roman") {
+                    sb.append(child.textContent)
+                }
+            }
+            child = child.nextSibling
+        }
+        return sb.toString()
+    }
+
+    private fun findFirstSpanBegin(p: Element): String? {
+        var child = p.firstChild
+        var best: String? = null
+        var bestMs = Long.MAX_VALUE
+        while (child != null) {
+            if (child is Element) {
+                val name = child.localName ?: child.nodeName.substringAfterLast(':')
+                if (name == "span") {
+                    val begin = child.timingAttr("begin")
+                    if (begin.isNotBlank()) {
+                        val ms = parseTime(begin)
+                        if (ms < bestMs) {
+                            bestMs = ms
+                            best = begin
+                        }
+                    }
+                }
+            }
+            child = child.nextSibling
+        }
+        return best
+    }
+
+    private fun findChild(parent: Element?, localName: String): Element? {
+        var child = parent?.firstChild
+        while (child != null) {
+            if (child is Element) {
+                val name = child.localName ?: child.nodeName.substringAfterLast(':')
+                if (name == localName) return child
+            }
+            child = child.nextSibling
+        }
+        return null
+    }
+
+    private fun Element.ttmlAttr(localName: String): String {
+        getAttribute("ttm:$localName").takeIf { it.isNotEmpty() }?.let { return it }
+        getAttribute(localName).takeIf { it.isNotEmpty() }?.let { return it }
+        return getAttributeNS(TTML_METADATA_NS, localName)
+    }
+
+    private fun Element.timingAttr(localName: String): String {
+        getAttribute(localName).takeIf { it.isNotEmpty() }?.let { return it }
+        return getAttributeNS(TTML_PARAMETER_NS, localName)
+    }
 
     fun toLRC(lines: List<ParsedLine>): String {
         return buildString {

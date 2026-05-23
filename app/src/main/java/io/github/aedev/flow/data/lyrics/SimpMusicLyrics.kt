@@ -136,7 +136,7 @@ object SimpMusicLyrics {
 
             val richSyncStr = bestMatch?.get("richSyncLyrics")?.asString
             if (!richSyncStr.isNullOrBlank()) {
-                val richEntries = parseRichSyncJson(richSyncStr)
+                val richEntries = parseRichSyncJson(richSyncStr, duration)
                 if (richEntries != null && richEntries.isNotEmpty()) {
                     Log.d(TAG, "Using richSyncLyrics (${richEntries.size} lines)")
                     return richEntries
@@ -169,57 +169,118 @@ object SimpMusicLyrics {
      *
      * Format: [{"ts": 1.23, "te": 5.67, "l": [{"c": "word", "o": 0.0}, ...], "x": "full line"}, ...]
      */
-    private fun parseRichSyncJson(richSyncJson: String): List<LyricsEntry>? {
+    private fun parseRichSyncJson(richSyncJson: String, duration: Int?): List<LyricsEntry>? {
+        val trimmedJson = richSyncJson.trim()
+        if (trimmedJson.isBlank()) return null
+
+        if (!looksLikeRichSyncJson(trimmedJson)) {
+            return LyricsUtils.parseLyrics(trimmedJson).takeIf { it.isNotEmpty() }
+        }
+
         return try {
             // Detect API format changes: if first element is a primitive string the format is
             // no longer the expected object array — fall through to syncedLyrics silently.
-            val parsed = JsonParser.parseString(richSyncJson)
+            val parsed = JsonParser.parseString(trimmedJson)
             if (parsed.isJsonArray && parsed.asJsonArray.size() > 0 &&
                     parsed.asJsonArray[0].isJsonPrimitive) {
                 Log.w(TAG, "richSyncLyrics is string-array (API format changed), skipping")
                 return null
             }
             val type = object : TypeToken<List<RichSyncItem>>() {}.type
-            val items: List<RichSyncItem> = gson.fromJson(richSyncJson, type)
+            val items: List<RichSyncItem> = gson.fromJson(trimmedJson, type)
 
             items.mapNotNull { item ->
-                val lineText = item.x ?: item.l?.joinToString(" ") { it.c.trim() } ?: return@mapNotNull null
+                val lineWords = item.l.orEmpty()
+                val lineText = buildLineText(lineWords, item.x)
                 if (lineText.isBlank()) return@mapNotNull null
 
-                val lineStartMs = (item.ts * 1000).toLong()
+                val lineStartMs = normalizeTimeToMs(item.ts, duration)
+                val lineEndMs = normalizeTimeToMs(item.te, duration)
+                    .takeIf { it > lineStartMs }
+                    ?: (lineStartMs + 2_000L)
 
-                val wordTimestamps = item.l?.mapNotNull { word ->
+                val wordTimestamps = lineWords.mapNotNull { word ->
                     val trimmed = word.c.trim()
                     if (trimmed.isBlank()) {
                         null
                     } else {
-                        val wordStartMs = ((item.ts + word.o) * 1000).toLong()
                         WordTimestamp(
                             text = trimmed,
-                            startTime = wordStartMs,
-                            endTime = (item.te * 1000).toLong()
+                            startTime = resolveWordStartMs(lineStartMs, lineEndMs, word.o),
+                            endTime = lineEndMs
                         )
                     }
-                }
+                }.sortedBy { it.startTime }
 
-                val refinedWords = wordTimestamps?.mapIndexed { index, wt ->
-                    val nextStart = if (index < wordTimestamps.size - 1) {
+                val refinedWords = wordTimestamps.mapIndexed { index, wt ->
+                    val nextStart = if (index < wordTimestamps.lastIndex) {
                         wordTimestamps[index + 1].startTime
                     } else {
-                        (item.te * 1000).toLong()
+                        lineEndMs
                     }
-                    wt.copy(endTime = nextStart)
+                    wt.copy(endTime = nextStart.coerceAtLeast(wt.startTime + 1))
                 }
 
                 LyricsEntry(
                     time = lineStartMs,
                     text = lineText.trim(),
-                    words = refinedWords?.takeIf { it.isNotEmpty() }
+                    words = refinedWords.takeIf { it.isNotEmpty() }
                 )
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to parse richSync JSON: ${e.message}")
-            null
+            val lrcFallback = LyricsUtils.parseLyrics(trimmedJson).takeIf { it.isNotEmpty() }
+            if (lrcFallback != null) {
+                Log.d(TAG, "richSyncLyrics was not JSON; parsed as timed lyrics")
+                lrcFallback
+            } else {
+                Log.w(TAG, "Failed to parse richSync JSON: ${e.message}")
+                null
+            }
+        }
+    }
+
+    private fun looksLikeRichSyncJson(value: String): Boolean {
+        val first = value.firstOrNull { !it.isWhitespace() } ?: return false
+        if (first == '{') return true
+        if (first != '[') return false
+        val afterBracket = value.drop(1).firstOrNull { !it.isWhitespace() } ?: return false
+        return afterBracket == '{' || afterBracket == ']'
+    }
+
+    private fun normalizeTimeToMs(value: Double, duration: Int?): Long {
+        val isProbablyMillis = value > 1_000 || (duration != null && duration > 0 && value > duration + 60)
+        return if (isProbablyMillis) value.toLong() else (value * 1_000).toLong()
+    }
+
+    private fun resolveWordStartMs(lineStartMs: Long, lineEndMs: Long, rawOffset: Double): Long {
+        val candidates = listOf(
+            lineStartMs + (rawOffset * 1_000).toLong(),
+            (rawOffset * 1_000).toLong(),
+            lineStartMs + rawOffset.toLong(),
+            rawOffset.toLong()
+        ).distinct()
+
+        return candidates
+            .filter { it in (lineStartMs - 1_000)..(lineEndMs + 1_000) }
+            .minByOrNull { abs(it - lineStartMs) }
+            ?: (lineStartMs + (rawOffset * 1_000).toLong()).coerceAtLeast(lineStartMs)
+    }
+
+    private fun buildLineText(words: List<RichSyncWord>, fallback: String?): String {
+        val fromWords = words
+            .map { it.c.trim() }
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
+            .replace(Regex("\\s+([,.;:!?%])"), "$1")
+            .replace(Regex("([([{])\\s+"), "$1")
+            .trim()
+
+        val fallbackText = fallback?.trim().orEmpty()
+        return when {
+            fromWords.isBlank() -> fallbackText
+            fallbackText.isBlank() -> fromWords
+            !fallbackText.any { it.isWhitespace() } && fromWords.any { it.isWhitespace() } -> fromWords
+            else -> fallbackText
         }
     }
 }

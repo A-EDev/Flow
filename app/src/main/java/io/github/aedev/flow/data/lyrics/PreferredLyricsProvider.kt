@@ -6,7 +6,8 @@ package io.github.aedev.flow.data.lyrics
 enum class PreferredLyricsProvider(val displayName: String) {
     LRCLIB("LrcLib"),
     BETTER_LYRICS("Better Lyrics"),
-    SIMPMUSIC("SimpMusic");
+    SIMPMUSIC("SimpMusic"),
+    LYRICS_PLUS("LyricsPlus");
     
     companion object {
         fun fromString(name: String): PreferredLyricsProvider =

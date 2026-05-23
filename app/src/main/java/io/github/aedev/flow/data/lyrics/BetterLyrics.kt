@@ -99,9 +99,7 @@ object BetterLyrics {
                 }
 
                 val ttmlLines = try {
-                    val parsedLines = TTMLParser.parseTTML(ttml)
-                    val lrcStr = TTMLParser.toLRC(parsedLines)
-                    LyricsUtils.parseLyrics(lrcStr)
+                    TTMLParser.parseTTMLToLyricsEntries(ttml)
                 } catch (e: Exception) {
                     Log.e(TAG, "TTML parse failed", e)
                     emptyList()

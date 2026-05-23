@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import io.github.aedev.flow.data.lyrics.PreferredLyricsProvider
 import io.github.aedev.flow.network.AppProxyConfig
 import io.github.aedev.flow.network.AppProxyType
 import io.github.aedev.flow.ui.components.SubtitleStyle
@@ -20,7 +21,8 @@ const val DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP = 48
 const val MAX_FULLSCREEN_SEEKBAR_PADDING_DP = 120
 val DEFAULT_NAV_TAB_ORDER = listOf(0, 1, 2, 3, 4, 5, 6)
 
-class PlayerPreferences(private val context: Context) {
+class PlayerPreferences(context: Context) {
+    private val context: Context = context.applicationContext
     
     private object Keys {
         val DEFAULT_QUALITY_WIFI = stringPreferencesKey("default_quality_wifi")
@@ -1666,13 +1668,25 @@ class PlayerPreferences(private val context: Context) {
     // Lyrics Provider preference
     val preferredLyricsProvider: Flow<String> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            preferences[Keys.PREFERRED_LYRICS_PROVIDER] ?: "LRCLIB"
+            normalizeLyricsProvider(preferences[Keys.PREFERRED_LYRICS_PROVIDER]).name
         }
 
     suspend fun setPreferredLyricsProvider(provider: String) {
+        val normalizedProvider = normalizeLyricsProvider(provider).name
         context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.PREFERRED_LYRICS_PROVIDER] = provider
+            preferences[Keys.PREFERRED_LYRICS_PROVIDER] = normalizedProvider
         }
+    }
+
+    private fun normalizeLyricsProvider(provider: String?): PreferredLyricsProvider {
+        val value = provider?.trim().orEmpty()
+        if (value.isBlank()) return PreferredLyricsProvider.LRCLIB
+
+        return PreferredLyricsProvider.values().firstOrNull { option ->
+            option.name.equals(value, ignoreCase = true) ||
+                option.displayName.equals(value, ignoreCase = true) ||
+                option.name.replace("_", "").equals(value.replace("_", ""), ignoreCase = true)
+        } ?: PreferredLyricsProvider.LRCLIB
     }
 
     // ========== MINI PLAYER PREFERENCES ==========

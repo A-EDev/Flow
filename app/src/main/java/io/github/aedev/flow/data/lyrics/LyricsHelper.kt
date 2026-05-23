@@ -33,6 +33,7 @@ class LyricsHelper(
     private val youTubeProvider = YouTubeLyricsProvider()
     private val betterLyricsProvider = BetterLyricsProvider()
     private val simpMusicProvider = SimpMusicLyricsProvider()
+    private val lyricsPlusProvider = LyricsPlusProvider()
 
     private val cache = mutableMapOf<String, List<LyricsEntry>>()
 
@@ -59,15 +60,25 @@ class LyricsHelper(
         context: android.content.Context? = null
     ): Pair<List<LyricsEntry>, String>? {
         cache[videoId]?.let { cached ->
-            Log.d(TAG, "Returning in-memory cached lyrics for $videoId")
-            return cached to "MemoryCache"
+            val normalized = normalizeEntries(cached)
+            if (normalized.none { !it.words.isNullOrEmpty() } || hasWordSync(normalized)) {
+                Log.d(TAG, "Returning in-memory cached lyrics for $videoId")
+                return normalized to "MemoryCache"
+            }
+            Log.d(TAG, "Ignoring weak in-memory word-sync cache for $videoId")
+            cache.remove(videoId)
         }
 
         val targetContext = context ?: io.github.aedev.flow.FlowApplication.appContext
+        var cachedLineFallback: Pair<List<LyricsEntry>, String>? = null
         val diskCached = LyricsCacheManager.getLyrics(targetContext, videoId)
-        if (!diskCached.isNullOrEmpty()) {
-            cache[videoId] = diskCached
-            return diskCached to "DiskCache"
+        val normalizedDiskCached = diskCached?.let { normalizeEntries(it) }
+        if (!normalizedDiskCached.isNullOrEmpty() && hasWordSync(normalizedDiskCached)) {
+            cache[videoId] = normalizedDiskCached
+            return normalizedDiskCached to "DiskCache"
+        } else if (!diskCached.isNullOrEmpty()) {
+            cachedLineFallback = stripWordTimings(normalizedDiskCached.orEmpty()) to "DiskCache"
+            Log.d(TAG, "Disk cache has line/plain lyrics only; trying to upgrade to word-sync")
         }
 
         val cleanedTitle = LyricsUtils.cleanTitle(title)
@@ -76,10 +87,16 @@ class LyricsHelper(
 
         val wordSyncResult = fetchWordSyncParallel(videoId, cleanedTitle, cleanedArtist, duration, album)
         if (wordSyncResult != null) {
-            cache[videoId] = wordSyncResult.first
+            val normalizedEntries = normalizeEntries(wordSyncResult.first)
+            cache[videoId] = normalizedEntries
             Log.d(TAG, "Word-sync lyrics fetched from ${wordSyncResult.second}")
-            LyricsCacheManager.saveLyrics(targetContext, videoId, wordSyncResult.first)
-            return wordSyncResult
+            LyricsCacheManager.saveLyrics(targetContext, videoId, normalizedEntries)
+            return normalizedEntries to wordSyncResult.second
+        }
+
+        cachedLineFallback?.let {
+            cache[videoId] = it.first
+            return it
         }
 
         val fallbackProviders = listOf(lrcLibProvider, youTubeProvider)
@@ -93,10 +110,11 @@ class LyricsHelper(
                 if (result.isSuccess) {
                     val entries = result.getOrNull()
                     if (!entries.isNullOrEmpty()) {
-                        cache[videoId] = entries
+                        val normalizedEntries = normalizeEntries(entries)
+                        cache[videoId] = normalizedEntries
                         Log.d(TAG, "Line-sync lyrics fetched from ${provider.name} (${entries.size} lines)")
-                        LyricsCacheManager.saveLyrics(targetContext, videoId, entries)
-                        return entries to provider.name
+                        LyricsCacheManager.saveLyrics(targetContext, videoId, normalizedEntries)
+                        return normalizedEntries to provider.name
                     }
                 }
             } catch (e: Exception) {
@@ -120,15 +138,7 @@ class LyricsHelper(
         duration: Int,
         album: String? = null
     ): Pair<List<LyricsEntry>, String>? = coroutineScope {
-        val providers = buildList {
-            if (preferredProvider == PreferredLyricsProvider.SIMPMUSIC) {
-                add(simpMusicProvider)
-                add(betterLyricsProvider)
-            } else {
-                add(betterLyricsProvider)
-                add(simpMusicProvider)
-            }
-        }
+        val providers = orderedWordSyncProviders()
 
         data class ProviderResult(val provider: LyricsProvider, val entries: List<LyricsEntry>?)
 
@@ -171,15 +181,78 @@ class LyricsHelper(
             .maxByOrNull { it.entries!!.size }
         if (bestLineLevelResult != null) {
             Log.d(TAG, "Line-level fallback from ${bestLineLevelResult.provider.name}")
-            return@coroutineScope bestLineLevelResult.entries!! to bestLineLevelResult.provider.name
+            return@coroutineScope stripWordTimings(bestLineLevelResult.entries!!) to bestLineLevelResult.provider.name
         }
 
         null
     }
 
+    private fun orderedWordSyncProviders(): List<LyricsProvider> {
+        return buildList {
+            when (preferredProvider) {
+                PreferredLyricsProvider.SIMPMUSIC -> {
+                    add(simpMusicProvider)
+                    add(lyricsPlusProvider)
+                    add(betterLyricsProvider)
+                }
+                PreferredLyricsProvider.BETTER_LYRICS -> {
+                    add(betterLyricsProvider)
+                    add(lyricsPlusProvider)
+                    add(simpMusicProvider)
+                }
+                PreferredLyricsProvider.LYRICS_PLUS -> {
+                    add(lyricsPlusProvider)
+                    add(simpMusicProvider)
+                    add(betterLyricsProvider)
+                }
+                PreferredLyricsProvider.LRCLIB -> {
+                    add(simpMusicProvider)
+                    add(lyricsPlusProvider)
+                    add(betterLyricsProvider)
+                }
+            }
+        }.distinctBy { it.name }
+    }
+
     private fun hasWordSync(entries: List<LyricsEntry>): Boolean {
-        val synced = entries.count { it.words != null && it.words.isNotEmpty() }
-        return synced.toFloat() / entries.size.coerceAtLeast(1) > 0.1f
+        val wordLines = entries.filter { !it.words.isNullOrEmpty() }
+        if (wordLines.isEmpty()) return false
+
+        val lineCount = entries.size.coerceAtLeast(1)
+        val ratio = wordLines.size.toFloat() / lineCount
+        if (lineCount > 5 && wordLines.size < 3) return false
+        if (lineCount > 10 && ratio < 0.25f) return false
+
+        val validTimingLines = wordLines.count { entry ->
+            val words = entry.words.orEmpty().sortedBy { it.startTime }
+            words.isNotEmpty() &&
+                words.last().endTime > words.first().startTime &&
+                words.zipWithNext().all { (current, next) ->
+                    current.endTime >= current.startTime && next.startTime >= current.startTime
+                }
+        }
+        if (validTimingLines < minOf(2, wordLines.size)) return false
+
+        val firstWordMs = wordLines.minOf { it.words!!.first().startTime }
+        val lastWordMs = wordLines.maxOf { it.words!!.last().endTime }
+        if (lineCount > 5 && lastWordMs - firstWordMs < 10_000L) return false
+
+        return true
+    }
+
+    private fun stripWordTimings(entries: List<LyricsEntry>): List<LyricsEntry> {
+        return entries.map { entry -> entry.copy(words = null) }
+    }
+
+    private fun normalizeEntries(entries: List<LyricsEntry>): List<LyricsEntry> {
+        return entries.map { entry ->
+            entry.copy(
+                text = LyricsUtils.decodeHtmlEntities(entry.text),
+                words = entry.words?.map { word ->
+                    word.copy(text = LyricsUtils.decodeHtmlEntities(word.text))
+                }
+            )
+        }
     }
 
     fun clearCache(videoId: String? = null) {

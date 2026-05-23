@@ -767,6 +767,7 @@ private fun getLyricsProviderLabel(provider: PreferredLyricsProvider): String {
         PreferredLyricsProvider.LRCLIB -> stringResource(R.string.lyrics_provider_lrclib)
         PreferredLyricsProvider.BETTER_LYRICS -> stringResource(R.string.lyrics_provider_better_lyrics)
         PreferredLyricsProvider.SIMPMUSIC -> stringResource(R.string.lyrics_provider_simpmusic)
+        PreferredLyricsProvider.LYRICS_PLUS -> stringResource(R.string.lyrics_provider_lyrics_plus)
     }
 }
 

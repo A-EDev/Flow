@@ -244,9 +244,12 @@ fun LyricsContent(
     val currentLineIndex = remember(activePosition, syncedLyrics) {
         if (syncedLyrics.isEmpty()) 0
         else {
-            val idx = syncedLyrics.indexOfLast { it.time <= activePosition + 300L }
+            val idx = syncedLyrics.indexOfLast { it.time <= activePosition + 100L }
             if (idx == -1) 0 else idx
         }
+    }
+    val activeLineIndices = remember(activePosition, syncedLyrics) {
+        findActiveLyricLineIndices(syncedLyrics, activePosition)
     }
     LaunchedEffect(currentLineIndex) {
         if (syncedLyrics.isNotEmpty() && currentLineIndex >= 0) {
@@ -270,7 +273,7 @@ fun LyricsContent(
                 contentPadding = PaddingValues(top = 24.dp, bottom = 200.dp, start = 24.dp, end = 24.dp)
             ) {
                 itemsIndexed(syncedLyrics) { index, entry ->
-                    val isCurrent = index == currentLineIndex
+                    val isCurrent = index == currentLineIndex || index in activeLineIndices
                     val isPast = index < currentLineIndex
                     
                     val alpha by animateFloatAsState(
@@ -288,8 +291,7 @@ fun LyricsContent(
                         val annotatedString = buildAnnotatedString {
                             entry.words.forEachIndexed { wordIndex, word ->
                                 val wordDuration = (word.endTime - word.startTime).coerceAtLeast(1)
-                                val isWordActive = isCurrent &&
-                                    activePosition >= word.startTime && activePosition <= word.endTime
+                                val isWordActive = activePosition >= word.startTime && activePosition <= word.endTime
                                 val hasWordPassed = activePosition > word.endTime
 
                                 val transitionProgress = when {
@@ -331,7 +333,7 @@ fun LyricsContent(
                                 fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Bold,
                                 fontSize = 28.sp,
                                 lineHeight = 38.sp,
-                                letterSpacing = (-0.5).sp
+                                letterSpacing = 0.sp
                             ),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -350,7 +352,7 @@ fun LyricsContent(
                                 fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.Bold,
                                 fontSize = 28.sp,
                                 lineHeight = 38.sp,
-                                letterSpacing = (-0.5).sp
+                                letterSpacing = 0.sp
                             ),
                             color = textColor,
                             modifier = Modifier
@@ -389,6 +391,39 @@ fun LyricsContent(
             }
         }
     }
+}
+
+private fun findActiveLyricLineIndices(
+    lines: List<LyricsEntry>,
+    position: Long
+): Set<Int> {
+    val active = mutableSetOf<Int>()
+    val hasWordTimings = lines.any { !it.words.isNullOrEmpty() }
+
+    for (index in lines.indices) {
+        val line = lines[index]
+        if (line.time > position) break
+
+        val lineEndMs = if (!line.words.isNullOrEmpty()) {
+            line.words.last().endTime
+        } else {
+            lines.getOrNull(index + 1)?.time ?: Long.MAX_VALUE
+        }
+
+        if (position <= lineEndMs) {
+            active += index
+        }
+    }
+
+    if (!hasWordTimings && active.size > 1) {
+        val mainActive = active.filter { !lines[it].isBackground }
+        if (mainActive.size > 1) {
+            val latestStart = mainActive.maxOf { lines[it].time }
+            active.removeAll { it in mainActive && lines[it].time < latestStart }
+        }
+    }
+
+    return active
 }
 
 @Composable

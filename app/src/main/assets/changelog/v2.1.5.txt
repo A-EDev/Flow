@@ -29,6 +29,7 @@ FEATURES
 - Add new sorting options in playlists
 - Add new player seekbar width customization
 - Add remeber brightness toggle #474
+- Add new LyricsPlus lyrics provider
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361
@@ -64,6 +65,7 @@ IMPROVEMENTS
 - Improve mini video player animaton #464
 - Improve sponsor skip button placement #476
 - Improve music playback speed and simpmusic issues
+- Improve lyrics formatting and better word level lyrics hightlight
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

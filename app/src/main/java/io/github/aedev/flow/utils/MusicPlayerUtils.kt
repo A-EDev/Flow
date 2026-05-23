@@ -168,18 +168,29 @@ object MusicPlayerUtils {
         val startTime = System.currentTimeMillis()
         Log.d(TAG, "Fetching playback for $videoId (logged in: ${isLoggedIn()})")
         
-        val sts = getSignatureTimestamp(videoId)
-        Log.d(TAG, "Signature timestamp: $sts")
-
-        // Generate PoToken for WEB clients
         var poToken: PoTokenResult? = null
+        var sts: Int? = null
         val sessionId = if (isLoggedIn()) YouTube.dataSyncId else YouTube.visitorData
-        if (MAIN_CLIENT.useWebPoTokens && sessionId != null) {
-            try {
-                poToken = poTokenGenerator.getWebClientPoToken(videoId, sessionId)
-                if (poToken != null) Log.d(TAG, "PoToken generated successfully")
+        fun getStsForClient(client: YouTubeClient): Int? {
+            if (!client.useSignatureTimestamp) return null
+            sts?.let { return it }
+            sts = getSignatureTimestamp(videoId)
+            Log.d(TAG, "Signature timestamp: $sts")
+            return sts
+        }
+
+        fun getPoTokenForWebClient(): PoTokenResult? {
+            poToken?.let { return it }
+            if (sessionId == null) return null
+            return try {
+                poTokenGenerator.getWebClientPoToken(videoId, sessionId)
+                    ?.also {
+                        poToken = it
+                        Log.d(TAG, "PoToken generated successfully")
+                    }
             } catch (e: Exception) {
                 Log.w(TAG, "PoToken generation failed: ${e.message}")
+                null
             }
         }
 
@@ -188,70 +199,72 @@ object MusicPlayerUtils {
         var extraction: Pair<PlayerResponse.StreamingData.Format, String>? = null
         var mainPlayerResponse: PlayerResponse? = null
 
-        Log.d(TAG, "Trying MAIN_CLIENT: ${MAIN_CLIENT.clientName}")
-        mainPlayerResponse = YouTube.player(videoId, playlistId, MAIN_CLIENT, sts, poToken?.playerRequestPoToken).getOrNull()
-        
-        if (mainPlayerResponse?.playabilityStatus?.status == "OK") {
-            extraction = tryExtract(
-                response = mainPlayerResponse,
-                client = MAIN_CLIENT,
-                videoId = videoId,
-                validate = false,
-                requireDirectUrl = true,
-                allowCipherFallback = false,
-                allowNewPipeFallback = false,
-                allowStreamInfoFallback = false
-            )
-            if (extraction != null) {
-                response = mainPlayerResponse
-                usedClient = MAIN_CLIENT
-                Log.i(TAG, "MAIN_CLIENT direct URL success")
-            } else {
-                Log.d(TAG, "MAIN_CLIENT has no direct playable audio URL; skipping cipher on fast path")
+        Log.d(TAG, "Starting fast direct stream lookup...")
+        val fastClients = (FAST_DIRECT_STREAM_CLIENTS.asSequence() + STREAM_FALLBACK_CLIENTS.asSequence())
+            .distinctBy { "${it.clientName}:${it.clientVersion}:${it.clientId}" }
+            .toList()
+
+        for ((index, client) in fastClients.withIndex()) {
+            if (client.loginRequired && !isLoggedIn()) {
+                Log.d(TAG, "Skipping ${client.clientName} - requires login")
+                continue
+            }
+
+            Log.d(TAG, "Trying direct client ${index + 1}/${fastClients.size}: ${client.clientName}")
+
+            try {
+                val clientSts = getStsForClient(client)
+                val clientPoToken = if (client.useWebPoTokens) getPoTokenForWebClient()?.playerRequestPoToken else null
+                val fallbackResponse = YouTube.player(videoId, playlistId, client, clientSts, clientPoToken).getOrNull()
+
+                if (fallbackResponse?.playabilityStatus?.status == "OK") {
+                    val result = tryExtract(
+                        response = fallbackResponse,
+                        client = client,
+                        videoId = videoId,
+                        validate = true,
+                        requireDirectUrl = true,
+                        allowCipherFallback = false,
+                        allowNewPipeFallback = false,
+                        allowStreamInfoFallback = false
+                    )
+
+                    if (result != null) {
+                        response = fallbackResponse
+                        extraction = result
+                        usedClient = client
+                        Log.i(TAG, "Direct stream success with ${client.clientName}")
+                        break
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Client ${client.clientName} threw exception: ${e.message}")
             }
         }
 
         if (usedClient == null) {
-            Log.d(TAG, "Starting fast direct stream fallback...")
-            
-            val fastClients = (FAST_DIRECT_STREAM_CLIENTS.asSequence() + STREAM_FALLBACK_CLIENTS.asSequence())
-                .distinctBy { "${it.clientName}:${it.clientVersion}:${it.clientId}" }
-                .toList()
+            Log.d(TAG, "Trying MAIN_CLIENT after direct clients: ${MAIN_CLIENT.clientName}")
+            val mainSts = getStsForClient(MAIN_CLIENT)
+            val mainPoToken = if (MAIN_CLIENT.useWebPoTokens) getPoTokenForWebClient()?.playerRequestPoToken else null
+            mainPlayerResponse = YouTube.player(videoId, playlistId, MAIN_CLIENT, mainSts, mainPoToken).getOrNull()
 
-            for ((index, client) in fastClients.withIndex()) {
-                if (client.loginRequired && !isLoggedIn()) {
-                    Log.d(TAG, "Skipping ${client.clientName} - requires login")
-                    continue
-                }
-                
-                Log.d(TAG, "Trying direct fallback ${index + 1}/${fastClients.size}: ${client.clientName}")
-                
-                try {
-                    val clientPoToken = if (client.useWebPoTokens) poToken?.playerRequestPoToken else null
-                    val fallbackResponse = YouTube.player(videoId, playlistId, client, sts, clientPoToken).getOrNull()
-                    
-                    if (fallbackResponse?.playabilityStatus?.status == "OK") {
-                        val result = tryExtract(
-                            response = fallbackResponse,
-                            client = client,
-                            videoId = videoId,
-                            validate = true,
-                            requireDirectUrl = true,
-                            allowCipherFallback = false,
-                            allowNewPipeFallback = false,
-                            allowStreamInfoFallback = false
-                        )
-                        
-                        if (result != null) {
-                            response = fallbackResponse
-                            extraction = result
-                            usedClient = client
-                            Log.i(TAG, "Direct fallback success with ${client.clientName}")
-                            break
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Client ${client.clientName} threw exception: ${e.message}")
+            if (mainPlayerResponse?.playabilityStatus?.status == "OK") {
+                extraction = tryExtract(
+                    response = mainPlayerResponse,
+                    client = MAIN_CLIENT,
+                    videoId = videoId,
+                    validate = false,
+                    requireDirectUrl = true,
+                    allowCipherFallback = false,
+                    allowNewPipeFallback = false,
+                    allowStreamInfoFallback = false
+                )
+                if (extraction != null) {
+                    response = mainPlayerResponse
+                    usedClient = MAIN_CLIENT
+                    Log.i(TAG, "MAIN_CLIENT direct URL success")
+                } else {
+                    Log.d(TAG, "MAIN_CLIENT has no direct playable audio URL; skipping cipher on fast path")
                 }
             }
         }
@@ -284,8 +297,9 @@ object MusicPlayerUtils {
                     }
 
                     try {
-                        val clientPoToken = if (client.useWebPoTokens) poToken?.playerRequestPoToken else null
-                        val fallbackResponse = YouTube.player(videoId, playlistId, client, sts, clientPoToken).getOrNull()
+                        val clientSts = getStsForClient(client)
+                        val clientPoToken = if (client.useWebPoTokens) getPoTokenForWebClient()?.playerRequestPoToken else null
+                        val fallbackResponse = YouTube.player(videoId, playlistId, client, clientSts, clientPoToken).getOrNull()
 
                         if (fallbackResponse?.playabilityStatus?.status == "OK") {
                             val result = tryExtract(
@@ -326,9 +340,14 @@ object MusicPlayerUtils {
         val streamUrl = if (needsNTransform) {
             try {
                 var transformedUrl = CipherDeobfuscator.transformNParamInUrl(rawStreamUrl)
-                if (poToken?.streamingDataPoToken != null) {
+                val streamingPoToken = if (usedClient.useWebPoTokens) {
+                    getPoTokenForWebClient()?.streamingDataPoToken
+                } else {
+                    poToken?.streamingDataPoToken
+                }
+                if (streamingPoToken != null) {
                     val separator = if ("?" in transformedUrl) "&" else "?"
-                    transformedUrl = "${transformedUrl}${separator}pot=${Uri.encode(poToken.streamingDataPoToken)}"
+                    transformedUrl = "${transformedUrl}${separator}pot=${Uri.encode(streamingPoToken)}"
                 }
                 transformedUrl
             } catch (e: Exception) {

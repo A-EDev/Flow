@@ -6,11 +6,46 @@ package io.github.aedev.flow.data.lyrics
  */
 object LyricsUtils {
     
-    private val LINE_REGEX = "((\\[\\d{1,2}:\\d{2}[.:]\\d{2,3}\\] ?)+)(.+)".toRegex()
+    private val LINE_REGEX = "((\\[\\d{1,2}:\\d{2}[.:]\\d{2,3}\\] ?)+)(.*)".toRegex()
     private val TIME_REGEX = "\\[(\\d{1,2}):(\\d{2})[.:](\\d{2,3})\\]".toRegex()
     
-    private val RICH_SYNC_LINE_REGEX = "\\[(\\d{1,2}):(\\d{2})\\.(\\d{2,3})\\](.+)".toRegex()
+    private val RICH_SYNC_LINE_REGEX = "\\[(\\d{1,2}):(\\d{2})\\.(\\d{2,3})\\](.*)".toRegex()
     private val RICH_SYNC_WORD_REGEX = "<(\\d{1,2}):(\\d{2})\\.(\\d{2,3})>\\s*([^<]+)".toRegex()
+    private val PAXSENIX_AGENT_LINE_REGEX = "\\[(\\d{1,2}):(\\d{2})\\.(\\d{2,3})\\](v\\d+):\\s*(.*)".toRegex()
+    private val PAXSENIX_BG_LINE_REGEX = "^\\[bg:\\s*(.*)\\]$".toRegex()
+    private val AGENT_REGEX = "\\{agent:([^}]+)\\}".toRegex()
+    private val BACKGROUND_REGEX = "^\\{bg\\}".toRegex()
+    private val HTML_NUMERIC_ENTITY_REGEX = "&#(x?[0-9A-Fa-f]+);".toRegex()
+    private val HTML_NAMED_ENTITIES = mapOf(
+        "&amp;" to "&",
+        "&apos;" to "'",
+        "&#39;" to "'",
+        "&quot;" to "\"",
+        "&lt;" to "<",
+        "&gt;" to ">",
+        "&nbsp;" to " "
+    )
+
+    fun decodeHtmlEntities(text: String): String {
+        var decoded = text
+        repeat(2) {
+            HTML_NAMED_ENTITIES.forEach { (entity, replacement) ->
+                decoded = decoded.replace(entity, replacement)
+            }
+            decoded = HTML_NUMERIC_ENTITY_REGEX.replace(decoded) { match ->
+                val raw = match.groupValues[1]
+                val codePoint = if (raw.startsWith("x", ignoreCase = true)) {
+                    raw.drop(1).toIntOrNull(16)
+                } else {
+                    raw.toIntOrNull()
+                }
+                codePoint?.takeIf { Character.isValidCodePoint(it) }
+                    ?.let { String(Character.toChars(it)) }
+                    ?: match.value
+            }
+        }
+        return decoded
+    }
 
     /**
      * Parse lyrics string into a list of LyricsEntry objects.
@@ -30,8 +65,9 @@ object LyricsUtils {
             .filter { it.isNotBlank() && !it.trim().startsWith("[offset:") }
 
         val isRichSync = lines.any { line ->
-            RICH_SYNC_LINE_REGEX.matches(line.trim()) &&
-            RICH_SYNC_WORD_REGEX.containsMatchIn(line)
+            (RICH_SYNC_LINE_REGEX.matches(line.trim()) && RICH_SYNC_WORD_REGEX.containsMatchIn(line)) ||
+                PAXSENIX_AGENT_LINE_REGEX.containsMatchIn(line.trim()) ||
+                PAXSENIX_BG_LINE_REGEX.containsMatchIn(line.trim())
         }
 
         return if (isRichSync) {
@@ -46,9 +82,54 @@ object LyricsUtils {
      */
     private fun parseRichSyncLyrics(lines: List<String>): List<LyricsEntry> {
         val result = mutableListOf<LyricsEntry>()
+        var lastNonBgAgent: String? = null
 
         lines.forEachIndexed { index, line ->
-            val matchResult = RICH_SYNC_LINE_REGEX.matchEntire(line.trim())
+            val trimmedLine = line.trim()
+
+            PAXSENIX_BG_LINE_REGEX.find(trimmedLine)?.let { bgMatch ->
+                val content = bgMatch.groupValues[1]
+                val wordTimings = parseRichSyncWords(content, index, lines)
+                    ?: parseFollowingWordBlock(index, lines)
+                val plainText = stripRichSyncTags(content)
+                val lineTimeMs = wordTimings?.firstOrNull()?.startTime ?: 0L
+                if (plainText.isNotBlank()) {
+                    result.add(
+                        LyricsEntry(
+                            time = lineTimeMs,
+                            text = plainText,
+                            words = wordTimings,
+                            agent = lastNonBgAgent ?: "bg",
+                            isBackground = true
+                        )
+                    )
+                }
+                return@forEachIndexed
+            }
+
+            PAXSENIX_AGENT_LINE_REGEX.find(trimmedLine)?.let { agentMatch ->
+                val lineTimeMs = parseTimestamp(agentMatch.groupValues)
+                val agent = agentMatch.groupValues[4]
+                val content = agentMatch.groupValues[5]
+                val wordTimings = parseRichSyncWords(content, index, lines)
+                    ?: parseFollowingWordBlock(index, lines)
+                val plainText = stripRichSyncTags(content)
+                if (agent.isNotBlank()) lastNonBgAgent = agent
+                if (plainText.isNotBlank()) {
+                    result.add(
+                        LyricsEntry(
+                            time = lineTimeMs,
+                            text = plainText,
+                            words = wordTimings,
+                            agent = agent,
+                            isBackground = false
+                        )
+                    )
+                }
+                return@forEachIndexed
+            }
+
+            val matchResult = RICH_SYNC_LINE_REGEX.matchEntire(trimmedLine)
             if (matchResult != null) {
                 val minutes = matchResult.groupValues[1].toLongOrNull() ?: 0L
                 val seconds = matchResult.groupValues[2].toLongOrNull() ?: 0L
@@ -57,14 +138,35 @@ object LyricsUtils {
                 val millisPart = if (matchResult.groupValues[3].length == 3) fraction else fraction * 10
                 val lineTimeMs = minutes * 60000 + seconds * 1000 + millisPart
 
-                val content = matchResult.groupValues[4].trimStart()
+                var content = matchResult.groupValues[4].trimStart()
 
-                val wordTimings = parseRichSyncWords(content, lineTimeMs, index, lines)
+                val agentMatch = AGENT_REGEX.find(content)
+                val agent = agentMatch?.groupValues?.get(1)
+                if (agentMatch != null) {
+                    content = content.replaceFirst(AGENT_REGEX, "")
+                }
 
-                val plainText = content.replace(Regex("<\\d{1,2}:\\d{2}\\.\\d{2,3}>\\s*"), "").trim()
+                val isBackground = BACKGROUND_REGEX.containsMatchIn(content)
+                if (isBackground) {
+                    content = content.replaceFirst(BACKGROUND_REGEX, "")
+                }
+
+                val wordTimings = parseRichSyncWords(content, index, lines)
+                    ?: parseFollowingWordBlock(index, lines)
+
+                val plainText = stripRichSyncTags(content)
 
                 if (plainText.isNotBlank()) {
-                    result.add(LyricsEntry(lineTimeMs, plainText, wordTimings))
+                    if (!isBackground && !agent.isNullOrBlank()) lastNonBgAgent = agent
+                    result.add(
+                        LyricsEntry(
+                            time = lineTimeMs,
+                            text = plainText,
+                            words = wordTimings,
+                            agent = if (isBackground) lastNonBgAgent ?: "bg" else agent,
+                            isBackground = isBackground
+                        )
+                    )
                 }
             }
         }
@@ -75,53 +177,64 @@ object LyricsUtils {
     /**
      * Parse word timestamps from rich sync content.
      */
-    /**
-     * Parse word timestamps from rich sync content.
-     */
     private fun parseRichSyncWords(
-        content: String, 
-        lineStartTime: Long,
-        currentIndex: Int, 
+        content: String,
+        currentIndex: Int,
         allLines: List<String>
     ): List<WordTimestamp>? {
-        val tagRegex = "<(\\d{1,2}):(\\d{2})\\.(\\d{2,3})>".toRegex()
-        val matches = tagRegex.findAll(content).toList()
+        val matches = RICH_SYNC_WORD_REGEX.findAll(content).toList()
         
         if (matches.isEmpty()) return null
 
         val wordTimings = mutableListOf<WordTimestamp>()
-        var lastEndTime = lineStartTime
-
-        if (matches.isNotEmpty() && matches[0].range.first > 0) {
-            val textBefore = content.substring(0, matches[0].range.first).trim()
-            if (textBefore.isNotEmpty()) {
-                val firstTagTime = parseTimestamp(matches[0].groupValues)
-                wordTimings.add(WordTimestamp(textBefore, lineStartTime, firstTagTime))
-                lastEndTime = firstTagTime
-            }
-        }
+        val trailingEndTime = parseTrailingRichSyncEndTime(content, matches.last().range.last + 1)
 
         matches.forEachIndexed { index, match ->
             val startTime = parseTimestamp(match.groupValues)
-            
-            val startTextIndex = match.range.last + 1
-            val endTextIndex = if (index < matches.size - 1) matches[index + 1].range.first else content.length
-            
-            if (startTextIndex < endTextIndex) {
-                 val text = content.substring(startTextIndex, endTextIndex).trim()
-                 if (text.isNotEmpty()) {
-                     val endTime = if (index < matches.size - 1) {
-                         parseTimestamp(matches[index + 1].groupValues)
-                     } else {
-                         val nextLineStart = getNextLineStartTimeMs(currentIndex, allLines)
-                         if (nextLineStart != null && nextLineStart > startTime) nextLineStart else startTime + 500
-                     }
-                     wordTimings.add(WordTimestamp(text, startTime, endTime))
-                 }
+            val nextStart = if (index < matches.lastIndex) {
+                parseTimestamp(matches[index + 1].groupValues)
+            } else {
+                trailingEndTime
+                    ?: getNextLineStartTimeMs(currentIndex, allLines)?.takeIf { it > startTime }
+                    ?: (startTime + 500)
+            }
+
+            val rawText = match.groupValues[4]
+                .replace(Regex("\\[(\\d{1,2}):(\\d{2})\\.(\\d{2,3})\\]\\s*$"), "")
+            val words = rawText.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+            words.forEachIndexed { wordIndex, word ->
+                val wordStart = startTime + ((nextStart - startTime) * wordIndex / words.size.coerceAtLeast(1))
+                val wordEnd = startTime + ((nextStart - startTime) * (wordIndex + 1) / words.size.coerceAtLeast(1))
+                wordTimings.add(WordTimestamp(word, wordStart, wordEnd))
             }
         }
 
         return wordTimings.takeIf { it.isNotEmpty() }
+    }
+
+    private fun stripRichSyncTags(content: String): String {
+        return content
+            .replace(Regex("<\\d{1,2}:\\d{2}\\.\\d{2,3}>\\s*"), " ")
+            .replace(Regex("\\[\\d{1,2}:\\d{2}\\.\\d{2,3}\\]\\s*$"), " ")
+            .replace(Regex("\\s+"), " ")
+            .replace(Regex("\\s+([,.;:!?%])"), "$1")
+            .trim()
+    }
+
+    private fun parseTrailingRichSyncEndTime(content: String, fromIndex: Int): Long? {
+        val trailing = content.substring(fromIndex).trim()
+        val match = Regex("^(?:<|\\[)(\\d{1,2}):(\\d{2})\\.(\\d{2,3})(?:>|\\])$").find(trailing)
+            ?: return null
+        return parseTimestamp(match.groupValues)
+    }
+
+    private fun parseFollowingWordBlock(currentIndex: Int, allLines: List<String>): List<WordTimestamp>? {
+        val nextLine = allLines.getOrNull(currentIndex + 1)?.trim() ?: return null
+        return if (nextLine.startsWith("<") && nextLine.endsWith(">")) {
+            parseMetrolistWordTimestamps(nextLine.removeSurrounding("<", ">"))
+        } else {
+            null
+        }
     }
 
     private fun parseTimestamp(parts: List<String>): Long {
@@ -198,11 +311,12 @@ object LyricsUtils {
         return try {
             data.split("|").mapNotNull { wordData ->
                 val parts = wordData.split(":")
-                if (parts.size == 3) {
+                if (parts.size >= 3) {
+                    val text = parts.dropLast(2).joinToString(":")
                     WordTimestamp(
-                        text = parts[0],
-                        startTime = (parts[1].toDouble() * 1000).toLong(),
-                        endTime = (parts[2].toDouble() * 1000).toLong()
+                        text = text,
+                        startTime = (parts[parts.size - 2].toDouble() * 1000).toLong(),
+                        endTime = (parts[parts.size - 1].toDouble() * 1000).toLong()
                     )
                 } else null
             }
