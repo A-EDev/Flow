@@ -1425,7 +1425,6 @@
     <string name="reset_profile_confirm">إعادة الضبط</string>
     <string name="taste_chart_profile">الملف التعريفي</string>
     <string name="taste_chart_now">الأن</string>
-    <string name="topic_score_prefix">النتيجة</string>
     <string name="channel_memory_empty">لا توجد قنوات محفوظة في الذاكرة.</string>
     <string name="discovery_status_title">إحصائيات التصفح</string>
     <string name="blocked_content_title">المرشحات</string>
@@ -1555,4 +1554,5 @@
     <string name="subscriptions_music_chip_label">الموسيقى</string>
     <string name="player_appearance_remember_brightness_title">تذكر مستوي السطوع</string>
     <string name="player_appearance_remember_brightness_subtitle">أعد إستخدام مستوى سطوع المشغل الأخير في مقاطع الفيديو التالية</string>
+    <string name="lyrics_provider_lyrics_plus">LyricsPlus</string>
 </resources>

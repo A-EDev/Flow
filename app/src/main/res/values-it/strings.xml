@@ -1552,4 +1552,5 @@
     <string name="no_subscriptions_found">Nessuna iscrizione trovata</string>
     <string name="player_appearance_remember_brightness_title">Ricorda la luminosità</string>
     <string name="player_appearance_remember_brightness_subtitle">Usa l\'ultimo livello di luminosità del player per i video successivi</string>
+    <string name="lyrics_provider_lyrics_plus">LyricsPlus</string>
 </resources>
