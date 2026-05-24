@@ -66,6 +66,7 @@ IMPROVEMENTS
 - Improve sponsor skip button placement #476
 - Improve music playback speed and simpmusic issues
 - Improve lyrics formatting and better word level lyrics hightlight
+- Improve Music feed and add more sections
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

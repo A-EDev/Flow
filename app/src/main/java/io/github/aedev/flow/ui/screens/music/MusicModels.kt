@@ -13,6 +13,7 @@ data class MusicTrack(
     val album: String = "",
     val channelId: String = "",
     val isExplicit: Boolean? = false,
+    val isVideoSong: Boolean = false,
     val albumId: String? = null,
     val artists: List<MusicArtist> = emptyList(),
     val itemType: MusicItemType = MusicItemType.SONG
@@ -25,6 +26,16 @@ data class MusicTrack(
 data class MusicArtist(
     val name: String,
     val id: String? = null
+)
+
+data class DailyDiscoverItem(
+    val seed: MusicTrack,
+    val recommendation: MusicTrack
+)
+
+data class CommunityMusicPlaylist(
+    val playlist: MusicPlaylist,
+    val tracks: List<MusicTrack>
 )
 
 data class MusicPlaylist(

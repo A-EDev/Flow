@@ -20,41 +20,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.ui.theme.Dimensions
 
-/**
- * NEW DESIGN: The "Accent Card"
- * Features a subtle gradient background and a distinct accent bar on the left.
- */
 @Composable
 fun MoodAndGenresButton(
     title: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val backgroundBrush = Brush.horizontalGradient(
-        colors = listOf(
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-        )
-    )
 
     Box(
         modifier = modifier
             .height(56.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(brush = backgroundBrush)
+            .background(color= MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
             .clickable(onClick = onClick)
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // The Accent Bar (Left Edge)
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(4.dp)
-                    .background(MaterialTheme.colorScheme.primary)
-            )
 
             // The Text
             Text(

@@ -184,13 +184,15 @@ object InnertubeMusicService {
     /**
      * Get related music using Innertube next endpoint
      */
-    suspend fun getRelatedMusic(videoId: String): List<MusicTrack> = withContext(Dispatchers.IO) {
+    suspend fun getRelatedMusic(videoId: String, audioOnly: Boolean = false): List<MusicTrack> = withContext(Dispatchers.IO) {
         try {
             val nextResult = YouTube.next(io.github.aedev.flow.innertube.models.WatchEndpoint(videoId = videoId)).getOrNull()
             val relatedEndpoint = nextResult?.relatedEndpoint
             if (relatedEndpoint != null) {
                 val related = YouTube.related(relatedEndpoint).getOrNull()
-                related?.songs?.mapNotNull { convertToMusicTrack(it) } ?: emptyList()
+                related?.songs
+                    ?.filterNot { audioOnly && it.isVideoSong }
+                    ?.mapNotNull { convertToMusicTrack(it) } ?: emptyList()
             } else {
                 emptyList()
             }
@@ -398,7 +400,8 @@ object InnertubeMusicService {
                     album = item.album?.name ?: "",
                     channelId = item.artists.firstOrNull()?.id ?: "",
                     albumId = item.album?.id,
-                    artists = item.artists.map { io.github.aedev.flow.ui.screens.music.MusicArtist(it.name, it.id) }
+                    artists = item.artists.map { io.github.aedev.flow.ui.screens.music.MusicArtist(it.name, it.id) },
+                    isVideoSong = item.isVideoSong
                 )
             }
             // We can add support for VideoItem or others here if needed

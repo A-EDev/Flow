@@ -426,18 +426,25 @@ object YouTubeMusicService {
             views = 0,
             album = item.album?.name ?: "",
             channelId = item.artists.firstOrNull()?.id ?: "",
-            isExplicit = item.explicit
+            isExplicit = item.explicit,
+            isVideoSong = item.isVideoSong
         )
     }
 
     /**
      * Get related/similar music tracks
      */
-    suspend fun getRelatedMusic(videoId: String, limit: Int = 20): List<MusicTrack> = withContext(Dispatchers.IO) {
+    suspend fun getRelatedMusic(videoId: String, limit: Int = 20, audioOnly: Boolean = false): List<MusicTrack> = withContext(Dispatchers.IO) {
         try {
-            val innertubeRelated = io.github.aedev.flow.data.newmusic.InnertubeMusicService.getRelatedMusic(videoId)
+            val innertubeRelated = io.github.aedev.flow.data.newmusic.InnertubeMusicService.getRelatedMusic(videoId, audioOnly)
             if (innertubeRelated.isNotEmpty()) {
-                return@withContext innertubeRelated.take(limit)
+                return@withContext innertubeRelated
+                    .filterNot { audioOnly && it.isVideoSong }
+                    .take(limit)
+            }
+
+            if (audioOnly) {
+                return@withContext emptyList()
             }
             
             val streamInfo = getStreamInfo(videoId)
@@ -445,7 +452,8 @@ object YouTubeMusicService {
                 ?.filterIsInstance<StreamInfoItem>()
                 ?.filter { isMusicContent(it) }
                 ?.take(limit)
-                ?.mapNotNull { convertToMusicTrack(it) } ?: emptyList()
+                ?.mapNotNull { convertToMusicTrack(it) }
+                ?.filterNot { audioOnly && it.isVideoSong } ?: emptyList()
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching related music", e)
             emptyList()

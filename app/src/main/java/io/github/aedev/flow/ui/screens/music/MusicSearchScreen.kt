@@ -718,6 +718,7 @@ private fun convertSongToMusicTrack(item: SongItem): MusicTrack {
         views = 0, // View count text is a string in SongItem
         sourceUrl = "https://www.youtube.com/watch?v=${item.id}",
         album = item.album?.name ?: "Unknown Album",
-        channelId = item.artists.firstOrNull()?.id ?: ""
+        channelId = item.artists.firstOrNull()?.id ?: "",
+        isVideoSong = item.isVideoSong
     )
 }
