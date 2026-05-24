@@ -474,7 +474,7 @@ class EnhancedPlayerManager private constructor() {
     suspend fun setStreams(
         videoId: String,
         videoStream: VideoStream?,
-        audioStream: AudioStream,
+        audioStream: AudioStream?,
         videoStreams: List<VideoStream>,
         audioStreams: List<AudioStream>,
         subtitles: List<SubtitlesStream>,
@@ -513,6 +513,9 @@ class EnhancedPlayerManager private constructor() {
         availableVideoStreams = StreamProcessor.processVideoStreams(videoStreams)
         availableAudioStreams = StreamProcessor.processAudioStreams(audioStreams)
         availableSubtitles = StreamProcessor.processSubtitleStreams(subtitles)
+        if (audioStream == null && availableAudioStreams.isEmpty()) {
+            Log.w(TAG, "setStreams: no separate audio stream for $videoId; attempting video-only/muxed playback")
+        }
         
         // Ensure playback tracker is running
         startPlaybackTracker()
@@ -543,7 +546,7 @@ class EnhancedPlayerManager private constructor() {
             availableAudioTracks = StreamProcessor.toAudioTrackOptions(availableAudioStreams),
             availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles),
             currentQuality = if (isAutoMode) 0 else (currentVideoStream?.let { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) } ?: 0),
-            currentAudioTrack = availableAudioStreams.indexOf(currentAudioStream).coerceAtLeast(0),
+            currentAudioTrack = currentAudioStream?.let { availableAudioStreams.indexOf(it).coerceAtLeast(0) } ?: 0,
             isLive = currentIsLiveStream,
             isAtLiveEdge = false,
             liveDurationMs = liveDurationMs
@@ -651,7 +654,20 @@ class EnhancedPlayerManager private constructor() {
             ) ?: false
         }
 
-        val audio = audioStream ?: availableAudioStreams.firstOrNull() ?: return false
+        val audio = audioStream ?: availableAudioStreams.firstOrNull()
+        if (audioOnly && audio == null) {
+            Log.w(TAG, "loadMediaInternal: audio-only load requested without an audio stream")
+            return false
+        }
+        val hasPlayableVideo = videoStream != null ||
+            currentVideoStream != null ||
+            availableVideoStreams.isNotEmpty() ||
+            !currentDashManifestUrl.isNullOrEmpty() ||
+            !currentHlsUrl.isNullOrEmpty()
+        if (audio == null && !hasPlayableVideo) {
+            Log.w(TAG, "loadMediaInternal: no playable audio/video streams")
+            return false
+        }
         return mediaLoader?.loadMedia(
             player = player,
             context = appContext,
@@ -899,18 +915,10 @@ class EnhancedPlayerManager private constructor() {
                 }
                 val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
                 val selected = selectStreamsForServicePlayback(streamInfo, preferredQuality, preferredAudioLanguage)
-                val audioStream = selected.second ?: run {
-                    _playerState.value = _playerState.value.copy(
-                        isBuffering = false,
-                        error = "Unable to load audio stream"
-                    )
-                    return@launch
-                }
-
                 setStreams(
                     videoId = enrichedVideo.id,
                     videoStream = selected.first,
-                    audioStream = audioStream,
+                    audioStream = selected.second,
                     videoStreams = (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
                         .filterIsInstance<VideoStream>(),
                     audioStreams = streamInfo.audioStreams,
@@ -991,13 +999,25 @@ class EnhancedPlayerManager private constructor() {
                     mime?.contains("webm", ignoreCase = true) == true
             }
 
-        val videoStream = when (preferredQuality) {
+        val selectedVideoStream = when (preferredQuality) {
             VideoQuality.AUTO -> null
             else -> videoStreams.minByOrNull {
                 kotlin.math.abs(
                     QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) - preferredQuality.height
                 )
             }
+        }
+        val videoStream = if (audioStream == null && selectedVideoStream == null) {
+            videoStreams
+                .sortedWith(
+                    compareBy<VideoStream> { if (it.isVideoOnly) 1 else 0 }
+                        .thenByDescending { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) }
+                        .thenBy { VideoCodecUtils.playbackCodecRank(it) }
+                        .thenByDescending { it.bitrate }
+                )
+                .firstOrNull()
+        } else {
+            selectedVideoStream
         }
         return videoStream to audioStream
     }
@@ -1347,7 +1367,7 @@ class EnhancedPlayerManager private constructor() {
         val attached = surfaceManager?.attachVideoSurface(holder, player, forceAttach)
         if (attached == true) {
             val p = player
-            if (p != null && currentVideoStream != null && currentAudioStream != null) {
+            if (p != null && currentVideoStream != null) {
                 if (isAudioOnlyMode) {
                     Log.d(TAG, "attachVideoSurface: was in audio-only mode — restoring video stream")
                     restoreVideoOutput()
@@ -1407,7 +1427,7 @@ class EnhancedPlayerManager private constructor() {
         surfaceManager?.setSurfaceReady(ready)
         if (ready) {
             val p = player
-            if (p != null && currentVideoStream != null && currentAudioStream != null) {
+            if (p != null && currentVideoStream != null) {
                 when {
                     p.currentMediaItem == null -> {
                         Log.d(TAG, "setSurfaceReady: no media item yet, loading media")
@@ -1424,7 +1444,7 @@ class EnhancedPlayerManager private constructor() {
     }
     
     fun retryLoadMediaIfSurfaceReady() {
-        if (isSurfaceReady && currentVideoStream != null && currentAudioStream != null) {
+        if (isSurfaceReady && currentVideoStream != null) {
             loadMediaInternal(currentVideoStream, currentAudioStream)
         }
     }
@@ -1554,7 +1574,7 @@ class EnhancedPlayerManager private constructor() {
     
     private fun reloadCurrentStream(preservePosition: Long?, reason: String) {
         val video = currentVideoStream ?: return
-        val audio = currentAudioStream ?: availableAudioStreams.firstOrNull() ?: return
+        val audio = currentAudioStream ?: availableAudioStreams.firstOrNull()
         val pos = preservePosition ?: player?.currentPosition ?: 0L
         Log.d(TAG, "Reloading ${VideoCodecUtils.qualityHeightFromStream(video)}p at ${pos}ms ($reason)")
         player?.stop()

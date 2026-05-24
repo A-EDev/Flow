@@ -390,16 +390,17 @@ class VideoPlayerViewModel @Inject constructor(
      * This ensures the UI shows video info immediately while streams are fetched.
      */
     fun playVideo(video: Video) {
+        nextPlaybackLoadToken()
+        cancelActivePlaybackLoad()
+
         // Stop current playback and clear everything (including any active queue)
         EnhancedPlayerManager.getInstance().pause()
         EnhancedPlayerManager.getInstance().clearAll()
-        
-        GlobalPlayerState.setCurrentVideo(video)
-        
+
         // Ensure music player is stopped and hidden
         EnhancedMusicPlayerManager.stop()
         EnhancedMusicPlayerManager.clearCurrentTrack()
-        
+
         // Cache video metadata for immediate UI display
         _uiState.value = _uiState.value.copy(
             cachedVideo = video,
@@ -419,6 +420,7 @@ class VideoPlayerViewModel @Inject constructor(
             isUpcoming = false,
             upcomingReleaseTimeMs = null
         )
+        GlobalPlayerState.setCurrentVideo(video)
         saveHistoryEntry(video)
         EnhancedPlayerManager.getInstance().startBackgroundService(
             videoId   = video.id,
@@ -510,8 +512,71 @@ class VideoPlayerViewModel @Inject constructor(
         if (applyUpcomingState(_uiState.value.cachedVideo ?: return)) {
             return
         }
+        EnhancedPlayerManager.getInstance().clearCurrentVideo()
         _uiState.update { it.copy(error = null, errorHint = null, isLoading = true) }
         loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true)
+    }
+
+    fun ensurePlaybackPrepared(videoId: String) {
+        val state = _uiState.value
+        if (state.isLoading || state.error != null || state.isRestoredSession) return
+        if (state.cachedVideo?.id != videoId && state.streamInfo?.id != videoId && state.localFileVideoId != videoId) return
+
+        val manager = EnhancedPlayerManager.getInstance()
+        if (manager.isPreparedForPlayback(videoId)) return
+
+        viewModelScope.launch {
+            val latest = _uiState.value
+            if (latest.isLoading || latest.error != null || latest.isRestoredSession) return@launch
+            if (manager.isPreparedForPlayback(videoId)) return@launch
+
+            val loadToken = playbackLoadToken
+            val localFilePath = latest.localFilePath?.takeIf {
+                latest.localFileVideoId == null || latest.localFileVideoId == videoId
+            }
+            if (localFilePath != null && latest.streamInfo == null) {
+                Log.w("VideoPlayerViewModel", "Late prepare: arming local playback for $videoId")
+                prepareLocalMediaForPlayback(
+                    videoId = videoId,
+                    localFilePath = localFilePath,
+                    offlineSegments = latest.offlineSponsorBlockSegments,
+                    savedPosition = latest.savedPosition?.first()
+                        ?: viewHistory.getPlaybackPosition(videoId).first(),
+                    loadToken = loadToken
+                )
+                return@launch
+            }
+
+            val streamInfo = latest.streamInfo ?: return@launch
+            val audioStream = latest.audioStream
+            val videoStreams = (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
+                .filterIsInstance<VideoStream>()
+            if (audioStream == null && videoStreams.isEmpty() && streamInfo.dashMpdUrl.isNullOrEmpty() && latest.hlsUrl.isNullOrEmpty()) {
+                Log.w("VideoPlayerViewModel", "Late prepare skipped for $videoId: no playable streams in UI state")
+                return@launch
+            }
+
+            Log.w(
+                "VideoPlayerViewModel",
+                "Late prepare: arming stream playback for $videoId (audio=${audioStream != null}, videos=${videoStreams.size})"
+            )
+            prepareLoadedMediaForPlayback(
+                videoId = videoId,
+                streamInfo = streamInfo,
+                videoStream = latest.videoStream,
+                audioStream = audioStream,
+                videoStreams = videoStreams,
+                audioStreams = streamInfo.audioStreams,
+                subtitles = streamInfo.subtitles ?: emptyList(),
+                savedPosition = latest.savedPosition?.first()
+                    ?: viewHistory.getPlaybackPosition(videoId).first(),
+                localFilePath = localFilePath,
+                offlineSegments = latest.offlineSponsorBlockSegments,
+                hlsUrl = latest.hlsUrl,
+                isAdaptiveMode = latest.isAdaptiveMode,
+                loadToken = loadToken
+            )
+        }
     }
 
     fun playPlaylist(videos: List<Video>, startIndex: Int, title: String? = null) {
@@ -679,6 +744,7 @@ class VideoPlayerViewModel @Inject constructor(
         activeLoadJob = viewModelScope.launch(PerformanceDispatcher.networkIO) {
             Log.d("VideoPlayerViewModel", "Starting loadVideoInfo for $videoId")
             var isOfflineAvailable = false
+            var offlineLocalPath: String? = null
             
             try {
                 val streamInfoDeferred = async(PerformanceDispatcher.networkIO) {
@@ -752,6 +818,7 @@ class VideoPlayerViewModel @Inject constructor(
                 // Check for offline file immediately (video downloads and audio-only downloads)
                 val localFile = if (downloadedVideo != null) java.io.File(downloadedVideo.filePath) else null
                 isOfflineAvailable = localFile?.exists() == true
+                offlineLocalPath = localFile?.absolutePath?.takeIf { isOfflineAvailable }
                 
                 if (isOfflineAvailable) {
                     Log.d("VideoPlayerViewModel", "Found offline video at ${localFile?.absolutePath}")
@@ -759,9 +826,10 @@ class VideoPlayerViewModel @Inject constructor(
                     val offlineSegments = deserializeSponsorBlockSegments(sbJson)
                     ensureActive()
                     if (!isPlaybackLoadCurrent(loadToken)) return@launch
+                    val localPath = offlineLocalPath
                     _uiState.update { 
                         it.copy(
-                            localFilePath = localFile?.absolutePath,
+                            localFilePath = localPath,
                             localFileVideoId = videoId,
                             offlineSponsorBlockSegments = offlineSegments,
                             error = null,
@@ -769,6 +837,15 @@ class VideoPlayerViewModel @Inject constructor(
                             isLoading = false,
                             isUpcoming = false,
                             upcomingReleaseTimeMs = null
+                        )
+                    }
+                    if (localPath != null) {
+                        prepareLocalMediaForPlayback(
+                            videoId = videoId,
+                            localFilePath = localPath,
+                            offlineSegments = offlineSegments,
+                            savedPosition = viewHistory.getPlaybackPosition(videoId).first(),
+                            loadToken = loadToken
                         )
                     }
                 }
@@ -1073,6 +1150,15 @@ class VideoPlayerViewModel @Inject constructor(
                 if (isPlaybackLoadCurrent(loadToken) && isOfflineAvailable) {
                      Log.d("VideoPlayerViewModel", "Ignoring timeout, playing offline video")
                      _uiState.update { it.copy(isLoading = false, error = null, errorHint = null) }
+                     offlineLocalPath?.let { localPath ->
+                         prepareLocalMediaForPlayback(
+                             videoId = videoId,
+                             localFilePath = localPath,
+                             offlineSegments = deserializeSponsorBlockSegments(videoDownloadManager.getSponsorBlockData(videoId)),
+                             savedPosition = viewHistory.getPlaybackPosition(videoId).first(),
+                             loadToken = loadToken
+                         )
+                     }
                 } else if (isPlaybackLoadCurrent(loadToken)) {
                     val videoError = VideoErrorMapper.fromTimeout(context)
                     _uiState.update { 
@@ -1089,6 +1175,18 @@ class VideoPlayerViewModel @Inject constructor(
                 if (isPlaybackLoadCurrent(loadToken) && isOfflineAvailable) {
                      Log.d("VideoPlayerViewModel", "Ignoring exception, playing offline video")
                      _uiState.update { it.copy(isLoading = false, error = null, errorHint = null) }
+                     val downloadedVideo = videoDownloadManager.downloadedVideos.map { list ->
+                         list.find { it.video.id == videoId }
+                     }.first()
+                     downloadedVideo?.filePath?.takeIf { java.io.File(it).exists() }?.let { localPath ->
+                         prepareLocalMediaForPlayback(
+                             videoId = videoId,
+                             localFilePath = localPath,
+                             offlineSegments = deserializeSponsorBlockSegments(videoDownloadManager.getSponsorBlockData(videoId)),
+                             savedPosition = viewHistory.getPlaybackPosition(videoId).first(),
+                             loadToken = loadToken
+                         )
+                     }
                 } else if (isPlaybackLoadCurrent(loadToken)) {
                     // Final fallback if everything fails
                     val downloadedVideo = videoDownloadManager.downloadedVideos.map { list -> 
@@ -1096,6 +1194,7 @@ class VideoPlayerViewModel @Inject constructor(
                     }.first()
 
                     if (downloadedVideo != null && java.io.File(downloadedVideo.filePath).exists()) {
+                        val offlineSegments = deserializeSponsorBlockSegments(videoDownloadManager.getSponsorBlockData(videoId))
                         _uiState.update { 
                             it.copy(
                                 streamInfo = null,
@@ -1103,10 +1202,19 @@ class VideoPlayerViewModel @Inject constructor(
                                 error = null,
                                 errorHint = null,
                                 localFilePath = downloadedVideo.filePath,
+                                localFileVideoId = videoId,
+                                offlineSponsorBlockSegments = offlineSegments,
                                 isUpcoming = false,
                                 upcomingReleaseTimeMs = null
                             )
                         }
+                        prepareLocalMediaForPlayback(
+                            videoId = videoId,
+                            localFilePath = downloadedVideo.filePath,
+                            offlineSegments = offlineSegments,
+                            savedPosition = viewHistory.getPlaybackPosition(videoId).first(),
+                            loadToken = loadToken
+                        )
                     } else {
                         val videoError = VideoErrorMapper.from(context, e, videoId)
                         _uiState.update { 
@@ -1166,7 +1274,10 @@ class VideoPlayerViewModel @Inject constructor(
                 savedSegments = offlineSegments,
                 preservePosition = resumePosition.takeIf { it > 0L }
             )
-        } else if (audioStream != null) {
+        } else if (audioStream != null || videoStreams.isNotEmpty() || !streamInfo.dashMpdUrl.isNullOrEmpty() || !hlsUrl.isNullOrEmpty()) {
+            if (audioStream == null) {
+                Log.w("VideoPlayerViewModel", "Preparing $videoId without a separate audio stream")
+            }
             manager.setStreams(
                 videoId = videoId,
                 videoStream = if (isAdaptiveMode) null else videoStream,
@@ -1181,9 +1292,51 @@ class VideoPlayerViewModel @Inject constructor(
                 startPosition = resumePosition
             )
         }
+        applyRememberedPlaybackSpeed(isLive = !hlsUrl.isNullOrEmpty(), manager = manager)
 
         if (!isPlaybackLoadCurrent(loadToken)) return@withContext
         manager.play()
+    }
+
+    private suspend fun prepareLocalMediaForPlayback(
+        videoId: String,
+        localFilePath: String,
+        offlineSegments: List<SponsorBlockSegment>?,
+        savedPosition: Long,
+        loadToken: Long
+    ) = withContext(Dispatchers.Main) {
+        if (!isPlaybackLoadCurrent(loadToken)) return@withContext
+        val manager = EnhancedPlayerManager.getInstance()
+        if (manager.isPreparedForPlayback(videoId)) return@withContext
+
+        manager.initialize(context)
+        val queueSize = manager.playerState.value.queueSize
+        manager.playLocalFile(
+            videoId = videoId,
+            filePath = localFilePath,
+            savedSegments = offlineSegments,
+            preservePosition = savedPosition
+                .takeIf { it > 500L }
+                ?.takeIf { queueSize <= 1 }
+        )
+        applyRememberedPlaybackSpeed(isLive = false, manager = manager)
+
+        if (!isPlaybackLoadCurrent(loadToken)) return@withContext
+        manager.play()
+    }
+
+    private suspend fun applyRememberedPlaybackSpeed(
+        isLive: Boolean,
+        manager: EnhancedPlayerManager
+    ) {
+        if (isLive) {
+            manager.setPlaybackSpeed(1.0f)
+            return
+        }
+
+        if (playerPreferences.rememberPlaybackSpeed.first()) {
+            manager.setPlaybackSpeed(playerPreferences.playbackSpeed.first())
+        }
     }
 
     private fun shouldRestartCompletedPlayback(savedPosition: Long, durationMs: Long): Boolean {
@@ -1628,13 +1781,26 @@ class VideoPlayerViewModel @Inject constructor(
                 )
                 .firstOrNull()
         }
-        
-        val actualQuality = videoStream?.let {
+
+        val safeAudio = audioStream ?: streamInfo.audioStreams.firstOrNull()
+        val playableVideoStream = if (safeAudio == null && videoStream == null) {
+            allVideoStreams
+                .sortedWith(
+                    compareBy<VideoStream> { if (it.isVideoOnly) 1 else 0 }
+                        .thenByDescending { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) }
+                        .thenBy { VideoCodecUtils.playbackCodecRank(it) }
+                        .thenByDescending { it.bitrate }
+                )
+                .firstOrNull()
+        } else {
+            videoStream
+        }
+
+        val actualQuality = playableVideoStream?.let {
             VideoQuality.fromHeight(QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)))
         } ?: VideoQuality.AUTO
-        val safeAudio = audioStream ?: streamInfo.audioStreams.firstOrNull()
 
-        return Triple(videoStream, safeAudio, actualQuality)
+        return Triple(playableVideoStream, safeAudio, actualQuality)
     }
 
     /** Deserialize a JSON string into a list of SponsorBlock segments; returns null on failure. */

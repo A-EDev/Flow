@@ -120,7 +120,11 @@ class VideoPlaybackResolver(
 
         // 3. Generate DASH manifests from progressive streams (NewPipe approach)
         // This avoids YouTube's progressive throttling (~50-100 KB/s limit)
-        val videoSource = createVideoSource(videoStreams, durationSeconds)
+        val videoSource = createVideoSource(
+            videoStreams = videoStreams,
+            durationSeconds = durationSeconds,
+            preferMuxed = audioStream == null
+        )
         val audioSource = createAudioSource(audioStream, durationSeconds)
         
         return when {
@@ -148,7 +152,8 @@ class VideoPlaybackResolver(
      */
     private fun createVideoSource(
         videoStreams: List<VideoStream>,
-        durationSeconds: Long
+        durationSeconds: Long,
+        preferMuxed: Boolean
     ): MediaSource? {
         if (videoStreams.isEmpty()) return null
         
@@ -159,9 +164,11 @@ class VideoPlaybackResolver(
                 .thenByDescending { it.bitrate }
         )
         
-        // Try to find a video-only stream first (better for DASH manifest generation)
-        val videoOnlyStream = sortedStreams.firstOrNull { it.isVideoOnly }
-        val bestStream = videoOnlyStream ?: sortedStreams.firstOrNull()
+        val bestStream = if (preferMuxed) {
+            sortedStreams.firstOrNull { !it.isVideoOnly } ?: sortedStreams.firstOrNull()
+        } else {
+            sortedStreams.firstOrNull { it.isVideoOnly } ?: sortedStreams.firstOrNull()
+        }
         
         if (bestStream == null) return null
         

@@ -167,7 +167,6 @@ class MediaLoader(
             ProgressiveMediaSource.Factory(cacheManager?.getProgressiveDataSourceFactory() ?: dataSourceFactory)
                 .createMediaSource(MediaItem.fromUri(android.net.Uri.fromFile(File(localFilePath))))
         } else {
-            val audio = audioStream ?: return null
             val resolver = VideoPlaybackResolver(
                 cacheManager?.getDashDataSourceFactory() ?: dataSourceFactory,
                 cacheManager?.getProgressiveDataSourceFactory() ?: dataSourceFactory,
@@ -191,7 +190,7 @@ class MediaLoader(
             Log.d(TAG, "Passing ${selectedStreams.size} stream(s) to resolver: ${selectedStreams.map { "${VideoCodecUtils.qualityHeightFromStream(it)}p" }}")
             resolver.resolve(
                 selectedStreams,
-                audio,
+                audioStream,
                 dashManifestUrl = if (audioOnly) null else dashManifestUrl,
                 hlsUrl = if (audioOnly) null else hlsUrl,
                 durationSeconds = finalDuration

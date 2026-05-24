@@ -389,12 +389,16 @@ fun GlobalPlayerOverlay(
             viewModel = playerViewModel
         )
 
-        PlayerInitEffect(
-            videoId = video.id,
-            uiState = playerUiState,
-            context = context,
-            screenState = screenState
-        )
+        LaunchedEffect(
+            video.id,
+            playerUiState.isLoading,
+            playerUiState.error,
+            playerUiState.streamInfo,
+            playerUiState.audioStream,
+            playerUiState.localFilePath
+        ) {
+            playerViewModel.ensurePlaybackPrepared(video.id)
+        }
 
         PlaybackStartupRecoveryEffect(
             videoId = video.id,

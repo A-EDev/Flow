@@ -10,8 +10,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -36,8 +38,9 @@ fun VideoPlayerSurface(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var surfaceRestoreTrigger by remember { mutableIntStateOf(0) }
+    var attachedVideoId by remember { mutableStateOf<String?>(null) }
 
-    val playerView = remember {
+    val playerView = remember(video.id) {
         Log.d("EnhancedVideoPlayer", "Creating shared PlayerView")
         (LayoutInflater.from(context).inflate(R.layout.video_player_view, null) as PlayerView).apply {
             layoutParams = FrameLayout.LayoutParams(
@@ -45,6 +48,7 @@ fun VideoPlayerSurface(
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
             setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+            setKeepContentOnPlayerReset(false)
         }
     }
 
@@ -78,45 +82,52 @@ fun VideoPlayerSurface(
 
     val currentSurfaceRestoreTrigger = surfaceRestoreTrigger
 
-    AndroidView(
-        factory = { playerView },
-        update = { view ->
-            @Suppress("UNUSED_VARIABLE")
-            val restoreTrigger = currentSurfaceRestoreTrigger
-            val manager = EnhancedPlayerManager.getInstance()
-            val newPlayer = manager.getPlayer()
-            val oldPlayer = view.player
+    key(video.id) {
+        AndroidView(
+            factory = { playerView },
+            update = { view ->
+                @Suppress("UNUSED_VARIABLE")
+                val restoreTrigger = currentSurfaceRestoreTrigger
+                val manager = EnhancedPlayerManager.getInstance()
+                val newPlayer = manager.getPlayer()
+                val oldPlayer = view.player
+                val videoChanged = attachedVideoId != video.id
 
-            if (oldPlayer !== newPlayer) {
-                oldPlayer?.removeListener(videoSizeListener)
-                newPlayer?.addListener(videoSizeListener)
-                view.player = newPlayer
-            }
+                if (oldPlayer !== newPlayer || videoChanged) {
+                    oldPlayer?.removeListener(videoSizeListener)
+                    if (oldPlayer === newPlayer && oldPlayer != null) {
+                        view.player = null
+                    }
+                    newPlayer?.addListener(videoSizeListener)
+                    view.player = newPlayer
+                    attachedVideoId = video.id
+                }
 
-            if (newPlayer != null && manager.isInAudioOnlyMode()) {
-                Log.d("VideoPlayerSurface", "Restoring video output after audio-only background mode")
-                manager.restoreVideoOutput()
-            }
+                if (newPlayer != null && manager.isInAudioOnlyMode()) {
+                    Log.d("VideoPlayerSurface", "Restoring video output after audio-only background mode")
+                    manager.restoreVideoOutput()
+                }
 
-            if (newPlayer != null &&
-                newPlayer.playbackState == Player.STATE_IDLE &&
-                newPlayer.currentMediaItem != null
-            ) {
-                Log.d("VideoPlayerSurface", "PlayerView attached; player IDLE with media - calling prepare()")
-                newPlayer.prepare()
-            }
+                if (newPlayer != null &&
+                    newPlayer.playbackState == Player.STATE_IDLE &&
+                    newPlayer.currentMediaItem != null
+                ) {
+                    Log.d("VideoPlayerSurface", "PlayerView attached; player IDLE with media - calling prepare()")
+                    newPlayer.prepare()
+                }
 
-            view.subtitleView?.let { subtitleView ->
-                subtitleView.visibility = View.GONE
-            }
+                view.subtitleView?.let { subtitleView ->
+                    subtitleView.visibility = View.GONE
+                }
 
-            view.resizeMode = when (resizeMode) {
-                0 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-                1 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
-                2 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                else -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-            }
-        },
-        modifier = modifier.fillMaxSize()
-    )
+                view.resizeMode = when (resizeMode) {
+                    0 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                    1 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
+                    2 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                    else -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                }
+            },
+            modifier = modifier.fillMaxSize()
+        )
+    }
 }
