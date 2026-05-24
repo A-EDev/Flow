@@ -350,10 +350,30 @@ class SubscriptionsViewModel : ViewModel() {
         return (freshVideos + cachedVideos)
             .asSequence()
             .filter { video -> effectiveUploadTimestamp(video, now) >= cutoff || video.isUpcoming }
-            .distinctBy { it.id }
             .toList()
+            .groupBy { it.id }
+            .values
+            .map { candidates -> mergeDuplicateSubscriptionVideo(candidates, now) }
             .withStableUploadSortKeys(now)
             .take(MAX_SUBSCRIPTION_CACHE_ITEMS)
+    }
+
+    private fun mergeDuplicateSubscriptionVideo(candidates: List<Video>, now: Long): Video {
+        val primary = candidates.first()
+        val metadataSource = when {
+            primary.hasStableUploadMetadata(now) -> primary
+            else -> candidates.firstOrNull { it.hasStableUploadMetadata(now) } ?: primary
+        }
+        val metadataTimestamp = effectiveUploadTimestamp(metadataSource, now).takeIf { it > 0L }
+
+        return primary.copy(
+            viewCount = candidates.maxOf { it.viewCount },
+            uploadDate = metadataSource.uploadDate,
+            timestamp = metadataTimestamp ?: primary.timestamp,
+            isShort = candidates.any { it.isShort },
+            isLive = candidates.any { it.isLive },
+            isUpcoming = candidates.any { it.isUpcoming }
+        )
     }
 
     private suspend fun updateVideos(videos: List<Video>) {
@@ -528,6 +548,18 @@ class SubscriptionsViewModel : ViewModel() {
             timestampLooksLikeFallbackNow && relativeDateIsClearlyOlder -> parsedRelative ?: timestamp
             else -> timestamp
         }
+    }
+
+    private fun Video.hasStableUploadMetadata(now: Long): Boolean {
+        val text = uploadDate.trim().lowercase()
+        if (isLive || isUpcoming) return true
+        if (text.isBlank() || text == "unknown" || text == "just now") return false
+        val timestampLooksLikeFallbackNow =
+            timestamp in (now - SUSPICIOUS_FRESH_TIMESTAMP_MS)..(now + SUSPICIOUS_FRESH_TIMESTAMP_MS)
+        if (timestampLooksLikeFallbackNow && text.matches(Regex("""\d+\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours)(\s+ago)?"""))) {
+            return false
+        }
+        return timestamp > 0L
     }
 
     private fun formatRelativeTime(timestamp: Long, now: Long): String {
@@ -817,4 +849,3 @@ private fun String.containsLiveMarker(): Boolean {
         text.contains("watching") ||
         text.contains("started")
 }
-

@@ -168,7 +168,6 @@ object RssSubscriptionService {
 
             val timestamps = mutableMapOf<String, Long>()
             var newestTimestamp = 0L
-            var newestVideoId = ""
 
             for (item in feedItems) {
                 val t = item.uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli() ?: continue
@@ -176,15 +175,17 @@ object RssSubscriptionService {
                 timestamps[videoId] = t
                 if (t > newestTimestamp) {
                     newestTimestamp = t
-                    newestVideoId = videoId
                 }
             }
 
             if (timestamps.isEmpty()) {
                 RssResult(hasRecent = true, videoTimestamps = emptyMap())
             } else {
+                val hasUnknownRecentUpload = timestamps.any { (videoId, timestamp) ->
+                    timestamp > minimumDateMillis && videoId !in knownVideoIds
+                }
                 RssResult(
-                    hasRecent = newestTimestamp > minimumDateMillis && newestVideoId !in knownVideoIds,
+                    hasRecent = newestTimestamp > minimumDateMillis || hasUnknownRecentUpload,
                     videoTimestamps = timestamps
                 )
             }
@@ -226,7 +227,7 @@ object RssSubscriptionService {
             }
 
             val (regularVideos, shortsItems, liveItems) = coroutineScope {
-                val videoDeferred = videosTab?.let {
+                val videoDeferred = videosTab?.let { videosTabHandler ->
                     async(Dispatchers.IO) {
                         val innertubeVideos = fetchVideosTabInnertube(
                             channelId = channelId,
@@ -234,31 +235,37 @@ object RssSubscriptionService {
                             channelAvatar = channelAvatar,
                             limit = MAX_VIDEOS_PER_CHANNEL,
                         )
-                        innertubeVideos.ifEmpty {
-                            fetchTabItems(it, MAX_VIDEOS_PER_CHANNEL).mapNotNull { item ->
-                                val videoId = extractVideoId(item.url)
-                                if (item.isPaidOrMembersOnly()) {
-                                    Log.d(TAG, "[$channelId] Skipping restricted subscription item: $videoId")
-                                    return@mapNotNull null
-                                }
+                        val normalizedInnertubeVideos = innertubeVideos
+                            .mapNotNull { video ->
+                                video.withAuthoritativeUploadTimestamp(
+                                    rssTimestamp = rssDateMap[video.id],
+                                    minimumDateMillis = minimumDateMillis
+                                )
+                            }
 
-                                val uploadTimeMillis = resolveUploadTimestamp(item)
-                                    ?: rssDateMap[videoId]
-
-                                when {
-                                    uploadTimeMillis == null -> {
-                                        Log.d(TAG, "[$channelId] Skipping undated subscription item: $videoId")
-                                        null
+                        when {
+                            normalizedInnertubeVideos.isEmpty() ->
+                                fetchDatedTabVideos(
+                                    tab = videosTabHandler,
+                                    channelId = channelId,
+                                    channelAvatar = channelAvatar,
+                                    minimumDateMillis = minimumDateMillis,
+                                    rssDateMap = rssDateMap,
+                                    limit = MAX_VIDEOS_PER_CHANNEL
+                                )
+                            normalizedInnertubeVideos.any { it.viewCount <= 0L } -> {
+                                val tabItemsByVideoId = fetchTabItems(videosTabHandler, MAX_VIDEOS_PER_CHANNEL)
+                                    .associateBy { item -> extractVideoId(item.url) }
+                                normalizedInnertubeVideos.map { video ->
+                                    val tabViewCount = tabItemsByVideoId[video.id]?.viewCount ?: 0L
+                                    if (video.viewCount <= 0L && tabViewCount > 0L) {
+                                        video.copy(viewCount = tabViewCount)
+                                    } else {
+                                        video
                                     }
-                                    uploadTimeMillis <= minimumDateMillis -> null
-                                    else -> streamInfoItemToVideo(
-                                        item = item,
-                                        channelId = channelId,
-                                        channelAvatar = channelAvatar,
-                                        overrideTimestamp = uploadTimeMillis
-                                    )
                                 }
                             }
+                            else -> normalizedInnertubeVideos
                         }
                     }
                 }
@@ -290,8 +297,8 @@ object RssSubscriptionService {
                     return@mapNotNull null
                 }
 
-                val uploadTimeMillis = resolveUploadTimestamp(item)
-                    ?: rssDateMap[videoId]
+                val uploadTimeMillis = rssDateMap[videoId]
+                    ?: resolveUploadTimestamp(item)
 
                 when {
                     uploadTimeMillis == null -> {
@@ -354,6 +361,40 @@ object RssSubscriptionService {
         return items.distinctBy { it.url }.take(limit)
     }
 
+    private fun fetchDatedTabVideos(
+        tab: ListLinkHandler,
+        channelId: String,
+        channelAvatar: String?,
+        minimumDateMillis: Long,
+        rssDateMap: Map<String, Long>,
+        limit: Int
+    ): List<Video> {
+        return fetchTabItems(tab, limit).mapNotNull { item ->
+            val videoId = extractVideoId(item.url)
+            if (item.isPaidOrMembersOnly()) {
+                Log.d(TAG, "[$channelId] Skipping restricted subscription item: $videoId")
+                return@mapNotNull null
+            }
+
+            val uploadTimeMillis = rssDateMap[videoId]
+                ?: resolveUploadTimestamp(item)
+
+            when {
+                uploadTimeMillis == null -> {
+                    Log.d(TAG, "[$channelId] Skipping undated subscription item: $videoId")
+                    null
+                }
+                uploadTimeMillis <= minimumDateMillis -> null
+                else -> streamInfoItemToVideo(
+                    item = item,
+                    channelId = channelId,
+                    channelAvatar = channelAvatar,
+                    overrideTimestamp = uploadTimeMillis
+                )
+            }
+        }
+    }
+
     private suspend fun fetchVideosTabInnertube(
         channelId: String,
         channelName: String,
@@ -374,7 +415,7 @@ object RssSubscriptionService {
         var continuation = initial.continuation
 
         while (items.size < limit && continuation != null) {
-            val pageToken = continuation ?: break
+            val pageToken = continuation
             val moreResult = io.github.aedev.flow.innertube.YouTube.channelVideosContinuation(
                 continuation = pageToken,
                 channelId = channelId,
@@ -417,7 +458,7 @@ object RssSubscriptionService {
 
         val uploadTimeMillis = overrideTimestamp
             ?: resolveUploadTimestamp(item)
-            ?: System.currentTimeMillis()
+            ?: 0L
 
         val rawDate = item.textualUploadDate
         val upcomingReleaseTimeMs = rawDate?.let(::parsePremiereTimestamp)
@@ -425,7 +466,8 @@ object RssSubscriptionService {
         val isUpcoming = !forceLive && upcomingReleaseTimeMs != null
         val uploadDateStr = when {
             rawDate != null && !rawDate.contains("T") && !rawDate.contains("+") -> rawDate
-            else -> formatRelativeTime(uploadTimeMillis)
+            uploadTimeMillis > 0L -> formatRelativeTime(uploadTimeMillis)
+            else -> ""
         }
 
         return Video(
@@ -439,12 +481,37 @@ object RssSubscriptionService {
             uploadDate = uploadDateStr,
             timestamp = uploadTimeMillis,
             channelThumbnailUrl = channelAvatar
-                ?: item.uploaderAvatars?.maxByOrNull { it.height }?.url
+                ?: item.uploaderAvatars.maxByOrNull { it.height }?.url
                 ?: "",
             isShort = forceShort || item.isShortFormContent,
             isLive = forceLive || item.isActiveLiveStream(),
             isUpcoming = isUpcoming
         )
+    }
+
+    private fun Video.withAuthoritativeUploadTimestamp(
+        rssTimestamp: Long?,
+        minimumDateMillis: Long
+    ): Video? {
+        val resolvedTimestamp = rssTimestamp ?: timestamp.takeIf { it > 0L && !looksLikeLoadedNowFallback() }
+        if (resolvedTimestamp == null) {
+            Log.d(TAG, "Skipping channel-tab item with loaded-time fallback only: $id")
+            return null
+        }
+        if (resolvedTimestamp <= minimumDateMillis && !isUpcoming) return null
+
+        return copy(
+            timestamp = resolvedTimestamp,
+            uploadDate = rssTimestamp?.let(::formatRelativeTime) ?: uploadDate
+        )
+    }
+
+    private fun Video.looksLikeLoadedNowFallback(): Boolean {
+        val text = uploadDate.trim().lowercase(Locale.US)
+        return text.isBlank() ||
+            text == "unknown" ||
+            text == "just now" ||
+            text.matches(Regex("""\d+\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours)(\s+ago)?"""))
     }
 
     private fun StreamInfoItem.isActiveLiveStream(): Boolean {
