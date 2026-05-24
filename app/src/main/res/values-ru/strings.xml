@@ -9,7 +9,7 @@
     <string name="empty_subscriptions_body">Подпишитесь на каналы, чтобы видеть их\nпоследние видео здесь</string>
     <string name="home_refresh_feed">Обновить ленту</string>
     <string name="retry">Повторить</string>
-    <string name="shorts">Короткие видео</string>
+    <string name="shorts">Shorts</string>
     <string name="failed_to_load_channel">Не удалось загрузить канал</string>
     <string name="subscribers">Подписчики</string>
     <string name="stats">Статистика</string>
@@ -146,7 +146,7 @@
     <string name="itag">Умные метки (iTag)</string>
     <string name="mime_type">Mime-тип</string>
     <string name="status_upcoming">ПРЕДСТОЯЩЕЕ</string>
-    <string name="status_live">ПРЯМОЙ ЭФИР</string>
+    <string name="status_live">ТРАНСЛЯЦИЯ</string>
     <string name="video_metadata_template">%1$s • %2$s • %3$s</string>
     <string name="video_metadata_short_template">%1$s • %2$s</string>
     <string name="premiere_soon">Скоро премьера</string>
@@ -904,4 +904,19 @@
     <string name="error_http_forbidden">Доступ отказан (403)</string>
     <string name="error_not_available">Видео недоступен</string>
     <string name="error_not_available_hint">Возможно, это видео удалено, скрыто автором или заблокировано YouTube.</string>
+    <string name="subscriptions_video_section_title">Видео (подписки)</string>
+    <string name="subscriptions_music_section_title">Музыка (подписки)</string>
+    <string name="upcoming_video_reminder_action">Напомнить</string>
+    <string name="upcoming_video_overlay_title">Это видео запланировано. Воспроизведение станет доступно после начала трансляции.</string>
+    <string name="subscriptions_quick_access_title">Быстрый доступ</string>
+    <string name="subscriptions_music_chip_label">Музыка</string>
+    <string name="subscriptions_music_badge_cd">Музыка (подписка)</string>
+    <string name="no_subscriptions_found">Подписки не найдены</string>
+    <string name="player_appearance_remember_brightness_title">Запоминать уровень яркости</string>
+    <string name="player_appearance_remember_brightness_subtitle">Использовать последний уровень яркости для следующих видеороликов</string>
+    <string name="player_fullscreen_seekbar_width_title">Ширина прогресс-бара в полноэкранном режиме</string>
+    <string name="player_fullscreen_seekbar_width_subtitle">%1$d dp отступ с каждой стороны</string>
+    <string name="player_fullscreen_seekbar_width_full">На всю ширину</string>
+    <string name="player_fullscreen_seekbar_width_default">По умолчанию</string>
+    <string name="player_fullscreen_seekbar_width_custom">Настроить</string>
 </resources>
