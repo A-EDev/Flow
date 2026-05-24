@@ -835,7 +835,7 @@
     <string name="section_popular_artists">فنانون رائجون</string>
     <string name="section_mixed_for_you">قائمة لأجلك</string>
     <string name="section_moods_and_genres">الأجواء والأنواع</string>
-    <string name="genre_mix_template">%1$s ميكس</string>
+    <string name="genre_mix_template">ميكس %1$s</string>
     <string name="section_top_albums">أفضل الألبومات</string>
     <string name="similar_to">مماثلة ل</string>
     <string name="section_similar_to">مماثلة ل %1$s</string>
@@ -1037,7 +1037,7 @@
     <string name="playing_from">اللعب من</string>
     <string name="share_message_template">تحقق من تلك الأغنية: %1$s من %2$s\nhttps://music.youtube.com/watch?v=%3$s</string>
     <string name="filter_deep_cuts">تقطيعات عميقة</string>
-    <string name="filter_workout">Workout</string>
+    <string name="filter_workout">التمارين</string>
     <string name="track_details">تفاصيل المسار</string>
     <string name="codec_label">الترميز</string>
     <string name="sample_rate_label">معدل العينة</string>
@@ -1179,7 +1179,7 @@
     <string name="section_fans_also_like">الأخرون يحبون أيضا</string>
     <string name="empty_moods_genres">لا توجد حالات مزاجية أو أنواع موسيقية متاحة</string>
     <string name="subtitle_single_template">Single · %1$s</string>
-    <string name="section_vibe_vibes">%1$s مزاج</string>
+    <string name="section_vibe_vibes">أجواء %1$s</string>
     <string name="playlist_description_community">قائمة تشغيل منتقاة من موسيقى %1$s من مجتمعنا</string>
     <string name="template_bass_boost">تعزيز الجهير: %1$ddB</string>
     <string name="action_add_band">أضف فرقة</string>
@@ -1555,4 +1555,18 @@
     <string name="player_appearance_remember_brightness_title">تذكر مستوي السطوع</string>
     <string name="player_appearance_remember_brightness_subtitle">أعد إستخدام مستوى سطوع المشغل الأخير في مقاطع الفيديو التالية</string>
     <string name="lyrics_provider_lyrics_plus">LyricsPlus</string>
+    <string name="daily_discover_because_you_listen_to">لأنك تستمع إلى %1$s</string>
+    <string name="daily_discover_similar_to">مشابه ل %1$s</string>
+    <string name="shuffle_play">تشغيل عشوائي</string>
+    <string name="daily_discover_sounds_like">كأنه مثل %1$s</string>
+    <string name="daily_discover_based_on">بناءاً علي %1$s</string>
+    <string name="daily_discover_for_fans_of">من أجل محبي %1$s</string>
+    <string name="section_music_videos_for_you">فيديوهات موسيقية من أجلك</string>
+    <string name="section_live_performances">العروض الحية</string>
+    <string name="section_mood_and_genres">المزاج و الأنواع</string>
+    <string name="section_from_the_community">من المجتمع</string>
+    <string name="daily_discover_subtitle">مختارات جديدة من قائمة إستماعك</string>
+    <string name="section_daily_discover">إكتشافك اليومي</string>
+    <string name="feeling_lucky">أشعر أني محظوظ؟</string>
+    <string name="section_speed_dial">الطلب السريع</string>
 </resources>
