@@ -79,6 +79,7 @@ class PlayerPreferences(context: Context) {
         // UI preferences
         val GRID_ITEM_SIZE = stringPreferencesKey("grid_item_size")
         val SLIDER_STYLE = stringPreferencesKey("slider_style")
+        val MUSIC_PLAYER_BACKGROUND_STYLE = stringPreferencesKey("music_player_background_style")
         val SQUIGGLY_SLIDER_ENABLED = booleanPreferencesKey("squiggly_slider_enabled")
         val SHORTS_SHELF_ENABLED = booleanPreferencesKey("shorts_shelf_enabled")
         val HOME_SHORTS_SHELF_ENABLED = booleanPreferencesKey("home_shorts_shelf_enabled")
@@ -430,6 +431,22 @@ class PlayerPreferences(context: Context) {
     suspend fun setSliderStyle(style: SliderStyle) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SLIDER_STYLE] = style.name
+        }
+    }
+
+    val musicPlayerBackgroundStyle: Flow<MusicPlayerBackgroundStyle> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            runCatching {
+                MusicPlayerBackgroundStyle.valueOf(
+                    preferences[Keys.MUSIC_PLAYER_BACKGROUND_STYLE]
+                        ?: MusicPlayerBackgroundStyle.BLUR_GRADIENT.name
+                )
+            }.getOrDefault(MusicPlayerBackgroundStyle.BLUR_GRADIENT)
+        }
+
+    suspend fun setMusicPlayerBackgroundStyle(style: MusicPlayerBackgroundStyle) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_PLAYER_BACKGROUND_STYLE] = style.name
         }
     }
 
@@ -1932,6 +1949,13 @@ enum class SliderStyle {
     METROLIST_SLIM,
     SQUIGGLY,
     SLIM
+}
+
+enum class MusicPlayerBackgroundStyle {
+    BLUR_GRADIENT,
+    BLUR,
+    GRADIENT,
+    DEFAULT
 }
 
 enum class FullscreenSeekbarPaddingMode {

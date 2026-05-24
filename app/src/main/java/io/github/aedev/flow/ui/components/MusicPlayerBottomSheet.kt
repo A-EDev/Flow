@@ -229,6 +229,35 @@ fun MusicPlayerBottomSheet(
                 modifier = Modifier
                     .fillMaxSize()
                     .nestedScroll(state.nestedScrollConnection)
+                    .pointerInput(state) {
+                        val velocityTracker = VelocityTracker()
+                        var handleSheetDrag = false
+                        detectVerticalDragGestures(
+                            onDragStart = { startOffset ->
+                                handleSheetDrag = startOffset.y > size.height * 0.58f
+                                velocityTracker.resetTracking()
+                            },
+                            onVerticalDrag = { change, dragAmount ->
+                                if (!handleSheetDrag) return@detectVerticalDragGestures
+                                velocityTracker.addPointerInputChange(change)
+                                if (dragAmount > 0f || state.value < state.expandedBound) {
+                                    state.dispatchRawDelta(dragAmount)
+                                    change.consume()
+                                }
+                            },
+                            onDragCancel = {
+                                if (!handleSheetDrag) return@detectVerticalDragGestures
+                                velocityTracker.resetTracking()
+                                state.expand()
+                            },
+                            onDragEnd = {
+                                if (!handleSheetDrag) return@detectVerticalDragGestures
+                                val velocity = -velocityTracker.calculateVelocity().y
+                                velocityTracker.resetTracking()
+                                state.performFling(velocity, onDismiss)
+                            }
+                        )
+                    }
                     .graphicsLayer {
                         alpha = ((state.progress - 0.15f) * 4f).coerceIn(0f, 1f)
                     },

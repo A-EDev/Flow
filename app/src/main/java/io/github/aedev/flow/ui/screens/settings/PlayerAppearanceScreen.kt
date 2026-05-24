@@ -36,6 +36,7 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.DEFAULT_FULLSCREEN_SEEKBAR_PADDING_DP
 import io.github.aedev.flow.data.local.FullscreenSeekbarPaddingMode
 import io.github.aedev.flow.data.local.MAX_FULLSCREEN_SEEKBAR_PADDING_DP
+import io.github.aedev.flow.data.local.MusicPlayerBackgroundStyle
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SliderStyle
 import io.github.aedev.flow.ui.screens.music.player.components.PlayerSliderTrack
@@ -57,6 +58,9 @@ fun PlayerAppearanceScreen(
     val playerPreferences = remember { PlayerPreferences(context) }
     
     val currentSliderStyle by playerPreferences.sliderStyle.collectAsState(initial = SliderStyle.DEFAULT)
+    val currentMusicPlayerBackgroundStyle by playerPreferences.musicPlayerBackgroundStyle.collectAsState(
+        initial = MusicPlayerBackgroundStyle.BLUR_GRADIENT
+    )
     val brightnessSwipeGesturesEnabled by playerPreferences.brightnessSwipeGesturesEnabled.collectAsState(initial = true)
     val rememberBrightnessEnabled by playerPreferences.rememberBrightnessEnabled.collectAsState(initial = false)
     val volumeSwipeGesturesEnabled by playerPreferences.volumeSwipeGesturesEnabled.collectAsState(initial = true)
@@ -75,6 +79,7 @@ fun PlayerAppearanceScreen(
     }
 
     var showStyleSheet by remember { mutableStateOf(false) }
+    var showBackgroundStyleSheet by remember { mutableStateOf(false) }
 
     if (showStyleSheet) {
         ModalBottomSheet(
@@ -154,6 +159,76 @@ fun PlayerAppearanceScreen(
         }
     }
 
+    if (showBackgroundStyleSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showBackgroundStyleSheet = false },
+            sheetState = rememberFlowSheetState(),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 32.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.player_background_style_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+                )
+
+                LazyColumn {
+                    items(MusicPlayerBackgroundStyle.values()) { style ->
+                        val isSelected = currentMusicPlayerBackgroundStyle == style
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    coroutineScope.launch {
+                                        playerPreferences.setMusicPlayerBackgroundStyle(style)
+                                    }
+                                }
+                                .padding(horizontal = 24.dp, vertical = 12.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = stringResource(getBackgroundStyleLabelResInScreen(style)),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                )
+
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+                            PreviewPlayerBackground(style = style)
+                        }
+
+                        if (style != MusicPlayerBackgroundStyle.values().last()) {
+                            HorizontalDivider(
+                                modifier = Modifier.padding(horizontal = 24.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 
     Scaffold(
         topBar = {
@@ -198,6 +273,16 @@ fun PlayerAppearanceScreen(
                         title = stringResource(R.string.player_appearance_style_title),
                         subtitle = stringResource(getStyleLabelResInScreen(currentSliderStyle)),
                         onClick = { showStyleSheet = true }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                    SettingsItem(
+                        icon = painterResource(R.drawable.ic_music_note),
+                        title = stringResource(R.string.player_background_style_title),
+                        subtitle = stringResource(getBackgroundStyleLabelResInScreen(currentMusicPlayerBackgroundStyle)),
+                        onClick = { showBackgroundStyleSheet = true }
                     )
                 }
             }
@@ -808,12 +893,68 @@ fun PreviewPlayerSlider(style: SliderStyle) {
 }
 
 
+@Composable
+fun PreviewPlayerBackground(style: MusicPlayerBackgroundStyle) {
+    val primary = MaterialTheme.colorScheme.primary
+    val secondary = MaterialTheme.colorScheme.tertiary
+    val surface = MaterialTheme.colorScheme.surfaceVariant
+    val brush = when (style) {
+        MusicPlayerBackgroundStyle.BLUR_GRADIENT -> Brush.linearGradient(
+            listOf(primary.copy(alpha = 0.80f), secondary.copy(alpha = 0.55f), Color.Black.copy(alpha = 0.90f))
+        )
+        MusicPlayerBackgroundStyle.BLUR -> Brush.linearGradient(
+            listOf(surface.copy(alpha = 0.85f), primary.copy(alpha = 0.45f), surface.copy(alpha = 0.85f))
+        )
+        MusicPlayerBackgroundStyle.GRADIENT -> Brush.linearGradient(
+            listOf(primary.copy(alpha = 0.95f), secondary.copy(alpha = 0.75f), Color.Black.copy(alpha = 0.92f))
+        )
+        MusicPlayerBackgroundStyle.DEFAULT -> Brush.linearGradient(
+            listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceVariant)
+        )
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(brush)
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 14.dp)
+                .size(28.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color.White.copy(alpha = 0.82f))
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 14.dp)
+                .width(112.dp)
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(Color.White.copy(alpha = 0.72f))
+        )
+    }
+}
+
 private fun getStyleLabelResInScreen(style: SliderStyle): Int {    return when (style) {
         SliderStyle.DEFAULT -> R.string.style_default
         SliderStyle.METROLIST -> R.string.style_metrolist
         SliderStyle.METROLIST_SLIM -> R.string.style_metrolist_slim
         SliderStyle.SQUIGGLY -> R.string.style_squiggly
         SliderStyle.SLIM -> R.string.style_slim
+    }
+}
+
+private fun getBackgroundStyleLabelResInScreen(style: MusicPlayerBackgroundStyle): Int {
+    return when (style) {
+        MusicPlayerBackgroundStyle.BLUR_GRADIENT -> R.string.player_background_style_blur_gradient
+        MusicPlayerBackgroundStyle.BLUR -> R.string.player_background_style_blur
+        MusicPlayerBackgroundStyle.GRADIENT -> R.string.player_background_style_gradient
+        MusicPlayerBackgroundStyle.DEFAULT -> R.string.player_background_style_default
     }
 }
 

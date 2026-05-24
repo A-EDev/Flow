@@ -27,7 +27,11 @@ fun PlayerTopBar(
     playingFrom: String,
     onBackClick: () -> Unit,
     onSleepTimerClick: () -> Unit = {},
-    onMoreOptionsClick: () -> Unit
+    onMoreOptionsClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentColor: Color = Color.White,
+    activeColor: Color = MaterialTheme.colorScheme.primary,
+    showSleepTimerAction: Boolean = true
 ) {
     CenterAlignedTopAppBar(
         title = {
@@ -40,12 +44,12 @@ fun PlayerTopBar(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 1.sp,
-                    color = Color.White.copy(alpha = 0.9f)
+                    color = contentColor.copy(alpha = 0.9f)
                 )
                 Text(
                     text = playingFrom,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.7f),
+                    color = contentColor.copy(alpha = 0.7f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center
@@ -58,31 +62,33 @@ fun PlayerTopBar(
                     imageVector = Icons.Filled.KeyboardArrowDown,
                     contentDescription = stringResource(R.string.close),
                     modifier = Modifier.size(32.dp),
-                    tint = Color.White
+                    tint = contentColor
                 )
             }
         },
         actions = {
-            IconButton(onClick = onSleepTimerClick) {
-                Icon(
-                    imageVector = Icons.Outlined.Bedtime,
-                    contentDescription = stringResource(R.string.sleep_timer),
-                    tint = if (SleepTimerManager.isActive) MaterialTheme.colorScheme.primary
-                           else Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
+            if (showSleepTimerAction) {
+                IconButton(onClick = onSleepTimerClick) {
+                    Icon(
+                        imageVector = Icons.Outlined.Bedtime,
+                        contentDescription = stringResource(R.string.sleep_timer),
+                        tint = if (SleepTimerManager.isActive) activeColor else contentColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
             IconButton(onClick = onMoreOptionsClick) {
                 Icon(
                     Icons.Outlined.MoreVert,
                     stringResource(R.string.more_options),
-                    tint = Color.White
+                    tint = contentColor
                 )
             }
         },
         colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
             containerColor = Color.Transparent
         ),
+        modifier = modifier,
         windowInsets = WindowInsets(0, 0, 0, 0)
     )
 }

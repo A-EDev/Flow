@@ -84,13 +84,6 @@ fun FlowApp(
     val playerUiState by playerUiStateResult
     val playerState by EnhancedPlayerManager.getInstance().playerState.collectAsStateWithLifecycle()
 
-    ApplyStatusBarStyle(
-        themeMode = currentTheme,
-        systemLightThemeMode = systemLightThemeMode,
-        systemDarkThemeMode = systemDarkThemeMode,
-        isFullscreen = playerUiState.isFullscreen
-    )
-    
     val preferences = remember { PlayerPreferences(context) }
     val isShortsNavigationEnabled by preferences.shortsNavigationEnabled.collectAsState(initial = true)
     val isMusicNavigationEnabled by preferences.musicNavigationEnabled.collectAsState(initial = true)
@@ -275,6 +268,14 @@ fun FlowApp(
             showBottomNav.value = true
         }
     }
+
+    ApplyStatusBarStyle(
+        themeMode = currentTheme,
+        systemLightThemeMode = systemLightThemeMode,
+        systemDarkThemeMode = systemDarkThemeMode,
+        isFullscreen = playerUiState.isFullscreen,
+        isMusicPlayerImmersive = currentMusicTrack != null && musicPlayerSheetState.progress > 0.5f
+    )
 
     LaunchedEffect(isInPipMode) {
         if (isInPipMode && !currentRoute.value.startsWith("player") && currentVideo != null) {
@@ -600,7 +601,8 @@ private fun ApplyStatusBarStyle(
     themeMode: ThemeMode,
     systemLightThemeMode: ThemeMode,
     systemDarkThemeMode: ThemeMode,
-    isFullscreen: Boolean
+    isFullscreen: Boolean,
+    isMusicPlayerImmersive: Boolean = false
 ) {
     val activity = LocalContext.current as? Activity ?: return
     val view = LocalView.current
@@ -615,13 +617,14 @@ private fun ApplyStatusBarStyle(
     SideEffect {
         val window = activity.window
         val insetsController = WindowCompat.getInsetsController(window, view)
+        val shouldDrawBehindStatusBar = isFullscreen || isMusicPlayerImmersive
 
-        window.statusBarColor = if (isFullscreen) {
+        window.statusBarColor = if (shouldDrawBehindStatusBar) {
             android.graphics.Color.TRANSPARENT
         } else {
             colorScheme.background.toArgb()
         }
 
-        insetsController.isAppearanceLightStatusBars = !isDarkTheme && !isFullscreen
+        insetsController.isAppearanceLightStatusBars = !isDarkTheme && !shouldDrawBehindStatusBar
     }
 }

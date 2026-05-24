@@ -32,6 +32,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import io.github.aedev.flow.innertube.models.YouTubeLocale
+import java.util.Locale
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.services.youtube.extractors.YoutubeStreamExtractor
@@ -146,6 +149,43 @@ class FlowApplication : Application(), ImageLoaderFactory {
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "visitorData init error: ${e.message}")
+            }
+        }
+
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            combine(
+                playerPreferences.appLanguage,
+                playerPreferences.trendingRegion
+            ) { lang, region ->
+                val glCode = region.ifBlank { Locale.getDefault().country.ifEmpty { "US" } }
+                val hlCode = lang.ifBlank { Locale.getDefault().language.ifEmpty { "en" } }
+                YouTubeLocale(gl = glCode, hl = hlCode)
+            }.collectLatest { newLocale ->
+                YouTube.locale = newLocale
+                Log.d(TAG, "Dynamic YouTube Locale updated: gl=${newLocale.gl}, hl=${newLocale.hl}")
+            }
+        }
+
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            var lastRegion: String? = null
+            playerPreferences.trendingRegion.collectLatest { region ->
+                if (lastRegion != null && lastRegion != region) {
+                    Log.d(TAG, "Trending region changed from $lastRegion to $region. Invalidate visitor data.")
+                    val prefs = getSharedPreferences("flow_prefs", MODE_PRIVATE)
+                    prefs.edit().remove("visitor_data").apply()
+                    YouTube.visitorData = null
+                    
+                    YouTube.visitorData().onSuccess { data ->
+                        if (!data.isNullOrEmpty()) {
+                            prefs.edit().putString("visitor_data", data).apply()
+                            YouTube.visitorData = data
+                            Log.d(TAG, "Fresh visitorData fetched for region: $region")
+                        }
+                    }.onFailure { e ->
+                        Log.w(TAG, "Failed to fetch fresh visitorData: ${e.message}")
+                    }
+                }
+                lastRegion = region
             }
         }
 

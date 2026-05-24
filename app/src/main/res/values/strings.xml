@@ -497,6 +497,11 @@
     <string name="player_appearance_header">Customize Player Controls</string>
     <string name="player_appearance_style_title"> Music Progress Bar Style</string>
     <string name="player_appearance_style_subtitle">Select the visual style of the seek bar</string>
+    <string name="player_background_style_title">Music Player Background</string>
+    <string name="player_background_style_blur_gradient">Blur + Gradient</string>
+    <string name="player_background_style_blur">Blurred Artwork</string>
+    <string name="player_background_style_gradient">Palette Gradient</string>
+    <string name="player_background_style_default">Default Surface</string>
     <string name="settings_item_player_appearance">Player Appearance</string>
     <string name="settings_item_player_appearance_subtitle">Customize progress bar style</string>
     <string name="style_default">Default (Flow)</string>
