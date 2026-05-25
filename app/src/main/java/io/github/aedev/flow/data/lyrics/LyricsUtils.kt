@@ -171,7 +171,39 @@ object LyricsUtils {
             }
         }
 
-        return result.sorted()
+        return mergeRepeatedTimestampTranslations(result.sorted())
+    }
+
+    private fun mergeRepeatedTimestampTranslations(entries: List<LyricsEntry>): List<LyricsEntry> {
+        if (entries.size < 2) return entries
+
+        val merged = mutableListOf<LyricsEntry>()
+        var index = 0
+        while (index < entries.size) {
+            var base = entries[index]
+            var nextIndex = index + 1
+            while (
+                nextIndex < entries.size &&
+                entries[nextIndex].time == base.time &&
+                !base.isBackground &&
+                !entries[nextIndex].isBackground
+            ) {
+                val candidate = entries[nextIndex]
+                if (candidate.words.isNullOrEmpty() && candidate.text.isNotBlank()) {
+                    base = base.copy(
+                        translation = listOfNotNull(base.translation, candidate.text)
+                            .joinToString("\n")
+                            .ifBlank { null }
+                    )
+                    nextIndex++
+                } else {
+                    break
+                }
+            }
+            merged += base
+            index = nextIndex
+        }
+        return merged
     }
 
     /**

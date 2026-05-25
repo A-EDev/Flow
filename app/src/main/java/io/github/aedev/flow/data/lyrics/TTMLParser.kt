@@ -105,6 +105,7 @@ object TTMLParser {
         val isBackground = p.ttmlAttr("role") == "x-bg"
         val spans = mutableListOf<DomSpan>()
         val backgroundLines = mutableListOf<LyricsEntry>()
+        val translations = mutableListOf<String>()
 
         var child = p.firstChild
         while (child != null) {
@@ -119,7 +120,9 @@ object TTMLParser {
                                 parseBackgroundSpan(child, startMs, offsetMs)?.let { backgroundLines += it }
                             }
                         }
-                        "x-translation", "x-roman" -> Unit
+                        "x-translation", "x-roman" -> child.textContent.orEmpty().trim()
+                            .takeIf { it.isNotBlank() }
+                            ?.let { translations += it }
                         else -> parseWordSpan(child, offsetMs, spans, child)
                     }
                 }
@@ -140,7 +143,8 @@ object TTMLParser {
                 text = text,
                 words = words.takeIf { it.isNotEmpty() },
                 agent = agent,
-                isBackground = isBackground
+                isBackground = isBackground,
+                translation = translations.joinToString("\n").ifBlank { null }
             )
         }
         result += backgroundLines
@@ -152,6 +156,7 @@ object TTMLParser {
             ?.let { parseTime(it) + offsetMs }
             ?: parentStartMs
         val spans = mutableListOf<DomSpan>()
+        val translations = mutableListOf<String>()
 
         var hasChildSpans = false
         var child = span.firstChild
@@ -163,6 +168,10 @@ object TTMLParser {
                     val role = child.ttmlAttr("role")
                     if (role != "x-translation" && role != "x-roman") {
                         parseWordSpan(child, offsetMs, spans, child)
+                    } else {
+                        child.textContent.orEmpty().trim()
+                            .takeIf { it.isNotBlank() }
+                            ?.let { translations += it }
                     }
                 }
             }
@@ -182,7 +191,8 @@ object TTMLParser {
             text = text,
             words = words.takeIf { it.isNotEmpty() },
             agent = "bg",
-            isBackground = true
+            isBackground = true,
+            translation = translations.joinToString("\n").ifBlank { null }
         )
     }
 

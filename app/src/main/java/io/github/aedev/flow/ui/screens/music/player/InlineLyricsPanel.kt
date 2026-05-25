@@ -10,6 +10,8 @@ package io.github.aedev.flow.ui.screens.music.player
 
 import android.graphics.BlurMaskFilter
 import android.graphics.Typeface
+import android.graphics.RenderEffect
+import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationState
@@ -69,6 +71,8 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.scale
@@ -121,6 +125,7 @@ private val LYRICS_FADE_BOTTOM_DP = 160.dp
 private const val LYRICS_STAGGER_DELAY_PER_DISTANCE = 20
 private const val LYRICS_STAGGER_DELAY_MAX_MS = 200
 private const val LYRICS_PREVIEW_TIME = 8000L
+private const val LYRICS_WORD_CANVAS_WINDOW = 3
 
 private sealed class LyricsListItem {
     data class Line(val index: Int, val entry: LyricsEntry) : LyricsListItem()
@@ -643,14 +648,64 @@ private fun IntervalIndicator(
             },
         contentAlignment = Alignment.Center
     ) {
-        CircularProgressIndicator(
-            progress = { animatedProgress },
-            modifier = Modifier.size(36.dp),
-            color = color,
-            trackColor = color.copy(alpha = 0.2f),
-            strokeWidth = 3.dp
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "I N S T R U M E N T A L",
+                color = color.copy(alpha = 0.8f * (1f - animatedProgress)),
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 4.sp
+                )
+            )
+            Canvas(
+                modifier = Modifier
+                    .padding(top = 16.dp)
+                    .fillMaxWidth(0.5f)
+                    .height(3.dp)
+            ) {
+                val center = size.width / 2f
+                val halfRemaining = center * (1f - animatedProgress)
+                drawLine(
+                    color = color.copy(alpha = 0.15f),
+                    start = Offset(0f, size.height / 2f),
+                    end = Offset(size.width, size.height / 2f),
+                    strokeWidth = size.height,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = color,
+                    start = Offset(center - halfRemaining, size.height / 2f),
+                    end = Offset(center + halfRemaining, size.height / 2f),
+                    strokeWidth = size.height,
+                    cap = StrokeCap.Round
+                )
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.8f * (1f - animatedProgress)),
+                    radius = size.height * 1.5f,
+                    center = Offset(center - halfRemaining, size.height / 2f)
+                )
+                drawCircle(
+                    color = Color.White.copy(alpha = 0.8f * (1f - animatedProgress)),
+                    radius = size.height * 1.5f,
+                    center = Offset(center + halfRemaining, size.height / 2f)
+                )
+            }
+        }
     }
+}
+
+private fun adaptiveLyricsTextSize(baseSize: Float, textLength: Int, isBackground: Boolean): Float {
+    val foregroundSize = when {
+        textLength > 92 -> baseSize * 0.66f
+        textLength > 72 -> baseSize * 0.72f
+        textLength > 54 -> baseSize * 0.8f
+        textLength > 42 -> baseSize * 0.9f
+        else -> baseSize
+    }
+    return if (isBackground) foregroundSize * 0.7f else foregroundSize
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -671,9 +726,41 @@ private fun MetrolistLyricsLine(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val density = LocalDensity.current
+    val lineDistance = abs(index - displayedCurrentLineIndex)
+    val dofBlurRadius by animateFloatAsState(
+        targetValue = if (!isSynced || isActiveLine || item.isBackground) {
+            0f
+        } else {
+            with(density) { (lineDistance * 4.dp.toPx()).coerceAtMost(16.dp.toPx()) }
+        },
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "lyricsDofBlur"
+    )
+    val depthScale by animateFloatAsState(
+        targetValue = if (isActiveLine) 1.05f else 0.92f,
+        animationSpec = tween(500, easing = FastOutSlowInEasing),
+        label = "lyricsDepthScale"
+    )
+
     val itemModifier = modifier
         .fillMaxWidth()
         .onSizeChanged { onSizeChanged(it.height) }
+        .graphicsLayer {
+            scaleX = depthScale
+            scaleY = depthScale
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && dofBlurRadius > 0.5f) {
+                renderEffect = RenderEffect
+                    .createBlurEffect(
+                        dofBlurRadius,
+                        dofBlurRadius,
+                        android.graphics.Shader.TileMode.DECAL
+                    )
+                    .asComposeRenderEffect()
+            } else {
+                renderEffect = null
+            }
+        }
         .clip(RoundedCornerShape(8.dp))
         .combinedClickable(onClick = onClick)
         .background(Color.Transparent)
@@ -688,19 +775,18 @@ private fun MetrolistLyricsLine(
         @Composable
         fun LyricContent() {
             Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                val inactiveAlpha = if (item.isBackground) 0.08f else 0.2f
+                val inactiveAlpha = if (item.isBackground) 0.2f else 0.45f
                 val activeAlpha = 1f
-                val focusedAlpha = if (item.isBackground) 0.5f else 0.3f
+                val focusedAlpha = if (item.isBackground) 0.6f else 0.45f
                 val targetAlpha = if (!isSynced || item.isBackground || isActiveLine) {
                     activeAlpha
                 } else if (isAutoScrollEnabled && displayedCurrentLineIndex >= 0) {
                     when (abs(index - displayedCurrentLineIndex)) {
                         0 -> focusedAlpha
-                        1 -> 0.2f
-                        2 -> 0.2f
-                        3 -> 0.15f
-                        4 -> 0.1f
-                        else -> 0.08f
+                        1 -> 0.4f
+                        2 -> 0.35f
+                        3 -> 0.3f
+                        else -> inactiveAlpha
                     }
                 } else {
                     inactiveAlpha
@@ -713,17 +799,21 @@ private fun MetrolistLyricsLine(
                 } else {
                     item.text
                 }
+                val translation = item.translation?.takeIf { it.isNotBlank() }
+                val adaptiveTextSize = remember(mainText, lyricsTextSize, item.isBackground) {
+                    adaptiveLyricsTextSize(lyricsTextSize, mainText.length, item.isBackground)
+                }
 
                 val lyricStyle = TextStyle(
-                    fontSize = if (item.isBackground) (lyricsTextSize * 0.7f).sp else lyricsTextSize.sp,
+                    fontSize = adaptiveTextSize.sp,
                     fontWeight = FontWeight.Bold,
                     fontStyle = if (item.isBackground) FontStyle.Italic else FontStyle.Normal,
                     lineHeight = if (item.isBackground) {
-                        (lyricsTextSize * 0.7f * lyricsLineSpacing).sp
+                        (adaptiveTextSize * lyricsLineSpacing).sp
                     } else {
-                        (lyricsTextSize * lyricsLineSpacing).sp
+                        (adaptiveTextSize * lyricsLineSpacing).sp
                     },
-                    letterSpacing = (-0.5).sp,
+                    letterSpacing = 0.sp,
                     textAlign = TextAlign.Center,
                     fontFamily = MaterialTheme.typography.bodyLarge.fontFamily,
                     platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -749,8 +839,9 @@ private fun MetrolistLyricsLine(
                         }
                     }
                 }
+                val activeTextStyle = lyricStyle.copy(color = if (isActiveLine) expressiveAccent else lineColor)
 
-                if (isSynced && effectiveWords.isNotEmpty() && (isActiveLine || abs(index - displayedCurrentLineIndex) <= 3)) {
+                if (isSynced && effectiveWords.isNotEmpty() && (isActiveLine || lineDistance <= LYRICS_WORD_CANVAS_WINDOW)) {
                     WordLevelLyrics(
                         mainText = mainText,
                         words = effectiveWords,
@@ -766,8 +857,28 @@ private fun MetrolistLyricsLine(
                 } else {
                     Text(
                         text = mainText,
-                        style = lyricStyle.copy(color = if (isActiveLine) expressiveAccent else lineColor),
+                        style = activeTextStyle,
                         modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                if (translation != null) {
+                    Text(
+                        text = translation,
+                        color = if (isActiveLine) {
+                            expressiveAccent.copy(alpha = 0.72f)
+                        } else {
+                            lineColor.copy(alpha = (lineColor.alpha * 0.78f).coerceIn(0.08f, 0.6f))
+                        },
+                        style = lyricStyle.copy(
+                            fontSize = (adaptiveTextSize * 0.52f).coerceAtLeast(15f).sp,
+                            lineHeight = (adaptiveTextSize * 0.68f).coerceAtLeast(19f).sp,
+                            fontWeight = FontWeight.SemiBold,
+                            fontStyle = FontStyle.Normal,
+                            letterSpacing = 0.sp
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 7.dp)
                     )
                 }
             }
@@ -803,6 +914,12 @@ private fun WordLevelLyrics(
     val density = LocalDensity.current
     val textMeasurer = rememberTextMeasurer()
     val glowPaint = remember { android.graphics.Paint().apply { isAntiAlias = true } }
+    val liquidPaint = remember(expressiveAccent) {
+        android.graphics.Paint().apply {
+            isAntiAlias = true
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+    }
     var smoothPosition by remember { mutableLongStateOf(currentPositionState) }
 
     LaunchedEffect(isActiveLine) {
@@ -828,9 +945,10 @@ private fun WordLevelLyrics(
         if (!isActiveLine) smoothPosition = currentPositionState
     }
 
-    val (effectiveWords, effectiveToOriginalIdx) = remember(words, isBackground) {
-        words.flatMapIndexed { originalIdx, word ->
-            val shouldSplit = word.text.contains('-') && word.text.length > 1 && originalIdx == words.lastIndex
+    val sanitizedInputWords = remember(words) { sanitizeWordTimestamps(words) }
+    val (effectiveWords, effectiveToOriginalIdx) = remember(sanitizedInputWords, isBackground) {
+        sanitizedInputWords.flatMapIndexed { originalIdx, word ->
+            val shouldSplit = word.text.contains('-') && word.text.length > 1 && originalIdx == sanitizedInputWords.lastIndex
             if (shouldSplit) {
                 val segments = mutableListOf<String>()
                 var start = 0
@@ -969,6 +1087,24 @@ private fun WordLevelLyrics(
                 return@Canvas
             }
 
+            val currentMillis = System.currentTimeMillis()
+            val shimmerOffset = (currentMillis % 3000L) / 3000f
+            val shaderX = layoutResult.size.width * shimmerOffset
+            liquidPaint.shader = android.graphics.LinearGradient(
+                shaderX - layoutResult.size.width / 2f,
+                0f,
+                shaderX + layoutResult.size.width / 2f,
+                layoutResult.size.height.toFloat(),
+                intArrayOf(
+                    expressiveAccent.toArgb(),
+                    Color.White.copy(alpha = 0.8f).toArgb(),
+                    expressiveAccent.toArgb()
+                ),
+                floatArrayOf(0f, 0.5f, 1f),
+                android.graphics.Shader.TileMode.CLAMP
+            )
+            liquidPaint.textSize = lyricStyle.fontSize.toPx()
+
             if (isRtlText) {
                 val (wordIdxMap, _, _) = charToWordData
                 val wordFactors = effectiveWords.map { word ->
@@ -1005,10 +1141,18 @@ private fun WordLevelLyrics(
                     if (found) {
                         if (isWordSung) {
                             clipRect(left = left, top = top, right = right, bottom = bottom) {
-                                drawText(layoutResult, color = expressiveAccent)
+                                drawIntoCanvas { canvas ->
+                                    canvas.nativeCanvas.drawText(
+                                        layoutResult.layoutInput.text.text,
+                                        0f,
+                                        layoutResult.firstBaseline,
+                                        liquidPaint
+                                    )
+                                }
                             }
                         } else if (isWordActive && sungFactor > 0f) {
-                            clipRect(left = left, top = top, right = right, bottom = bottom) {
+                            val fillLeft = right - ((right - left) * sungFactor)
+                            clipRect(left = fillLeft, top = top, right = right, bottom = bottom) {
                                 drawText(
                                     layoutResult,
                                     color = expressiveAccent.copy(alpha = focusedAlpha + (1f - focusedAlpha) * sungFactor)
@@ -1034,14 +1178,17 @@ private fun WordLevelLyrics(
                 Triple(sungFactor, word, isWordSung)
             }
 
-            val wordWobbles = FloatArray(words.size)
-            words.forEachIndexed { wordIdx, word ->
+            val wordWobbles = FloatArray(sanitizedInputWords.size)
+            sanitizedInputWords.forEachIndexed { wordIdx, word ->
                 val timeSinceStart = (smoothPosition - word.startTime).toFloat()
-                wordWobbles[wordIdx] = if (timeSinceStart in 0f..750f) {
+                val anticipation = ((50f + timeSinceStart) / 50f).coerceIn(0f, 1f)
+                val inhaleDip = if (timeSinceStart in -50f..0f) -0.38f * sin(anticipation * PI.toFloat()) else 0f
+                val impact = if (timeSinceStart in 0f..750f) {
                     if (timeSinceStart < 125f) timeSinceStart / 125f else (1f - (timeSinceStart - 125f) / 625f).coerceAtLeast(0f)
                 } else {
                     0f
                 }
+                wordWobbles[wordIdx] = inhaleDip + impact
             }
 
             val lineCurrentPushes = FloatArray(layoutResult.lineCount)
@@ -1194,7 +1341,14 @@ private fun WordLevelLyrics(
                         val solidWidth = (fillX - edgeWidth).coerceAtLeast(0f)
                         if (solidWidth > 0f) {
                             clipRect(left = 0f, top = 0f, right = solidWidth, bottom = charBounds.height) {
-                                drawText(letterLayouts[i], color = expressiveAccent)
+                                drawIntoCanvas { canvas ->
+                                    canvas.nativeCanvas.drawText(
+                                        letterLayouts[i].layoutInput.text.text,
+                                        0f,
+                                        letterLayouts[i].firstBaseline,
+                                        liquidPaint
+                                    )
+                                }
                             }
                         }
                         for (j in 0 until 12) {
@@ -1274,6 +1428,21 @@ private fun findActiveLineIndices(lines: List<LyricsEntry>, position: Long): Set
     }
 
     return active
+}
+
+private fun sanitizeWordTimestamps(words: List<WordTimestamp>): List<WordTimestamp> {
+    if (words.isEmpty()) return emptyList()
+    return words.mapIndexed { index, word ->
+        val nextWord = words.getOrNull(index + 1)
+        val start = word.startTime.coerceAtLeast(0L)
+        val endFromNext = nextWord?.startTime?.takeIf { it > start }
+        val end = when {
+            endFromNext != null && word.endTime > endFromNext -> endFromNext
+            word.endTime <= start -> start + 80L
+            else -> word.endTime
+        }
+        word.copy(startTime = start, endTime = end)
+    }
 }
 
 private fun String.containsRtl(): Boolean {

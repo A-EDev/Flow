@@ -12,7 +12,8 @@ data class LyricsEntry(
     val text: String,
     val words: List<WordTimestamp>? = null,
     val agent: String? = null,
-    val isBackground: Boolean = false
+    val isBackground: Boolean = false,
+    val translation: String? = null
 ) : Comparable<LyricsEntry> {
     override fun compareTo(other: LyricsEntry): Int = time.compareTo(other.time)
 }
