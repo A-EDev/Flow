@@ -272,6 +272,11 @@ class SubscriptionsViewModel : ViewModel() {
             val cachedBeforeFetch = withContext(PerformanceDispatcher.diskIO) {
                 cacheDao.getSubscriptionFeed().first().map { it.toVideo() }
             }
+            var refreshPreviewVideos = mergeSubscriptionFeed(
+                freshVideos = latestFeedVideos,
+                cachedVideos = cachedBeforeFetch,
+                now = System.currentTimeMillis()
+            )
             val cachedVideoIds = cachedBeforeFetch.map { it.id }.toHashSet()
             var finalVideos: List<Video> = emptyList()
             io.github.aedev.flow.data.innertube.RssSubscriptionService.fetchSubscriptionVideos(
@@ -292,9 +297,10 @@ class SubscriptionsViewModel : ViewModel() {
                     finalVideos = videos
                     val previewVideos = mergeSubscriptionFeed(
                         freshVideos = videos,
-                        cachedVideos = cachedBeforeFetch,
+                        cachedVideos = refreshPreviewVideos,
                         now = System.currentTimeMillis()
                     ).withHighQualityThumbnails().withSubscriptionAvatars()
+                    refreshPreviewVideos = previewVideos
                     updateVideos(previewVideos)
                 } else {
                     Log.w(TAG, "Network emit was empty!")
@@ -304,7 +310,7 @@ class SubscriptionsViewModel : ViewModel() {
             if (finalVideos.isNotEmpty()) {
                 val mergedVideos = mergeSubscriptionFeed(
                     freshVideos = finalVideos,
-                    cachedVideos = cachedBeforeFetch,
+                    cachedVideos = refreshPreviewVideos.ifEmpty { cachedBeforeFetch },
                     now = refreshTime
                 ).withHighQualityThumbnails().withSubscriptionAvatars()
                 val entities = mergedVideos.map { video -> video.toSubscriptionFeedEntity(refreshTime) }
@@ -368,7 +374,9 @@ class SubscriptionsViewModel : ViewModel() {
             primary.hasStableUploadMetadata(now) -> primary
             else -> candidates.firstOrNull { it.hasStableUploadMetadata(now) } ?: primary
         }
-        val metadataTimestamp = effectiveUploadTimestamp(metadataSource, now).takeIf { it > 0L }
+        val hasStableMetadata = metadataSource.hasStableUploadMetadata(now)
+        val metadataTimestamp = effectiveUploadTimestamp(metadataSource, now)
+            .takeIf { hasStableMetadata && it > 0L }
         val isFutureUpcoming = candidates.any { candidate ->
             candidate.isUpcoming && effectiveUploadTimestamp(candidate, now) > now + 60_000L
         }
@@ -385,8 +393,8 @@ class SubscriptionsViewModel : ViewModel() {
         return primary.copy(
             viewCount = candidates.maxOf { it.viewCount },
             thumbnailUrl = bestVideoThumbnail,
-            uploadDate = metadataSource.uploadDate,
-            timestamp = metadataTimestamp ?: primary.timestamp,
+            uploadDate = if (hasStableMetadata) metadataSource.uploadDate else "",
+            timestamp = metadataTimestamp ?: 0L,
             duration = candidates.maxOf { it.duration },
             description = bestDescription,
             channelThumbnailUrl = bestChannelThumbnail,
@@ -582,7 +590,10 @@ class SubscriptionsViewModel : ViewModel() {
                     isUpcoming = false
                 )
             } else {
-                video.copy(isUpcoming = false)
+                video.copy(
+                    uploadDate = video.uploadDate.takeUnless { isUnstableFreshUploadText(it) }.orEmpty(),
+                    isUpcoming = false
+                )
             }
         }
 
@@ -596,6 +607,7 @@ class SubscriptionsViewModel : ViewModel() {
 
         return when {
             timestamp <= 0L -> parsedRelative ?: 0L
+            timestampLooksLikeFallbackNow && isUnstableFreshUploadText(video.uploadDate) -> parsedRelative ?: 0L
             timestampLooksLikeFallbackNow && relativeDateIsClearlyOlder -> parsedRelative ?: timestamp
             else -> timestamp
         }
@@ -604,13 +616,19 @@ class SubscriptionsViewModel : ViewModel() {
     private fun Video.hasStableUploadMetadata(now: Long): Boolean {
         val text = uploadDate.trim().lowercase()
         if (isLive || isUpcoming) return true
-        if (text.isBlank() || text == "unknown" || text == "just now") return false
+        if (timestamp <= 0L) return false
         val timestampLooksLikeFallbackNow =
             timestamp in (now - SUSPICIOUS_FRESH_TIMESTAMP_MS)..(now + SUSPICIOUS_FRESH_TIMESTAMP_MS)
-        if (timestampLooksLikeFallbackNow && text.matches(Regex("""\d+\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours)(\s+ago)?"""))) {
+        if (timestampLooksLikeFallbackNow && isUnstableFreshUploadText(text)) {
             return false
         }
-        return timestamp > 0L
+        return true
+    }
+
+    private fun isUnstableFreshUploadText(value: String): Boolean {
+        val text = value.trim().lowercase()
+        if (text.isBlank() || text == "unknown" || text == "just now" || text == "today") return true
+        return text.matches(Regex("""\d+\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours)(\s+ago)?"""))
     }
 
     private fun formatRelativeTime(timestamp: Long, now: Long): String {

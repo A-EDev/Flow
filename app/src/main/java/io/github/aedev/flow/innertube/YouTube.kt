@@ -421,7 +421,7 @@ object YouTube {
             duration = parseLengthText(durationText),
             viewCount = parseViewCountText(viewsText),
             uploadDate = uploadText,
-            timestamp = parseRelativeUploadDate(uploadText) ?: System.currentTimeMillis(),
+            timestamp = parseRelativeUploadDate(uploadText) ?: 0L,
             channelThumbnailUrl = channelThumbnailUrl,
             isLive = isLive || viewsText?.contains("watching", ignoreCase = true) == true,
         )
@@ -449,7 +449,7 @@ object YouTube {
             duration = parseLengthText(r.lengthText?.textValue()),
             viewCount = parseViewCountText(viewsText),
             uploadDate = uploadText,
-            timestamp = parseRelativeUploadDate(uploadText) ?: System.currentTimeMillis(),
+            timestamp = parseRelativeUploadDate(uploadText) ?: 0L,
             channelThumbnailUrl = channelThumbnailUrl,
             isLive = isLive || viewsText?.contains("watching", ignoreCase = true) == true,
         )

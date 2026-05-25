@@ -26,6 +26,7 @@ import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler
+import java.util.Locale
 
 class ChannelViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(ChannelUiState())
@@ -226,15 +227,7 @@ class ChannelViewModel : ViewModel() {
                 val videosTab = currentVideosTab
                 if (videosTab != null) {
                     viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                        loadAllPagesInnertube(
-                            channelId = channelInfo.id,
-                            channelName = channelInfo.name,
-                            channelThumbnailUrl = channelInfo.bestAvatarUrl(),
-                            isLive = false,
-                            fallbackTab = videosTab,
-                            channelInfo = channelInfo,
-                            target = _videosAll,
-                        )
+                        loadAllPages(videosTab, channelInfo, _videosAll)
                     }
                 }
 
@@ -249,15 +242,7 @@ class ChannelViewModel : ViewModel() {
                 val liveTab = currentLiveTab
                 if (liveTab != null) {
                     viewModelScope.launch(PerformanceDispatcher.networkIO) {
-                        loadAllPagesInnertube(
-                            channelId = channelInfo.id,
-                            channelName = channelInfo.name,
-                            channelThumbnailUrl = channelInfo.bestAvatarUrl(),
-                            isLive = true,
-                            fallbackTab = liveTab,
-                            channelInfo = channelInfo,
-                            target = _liveAll,
-                        )
+                        loadAllPages(liveTab, channelInfo, _liveAll)
                     }
                 }
 
@@ -329,9 +314,10 @@ class ChannelViewModel : ViewModel() {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             val state = _uiState.value
             val channelId = state.channelId ?: return@launch
-            val channelName = state.channelInfo?.name ?: return@launch
+            val channelInfo = state.channelInfo ?: return@launch
+            val channelName = channelInfo.name
             val channelThumbnail = try { 
-                state.channelInfo?.avatars?.firstOrNull()?.url ?: ""
+                channelInfo.avatars.firstOrNull()?.url ?: ""
             } catch (e: Exception) { 
                 ""
             }
@@ -495,91 +481,6 @@ class ChannelViewModel : ViewModel() {
      * incrementally into [target]. This allows filters (Popular/Latest/Oldest)
      * to operate on the full video list rather than just the first batch.
      */
-    private suspend fun loadAllPagesInnertube(
-        channelId: String,
-        channelName: String,
-        channelThumbnailUrl: String,
-        isLive: Boolean,
-        fallbackTab: ListLinkHandler,
-        channelInfo: ChannelInfo,
-        target: MutableStateFlow<List<Video>>
-    ) {
-        _isLoadingAllVideos.value = true
-        try {
-            target.value = emptyList()
-            loadAllPages(fallbackTab, channelInfo, target)
-            if (target.value.isNotEmpty()) {
-                Log.d(TAG, "Loaded channel ${if (isLive) "live" else "videos"} with NewPipe (${target.value.size} items)")
-                return
-            }
-
-            Log.w(TAG, "NewPipe channel ${if (isLive) "live" else "videos"} returned no items, falling back to Innertube")
-            _isLoadingAllVideos.value = true
-            val accumulated = mutableListOf<Video>()
-            val initial = if (isLive) {
-                io.github.aedev.flow.innertube.YouTube.channelLiveStreams(
-                    channelId = channelId,
-                    channelName = channelName,
-                    channelThumbnailUrl = channelThumbnailUrl,
-                )
-            } else {
-                io.github.aedev.flow.innertube.YouTube.channelVideos(
-                    channelId = channelId,
-                    channelName = channelName,
-                    channelThumbnailUrl = channelThumbnailUrl,
-                )
-            }.getOrElse { e ->
-                Log.w(TAG, "Innertube channel ${if (isLive) "live" else "videos"} initial load failed", e)
-                loadAllPages(fallbackTab, channelInfo, target)
-                return
-            }
-
-            accumulated += initial.videos
-            target.value = accumulated.distinctBy { it.id }
-
-            if (accumulated.isEmpty()) {
-                loadAllPages(fallbackTab, channelInfo, target)
-                return
-            }
-
-            var continuation = initial.continuation
-            var pagesLoaded = 1
-            while (continuation != null && pagesLoaded < MAX_PAGES) {
-                delay(PAGE_DELAY_MS)
-                val pageToken = continuation ?: break
-                val moreResult = if (isLive) {
-                    io.github.aedev.flow.innertube.YouTube.channelLiveStreamsContinuation(
-                        continuation = pageToken,
-                        channelId = channelId,
-                        channelName = channelName,
-                        channelThumbnailUrl = channelThumbnailUrl,
-                    )
-                } else {
-                    io.github.aedev.flow.innertube.YouTube.channelVideosContinuation(
-                        continuation = pageToken,
-                        channelId = channelId,
-                        channelName = channelName,
-                        channelThumbnailUrl = channelThumbnailUrl,
-                    )
-                }
-                if (moreResult.isFailure) {
-                    val e = moreResult.exceptionOrNull()
-                    Log.w(TAG, "Innertube channel ${if (isLive) "live" else "videos"} paging stopped", e)
-                    break
-                }
-                val more = moreResult.getOrThrow()
-
-                if (more.videos.isEmpty()) break
-                accumulated += more.videos
-                target.value = accumulated.distinctBy { it.id }
-                continuation = more.continuation
-                pagesLoaded++
-            }
-        } finally {
-            _isLoadingAllVideos.value = false
-        }
-    }
-
     private suspend fun loadAllPages(
         tab: ListLinkHandler,
         channelInfo: ChannelInfo,
@@ -617,11 +518,6 @@ class ChannelViewModel : ViewModel() {
         }
     }
 
-    private fun ChannelInfo.bestAvatarUrl(): String =
-        avatars.maxByOrNull { it.height }?.url
-            ?: avatars.firstOrNull()?.url
-            ?: ""
-
     private fun StreamInfoItem.toChannelVideo(channelInfo: ChannelInfo): Video {
         val videoId = when {
             url.contains("v=") -> url.substringAfter("v=").substringBefore("&")
@@ -633,6 +529,13 @@ class ChannelViewModel : ViewModel() {
             videoId,
             thumbnails.maxByOrNull { it.width }?.url
         )
+        val absoluteUploadTimestamp = uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli()
+        val textualDate = textualUploadDate?.takeIf { it.isNotBlank() }
+        val displayUploadDate = textualDate
+            ?: io.github.aedev.flow.utils.formatTimeAgo(uploadDate?.offsetDateTime()?.toString())
+        val uploadTimestamp = absoluteUploadTimestamp
+            ?: parseRelativeUploadDate(textualDate)
+            ?: 0L
         return Video(
             id = videoId,
             title = name,
@@ -644,9 +547,39 @@ class ChannelViewModel : ViewModel() {
                 ?: "",
             viewCount = viewCount,
             duration = duration.toInt().coerceAtLeast(0),
-            uploadDate = io.github.aedev.flow.utils.formatTimeAgo(uploadDate?.offsetDateTime()?.toString()),
+            uploadDate = displayUploadDate,
+            timestamp = uploadTimestamp,
             description = ""
         )
+    }
+
+    private fun parseRelativeUploadDate(text: String?): Long? {
+        val normalized = text?.lowercase(Locale.US)
+            ?.replace("streamed", "")
+            ?.replace("premiered", "")
+            ?.replace("live", "")
+            ?.replace("ago", "")
+            ?.trim()
+            ?: return null
+
+        if (normalized.isBlank()) return null
+        if (normalized.contains("just now") || normalized.contains("today")) return System.currentTimeMillis()
+        if (normalized.contains("yesterday")) return System.currentTimeMillis() - 24L * 60L * 60L * 1000L
+
+        val value = Regex("(\\d+)").find(normalized)?.groupValues?.getOrNull(1)?.toLongOrNull()
+            ?: return null
+        val unitMillis = when {
+            normalized.contains("second") || normalized.endsWith("s") -> 1_000L
+            normalized.contains("minute") || normalized.endsWith("m") -> 60_000L
+            normalized.contains("hour") || normalized.endsWith("h") -> 3_600_000L
+            normalized.contains("day") || normalized.endsWith("d") -> 86_400_000L
+            normalized.contains("week") || normalized.endsWith("w") -> 7L * 86_400_000L
+            normalized.contains("month") || normalized.endsWith("mo") -> 30L * 86_400_000L
+            normalized.contains("year") || normalized.endsWith("y") -> 365L * 86_400_000L
+            else -> return null
+        }
+
+        return System.currentTimeMillis() - (value * unitMillis)
     }
 }
 

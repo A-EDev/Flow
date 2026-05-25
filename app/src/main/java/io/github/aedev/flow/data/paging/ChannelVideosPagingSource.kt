@@ -13,6 +13,7 @@ import org.schabi.newpipe.extractor.channel.ChannelInfo
 import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
 import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
+import java.util.Locale
 
 /**
  * PagingSource for loading channel videos with infinite scroll support.
@@ -94,6 +95,13 @@ class ChannelVideosPagingSource(
             videoId,
             this.thumbnails.maxByOrNull { it.width }?.url
         )
+        val absoluteUploadTimestamp = this.uploadDate?.offsetDateTime()?.toInstant()?.toEpochMilli()
+        val textualDate = this.textualUploadDate?.takeIf { it.isNotBlank() }
+        val displayUploadDate = textualDate
+            ?: io.github.aedev.flow.utils.formatTimeAgo(this.uploadDate?.offsetDateTime()?.toString())
+        val uploadTimestamp = absoluteUploadTimestamp
+            ?: parseRelativeUploadDate(textualDate)
+            ?: 0L
         
         return Video(
             id = videoId,
@@ -105,9 +113,9 @@ class ChannelVideosPagingSource(
                 ?: channelInfo.avatars.firstOrNull()?.url
                 ?: "",
             viewCount = this.viewCount,
-            duration = this.duration.toInt(),
-            // Format date to human-readable format (e.g., "2 days ago")
-            uploadDate = io.github.aedev.flow.utils.formatTimeAgo(this.uploadDate?.offsetDateTime()?.toString()),
+            duration = this.duration.toInt().coerceAtLeast(0),
+            uploadDate = displayUploadDate,
+            timestamp = uploadTimestamp,
             description = ""
         )
     }
@@ -119,5 +127,34 @@ class ChannelVideosPagingSource(
             url.contains("/shorts/") -> url.substringAfter("/shorts/").substringBefore("?")
             else -> url.substringAfterLast("/").substringBefore("?")
         }
+    }
+
+    private fun parseRelativeUploadDate(text: String?): Long? {
+        val normalized = text?.lowercase(Locale.US)
+            ?.replace("streamed", "")
+            ?.replace("premiered", "")
+            ?.replace("live", "")
+            ?.replace("ago", "")
+            ?.trim()
+            ?: return null
+
+        if (normalized.isBlank()) return null
+        if (normalized.contains("just now") || normalized.contains("today")) return System.currentTimeMillis()
+        if (normalized.contains("yesterday")) return System.currentTimeMillis() - 24L * 60L * 60L * 1000L
+
+        val value = Regex("(\\d+)").find(normalized)?.groupValues?.getOrNull(1)?.toLongOrNull()
+            ?: return null
+        val unitMillis = when {
+            normalized.contains("second") || normalized.endsWith("s") -> 1_000L
+            normalized.contains("minute") || normalized.endsWith("m") -> 60_000L
+            normalized.contains("hour") || normalized.endsWith("h") -> 3_600_000L
+            normalized.contains("day") || normalized.endsWith("d") -> 86_400_000L
+            normalized.contains("week") || normalized.endsWith("w") -> 7L * 86_400_000L
+            normalized.contains("month") || normalized.endsWith("mo") -> 30L * 86_400_000L
+            normalized.contains("year") || normalized.endsWith("y") -> 365L * 86_400_000L
+            else -> return null
+        }
+
+        return System.currentTimeMillis() - (value * unitMillis)
     }
 }
