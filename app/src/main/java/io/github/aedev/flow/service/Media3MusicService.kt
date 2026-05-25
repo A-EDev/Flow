@@ -63,6 +63,7 @@ class Media3MusicService : MediaLibraryService() {
         private const val BASE_RETRY_DELAY_MS = 3000L
         private const val MAX_RETRY_DELAY_MS = 30000L
         private const val FAILED_SONGS_CACHE_SIZE = 50
+        private const val RECOVERY_SUCCESS_GRACE_MS = 2 * 60 * 1000L
         
         private val CommandToggleShuffle = SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY)
         private val CommandToggleRepeat = SessionCommand(ACTION_TOGGLE_REPEAT, Bundle.EMPTY)
@@ -98,6 +99,7 @@ class Media3MusicService : MediaLibraryService() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     
     private val retryCountMap = mutableMapOf<String, Int>()
+    private val lastPlaybackErrorAtMap = mutableMapOf<String, Long>()
     
     private val recentlyFailedSongs = LinkedHashSet<String>()
     
@@ -219,6 +221,7 @@ class Media3MusicService : MediaLibraryService() {
 
                 if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
                     retryCountMap.clear()
+                    lastPlaybackErrorAtMap.clear()
                 }
 
                 mediaItem?.let { item ->
@@ -244,8 +247,12 @@ class Media3MusicService : MediaLibraryService() {
                 updateLocks(isPlaybackActive())
                 if (playbackState == Player.STATE_READY) {
                     player.currentMediaItem?.mediaId?.let { mediaId ->
-                        retryCountMap.remove(mediaId)
-                        recentlyFailedSongs.remove(mediaId)
+                        val lastErrorAt = lastPlaybackErrorAtMap[mediaId] ?: 0L
+                        if (System.currentTimeMillis() - lastErrorAt > RECOVERY_SUCCESS_GRACE_MS) {
+                            retryCountMap.remove(mediaId)
+                            recentlyFailedSongs.remove(mediaId)
+                            lastPlaybackErrorAtMap.remove(mediaId)
+                        }
                     }
                 }
             }
@@ -271,6 +278,7 @@ class Media3MusicService : MediaLibraryService() {
         }
         
         Log.e(TAG, "Playback error for $mediaId: ${error.errorCodeName} (code=${error.errorCode})", error)
+        lastPlaybackErrorAtMap[mediaId] = System.currentTimeMillis()
         
         if (recentlyFailedSongs.contains(mediaId)) {
             Log.w(TAG, "$mediaId is in recently failed list, skipping to next")
@@ -330,6 +338,11 @@ class Media3MusicService : MediaLibraryService() {
             MusicPlayerUtils.forceRefreshForVideo(mediaId)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to clear decryption cache for $mediaId", e)
+        }
+        try {
+            io.github.aedev.flow.player.EnhancedMusicPlayerManager.invalidateResolvedStream(mediaId)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to clear resolved stream cache for $mediaId", e)
         }
     }
 
@@ -441,7 +454,11 @@ class Media3MusicService : MediaLibraryService() {
                 val currentIndex = player.currentMediaItemIndex
                 if (currentIndex != C.INDEX_UNSET) {
                     val currentPosition = player.currentPosition
-                    player.seekTo(currentIndex, currentPosition)
+                    downloadUtil.invalidateUrlCache(mediaId)
+                    MusicPlayerUtils.forceRefreshForVideo(mediaId)
+                    io.github.aedev.flow.player.EnhancedMusicPlayerManager.invalidateResolvedStream(mediaId)
+                    player.stop()
+                    refreshCurrentMediaItem(mediaId, currentPosition)
                     player.prepare()
                     player.play()
                 }
@@ -449,6 +466,21 @@ class Media3MusicService : MediaLibraryService() {
                 Log.e(TAG, "Expired URL recovery failed", e)
             }
         }
+    }
+
+    private fun refreshCurrentMediaItem(mediaId: String, positionMs: Long) {
+        val currentIndex = player.currentMediaItemIndex
+        if (currentIndex == C.INDEX_UNSET) return
+
+        val currentItem = player.getMediaItemAt(currentIndex)
+        val refreshedItem = currentItem.buildUpon()
+            .setUri("music://$mediaId")
+            .setMediaId(mediaId)
+            .setCustomCacheKey(mediaId)
+            .build()
+
+        player.replaceMediaItem(currentIndex, refreshedItem)
+        player.seekTo(currentIndex, positionMs)
     }
 
     private fun handleFileNotFoundError(mediaId: String, currentRetry: Int) {
@@ -516,6 +548,7 @@ class Media3MusicService : MediaLibraryService() {
     private fun handleFinalFailure(mediaId: String) {
         Log.w(TAG, "All retries exhausted for $mediaId, marking as failed")
         retryCountMap.remove(mediaId)
+        lastPlaybackErrorAtMap.remove(mediaId)
         if (recentlyFailedSongs.size >= FAILED_SONGS_CACHE_SIZE) {
             recentlyFailedSongs.iterator().next().let { recentlyFailedSongs.remove(it) }
         }

@@ -530,7 +530,7 @@ object YouTubeMusicService {
                         title = item.name,
                         thumbnailUrl = item.thumbnails.maxByOrNull { it.height }?.url ?: "",
                         trackCount = item.streamCount.toInt(),
-                        author = item.uploaderName
+                        author = item.uploaderName ?: "Unknown Artist"
                     )
                 }
         } catch (e: Exception) {

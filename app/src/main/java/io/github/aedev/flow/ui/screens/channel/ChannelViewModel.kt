@@ -13,6 +13,7 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.paging.ChannelVideosPagingSource
 import io.github.aedev.flow.data.paging.ChannelPlaylistsPagingSource
 import io.github.aedev.flow.utils.PerformanceDispatcher
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -505,6 +506,15 @@ class ChannelViewModel : ViewModel() {
     ) {
         _isLoadingAllVideos.value = true
         try {
+            target.value = emptyList()
+            loadAllPages(fallbackTab, channelInfo, target)
+            if (target.value.isNotEmpty()) {
+                Log.d(TAG, "Loaded channel ${if (isLive) "live" else "videos"} with NewPipe (${target.value.size} items)")
+                return
+            }
+
+            Log.w(TAG, "NewPipe channel ${if (isLive) "live" else "videos"} returned no items, falling back to Innertube")
+            _isLoadingAllVideos.value = true
             val accumulated = mutableListOf<Video>()
             val initial = if (isLive) {
                 io.github.aedev.flow.innertube.YouTube.channelLiveStreams(
@@ -619,8 +629,10 @@ class ChannelViewModel : ViewModel() {
             url.contains("/shorts/") -> url.substringAfter("/shorts/").substringBefore("?")
             else -> url.substringAfterLast("/").substringBefore("?")
         }
-        val thumbnail = thumbnails.maxByOrNull { it.width }?.url
-            ?: "https://i.ytimg.com/vi/$videoId/hq720.jpg"
+        val thumbnail = ThumbnailUrlResolver.normalizeVideoThumbnail(
+            videoId,
+            thumbnails.maxByOrNull { it.width }?.url
+        )
         return Video(
             id = videoId,
             title = name,
@@ -631,7 +643,7 @@ class ChannelViewModel : ViewModel() {
                 ?: channelInfo.avatars.firstOrNull()?.url
                 ?: "",
             viewCount = viewCount,
-            duration = duration.toInt(),
+            duration = duration.toInt().coerceAtLeast(0),
             uploadDate = io.github.aedev.flow.utils.formatTimeAgo(uploadDate?.offsetDateTime()?.toString()),
             description = ""
         )

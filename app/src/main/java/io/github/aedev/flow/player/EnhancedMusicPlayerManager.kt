@@ -159,6 +159,11 @@ object EnhancedMusicPlayerManager {
         }
     }
 
+    fun invalidateResolvedStream(videoId: String) {
+        urlCache.remove(videoId)
+        Log.d("EnhancedMusicPlayer", "Invalidated resolved URL cache for $videoId")
+    }
+
     fun initialize(context: Context) {
         if (isInitialized) return
         isInitialized = true

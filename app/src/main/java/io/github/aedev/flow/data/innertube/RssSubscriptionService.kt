@@ -134,17 +134,50 @@ object RssSubscriptionService {
     private fun buildFeed(regular: List<Video>, shorts: List<Video>, maxTotal: Int): List<Video> {
         val r = regular
             .sortedByDescending { it.timestamp }
-            .distinctBy { it.id }
+            .mergeDuplicateVideos()
             .take(MAX_REGULAR_VIDEOS)
         val s = shorts
             .sortedByDescending { it.timestamp }
-            .distinctBy { it.id }
+            .mergeDuplicateVideos()
             .distinctBy { it.channelId.ifBlank { it.id } }
             .take(MAX_SHORTS)
         return (r + s)
             .sortedByDescending { it.timestamp }
-            .distinctBy { it.id }
+            .mergeDuplicateVideos()
             .take(maxTotal)
+    }
+
+    private fun List<Video>.mergeDuplicateVideos(): List<Video> {
+        val now = System.currentTimeMillis()
+        return groupBy { it.id }.values.map { candidates ->
+            val primary = candidates.first()
+            val timestampSource = candidates
+                .filter { it.timestamp > 0L }
+                .maxByOrNull { it.timestamp }
+                ?: primary
+            val bestChannelThumbnail = candidates.firstOrNull { it.channelThumbnailUrl.isNotBlank() }?.channelThumbnailUrl
+                ?: primary.channelThumbnailUrl
+            val bestVideoThumbnail = candidates
+                .asSequence()
+                .map { ThumbnailUrlResolver.normalizeVideoThumbnail(it.id, it.thumbnailUrl) }
+                .firstOrNull { it.isNotBlank() }
+                ?: ThumbnailUrlResolver.normalizeVideoThumbnail(primary.id, primary.thumbnailUrl)
+            val bestDescription = candidates.firstOrNull { it.description.isNotBlank() }?.description
+                ?: primary.description
+
+            primary.copy(
+                duration = candidates.maxOf { it.duration },
+                viewCount = candidates.maxOf { it.viewCount },
+                thumbnailUrl = bestVideoThumbnail,
+                uploadDate = timestampSource.uploadDate,
+                timestamp = timestampSource.timestamp,
+                description = bestDescription,
+                channelThumbnailUrl = bestChannelThumbnail,
+                isShort = candidates.any { it.isShort },
+                isLive = candidates.any { it.isLive },
+                isUpcoming = candidates.any { it.isUpcoming && it.timestamp > now + 60_000L }
+            )
+        }.sortedByDescending { it.timestamp }
     }
 
 
@@ -217,7 +250,11 @@ object RssSubscriptionService {
                     hasRecent = newestTimestamp > minimumDateMillis || hasUnknownRecentUpload,
                     videoTimestamps = timestamps,
                     videos = videos,
-                    needsFallback = false
+                    needsFallback = videos.any { video ->
+                        video.viewCount <= 0L ||
+                            video.duration <= 0 ||
+                            video.channelThumbnailUrl.isBlank()
+                    }
                 )
             }
         } catch (e: Exception) {
@@ -503,10 +540,10 @@ object RssSubscriptionService {
             channelId = channelId,
             thumbnailUrl = thumbnail,
             duration = item.duration.toInt().coerceAtLeast(0),
-            viewCount = item.viewCount,
+            viewCount = item.viewCount.coerceAtLeast(0L),
             uploadDate = uploadDateStr,
             timestamp = uploadTimeMillis,
-            channelThumbnailUrl = channelAvatar
+            channelThumbnailUrl = channelAvatar?.takeIf { it.isNotBlank() }
                 ?: item.uploaderAvatars.maxByOrNull { it.height }?.url
                 ?: "",
             isShort = forceShort || item.isLikelyShort(),

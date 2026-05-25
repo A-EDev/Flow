@@ -15,6 +15,7 @@ import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.utils.PerformanceDispatcher
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.data.local.PlayerPreferences
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
@@ -214,6 +215,9 @@ class SubscriptionsViewModel : ViewModel() {
                         )
                     }
                     _uiState.update { it.copy(subscribedChannels = channels) }
+                    if (latestFeedVideos.isNotEmpty()) {
+                        updateVideos(latestFeedVideos)
+                    }
 
                     if (channels.isNotEmpty()) {
                         if (_uiState.value.recentVideos.isEmpty()) {
@@ -290,7 +294,7 @@ class SubscriptionsViewModel : ViewModel() {
                         freshVideos = videos,
                         cachedVideos = cachedBeforeFetch,
                         now = System.currentTimeMillis()
-                    )
+                    ).withHighQualityThumbnails().withSubscriptionAvatars()
                     updateVideos(previewVideos)
                 } else {
                     Log.w(TAG, "Network emit was empty!")
@@ -302,7 +306,7 @@ class SubscriptionsViewModel : ViewModel() {
                     freshVideos = finalVideos,
                     cachedVideos = cachedBeforeFetch,
                     now = refreshTime
-                )
+                ).withHighQualityThumbnails().withSubscriptionAvatars()
                 val entities = mergedVideos.map { video -> video.toSubscriptionFeedEntity(refreshTime) }
                 withContext(PerformanceDispatcher.diskIO) {
                     database.withTransaction {
@@ -368,11 +372,24 @@ class SubscriptionsViewModel : ViewModel() {
         val isFutureUpcoming = candidates.any { candidate ->
             candidate.isUpcoming && effectiveUploadTimestamp(candidate, now) > now + 60_000L
         }
+        val bestChannelThumbnail = candidates.firstOrNull { it.channelThumbnailUrl.isNotBlank() }?.channelThumbnailUrl
+            ?: primary.channelThumbnailUrl
+        val bestVideoThumbnail = candidates
+            .asSequence()
+            .map { ThumbnailUrlResolver.normalizeVideoThumbnail(it.id, it.thumbnailUrl) }
+            .firstOrNull { it.isNotBlank() }
+            ?: ThumbnailUrlResolver.normalizeVideoThumbnail(primary.id, primary.thumbnailUrl)
+        val bestDescription = candidates.firstOrNull { it.description.isNotBlank() }?.description
+            ?: primary.description
 
         return primary.copy(
             viewCount = candidates.maxOf { it.viewCount },
+            thumbnailUrl = bestVideoThumbnail,
             uploadDate = metadataSource.uploadDate,
             timestamp = metadataTimestamp ?: primary.timestamp,
+            duration = candidates.maxOf { it.duration },
+            description = bestDescription,
+            channelThumbnailUrl = bestChannelThumbnail,
             isShort = candidates.any { it.isShort },
             isLive = candidates.any { it.isLive },
             isUpcoming = isFutureUpcoming
@@ -381,7 +398,7 @@ class SubscriptionsViewModel : ViewModel() {
 
     private suspend fun updateVideos(videos: List<Video>) {
         val sortNow = System.currentTimeMillis()
-        val sortedVideos = videos
+        val sortedVideos = videos.withHighQualityThumbnails().withSubscriptionAvatars()
             .filter { video ->
                 when {
                     video.isShort -> _uiState.value.showSubscriptionShorts
@@ -445,6 +462,31 @@ class SubscriptionsViewModel : ViewModel() {
                 recentVideos = groupFilteredRegular.withRelativeUploadDates(sortNow),
                 shorts = groupFilteredShorts.withRelativeUploadDates(sortNow)
             )
+        }
+    }
+
+    private fun List<Video>.withHighQualityThumbnails(): List<Video> =
+        map { video ->
+            video.copy(
+                thumbnailUrl = ThumbnailUrlResolver.normalizeVideoThumbnail(video.id, video.thumbnailUrl)
+            )
+        }
+
+    private fun List<Video>.withSubscriptionAvatars(): List<Video> {
+        val avatarByChannelId = _uiState.value.subscribedChannels
+            .asSequence()
+            .filter { it.thumbnailUrl.isNotBlank() }
+            .associate { it.id to it.thumbnailUrl }
+        if (avatarByChannelId.isEmpty()) return this
+
+        return map { video ->
+            if (video.channelThumbnailUrl.isBlank()) {
+                avatarByChannelId[video.channelId]?.let { avatar ->
+                    video.copy(channelThumbnailUrl = avatar)
+                } ?: video
+            } else {
+                video
+            }
         }
     }
     
