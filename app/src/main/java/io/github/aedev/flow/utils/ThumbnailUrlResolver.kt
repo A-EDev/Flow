@@ -3,6 +3,8 @@ package io.github.aedev.flow.utils
 object ThumbnailUrlResolver {
     private val youtubeVideoThumbnailPattern =
         Regex("""(?:https?:)?//(?:i\.ytimg\.com|img\.youtube\.com)/(?:vi|vi_webp)/([^/?#]+)/[^/?#]+""")
+    private val googleCdnSizePattern = Regex("""w\d+-h\d+""")
+    private val googleCdnParamStartPattern = Regex("""=(?:w|s|h)""")
 
     fun buildHighQualityYoutubeThumbnail(videoId: String): String {
         val id = videoId.trim()
@@ -41,5 +43,57 @@ object ThumbnailUrlResolver {
     fun isYoutubeVideoThumbnail(rawUrl: String?): Boolean {
         val raw = rawUrl?.trim().orEmpty()
         return youtubeVideoThumbnailPattern.containsMatchIn(raw)
+    }
+
+    fun resizeImageThumbnail(rawUrl: String?, width: Int? = null, height: Int? = null): String {
+        val raw = rawUrl?.trim().orEmpty()
+        if (raw.isEmpty() || (width == null && height == null)) return raw
+
+        val isGoogleCdn = raw.contains("googleusercontent.com") || raw.contains("ggpht.com")
+        val isYtimg = raw.contains("i.ytimg.com") || raw.contains("img.youtube.com")
+
+        return when {
+            isGoogleCdn -> resizeGoogleCdnThumbnail(raw, width, height)
+            isYtimg -> resizeYoutubeThumbnail(raw, width ?: height ?: 0)
+            else -> raw
+        }
+    }
+
+    private fun resizeGoogleCdnThumbnail(rawUrl: String, width: Int?, height: Int?): String {
+        val w = width ?: height ?: return rawUrl
+        val h = height ?: width ?: return rawUrl
+
+        if (googleCdnSizePattern.containsMatchIn(rawUrl)) {
+            return rawUrl.replace(googleCdnSizePattern, "w$w-h$h")
+        }
+
+        val paramStart = googleCdnParamStartPattern.find(rawUrl)?.range?.first
+        val baseUrl = if (paramStart != null) rawUrl.substring(0, paramStart) else rawUrl
+
+        return if (width != null && height != null) {
+            "$baseUrl=w$w-h$h-p-l90-rj"
+        } else {
+            "$baseUrl=s$w-p-l90-rj"
+        }
+    }
+
+    private fun resizeYoutubeThumbnail(rawUrl: String, width: Int): String {
+        return when {
+            width > 480 -> rawUrl
+                .replace("mqdefault.jpg", "hq720.jpg")
+                .replace("hqdefault.jpg", "hq720.jpg")
+                .replace("sddefault.jpg", "hq720.jpg")
+                .replace("default.jpg", "hq720.jpg")
+                .replace("mqdefault.webp", "hq720.jpg")
+                .replace("hqdefault.webp", "hq720.jpg")
+                .replace("sddefault.webp", "hq720.jpg")
+                .replace("default.webp", "hq720.jpg")
+            width > 320 -> rawUrl
+                .replace("mqdefault.jpg", "hqdefault.jpg")
+                .replace("default.jpg", "hqdefault.jpg")
+                .replace("mqdefault.webp", "hqdefault.jpg")
+                .replace("default.webp", "hqdefault.jpg")
+            else -> rawUrl
+        }
     }
 }

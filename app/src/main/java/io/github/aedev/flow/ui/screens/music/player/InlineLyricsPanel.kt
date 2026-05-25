@@ -38,8 +38,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -366,6 +371,24 @@ fun InlineLyricsPanel(
         val scrollClampMin = minOf(minOffset, maxOffset)
         val scrollClampMax = maxOf(minOffset, maxOffset)
 
+        val resyncToCurrentLine = {
+            flingJob?.cancel()
+            var target = scrollTargetIndex
+            if (target == -1) {
+                target = findActiveLineIndices(lines, currentPositionState).maxOrNull() ?: -1
+            }
+            if (target != -1) {
+                val listIndex = mergedLyricsList.indexOfFirst {
+                    it is LyricsListItem.Line && it.index == target
+                }.coerceAtLeast(0)
+                userManualOffset += positions[listIndex] ?: 0f
+                deferredCurrentLineIndex = target
+                scrollTargetIndex = target
+            }
+            isAutoScrollEnabled = true
+            lastPreviewTime = 0L
+        }
+
         LaunchedEffect(scrollClampMin, scrollClampMax) {
             userManualOffset = userManualOffset.coerceIn(scrollClampMin, scrollClampMax)
         }
@@ -538,7 +561,11 @@ fun InlineLyricsPanel(
                                     onSizeChanged = { itemHeights[listIndex] = it },
                                     onClick = {
                                         if (isSynced) {
-                                            onSeekTo(item.time.coerceAtLeast(0L))
+                                            val seekTarget = item.time.coerceAtLeast(0L)
+                                            val duration = EnhancedMusicPlayerManager.getDuration()
+                                            if (duration <= 0L || seekTarget < duration + 30_000L) {
+                                                onSeekTo(seekTarget)
+                                            }
                                             scrollTargetIndex = index
                                             deferredCurrentLineIndex = index
                                             isAutoScrollEnabled = true
@@ -549,6 +576,28 @@ fun InlineLyricsPanel(
                             }
                         }
                     }
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = !isAutoScrollEnabled && isSynced,
+            enter = fadeIn(tween(160)),
+            exit = fadeOut(tween(160)),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 24.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(28.dp),
+                color = Color.Black.copy(alpha = 0.42f),
+                contentColor = expressiveAccent
+            ) {
+                IconButton(onClick = resyncToCurrentLine) {
+                    Icon(
+                        imageVector = Icons.Outlined.Sync,
+                        contentDescription = "Sync lyrics"
+                    )
                 }
             }
         }

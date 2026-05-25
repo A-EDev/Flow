@@ -1,5 +1,7 @@
 package io.github.aedev.flow.ui.screens.music
 
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
+
 enum class MusicItemType { SONG, ALBUM, PLAYLIST, ARTIST }
 
 data class MusicTrack(
@@ -19,8 +21,7 @@ data class MusicTrack(
     val itemType: MusicItemType = MusicItemType.SONG
 ) {
     val highResThumbnailUrl: String
-        get() = thumbnailUrl.replace(Regex("w\\d+-h\\d+"), "w1000-h1000")
-            .replace(Regex("(hqdefault|mqdefault|sddefault|default)\\.jpg"), "hq720.jpg")
+        get() = ThumbnailUrlResolver.resizeImageThumbnail(thumbnailUrl, 1080, 1080)
 }
 
 data class MusicArtist(

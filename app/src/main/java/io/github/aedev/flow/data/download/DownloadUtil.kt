@@ -2,6 +2,7 @@ package io.github.aedev.flow.data.download
 
 import android.content.Context
 import android.util.Log
+import androidx.media3.common.C
 import androidx.media3.database.DatabaseProvider
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.ResolvingDataSource
@@ -42,6 +43,7 @@ class DownloadUtil @Inject constructor(
     companion object {
         private const val TAG = "DownloadUtil"
         private const val CHUNK_LENGTH = 512 * 1024L // 512KB for cache check
+        private val URL_RANGE_PARAM_REGEX = Regex("""([?&])range=\d+-\d*(&?)""")
     }
 
     private val songUrlCache = java.util.concurrent.ConcurrentHashMap<String, Triple<String, String, Long>>()
@@ -171,11 +173,7 @@ class DownloadUtil @Inject constructor(
 
             songUrlCache[mediaId]?.takeIf { it.third > System.currentTimeMillis() }?.let { (url, ua, _) ->
                 Log.d(TAG, "[Player] Using cached URL for $mediaId")
-                return@Factory dataSpec.buildUpon()
-                    .setUri(url.toUri())
-                    .setHttpRequestHeaders(mapOf("User-Agent" to ua))
-                    .setLength(CHUNK_LENGTH)
-                    .build()
+                return@Factory buildPlaybackDataSpec(dataSpec, url, ua)
             }
 
             val playbackData = runBlocking(Dispatchers.IO) {
@@ -189,12 +187,36 @@ class DownloadUtil @Inject constructor(
             songUrlCache[mediaId] = Triple(streamUrl, userAgent, expiration)
             Log.d(TAG, "[Player] Resolved $mediaId via ${playbackData.usedClient.clientName}")
 
-            dataSpec.buildUpon()
-                .setUri(streamUrl.toUri())
-                .setHttpRequestHeaders(mapOf("User-Agent" to userAgent))
-                .setLength(CHUNK_LENGTH)
-                .build()
+            buildPlaybackDataSpec(dataSpec, streamUrl, userAgent)
         }
+    }
+
+    private fun buildPlaybackDataSpec(dataSpec: DataSpec, streamUrl: String, userAgent: String): DataSpec {
+        val requestLength = when {
+            dataSpec.length > 0 -> dataSpec.length
+            dataSpec.length == C.LENGTH_UNSET.toLong() -> CHUNK_LENGTH
+            else -> CHUNK_LENGTH
+        }
+
+        return dataSpec.buildUpon()
+            .setUri(removeRangeParameter(streamUrl).toUri())
+            .setHttpRequestHeaders(mapOf("User-Agent" to userAgent))
+            .setLength(requestLength)
+            .build()
+    }
+
+    private fun removeRangeParameter(url: String): String {
+        val withoutRange = URL_RANGE_PARAM_REGEX.replace(url) { match ->
+            val prefix = match.groupValues[1]
+            val hasTrailingParam = match.groupValues[2].isNotEmpty()
+            when {
+                prefix == "?" && hasTrailingParam -> "?"
+                prefix == "?" -> ""
+                hasTrailingParam -> "&"
+                else -> ""
+            }
+        }
+        return withoutRange.trimEnd('?', '&')
     }
 
     /**

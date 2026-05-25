@@ -300,8 +300,11 @@ class MusicPlayerViewModel @Inject constructor(
     }
 
     fun seekTo(position: Long) {
-        EnhancedMusicPlayerManager.seekTo(position)
-        _uiState.update { it.copy(currentPosition = position) }
+        val duration = _uiState.value.duration.takeIf { it > 0 }
+            ?: EnhancedMusicPlayerManager.getDuration().takeIf { it > 0 }
+        val target = duration?.let { position.coerceIn(0L, it) } ?: position.coerceAtLeast(0L)
+        EnhancedMusicPlayerManager.seekTo(target)
+        _uiState.update { it.copy(currentPosition = target) }
     }
 
     fun skipToNext() {
