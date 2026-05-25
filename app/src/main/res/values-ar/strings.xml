@@ -1569,4 +1569,9 @@
     <string name="section_daily_discover">إكتشافك اليومي</string>
     <string name="feeling_lucky">أشعر أني محظوظ؟</string>
     <string name="section_speed_dial">الطلب السريع</string>
+    <string name="player_background_style_title">خلفية مشغل الموسيقى</string>
+    <string name="player_background_style_blur_gradient">ضبابي + تدرج لوني</string>
+    <string name="player_background_style_blur">عمل فني ضبابي</string>
+    <string name="player_background_style_gradient">‎تدرج الألوان</string>
+    <string name="player_background_style_default">السطح الإفتراضي</string>
 </resources>

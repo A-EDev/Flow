@@ -1592,4 +1592,24 @@
     <string name="no_subscriptions_found">Aucun abonnement trouvé</string>
     <string name="player_appearance_remember_brightness_title">N\'oubliez pas la luminosité</string>
     <string name="player_appearance_remember_brightness_subtitle">Conserver le dernier réglage de luminosité du lecteur pour les prochaines vidéos</string>
+    <string name="player_background_style_title">Arrière-plan du lecteur de musique</string>
+    <string name="player_background_style_blur_gradient">Flou + Dégradé</string>
+    <string name="player_background_style_blur">Œuvre floue</string>
+    <string name="player_background_style_gradient">Dégradé de couleurs</string>
+    <string name="player_background_style_default">Surface par défaut</string>
+    <string name="lyrics_provider_lyrics_plus">LyricsPlus</string>
+    <string name="section_daily_discover">Votre découverte du jour</string>
+    <string name="section_speed_dial">Accès Rapide</string>
+    <string name="shuffle_play">Lecture aléatoire</string>
+    <string name="feeling_lucky">Vous vous sentez chanceux ?</string>
+    <string name="daily_discover_sounds_like">On dirait %1$s</string>
+    <string name="daily_discover_because_you_listen_to">Parce que vous écoutez %1$s</string>
+    <string name="daily_discover_similar_to">Similaire à %1$s</string>
+    <string name="daily_discover_based_on">Basé sur %1$s</string>
+    <string name="daily_discover_for_fans_of">Pour les fans de %1$s</string>
+    <string name="section_music_videos_for_you">Des clips musicaux pour vous</string>
+    <string name="section_live_performances">Concerts</string>
+    <string name="section_mood_and_genres">Ambiance et Genres</string>
+    <string name="section_from_the_community">De la Communauté</string>
+    <string name="daily_discover_subtitle">Nouvelles suggestions issues de votre historique d\'écoute</string>
 </resources>
