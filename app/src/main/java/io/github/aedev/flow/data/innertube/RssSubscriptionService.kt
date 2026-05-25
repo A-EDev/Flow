@@ -23,6 +23,7 @@ object RssSubscriptionService {
     private const val TAG = "InnertubeSubs"
     private const val YOUTUBE_URL = "https://www.youtube.com"
 
+    private const val RSS_CHUNK_SIZE = 24
     private const val CHANNEL_CHUNK_SIZE = 8
     private const val CHANNEL_BATCH_SIZE = 50
     private val CHANNEL_BATCH_DELAY = (100L..400L)
@@ -56,10 +57,10 @@ object RssSubscriptionService {
 
         // ── Fetch RSS dates for ALL channels upfront ────────────────────────
         val rssDateMap = mutableMapOf<String, Long>()
-        val rssChannelHasRecent = mutableMapOf<String, Boolean>()
+        val fallbackChannelIds = mutableSetOf<String>()
 
-        Log.i(TAG, "Phase 1: Fetching RSS dates for all ${uniqueChannelIds.size} channels")
-        val rssChunks = uniqueChannelIds.chunked(CHANNEL_CHUNK_SIZE)
+        Log.i(TAG, "Phase 1: Fetching RSS feeds for all ${uniqueChannelIds.size} channels")
+        val rssChunks = uniqueChannelIds.chunked(RSS_CHUNK_SIZE)
         for ((ci, chunk) in rssChunks.withIndex()) {
             val results = coroutineScope {
                 chunk.map { channelId ->
@@ -69,19 +70,24 @@ object RssSubscriptionService {
                 }.awaitAll()
             }
             for ((channelId, result) in results) {
-                rssChannelHasRecent[channelId] = result.hasRecent
                 rssDateMap.putAll(result.videoTimestamps)
+                result.videos.forEach { if (it.isShort) allShorts.add(it) else allRegular.add(it) }
+                if (result.needsFallback || (result.hasRecent && result.videos.isEmpty())) {
+                    fallbackChannelIds.add(channelId)
+                }
             }
-            if (ci > 0 && ci % (CHANNEL_BATCH_SIZE / CHANNEL_CHUNK_SIZE) == 0) {
+            onProgress?.invoke(((ci + 1) * RSS_CHUNK_SIZE).coerceAtMost(uniqueChannelIds.size), uniqueChannelIds.size)
+            emit(buildFeed(allRegular, allShorts, maxTotal))
+            if (ci > 0 && ci % (CHANNEL_BATCH_SIZE / RSS_CHUNK_SIZE).coerceAtLeast(1) == 0) {
                 delay(CHANNEL_BATCH_DELAY.random())
             }
         }
-        Log.i(TAG, "Phase 1 complete: RSS dates for ${rssDateMap.size} videos from ${uniqueChannelIds.size} channels")
+        Log.i(TAG, "Phase 1 complete: RSS videos=${allRegular.size + allShorts.size}, dates=${rssDateMap.size}, fallbackChannels=${fallbackChannelIds.size}")
 
-        val activeChannelIds = uniqueChannelIds.filter { rssChannelHasRecent[it] != false }
-        Log.i(TAG, "Phase 2: Fetching tabs for ${activeChannelIds.size} active channels (${uniqueChannelIds.size - activeChannelIds.size} skipped as stale)")
+        val activeChannelIds = fallbackChannelIds.toList()
+        Log.i(TAG, "Phase 2: Fetching full channel tabs for ${activeChannelIds.size} RSS fallback channels")
 
-        var processedChannels = uniqueChannelIds.size - activeChannelIds.size
+        var processedChannels = uniqueChannelIds.size
         if (processedChannels > 0) {
             onProgress?.invoke(processedChannels, uniqueChannelIds.size)
         }
@@ -113,7 +119,7 @@ object RssSubscriptionService {
             }
 
             chunkVideos.forEach { if (it.isShort) allShorts.add(it) else allRegular.add(it) }
-            processedChannels += chunk.size
+            processedChannels = (processedChannels + chunk.size).coerceAtMost(uniqueChannelIds.size)
             onProgress?.invoke(processedChannels, uniqueChannelIds.size)
             Log.d(TAG, "Chunk ${chunkIndex + 1} done: +${chunkVideos.size} (regular=${allRegular.size}, shorts=${allShorts.size})")
 
@@ -144,7 +150,9 @@ object RssSubscriptionService {
 
     private data class RssResult(
         val hasRecent: Boolean,
-        val videoTimestamps: Map<String, Long>
+        val videoTimestamps: Map<String, Long>,
+        val videos: List<Video>,
+        val needsFallback: Boolean
     )
 
     /**
@@ -163,10 +171,16 @@ object RssSubscriptionService {
             val feedItems = feedInfo.relatedItems.filterIsInstance<StreamInfoItem>()
 
             if (feedItems.isEmpty()) {
-                return RssResult(hasRecent = true, videoTimestamps = emptyMap())
+                return RssResult(
+                    hasRecent = true,
+                    videoTimestamps = emptyMap(),
+                    videos = emptyList(),
+                    needsFallback = true
+                )
             }
 
             val timestamps = mutableMapOf<String, Long>()
+            val videos = mutableListOf<Video>()
             var newestTimestamp = 0L
 
             for (item in feedItems) {
@@ -176,22 +190,44 @@ object RssSubscriptionService {
                 if (t > newestTimestamp) {
                     newestTimestamp = t
                 }
+                if (t > minimumDateMillis && !item.isPaidOrMembersOnly()) {
+                    videos += streamInfoItemToVideo(
+                        item = item,
+                        channelId = channelId,
+                        channelAvatar = item.uploaderAvatars.maxByOrNull { it.height }?.url,
+                        channelNameOverride = item.uploaderName ?: feedInfo.name,
+                        forceShort = item.isLikelyShort(),
+                        overrideTimestamp = t
+                    )
+                }
             }
 
             if (timestamps.isEmpty()) {
-                RssResult(hasRecent = true, videoTimestamps = emptyMap())
+                RssResult(
+                    hasRecent = true,
+                    videoTimestamps = emptyMap(),
+                    videos = emptyList(),
+                    needsFallback = true
+                )
             } else {
                 val hasUnknownRecentUpload = timestamps.any { (videoId, timestamp) ->
                     timestamp > minimumDateMillis && videoId !in knownVideoIds
                 }
                 RssResult(
                     hasRecent = newestTimestamp > minimumDateMillis || hasUnknownRecentUpload,
-                    videoTimestamps = timestamps
+                    videoTimestamps = timestamps,
+                    videos = videos,
+                    needsFallback = false
                 )
             }
         } catch (e: Exception) {
             Log.w(TAG, "[$channelId] RSS FAILED: ${e::class.simpleName}: ${e.message}")
-            RssResult(hasRecent = true, videoTimestamps = emptyMap())
+            RssResult(
+                hasRecent = true,
+                videoTimestamps = emptyMap(),
+                videos = emptyList(),
+                needsFallback = true
+            )
         }
     }
 
@@ -229,43 +265,26 @@ object RssSubscriptionService {
             val (regularVideos, shortsItems, liveItems) = coroutineScope {
                 val videoDeferred = videosTab?.let { videosTabHandler ->
                     async(Dispatchers.IO) {
-                        val innertubeVideos = fetchVideosTabInnertube(
+                        fetchDatedTabVideos(
+                            tab = videosTabHandler,
                             channelId = channelId,
-                            channelName = channelInfo.name,
                             channelAvatar = channelAvatar,
-                            limit = MAX_VIDEOS_PER_CHANNEL,
-                        )
-                        val normalizedInnertubeVideos = innertubeVideos
-                            .mapNotNull { video ->
+                            channelName = channelInfo.name,
+                            minimumDateMillis = minimumDateMillis,
+                            rssDateMap = rssDateMap,
+                            limit = MAX_VIDEOS_PER_CHANNEL
+                        ).ifEmpty {
+                            fetchVideosTabInnertube(
+                                channelId = channelId,
+                                channelName = channelInfo.name,
+                                channelAvatar = channelAvatar,
+                                limit = MAX_VIDEOS_PER_CHANNEL,
+                            ).mapNotNull { video ->
                                 video.withAuthoritativeUploadTimestamp(
                                     rssTimestamp = rssDateMap[video.id],
                                     minimumDateMillis = minimumDateMillis
                                 )
                             }
-
-                        when {
-                            normalizedInnertubeVideos.isEmpty() ->
-                                fetchDatedTabVideos(
-                                    tab = videosTabHandler,
-                                    channelId = channelId,
-                                    channelAvatar = channelAvatar,
-                                    minimumDateMillis = minimumDateMillis,
-                                    rssDateMap = rssDateMap,
-                                    limit = MAX_VIDEOS_PER_CHANNEL
-                                )
-                            normalizedInnertubeVideos.any { it.viewCount <= 0L } -> {
-                                val tabItemsByVideoId = fetchTabItems(videosTabHandler, MAX_VIDEOS_PER_CHANNEL)
-                                    .associateBy { item -> extractVideoId(item.url) }
-                                normalizedInnertubeVideos.map { video ->
-                                    val tabViewCount = tabItemsByVideoId[video.id]?.viewCount ?: 0L
-                                    if (video.viewCount <= 0L && tabViewCount > 0L) {
-                                        video.copy(viewCount = tabViewCount)
-                                    } else {
-                                        video
-                                    }
-                                }
-                            }
-                            else -> normalizedInnertubeVideos
                         }
                     }
                 }
@@ -367,7 +386,8 @@ object RssSubscriptionService {
         channelAvatar: String?,
         minimumDateMillis: Long,
         rssDateMap: Map<String, Long>,
-        limit: Int
+        limit: Int,
+        channelName: String? = null
     ): List<Video> {
         return fetchTabItems(tab, limit).mapNotNull { item ->
             val videoId = extractVideoId(item.url)
@@ -389,6 +409,7 @@ object RssSubscriptionService {
                     item = item,
                     channelId = channelId,
                     channelAvatar = channelAvatar,
+                    channelNameOverride = channelName,
                     overrideTimestamp = uploadTimeMillis
                 )
             }
@@ -448,6 +469,7 @@ object RssSubscriptionService {
         channelAvatar: String?,
         forceShort: Boolean = false,
         forceLive: Boolean = false,
+        channelNameOverride: String? = null,
         overrideTimestamp: Long? = null
     ): Video {
         val videoId = extractVideoId(item.url)
@@ -460,20 +482,24 @@ object RssSubscriptionService {
             ?: resolveUploadTimestamp(item)
             ?: 0L
 
+        val now = System.currentTimeMillis()
         val rawDate = item.textualUploadDate
-        val upcomingReleaseTimeMs = rawDate?.let(::parsePremiereTimestamp)
-            ?: overrideTimestamp?.takeIf { it > System.currentTimeMillis() + 60_000L }
+        val upcomingReleaseTimeMs = rawDate
+            ?.let(::parsePremiereTimestamp)
+            ?.takeIf { it > now + 60_000L }
+            ?: overrideTimestamp?.takeIf { it > now + 60_000L }
         val isUpcoming = !forceLive && upcomingReleaseTimeMs != null
         val uploadDateStr = when {
-            rawDate != null && !rawDate.contains("T") && !rawDate.contains("+") -> rawDate
+            isUpcoming && rawDate != null && !rawDate.contains("T") && !rawDate.contains("+") -> rawDate
             uploadTimeMillis > 0L -> formatRelativeTime(uploadTimeMillis)
+            rawDate != null && !rawDate.contains("T") && !rawDate.contains("+") -> rawDate
             else -> ""
         }
 
         return Video(
             id = videoId,
             title = item.name ?: "Unknown",
-            channelName = item.uploaderName ?: "Unknown",
+            channelName = channelNameOverride ?: item.uploaderName ?: "Unknown",
             channelId = channelId,
             thumbnailUrl = thumbnail,
             duration = item.duration.toInt().coerceAtLeast(0),
@@ -483,7 +509,7 @@ object RssSubscriptionService {
             channelThumbnailUrl = channelAvatar
                 ?: item.uploaderAvatars.maxByOrNull { it.height }?.url
                 ?: "",
-            isShort = forceShort || item.isShortFormContent,
+            isShort = forceShort || item.isLikelyShort(),
             isLive = forceLive || item.isActiveLiveStream(),
             isUpcoming = isUpcoming
         )
@@ -500,9 +526,11 @@ object RssSubscriptionService {
         }
         if (resolvedTimestamp <= minimumDateMillis && !isUpcoming) return null
 
+        val now = System.currentTimeMillis()
         return copy(
             timestamp = resolvedTimestamp,
-            uploadDate = rssTimestamp?.let(::formatRelativeTime) ?: uploadDate
+            uploadDate = rssTimestamp?.let(::formatRelativeTime) ?: uploadDate,
+            isUpcoming = isUpcoming && resolvedTimestamp > now + 60_000L
         )
     }
 
@@ -517,6 +545,10 @@ object RssSubscriptionService {
     private fun StreamInfoItem.isActiveLiveStream(): Boolean {
         return streamType == StreamType.LIVE_STREAM ||
             streamType == StreamType.AUDIO_LIVE_STREAM
+    }
+
+    private fun StreamInfoItem.isLikelyShort(): Boolean {
+        return isShortFormContent || url.contains("/shorts/", ignoreCase = true)
     }
 
     /** Format a millisecond timestamp as a human-readable relative string. */

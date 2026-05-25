@@ -365,6 +365,9 @@ class SubscriptionsViewModel : ViewModel() {
             else -> candidates.firstOrNull { it.hasStableUploadMetadata(now) } ?: primary
         }
         val metadataTimestamp = effectiveUploadTimestamp(metadataSource, now).takeIf { it > 0L }
+        val isFutureUpcoming = candidates.any { candidate ->
+            candidate.isUpcoming && effectiveUploadTimestamp(candidate, now) > now + 60_000L
+        }
 
         return primary.copy(
             viewCount = candidates.maxOf { it.viewCount },
@@ -372,7 +375,7 @@ class SubscriptionsViewModel : ViewModel() {
             timestamp = metadataTimestamp ?: primary.timestamp,
             isShort = candidates.any { it.isShort },
             isLive = candidates.any { it.isLive },
-            isUpcoming = candidates.any { it.isUpcoming }
+            isUpcoming = isFutureUpcoming
         )
     }
 
@@ -528,10 +531,16 @@ class SubscriptionsViewModel : ViewModel() {
     private fun List<Video>.withRelativeUploadDates(now: Long): List<Video> =
         map { video ->
             val uploadTimestamp = effectiveUploadTimestamp(video, now)
-            if (uploadTimestamp > 0L) {
-                video.copy(uploadDate = formatRelativeTime(uploadTimestamp, now))
+            val isFutureUpcoming = video.isUpcoming && uploadTimestamp > now + 60_000L
+            if (isFutureUpcoming) {
+                video.copy(isUpcoming = true)
+            } else if (uploadTimestamp > 0L) {
+                video.copy(
+                    uploadDate = formatRelativeTime(uploadTimestamp, now),
+                    isUpcoming = false
+                )
             } else {
-                video
+                video.copy(isUpcoming = false)
             }
         }
 
