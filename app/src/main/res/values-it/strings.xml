@@ -1553,4 +1553,23 @@
     <string name="player_appearance_remember_brightness_title">Ricorda la luminosità</string>
     <string name="player_appearance_remember_brightness_subtitle">Usa l\'ultimo livello di luminosità del player per i video successivi</string>
     <string name="lyrics_provider_lyrics_plus">LyricsPlus</string>
+    <string name="player_background_style_title">Sfondo del player musicale</string>
+    <string name="player_background_style_blur_gradient">Sfocatura + Sfumatura</string>
+    <string name="player_background_style_blur">Copertina sfocata</string>
+    <string name="player_background_style_gradient">Sfumatura colori</string>
+    <string name="player_background_style_default">Superficie predefinita</string>
+    <string name="section_daily_discover">Le tua scopeeta quotidiana</string>
+    <string name="section_speed_dial">Scelte rapide</string>
+    <string name="shuffle_play">Riproduzione casuale</string>
+    <string name="feeling_lucky">Ti senti fortunato?</string>
+    <string name="daily_discover_sounds_like">Con le sonorità di %1$s</string>
+    <string name="daily_discover_because_you_listen_to">Perché hai ascoltato %1$s</string>
+    <string name="daily_discover_similar_to">Simile a %1$s</string>
+    <string name="daily_discover_based_on">Basato su %1$s</string>
+    <string name="daily_discover_for_fans_of">Per i fan di %1$s</string>
+    <string name="section_music_videos_for_you">Video musicali per te</string>
+    <string name="section_live_performances">Performance live</string>
+    <string name="section_mood_and_genres">Mood e generi</string>
+    <string name="section_from_the_community">Dalla community</string>
+    <string name="daily_discover_subtitle">Novità dai tuoi ascolti</string>
 </resources>
