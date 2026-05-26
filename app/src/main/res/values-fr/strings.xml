@@ -1612,4 +1612,12 @@
     <string name="section_mood_and_genres">Ambiance et Genres</string>
     <string name="section_from_the_community">De la Communauté</string>
     <string name="daily_discover_subtitle">Nouvelles suggestions issues de votre historique d\'écoute</string>
+    <string name="similar_content">Contenu similaire</string>
+    <string name="no_similar_content_found">Aucun contenu similaire n\'a été trouvé</string>
+    <string name="radio_source_template">Radio • %1$s</string>
+    <string name="unknown_source">Source inconnue</string>
+    <string name="added_to_playlist_toast">Ajouté à la playlist</string>
+    <string name="already_downloaded_toast">Déjà téléchargé</string>
+    <string name="download_started_toast">Téléchargement en cours…</string>
+    <string name="download_error_toast">Erreur de téléchargement : %1$s</string>
 </resources>
