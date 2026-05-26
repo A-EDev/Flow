@@ -151,7 +151,7 @@
     <string name="unlike">إلغاء الإعجاب</string>
     <string name="tab_live">بث مباشر</string>
     <string name="tab_playlists">قوائم التشغيل</string>
-    <string name="tab_about">الحول</string>
+    <string name="tab_about">حول</string>
     <string name="end_of_queue">نهاية قائمة الإنتظار</string>
     <string name="no_videos_found">لا يوجد فديوهات</string>
     <string name="no_shorts_found">لا يوجد مقاطع قصيرة</string>
@@ -526,16 +526,16 @@
     <string name="content_preferences_subtitle">خصّص ما تراه</string>
     <string name="interests_tab">الإهتمامات</string>
     <string name="blocked_tab">محظور</string>
-    <string name="topics_count_template">%1$d مواضيع</string>
+    <string name="topics_count_template">%1$d موضوع</string>
     <string name="hidden_count_template">%1$d مخفي</string>
     <string name="your_interests_title">إهتماماتك</string>
     <string name="your_interests_desc">تساعد المواضيع التي اخترتها Flow في اقتراح محتوى أفضل. انقر على المواضيع أدناه لإضافتها أو إزالتها.</string>
-    <string name="currently_following">تتابع حاليا</string>
+    <string name="currently_following">تُتابع حالياً</string>
     <string name="tap_to_remove">انقر للإزالة</string>
     <string name="add_topics">إضافة مواضيع</string>
     <string name="browse_by_category">تصفح حسب الفئة</string>
     <string name="hidden_content_title">المحتوي المخفي</string>
-    <string name="hidden_content_desc">لن تظهر مقاطع الفيديو التي تتناول هذه المواضيع ضمن مقترحاتك. يمكنك أيضاً استخدام زر \"غير مهتم\" على مقاطع الفيديو.</string>
+    <string name="hidden_content_desc">لن تظهر مقاطع الفيديو التي تتناول هذه المواضيع ضمن مُقترحاتك. يمكنك أيضاً استخدام زر \"غير مهتم\" على مقاطع الفيديو.</string>
     <string name="block_topic_title">حظر موضوع</string>
     <string name="enter_keywords_to_hide">أدخل الكلمات المفتاحية المراد إخفاءها</string>
     <string name="block_topic_placeholder">مثال makeup، fortnite، asmr</string>
@@ -745,7 +745,7 @@
     <string name="playlist_metadata_public_template">‎قائمة تشغيل • عامة • فيديوهات %1$d</string>
     <string name="welcome_to_flow">مرحبا بك في Flow</string>
     <string name="onboarding_subtitle">أخبرنا بما يثير اهتمامك</string>
-    <string name="onboarding_instructions">اختر 3 مواضيع على الأقل لتخصيص تجربتك</string>
+    <string name="onboarding_instructions">إختر 3 مواضيع على الأقل لتخصيص تجربتك</string>
     <string name="selected_with_more_needed_template">تم اختيار %1$d (يلزم اختيار %2$d إضافي)</string>
     <string name="btn_skip_for_now">تخطي الآن</string>
     <string name="onboarding_btn_continue">إستمرار</string>
@@ -1371,7 +1371,7 @@
     <string name="metric_topics">المواضيع</string>
     <string name="metric_topics_detail">الإهتمامات المراعاه</string>
     <string name="metric_evidence">العلاقات</string>
-    <string name="metric_evidence_detail">المواضيع المعتمدة</string>
+    <string name="metric_evidence_detail">المواضيع المُعتمدة</string>
     <string name="metric_channels">القنوات</string>
     <string name="metric_channels_detail">المدخلات المتشابة</string>
     <string name="metric_history">السجل</string>
@@ -1428,7 +1428,7 @@
     <string name="channel_memory_empty">لا توجد قنوات محفوظة في الذاكرة.</string>
     <string name="discovery_status_title">إحصائيات التصفح</string>
     <string name="blocked_content_title">المرشحات</string>
-    <string name="blocked_content_subtitle">المواضيع والقنوات المستبعدة من التوصيات</string>
+    <string name="blocked_content_subtitle">المواضيع والقنوات المُستبعدة من التوصيات</string>
     <string name="blocked_topics_header">المواضيع المحظورة</string>
     <string name="blocked_channels_header">القنوات المحظورة</string>
     <string name="blocked_item_unblock_topic">إلغاء حظر موضوع</string>
@@ -1571,7 +1571,14 @@
     <string name="section_speed_dial">الطلب السريع</string>
     <string name="player_background_style_title">خلفية مشغل الموسيقى</string>
     <string name="player_background_style_blur_gradient">ضبابي + تدرج لوني</string>
-    <string name="player_background_style_blur">عمل فني ضبابي</string>
+    <string name="player_background_style_blur">ضبابي</string>
     <string name="player_background_style_gradient">‎تدرج الألوان</string>
     <string name="player_background_style_default">السطح الإفتراضي</string>
+    <string name="similar_content">محتوي مشابه</string>
+    <string name="no_similar_content_found">لم يتم العثور على محتوى مشابه</string>
+    <string name="unknown_source">مصدر غير معروف</string>
+    <string name="added_to_playlist_toast">تمت إضافته إلى قائمة التشغيل</string>
+    <string name="already_downloaded_toast">‎تم تنزيلها بالفعل</string>
+    <string name="download_started_toast">بدأ التنزيل…</string>
+    <string name="download_error_toast">خطأ في التنزيل: %1$s</string>
 </resources>
