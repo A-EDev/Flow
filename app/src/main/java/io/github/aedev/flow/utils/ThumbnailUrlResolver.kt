@@ -42,6 +42,29 @@ object ThumbnailUrlResolver {
         }
     }
 
+    fun resolveChannelBanner(rawUrl: String?, targetWidth: Int = 1060): String {
+        val raw = rawUrl?.trim().orEmpty()
+        if (raw.isEmpty()) return ""
+
+        val isGoogleCdn = raw.contains("googleusercontent.com") || raw.contains("ggpht.com")
+        if (!isGoogleCdn) return raw
+
+        val sizeParamRegex = Regex("""=([wsh])\d+""")
+        val match = sizeParamRegex.find(raw)
+        if (match != null) {
+            val paramType = match.groupValues[1]
+            return raw.replaceFirst(match.value, "=$paramType$targetWidth")
+        }
+
+        val paramStart = googleCdnParamStartPattern.find(raw)?.range?.first
+        return if (paramStart != null) {
+            val baseUrl = raw.substring(0, paramStart)
+            "$baseUrl=w$targetWidth"
+        } else {
+            "$raw=w$targetWidth"
+        }
+    }
+
     fun fallbackVideoThumbnail(videoId: String, rawUrl: String?): String? {
         val raw = rawUrl?.trim().orEmpty()
         val resolvedVideoId = youtubeVideoThumbnailPattern.find(raw)

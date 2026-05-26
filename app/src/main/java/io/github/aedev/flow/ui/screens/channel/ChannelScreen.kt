@@ -52,6 +52,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import android.content.Intent
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -704,7 +705,11 @@ private fun ChannelHeader(
     onUnsubscribeClick: () -> Unit,
     onNotificationChange: (Boolean) -> Unit
 ) {
-    val bannerUrl = try { channelInfo.banners.firstOrNull()?.url } catch (e: Exception) { null }
+    val bannerUrl = try {
+        val rawBanner = channelInfo.banners.maxByOrNull { it.width }?.url
+            ?: channelInfo.banners.firstOrNull()?.url
+        ThumbnailUrlResolver.resolveChannelBanner(rawBanner, targetWidth = 1060)
+    } catch (e: Exception) { null }
     // Use highest-res avatar available
     val avatarUrl = try {
         channelInfo.avatars.maxByOrNull { it.height }?.url

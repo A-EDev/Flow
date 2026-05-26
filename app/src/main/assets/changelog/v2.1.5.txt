@@ -97,6 +97,7 @@ FIXES AND STABILITY
 - Fix LazyColumn crash #479
 - Fix player jitter #478
 - Fix missing track duration
+- Fix channel banner resolution #518
 
 ENGINE
 - Improve topic maturity detection for better recommendations #281
