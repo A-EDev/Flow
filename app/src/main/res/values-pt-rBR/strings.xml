@@ -280,4 +280,9 @@
     <string name="downloads_title">Downloads</string>
     <string name="player_action_copy_link">Copiar link</string>
     <string name="error_http_forbidden">Acesso negado (403)</string>
+    <string name="dislikes">Não Gostei</string>
+    <string name="itag">iTag</string>
+    <string name="status_upcoming">EM BREVE</string>
+    <string name="reply">Resposta</string>
+    <string name="nav_shorts">Shorts</string>
 </resources>
