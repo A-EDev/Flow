@@ -241,4 +241,10 @@
     <string name="importing_from_backup">Importando suscripciones desde la copia de seguridad de NewPipe...</string>
     <string name="video">Vídeo</string>
     <string name="pinned_by_creator">Fijado por el creador</string>
+    <string name="subscriptions_refresh_progress_template">Actualizando %1$d de %2$d canales</string>
+    <string name="subscriptions_last_refreshed_template">Última actualización %1$s - %2$d vídeos comprobados</string>
+    <string name="search_watch_history">Buscar historial de visualización</string>
+    <string name="history_filter_all_years">Todos los años</string>
+    <string name="history_sort_newest">Mas nuevos primero</string>
+    <string name="history_sort_oldest">Mas antiguos primero</string>
 </resources>
