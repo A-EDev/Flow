@@ -28,6 +28,20 @@ object ThumbnailUrlResolver {
         return buildHighQualityYoutubeThumbnail(resolvedVideoId).ifEmpty { raw }
     }
 
+    fun resolveMusicThumbnail(videoId: String, rawUrl: String?, size: Int = 1080): String {
+        val raw = rawUrl?.trim().orEmpty()
+        val id = videoId.trim()
+
+        if (raw.isEmpty()) return buildHighQualityYoutubeThumbnail(id)
+
+        return when {
+            isYoutubeVideoThumbnail(raw) -> normalizeVideoThumbnail(id, raw)
+            raw.contains("googleusercontent.com") || raw.contains("ggpht.com") ->
+                resizeImageThumbnail(raw, size, size)
+            else -> raw
+        }
+    }
+
     fun fallbackVideoThumbnail(videoId: String, rawUrl: String?): String? {
         val raw = rawUrl?.trim().orEmpty()
         val resolvedVideoId = youtubeVideoThumbnailPattern.find(raw)

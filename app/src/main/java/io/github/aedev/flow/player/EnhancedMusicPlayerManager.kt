@@ -92,6 +92,9 @@ object EnhancedMusicPlayerManager {
     private val _queue = MutableStateFlow<List<MusicTrack>>(emptyList())
     val queue: StateFlow<List<MusicTrack>> = _queue.asStateFlow()
     
+    private val _automixItems = MutableStateFlow<List<MusicTrack>>(emptyList())
+    val automixItems: StateFlow<List<MusicTrack>> = _automixItems.asStateFlow()
+    
     private val _currentQueueIndex = MutableStateFlow(0)
     val currentQueueIndex: StateFlow<Int> = _currentQueueIndex.asStateFlow()
     
@@ -200,7 +203,8 @@ object EnhancedMusicPlayerManager {
                                     RepeatMode.ALL -> 1
                                     RepeatMode.ONE -> 2
                                 },
-                                savedAt = System.currentTimeMillis()
+                                savedAt = System.currentTimeMillis(),
+                                automix = _automixItems.value
                             )
                         } else null
                     }
@@ -247,8 +251,6 @@ object EnhancedMusicPlayerManager {
                     _currentPosition.value = 0L
                     _playerState.value = _playerState.value.copy(position = 0L)
                 }
-                // Pre-warm MusicPlayerUtils.resultCache for the next track so ExoPlayer's
-                // loading thread finds it instantly instead of blocking on a full HTTP resolve.
                 prefetchNextTrack()
             }
 
@@ -304,7 +306,6 @@ object EnhancedMusicPlayerManager {
     // --- Playback Control Methods ---
 
     fun setPendingTrack(track: MusicTrack, sourceName: String? = null) {
-
         player?.stop()
         player?.clearMediaItems()
         
@@ -402,6 +403,22 @@ object EnhancedMusicPlayerManager {
         }
     }
 
+    fun updateAutomixItems(items: List<MusicTrack>) {
+        val currentId = _currentTrack.value?.videoId
+        _automixItems.value = items
+            .filterNot { it.videoId == currentId }
+            .distinctBy { it.videoId }
+        triggerQueueSave()
+    }
+
+    fun removeAutomixItem(videoId: String) {
+        val updated = _automixItems.value.filterNot { it.videoId == videoId }
+        if (updated.size != _automixItems.value.size) {
+            _automixItems.value = updated
+            triggerQueueSave()
+        }
+    }
+
     private fun triggerQueueSave() {
         val currentQ = _queue.value
         if (currentQ.isNotEmpty()) {
@@ -415,7 +432,8 @@ object EnhancedMusicPlayerManager {
                     RepeatMode.OFF -> 0
                     RepeatMode.ALL -> 1
                     RepeatMode.ONE -> 2
-                }
+                },
+                automix = _automixItems.value
             )
         }
     }
@@ -441,6 +459,7 @@ object EnhancedMusicPlayerManager {
                 2 -> RepeatMode.ONE
                 else -> RepeatMode.OFF
             }
+            _automixItems.value = savedState.automix
             
             val currentTrack = savedState.currentTrackId?.let { id ->
                 savedState.queue.find { it.videoId == id }
@@ -476,7 +495,8 @@ object EnhancedMusicPlayerManager {
                         RepeatMode.OFF -> 0
                         RepeatMode.ALL -> 1
                         RepeatMode.ONE -> 2
-                    }
+                    },
+                    automix = _automixItems.value
                 )
             }
         }
@@ -503,12 +523,32 @@ object EnhancedMusicPlayerManager {
         val currentId = _currentTrack.value?.videoId
         val idx = currentQ.indexOfFirst { it.videoId == currentId }
         
+        val insertIdx = if (idx != -1) idx + 1 else 0
         if (idx != -1) {
             currentQ.add(idx + 1, track)
         } else {
             currentQ.add(track)
         }
         _queue.value = currentQ
+        
+        player?.let { p ->
+            if (insertIdx <= p.mediaItemCount) {
+                val mediaItem = MediaItem.Builder()
+                    .setUri(Uri.parse("music://${track.videoId}"))
+                    .setMediaId(track.videoId)
+                    .setCustomCacheKey(track.videoId)
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setTitle(track.title)
+                            .setArtist(track.artist)
+                            .setArtworkUri(Uri.parse(track.highResThumbnailUrl))
+                            .build()
+                    )
+                    .build()
+                p.addMediaItem(insertIdx, mediaItem)
+            }
+        }
+        
         triggerQueueSave()
     }
 
@@ -516,6 +556,23 @@ object EnhancedMusicPlayerManager {
         val currentQ = _queue.value.toMutableList()
         currentQ.add(track)
         _queue.value = currentQ
+        
+        player?.let { p ->
+            val mediaItem = MediaItem.Builder()
+                .setUri(Uri.parse("music://${track.videoId}"))
+                .setMediaId(track.videoId)
+                .setCustomCacheKey(track.videoId)
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle(track.title)
+                        .setArtist(track.artist)
+                        .setArtworkUri(Uri.parse(track.highResThumbnailUrl))
+                        .build()
+                )
+                .build()
+            p.addMediaItem(mediaItem)
+        }
+        
         triggerQueueSave()
     }
     
@@ -761,10 +818,68 @@ object EnhancedMusicPlayerManager {
     }
     
     fun removeFromQueue(index: Int) {
-         val currentQ = _queue.value.toMutableList()
-         if (index in currentQ.indices) {
-             currentQ.removeAt(index)
+         removeMediaItem(index)
+    }
+
+    fun removeMediaItem(index: Int) {
+         scope.launch {
+             val currentQ = _queue.value.toMutableList()
+             if (index in currentQ.indices) {
+                 currentQ.removeAt(index)
+                 _queue.value = currentQ
+                 
+                 player?.let { p ->
+                     if (index < p.mediaItemCount) {
+                         p.removeMediaItem(index)
+                     }
+                 }
+                 triggerQueueSave()
+             }
+         }
+    }
+
+    fun moveMediaItem(fromIndex: Int, toIndex: Int) {
+         scope.launch {
+             val currentQ = _queue.value.toMutableList()
+             if (fromIndex in currentQ.indices && toIndex in currentQ.indices) {
+                 val item = currentQ.removeAt(fromIndex)
+                 currentQ.add(toIndex, item)
+                 _queue.value = currentQ
+                 
+                 player?.let { p ->
+                     if (fromIndex < p.mediaItemCount && toIndex < p.mediaItemCount) {
+                         p.moveMediaItem(fromIndex, toIndex)
+                     }
+                 }
+                 triggerQueueSave()
+             }
+         }
+    }
+
+    fun insertMediaItem(index: Int, track: MusicTrack) {
+         scope.launch {
+             val currentQ = _queue.value.toMutableList()
+             val insertIndex = index.coerceIn(0, currentQ.size)
+             currentQ.add(insertIndex, track)
              _queue.value = currentQ
+             
+             player?.let { p ->
+                 if (insertIndex <= p.mediaItemCount) {
+                     val mediaItem = MediaItem.Builder()
+                         .setUri(Uri.parse("music://${track.videoId}"))
+                         .setMediaId(track.videoId)
+                         .setCustomCacheKey(track.videoId)
+                         .setMediaMetadata(
+                             MediaMetadata.Builder()
+                                 .setTitle(track.title)
+                                 .setArtist(track.artist)
+                                 .setArtworkUri(Uri.parse(track.highResThumbnailUrl))
+                                 .build()
+                         )
+                         .build()
+                     p.addMediaItem(insertIndex, mediaItem)
+                 }
+             }
              triggerQueueSave()
          }
     }

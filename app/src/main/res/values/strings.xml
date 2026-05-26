@@ -233,6 +233,14 @@
     <string name="play_next_desc">Add to start of queue</string>
     <string name="add_to_queue">Add to queue</string>
     <string name="add_to_queue_desc">Add to end of queue</string>
+    <string name="similar_content">Similar Content</string>
+    <string name="no_similar_content_found">No similar content found</string>
+    <string name="radio_source_template">Radio • %1$s</string>
+    <string name="unknown_source">Unknown source</string>
+    <string name="added_to_playlist_toast">Added to playlist</string>
+    <string name="already_downloaded_toast">Already downloaded</string>
+    <string name="download_started_toast">Download started…</string>
+    <string name="download_error_toast">Download error: %1$s</string>
     <string name="audio_effects">Audio Effects</string>
     <string name="more_header">More</string>
     <string name="view_artist">View Artist</string>

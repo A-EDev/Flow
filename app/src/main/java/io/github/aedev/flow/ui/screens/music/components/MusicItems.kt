@@ -1,12 +1,15 @@
 package io.github.aedev.flow.ui.screens.music.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Explicit
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -14,33 +17,44 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import androidx.compose.animation.core.*
 import io.github.aedev.flow.ui.screens.music.MusicTrack
+import io.github.aedev.flow.ui.screens.music.formatDuration
 import io.github.aedev.flow.ui.screens.music.formatViews
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import androidx.compose.foundation.background
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TrackListItem(
     track: MusicTrack,
     modifier: Modifier = Modifier,
     isPlaying: Boolean = false,
+    isDownloaded: Boolean = false,
     showMenu: Boolean = true,
+    trailingContent: (@Composable RowScope.() -> Unit)? = null,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     onMenuClick: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(72.dp)
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -49,19 +63,30 @@ fun TrackListItem(
             modifier = Modifier.size(56.dp),
             tonalElevation = 4.dp
         ) {
-            Box {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
                 AsyncImage(
-                    model = track.thumbnailUrl,
+                    model = ImageRequest.Builder(context)
+                        .data(track.listThumbnailUrl)
+                        .crossfade(true)
+                        .build(),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
                 if (isPlaying) {
-                    Surface(
-                        color = Color.Black.copy(alpha = 0.5f),
-                        modifier = Modifier.fillMaxSize()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.46f)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        MusicWaveAnimation()
+                        MusicWaveAnimation(
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(width = 28.dp, height = 24.dp)
+                        )
                     }
                 }
             }
@@ -82,15 +107,39 @@ fun TrackListItem(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = stringResource(R.string.year_artist_template, track.artist, formatViews(track.views)),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
+            ) {
+                if (track.isExplicit == true) {
+                    ExplicitBadge()
+                }
+
+                Text(
+                    text = track.musicMetadataLine(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
         
+        if (isDownloaded) {
+            Icon(
+                imageVector = Icons.Rounded.OfflinePin,
+                contentDescription = stringResource(R.string.status_downloaded),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .padding(start = 8.dp)
+                    .size(18.dp)
+            )
+        }
+
+        if (trailingContent != null) {
+            trailingContent()
+        }
+
         if (showMenu) {
             IconButton(onClick = onMenuClick) {
                 Icon(
@@ -144,13 +193,17 @@ fun ArtistGridItem(
 fun QuickPickItem(
     track: MusicTrack,
     isPlaying: Boolean = false,
+    isDownloaded: Boolean = false,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     onMenuClick: () -> Unit
 ) {
     TrackListItem(
         track = track,
         isPlaying = isPlaying,
+        isDownloaded = isDownloaded,
         onClick = onClick,
+        onLongClick = onLongClick,
         onMenuClick = onMenuClick,
         modifier = Modifier.width(320.dp) // Fixed width for horizontal lists
     )
@@ -170,10 +223,14 @@ fun CompactTrackCard(
 }
 
 @Composable
-fun MusicWaveAnimation() {
+fun MusicWaveAnimation(
+    modifier: Modifier = Modifier,
+    color: Color = MaterialTheme.colorScheme.primary
+) {
     val infiniteTransition = rememberInfiniteTransition(label = "waveform")
     
     Row(
+        modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -194,10 +251,36 @@ fun MusicWaveAnimation() {
                     .width(3.dp)
                     .height(height.dp)
                     .clip(RoundedCornerShape(1.5.dp))
-                    .background(MaterialTheme.colorScheme.primary)
+                    .background(color)
             )
         }
     }
+}
+
+@Composable
+private fun ExplicitBadge() {
+    Surface(
+        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f),
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        shape = RoundedCornerShape(3.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.explicit),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Black,
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+        )
+    }
+}
+
+@Composable
+private fun MusicTrack.musicMetadataLine(): String {
+    val suffix = when {
+        duration > 0 -> formatDuration(duration)
+        views > 0 -> formatViews(views)
+        else -> null
+    }
+    return if (suffix != null) stringResource(R.string.year_artist_template, artist, suffix) else artist
 }
 
 @Composable

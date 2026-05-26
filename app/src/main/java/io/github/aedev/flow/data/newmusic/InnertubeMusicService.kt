@@ -399,6 +399,7 @@ object InnertubeMusicService {
                     duration = item.duration ?: 0,
                     album = item.album?.name ?: "",
                     channelId = item.artists.firstOrNull()?.id ?: "",
+                    isExplicit = item.explicit,
                     albumId = item.album?.id,
                     artists = item.artists.map { io.github.aedev.flow.ui.screens.music.MusicArtist(it.name, it.id) },
                     isVideoSong = item.isVideoSong

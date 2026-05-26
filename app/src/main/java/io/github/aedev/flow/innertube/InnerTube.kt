@@ -839,6 +839,8 @@ class InnerTube {
                 viewCount = returnYouTubeDislikeResponse?.viewCount,
                 like = returnYouTubeDislikeResponse?.likes,
                 dislike = returnYouTubeDislikeResponse?.dislikes,
+                durationSeconds = playerResponse.videoDetails?.lengthSeconds?.toIntOrNull()
+                    ?: bestAudio?.approxDurationMs?.toLongOrNull()?.div(1000L)?.toInt(),
                 mimeType = bestAudio?.mimeType,
                 bitrate = bestAudio?.bitrate?.toLong(),
                 sampleRate = bestAudio?.audioSampleRate,

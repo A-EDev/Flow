@@ -12,6 +12,7 @@ data class MediaInfo(
     val viewCount: Int? = null,
     val like: Int? = null,
     val dislike: Int? = null,
+    val durationSeconds: Int? = null,
     val mimeType: String? = null,
     val bitrate: Long? = null,
     val sampleRate: Int? = null,

@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.aedev.flow.data.music.MusicCache
+import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.data.recommendation.MusicRecommendationAlgorithm
 import io.github.aedev.flow.data.recommendation.MusicSection
@@ -42,7 +43,8 @@ class MusicViewModel @Inject constructor(
     private val subscriptionRepository: io.github.aedev.flow.data.local.SubscriptionRepository,
     private val playlistRepository: io.github.aedev.flow.data.music.PlaylistRepository,
     private val localPlaylistRepository: io.github.aedev.flow.data.local.PlaylistRepository,
-    private val likedVideosRepository: LikedVideosRepository
+    private val likedVideosRepository: LikedVideosRepository,
+    private val downloadManager: DownloadManager
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(MusicUiState())
     val uiState: StateFlow<MusicUiState> = _uiState.asStateFlow()
@@ -57,6 +59,14 @@ class MusicViewModel @Inject constructor(
 
     init {
         loadMusicContent()
+
+        viewModelScope.launch {
+            downloadManager.downloadedTracks.collect { tracks ->
+                _uiState.update { state ->
+                    state.copy(downloadedTrackIds = tracks.map { it.track.videoId }.toSet())
+                }
+            }
+        }
         
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             var lastTrackId: String? = null
@@ -1032,6 +1042,7 @@ data class MusicUiState(
     val isLoading: Boolean = true,
     val isSearching: Boolean = false,
     val error: String? = null,
+    val downloadedTrackIds: Set<String> = emptySet(),
     val artistDetails: ArtistDetails? = null,
     val isArtistLoading: Boolean = false,
     val playlistDetails: PlaylistDetails? = null,

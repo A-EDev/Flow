@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-24
+DATE: 2026-05-26
 STATUS: PRE-RELEASE
 
 FEATURES
@@ -69,6 +69,7 @@ IMPROVEMENTS
 - Improve lyrics formatting and better word level lyrics hightlight
 - Improve Music feed and add more sections
 - Music player and its components redesign
+- New queue sheet design, improved queue handling and similar content fetching
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378
@@ -95,6 +96,7 @@ FIXES AND STABILITY
 - Fix music playlist delete path #471
 - Fix LazyColumn crash #479
 - Fix player jitter #478
+- Fix missing track duration
 
 ENGINE
 - Improve topic maturity detection for better recommendations #281

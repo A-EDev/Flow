@@ -38,6 +38,7 @@ class QueuePersistence private constructor(private val context: Context) {
         private val SHUFFLE_ENABLED_KEY = stringPreferencesKey("shuffle_enabled")
         private val REPEAT_MODE_KEY = intPreferencesKey("repeat_mode")
         private val SAVED_AT_KEY = longPreferencesKey("saved_at")
+        private val AUTOMIX_KEY = stringPreferencesKey("automix_json")
         
         @Volatile
         private var INSTANCE: QueuePersistence? = null
@@ -67,7 +68,8 @@ class QueuePersistence private constructor(private val context: Context) {
         val currentTrackId: String?,
         val shuffleEnabled: Boolean,
         val repeatMode: Int, // 0=OFF, 1=ALL, 2=ONE
-        val savedAt: Long
+        val savedAt: Long,
+        val automix: List<MusicTrack> = emptyList()
     )
     
     /**
@@ -79,12 +81,13 @@ class QueuePersistence private constructor(private val context: Context) {
         currentPosition: Long,
         currentTrackId: String?,
         shuffleEnabled: Boolean = false,
-        repeatMode: Int = 0
+        repeatMode: Int = 0,
+        automix: List<MusicTrack> = emptyList()
     ) {
         saveJob?.cancel()
         saveJob = scope.launch {
             delay(SAVE_DEBOUNCE_MS)
-            saveQueueImmediate(queue, currentIndex, currentPosition, currentTrackId, shuffleEnabled, repeatMode)
+            saveQueueImmediate(queue, currentIndex, currentPosition, currentTrackId, shuffleEnabled, repeatMode, automix)
         }
     }
     
@@ -97,7 +100,8 @@ class QueuePersistence private constructor(private val context: Context) {
         currentPosition: Long,
         currentTrackId: String?,
         shuffleEnabled: Boolean = false,
-        repeatMode: Int = 0
+        repeatMode: Int = 0,
+        automix: List<MusicTrack> = emptyList()
     ) {
         if (queue.isEmpty()) return
         
@@ -112,9 +116,10 @@ class QueuePersistence private constructor(private val context: Context) {
                     prefs[SHUFFLE_ENABLED_KEY] = shuffleEnabled.toString()
                     prefs[REPEAT_MODE_KEY] = repeatMode
                     prefs[SAVED_AT_KEY] = now
+                    prefs[AUTOMIX_KEY] = gson.toJson(automix)
                 }
                 lastSaveTime = now
-                Log.d(TAG, "Queue saved: ${queue.size} tracks, index=$currentIndex, pos=$currentPosition")
+                Log.d(TAG, "Queue saved: ${queue.size} tracks, index=$currentIndex, pos=$currentPosition, automix=${automix.size}")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to save queue", e)
             }
@@ -134,6 +139,13 @@ class QueuePersistence private constructor(private val context: Context) {
             
             if (queue.isEmpty()) return null
             
+            val automixJson = prefs[AUTOMIX_KEY]
+            val automix: List<MusicTrack> = if (!automixJson.isNullOrBlank()) {
+                gson.fromJson(automixJson, type) ?: emptyList()
+            } else {
+                emptyList()
+            }
+            
             val state = QueueState(
                 queue = queue,
                 currentIndex = prefs[CURRENT_INDEX_KEY] ?: 0,
@@ -141,7 +153,8 @@ class QueuePersistence private constructor(private val context: Context) {
                 currentTrackId = prefs[CURRENT_TRACK_ID_KEY]?.takeIf { it.isNotBlank() },
                 shuffleEnabled = prefs[SHUFFLE_ENABLED_KEY]?.toBooleanStrictOrNull() ?: false,
                 repeatMode = prefs[REPEAT_MODE_KEY] ?: 0,
-                savedAt = prefs[SAVED_AT_KEY] ?: 0L
+                savedAt = prefs[SAVED_AT_KEY] ?: 0L,
+                automix = automix
             )
             
             Log.d(TAG, "Queue restored: ${queue.size} tracks, saved ${(System.currentTimeMillis() - state.savedAt) / 1000}s ago")
@@ -168,7 +181,8 @@ class QueuePersistence private constructor(private val context: Context) {
                             currentPosition = state.currentPosition,
                             currentTrackId = state.currentTrackId,
                             shuffleEnabled = state.shuffleEnabled,
-                            repeatMode = state.repeatMode
+                            repeatMode = state.repeatMode,
+                            automix = state.automix
                         )
                     }
                 }

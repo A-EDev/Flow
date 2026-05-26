@@ -497,6 +497,7 @@ fun FlowApp(
             expandedContent = {
                 EnhancedMusicPlayerScreen(
                     track = currentMusicTrack!!,
+                    isPlayerSheetExpanded = musicPlayerSheetState.isExpanded,
                     onBackClick = { musicPlayerSheetState.collapse() },
                     onArtistClick = { channelId ->
                         musicPlayerSheetState.collapse()

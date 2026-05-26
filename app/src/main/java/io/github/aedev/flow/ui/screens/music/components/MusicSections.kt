@@ -88,6 +88,7 @@ fun SectionHeader(
 fun QuickPicksGrid(
     songs: List<MusicTrack>,
     currentVideoId: String? = null,
+    downloadedTrackIds: Set<String> = emptySet(),
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
     onMenuClick: (MusicTrack) -> Unit
 ) {
@@ -104,6 +105,7 @@ fun QuickPicksGrid(
             QuickPickItem(
                 track = track, 
                 isPlaying = track.videoId == currentVideoId,
+                isDownloaded = downloadedTrackIds.contains(track.videoId),
                 onClick = { onSongClick(track, songs, "quick_picks") },
                 onMenuClick = { onMenuClick(track) }
             )

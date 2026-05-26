@@ -335,11 +335,11 @@ fun EnhancedMusicScreen(
                                                         .fillMaxWidth()
                                                 ) {
                                                     items(quickPickTracks) { track ->
-                                                        ListItem(
-                                                            title = track.title,
-                                                            subtitle = track.artist,
-                                                            thumbnailUrl = track.thumbnailUrl,
+                                                        TrackListItem(
+                                                            track = track,
                                                             isPlaying = currentTrack?.videoId == track.videoId,
+                                                            isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
+                                                            showMenu = false,
                                                             onClick = { onSongClick(track, quickPickTracks, "quick_picks") },
                                                             onLongClick = {
                                                                 selectedTrack = track

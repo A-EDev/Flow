@@ -44,6 +44,10 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import javax.inject.Inject
+import io.github.aedev.flow.data.music.YouTubeMusicService
+import io.github.aedev.flow.data.newmusic.InnertubeMusicService
+import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.innertube.models.WatchEndpoint
 import android.os.PowerManager
 import android.net.wifi.WifiManager
 import android.content.Context
@@ -97,6 +101,7 @@ class Media3MusicService : MediaLibraryService() {
     private var lockReleaseJob: Job? = null
     
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var automixJob: Job? = null
     
     private val retryCountMap = mutableMapOf<String, Int>()
     private val lastPlaybackErrorAtMap = mutableMapOf<String, Long>()
@@ -229,6 +234,10 @@ class Media3MusicService : MediaLibraryService() {
                     val title = item.mediaMetadata.title?.toString()
                     val artist = item.mediaMetadata.artist?.toString()
                     
+                    if (!videoId.isNullOrBlank()) {
+                        resolveAutomix(videoId)
+                    }
+
                     if (!videoId.isNullOrBlank() && !title.isNullOrBlank() && !artist.isNullOrBlank()) {
                         serviceScope.launch(Dispatchers.IO) {
                             try {
@@ -719,6 +728,62 @@ class Media3MusicService : MediaLibraryService() {
             ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND,
             ActivityManager.RunningAppProcessInfo.IMPORTANCE_VISIBLE -> true
             else -> false
+        }
+    }
+
+    private fun resolveAutomix(trackId: String) {
+        automixJob?.cancel()
+        automixJob = serviceScope.launch(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "Resolving automix for trackId: $trackId")
+                val primaryResult = YouTube.next(WatchEndpoint(playlistId = "RDAMVM$trackId"))
+                var recommended = primaryResult.getOrNull()?.items.orEmpty()
+
+                primaryResult.getOrNull()?.endpoint?.playlistId
+                    ?.takeIf { it.isNotBlank() && recommended.size <= 1 }
+                    ?.let { playlistId ->
+                        Log.d(TAG, "Tier 1 preview small, resolving nested automix playlist")
+                        recommended = YouTube.next(WatchEndpoint(playlistId = playlistId))
+                            .getOrNull()
+                            ?.items
+                            .orEmpty()
+                    }
+                
+                if (recommended.size <= 1) {
+                    Log.d(TAG, "Automix playlist empty or small, trying video radio")
+                    val radioResult = YouTube.next(WatchEndpoint(videoId = trackId))
+                    recommended = radioResult.getOrNull()?.items.orEmpty()
+                }
+                
+                if (recommended.isEmpty()) {
+                    Log.d(TAG, "Radio empty, trying related endpoint")
+                    val relatedEndpoint = primaryResult.getOrNull()?.relatedEndpoint
+                        ?: YouTube.next(WatchEndpoint(videoId = trackId)).getOrNull()?.relatedEndpoint
+                    if (relatedEndpoint != null) {
+                        val relatedResult = YouTube.related(relatedEndpoint)
+                        recommended = relatedResult.getOrNull()?.songs ?: emptyList()
+                    }
+                }
+                
+                var mappedTracks = recommended.mapNotNull {
+                    InnertubeMusicService.convertToMusicTrack(it)
+                }.filterNot { it.videoId == trackId }
+                    .distinctBy { it.videoId }
+
+                if (mappedTracks.isEmpty()) {
+                    Log.d(TAG, "Innertube automix empty, falling back to related music service")
+                    mappedTracks = YouTubeMusicService.getRelatedMusic(trackId, 20, audioOnly = true)
+                        .filterNot { it.videoId == trackId }
+                        .distinctBy { it.videoId }
+                }
+
+                Log.d(TAG, "Successfully resolved ${mappedTracks.size} automix tracks")
+                if (mappedTracks.isNotEmpty()) {
+                    io.github.aedev.flow.player.EnhancedMusicPlayerManager.updateAutomixItems(mappedTracks)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error resolving automix", e)
+            }
         }
     }
 

@@ -78,6 +78,7 @@ fun EnhancedMusicPlayerScreen(
     onBackClick: () -> Unit,
     onArtistClick: (String) -> Unit = {},
     onAlbumClick: (String) -> Unit = {},
+    isPlayerSheetExpanded: Boolean = true,
     viewModel: MusicPlayerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -155,7 +156,6 @@ fun EnhancedMusicPlayerScreen(
     // ── Unified Sheet State ──────────────────────────────────────────────
     var showQueueSheet by remember { mutableStateOf(false) }
     var showInlineLyrics by remember { mutableStateOf(false) }
-    var currentQueueTab by remember { mutableStateOf(QueueRelatedTab.UP_NEXT) }
     
     // ── Dialogs & Sheets ─────────────────────────────────────────────────
     if (uiState.showCreatePlaylistDialog) {
@@ -268,8 +268,27 @@ fun EnhancedMusicPlayerScreen(
         val queueExpandedY = with(density) { (statusBarPadding + 72.dp).toPx() }
         val safeHiddenY = queueHiddenY.coerceAtLeast(queueExpandedY)
 
-        var queueOffsetY by remember(safeHiddenY) { mutableFloatStateOf(safeHiddenY) }
-        val clampedQueueOffset = queueOffsetY.coerceIn(queueExpandedY, safeHiddenY)
+        val queueOffsetY = remember { Animatable(safeHiddenY) }
+        LaunchedEffect(isPlayerSheetExpanded, safeHiddenY) {
+            if (!isPlayerSheetExpanded) {
+                showQueueSheet = false
+                queueOffsetY.snapTo(safeHiddenY)
+            }
+        }
+        LaunchedEffect(queueExpandedY, safeHiddenY) {
+            queueOffsetY.updateBounds(lowerBound = queueExpandedY, upperBound = safeHiddenY)
+            if (!showQueueSheet) {
+                queueOffsetY.snapTo(safeHiddenY)
+            } else {
+                queueOffsetY.snapTo(queueOffsetY.value.coerceIn(queueExpandedY, safeHiddenY))
+            }
+        }
+        val queueSheetActive = isPlayerSheetExpanded && showQueueSheet
+        val clampedQueueOffset = if (!queueSheetActive) {
+            safeHiddenY
+        } else {
+            queueOffsetY.value.coerceIn(queueExpandedY, safeHiddenY)
+        }
 
         val queueFraction = if (safeHiddenY != queueExpandedY) {
             (1f - ((clampedQueueOffset - queueExpandedY) / (safeHiddenY - queueExpandedY))).coerceIn(0f, 1f)
@@ -282,29 +301,45 @@ fun EnhancedMusicPlayerScreen(
         val miniHeaderTranslation = with(density) { 10.dp.toPx() * (1f - miniHeaderAlpha) }
 
         // ── Sheet animation helper ──────────────────────────────────────────
-        fun animateQueueSheet(target: Float) {
-            if (target < safeHiddenY) showQueueSheet = true
-            val isOpening = target < queueOffsetY
-            scope.launch {
-                animate(
-                    initialValue = queueOffsetY,
-                    targetValue = target,
-                    animationSpec = tween(
-                        durationMillis = if (isOpening) 640 else 420,
-                        easing = FastOutSlowInEasing
-                    )
-                ) { value, _ ->
-                    queueOffsetY = value
-                }
-                if (target >= safeHiddenY) {
-                    queueOffsetY = safeHiddenY
-                    showQueueSheet = false
-                }
+        suspend fun animateQueueSheetTo(target: Float, initialVelocity: Float = 0f) {
+            if (target < safeHiddenY && isPlayerSheetExpanded) showQueueSheet = true
+            queueOffsetY.stop()
+            queueOffsetY.animateTo(
+                targetValue = target.coerceIn(queueExpandedY, safeHiddenY),
+                initialVelocity = initialVelocity,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioNoBouncy,
+                    stiffness = Spring.StiffnessMediumLow
+                )
+            )
+            if (target >= safeHiddenY) {
+                queueOffsetY.snapTo(safeHiddenY)
+                showQueueSheet = false
             }
         }
 
+        suspend fun settleQueueSheet(velocity: Float) {
+            val distance = safeHiddenY - queueExpandedY
+            val progress = if (distance > 0f) {
+                ((queueOffsetY.value - queueExpandedY) / distance).coerceIn(0f, 1f)
+            } else {
+                1f
+            }
+            val target = when {
+                velocity < -900f -> queueExpandedY
+                velocity > 900f -> safeHiddenY
+                progress < 0.42f -> queueExpandedY
+                else -> safeHiddenY
+            }
+            animateQueueSheetTo(target, velocity)
+        }
+
+        fun animateQueueSheet(target: Float) {
+            scope.launch { animateQueueSheetTo(target) }
+        }
+
         // ── Intercept system back when sheet is expanded ────────────────────
-        BackHandler(enabled = showQueueSheet && queueFraction > 0.05f) {
+        BackHandler(enabled = queueSheetActive && queueFraction > 0.05f) {
             animateQueueSheet(safeHiddenY)
         }
 
@@ -524,9 +559,10 @@ fun EnhancedMusicPlayerScreen(
                 onShuffleClick = { viewModel.toggleShuffle() },
                 onRepeatClick = { viewModel.toggleRepeat() },
                 onQueueClick = {
-                    currentQueueTab = QueueRelatedTab.UP_NEXT
-                    showQueueSheet = true
-                    animateQueueSheet(queueExpandedY)
+                    if (isPlayerSheetExpanded) {
+                        showQueueSheet = true
+                        animateQueueSheet(queueExpandedY)
+                    }
                 },
                 onSleepTimerClick = { showSleepTimer = true },
                 modifier = Modifier.padding(horizontal = PlayerHorizontalPadding)
@@ -606,49 +642,70 @@ fun EnhancedMusicPlayerScreen(
         val queueCornerRadius = 28.dp * (1f - queueFraction)
 
         val queueDraggableState = rememberDraggableState { delta ->
-            queueOffsetY = (queueOffsetY + delta).coerceIn(queueExpandedY, safeHiddenY)
+            scope.launch {
+                queueOffsetY.snapTo((queueOffsetY.value + delta).coerceIn(queueExpandedY, safeHiddenY))
+            }
         }
+
+        val queueDragHandleModifier = Modifier.draggable(
+            orientation = Orientation.Vertical,
+            state = queueDraggableState,
+            onDragStarted = {
+                scope.launch { queueOffsetY.stop() }
+            },
+            onDragStopped = { velocity ->
+                settleQueueSheet(velocity)
+            }
+        )
 
         // ── NestedScrollConnection: isolates sheet events from MusicPlayerBottomSheet ──
         val sheetNestedScrollConnection = remember(queueExpandedY, safeHiddenY) {
             object : NestedScrollConnection {
-                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset =
-                    Offset.Zero
+                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                    if (source == NestedScrollSource.UserInput && available.y < 0f && queueOffsetY.value > queueExpandedY) {
+                        val toMove = maxOf(available.y, queueExpandedY - queueOffsetY.value)
+                        scope.launch {
+                            queueOffsetY.snapTo((queueOffsetY.value + toMove).coerceIn(queueExpandedY, safeHiddenY))
+                        }
+                        return Offset(0f, toMove)
+                    }
+                    return Offset.Zero
+                }
 
                 override fun onPostScroll(
                     consumed: Offset,
                     available: Offset,
                     source: NestedScrollSource
                 ): Offset {
-                    if (source == NestedScrollSource.UserInput && available.y > 0f && queueOffsetY < safeHiddenY) {
-                        val toMove = minOf(available.y, safeHiddenY - queueOffsetY)
-                        queueOffsetY = (queueOffsetY + toMove).coerceIn(queueExpandedY, safeHiddenY)
+                    if (source == NestedScrollSource.UserInput && available.y > 0f && queueOffsetY.value < safeHiddenY) {
+                        val toMove = minOf(available.y, safeHiddenY - queueOffsetY.value)
+                        scope.launch {
+                            queueOffsetY.snapTo((queueOffsetY.value + toMove).coerceIn(queueExpandedY, safeHiddenY))
+                        }
+                        return Offset(0f, toMove)
                     }
-                    return available
+                    return Offset.Zero
                 }
 
-                override suspend fun onPreFling(available: Velocity): Velocity = Velocity.Zero
+                override suspend fun onPreFling(available: Velocity): Velocity {
+                    if (queueOffsetY.value > queueExpandedY && queueOffsetY.value < safeHiddenY) {
+                        settleQueueSheet(available.y)
+                        return available
+                    }
+                    return Velocity.Zero
+                }
 
                 override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                    if (queueOffsetY > queueExpandedY && queueOffsetY < safeHiddenY) {
-                        val mid = (safeHiddenY + queueExpandedY) / 2f
-                        val target = if (queueOffsetY < mid) queueExpandedY else safeHiddenY
-                        animate(
-                            initialValue = queueOffsetY,
-                            targetValue = target,
-                            animationSpec = tween(
-                                durationMillis = 420,
-                                easing = FastOutSlowInEasing
-                            )
-                        ) { value, _ -> queueOffsetY = value }
-                        if (target >= safeHiddenY) showQueueSheet = false
+                    if (queueOffsetY.value > queueExpandedY && queueOffsetY.value < safeHiddenY) {
+                        settleQueueSheet(available.y)
+                        return available
                     }
-                    return available
+                    return Velocity.Zero
                 }
             }
         }
 
-        if (showQueueSheet || clampedQueueOffset < safeHiddenY - 1f) {
+        if (queueSheetActive || clampedQueueOffset < safeHiddenY - 1f) {
             Box(
                 modifier = Modifier
                     .offset { IntOffset(0, clampedQueueOffset.roundToInt()) }
@@ -660,40 +717,26 @@ fun EnhancedMusicPlayerScreen(
                         clip = false
                     )
                     .nestedScroll(sheetNestedScrollConnection)
-                    .draggable(
-                        orientation = Orientation.Vertical,
-                        state = queueDraggableState,
-                        onDragStopped = { velocity ->
-                            val midPoint = (safeHiddenY + queueExpandedY) / 2
-                            val target = when {
-                                velocity < -800f -> queueExpandedY
-                                velocity > 800f -> safeHiddenY
-                                clampedQueueOffset < midPoint -> queueExpandedY
-                                else -> safeHiddenY
-                            }
-                            animateQueueSheet(target)
-                        }
-                    )
             ) {
-                QueueRelatedSheet(
+                QueueSheet(
                     sheetBackgroundColor = animatedSheetColor,
                     accentColor = animatedAccentColor,
                     onSheetColor = adaptiveOnSheetColor,
-                    currentTab = currentQueueTab,
-                    onTabSelect = { currentQueueTab = it },
                     sheetCornerRadius = queueCornerRadius,
                     queue = uiState.queue,
+                    automixTracks = uiState.autoplaySuggestions,
                     currentIndex = uiState.currentQueueIndex,
+                    downloadedTrackIds = uiState.downloadedTrackIds,
                     playingFrom = uiState.playingFrom,
-                    autoplayEnabled = uiState.autoplayEnabled,
                     selectedFilter = uiState.selectedFilter,
+                    isAutomixLoading = uiState.isRelatedLoading,
                     onTrackClick = { viewModel.playFromQueue(it) },
-                    onToggleAutoplay = { viewModel.toggleAutoplay() },
-                    onFilterSelect = { viewModel.setFilter(it) },
                     onMoveTrack = { from, to -> viewModel.moveTrack(from, to) },
-                    relatedTracks = uiState.relatedContent,
-                    isRelatedLoading = uiState.isRelatedLoading,
-                    onRelatedTrackClick = { viewModel.loadAndPlayTrack(it) }
+                    onFilterSelect = { viewModel.setFilter(it) },
+                    onAutomixTrackClick = { viewModel.loadAndPlayTrack(it) },
+                    onPlayNextAutomix = { viewModel.playNext(it) },
+                    onAddToQueueAutomix = { viewModel.addToQueue(it) },
+                    dragHandleModifier = queueDragHandleModifier
                 )
             }
         }

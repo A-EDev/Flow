@@ -8,18 +8,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.Player
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 
 @Composable
 fun PlayerArtwork(
@@ -31,6 +35,17 @@ fun PlayerArtwork(
     onSkipNext: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+     val context = LocalContext.current
+     val artworkRequest = remember(thumbnailUrl) {
+         ImageRequest.Builder(context)
+             .data(thumbnailUrl)
+             .allowHardware(false)
+             .crossfade(true)
+             .precision(Precision.EXACT)
+             .size(1080)
+             .build()
+     }
+
      Box(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
@@ -70,10 +85,10 @@ fun PlayerArtwork(
             )
         } else {
             AsyncImage(
-                model = thumbnailUrl,
+                model = artworkRequest,
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit
+                contentScale = ContentScale.Crop
             )
             
             if (isLoading) {

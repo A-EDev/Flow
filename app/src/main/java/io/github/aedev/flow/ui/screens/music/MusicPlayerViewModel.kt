@@ -4,6 +4,7 @@ import android.content.Context
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.LikedVideoInfo
 import io.github.aedev.flow.data.local.LikedVideosRepository
 import io.github.aedev.flow.data.local.ViewHistory
@@ -148,6 +149,17 @@ class MusicPlayerViewModel @Inject constructor(
         }
             
         viewModelScope.launch {
+            EnhancedMusicPlayerManager.automixItems.collect { automix ->
+                _uiState.update {
+                    it.copy(
+                        autoplaySuggestions = automix,
+                        isRelatedLoading = false
+                    )
+                }
+            }
+        }
+            
+        viewModelScope.launch {
             localPlaylistRepository.getMusicPlaylistsFlow().collect { playlistInfos ->
                 val playlists = playlistInfos.map { info ->
                     io.github.aedev.flow.data.music.Playlist(
@@ -178,7 +190,7 @@ class MusicPlayerViewModel @Inject constructor(
     fun loadAndPlayTrack(track: MusicTrack, queue: List<MusicTrack> = emptyList(), sourceName: String? = null) {
         loadTrackJob?.cancel()
         loadTrackJob = viewModelScope.launch {
-            val finalSourceName = sourceName ?: "Radio \u2022 ${track.artist}"
+            val finalSourceName = sourceName ?: context.getString(R.string.radio_source_template, track.artist)
             val activeQueue = if (queue.isNotEmpty()) queue else listOf(track)
 
             // ─── PHASE 1: Instant start ───────────────────────────────────────────
@@ -187,7 +199,7 @@ class MusicPlayerViewModel @Inject constructor(
                 isLoading = true,
                 error = null,
                 playingFrom = finalSourceName,
-                selectedFilter = "All"
+                selectedFilter = FILTER_ALL
             ) }
 
             withContext(kotlinx.coroutines.Dispatchers.Main) {
@@ -234,8 +246,7 @@ class MusicPlayerViewModel @Inject constructor(
                         } ?: emptyList()
 
                         if (relatedTracks.isNotEmpty()) {
-                            EnhancedMusicPlayerManager.updateQueue(listOf(track) + relatedTracks)
-                            _uiState.update { it.copy(autoplaySuggestions = relatedTracks) }
+                            EnhancedMusicPlayerManager.updateAutomixItems(relatedTracks)
                         }
                     }
                 }
@@ -261,7 +272,7 @@ class MusicPlayerViewModel @Inject constructor(
 
     fun setFilter(filter: String) {
         val currentTrack = _uiState.value.currentTrack ?: return
-        _uiState.update { it.copy(selectedFilter = filter, isLoading = true) }
+        _uiState.update { it.copy(selectedFilter = filter, isRelatedLoading = true) }
         
         viewModelScope.launch(PerformanceDispatcher.networkIO) {
             try {
@@ -270,33 +281,31 @@ class MusicPlayerViewModel @Inject constructor(
                 } ?: emptyList()
                 
                 val filteredList = when (filter) {
-                    "Discover" -> freshRelated.shuffled().take(20)
-                    "Popular" -> freshRelated.sortedByDescending { it.title.length }.take(20)
-                    "Deep cuts" -> freshRelated.reversed().take(20)
-                    "Workout" -> freshRelated.filter { it.title.contains("remix", ignoreCase = true) || true }.shuffled()
+                    FILTER_DISCOVER -> freshRelated.shuffled().take(20)
+                    FILTER_POPULAR -> freshRelated.sortedByDescending { it.duration }.take(20)
+                    FILTER_DEEP_CUTS -> freshRelated.reversed().take(20)
+                    FILTER_WORKOUT -> freshRelated.filter {
+                        it.title.contains("remix", ignoreCase = true) ||
+                            it.title.contains("workout", ignoreCase = true) ||
+                            it.title.contains("mix", ignoreCase = true)
+                    }.ifEmpty { freshRelated.shuffled() }.take(20)
                     else -> freshRelated
                 }
                 
                 _uiState.update { it.copy(
                     autoplaySuggestions = filteredList,
-                    isLoading = false
+                    isRelatedLoading = false
                 ) }
                 
-                EnhancedMusicPlayerManager.updateQueue(listOf(currentTrack) + filteredList)
+                EnhancedMusicPlayerManager.updateAutomixItems(filteredList)
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false) }
+                _uiState.update { it.copy(isRelatedLoading = false) }
             }
         }
     }
 
     fun moveTrack(fromIndex: Int, toIndex: Int) {
-        val currentQueue = _uiState.value.queue.toMutableList()
-        if (fromIndex in currentQueue.indices && toIndex in currentQueue.indices) {
-            val track = currentQueue.removeAt(fromIndex)
-            currentQueue.add(toIndex, track)
-            _uiState.update { it.copy(queue = currentQueue) }
-            EnhancedMusicPlayerManager.updateQueue(currentQueue)
-        }
+        EnhancedMusicPlayerManager.moveMediaItem(fromIndex, toIndex)
     }
 
     fun seekTo(position: Long) {
@@ -350,6 +359,7 @@ class MusicPlayerViewModel @Inject constructor(
                     relatedContent = related,
                     isRelatedLoading = false
                 ) }
+                EnhancedMusicPlayerManager.updateAutomixItems(related)
             } catch (e: Exception) {
                 _uiState.update { it.copy(isRelatedLoading = false) }
             }
@@ -409,7 +419,7 @@ class MusicPlayerViewModel @Inject constructor(
                 isMusic = true
             )
             localPlaylistRepository.addVideoToPlaylist(playlistId, video)
-            Toast.makeText(context, "Added to playlist", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.added_to_playlist_toast), Toast.LENGTH_SHORT).show()
         }
     }
     
@@ -431,12 +441,14 @@ class MusicPlayerViewModel @Inject constructor(
 
     fun playNext(track: MusicTrack) {
         EnhancedMusicPlayerManager.playNext(track)
-        Toast.makeText(context, "Will play next", Toast.LENGTH_SHORT).show()
+        EnhancedMusicPlayerManager.removeAutomixItem(track.videoId)
+        Toast.makeText(context, context.getString(R.string.play_next_toast), Toast.LENGTH_SHORT).show()
     }
 
     fun addToQueue(track: MusicTrack) {
         EnhancedMusicPlayerManager.addToQueue(track)
-        Toast.makeText(context, "Added to queue", Toast.LENGTH_SHORT).show()
+        EnhancedMusicPlayerManager.removeAutomixItem(track.videoId)
+        Toast.makeText(context, context.getString(R.string.added_to_queue_toast), Toast.LENGTH_SHORT).show()
     }
     
     fun downloadTrack(track: MusicTrack? = null) {
@@ -444,14 +456,14 @@ class MusicPlayerViewModel @Inject constructor(
         
         if (_uiState.value.downloadedTrackIds.contains(trackToDownload.videoId)) {
              viewModelScope.launch(kotlinx.coroutines.Dispatchers.Main) {
-                 Toast.makeText(context, "Already downloaded", Toast.LENGTH_SHORT).show()
+                 Toast.makeText(context, context.getString(R.string.already_downloaded_toast), Toast.LENGTH_SHORT).show()
              }
              return
         }
 
         viewModelScope.launch {
             withContext(kotlinx.coroutines.Dispatchers.Main) {
-                Toast.makeText(context, "Download started...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.download_started_toast), Toast.LENGTH_SHORT).show()
             }
             
             try {
@@ -460,7 +472,7 @@ class MusicPlayerViewModel @Inject constructor(
             } catch (e: Exception) {
                 android.util.Log.e("MusicDownload", "Download start exception", e)
                 withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    Toast.makeText(context, "Download error: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, context.getString(R.string.download_error_toast, e.message ?: ""), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -591,11 +603,17 @@ data class MusicPlayerUiState(
     val lyrics: String? = null,
     val syncedLyrics: List<LyricsEntry> = emptyList(),
     val isLyricsLoading: Boolean = false,
-    val playingFrom: String = "Unknown Source",
+    val playingFrom: String = "",
     val autoplayEnabled: Boolean = true,
-    val selectedFilter: String = "All",
+    val selectedFilter: String = FILTER_ALL,
     val relatedContent: List<MusicTrack> = emptyList(),
     val isRelatedLoading: Boolean = false,
     val downloadedTrackIds: Set<String> = emptySet()
 )
+
+const val FILTER_ALL = "ALL"
+const val FILTER_DISCOVER = "DISCOVER"
+const val FILTER_POPULAR = "POPULAR"
+const val FILTER_DEEP_CUTS = "DEEP_CUTS"
+const val FILTER_WORKOUT = "WORKOUT"
 

@@ -51,13 +51,19 @@ fun MediaInfoDialog(
 ) {
     val context = LocalContext.current
     var mediaInfo by remember { mutableStateOf<io.github.aedev.flow.innertube.models.MediaInfo?>(null) }
+    var resolvedDurationSeconds by remember { mutableStateOf<Int?>(null) }
     var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(track, video) {
         isLoading = true
+        resolvedDurationSeconds = track?.duration?.takeIf { it > 0 }
+            ?: video?.duration?.takeIf { it > 0 }
         val videoId = track?.videoId ?: video?.id
         if (videoId != null) {
             mediaInfo = io.github.aedev.flow.data.newmusic.InnertubeMusicService.getMediaInfo(videoId)
+            resolvedDurationSeconds = mediaInfo?.durationSeconds?.takeIf { it > 0 }
+                ?: resolvedDurationSeconds
+                ?: io.github.aedev.flow.data.music.YouTubeMusicService.fetchVideoDuration(videoId).takeIf { it > 0 }
         }
         isLoading = false
     }
@@ -177,8 +183,9 @@ fun MediaInfoDialog(
                     if (info?.qualityLabel != null) details.add(qualityLabel to info.qualityLabel)
                     
                     // Fallback Duration
-                    val duration = track?.duration ?: video?.duration
-                    if (duration != null) details.add(durationLabel to formatDuration(duration))
+                    resolvedDurationSeconds?.takeIf { it > 0 }?.let {
+                        details.add(durationLabel to formatDuration(it))
+                    }
 
                     items(details.filter { it.second != null }) { (label, value) ->
                         InfoItem(label, value!!)
