@@ -134,7 +134,11 @@ fun FlowApp(
     val selectedBottomNavIndex = remember { mutableIntStateOf(0) }
     val showBottomNav = remember { mutableStateOf(true) }
 
-    // Scroll-based bottom nav hide/show
+    LaunchedEffect(defaultNavTabIndex) {
+        selectedBottomNavIndex.intValue = defaultNavTabIndex
+        currentRoute.value = navRouteForIndex(defaultNavTabIndex)
+    }
+
     var isNavScrolledVisible by remember { mutableStateOf(true) }
     LaunchedEffect(currentRoute.value) {
         isNavScrolledVisible = true
@@ -153,7 +157,6 @@ fun FlowApp(
         }
     }
     
-    // Observer global player state
     val isInPipMode by GlobalPlayerState.isInPipMode.collectAsState()
     val currentVideo by GlobalPlayerState.currentVideo.collectAsState()
     
@@ -165,13 +168,11 @@ fun FlowApp(
         
         val bottomNavContentHeightDp = 48.dp
         
-        // Draggable player state
         val playerSheetState = rememberPlayerDraggableState()
         val playerVisibleState = remember { mutableStateOf(false) }
         var playerVisible by playerVisibleState
         var keepMiniOnQueueAutoAdvance by remember { mutableStateOf(false) }
 
-        // ── Music player sheet state ─────────────────────────────────────────
         val miniPlayerHeightDp = 80.dp
         val musicPlayerSheetState = rememberMusicPlayerSheetState(
             expandedBound = with(density) { screenHeightPx.toDp() },
@@ -193,9 +194,7 @@ fun FlowApp(
     
     LaunchedEffect(playerSheetState.currentValue, playerSheetState.isDragging) {
         if (!playerSheetState.isDragging) {
-            // Show bottom nav when player is collapsed OR no video is playing
             showBottomNav.value = playerSheetState.currentValue != PlayerSheetValue.Expanded
-            // Sync with GlobalPlayerState
             when (playerSheetState.currentValue) {
                 PlayerSheetValue.Expanded -> GlobalPlayerState.expandMiniPlayer()
                 PlayerSheetValue.Collapsed -> GlobalPlayerState.collapseMiniPlayer()
@@ -231,7 +230,6 @@ fun FlowApp(
         }
     }
     
-    // Observe music player state
     val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsStateWithLifecycle()
     var suppressMusicMiniAfterVideo by remember { mutableStateOf(false) }
 
@@ -403,15 +401,15 @@ fun FlowApp(
                     val activeRoute = navController.currentBackStackEntry?.destination?.route
                     if (activeRoute == route) {
                         TabScrollEventBus.emitScrollToTop(route)
-                    } else if (route == "home") {
+                    } else if (route == defaultStartRoute) {
                         selectedBottomNavIndex.intValue = index
                         currentRoute.value = route
-                        navController.popBackStack("home", inclusive = false)
+                        navController.popBackStack(defaultStartRoute, inclusive = false)
                     } else {
                         selectedBottomNavIndex.intValue = index
                         currentRoute.value = route
                         navController.navigate(route) {
-                            popUpTo("home") {
+                            popUpTo(defaultStartRoute) {
                                 saveState = true
                             }
                             launchSingleTop = true
@@ -422,7 +420,7 @@ fun FlowApp(
             )
         }
     }
-    
+
     val animatedBottomPaddingRaw by animateDpAsState(
         targetValue = if (!isInPipMode && showBottomNav.value && isNavScrolledVisible) {
             bottomNavContentHeightDp + with(density) { navBarBottomInset.toDp() }
