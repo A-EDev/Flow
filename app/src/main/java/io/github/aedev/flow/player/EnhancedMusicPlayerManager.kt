@@ -375,11 +375,14 @@ object EnhancedMusicPlayerManager {
         )
     }
 
-    private fun buildMediaItem(track: MusicTrack, uri: Uri = Uri.parse("music://${track.videoId}")): MediaItem {
-        return MediaItem.Builder()
+    private fun buildMediaItem(
+        track: MusicTrack,
+        uri: Uri = Uri.parse("music://${track.videoId}"),
+        useCacheKey: Boolean = true
+    ): MediaItem {
+        val builder = MediaItem.Builder()
             .setUri(uri)
             .setMediaId(track.videoId)
-            .setCustomCacheKey(track.videoId)
             .setMediaMetadata(
                 MediaMetadata.Builder()
                     .setTitle(track.title)
@@ -387,6 +390,12 @@ object EnhancedMusicPlayerManager {
                     .setArtworkUri(Uri.parse(track.highResThumbnailUrl))
                     .build()
             )
+
+        if (useCacheKey) {
+            builder.setCustomCacheKey(track.videoId)
+        }
+
+        return builder
             .build()
     }
 
@@ -456,7 +465,15 @@ object EnhancedMusicPlayerManager {
         playTrack(track, audioStream.content, queue, startIndex, sourceName = sourceName)
     }
 
-    fun playTrack(track: MusicTrack, audioUrl: String, queue: List<MusicTrack> = emptyList(), startIndex: Int = -1, startPositionMs: Long = 0, sourceName: String? = null) {
+    fun playTrack(
+        track: MusicTrack,
+        audioUrl: String,
+        queue: List<MusicTrack> = emptyList(),
+        startIndex: Int = -1,
+        startPositionMs: Long = 0,
+        sourceName: String? = null,
+        localUriOverrides: Map<String, Uri> = emptyMap()
+    ) {
         player?.stop()
         player?.clearMediaItems()
         clearPendingPlayNext()
@@ -469,13 +486,14 @@ object EnhancedMusicPlayerManager {
         sourceName?.let { _playingFrom.value = it }
         
         val mediaItems = activeQueue.map { t ->
-            val uri = if (t.videoId == track.videoId && audioUrl.isNotEmpty()) {
-                Uri.parse(audioUrl)
-            } else {
-                Uri.parse("music://${t.videoId}")
-            }
+            val localUri = localUriOverrides[t.videoId]
+            val uri = localUri ?: if (t.videoId == track.videoId && audioUrl.isNotEmpty()) {
+                    Uri.parse(audioUrl)
+                } else {
+                    Uri.parse("music://${t.videoId}")
+                }
 
-            buildMediaItem(t, uri)
+            buildMediaItem(t, uri, useCacheKey = localUri == null)
         }
         
         val startIdx = if (startIndex >= 0) startIndex else activeQueue.indexOfFirst { it.videoId == track.videoId }.coerceAtLeast(0)

@@ -1076,6 +1076,8 @@
     <string name="free_space_template">%1$s free</string>
     <string name="total_space_template">Total: %1$s</string>
     <string name="location_label">Location</string>
+    <string name="video_download_location_label">Video download location</string>
+    <string name="music_download_location_label">Music download location</string>
     <string name="internal_app_storage_label">Internal App Storage</string>
     <string name="preferences_header">Preferences</string>
     <string name="default_video_quality_label">Default Video Quality</string>

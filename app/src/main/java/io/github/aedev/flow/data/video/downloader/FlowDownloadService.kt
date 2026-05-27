@@ -77,6 +77,9 @@ class FlowDownloadService : Service() {
 
         /** Audio-only download mode flag — if set, only download audio stream */
         const val EXTRA_AUDIO_ONLY = "audio_only"
+        const val EXTRA_AUDIO_EXTENSION = "audio_extension"
+        const val EXTRA_AUDIO_MIME_TYPE = "audio_mime_type"
+        const val EXTRA_IS_MUSIC = "is_music"
 
         /**
          * Optional video codec hint (e.g. "vp9", "vp8", "h264").
@@ -93,7 +96,10 @@ class FlowDownloadService : Service() {
             audioUrl: String? = null,
             audioOnly: Boolean = false,
             userAgent: String? = null,
-            videoCodec: String? = null
+            videoCodec: String? = null,
+            audioExtension: String? = null,
+            audioMimeType: String? = null,
+            isMusic: Boolean = false
         ) {
             val intent = Intent(context, FlowDownloadService::class.java).apply {
                 action = ACTION_START_DOWNLOAD
@@ -107,7 +113,10 @@ class FlowDownloadService : Service() {
                 putExtra("video_duration", video.duration)
                 putExtra("video_user_agent", userAgent)
                 putExtra(EXTRA_AUDIO_ONLY, audioOnly)
+                putExtra(EXTRA_IS_MUSIC, isMusic)
                 if (videoCodec != null) putExtra(EXTRA_VIDEO_CODEC, videoCodec)
+                if (audioExtension != null) putExtra(EXTRA_AUDIO_EXTENSION, audioExtension)
+                if (audioMimeType != null) putExtra(EXTRA_AUDIO_MIME_TYPE, audioMimeType)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -174,11 +183,15 @@ class FlowDownloadService : Service() {
                 val userAgent = intent.getStringExtra("video_user_agent")
                 val audioOnly = intent.getBooleanExtra(EXTRA_AUDIO_ONLY, false)
                 val videoCodec = intent.getStringExtra(EXTRA_VIDEO_CODEC)
+                val audioExtension = intent.getStringExtra(EXTRA_AUDIO_EXTENSION)
+                val audioMimeType = intent.getStringExtra(EXTRA_AUDIO_MIME_TYPE)
+                val isMusic = intent.getBooleanExtra(EXTRA_IS_MUSIC, false)
 
-                Log.d(TAG, "onStartCommand: handleStartDownload for '$title', audioOnly=$audioOnly, codec=$videoCodec, UA=$userAgent")
+                Log.d(TAG, "onStartCommand: handleStartDownload for '$title', audioOnly=$audioOnly, codec=$videoCodec, audioExt=$audioExtension, UA=$userAgent")
                 handleStartDownload(
                     videoId, title, url, audioUrl, quality,
-                    thumbnail, channel, duration, audioOnly, userAgent, videoCodec
+                    thumbnail, channel, duration, audioOnly, userAgent, videoCodec,
+                    audioExtension, audioMimeType, isMusic
                 )
             }
             ACTION_PAUSE_DOWNLOAD -> {
@@ -203,7 +216,10 @@ class FlowDownloadService : Service() {
         videoId: String, title: String, url: String, audioUrl: String?,
         quality: String, thumbnail: String, channel: String,
         duration: Int, audioOnly: Boolean, userAgent: String?,
-        videoCodec: String? = null
+        videoCodec: String? = null,
+        audioExtension: String? = null,
+        audioMimeType: String? = null,
+        isMusic: Boolean = false
     ) {
         try {
             Log.d(TAG, "handleStartDownload: Checking directories...")
@@ -214,14 +230,29 @@ class FlowDownloadService : Service() {
             } ?: false
             val isAv1Codec = codecHint?.let { it == "av1" || it.startsWith("av01") || it.startsWith("av1") } ?: false
             val av1NeedsMkv = isAv1Codec
+            val normalizedAudioExtension = audioExtension
+                ?.trim()
+                ?.lowercase()
+                ?.trimStart('.')
+                ?.takeIf { it.isNotBlank() }
+                ?: "m4a"
+            val normalizedAudioMimeType = audioMimeType
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
+                ?: "audio/mp4"
             val extension = when {
-                audioOnly  -> "m4a"
+                audioOnly  -> normalizedAudioExtension
                 isWebMCodec -> "webm"
                 av1NeedsMkv -> "mkv"
                 else -> "mp4"
             }
             downloadManager.customDownloadPath = kotlinx.coroutines.runBlocking(Dispatchers.IO) {
-                preferences.downloadLocation.firstOrNull()
+                if (isMusic) {
+                    preferences.musicDownloadLocation.firstOrNull()
+                        ?: preferences.downloadLocation.firstOrNull()
+                } else {
+                    preferences.downloadLocation.firstOrNull()
+                }
             }
             val downloadDir = downloadManager.getDownloadDir(fileType)
             Log.d(TAG, "handleStartDownload: downloadDir=${downloadDir.absolutePath}, exists=${downloadDir.exists()}, canWrite=${downloadDir.canWrite()}")
@@ -234,7 +265,8 @@ class FlowDownloadService : Service() {
                 id = videoId, title = title, channelName = channel, channelId = "local",
                 thumbnailUrl = thumbnail, duration = duration, viewCount = 0,
                 uploadDate = System.currentTimeMillis().toString(),
-                description = "Downloaded locally"
+                description = "Downloaded locally",
+                isMusic = isMusic
             )
 
             val effectiveUrl = if (audioOnly && audioUrl != null) audioUrl else url
@@ -299,7 +331,8 @@ class FlowDownloadService : Service() {
                         items.add(DownloadItemEntity(
                             videoId = videoId, fileType = DownloadFileType.AUDIO,
                             fileName = fileName, filePath = savePath,
-                            format = "m4a", quality = quality,
+                            format = normalizedAudioExtension, quality = quality,
+                            mimeType = normalizedAudioMimeType,
                             status = DownloadItemStatus.PENDING
                         ))
                     } else {
@@ -333,7 +366,7 @@ class FlowDownloadService : Service() {
                     }
 
                     Log.d(TAG, "Executing download...")
-                    executeDownload(mission, videoId, audioOnly)
+                    executeDownload(mission, videoId, audioOnly, normalizedAudioMimeType)
                 } catch (e: Exception) {
                     if (e is kotlinx.coroutines.CancellationException) throw e
                     Log.e(TAG, "Error in download job for $videoId", e)
@@ -350,7 +383,12 @@ class FlowDownloadService : Service() {
         }
     }
 
-    private suspend fun executeDownload(mission: FlowDownloadMission, videoId: String, audioOnly: Boolean) {
+    private suspend fun executeDownload(
+        mission: FlowDownloadMission,
+        videoId: String,
+        audioOnly: Boolean,
+        audioMimeType: String = "audio/mp4"
+    ) {
         Log.d(TAG, "executeDownload: Starting execution for $videoId. AudioOnly=$audioOnly")
         
         try {
@@ -471,7 +509,7 @@ class FlowDownloadService : Service() {
                     
                     try {
                         val mimeType = when {
-                            audioOnly -> "audio/mp4"
+                            audioOnly -> audioMimeTypeForPath(mission.savePath, audioMimeType)
                             mission.savePath.endsWith(".webm") -> "video/webm"
                             mission.savePath.endsWith(".mkv")  -> "video/x-matroska"
                             else -> "video/mp4"
@@ -626,7 +664,9 @@ class FlowDownloadService : Service() {
             startForeground(notificationId, notification)
         }
 
-        val audioOnly = mission.audioUrl == null && mission.savePath.endsWith(".m4a")
+        val audioOnly = kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+            downloadManager.getDownloadWithItems(videoId)?.isAudioOnly
+        } ?: (mission.audioUrl == null && mission.savePath.endsWith(".m4a", ignoreCase = true))
         val previousJob = downloadJobs[videoId]
         val job = serviceScope.launch {
             previousJob?.join()
@@ -675,6 +715,16 @@ class FlowDownloadService : Service() {
         if (activeMissions.isEmpty()) {
             stopForeground(true)
             stopSelf()
+        }
+    }
+
+    private fun audioMimeTypeForPath(path: String, fallback: String): String {
+        return when {
+            path.endsWith(".webm", ignoreCase = true) -> "audio/webm"
+            path.endsWith(".ogg", ignoreCase = true) -> "audio/ogg"
+            path.endsWith(".opus", ignoreCase = true) -> "audio/ogg"
+            path.endsWith(".mp3", ignoreCase = true) -> "audio/mpeg"
+            else -> fallback
         }
     }
 

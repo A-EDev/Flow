@@ -49,6 +49,11 @@ import io.github.aedev.flow.data.local.VideoQuality
 import kotlinx.coroutines.launch
 import java.io.File
 
+private enum class DownloadLocationTarget {
+    VIDEO,
+    MUSIC
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadSettingsScreen(
@@ -63,11 +68,12 @@ fun DownloadSettingsScreen(
     val wifiOnly by preferences.downloadOverWifiOnly.collectAsState(initial = false)
     val defaultQuality by preferences.defaultDownloadQuality.collectAsState(initial = VideoQuality.Q_720p)
     val downloadLocation by preferences.downloadLocation.collectAsState(initial = null)
+    val musicDownloadLocation by preferences.musicDownloadLocation.collectAsState(initial = null)
     
     // Dialog states
     var showThreadDialog by remember { mutableStateOf(false) }
     var showQualityDialog by remember { mutableStateOf(false) }
-    var showLocationDialog by remember { mutableStateOf(false) }
+    var locationDialogTarget by remember { mutableStateOf<DownloadLocationTarget?>(null) }
 
     // Permission states (Android 11+ only)
     var hasAllFilesAccess by remember {
@@ -167,9 +173,12 @@ fun DownloadSettingsScreen(
             coroutineScope.launch {
                 if (!path.isNullOrBlank()) {
                     try { File(path).mkdirs() } catch (_: Exception) {}
-                    preferences.setDownloadLocation(path)
+                    when (locationDialogTarget) {
+                        DownloadLocationTarget.MUSIC -> preferences.setMusicDownloadLocation(path)
+                        else -> preferences.setDownloadLocation(path)
+                    }
                 }
-                showLocationDialog = false
+                locationDialogTarget = null
             }
         }
     }
@@ -200,14 +209,25 @@ fun DownloadSettingsScreen(
             "Internal App Storage"
         }
     }
+    val defaultMusicPath = remember {
+        try {
+            File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                "Flow"
+            ).absolutePath
+        } catch (e: Exception) {
+            "Internal App Storage"
+        }
+    }
     val displayPath = downloadLocation ?: defaultVideoPath
+    val musicDisplayPath = musicDownloadLocation ?: defaultMusicPath
     
     // Storage Info
     var freeSpace by remember { mutableStateOf(context.getString(R.string.loading_ellipsis)) }
     var totalSpace by remember { mutableStateOf("") }
     var usedSpacePercentage by remember { mutableFloatStateOf(0f) }
 
-    LaunchedEffect(downloadLocation) {
+    LaunchedEffect(downloadLocation, musicDownloadLocation) {
         try {
             val statsPath = downloadLocation 
                 ?: Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES).path
@@ -385,10 +405,17 @@ fun DownloadSettingsScreen(
                     HorizontalDivider(Modifier.padding(horizontal = 16.dp))
 
                     SettingsItem(
-                        icon = Icons.Outlined.Download,
-                        title = stringResource(R.string.location_label),
+                        icon = Icons.Outlined.VideoLibrary,
+                        title = stringResource(R.string.video_download_location_label),
                         subtitle = displayPath,
-                        onClick = { showLocationDialog = true }
+                        onClick = { locationDialogTarget = DownloadLocationTarget.VIDEO }
+                    )
+                    HorizontalDivider(Modifier.padding(horizontal = 16.dp))
+                    SettingsItem(
+                        icon = Icons.Outlined.MusicNote,
+                        title = stringResource(R.string.music_download_location_label),
+                        subtitle = musicDisplayPath,
+                        onClick = { locationDialogTarget = DownloadLocationTarget.MUSIC }
                     )
                 }
             }
@@ -565,24 +592,39 @@ fun DownloadSettingsScreen(
         )
     }
 
-    if (showLocationDialog) {
+    locationDialogTarget?.let { dialogTarget ->
+        val selectedLocation = when (dialogTarget) {
+            DownloadLocationTarget.VIDEO -> downloadLocation
+            DownloadLocationTarget.MUSIC -> musicDownloadLocation
+        }
+        val dialogTitle = when (dialogTarget) {
+            DownloadLocationTarget.VIDEO -> stringResource(R.string.video_download_location_label)
+            DownloadLocationTarget.MUSIC -> stringResource(R.string.music_download_location_label)
+        }
         val downloadsPath = remember {
-            try { File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Flow").absolutePath } 
+            try { File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Flow").absolutePath }
             catch (_: Exception) { null }
         }
-        val moviesPath = remember {
-            try { File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES), "Flow").absolutePath } 
-            catch (_: Exception) { null }
+        val secondaryPath = remember(dialogTarget) {
+            try {
+                val baseDir = if (dialogTarget == DownloadLocationTarget.MUSIC)
+                    Environment.DIRECTORY_MUSIC
+                else
+                    Environment.DIRECTORY_MOVIES
+                File(Environment.getExternalStoragePublicDirectory(baseDir), "Flow").absolutePath
+            } catch (_: Exception) { null }
         }
         val internalPath = remember { File(context.filesDir, "downloads").absolutePath }
 
-        val presetPaths = listOfNotNull(downloadsPath, moviesPath, internalPath)
-        val isSafCustomSelected = downloadLocation != null && downloadLocation !in presetPaths
+        val presetPaths = listOfNotNull(downloadsPath, secondaryPath, internalPath)
+        val isSafCustomSelected = selectedLocation != null && selectedLocation !in presetPaths
 
         var showManualDialog by remember { mutableStateOf(false) }
-        var manualPathInput by remember { mutableStateOf(if (isSafCustomSelected) downloadLocation ?: "" else "") }
+        var manualPathInput by remember(dialogTarget, selectedLocation) {
+            mutableStateOf(if (isSafCustomSelected) selectedLocation ?: "" else "")
+        }
 
-        BasicAlertDialog(onDismissRequest = { showLocationDialog = false }) {
+        BasicAlertDialog(onDismissRequest = { locationDialogTarget = null }) {
             Card(
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -601,7 +643,7 @@ fun DownloadSettingsScreen(
                         )
                         Spacer(Modifier.width(16.dp))
                         Text(
-                            stringResource(R.string.location_label),
+                            dialogTitle,
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
@@ -626,7 +668,7 @@ fun DownloadSettingsScreen(
                     // HELPER COMPOSABLE FOR ROWS
                     @Composable
                     fun PresetRow(label: String, path: String?, isRecommended: Boolean = false) {
-                        val isSelected = path != null && path == downloadLocation || (path == null && downloadLocation == null)
+                        val isSelected = path != null && path == selectedLocation || (path == null && selectedLocation == null)
                         
                         val bgColor = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f) else Color.Transparent
                         val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
@@ -635,8 +677,11 @@ fun DownloadSettingsScreen(
                             onClick = {
                                 coroutineScope.launch {
                                     path?.let { p -> try { File(p).mkdirs() } catch (_: Exception) {} }
-                                    preferences.setDownloadLocation(path)
-                                    showLocationDialog = false
+                                    when (dialogTarget) {
+                                        DownloadLocationTarget.VIDEO -> preferences.setDownloadLocation(path)
+                                        DownloadLocationTarget.MUSIC -> preferences.setMusicDownloadLocation(path)
+                                    }
+                                    locationDialogTarget = null
                                 }
                             },
                             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
@@ -697,8 +742,14 @@ fun DownloadSettingsScreen(
                         }
                     }
 
-                    downloadsPath?.let { PresetRow(stringResource(R.string.location_downloads_label), it, isRecommended = true) }
-                    moviesPath?.let { PresetRow(stringResource(R.string.location_movies_label), it) }
+                    downloadsPath?.let { PresetRow(stringResource(R.string.location_downloads_label), it, isRecommended = dialogTarget == DownloadLocationTarget.VIDEO) }
+                    secondaryPath?.let {
+                        val label = if (dialogTarget == DownloadLocationTarget.MUSIC)
+                            stringResource(R.string.music_download_location_label)
+                        else
+                            stringResource(R.string.location_movies_label)
+                        PresetRow(label, it, isRecommended = dialogTarget == DownloadLocationTarget.MUSIC)
+                    }
                     PresetRow(stringResource(R.string.location_internal_app_label), internalPath)
 
                     Spacer(Modifier.height(16.dp))
@@ -739,7 +790,7 @@ fun DownloadSettingsScreen(
                                 )
                                 Spacer(Modifier.height(4.dp))
                                 Text(
-                                    text = if (isSafCustomSelected) downloadLocation ?: stringResource(R.string.location_custom_saf_desc)
+                                    text = if (isSafCustomSelected) selectedLocation ?: stringResource(R.string.location_custom_saf_desc)
                                            else stringResource(R.string.location_custom_saf_desc),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -785,7 +836,7 @@ fun DownloadSettingsScreen(
 
                     Spacer(Modifier.height(24.dp))
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { showLocationDialog = false }) {
+                        TextButton(onClick = { locationDialogTarget = null }) {
                             Text(stringResource(R.string.close))
                         }
                     }
@@ -823,9 +874,12 @@ fun DownloadSettingsScreen(
                             if (trimmed.isNotBlank()) {
                                 coroutineScope.launch {
                                     try { File(trimmed).mkdirs() } catch (_: Exception) {}
-                                    preferences.setDownloadLocation(trimmed)
+                                    when (dialogTarget) {
+                                        DownloadLocationTarget.VIDEO -> preferences.setDownloadLocation(trimmed)
+                                        DownloadLocationTarget.MUSIC -> preferences.setMusicDownloadLocation(trimmed)
+                                    }
                                     showManualDialog = false
-                                    showLocationDialog = false
+                                    locationDialogTarget = null
                                 }
                             }
                         },

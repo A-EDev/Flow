@@ -60,6 +60,7 @@ class PlayerPreferences(context: Context) {
         val DOWNLOAD_OVER_WIFI_ONLY = booleanPreferencesKey("download_over_wifi_only")
         val DEFAULT_DOWNLOAD_QUALITY = stringPreferencesKey("default_download_quality")
         val DOWNLOAD_LOCATION = stringPreferencesKey("download_location")
+        val MUSIC_DOWNLOAD_LOCATION = stringPreferencesKey("music_download_location")
         val PROXY_ENABLED = booleanPreferencesKey("proxy_enabled")
         val PROXY_TYPE = stringPreferencesKey("proxy_type")
         val PROXY_HOST = stringPreferencesKey("proxy_host")
@@ -1579,6 +1580,22 @@ class PlayerPreferences(context: Context) {
                 preferences[Keys.DOWNLOAD_LOCATION] = path
             } else {
                 preferences.remove(Keys.DOWNLOAD_LOCATION)
+            }
+        }
+    }
+
+    /** Custom music download directory path (null = use the video/global download location defaults) */
+    val musicDownloadLocation: Flow<String?> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.MUSIC_DOWNLOAD_LOCATION]
+        }
+
+    suspend fun setMusicDownloadLocation(path: String?) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            if (path != null) {
+                preferences[Keys.MUSIC_DOWNLOAD_LOCATION] = path
+            } else {
+                preferences.remove(Keys.MUSIC_DOWNLOAD_LOCATION)
             }
         }
     }

@@ -32,6 +32,7 @@ FEATURES
 - Add new more lyrics providers (Based on Metrolist's provider implementation https://github.com/MetrolistGroup/Metrolist )
 - Add new lyrics engine (Based on Metrolist's ExperimentalLyrics.kt, LyricsLine.kt, LyricsCommon.kt, and FadingEdge.kt.)
 - Add new Music Audio Quality selector #521
+- Add external music downloads #256
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361

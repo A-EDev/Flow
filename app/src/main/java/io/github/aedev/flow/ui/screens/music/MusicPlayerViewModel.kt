@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.music
 
 import android.content.Context
+import android.net.Uri
 import android.os.SystemClock
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
@@ -199,6 +200,17 @@ class MusicPlayerViewModel @Inject constructor(
         loadTrackJob = viewModelScope.launch {
             val finalSourceName = resolveSourceName(sourceName, track)
             val activeQueue = if (queue.isNotEmpty()) queue else listOf(track)
+            val localUriOverrides = withContext(PerformanceDispatcher.diskIO) {
+                activeQueue.mapNotNull { queuedTrack ->
+                    val path = downloadManager.getDownloadedTrackPath(queuedTrack.videoId) ?: return@mapNotNull null
+                    val uri = if (path.startsWith("content://")) {
+                        Uri.parse(path)
+                    } else {
+                        Uri.fromFile(java.io.File(path))
+                    }
+                    queuedTrack.videoId to uri
+                }.toMap()
+            }
 
             // ─── PHASE 1: Instant start ───────────────────────────────────────────
             _uiState.update { it.copy(
@@ -214,7 +226,8 @@ class MusicPlayerViewModel @Inject constructor(
                     track = track,
                     audioUrl = "music://${track.videoId}",
                     queue = activeQueue,
-                    sourceName = finalSourceName
+                    sourceName = finalSourceName,
+                    localUriOverrides = localUriOverrides
                 )
             }
 
@@ -224,7 +237,7 @@ class MusicPlayerViewModel @Inject constructor(
             // ─── PHASE 2: Background — does NOT block audio ───────────────────────
             supervisorScope {
                 launch(PerformanceDispatcher.networkIO) {
-                    if (!downloadManager.isCachedForOffline(track.videoId)) {
+                    if (!localUriOverrides.containsKey(track.videoId) && !downloadManager.isCachedForOffline(track.videoId)) {
                         EnhancedMusicPlayerManager.resolveStreamUrl(track.videoId)
                     }
                 }

@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.database.DatabaseProvider
 import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.cache.CacheDataSink
 import androidx.media3.datasource.cache.CacheDataSource
@@ -77,6 +78,10 @@ class DownloadUtil @Inject constructor(
      * Resolve DataSpec by looking up cached URL or fetching from network.
      */
     private fun resolveDataSpec(dataSpec: DataSpec, source: String): DataSpec {
+        if (dataSpec.uri.scheme in setOf("file", "content", "android.resource")) {
+            return dataSpec
+        }
+
         val mediaId = dataSpec.key ?: error("No media id (key) in dataSpec")
 
         Log.d(TAG, "[$source] Resolving for $mediaId")
@@ -143,13 +148,19 @@ class DownloadUtil @Inject constructor(
 
         val playerCacheFactory = CacheDataSource.Factory()
             .setCache(playerCache)
-            .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(okHttpClient))
+            .setUpstreamDataSourceFactory(
+                DefaultDataSource.Factory(context, OkHttpDataSource.Factory(okHttpClient))
+            )
             .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
         val cachedDataSourceFactory = downloadCacheFactory
             .setUpstreamDataSourceFactory(playerCacheFactory)
 
         return ResolvingDataSource.Factory(cachedDataSourceFactory) { dataSpec ->
+            if (dataSpec.uri.scheme in setOf("file", "content", "android.resource")) {
+                return@Factory dataSpec
+            }
+
             val mediaId = dataSpec.key ?: error("No media id (key) in dataSpec")
 
             try {
