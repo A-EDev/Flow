@@ -193,7 +193,13 @@ class MusicViewModel @Inject constructor(
             } ?: emptyList()
             
             if (history.isNotEmpty()) {
-                _uiState.update { it.copy(history = history) }
+                _uiState.update {
+                    it.copy(
+                        history = history,
+                        forYouTracks = if (it.forYouTracks.isEmpty()) history.audioMusicOnly().take(24) else it.forYouTracks,
+                        isLoading = false
+                    )
+                }
             }
         }
 
@@ -611,13 +617,13 @@ class MusicViewModel @Inject constructor(
             it.title.contains("Start radio", true) ||
             it.title.contains("Recommended", true) ||
             it.title.contains("Mixed for you", true)
-        }?.tracks?.audioMusicOnly() ?: musicRecommendationAlgorithm.getRecommendations(24).audioMusicOnly()
+        }?.tracks?.audioMusicOnly().orEmpty()
 
         val recommended = sections.find {
             it.title.contains("Mixed for you", true) || 
             it.title.contains("Recommended", true) ||
             it.title.contains("Listen again", true)
-        }?.tracks?.audioMusicOnly() ?: musicRecommendationAlgorithm.getRecommendations(30).audioMusicOnly()
+        }?.tracks?.audioMusicOnly().orEmpty()
 
         val musicVideosForYou = sections.find {
             it.title.contains("Music videos for you", true)
@@ -640,9 +646,9 @@ class MusicViewModel @Inject constructor(
             it.title.contains("Listen again", true) 
         }?.tracks?.audioMusicOnly() ?: emptyList()
 
-        _uiState.update { it.copy(
-            forYouTracks = quickPicks,
-            recommendedTracks = recommended,
+        _uiState.update { currentState -> currentState.copy(
+            forYouTracks = quickPicks.ifEmpty { currentState.forYouTracks },
+            recommendedTracks = recommended.ifEmpty { currentState.recommendedTracks },
             listenAgain = listenAgain,
             musicVideos = musicVideos,
             musicVideosForYou = musicVideosForYou,

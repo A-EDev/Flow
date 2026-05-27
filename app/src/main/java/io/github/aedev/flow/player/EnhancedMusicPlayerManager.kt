@@ -2,6 +2,7 @@ package io.github.aedev.flow.player
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
@@ -43,6 +44,7 @@ object EnhancedMusicPlayerManager {
     
     var player: Player? = null
         private set
+    private var appContext: Context? = null
         
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var isInitialized = false
@@ -87,6 +89,9 @@ object EnhancedMusicPlayerManager {
     
     private val _playerEvents = MutableSharedFlow<PlayerEvent>()
     val playerEvents: SharedFlow<PlayerEvent> = _playerEvents.asSharedFlow()
+
+    private val _playbackWarnings = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val playbackWarnings: SharedFlow<String> = _playbackWarnings.asSharedFlow()
     
     // Queue
     private val _queue = MutableStateFlow<List<MusicTrack>>(emptyList())
@@ -169,6 +174,7 @@ object EnhancedMusicPlayerManager {
 
     fun initialize(context: Context) {
         if (isInitialized) return
+        appContext = context.applicationContext
         isInitialized = true
         
         queuePersistence = QueuePersistence.getInstance(context)
@@ -268,6 +274,10 @@ object EnhancedMusicPlayerManager {
             
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                 Log.e("EnhancedMusicPlayer", "Player error: ${error.errorCodeName} (${error.errorCode})", error)
+                showPlaybackWarning(
+                    appContext?.getString(io.github.aedev.flow.R.string.music_playback_warning_generic)
+                        ?: "Music playback failed. Try again or switch networks."
+                )
                 retryCount = 0
             }
         })
@@ -324,11 +334,15 @@ object EnhancedMusicPlayerManager {
          sourceName?.let { _playingFrom.value = it }
     }
 
-    fun playTrack(track: MusicTrack, audioStream: AudioStream, durationSeconds: Long, queue: List<MusicTrack> = emptyList(), startIndex: Int = -1) {
-        playTrack(track, audioStream.content, queue, startIndex)
+    fun showPlaybackWarning(message: String) {
+        _playbackWarnings.tryEmit(message)
     }
 
-    fun playTrack(track: MusicTrack, audioUrl: String, queue: List<MusicTrack> = emptyList(), startIndex: Int = -1, startPositionMs: Long = 0) {
+    fun playTrack(track: MusicTrack, audioStream: AudioStream, durationSeconds: Long, queue: List<MusicTrack> = emptyList(), startIndex: Int = -1, sourceName: String? = null) {
+        playTrack(track, audioStream.content, queue, startIndex, sourceName = sourceName)
+    }
+
+    fun playTrack(track: MusicTrack, audioUrl: String, queue: List<MusicTrack> = emptyList(), startIndex: Int = -1, startPositionMs: Long = 0, sourceName: String? = null) {
         player?.stop()
         player?.clearMediaItems()
 
@@ -337,6 +351,7 @@ object EnhancedMusicPlayerManager {
         val activeQueue = if (queue.isNotEmpty()) queue else listOf(track)
         _queue.value = activeQueue
         _currentTrack.value = track
+        sourceName?.let { _playingFrom.value = it }
         
         val mediaItems = activeQueue.map { t ->
             val uri = if (t.videoId == track.videoId && audioUrl.isNotEmpty()) {
@@ -697,7 +712,13 @@ object EnhancedMusicPlayerManager {
     fun stop() {
         scope.launch {
             player?.stop()
-            _playerState.value = _playerState.value.copy(isPlaying = false)
+            _playerState.value = _playerState.value.copy(
+                isPlaying = false,
+                isBuffering = false,
+                isPreparing = false,
+                position = 0L
+            )
+            _currentPosition.value = 0L
         }
     }
 
@@ -810,10 +831,19 @@ object EnhancedMusicPlayerManager {
 
     fun clearCurrentTrack() {
         scope.launch {
+            player?.pause()
             player?.stop()
             player?.clearMediaItems()
             _currentTrack.value = null
-            _playerState.value = _playerState.value.copy(isPlaying = false, isBuffering = false)
+            _queue.value = emptyList()
+            _automixItems.value = emptyList()
+            _currentQueueIndex.value = 0
+            _currentPosition.value = 0L
+            _playingFrom.value = "Flow Music"
+            _playerState.value = MusicPlayerState()
+            appContext?.let { context ->
+                context.stopService(Intent(context, Media3MusicService::class.java))
+            }
         }
     }
     

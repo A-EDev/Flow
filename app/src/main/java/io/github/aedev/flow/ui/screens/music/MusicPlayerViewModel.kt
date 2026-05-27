@@ -206,7 +206,8 @@ class MusicPlayerViewModel @Inject constructor(
                 EnhancedMusicPlayerManager.playTrack(
                     track = track,
                     audioUrl = "music://${track.videoId}",
-                    queue = activeQueue
+                    queue = activeQueue,
+                    sourceName = finalSourceName
                 )
             }
 

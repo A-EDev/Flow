@@ -110,6 +110,16 @@ fun MusicSearchScreen(
         }
     }
 
+    fun dismissSearchInput() {
+        keyboardController?.hide()
+        focusManager.clearFocus(force = true)
+    }
+
+    fun playSearchTrack(track: MusicTrack, queue: List<MusicTrack>, source: String?) {
+        dismissSearchInput()
+        onTrackClick(track, queue, source)
+    }
+
     Scaffold(
         topBar = {
             MusicSearchBar(
@@ -146,10 +156,22 @@ fun MusicSearchScreen(
                             item = item,
                             onClick = {
                                 when (item) {
-                                    is SongItem -> onTrackClick(convertSongToMusicTrack(item), listOf(convertSongToMusicTrack(item)), "Recommended")
-                                    is ArtistItem -> onArtistClick(item.id)
-                                    is AlbumItem -> onAlbumClick(item.id)
-                                    is PlaylistItem -> onPlaylistClick(item.id)
+                                    is SongItem -> {
+                                        val track = convertSongToMusicTrack(item)
+                                        playSearchTrack(track, listOf(track), "Recommended")
+                                    }
+                                    is ArtistItem -> {
+                                        dismissSearchInput()
+                                        onArtistClick(item.id)
+                                    }
+                                    is AlbumItem -> {
+                                        dismissSearchInput()
+                                        onAlbumClick(item.id)
+                                    }
+                                    is PlaylistItem -> {
+                                        dismissSearchInput()
+                                        onPlaylistClick(item.id)
+                                    }
                                 }
                             },
                             onMenuClick = {
@@ -210,10 +232,19 @@ fun MusicSearchScreen(
                                                 onClick = {
                                                     val item = summary.items.first()
                                                     when (item) {
-                                                        is SongItem -> onTrackClick(convertSongToMusicTrack(item), summary.items.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
-                                                        is ArtistItem -> onArtistClick(item.id)
-                                                        is AlbumItem -> onAlbumClick(item.id)
-                                                        is PlaylistItem -> onPlaylistClick(item.id)
+                                                        is SongItem -> playSearchTrack(convertSongToMusicTrack(item), summary.items.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
+                                                        is ArtistItem -> {
+                                                            dismissSearchInput()
+                                                            onArtistClick(item.id)
+                                                        }
+                                                        is AlbumItem -> {
+                                                            dismissSearchInput()
+                                                            onAlbumClick(item.id)
+                                                        }
+                                                        is PlaylistItem -> {
+                                                            dismissSearchInput()
+                                                            onPlaylistClick(item.id)
+                                                        }
                                                     }
                                                 },
                                                 onShuffleClick = {
@@ -222,7 +253,8 @@ fun MusicSearchScreen(
                                                         viewModel.getArtistTracks(item.id) { tracks ->
                                                             val musicTracks = tracks.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }
                                                             if (musicTracks.isNotEmpty()) {
-                                                                onTrackClick(musicTracks.shuffled().first(), musicTracks.shuffled(), artistSourceTemplate.format(item.title))
+                                                                val shuffled = musicTracks.shuffled()
+                                                                playSearchTrack(shuffled.first(), shuffled, artistSourceTemplate.format(item.title))
                                                             }
                                                         }
                                                     }
@@ -234,7 +266,7 @@ fun MusicSearchScreen(
                                                         viewModel.getArtistTracks(item.id) { tracks ->
                                                             val musicTracks = tracks.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }
                                                             if (musicTracks.isNotEmpty()) {
-                                                                onTrackClick(musicTracks.first(), musicTracks, artistSourceTemplate.format(item.title))
+                                                                playSearchTrack(musicTracks.first(), musicTracks, artistSourceTemplate.format(item.title))
                                                             }
                                                         }
                                                     }
@@ -247,10 +279,19 @@ fun MusicSearchScreen(
                                                 item = item,
                                                 onClick = {
                                                     when (item) {
-                                                        is SongItem -> onTrackClick(convertSongToMusicTrack(item), summary.items.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
-                                                        is ArtistItem -> onArtistClick(item.id)
-                                                        is AlbumItem -> onAlbumClick(item.id)
-                                                        is PlaylistItem -> onPlaylistClick(item.id)
+                                                        is SongItem -> playSearchTrack(convertSongToMusicTrack(item), summary.items.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
+                                                        is ArtistItem -> {
+                                                            dismissSearchInput()
+                                                            onArtistClick(item.id)
+                                                        }
+                                                        is AlbumItem -> {
+                                                            dismissSearchInput()
+                                                            onAlbumClick(item.id)
+                                                        }
+                                                        is PlaylistItem -> {
+                                                            dismissSearchInput()
+                                                            onPlaylistClick(item.id)
+                                                        }
                                                     }
                                                 },
                                                 onMenuClick = {
@@ -267,10 +308,19 @@ fun MusicSearchScreen(
                                                 item = item,
                                                 onClick = {
                                                     when (item) {
-                                                        is SongItem -> onTrackClick(convertSongToMusicTrack(item), summary.items.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
-                                                        is ArtistItem -> onArtistClick(item.id)
-                                                        is AlbumItem -> onAlbumClick(item.id)
-                                                        is PlaylistItem -> onPlaylistClick(item.id)
+                                                        is SongItem -> playSearchTrack(convertSongToMusicTrack(item), summary.items.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
+                                                        is ArtistItem -> {
+                                                            dismissSearchInput()
+                                                            onArtistClick(item.id)
+                                                        }
+                                                        is AlbumItem -> {
+                                                            dismissSearchInput()
+                                                            onAlbumClick(item.id)
+                                                        }
+                                                        is PlaylistItem -> {
+                                                            dismissSearchInput()
+                                                            onPlaylistClick(item.id)
+                                                        }
                                                     }
                                                 },
                                                 onMenuClick = {
@@ -290,10 +340,19 @@ fun MusicSearchScreen(
                                         item = item,
                                         onClick = {
                                             when (item) {
-                                                is SongItem -> onTrackClick(convertSongToMusicTrack(item), uiState.filteredResults.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
-                                                is ArtistItem -> onArtistClick(item.id)
-                                                is AlbumItem -> onAlbumClick(item.id)
-                                                is PlaylistItem -> onPlaylistClick(item.id)
+                                                is SongItem -> playSearchTrack(convertSongToMusicTrack(item), uiState.filteredResults.filterIsInstance<SongItem>().map { convertSongToMusicTrack(it) }, searchSourceTemplate.format(query))
+                                                is ArtistItem -> {
+                                                    dismissSearchInput()
+                                                    onArtistClick(item.id)
+                                                }
+                                                is AlbumItem -> {
+                                                    dismissSearchInput()
+                                                    onAlbumClick(item.id)
+                                                }
+                                                is PlaylistItem -> {
+                                                    dismissSearchInput()
+                                                    onPlaylistClick(item.id)
+                                                }
                                             }
                                         },
                                         onMenuClick = {

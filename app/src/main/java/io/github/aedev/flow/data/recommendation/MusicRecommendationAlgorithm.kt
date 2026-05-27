@@ -69,8 +69,8 @@ class MusicRecommendationAlgorithm @Inject constructor(
         val isCacheExpired = System.currentTimeMillis() - lastCacheTime > 4 * 60 * 60 * 1000L // 4 hours
         
         val cachedSections = cacheDao.getMusicHomeSections().firstOrNull()
-        if (!isCacheExpired && cachedSections != null && cachedSections.isNotEmpty()) {
-            Log.d(TAG, "Loaded ${cachedSections.size} sections from cache (fresh)")
+        if (cachedSections != null && cachedSections.isNotEmpty()) {
+            Log.d(TAG, "Loaded ${cachedSections.size} sections from cache (${if (isCacheExpired) "stale" else "fresh"})")
             val musicSections = cachedSections.map { entity ->
                 MusicSection(
                     title = entity.title,
@@ -82,23 +82,7 @@ class MusicRecommendationAlgorithm @Inject constructor(
         }
 
         val networkResult = fetchAndCacheHome()
-        if (networkResult.first.isNotEmpty()) {
-            return@withContext networkResult
-        }
-
-        if (cachedSections != null && cachedSections.isNotEmpty()) {
-            Log.d(TAG, "Network call failed, falling back to expired cache")
-            val musicSections = cachedSections.map { entity ->
-                MusicSection(
-                    title = entity.title,
-                    subtitle = entity.subtitle,
-                    tracks = deserializeTracks(entity.tracksJson)
-                )
-            }
-            return@withContext musicSections to null
-        }
-
-        return@withContext emptyList<MusicSection>() to null
+        return@withContext networkResult
     }
 
     /**

@@ -1506,6 +1506,10 @@
     <string name="error_extraction_failed_hint">YouTube may have updated its format. Flow will be updated soon — please try again later.</string>
     <string name="error_generic">Failed to load video</string>
     <string name="error_generic_hint">An unknown error occurred. Please try again.</string>
+    <string name="music_playback_warning_forbidden">Music stream access was denied. YouTube may be limiting this IP; try reloading or switching network/VPN.</string>
+    <string name="music_playback_warning_network">Music stream failed because of a network issue. Check your connection or try another network.</string>
+    <string name="music_playback_warning_final">This song could not be loaded after several retries. Try another network or VPN if songs keep failing.</string>
+    <string name="music_playback_warning_generic">Music playback failed. Try again or switch networks if this keeps happening.</string>
     <string name="player_lock_controls">Lock controls</string>
     <string name="player_unlock_controls">Unlock controls</string>
     <!-- New Video Player Strings -->

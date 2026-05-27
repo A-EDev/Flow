@@ -61,6 +61,7 @@ class Media3MusicService : MediaLibraryService() {
         private const val TAG = "Media3MusicService"
         private const val ACTION_TOGGLE_SHUFFLE = "ACTION_TOGGLE_SHUFFLE"
         private const val ACTION_TOGGLE_REPEAT = "ACTION_TOGGLE_REPEAT"
+        private const val ACTION_STOP = "ACTION_STOP"
         const val ACTION_SET_EQ = "ACTION_SET_EQ"
         
         private const val MAX_RETRY_PER_SONG = 5
@@ -71,6 +72,7 @@ class Media3MusicService : MediaLibraryService() {
         
         private val CommandToggleShuffle = SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY)
         private val CommandToggleRepeat = SessionCommand(ACTION_TOGGLE_REPEAT, Bundle.EMPTY)
+        private val CommandStop = SessionCommand(ACTION_STOP, Bundle.EMPTY)
         private val CommandSetEq = SessionCommand(ACTION_SET_EQ, Bundle.EMPTY)
         
         private const val ACTION_TOGGLE_LIKE = "ACTION_TOGGLE_LIKE"
@@ -319,6 +321,7 @@ class Media3MusicService : MediaLibraryService() {
             }
             isExpiredUrlError(error) -> {
                 Log.d(TAG, "Expired URL (403) detected, refreshing stream URL")
+                notifyMusicWarning(getString(R.string.music_playback_warning_forbidden))
                 handleExpiredUrlError(mediaId, currentRetry)
             }
             isFileNotFoundError(error) -> {
@@ -327,6 +330,7 @@ class Media3MusicService : MediaLibraryService() {
             }
             !connectivityObserver.checkCurrentConnectivity() || isNetworkError(error) -> {
                 Log.d(TAG, "Network-related error detected, waiting for connection")
+                notifyMusicWarning(getString(R.string.music_playback_warning_network))
                 handleNetworkError(mediaId, currentRetry)
             }
             else -> {
@@ -556,6 +560,7 @@ class Media3MusicService : MediaLibraryService() {
 
     private fun handleFinalFailure(mediaId: String) {
         Log.w(TAG, "All retries exhausted for $mediaId, marking as failed")
+        notifyMusicWarning(getString(R.string.music_playback_warning_final))
         retryCountMap.remove(mediaId)
         lastPlaybackErrorAtMap.remove(mediaId)
         if (recentlyFailedSongs.size >= FAILED_SONGS_CACHE_SIZE) {
@@ -578,6 +583,23 @@ class Media3MusicService : MediaLibraryService() {
                 player.play()
             }
         }
+    }
+
+    private fun notifyMusicWarning(message: String) {
+        io.github.aedev.flow.player.EnhancedMusicPlayerManager.showPlaybackWarning(message)
+    }
+
+    private fun stopPlaybackAndService() {
+        retryJobCancel()
+        waitingForNetwork = false
+        if (::player.isInitialized) {
+            player.pause()
+            player.stop()
+            player.clearMediaItems()
+        }
+        io.github.aedev.flow.player.EnhancedMusicPlayerManager.clearCurrentTrack()
+        releaseLocks()
+        stopSelf()
     }
 
     private fun triggerRetryAfterNetworkRestore() {
@@ -818,8 +840,15 @@ class Media3MusicService : MediaLibraryService() {
             .setIconResId(repeatIcon)
             .setSessionCommand(CommandToggleRepeat)
             .build()
+
+        val closeButton = CommandButton.Builder()
+            .setDisplayName(getString(R.string.close))
+            .setIconResId(R.drawable.ic_close)
+            .setSessionCommand(CommandStop)
+            .setEnabled(true)
+            .build()
             
-        mediaLibrarySession.setCustomLayout(listOf(likeButton, shuffleButton, repeatButton))
+        mediaLibrarySession.setCustomLayout(listOf(likeButton, shuffleButton, repeatButton, closeButton))
     }
 
     @OptIn(UnstableApi::class)
@@ -832,6 +861,7 @@ class Media3MusicService : MediaLibraryService() {
                 .add(CommandToggleShuffle)
                 .add(CommandToggleRepeat)
                 .add(CommandToggleLike)
+                .add(CommandStop)
                 .add(CommandSetEq)
                 .build()
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
@@ -877,6 +907,11 @@ class Media3MusicService : MediaLibraryService() {
                  player.repeatMode = newMode
                  return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
              }
+
+             if (customCommand.customAction == ACTION_STOP) {
+                 stopPlaybackAndService()
+                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+             }
              
              return super.onCustomCommand(session, controller, customCommand, args)
         }
@@ -914,6 +949,7 @@ class Media3MusicService : MediaLibraryService() {
             var shuffleButton: CommandButton? = null
             var repeatButton: CommandButton? = null
             var likeButton: CommandButton? = null
+            var closeButton: CommandButton? = null
             
             for (button in customLayout) {
                 if (button.sessionCommand?.customAction == ACTION_TOGGLE_SHUFFLE) {
@@ -922,6 +958,8 @@ class Media3MusicService : MediaLibraryService() {
                     repeatButton = button
                 } else if (button.sessionCommand?.customAction == ACTION_TOGGLE_LIKE) {
                     likeButton = button
+                } else if (button.sessionCommand?.customAction == ACTION_STOP) {
+                    closeButton = button
                 }
             }
             
@@ -933,6 +971,7 @@ class Media3MusicService : MediaLibraryService() {
             builder.add(playPauseButton)
             builder.add(nextButton)
             repeatButton?.let { builder.add(it) }
+            closeButton?.let { builder.add(it) }
             
             return builder.build()
         }

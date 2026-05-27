@@ -128,6 +128,16 @@ fun FlowApp(
         }
     }
 
+    LaunchedEffect(snackbarHostState) {
+        EnhancedMusicPlayerManager.playbackWarnings.collectLatest { message ->
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = androidx.compose.material3.SnackbarDuration.Long
+            )
+        }
+    }
+
     HandleDeepLinks(deeplinkVideoId, isShort, navController, onDeeplinkConsumed)
     OfflineMonitor(context, navController, snackbarHostState, currentRoute)
     
