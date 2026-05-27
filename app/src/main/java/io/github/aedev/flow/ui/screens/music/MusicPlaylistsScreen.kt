@@ -38,6 +38,7 @@ fun MusicPlaylistsScreen(
     var playlistToDelete by remember { mutableStateOf<PlaylistInfo?>(null) }
     
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             MusicPlaylistLibraryTopBar(
                 title = stringResource(R.string.screen_title_music_library),

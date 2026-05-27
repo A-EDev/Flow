@@ -98,6 +98,7 @@ fun ContentSettingsScreen(
     val defaultNavTabIndex by preferences.defaultNavTabIndex.collectAsState(initial = 0)
     
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),

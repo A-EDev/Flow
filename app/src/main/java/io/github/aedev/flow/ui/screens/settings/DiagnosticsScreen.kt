@@ -150,36 +150,43 @@ fun DiagnosticsScreen(onNavigateBack: () -> Unit) {
     // UI
     // -----------------------------------------------------------------------
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text       = stringResource(R.string.diagnostics_title),
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack,
-                            contentDescription = stringResource(R.string.btn_back))
+                        Icon(
+                            Icons.Default.ArrowBack,
+                            contentDescription = stringResource(R.string.btn_back)
+                        )
                     }
-                },
-                actions = {
-                    // Share
+                    Text(
+                        text = stringResource(R.string.diagnostics_title),
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        modifier = Modifier.weight(1f)
+                    )
                     IconButton(onClick = ::shareReport) {
-                        Icon(Icons.Outlined.Share,
-                            contentDescription = stringResource(R.string.diagnostics_share))
+                        Icon(
+                            Icons.Outlined.Share,
+                            contentDescription = stringResource(R.string.diagnostics_share)
+                        )
                     }
-                    // Copy
                     IconButton(onClick = ::copyCurrentTab) {
-                        Icon(Icons.Outlined.ContentCopy,
-                            contentDescription = stringResource(R.string.diagnostics_copy))
+                        Icon(
+                            Icons.Outlined.ContentCopy,
+                            contentDescription = stringResource(R.string.diagnostics_copy)
+                        )
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
-            )
+                }
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHost) },
         containerColor = MaterialTheme.colorScheme.background

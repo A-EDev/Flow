@@ -308,6 +308,25 @@ fun FlowApp(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
+        val shouldReserveMusicMiniPlayerSpace =
+            currentRoute.value.isLibraryOrSettingsRouteForMusicMiniPlayer()
+        val isMusicMiniPlayerObscuringContent =
+            currentMusicTrack != null &&
+                !suppressMusicMiniAfterVideo &&
+                playerUiState.cachedVideo == null &&
+                playerUiState.streamInfo == null &&
+                !musicPlayerSheetState.isDismissed &&
+                !musicPlayerSheetState.isExpanded
+        val musicMiniPlayerContentPadding by animateDpAsState(
+            targetValue = if (shouldReserveMusicMiniPlayerSpace && isMusicMiniPlayerObscuringContent) {
+                miniPlayerHeightDp
+            } else {
+                0.dp
+            },
+            animationSpec = tween(durationMillis = 220),
+            label = "musicMiniPlayerContentPadding"
+        )
+
         Scaffold(
             modifier = Modifier.fillMaxSize(),
             containerColor = if (isInPipMode) androidx.compose.ui.graphics.Color.Black else androidx.compose.material3.MaterialTheme.colorScheme.background,
@@ -326,6 +345,7 @@ fun FlowApp(
                 modifier = Modifier
                     .padding(if (isInPipMode) PaddingValues(0.dp) else paddingValues)
                     .padding(bottom = navBarExtraBottomPadding.coerceAtLeast(0.dp))
+                    .padding(bottom = musicMiniPlayerContentPadding.coerceAtLeast(0.dp))
                     .nestedScroll(nestedScrollConnection)
             ) {
                 if (needsOnboarding != null) {
@@ -542,6 +562,19 @@ private fun navRouteForIndex(index: Int): String = when (index) {
     5 -> "search"
     6 -> "categories"
     else -> "home"
+}
+
+private fun String.isLibraryOrSettingsRouteForMusicMiniPlayer(): Boolean {
+    return this == "library" ||
+        this == "history" ||
+        this == "playlists" ||
+        this == "playlist" ||
+        this == "likes" ||
+        this == "downloads" ||
+        this == "musicLibrary" ||
+        this == "musicPlaylists" ||
+        this == "savedShorts" ||
+        startsWith("settings")
 }
 
 private suspend fun refreshSubscriptionsAtStartup(

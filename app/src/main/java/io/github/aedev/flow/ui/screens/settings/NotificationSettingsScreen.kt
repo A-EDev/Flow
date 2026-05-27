@@ -56,6 +56,7 @@ fun NotificationSettingsScreen(
         ?: "${subCheckInterval}min"
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),

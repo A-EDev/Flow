@@ -231,6 +231,7 @@ fun PlayerAppearanceScreen(
 
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),

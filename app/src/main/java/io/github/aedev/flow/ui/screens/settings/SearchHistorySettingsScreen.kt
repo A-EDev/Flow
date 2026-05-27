@@ -41,6 +41,7 @@ fun SearchHistorySettingsScreen(
     var showRetentionDaysDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),

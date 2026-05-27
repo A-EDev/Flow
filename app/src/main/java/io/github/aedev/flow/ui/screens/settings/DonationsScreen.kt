@@ -63,6 +63,7 @@ fun DonationsScreen(
     val uriHandler = LocalUriHandler.current
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.support_donations_title)) },
