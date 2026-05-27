@@ -109,6 +109,8 @@ data class ChannelSearchResponse(
         val richItemRenderer: RichItemRenderer? = null,
         @SerialName("continuationItemRenderer")
         val continuationItemRenderer: SectionContent.ContinuationItemRenderer? = null,
+        @SerialName("itemSectionRenderer")
+        val itemSectionRenderer: SectionContent.ItemSectionRenderer? = null,
     ) {
         @Serializable
         data class RichItemRenderer(

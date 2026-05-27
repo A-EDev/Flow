@@ -708,7 +708,7 @@ private fun ChannelHeader(
     val bannerUrl = try {
         val rawBanner = channelInfo.banners.maxByOrNull { it.width }?.url
             ?: channelInfo.banners.firstOrNull()?.url
-        ThumbnailUrlResolver.resolveChannelBanner(rawBanner, targetWidth = 1060)
+        ThumbnailUrlResolver.resolveChannelBanner(rawBanner, targetWidth = 2048)
     } catch (e: Exception) { null }
     // Use highest-res avatar available
     val avatarUrl = try {
@@ -738,8 +738,10 @@ private fun ChannelHeader(
                 model = bannerUrl,
                 contentDescription = stringResource(R.string.channel_banner),
                 modifier = Modifier
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp)
                     .fillMaxWidth()
-                    .aspectRatio(320f / 100f),
+                    .clip(RoundedCornerShape(12.dp))
+                    .aspectRatio(4.5f),
                 contentScale = ContentScale.Crop,
                 onError = {
                     Log.e("ChannelHeader", "Banner load failed for $bannerUrl: ${it.result.throwable?.message}")
@@ -748,8 +750,10 @@ private fun ChannelHeader(
         } else {
             Box(
                 modifier = Modifier
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp)
                     .fillMaxWidth()
-                    .aspectRatio(320f / 100f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .aspectRatio(4.5f)
                     .background(MaterialTheme.colorScheme.surfaceVariant)
             )
         }

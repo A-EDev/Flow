@@ -157,8 +157,8 @@ class FlowApplication : Application(), ImageLoaderFactory {
                 playerPreferences.appLanguage,
                 playerPreferences.trendingRegion
             ) { lang, region ->
-                val glCode = region.ifBlank { Locale.getDefault().country.ifEmpty { "US" } }
-                val hlCode = lang.ifBlank { Locale.getDefault().language.ifEmpty { "en" } }
+                val glCode = normalizeYouTubeCountry(region)
+                val hlCode = normalizeYouTubeLanguage(lang)
                 YouTubeLocale(gl = glCode, hl = hlCode)
             }.collectLatest { newLocale ->
                 YouTube.locale = newLocale
@@ -212,6 +212,27 @@ class FlowApplication : Application(), ImageLoaderFactory {
         YouTube.proxy = AppProxyManager.currentProxy()
         YouTube.proxyAuth = AppProxyManager.currentHttpProxyAuthorizationHeader()
         NewPipeExtractor.invalidateClient()
+    }
+
+    private fun normalizeYouTubeCountry(region: String): String {
+        val normalized = region.trim().uppercase(Locale.US)
+        return if (normalized.matches(Regex("[A-Z]{2}"))) {
+            normalized
+        } else {
+            Locale.getDefault().country
+                .trim()
+                .uppercase(Locale.US)
+                .takeIf { it.matches(Regex("[A-Z]{2}")) }
+                ?: "US"
+        }
+    }
+
+    private fun normalizeYouTubeLanguage(languageTag: String): String {
+        val candidate = languageTag.trim()
+            .takeUnless { it.isBlank() || it.equals(AppLanguageManager.SYSTEM_DEFAULT, ignoreCase = true) }
+            ?: Locale.getDefault().toLanguageTag()
+        val tag = Locale.forLanguageTag(candidate.replace('_', '-')).toLanguageTag()
+        return tag.takeUnless { it.isBlank() || it.equals("und", ignoreCase = true) } ?: "en"
     }
     
     override fun onTerminate() {

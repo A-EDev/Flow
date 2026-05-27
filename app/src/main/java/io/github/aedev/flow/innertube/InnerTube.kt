@@ -43,10 +43,15 @@ import okhttp3.OkHttpClient
 class InnerTube {
     private var httpClient = createClient()
 
-    var locale = YouTubeLocale(
-        gl = Locale.getDefault().country,
-        hl = Locale.getDefault().language.ifEmpty { "en" }
+    var locale = sanitizeLocale(
+        YouTubeLocale(
+            gl = Locale.getDefault().country,
+            hl = Locale.getDefault().toLanguageTag()
+        )
     )
+        set(value) {
+            field = sanitizeLocale(value)
+        }
     var visitorData: String? = null
     var dataSyncId: String? = null
     var cookie: String? = null
@@ -71,6 +76,36 @@ class InnerTube {
         }
 
     var useLoginForBrowse: Boolean = false
+
+    private fun sanitizeLocale(value: YouTubeLocale): YouTubeLocale =
+        YouTubeLocale(
+            gl = sanitizeCountryCode(value.gl),
+            hl = sanitizeLanguageCode(value.hl),
+        )
+
+    private fun sanitizeCountryCode(value: String): String {
+        val normalized = value.trim().uppercase(Locale.US)
+        return if (normalized.matches(Regex("[A-Z]{2}"))) {
+            normalized
+        } else {
+            Locale.getDefault().country
+                .trim()
+                .uppercase(Locale.US)
+                .takeIf { it.matches(Regex("[A-Z]{2}")) }
+                ?: "US"
+        }
+    }
+
+    private fun sanitizeLanguageCode(value: String): String {
+        val trimmed = value.trim()
+        val candidate = if (trimmed.isBlank() || trimmed.equals("system", ignoreCase = true)) {
+            Locale.getDefault().toLanguageTag()
+        } else {
+            trimmed.replace('_', '-')
+        }
+        val tag = Locale.forLanguageTag(candidate).toLanguageTag()
+        return tag.takeUnless { it.isBlank() || it.equals("und", ignoreCase = true) } ?: "en"
+    }
 
     @OptIn(ExperimentalSerializationApi::class)
     private fun createClient() = HttpClient(OkHttp) {

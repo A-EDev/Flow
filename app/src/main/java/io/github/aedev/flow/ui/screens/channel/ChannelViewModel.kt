@@ -119,8 +119,7 @@ class ChannelViewModel : ViewModel() {
                 
                 Log.d(TAG, "Channel loaded: ${channelInfo.name}")
                 
-                // Extract channel ID from URL
-                val channelId = extractChannelId(normalizedUrl)
+                val channelId = channelInfo.id
                 
                 _uiState.update { 
                     it.copy(

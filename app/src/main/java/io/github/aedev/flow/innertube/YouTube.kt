@@ -246,6 +246,11 @@ object YouTube {
                 richItem.richItemRenderer?.content?.videoRenderer
                     ?.let { parseVideoRenderer(it, channelId, channelName, channelThumbnailUrl) }
                     ?.let { videos.add(it) }
+                richItem.itemSectionRenderer?.contents?.forEach { sectionItem ->
+                    sectionItem.videoRenderer
+                        ?.let { parseVideoRenderer(it, channelId, channelName, channelThumbnailUrl) }
+                        ?.let { videos.add(it) }
+                }
                 richItem.continuationItemRenderer?.continuationEndpoint?.continuationCommand?.token
                     ?.let { nextContinuation = it }
             }

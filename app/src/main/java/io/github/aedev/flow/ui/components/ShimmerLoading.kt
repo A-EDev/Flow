@@ -628,9 +628,10 @@ fun ShimmerChannelHeader(
         // Banner
         ShimmerBone(
             modifier = Modifier
+                .padding(start = 16.dp, end = 16.dp, top = 12.dp)
                 .fillMaxWidth()
-                .height(100.dp),
-            shape = RoundedCornerShape(0.dp)
+                .aspectRatio(4.5f),
+            shape = RoundedCornerShape(12.dp)
         )
 
         Spacer(Modifier.height(12.dp))
