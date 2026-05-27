@@ -763,7 +763,7 @@
     <string name="category_news_current_events">الأخبار و الأحداث الجارية</string>
     <string name="flow_control_center">مركز تحكم Flow</string>
     <string name="action_refresh">إعادة التحميل</string>
-    <string name="loading_neural_matrix">Loading Neural Matrix...</string>
+    <string name="loading_neural_matrix">جار تحميل دماغ المحتوى...</string>
     <string name="neural_interest_map_subtitle">خريطة إهتماماتك العصبية</string>
     <string name="cognitive_fingerprint">البصمة المعرفية</string>
     <string name="content_dna_subtitle">الحمض النووي للمحتوى الخاص بك</string>
@@ -1103,7 +1103,7 @@
     <string name="settings_item_time_management_subtitle">إحصائيات الاستخدام، تذكيرات وقت النوم</string>
     <string name="app_icon_apply_toast">تم تحديث الأيقونة - سيتم تحديث مشغل التطبيقات الخاص بك</string>
     <string name="icon_name_flow_red">Flow أحمر</string>
-    <string name="icon_name_dynamic">Material You</string>
+    <string name="icon_name_dynamic">Material You صيغة</string>
     <string name="player_nav_btn_subtitle">إظهار أزرار الفيديو التالي و السابق في المشغل المصغر</string>
     <string name="lyrics_provider_title">مُقدّم كلمات الأغاني</string>
     <string name="lyrics_provider_subtitle">اختر المصدر المفضل لديك لكلمات الأغاني</string>
@@ -1284,7 +1284,7 @@
     <string name="appearance_customizer_format_hint">تنسيق Hex: #RRGGBB أو #AARRGGBB</string>
     <string name="appearance_role_tertiary">مرحلة ثالثة</string>
     <string name="appearance_role_on_tertiary">علي المرحلة الثالثة</string>
-    <string name="appearance_role_outline">Outline</string>
+    <string name="appearance_role_outline">الخطوط العريضة/الخارجية</string>
     <string name="deep_flow_mode_title">وضع تعلم Flow العميق</string>
     <string name="sb_settings_title">SponsorBlock, DeArrow &amp; RYD</string>
     <string name="sb_settings_subtitle">إجراءات التقسيمات، خيارات DeArrow، و اعدادت عداد عدم الإعجاب</string>
@@ -1471,7 +1471,7 @@
     <string name="appearance_system_light_theme">الوضع الفاتح</string>
     <string name="appearance_system_dark_theme">الوضع الداكن</string>
     <string name="icon_name_flow_light">Flow فاتح</string>
-    <string name="icon_name_material_sky">Material Sky</string>
+    <string name="icon_name_material_sky">صيغة Material Sky</string>
     <string name="icon_name_material_mint">Material Mint</string>
     <string name="theme_name_material_you">Material You</string>
     <string name="theme_desc_material_you">ألوان خلفية الشاشة على نظام أندرويد 12+</string>
