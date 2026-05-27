@@ -1572,4 +1572,12 @@
     <string name="section_mood_and_genres">Mood e generi</string>
     <string name="section_from_the_community">Dalla community</string>
     <string name="daily_discover_subtitle">Novità dai tuoi ascolti</string>
+    <string name="similar_content">Contenuti simili</string>
+    <string name="no_similar_content_found">Nessun contenuto simile trovato</string>
+    <string name="radio_source_template">Radio • %1$s</string>
+    <string name="unknown_source">Fonte sconosciuta</string>
+    <string name="added_to_playlist_toast">Aggiunto alla playlist</string>
+    <string name="already_downloaded_toast">Già scaricato</string>
+    <string name="download_started_toast">Download avviato…</string>
+    <string name="download_error_toast">Eorre download: %1$s</string>
 </resources>
