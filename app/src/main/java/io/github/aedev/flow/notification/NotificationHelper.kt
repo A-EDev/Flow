@@ -8,7 +8,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -52,6 +51,7 @@ object NotificationHelper {
     const val NOTIFICATION_REMINDER = 5000
     const val NOTIFICATION_IMPORT_PROGRESS = 6001
     const val NOTIFICATION_IMPORT_COMPLETE = 6002
+    private const val NOTIFICATION_BITMAP_MAX_PX = 512
     
     private var channelsCreated = false
     
@@ -432,7 +432,8 @@ object NotificationHelper {
             )
         }
 
-        videos.forEach { v ->
+        if (videos.size == 1) {
+            val v = videos.first()
             val notifId = NOTIFICATION_NEW_VIDEO + v.videoId.hashCode().and(0xFFFF)
             val watchIntent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -461,7 +462,42 @@ object NotificationHelper {
                 }
             }
             NotificationManagerCompat.from(context).notify(notifId, builder.build())
+            return
         }
+
+        val summaryIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val summaryPendingIntent = PendingIntent.getActivity(
+            context,
+            NOTIFICATION_NEW_VIDEO,
+            summaryIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val inboxStyle = NotificationCompat.InboxStyle()
+            .setBigContentTitle("${videos.size} new videos")
+
+        videos.take(6).forEach { v ->
+            inboxStyle.addLine("${v.channelName}: ${v.videoTitle}")
+        }
+        if (videos.size > 6) {
+            inboxStyle.setSummaryText("+${videos.size - 6} more")
+        }
+
+        val summaryNotification = NotificationCompat.Builder(context, CHANNEL_SUBSCRIPTIONS)
+            .setSmallIcon(R.drawable.ic_notification_logo)
+            .setContentTitle("New videos")
+            .setContentText("${videos.size} new videos from your subscriptions")
+            .setContentIntent(summaryPendingIntent)
+            .setAutoCancel(true)
+            .setOnlyAlertOnce(true)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_SOCIAL)
+            .setStyle(inboxStyle)
+            .setNumber(videos.size)
+            .build()
+
+        NotificationManagerCompat.from(context).notify(NOTIFICATION_NEW_VIDEO, summaryNotification)
     }
 
     /**
@@ -772,8 +808,12 @@ object NotificationHelper {
     suspend fun getBitmapFromUrl(url: String): Bitmap? = withContext(Dispatchers.IO) {
         try {
             if (url.isEmpty()) return@withContext null
-            // Load synchronously on the IO thread
-            Picasso.get().load(url).get()
+            Picasso.get()
+                .load(url)
+                .resize(NOTIFICATION_BITMAP_MAX_PX, NOTIFICATION_BITMAP_MAX_PX)
+                .centerInside()
+                .onlyScaleDown()
+                .get()
         } catch (e: Exception) {
             e.printStackTrace()
             null

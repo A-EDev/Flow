@@ -4,7 +4,6 @@ import android.app.*
 import android.content.Intent
 import android.util.Log
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
 import coil.imageLoader
 import coil.request.ImageRequest
@@ -64,6 +63,7 @@ class VideoPlayerService : Service() {
         private const val NOTIFICATION_ID = 1002
         private const val CHANNEL_ID = "video_playback_channel"
         private const val CHANNEL_NAME = "Video Playback"
+        private const val NOTIFICATION_ART_MAX_PX = 512
         
         const val ACTION_PLAY_PAUSE = "io.github.aedev.flow.video.ACTION_PLAY_PAUSE"
         const val ACTION_NEXT = "io.github.aedev.flow.video.ACTION_NEXT"
@@ -466,6 +466,7 @@ class VideoPlayerService : Service() {
             val request = ImageRequest.Builder(applicationContext)
                 .data(url)
                 .allowHardware(false)
+                .size(NOTIFICATION_ART_MAX_PX)
                 .build()
             val bitmap = when (val result = applicationContext.imageLoader.execute(request)) {
                 is SuccessResult -> (result.drawable as? BitmapDrawable)?.bitmap
@@ -479,7 +480,7 @@ class VideoPlayerService : Service() {
     /**
      * Keep notification artwork within a safe size for binder transport and OEM SystemUI.
      */
-    private fun resizeForNotification(bitmap: Bitmap, maxPx: Int = 512): Bitmap {
+    private fun resizeForNotification(bitmap: Bitmap, maxPx: Int = NOTIFICATION_ART_MAX_PX): Bitmap {
         val w = bitmap.width
         val h = bitmap.height
         val longestSide = maxOf(w, h)

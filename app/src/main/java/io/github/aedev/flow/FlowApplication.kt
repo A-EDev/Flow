@@ -1,6 +1,7 @@
 package io.github.aedev.flow
 
 import android.app.Application
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.util.Log
 import io.github.aedev.flow.notification.SubscriptionCheckWorker
@@ -239,5 +240,23 @@ class FlowApplication : Application(), ImageLoaderFactory {
         super.onTerminate()
         // Clean up performance dispatcher resources
         PerformanceDispatcher.shutdown()
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        clearImageMemoryCache()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            clearImageMemoryCache()
+        }
+    }
+
+    private fun clearImageMemoryCache() {
+        if (::imageLoader.isInitialized) {
+            imageLoader.memoryCache?.clear()
+        }
     }
 }
