@@ -323,8 +323,8 @@
     <string name="settings_item_content_prefs_subtitle">Blocca gli argomenti che non vuoi vedere</string>
     <string name="settings_item_player">Impostazioni del player</string>
     <string name="settings_item_player_subtitle">Riproduzione automatica, riproduzione in background, SponsorBlock</string>
-    <string name="settings_item_quality">Qualità video</string>
-    <string name="settings_item_quality_subtitle">Risoluzione per Wi-Fi e dati mobili</string>
+    <string name="settings_item_quality">Qualità video e musica</string>
+    <string name="settings_item_quality_subtitle">Risoluzione video e qualità audio</string>
     <string name="settings_item_content_display">Visualizzazione dei contenuti</string>
     <string name="settings_item_content_display_subtitle">Dimensione della griglia, miniature, layout</string>
     <string name="settings_item_buffer">Impostazioni del buffer</string>
@@ -646,8 +646,8 @@
     <string name="player_settings_double_tap_seek_dialog_body">Scegli quanti secondi avanzare o riavvolgere quando si tocca due volte il lato sinistro o destro del player.</string>
     <string name="player_settings_double_tap_seek">Durata del doppio tocco per saltare</string>
     <string name="player_settings_double_tap_seek_dialog_title">Durata del doppio tocco per saltare</string>
-    <string name="video_quality_title">Qualità video</string>
-    <string name="video_quality_warning">L\'alta definizione utilizza più dati</string>
+    <string name="video_quality_title">Qualità video e musica</string>
+    <string name="video_quality_warning">Una qualità più alta consuma più dati</string>
     <string name="video_quality_wifi_header">Qualità Wi-Fi</string>
     <string name="video_quality_cellular_header">Qualità dati mobili</string>
     <string name="quality_144p">144p</string>
@@ -1200,7 +1200,7 @@
     <string name="auto_backup_last_run_label">Ultimo backup</string>
     <string name="auto_backup_run_now">Esegui il backup</string>
     <string name="auto_backup_success">Backup completato correttamente</string>
-    <string name="auto_backup_failed">Backup fallito</string>
+    <string name="auto_backup_failed">Backup non riuscito</string>
     <string name="auto_backup_notification_channel">Backup automatici</string>
     <string name="export_data_screen_title">Esporta dati</string>
     <string name="export_data_section_header">Scegli la tipologia di esportazione</string>
@@ -1235,11 +1235,11 @@
     <string name="error_http_forbidden_hint">YouTube ha rifiutato di fornire questo stream. Il link del video potrebbe essere scaduto — prova a ricaricare.</string>
     <string name="error_http_general">Errore HTTP %1$s</string>
     <string name="error_http_general_hint">YouTube ha restituito una risposta inattesa (%1$s). Riprova tra un momento.</string>
-    <string name="error_stream_failed">Stream multimediale fallito</string>
+    <string name="error_stream_failed">Stream multimediale non riuscito</string>
     <string name="error_stream_failed_hint">Il flusso video non può essere letto. Potrebbe essere un problema temporaneo di YouTube.</string>
     <string name="error_codec_issue">Errore di riproduzione (problema codec)</string>
     <string name="error_codec_issue_hint">Il tuo dispositivo non è riuscito a decodificare questo stream. Prova a selezionare una qualità inferiore.</string>
-    <string name="error_playback_failed">Riproduzione fallita</string>
+    <string name="error_playback_failed">Riproduzione non riuscita</string>
     <string name="error_playback_failed_hint">Si è verificato un errore imprevisto del player. Riprova.</string>
     <string name="error_extraction_failed">Impossibile analizzare i dati video</string>
     <string name="error_extraction_failed_hint">YouTube potrebbe aver aggiornato il suo formato. Flow verrà aggiornato a breve — riprova più tardi.</string>
@@ -1581,5 +1581,12 @@
     <string name="download_started_toast">Download avviato…</string>
     <string name="download_error_toast">Eorre download: %1$s</string>
     <string name="music_playback_warning_forbidden">L\'accesso allo streaming musicale è stato negato. YouTube potrebbe limitare questo IP; prova a ricaricare o a cambiare rete/VPN.</string>
-    <string name="music_playback_warning_network">Lo streaming musicale è fallito a causa di un problema di rete. Controlla la tua connessione o prova un\'altra rete.</string>
+    <string name="music_playback_warning_network">Lo streaming musicale non è riuscito a causa di un problema di rete. Controlla la tua connessione o prova un\'altra rete.</string>
+    <string name="music_quality_header">Qualità audio musica</string>
+    <string name="music_quality_auto">Automatica</string>
+    <string name="music_quality_high">Alta</string>
+    <string name="music_quality_medium">Media</string>
+    <string name="music_quality_low">Bassa</string>
+    <string name="music_playback_warning_final">Impossibile caricare questo brano dopo diversi tentativi. Se il problema persiste, prova a cambiare rete o a usare una VPN.</string>
+    <string name="music_playback_warning_generic">Riproduzione musicale non riuscita. Riprova o cambia rete se il problema persiste</string>
 </resources>
