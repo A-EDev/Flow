@@ -351,8 +351,8 @@
     <string name="settings_item_content_prefs_subtitle">Блокуйте теми, які ви не хочете бачити</string>
     <string name="settings_item_player">Налаштування програвача</string>
     <string name="settings_item_player_subtitle">Автоматичне відтворення, фонове відтворення, SponsorBlock</string>
-    <string name="settings_item_quality">Якість відео</string>
-    <string name="settings_item_quality_subtitle">Роздільна здатність для Wi-Fi та мобільного інтернету</string>
+    <string name="settings_item_quality">Якість відео та музики</string>
+    <string name="settings_item_quality_subtitle">Роздільна здатність відео та якість аудіо</string>
     <string name="settings_item_content_display">Відображення контенту</string>
     <string name="settings_item_content_display_subtitle">Розмір сітки, мініатюри, макет</string>
     <string name="settings_item_buffer">Розмір сітки, мініатюри, макет</string>
@@ -553,8 +553,8 @@
     <string name="player_settings_audio_original_desc">Використовує рідну звукову доріжку відео</string>
     <string name="player_settings_header_gestures">Жести</string>
     <string name="player_settings_double_tap_seek_dialog_body">Виберіть, на скільки секунд потрібно переходити при подвійному натисканні на ліву або праву частину плеєра.</string>
-    <string name="video_quality_title">Якість відео</string>
-    <string name="video_quality_warning">Висока роздільна здатність використовує більше трафіку</string>
+    <string name="video_quality_title">Якість відео та музики</string>
+    <string name="video_quality_warning">Вища якість використовує більше трафіку</string>
     <string name="video_quality_wifi_header">Якість з Wi-Fi</string>
     <string name="video_quality_cellular_header">Якість з мобільним інтернетом</string>
     <string name="quality_144p">144p</string>
@@ -1454,4 +1454,13 @@
     <string name="player_settings_overlay_cc_subtitle">Показувати кнопку субтитрів на наклаланні програвача</string>
     <string name="player_settings_auto_pip_subtitle">Автоматично переходити в режим \"Картинка в картинці\", коли ви виходите з застосунку. Вимкніть що б використовувати режим лише вручну.</string>
     <string name="player_settings_overlay_autoplay">Перемикач автовідтворення</string>
+    <string name="music_quality_header">Якість звуку музики</string>
+    <string name="music_quality_auto">Авто</string>
+    <string name="music_quality_high">Висока</string>
+    <string name="music_quality_medium">Середня</string>
+    <string name="music_quality_low">Низька</string>
+    <string name="player_settings_overlay_speed_indicator_subtitle">Відображати поточну швидкість в накладанні відеоплеєра</string>
+    <string name="player_action_background">Фон</string>
+    <string name="player_action_copy_link">Копіювати посилання</string>
+    <string name="music_playback_warning_forbidden">Доступ до аудіопотоку відхилено. YouTube може обмежувати цю IP-адресу; спробуйте оновити сторінку або змінити мережу/VPN.</string>
 </resources>

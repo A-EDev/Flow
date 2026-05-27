@@ -673,7 +673,7 @@
     <string name="location_preset_header">المواقع المحددة مسبقًا</string>
     <string name="location_custom_header">موقع تخزين مخصص</string>
     <string name="location_downloads_label">Downloads / Flow</string>
-    <string name="location_movies_label">افلام / فلو</string>
+    <string name="location_movies_label">أفلام / Flow</string>
     <string name="location_internal_app_label">التخزين الداخلي للتطبيق</string>
     <string name="location_internal_app_desc">تخزين في التطبيق — قد يتم حذف الملفات في حالة إلغاء التثبيت</string>
     <string name="location_custom_saf_label">تصفح…</string>
@@ -902,7 +902,7 @@
     <string name="shorts_quality_settings_subtitle">الجودة عند مشاهدة الفيديوهات القصيرة</string>
     <string name="shorts_quality_warning">تستهلك الجودة العالية بيانات أكثر. تستخدم المقاطع القصيرة تدفقات فيديو عمودية.</string>
     <string name="shorts_quality_wifi_header">جودة فديوهات shorts علي الWi-Fi</string>
-    <string name="shorts_quality_cellular_header">جودة فديوهات المقاطع القصيرة على WI-FI</string>
+    <string name="shorts_quality_cellular_header">جودة فديوهات shorts علي البيانات الخلوية</string>
     <string name="play_next_video">تشغيل التالي</string>
     <string name="play_next_video_desc">أدرج في بداية قائمة انتظار الفيديو</string>
     <string name="add_video_to_queue">أضف إلى قائمة الانتظار</string>
@@ -921,7 +921,7 @@
     <string name="download_status_failed">فشل</string>
     <string name="audio_track">المسار الصوتي</string>
     <string name="off">معطلة</string>
-    <string name="on">مشتغل</string>
+    <string name="on">يعمل</string>
     <string name="player_settings">إعدادات المشغل</string>
     <string name="playback_speed">سرعة التشغيل</string>
     <string name="autoplay_next">تشغيل تلقائي للفيديو التالي</string>
@@ -1025,7 +1025,7 @@
     <string name="merge_playlist_dialog_title">أضف جميع الأغاني إلى…</string>
     <string name="merge_playlist_success">تمت إضافة أغاني %1$d إلي “%2$s”</string>
     <string name="merge_playlist_no_playlists">لا توجد قوائم تشغيل حتى الآن. أنشئ واحدة أولاً!</string>
-    <string name="app_name">فلو</string>
+    <string name="app_name">Flow</string>
     <string name="library_music_playlists_label">قوائم تشغيل الموسيقى</string>
     <string name="library_music_playlists_subtitle">مجموعات الموسيقى الخاصة بك</string>
     <string name="library_manage_data_subtitle">مسح ذاكرة التخزين المؤقت و التاريخ</string>
@@ -1103,7 +1103,7 @@
     <string name="settings_item_time_management_subtitle">إحصائيات الاستخدام، تذكيرات وقت النوم</string>
     <string name="app_icon_apply_toast">تم تحديث الأيقونة - سيتم تحديث مشغل التطبيقات الخاص بك</string>
     <string name="icon_name_flow_red">Flow أحمر</string>
-    <string name="icon_name_dynamic">المواد أنت</string>
+    <string name="icon_name_dynamic">Material You</string>
     <string name="player_nav_btn_subtitle">إظهار أزرار الفيديو التالي و السابق في المشغل المصغر</string>
     <string name="lyrics_provider_title">مُقدّم كلمات الأغاني</string>
     <string name="lyrics_provider_subtitle">اختر المصدر المفضل لديك لكلمات الأغاني</string>
