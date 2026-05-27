@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Explicit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material3.*
@@ -29,6 +28,7 @@ import io.github.aedev.flow.ui.screens.music.MusicTrack
 import io.github.aedev.flow.ui.screens.music.formatDuration
 import io.github.aedev.flow.ui.screens.music.formatViews
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import androidx.compose.foundation.background
@@ -41,6 +41,8 @@ fun TrackListItem(
     isPlaying: Boolean = false,
     isDownloaded: Boolean = false,
     showMenu: Boolean = true,
+    leadingContent: (@Composable RowScope.() -> Unit)? = null,
+    thumbnailOverlay: (@Composable BoxScope.() -> Unit)? = null,
     trailingContent: (@Composable RowScope.() -> Unit)? = null,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
@@ -58,6 +60,11 @@ fun TrackListItem(
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (leadingContent != null) {
+            leadingContent()
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+
         Surface(
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.size(56.dp),
@@ -89,6 +96,7 @@ fun TrackListItem(
                         )
                     }
                 }
+                thumbnailOverlay?.invoke(this)
             }
         }
         
@@ -212,13 +220,19 @@ fun QuickPickItem(
 @Composable
 fun CompactTrackCard(
     track: MusicTrack,
+    isDownloaded: Boolean = false,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    onMenuClick: (() -> Unit)? = null,
     onArtistClick: ((String) -> Unit)? = null
 ) {
     TrackListItem(
         track = track,
+        isDownloaded = isDownloaded,
         onClick = onClick,
-        showMenu = false 
+        onLongClick = onLongClick,
+        showMenu = onMenuClick != null,
+        onMenuClick = { onMenuClick?.invoke() }
     )
 }
 
@@ -259,18 +273,12 @@ fun MusicWaveAnimation(
 
 @Composable
 private fun ExplicitBadge() {
-    Surface(
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.18f),
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        shape = RoundedCornerShape(3.dp)
-    ) {
-        Text(
-            text = stringResource(R.string.explicit),
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Black,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-        )
-    }
+    Icon(
+        painter = painterResource(R.drawable.ic_explicit),
+        contentDescription = stringResource(R.string.label_explicit),
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.size(18.dp)
+    )
 }
 
 @Composable
@@ -287,78 +295,29 @@ private fun MusicTrack.musicMetadataLine(): String {
 fun TrendingTrackCard(
     track: MusicTrack,
     rank: Int,
+    isDownloaded: Boolean = false,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     onArtistClick: (String) -> Unit,
     onMenuClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(72.dp)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        // Rank
-        Text(
-            text = rank.toString(),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = if (rank <= 3) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.width(32.dp),
-            textAlign = TextAlign.Center
-        )
-        
-        Spacer(modifier = Modifier.width(8.dp))
-
-        // Thumbnail
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.size(56.dp),
-            tonalElevation = 4.dp
-        ) {
-            AsyncImage(
-                model = track.thumbnailUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        }
-        
-        Spacer(modifier = Modifier.width(16.dp))
-        
-        // Info
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center
-        ) {
+    TrackListItem(
+        track = track,
+        isDownloaded = isDownloaded,
+        leadingContent = {
             Text(
-                text = track.title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onBackground,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                text = rank.toString(),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = if (rank <= 3) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.width(32.dp),
+                textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = track.artist,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        
-        // Menu
-        IconButton(onClick = onMenuClick) {
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = stringResource(R.string.more_options),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
+        },
+        onClick = onClick,
+        onLongClick = onLongClick,
+        onMenuClick = onMenuClick
+    )
 }
 
 

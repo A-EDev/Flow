@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -304,6 +305,7 @@ fun ChartTrackItem(
     thumbnailUrl: String?,
     modifier: Modifier = Modifier,
     isPlaying: Boolean = false,
+    isDownloaded: Boolean = false,
     onClick: () -> Unit = {},
     onLongClick: (() -> Unit)? = null
 ) {
@@ -350,6 +352,14 @@ fun ChartTrackItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (isDownloaded) {
+            Icon(
+                imageVector = Icons.Rounded.OfflinePin,
+                contentDescription = stringResource(R.string.status_downloaded),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
             )
         }
     }

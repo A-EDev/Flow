@@ -117,7 +117,9 @@ fun QuickPicksGrid(
 fun GenreSection(
     genre: String,
     tracks: List<MusicTrack>,
+    downloadedTrackIds: Set<String> = emptySet(),
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
+    onTrackMenu: (MusicTrack) -> Unit = {},
     onSeeAllClick: () -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -152,7 +154,9 @@ fun GenreSection(
                     title = track.title,
                     subtitle = track.artist,
                     thumbnailUrl = track.thumbnailUrl,
-                    onClick = { onSongClick(track, tracks, "genre_$genre") }
+                    isDownloaded = downloadedTrackIds.contains(track.videoId),
+                    onClick = { onSongClick(track, tracks, "genre_$genre") },
+                    onLongClick = { onTrackMenu(track) }
                 )
             }
         }

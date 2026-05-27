@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.music.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -51,7 +53,9 @@ import io.github.aedev.flow.ui.screens.music.MusicTrack
 @Composable
 fun SpeedDialSection(
     speedDialTracks: List<MusicTrack>,
+    downloadedTrackIds: Set<String> = emptySet(),
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
+    onTrackMenu: (MusicTrack) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     if (speedDialTracks.isEmpty()) return
@@ -114,7 +118,9 @@ fun SpeedDialSection(
                                     pageTracks.getOrNull(slotIndex)?.let { track ->
                                         SpeedDialArtworkCard(
                                             track = track,
-                                            onClick = { onSongClick(track, speedDialTracks, "speed_dial") }
+                                            isDownloaded = downloadedTrackIds.contains(track.videoId),
+                                            onClick = { onSongClick(track, speedDialTracks, "speed_dial") },
+                                            onLongClick = { onTrackMenu(track) }
                                         )
                                     }
                                 }
@@ -153,17 +159,24 @@ fun SpeedDialSection(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SpeedDialArtworkCard(
     track: MusicTrack,
+    isDownloaded: Boolean = false,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier
+            .fillMaxSize()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         shape = MaterialTheme.shapes.medium,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
-        onClick = onClick
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHighest)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             AsyncImage(
@@ -196,6 +209,17 @@ fun SpeedDialArtworkCard(
                     .align(Alignment.BottomStart)
                     .padding(12.dp)
             )
+            if (isDownloaded) {
+                Icon(
+                    imageVector = Icons.Rounded.OfflinePin,
+                    contentDescription = stringResource(R.string.status_downloaded),
+                    tint = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(10.dp)
+                        .size(18.dp)
+                )
+            }
         }
     }
 }

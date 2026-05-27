@@ -120,12 +120,13 @@ object EnhancedMusicPlayerManager {
 
     // OPTIMIZED: LRU Cache for resolved stream URLs to avoid re-fetching
     private val urlCache = android.util.LruCache<String, String>(50)
+    private var pendingPlayNextMediaId: String? = null
+    private var pendingPlayNextMediaIndex: Int = MusicQueuePlanner.INDEX_UNSET
 
     // OPTIMIZED: Pre-fetch next track to reduce gap
     private fun prefetchNextTrack() {
         val queue = _queue.value
-        val currentId = _currentTrack.value?.videoId ?: return
-        val idx = queue.indexOfFirst { it.videoId == currentId }
+        val idx = currentPlaybackQueueIndex()
         
         if (idx != -1 && idx < queue.size - 1) {
             val nextTrack = queue[idx + 1]
@@ -241,17 +242,14 @@ object EnhancedMusicPlayerManager {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 if (mediaItem == null) return
 
-                mediaItem.let { item ->
-                    val trackId = item.mediaId
-                    val currentQ = _queue.value
-                    val track = currentQ.find { it.videoId == trackId }
-                    if (track != null) {
-                        _currentTrack.value = track
-                        _currentQueueIndex.value = currentQ.indexOf(track)
-                    }
+                val isAutomaticTransition = reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO
+                if (enforcePendingPlayNext(controller, mediaItem, isAutomaticTransition)) {
+                    return
                 }
+
+                syncCurrentTrackFromMediaItem(controller, mediaItem)
                 if (
-                    reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
+                    isAutomaticTransition ||
                     reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
                 ) {
                     _currentPosition.value = 0L
@@ -281,6 +279,120 @@ object EnhancedMusicPlayerManager {
                 retryCount = 0
             }
         })
+    }
+
+    private fun syncCurrentTrackFromMediaItem(controller: Player, mediaItem: MediaItem) {
+        val trackId = mediaItem.mediaId
+        val currentQ = _queue.value
+        val queueIndex = MusicQueuePlanner.currentQueueIndex(
+            queueIds = currentQ.map { it.videoId },
+            playerIndex = controller.currentMediaItemIndex,
+            currentTrackId = trackId
+        )
+        val track = currentQ.getOrNull(queueIndex) ?: currentQ.find { it.videoId == trackId }
+        if (track != null) {
+            val resolvedIndex = if (queueIndex != MusicQueuePlanner.INDEX_UNSET) {
+                queueIndex
+            } else {
+                currentQ.indexOf(track)
+            }
+            _currentTrack.value = track
+            _currentQueueIndex.value = resolvedIndex.coerceAtLeast(0)
+        }
+        if (
+            pendingPlayNextMediaId == trackId &&
+            (pendingPlayNextMediaIndex == MusicQueuePlanner.INDEX_UNSET ||
+                pendingPlayNextMediaIndex == controller.currentMediaItemIndex)
+        ) {
+            clearPendingPlayNext()
+        }
+    }
+
+    private fun enforcePendingPlayNext(
+        controller: Player,
+        mediaItem: MediaItem,
+        isAutomaticTransition: Boolean
+    ): Boolean {
+        val expectedMediaId = pendingPlayNextMediaId
+        val actualMediaId = mediaItem.mediaId
+        if (!MusicQueuePlanner.shouldForcePendingPlayNext(
+                isAutomaticTransition = isAutomaticTransition,
+                pendingMediaId = expectedMediaId,
+                pendingPlayerIndex = pendingPlayNextMediaIndex,
+                actualMediaId = actualMediaId,
+                actualPlayerIndex = controller.currentMediaItemIndex
+            )
+        ) {
+            return false
+        }
+
+        val targetIndex = findPlayerMediaItemIndex(
+            controller = controller,
+            mediaId = expectedMediaId ?: return false,
+            preferredIndex = pendingPlayNextMediaIndex
+        )
+        if (targetIndex == MusicQueuePlanner.INDEX_UNSET) {
+            Log.w("EnhancedMusicPlayer", "Pending play-next item $expectedMediaId is missing from player queue")
+            clearPendingPlayNext()
+            return false
+        }
+
+        Log.w(
+            "EnhancedMusicPlayer",
+            "Auto transition landed on $actualMediaId; forcing queued play-next item $expectedMediaId"
+        )
+        controller.seekTo(targetIndex, 0L)
+        controller.play()
+        return true
+    }
+
+    private fun findPlayerMediaItemIndex(
+        controller: Player,
+        mediaId: String,
+        preferredIndex: Int = MusicQueuePlanner.INDEX_UNSET
+    ): Int {
+        if (
+            preferredIndex in 0 until controller.mediaItemCount &&
+            controller.getMediaItemAt(preferredIndex).mediaId == mediaId
+        ) {
+            return preferredIndex
+        }
+
+        for (index in 0 until controller.mediaItemCount) {
+            if (controller.getMediaItemAt(index).mediaId == mediaId) {
+                return index
+            }
+        }
+        return MusicQueuePlanner.INDEX_UNSET
+    }
+
+    private fun currentPlaybackQueueIndex(): Int {
+        val queue = _queue.value
+        return MusicQueuePlanner.currentQueueIndex(
+            queueIds = queue.map { it.videoId },
+            playerIndex = player?.currentMediaItemIndex ?: MusicQueuePlanner.INDEX_UNSET,
+            currentTrackId = _currentTrack.value?.videoId
+        )
+    }
+
+    private fun buildMediaItem(track: MusicTrack, uri: Uri = Uri.parse("music://${track.videoId}")): MediaItem {
+        return MediaItem.Builder()
+            .setUri(uri)
+            .setMediaId(track.videoId)
+            .setCustomCacheKey(track.videoId)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(track.title)
+                    .setArtist(track.artist)
+                    .setArtworkUri(Uri.parse(track.highResThumbnailUrl))
+                    .build()
+            )
+            .build()
+    }
+
+    private fun clearPendingPlayNext() {
+        pendingPlayNextMediaId = null
+        pendingPlayNextMediaIndex = MusicQueuePlanner.INDEX_UNSET
     }
    
     private fun updatePlayerState() {
@@ -316,6 +428,7 @@ object EnhancedMusicPlayerManager {
     // --- Playback Control Methods ---
 
     fun setPendingTrack(track: MusicTrack, sourceName: String? = null) {
+        clearPendingPlayNext()
         player?.stop()
         player?.clearMediaItems()
         
@@ -330,6 +443,7 @@ object EnhancedMusicPlayerManager {
     }
     
     fun setCurrentTrack(track: MusicTrack, sourceName: String?) {
+         clearPendingPlayNext()
          _currentTrack.value = track
          sourceName?.let { _playingFrom.value = it }
     }
@@ -345,6 +459,7 @@ object EnhancedMusicPlayerManager {
     fun playTrack(track: MusicTrack, audioUrl: String, queue: List<MusicTrack> = emptyList(), startIndex: Int = -1, startPositionMs: Long = 0, sourceName: String? = null) {
         player?.stop()
         player?.clearMediaItems()
+        clearPendingPlayNext()
 
         _playerState.value = _playerState.value.copy(isPreparing = false)
         
@@ -359,19 +474,8 @@ object EnhancedMusicPlayerManager {
             } else {
                 Uri.parse("music://${t.videoId}")
             }
-            
-            MediaItem.Builder()
-                .setUri(uri)
-                .setMediaId(t.videoId)
-                .setCustomCacheKey(t.videoId)
-                .setMediaMetadata(
-                    MediaMetadata.Builder()
-                    .setTitle(t.title)
-                    .setArtist(t.artist)
-                    .setArtworkUri(Uri.parse(t.highResThumbnailUrl))
-                    .build()
-                )
-                .build()
+
+            buildMediaItem(t, uri)
         }
         
         val startIdx = if (startIndex >= 0) startIndex else activeQueue.indexOfFirst { it.videoId == track.videoId }.coerceAtLeast(0)
@@ -387,28 +491,22 @@ object EnhancedMusicPlayerManager {
         if (newQueue.isEmpty()) return
         
         _queue.value = newQueue
+        if (pendingPlayNextMediaId != null && newQueue.none { it.videoId == pendingPlayNextMediaId }) {
+            clearPendingPlayNext()
+        }
         triggerQueueSave()
         
         scope.launch {
             val currentMediaId = player?.currentMediaItem?.mediaId
             val currentPosition = player?.currentPosition ?: 0L
             
-            val mediaItems = newQueue.map { track ->
-                MediaItem.Builder()
-                    .setUri(Uri.parse("music://${track.videoId}"))
-                    .setMediaId(track.videoId)
-                    .setCustomCacheKey(track.videoId)
-                    .setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setTitle(track.title)
-                            .setArtist(track.artist)
-                            .setArtworkUri(Uri.parse(track.highResThumbnailUrl))
-                            .build()
-                    )
-                    .build()
-            }
+            val mediaItems = newQueue.map { track -> buildMediaItem(track) }
             
-            val newIndex = newQueue.indexOfFirst { it.videoId == currentMediaId }.coerceAtLeast(0)
+            val newIndex = MusicQueuePlanner.currentQueueIndex(
+                queueIds = newQueue.map { it.videoId },
+                playerIndex = player?.currentMediaItemIndex ?: _currentQueueIndex.value,
+                currentTrackId = currentMediaId
+            ).coerceAtLeast(0)
             
             player?.let { p ->
                  if (p.mediaItemCount != mediaItems.size || p.currentMediaItem?.mediaId != currentMediaId) {
@@ -535,32 +633,26 @@ object EnhancedMusicPlayerManager {
     
     fun playNext(track: MusicTrack) {
         val currentQ = _queue.value.toMutableList()
-        val currentId = _currentTrack.value?.videoId
-        val idx = currentQ.indexOfFirst { it.videoId == currentId }
-        
-        val insertIdx = if (idx != -1) idx + 1 else 0
-        if (idx != -1) {
-            currentQ.add(idx + 1, track)
-        } else {
-            currentQ.add(track)
-        }
+        val insertIdx = MusicQueuePlanner.playNextInsertionIndex(
+            queueIds = currentQ.map { it.videoId },
+            playerIndex = player?.currentMediaItemIndex ?: MusicQueuePlanner.INDEX_UNSET,
+            currentTrackId = _currentTrack.value?.videoId
+        )
+
+        currentQ.add(insertIdx, track)
         _queue.value = currentQ
+        pendingPlayNextMediaId = track.videoId
+        pendingPlayNextMediaIndex = insertIdx
         
         player?.let { p ->
-            if (insertIdx <= p.mediaItemCount) {
-                val mediaItem = MediaItem.Builder()
-                    .setUri(Uri.parse("music://${track.videoId}"))
-                    .setMediaId(track.videoId)
-                    .setCustomCacheKey(track.videoId)
-                    .setMediaMetadata(
-                        MediaMetadata.Builder()
-                            .setTitle(track.title)
-                            .setArtist(track.artist)
-                            .setArtworkUri(Uri.parse(track.highResThumbnailUrl))
-                            .build()
-                    )
-                    .build()
-                p.addMediaItem(insertIdx, mediaItem)
+            val playerInsertIdx = when {
+                p.currentMediaItemIndex in 0 until p.mediaItemCount -> p.currentMediaItemIndex + 1
+                else -> insertIdx
+            }.coerceIn(0, p.mediaItemCount)
+
+            if (playerInsertIdx <= p.mediaItemCount) {
+                p.addMediaItem(playerInsertIdx, buildMediaItem(track))
+                pendingPlayNextMediaIndex = playerInsertIdx
             }
         }
         
@@ -573,19 +665,7 @@ object EnhancedMusicPlayerManager {
         _queue.value = currentQ
         
         player?.let { p ->
-            val mediaItem = MediaItem.Builder()
-                .setUri(Uri.parse("music://${track.videoId}"))
-                .setMediaId(track.videoId)
-                .setCustomCacheKey(track.videoId)
-                .setMediaMetadata(
-                    MediaMetadata.Builder()
-                        .setTitle(track.title)
-                        .setArtist(track.artist)
-                        .setArtworkUri(Uri.parse(track.highResThumbnailUrl))
-                        .build()
-                )
-                .build()
-            p.addMediaItem(mediaItem)
+            p.addMediaItem(buildMediaItem(track))
         }
         
         triggerQueueSave()
@@ -593,8 +673,7 @@ object EnhancedMusicPlayerManager {
     
     fun playNext() {
         val queue = _queue.value
-        val currentId = _currentTrack.value?.videoId
-        val idx = queue.indexOfFirst { it.videoId == currentId }
+        val idx = currentPlaybackQueueIndex()
         
         if (idx != -1 && idx < queue.size - 1) {
              val nextTrack = queue[idx + 1]
@@ -606,8 +685,7 @@ object EnhancedMusicPlayerManager {
     fun playPrevious() {
         scope.launch {
             val queue = _queue.value
-            val currentId = _currentTrack.value?.videoId
-            val idx = queue.indexOfFirst { it.videoId == currentId }
+            val idx = currentPlaybackQueueIndex()
             
              if ((player?.currentPosition ?: 0) > 3000) {
                  player?.seekTo(0)
@@ -625,6 +703,7 @@ object EnhancedMusicPlayerManager {
     fun playFromQueue(index: Int) {
         val queue = _queue.value
         if (index in queue.indices) {
+            clearPendingPlayNext()
             val track = queue[index]
             setPendingTrack(track)
             scope.launch { _playerEvents.emit(PlayerEvent.RequestPlayTrack(track)) }
@@ -838,6 +917,7 @@ object EnhancedMusicPlayerManager {
             _queue.value = emptyList()
             _automixItems.value = emptyList()
             _currentQueueIndex.value = 0
+            clearPendingPlayNext()
             _currentPosition.value = 0L
             _playingFrom.value = "Flow Music"
             _playerState.value = MusicPlayerState()
@@ -857,6 +937,10 @@ object EnhancedMusicPlayerManager {
              if (index in currentQ.indices) {
                  currentQ.removeAt(index)
                  _queue.value = currentQ
+                 when {
+                     pendingPlayNextMediaIndex == index -> clearPendingPlayNext()
+                     pendingPlayNextMediaIndex > index -> pendingPlayNextMediaIndex--
+                 }
                  
                  player?.let { p ->
                      if (index < p.mediaItemCount) {
@@ -875,6 +959,7 @@ object EnhancedMusicPlayerManager {
                  val item = currentQ.removeAt(fromIndex)
                  currentQ.add(toIndex, item)
                  _queue.value = currentQ
+                 clearPendingPlayNext()
                  
                  player?.let { p ->
                      if (fromIndex < p.mediaItemCount && toIndex < p.mediaItemCount) {
@@ -892,22 +977,13 @@ object EnhancedMusicPlayerManager {
              val insertIndex = index.coerceIn(0, currentQ.size)
              currentQ.add(insertIndex, track)
              _queue.value = currentQ
+             if (pendingPlayNextMediaIndex >= insertIndex) {
+                 pendingPlayNextMediaIndex++
+             }
              
              player?.let { p ->
                  if (insertIndex <= p.mediaItemCount) {
-                     val mediaItem = MediaItem.Builder()
-                         .setUri(Uri.parse("music://${track.videoId}"))
-                         .setMediaId(track.videoId)
-                         .setCustomCacheKey(track.videoId)
-                         .setMediaMetadata(
-                             MediaMetadata.Builder()
-                                 .setTitle(track.title)
-                                 .setArtist(track.artist)
-                                 .setArtworkUri(Uri.parse(track.highResThumbnailUrl))
-                                 .build()
-                         )
-                         .build()
-                     p.addMediaItem(insertIndex, mediaItem)
+                     p.addMediaItem(insertIndex, buildMediaItem(track))
                  }
              }
              triggerQueueSave()

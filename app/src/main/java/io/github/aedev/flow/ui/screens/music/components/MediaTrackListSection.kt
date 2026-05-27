@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.music.components
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -26,13 +28,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import coil.compose.AsyncImage
+import io.github.aedev.flow.R
 import io.github.aedev.flow.ui.screens.music.MusicTrack
 
 @Composable
 fun MediaTrackListSection(
     title: String,
     tracks: List<MusicTrack>,
+    downloadedTrackIds: Set<String> = emptySet(),
     onPlayAll: () -> Unit,
     onTrackClick: (MusicTrack) -> Unit,
     onTrackMenu: (MusicTrack) -> Unit,
@@ -53,7 +58,9 @@ fun MediaTrackListSection(
             items(tracks.take(16)) { track ->
                 WideMediaTrackItem(
                     track = track,
+                    isDownloaded = downloadedTrackIds.contains(track.videoId),
                     onClick = { onTrackClick(track) },
+                    onLongClick = { onTrackMenu(track) },
                     onMenuClick = { onTrackMenu(track) },
                     modifier = Modifier.width(360.dp)
                 )
@@ -62,10 +69,13 @@ fun MediaTrackListSection(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun WideMediaTrackItem(
     track: MusicTrack,
+    isDownloaded: Boolean = false,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -73,7 +83,10 @@ fun WideMediaTrackItem(
         modifier = modifier
             .height(72.dp)
             .clip(MaterialTheme.shapes.medium)
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
             .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp)
@@ -100,6 +113,14 @@ fun WideMediaTrackItem(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
+            )
+        }
+        if (isDownloaded) {
+            Icon(
+                imageVector = Icons.Rounded.OfflinePin,
+                contentDescription = stringResource(R.string.status_downloaded),
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp)
             )
         }
         IconButton(onClick = onMenuClick) {

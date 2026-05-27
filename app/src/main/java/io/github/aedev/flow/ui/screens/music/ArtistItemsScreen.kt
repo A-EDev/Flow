@@ -1,6 +1,9 @@
 package io.github.aedev.flow.ui.screens.music
 
+import android.content.Intent
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -12,6 +15,7 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,10 +32,14 @@ import io.github.aedev.flow.innertube.models.ArtistItem
 import io.github.aedev.flow.innertube.models.PlaylistItem
 import io.github.aedev.flow.innertube.models.SongItem
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import io.github.aedev.flow.R
-import io.github.aedev.flow.ui.components.YouTubeListItem
+import io.github.aedev.flow.ui.components.MusicCollectionActionItem
+import io.github.aedev.flow.ui.components.MusicCollectionQuickActionsSheet
+import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.screens.music.components.TrackListItem
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ArtistItemsScreen(
     browseId: String,
@@ -47,6 +55,36 @@ fun ArtistItemsScreen(
     val artistItemsPage = uiState.artistItemsPage
     val isLoading = uiState.isArtistItemsLoading
     val isMoreLoading = uiState.isMoreLoading
+    val context = LocalContext.current
+    var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
+    var selectedCollection by remember { mutableStateOf<MusicCollectionActionItem?>(null) }
+
+    selectedTrack?.let { track ->
+        MusicQuickActionsSheet(
+            track = track,
+            onDismiss = { selectedTrack = null },
+            onViewArtist = { artistId -> if (artistId.isNotEmpty()) onArtistClick(artistId) },
+            onViewAlbum = { albumId -> if (albumId.isNotEmpty()) onAlbumClick(albumId) },
+            onShare = {
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, track.title)
+                    putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_message_template, track.title, track.artist, track.videoId))
+                }
+                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
+            }
+        )
+    }
+
+    selectedCollection?.let { collection ->
+        MusicCollectionQuickActionsSheet(
+            item = collection,
+            onDismiss = { selectedCollection = null },
+            onOpen = {
+                if (collection.isAlbum) onAlbumClick(collection.id) else onPlaylistClick(collection.id)
+            }
+        )
+    }
 
     LaunchedEffect(browseId, params) {
         viewModel.loadArtistItems(browseId, params)
@@ -102,11 +140,13 @@ fun ArtistItemsScreen(
                     ) {
                         items(artistItemsPage.items) { item ->
                             if (item is SongItem) {
-                                YouTubeListItem(
-                                    item = item,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { onTrackClick(item) }
+                                val track = item.toMusicTrack()
+                                TrackListItem(
+                                    track = track,
+                                    isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
+                                    onClick = { onTrackClick(item) },
+                                    onLongClick = { selectedTrack = track },
+                                    onMenuClick = { selectedTrack = track }
                                 )
                             }
                         }
@@ -129,6 +169,10 @@ fun ArtistItemsScreen(
                         items(artistItemsPage.items) { item ->
                             ArtistGridItem(
                                 item = item,
+                                onActionClick = when (item) {
+                                    is AlbumItem, is PlaylistItem -> ({ selectedCollection = item.toCollectionActionItem() })
+                                    else -> null
+                                },
                                 onClick = {
                                     when (item) {
                                         is AlbumItem -> onAlbumClick(item.id)
@@ -155,8 +199,28 @@ fun ArtistItemsScreen(
     }
 }
 
+private fun SongItem.toMusicTrack(): MusicTrack {
+    return MusicTrack(
+        videoId = id,
+        title = title,
+        artist = artists.joinToString { it.name },
+        thumbnailUrl = thumbnail,
+        duration = duration ?: 0,
+        sourceUrl = "https://www.youtube.com/watch?v=$id",
+        album = album?.name ?: "",
+        channelId = artists.firstOrNull()?.id ?: "",
+        isExplicit = explicit,
+        isVideoSong = isVideoSong
+    )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ArtistGridItem(item: io.github.aedev.flow.innertube.models.YTItem, onClick: () -> Unit) {
+fun ArtistGridItem(
+    item: io.github.aedev.flow.innertube.models.YTItem,
+    onClick: () -> Unit,
+    onActionClick: (() -> Unit)? = null
+) {
     var title = ""
     var subtitle = ""
     var thumbnailUrl: String? = null
@@ -188,17 +252,34 @@ fun ArtistGridItem(item: io.github.aedev.flow.innertube.models.YTItem, onClick: 
     Column(
         modifier = Modifier
             .width(160.dp)
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onActionClick
+            )
     ) {
-        AsyncImage(
-            model = thumbnailUrl,
-            contentDescription = null,
-            modifier = Modifier
-                .aspectRatio(1f)
-                .fillMaxWidth()
-                .clip(if (item is ArtistItem) androidx.compose.foundation.shape.CircleShape else RoundedCornerShape(8.dp)),
-            contentScale = ContentScale.Crop
-        )
+        Box {
+            AsyncImage(
+                model = thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .aspectRatio(1f)
+                    .fillMaxWidth()
+                    .clip(if (item is ArtistItem) androidx.compose.foundation.shape.CircleShape else RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+            if (onActionClick != null) {
+                IconButton(
+                    onClick = onActionClick,
+                    modifier = Modifier.align(Alignment.TopEnd)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = stringResource(R.string.more_options),
+                        tint = androidx.compose.ui.graphics.Color.White
+                    )
+                }
+            }
+        }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = title,
@@ -214,4 +295,24 @@ fun ArtistGridItem(item: io.github.aedev.flow.innertube.models.YTItem, onClick: 
             overflow = TextOverflow.Ellipsis
         )
     }
+}
+
+private fun io.github.aedev.flow.innertube.models.YTItem.toCollectionActionItem(): MusicCollectionActionItem? = when (this) {
+    is AlbumItem -> MusicCollectionActionItem(
+        id = id,
+        title = title,
+        subtitle = artists?.joinToString { it.name }.orEmpty(),
+        thumbnailUrl = thumbnail,
+        description = year?.toString().orEmpty(),
+        isAlbum = true
+    )
+    is PlaylistItem -> MusicCollectionActionItem(
+        id = id,
+        title = title,
+        subtitle = author?.name.orEmpty(),
+        thumbnailUrl = thumbnail,
+        description = author?.name.orEmpty(),
+        isAlbum = false
+    )
+    else -> null
 }

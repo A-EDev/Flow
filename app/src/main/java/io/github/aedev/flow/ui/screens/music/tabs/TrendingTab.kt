@@ -16,6 +16,7 @@ import io.github.aedev.flow.ui.screens.music.components.TrendingTrackCard
 @Composable
 fun TrendingTab(
     songs: List<MusicTrack>,
+    downloadedTrackIds: Set<String> = emptySet(),
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
     onArtistClick: (String) -> Unit,
     onMenuClick: (MusicTrack) -> Unit
@@ -43,7 +44,9 @@ fun TrendingTab(
             TrendingTrackCard(
                 track = songs[index],
                 rank = index + 1,
+                isDownloaded = downloadedTrackIds.contains(songs[index].videoId),
                 onClick = { onSongClick(songs[index], songs, "trending") },
+                onLongClick = { onMenuClick(songs[index]) },
                 onArtistClick = onArtistClick,
                 onMenuClick = { onMenuClick(songs[index]) }
             )

@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.music.components
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,11 +18,15 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,7 +48,10 @@ import io.github.aedev.flow.ui.screens.music.MusicTrack
 fun CommunityPlaylistsSection(
     playlists: List<CommunityMusicPlaylist>,
     onPlaylistClick: (CommunityMusicPlaylist) -> Unit,
+    onPlaylistAction: (CommunityMusicPlaylist) -> Unit = {},
     onTrackClick: (MusicTrack, List<MusicTrack>) -> Unit,
+    onTrackMenu: (MusicTrack) -> Unit = {},
+    downloadedTrackIds: Set<String> = emptySet(),
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -57,27 +65,37 @@ fun CommunityPlaylistsSection(
                 CommunityPlaylistCard(
                     item = item,
                     onPlaylistClick = { onPlaylistClick(item) },
-                    onTrackClick = { track -> onTrackClick(track, item.tracks) }
+                    onPlaylistAction = { onPlaylistAction(item) },
+                    onTrackClick = { track -> onTrackClick(track, item.tracks) },
+                    onTrackMenu = onTrackMenu,
+                    downloadedTrackIds = downloadedTrackIds
                 )
             }
         }
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun CommunityPlaylistCard(
     item: CommunityMusicPlaylist,
     onPlaylistClick: () -> Unit,
+    onPlaylistAction: () -> Unit = {},
     onTrackClick: (MusicTrack) -> Unit,
+    onTrackMenu: (MusicTrack) -> Unit = {},
+    downloadedTrackIds: Set<String> = emptySet(),
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
             .width(328.dp)
-            .height(420.dp),
+            .height(420.dp)
+            .combinedClickable(
+                onClick = onPlaylistClick,
+                onLongClick = onPlaylistAction
+            ),
         shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        onClick = onPlaylistClick
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer)
     ) {
         Column(
             modifier = Modifier
@@ -112,6 +130,12 @@ fun CommunityPlaylistCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+                IconButton(onClick = onPlaylistAction) {
+                    Icon(
+                        Icons.Default.MoreVert,
+                        contentDescription = stringResource(R.string.more_options)
+                    )
+                }
             }
 
             Column(
@@ -123,7 +147,10 @@ fun CommunityPlaylistCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(MaterialTheme.shapes.medium)
-                            .clickable { onTrackClick(track) }
+                            .combinedClickable(
+                                onClick = { onTrackClick(track) },
+                                onLongClick = { onTrackMenu(track) }
+                            )
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -151,6 +178,14 @@ fun CommunityPlaylistCard(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
+                        if (downloadedTrackIds.contains(track.videoId)) {
+                            Icon(
+                                imageVector = Icons.Rounded.OfflinePin,
+                                contentDescription = stringResource(R.string.status_downloaded),
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -161,6 +196,9 @@ fun CommunityPlaylistCard(
             ) {
                 FilledTonalIconButton(onClick = { item.tracks.firstOrNull()?.let(onTrackClick) }) {
                     Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.play_all))
+                }
+                FilledTonalIconButton(onClick = onPlaylistAction) {
+                    Icon(Icons.Outlined.BookmarkBorder, contentDescription = stringResource(R.string.add_to_library))
                 }
                 FilledTonalIconButton(onClick = onPlaylistClick) {
                     Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)

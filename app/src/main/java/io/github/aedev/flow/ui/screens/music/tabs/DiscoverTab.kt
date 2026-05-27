@@ -20,9 +20,11 @@ import io.github.aedev.flow.ui.screens.music.components.GenreSection
 fun DiscoverTab(
     trendingSongs: List<MusicTrack>,
     genreTracks: Map<String, List<MusicTrack>>,
+    downloadedTrackIds: Set<String> = emptySet(),
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
     onGenreClick: (String) -> Unit,
-    onArtistClick: (String) -> Unit
+    onArtistClick: (String) -> Unit,
+    onMenuClick: (MusicTrack) -> Unit = {}
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -49,7 +51,9 @@ fun DiscoverTab(
                     items(trendingSongs.take(5)) { track ->
                         FeaturedTrackCard(
                             track = track,
+                            isDownloaded = downloadedTrackIds.contains(track.videoId),
                             onClick = { onSongClick(track, trendingSongs, "top_picks") },
+                            onLongClick = { onMenuClick(track) },
                             onArtistClick = onArtistClick
                         )
                     }
@@ -65,6 +69,8 @@ fun DiscoverTab(
                         genre = genre,
                         tracks = tracks,
                         onSongClick = onSongClick,
+                        downloadedTrackIds = downloadedTrackIds,
+                        onTrackMenu = onMenuClick,
                         onSeeAllClick = { onGenreClick(genre) }
                     )
                 }

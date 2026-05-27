@@ -2,6 +2,7 @@ package io.github.aedev.flow.ui.screens.music
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.YouTube.SearchFilter
 import io.github.aedev.flow.innertube.models.SearchSuggestions
@@ -19,7 +20,9 @@ import javax.inject.Inject
 
 @OptIn(FlowPreview::class)
 @HiltViewModel
-class MusicSearchViewModel @Inject constructor() : ViewModel() {
+class MusicSearchViewModel @Inject constructor(
+    private val downloadManager: DownloadManager
+) : ViewModel() {
 
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
@@ -36,6 +39,14 @@ class MusicSearchViewModel @Inject constructor() : ViewModel() {
                 fetchSuggestions(q)
             }
             .launchIn(viewModelScope)
+
+        viewModelScope.launch {
+            downloadManager.downloadedTracks.collect { tracks ->
+                _uiState.update { state ->
+                    state.copy(downloadedTrackIds = tracks.map { it.track.videoId }.toSet())
+                }
+            }
+        }
     }
 
     fun onQueryChange(newQuery: String) {
@@ -198,6 +209,7 @@ data class MusicSearchUiState(
     val isSearching: Boolean = false,
     val error: String? = null,
     val continuation: String? = null,
-    val isMoreLoading: Boolean = false
+    val isMoreLoading: Boolean = false,
+    val downloadedTrackIds: Set<String> = emptySet()
 )
 

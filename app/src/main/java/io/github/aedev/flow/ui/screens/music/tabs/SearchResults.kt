@@ -21,8 +21,10 @@ import io.github.aedev.flow.ui.screens.music.components.CompactTrackCard
 fun SearchResults(
     songs: List<MusicTrack>,
     isSearching: Boolean,
+    downloadedTrackIds: Set<String> = emptySet(),
     onSongClick: (MusicTrack, List<MusicTrack>, String?) -> Unit,
-    onArtistClick: (String) -> Unit
+    onArtistClick: (String) -> Unit,
+    onMenuClick: (MusicTrack) -> Unit = {}
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         when {
@@ -56,7 +58,10 @@ fun SearchResults(
                     items(songs.size) { index ->
                         CompactTrackCard(
                             track = songs[index],
+                            isDownloaded = downloadedTrackIds.contains(songs[index].videoId),
                             onClick = { onSongClick(songs[index], songs, "search_results") },
+                            onLongClick = { onMenuClick(songs[index]) },
+                            onMenuClick = { onMenuClick(songs[index]) },
                             onArtistClick = onArtistClick
                         )
                     }

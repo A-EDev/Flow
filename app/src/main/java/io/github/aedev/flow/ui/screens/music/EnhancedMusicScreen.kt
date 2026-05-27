@@ -89,6 +89,7 @@ fun EnhancedMusicScreen(
 }
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
+    var selectedCollection by remember { mutableStateOf<MusicCollectionActionItem?>(null) }
 
     if (showBottomSheet && selectedTrack != null) {
         MusicQuickActionsSheet(
@@ -112,6 +113,14 @@ fun EnhancedMusicScreen(
                 }
                 context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
             }
+        )
+    }
+
+    selectedCollection?.let { collection ->
+        MusicCollectionQuickActionsSheet(
+            item = collection,
+            onDismiss = { selectedCollection = null },
+            onOpen = { onAlbumClick(collection.id) }
         )
     }
     
@@ -261,7 +270,12 @@ fun EnhancedMusicScreen(
                                     MusicTrackRow(
                                         track = track,
                                         isPlaying = currentTrack?.videoId == track.videoId,
+                                        isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
                                         onClick = { onSongClick(track, uiState.allSongs, uiState.selectedFilter) },
+                                        onLongClick = {
+                                            selectedTrack = track
+                                            showBottomSheet = true
+                                        },
                                         onMenuClick = {
                                             selectedTrack = track
                                             showBottomSheet = true
@@ -274,7 +288,12 @@ fun EnhancedMusicScreen(
                                 item {
                                     SpeedDialSection(
                                         speedDialTracks = speedDialTracks,
-                                        onSongClick = onSongClick
+                                        downloadedTrackIds = uiState.downloadedTrackIds,
+                                        onSongClick = onSongClick,
+                                        onTrackMenu = { track ->
+                                            selectedTrack = track
+                                            showBottomSheet = true
+                                        }
                                     )
                                 }
                             }
@@ -302,6 +321,7 @@ fun EnhancedMusicScreen(
                                                     items(uiState.dailyDiscover.filter { it.recommendation.isAudioMusicCandidate() }) { item ->
                                                         DailyDiscoverCard(
                                                             item = item,
+                                                            isDownloaded = uiState.downloadedTrackIds.contains(item.recommendation.videoId),
                                                             onClick = {
                                                                 onSongClick(item.recommendation, discoverTracks, "daily_discover")
                                                             },
@@ -357,9 +377,17 @@ fun EnhancedMusicScreen(
                                             item {
                                                 CommunityPlaylistsSection(
                                                     playlists = uiState.communityPlaylists,
+                                                    downloadedTrackIds = uiState.downloadedTrackIds,
                                                     onPlaylistClick = { onAlbumClick(it.playlist.id) },
+                                                    onPlaylistAction = { item ->
+                                                        selectedCollection = item.playlist.toCollectionActionItem(isAlbum = false)
+                                                    },
                                                     onTrackClick = { track, tracks ->
                                                         onSongClick(track, tracks, "from_the_community")
+                                                    },
+                                                    onTrackMenu = { track ->
+                                                        selectedTrack = track
+                                                        showBottomSheet = true
                                                     }
                                                 )
                                             }
@@ -380,7 +408,12 @@ fun EnhancedMusicScreen(
                                                             subtitle = track.artist,
                                                             thumbnailUrl = track.thumbnailUrl,
                                                             thumbnailHeight = thumbnailHeight,
-                                                            onClick = { onSongClick(track, uiState.recommendedTracks, "recommended") }
+                                                            isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
+                                                            onClick = { onSongClick(track, uiState.recommendedTracks, "recommended") },
+                                                            onLongClick = {
+                                                                selectedTrack = track
+                                                                showBottomSheet = true
+                                                            }
                                                         )
                                                     }
                                                 }
@@ -434,10 +467,25 @@ fun EnhancedMusicScreen(
                                                             subtitle = track.artist,
                                                             thumbnailUrl = track.thumbnailUrl,
                                                             thumbnailHeight = sectionThumbnailHeight,
+                                                            isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
                                                             onClick = { 
                                                                 when (track.itemType) {
                                                                     MusicItemType.ALBUM, MusicItemType.PLAYLIST -> onAlbumClick(track.videoId)
                                                                     else -> onSongClick(track, section.tracks, section.title)
+                                                                }
+                                                            },
+                                                            onLongClick = {
+                                                                if (track.itemType == MusicItemType.ALBUM || track.itemType == MusicItemType.PLAYLIST) {
+                                                                    selectedCollection = MusicCollectionActionItem(
+                                                                        id = track.videoId,
+                                                                        title = track.title,
+                                                                        subtitle = track.artist,
+                                                                        thumbnailUrl = track.thumbnailUrl,
+                                                                        isAlbum = track.itemType == MusicItemType.ALBUM
+                                                                    )
+                                                                } else {
+                                                                    selectedTrack = track
+                                                                    showBottomSheet = true
                                                                 }
                                                             }
                                                         )
@@ -452,6 +500,7 @@ fun EnhancedMusicScreen(
                                                 MediaTrackListSection(
                                                     title = stringResource(R.string.section_live_performances),
                                                     tracks = uiState.livePerformances,
+                                                    downloadedTrackIds = uiState.downloadedTrackIds,
                                                     onPlayAll = {
                                                         uiState.livePerformances.firstOrNull()?.let {
                                                             onSongClick(it, uiState.livePerformances, "live_performances")
@@ -473,6 +522,7 @@ fun EnhancedMusicScreen(
                                                 MediaTrackListSection(
                                                     title = stringResource(R.string.section_music_videos_for_you),
                                                     tracks = videosForYou,
+                                                    downloadedTrackIds = uiState.downloadedTrackIds,
                                                     onPlayAll = { videosForYou.firstOrNull()?.let(onVideoClick) },
                                                     onTrackClick = onVideoClick,
                                                     onTrackMenu = { track ->
@@ -489,6 +539,7 @@ fun EnhancedMusicScreen(
                                                 MediaTrackListSection(
                                                     title = stringResource(R.string.section_music_videos),
                                                     tracks = uiState.musicVideos,
+                                                    downloadedTrackIds = uiState.downloadedTrackIds,
                                                     onPlayAll = { uiState.musicVideos.firstOrNull()?.let(onVideoClick) },
                                                     onTrackClick = onVideoClick,
                                                     onTrackMenu = { track ->
@@ -514,7 +565,12 @@ fun EnhancedMusicScreen(
                                                             subtitle = track.artist,
                                                             thumbnailUrl = track.thumbnailUrl,
                                                             thumbnailHeight = genreThumbnailHeight,
-                                                            onClick = { onSongClick(track, tracks, genre) }
+                                                            isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
+                                                            onClick = { onSongClick(track, tracks, genre) },
+                                                            onLongClick = {
+                                                                selectedTrack = track
+                                                                showBottomSheet = true
+                                                            }
                                                         )
                                                     }
                                                 }
@@ -545,10 +601,25 @@ fun EnhancedMusicScreen(
                                                                 subtitle = track.artist,
                                                                 thumbnailUrl = track.thumbnailUrl,
                                                                 thumbnailHeight = sectionThumbnailHeight,
+                                                                isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
                                                                 onClick = { 
                                                                     when (track.itemType) {
                                                                         MusicItemType.ALBUM, MusicItemType.PLAYLIST -> onAlbumClick(track.videoId)
                                                                         else -> onSongClick(track, section.tracks, section.title)
+                                                                    }
+                                                                },
+                                                                onLongClick = {
+                                                                    if (track.itemType == MusicItemType.ALBUM || track.itemType == MusicItemType.PLAYLIST) {
+                                                                        selectedCollection = MusicCollectionActionItem(
+                                                                            id = track.videoId,
+                                                                            title = track.title,
+                                                                            subtitle = track.artist,
+                                                                            thumbnailUrl = track.thumbnailUrl,
+                                                                            isAlbum = track.itemType == MusicItemType.ALBUM
+                                                                        )
+                                                                    } else {
+                                                                        selectedTrack = track
+                                                                        showBottomSheet = true
                                                                     }
                                                                 }
                                                             )
@@ -573,7 +644,10 @@ fun EnhancedMusicScreen(
                                                             subtitle = album.author,
                                                             thumbnailUrl = album.thumbnailUrl,
                                                             thumbnailHeight = albumThumbnailHeight,
-                                                            onClick = { onAlbumClick(album.id) }
+                                                            onClick = { onAlbumClick(album.id) },
+                                                            onLongClick = {
+                                                                selectedCollection = album.toCollectionActionItem(isAlbum = true)
+                                                            }
                                                         )
                                                     }
                                                 }
@@ -595,10 +669,25 @@ fun EnhancedMusicScreen(
                                                             subtitle = stringResource(R.string.subtitle_single_template, track.artist),
                                                             thumbnailUrl = track.thumbnailUrl,
                                                             thumbnailHeight = newReleaseThumbnailHeight,
+                                                            isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
                                                             onClick = { 
                                                                 when (track.itemType) {
                                                                     MusicItemType.ALBUM, MusicItemType.PLAYLIST -> onAlbumClick(track.videoId)
                                                                     else -> onSongClick(track, uiState.newReleases, "new_releases")
+                                                                }
+                                                            },
+                                                            onLongClick = {
+                                                                if (track.itemType == MusicItemType.ALBUM || track.itemType == MusicItemType.PLAYLIST) {
+                                                                    selectedCollection = MusicCollectionActionItem(
+                                                                        id = track.videoId,
+                                                                        title = track.title,
+                                                                        subtitle = track.artist,
+                                                                        thumbnailUrl = track.thumbnailUrl,
+                                                                        isAlbum = track.itemType == MusicItemType.ALBUM
+                                                                    )
+                                                                } else {
+                                                                    selectedTrack = track
+                                                                    showBottomSheet = true
                                                                 }
                                                             }
                                                         )
@@ -629,6 +718,7 @@ fun EnhancedMusicScreen(
                                                             artist = track.artist,
                                                             thumbnailUrl = track.thumbnailUrl,
                                                             isPlaying = currentTrack?.videoId == track.videoId,
+                                                            isDownloaded = uiState.downloadedTrackIds.contains(track.videoId),
                                                             onClick = { onSongClick(track, uiState.trendingSongs, "charts") },
                                                             onLongClick = {
                                                                 selectedTrack = track
@@ -687,7 +777,10 @@ fun EnhancedMusicScreen(
                                                             subtitle = playlist.author,
                                                             thumbnailUrl = playlist.thumbnailUrl,
                                                             thumbnailHeight = playlistThumbnailHeight,
-                                                            onClick = { onAlbumClick(playlist.id) }
+                                                            onClick = { onAlbumClick(playlist.id) },
+                                                            onLongClick = {
+                                                                selectedCollection = playlist.toCollectionActionItem(isAlbum = false)
+                                                            }
                                                         )
                                                     }
                                                 }
@@ -769,3 +862,13 @@ fun EnhancedMusicScreen(
     }
 }
 }
+
+private fun MusicPlaylist.toCollectionActionItem(isAlbum: Boolean): MusicCollectionActionItem =
+    MusicCollectionActionItem(
+        id = id,
+        title = title,
+        subtitle = author,
+        thumbnailUrl = thumbnailUrl,
+        description = if (trackCount > 0) "$trackCount tracks" else author,
+        isAlbum = isAlbum
+    )

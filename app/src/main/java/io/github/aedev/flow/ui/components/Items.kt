@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.OfflinePin
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,12 +33,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.ui.theme.Dimensions
 import io.github.aedev.flow.ui.theme.GridItemSize
@@ -253,6 +258,7 @@ fun GridItem(
     thumbnailHeight: Dp,
     modifier: Modifier = Modifier,
     aspectRatio: Float = 1f,
+    isDownloaded: Boolean = false,
     onClick: () -> Unit = {},
     onLongClick: (() -> Unit)? = null
 ) {
@@ -264,15 +270,28 @@ fun GridItem(
                 onLongClick = onLongClick
             )
     ) {
-        AsyncImage(
-            model = thumbnailUrl,
-            contentDescription = title,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .height(thumbnailHeight)
-                .aspectRatio(aspectRatio)
-                .clip(RoundedCornerShape(Dimensions.ThumbnailCornerRadius))
-        )
+        Box {
+            AsyncImage(
+                model = thumbnailUrl,
+                contentDescription = title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .height(thumbnailHeight)
+                    .aspectRatio(aspectRatio)
+                    .clip(RoundedCornerShape(Dimensions.ThumbnailCornerRadius))
+            )
+            if (isDownloaded) {
+                Icon(
+                    imageVector = Icons.Rounded.OfflinePin,
+                    contentDescription = stringResource(R.string.status_downloaded),
+                    tint = androidx.compose.ui.graphics.Color.White,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .size(18.dp)
+                )
+            }
+        }
         
         Spacer(modifier = Modifier.height(6.dp))
         

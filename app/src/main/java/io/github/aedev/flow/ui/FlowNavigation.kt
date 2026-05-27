@@ -862,6 +862,7 @@ fun NavGraphBuilder.flowAppGraph(
             uiState.artistDetails?.let { details ->
                 ArtistPage(
                     artistDetails = details,
+                    downloadedTrackIds = uiState.downloadedTrackIds,
                     onBackClick = { navController.popBackStack() },
                     onTrackClick = { track, queue ->
                         musicPlayerViewModel.loadAndPlayTrack(track, queue)

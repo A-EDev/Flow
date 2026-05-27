@@ -4,8 +4,10 @@ import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -45,13 +47,17 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import io.github.aedev.flow.ui.components.MusicQuickActionsSheet
+import io.github.aedev.flow.ui.components.MusicCollectionActionItem
+import io.github.aedev.flow.ui.components.MusicCollectionQuickActionsSheet
 import io.github.aedev.flow.ui.components.AddToPlaylistDialog
 import io.github.aedev.flow.data.model.Video
+import io.github.aedev.flow.ui.screens.music.components.TrackListItem
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ArtistPage(
     artistDetails: ArtistDetails,
+    downloadedTrackIds: Set<String> = emptySet(),
     onBackClick: () -> Unit,
     onTrackClick: (MusicTrack, List<MusicTrack>) -> Unit,
     onAlbumClick: (MusicPlaylist) -> Unit,
@@ -73,6 +79,7 @@ fun ArtistPage(
     
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedTrack by remember { mutableStateOf<MusicTrack?>(null) }
+    var selectedCollection by remember { mutableStateOf<MusicCollectionActionItem?>(null) }
     var descriptionExpanded by remember { mutableStateOf(false) }
 
     if (showBottomSheet && selectedTrack != null) {
@@ -96,6 +103,23 @@ fun ArtistPage(
                     putExtra(Intent.EXTRA_TEXT, context.getString(R.string.share_message_template, selectedTrack!!.title, selectedTrack!!.artist, selectedTrack!!.videoId))
                 }
                 context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_song)))
+            }
+        )
+    }
+
+    selectedCollection?.let { collection ->
+        MusicCollectionQuickActionsSheet(
+            item = collection,
+            onDismiss = { selectedCollection = null },
+            onOpen = {
+                onAlbumClick(
+                    MusicPlaylist(
+                        id = collection.id,
+                        title = collection.title,
+                        thumbnailUrl = collection.thumbnailUrl.orEmpty(),
+                        author = collection.subtitle
+                    )
+                )
             }
         )
     }
@@ -351,10 +375,23 @@ fun ArtistPage(
                     }
                     
                     itemsIndexed(artistDetails.topTracks.take(5)) { index, track ->
-                        MusicTrackRow(
-                            index = index + 1,
+                        TrackListItem(
                             track = track,
+                            isDownloaded = downloadedTrackIds.contains(track.videoId),
+                            leadingContent = {
+                                Text(
+                                    text = (index + 1).toString(),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.width(32.dp),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            },
                             onClick = { onTrackClick(track, artistDetails.topTracks) },
+                            onLongClick = {
+                                selectedTrack = track
+                                showBottomSheet = true
+                            },
                             onMenuClick = { 
                                 selectedTrack = track
                                 showBottomSheet = true
@@ -377,7 +414,11 @@ fun ArtistPage(
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             items(artistDetails.singles) { album ->
-                                AlbumCard(album = album, onClick = { onAlbumClick(album) })
+                                AlbumCard(
+                                    album = album,
+                                    onClick = { onAlbumClick(album) },
+                                    onActionClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) }
+                                )
                             }
                         }
                     }
@@ -397,7 +438,11 @@ fun ArtistPage(
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             items(artistDetails.albums) { album ->
-                                AlbumCard(album = album, onClick = { onAlbumClick(album) })
+                                AlbumCard(
+                                    album = album,
+                                    onClick = { onAlbumClick(album) },
+                                    onActionClick = { selectedCollection = album.toCollectionActionItem(isAlbum = true) }
+                                )
                             }
                         }
                     }
@@ -427,7 +472,12 @@ fun ArtistPage(
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             items(artistDetails.featuredOn) { playlist ->
-                                AlbumCard(album = playlist, onClick = { onAlbumClick(playlist) }, showAuthor = true)
+                                AlbumCard(
+                                    album = playlist,
+                                    onClick = { onAlbumClick(playlist) },
+                                    showAuthor = true,
+                                    onActionClick = { selectedCollection = playlist.toCollectionActionItem(isAlbum = false) }
+                                )
                             }
                         }
                     }
@@ -485,21 +535,44 @@ fun SectionHeader(title: String, onSeeAllClick: (() -> Unit)? = null) {
 }
 
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun AlbumCard(album: MusicPlaylist, onClick: () -> Unit, showAuthor: Boolean = false) {
+fun AlbumCard(
+    album: MusicPlaylist,
+    onClick: () -> Unit,
+    showAuthor: Boolean = false,
+    onActionClick: (() -> Unit)? = null
+) {
     Column(
         modifier = Modifier
             .width(160.dp)
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onActionClick
+            )
     ) {
-        AsyncImage(
-            model = album.thumbnailUrl,
-            contentDescription = null,
-            modifier = Modifier
-                .size(160.dp)
-                .clip(RoundedCornerShape(8.dp)),
-            contentScale = ContentScale.Crop
-        )
+        Box {
+            AsyncImage(
+                model = album.thumbnailUrl,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(160.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+            if (onActionClick != null) {
+                IconButton(
+                    onClick = onActionClick,
+                    modifier = Modifier.align(Alignment.TopEnd)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = stringResource(R.string.more_options),
+                        tint = Color.White
+                    )
+                }
+            }
+        }
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = album.title,
@@ -516,6 +589,16 @@ fun AlbumCard(album: MusicPlaylist, onClick: () -> Unit, showAuthor: Boolean = f
         )
     }
 }
+
+private fun MusicPlaylist.toCollectionActionItem(isAlbum: Boolean): MusicCollectionActionItem =
+    MusicCollectionActionItem(
+        id = id,
+        title = title,
+        subtitle = author,
+        thumbnailUrl = thumbnailUrl,
+        description = if (trackCount > 0) "$trackCount tracks" else author,
+        isAlbum = isAlbum
+    )
 
 @Composable
 fun VideoCard(video: MusicTrack, onClick: () -> Unit) {

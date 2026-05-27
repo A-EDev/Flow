@@ -13,8 +13,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,6 +37,7 @@ import io.github.aedev.flow.ui.screens.music.DailyDiscoverItem
 @Composable
 fun DailyDiscoverCard(
     item: DailyDiscoverItem,
+    isDownloaded: Boolean = false,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -107,6 +111,16 @@ fun DailyDiscoverCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+            }
+            if (isDownloaded) {
+                Icon(
+                    imageVector = Icons.Rounded.OfflinePin,
+                    contentDescription = stringResource(R.string.status_downloaded),
+                    tint = Color.White,
+                    modifier = Modifier
+                        .padding(14.dp)
+                        .align(androidx.compose.ui.Alignment.TopEnd)
+                )
             }
         }
     }
