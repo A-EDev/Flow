@@ -389,6 +389,7 @@ fun EnhancedMusicPlayerScreen(
                                 isLoading = uiState.isLyricsLoading,
                                 accentColor = animatedAccentColor,
                                 onSeekTo = { viewModel.seekTo(it) },
+                                providerName = uiState.lyricsProviderName,
                                 modifier = Modifier.fillMaxSize()
                             )
                         }

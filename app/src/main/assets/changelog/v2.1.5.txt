@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-27
+DATE: 2026-05-28
 STATUS: PRE-RELEASE
 
 FEATURES
@@ -29,7 +29,7 @@ FEATURES
 - Add new sorting options in playlists
 - Add new player seekbar width customization
 - Add remeber brightness toggle #474
-- Add new LyricsPlus lyrics provider
+- Add new more lyrics providers (Based on Metrolist's provider implementation https://github.com/MetrolistGroup/Metrolist )
 - Add new lyrics engine (Based on Metrolist's ExperimentalLyrics.kt, LyricsLine.kt, LyricsCommon.kt, and FadingEdge.kt.)
 - Add new Music Audio Quality selector #521
 
@@ -67,7 +67,7 @@ IMPROVEMENTS
 - Improve mini video player animaton #464
 - Improve sponsor skip button placement #476
 - Improve music playback speed and simpmusic issues
-- Improve lyrics formatting and better word level lyrics hightlight
+- Improve lyrics formatting, seeking and better word level lyrics hightlight
 - Improve Music feed and add more sections
 - Music player and its components redesign
 - New queue sheet design, improved queue handling and similar content fetching

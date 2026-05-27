@@ -152,6 +152,7 @@ fun InlineLyricsPanel(
     isLoading: Boolean,
     accentColor: Color,
     onSeekTo: (Long) -> Unit,
+    providerName: String = "",
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -193,6 +194,7 @@ fun InlineLyricsPanel(
 
         var lastPlayerPos = EnhancedMusicPlayerManager.getCurrentPosition().takeIf { it > 0 } ?: latestCurrentPosition
         var lastUpdateTime = System.currentTimeMillis()
+        var previousPosition = lastPlayerPos
 
         while (isActive) {
             delay(32)
@@ -204,6 +206,16 @@ fun InlineLyricsPanel(
             }
             val elapsed = now - lastUpdateTime
             val position = lastPlayerPos + if (EnhancedMusicPlayerManager.isPlaying()) elapsed else 0L
+
+            if (previousPosition - position > 2000L && isAutoScrollEnabled) {
+                val seekTarget = findActiveLineIndices(lines, position)
+                    .filter { lines.getOrNull(it)?.isBackground == false }
+                    .maxOrNull() ?: findActiveLineIndices(lines, position).maxOrNull() ?: 0
+                scrollTargetIndex = seekTarget
+                lastMainMaxSeen = seekTarget
+                deferredCurrentLineIndex = seekTarget
+            }
+            previousPosition = position
 
             currentPositionState = position
 
@@ -378,10 +390,11 @@ fun InlineLyricsPanel(
 
         val resyncToCurrentLine = {
             flingJob?.cancel()
-            var target = scrollTargetIndex
-            if (target == -1) {
-                target = findActiveLineIndices(lines, currentPositionState).maxOrNull() ?: -1
-            }
+            val target = findActiveLineIndices(lines, currentPositionState)
+                .filter { lines.getOrNull(it)?.isBackground == false }
+                .maxOrNull()
+                ?: findActiveLineIndices(lines, currentPositionState).maxOrNull()
+                ?: scrollTargetIndex
             if (target != -1) {
                 val listIndex = mergedLyricsList.indexOfFirst {
                     it is LyricsListItem.Line && it.index == target
@@ -389,6 +402,7 @@ fun InlineLyricsPanel(
                 userManualOffset += positions[listIndex] ?: 0f
                 deferredCurrentLineIndex = target
                 scrollTargetIndex = target
+                lastMainMaxSeen = target
             }
             isAutoScrollEnabled = true
             lastPreviewTime = 0L
@@ -438,6 +452,7 @@ fun InlineLyricsPanel(
                 .fadingEdge(top = LYRICS_FADE_TOP_DP, bottom = LYRICS_FADE_BOTTOM_DP)
                 .clipToBounds()
                 .pointerInput(scrollClampMin, scrollClampMax, isInitialLayout) {
+                    val touchSlop = viewConfiguration.touchSlop
                     awaitPointerEventScope {
                         while (true) {
                             val down = awaitFirstDown(requireUnconsumed = false)
@@ -446,26 +461,39 @@ fun InlineLyricsPanel(
                             velocityTracker.resetTracking()
                             velocityTracker.addPosition(down.uptimeMillis, down.position)
 
+                            var totalDrag = 0f
+                            var isDragging = false
+
                             verticalDrag(down.id) { change ->
                                 val delta = change.positionChange().y
-                                val next = (userManualOffset + delta).coerceIn(scrollClampMin, scrollClampMax)
-                                velocityTracker.addPosition(change.uptimeMillis, change.position)
-                                if (next != userManualOffset) {
-                                    userManualOffset = next
-                                    isAutoScrollEnabled = false
-                                    lastPreviewTime = System.currentTimeMillis()
-                                    change.consume()
+                                totalDrag += abs(delta)
+
+                                if (!isDragging && totalDrag > touchSlop) {
+                                    isDragging = true
+                                }
+
+                                if (isDragging) {
+                                    val next = (userManualOffset + delta).coerceIn(scrollClampMin, scrollClampMax)
+                                    velocityTracker.addPosition(change.uptimeMillis, change.position)
+                                    if (next != userManualOffset) {
+                                        userManualOffset = next
+                                        isAutoScrollEnabled = false
+                                        lastPreviewTime = System.currentTimeMillis()
+                                        change.consume()
+                                    }
                                 }
                             }
 
-                            val velocity = velocityTracker.calculateVelocity().y
-                            flingJob = scope.launch {
-                                AnimationState(initialValue = userManualOffset, initialVelocity = velocity)
-                                    .animateDecay(decayAnimSpec) {
-                                        val clamped = value.coerceIn(scrollClampMin, scrollClampMax)
-                                        userManualOffset = clamped
-                                        if (value != clamped) cancelAnimation()
-                                    }
+                            if (isDragging) {
+                                val velocity = velocityTracker.calculateVelocity().y
+                                flingJob = scope.launch {
+                                    AnimationState(initialValue = userManualOffset, initialVelocity = velocity)
+                                        .animateDecay(decayAnimSpec) {
+                                            val clamped = value.coerceIn(scrollClampMin, scrollClampMax)
+                                            userManualOffset = clamped
+                                            if (value != clamped) cancelAnimation()
+                                        }
+                                }
                             }
                         }
                     }
@@ -573,6 +601,7 @@ fun InlineLyricsPanel(
                                             }
                                             scrollTargetIndex = index
                                             deferredCurrentLineIndex = index
+                                            lastMainMaxSeen = index
                                             isAutoScrollEnabled = true
                                             lastPreviewTime = 0L
                                         }
@@ -604,6 +633,32 @@ fun InlineLyricsPanel(
                         contentDescription = "Sync lyrics"
                     )
                 }
+            }
+        }
+
+        if (providerName.isNotBlank()) {
+            var showProviderName by remember(providerName) { mutableStateOf(true) }
+            val providerAlpha by animateFloatAsState(
+                targetValue = if (showProviderName) 1f else 0f,
+                animationSpec = tween(durationMillis = 600),
+                label = "providerNameAlpha"
+            )
+
+            LaunchedEffect(providerName) {
+                showProviderName = true
+                delay(3000)
+                showProviderName = false
+            }
+
+            if (providerAlpha > 0f) {
+                Text(
+                    text = providerName,
+                    color = expressiveAccent.copy(alpha = 0.6f * providerAlpha),
+                    style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(top = 8.dp, end = 16.dp)
+                )
             }
         }
     }

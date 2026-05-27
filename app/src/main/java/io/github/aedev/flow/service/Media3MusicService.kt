@@ -244,7 +244,7 @@ class Media3MusicService : MediaLibraryService() {
                         serviceScope.launch(Dispatchers.IO) {
                             try {
                                 Log.d(TAG, "Pre-warming lyrics cache in background for: $videoId - \"$title\"")
-                                val helper = io.github.aedev.flow.data.lyrics.LyricsHelper()
+                                val helper = io.github.aedev.flow.data.lyrics.LyricsHelper(this@Media3MusicService)
                                 helper.getLyrics(videoId, title, artist, 180, null, this@Media3MusicService)
                             } catch (e: Exception) {
                                 Log.w(TAG, "Lyrics pre-warm background task encountered error: ${e.message}")

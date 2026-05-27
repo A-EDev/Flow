@@ -6,7 +6,6 @@ import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import io.github.aedev.flow.data.lyrics.PreferredLyricsProvider
 import io.github.aedev.flow.network.AppProxyConfig
 import io.github.aedev.flow.network.AppProxyType
 import io.github.aedev.flow.ui.components.SubtitleStyle
@@ -89,6 +88,15 @@ class PlayerPreferences(context: Context) {
         val SEARCH_NAV_TAB_ENABLED = booleanPreferencesKey("search_nav_tab_enabled")
         val CATEGORIES_NAV_TAB_ENABLED = booleanPreferencesKey("categories_nav_tab_enabled")
         val PREFERRED_LYRICS_PROVIDER = stringPreferencesKey("preferred_lyrics_provider")
+        val LYRICS_PROVIDER_ORDER = stringPreferencesKey("lyrics_provider_order")
+        val LYRICS_PROVIDER_ENABLED_BETTERLYRICS = booleanPreferencesKey("lyrics_provider_enabled_betterlyrics")
+        val LYRICS_PROVIDER_ENABLED_SIMPMUSIC = booleanPreferencesKey("lyrics_provider_enabled_simpmusic")
+        val LYRICS_PROVIDER_ENABLED_LYRICSPLUS = booleanPreferencesKey("lyrics_provider_enabled_lyricsplus")
+        val LYRICS_PROVIDER_ENABLED_LRCLIB = booleanPreferencesKey("lyrics_provider_enabled_lrclib")
+        val LYRICS_PROVIDER_ENABLED_YOUTUBE = booleanPreferencesKey("lyrics_provider_enabled_youtube")
+        val LYRICS_PROVIDER_ENABLED_KUGOU = booleanPreferencesKey("lyrics_provider_enabled_kugou")
+        val LYRICS_PROVIDER_ENABLED_PAXSENIX = booleanPreferencesKey("lyrics_provider_enabled_paxsenix")
+        val LYRICS_PROVIDER_ENABLED_YOUTUBESUBTITLE = booleanPreferencesKey("lyrics_provider_enabled_youtubesubtitle")
         val SWIPE_GESTURES_ENABLED = booleanPreferencesKey("swipe_gestures_enabled")
         val BRIGHTNESS_SWIPE_GESTURES_ENABLED = booleanPreferencesKey("brightness_swipe_gestures_enabled")
         val REMEMBER_BRIGHTNESS_ENABLED = booleanPreferencesKey("remember_brightness_enabled")
@@ -1694,29 +1702,46 @@ class PlayerPreferences(context: Context) {
         }
     }
 
-    // Lyrics Provider preference
-    val preferredLyricsProvider: Flow<String> = context.playerPreferencesDataStore.data
+    // Lyrics Provider ordering and enable/disable
+    val lyricsProviderOrder: Flow<String> = context.playerPreferencesDataStore.data
         .map { preferences ->
-            normalizeLyricsProvider(preferences[Keys.PREFERRED_LYRICS_PROVIDER]).name
+            preferences[Keys.LYRICS_PROVIDER_ORDER] ?: ""
         }
 
-    suspend fun setPreferredLyricsProvider(provider: String) {
-        val normalizedProvider = normalizeLyricsProvider(provider).name
+    suspend fun setLyricsProviderOrder(order: String) {
         context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.PREFERRED_LYRICS_PROVIDER] = normalizedProvider
+            preferences[Keys.LYRICS_PROVIDER_ORDER] = order
         }
     }
 
-    private fun normalizeLyricsProvider(provider: String?): PreferredLyricsProvider {
-        val value = provider?.trim().orEmpty()
-        if (value.isBlank()) return PreferredLyricsProvider.LRCLIB
+    private val providerEnabledKeys = mapOf(
+        "BetterLyrics" to Keys.LYRICS_PROVIDER_ENABLED_BETTERLYRICS,
+        "SimpMusic" to Keys.LYRICS_PROVIDER_ENABLED_SIMPMUSIC,
+        "LyricsPlus" to Keys.LYRICS_PROVIDER_ENABLED_LYRICSPLUS,
+        "LrcLib" to Keys.LYRICS_PROVIDER_ENABLED_LRCLIB,
+        "YouTube" to Keys.LYRICS_PROVIDER_ENABLED_YOUTUBE,
+        "KuGou" to Keys.LYRICS_PROVIDER_ENABLED_KUGOU,
+        "Paxsenix" to Keys.LYRICS_PROVIDER_ENABLED_PAXSENIX,
+        "YouTubeSubtitle" to Keys.LYRICS_PROVIDER_ENABLED_YOUTUBESUBTITLE,
+    )
 
-        return PreferredLyricsProvider.values().firstOrNull { option ->
-            option.name.equals(value, ignoreCase = true) ||
-                option.displayName.equals(value, ignoreCase = true) ||
-                option.name.replace("_", "").equals(value.replace("_", ""), ignoreCase = true)
-        } ?: PreferredLyricsProvider.LRCLIB
+    fun isLyricsProviderEnabled(providerName: String): Flow<Boolean> =
+        context.playerPreferencesDataStore.data.map { preferences ->
+            val key = providerEnabledKeys[providerName] ?: return@map true
+            preferences[key] ?: true
+        }
+
+    suspend fun setLyricsProviderEnabled(providerName: String, enabled: Boolean) {
+        val key = providerEnabledKeys[providerName] ?: return
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[key] = enabled
+        }
     }
+
+    fun allLyricsProviderEnabledStates(): Flow<Map<String, Boolean>> =
+        context.playerPreferencesDataStore.data.map { preferences ->
+            providerEnabledKeys.mapValues { (_, key) -> preferences[key] ?: true }
+        }
 
     // ========== MINI PLAYER PREFERENCES ==========
 

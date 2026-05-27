@@ -30,7 +30,6 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import io.github.aedev.flow.data.lyrics.LyricsEntry
 import io.github.aedev.flow.data.lyrics.LyricsHelper
-import io.github.aedev.flow.data.lyrics.PreferredLyricsProvider
 import io.github.aedev.flow.data.local.PlayerPreferences
 import kotlinx.coroutines.flow.first
 import kotlin.math.abs
@@ -52,7 +51,7 @@ class MusicPlayerViewModel @Inject constructor(
     val uiState: StateFlow<MusicPlayerUiState> = _uiState.asStateFlow()
     
     private val playerPreferences = PlayerPreferences(context)
-    private var lyricsHelper = LyricsHelper() 
+    private val lyricsHelper = LyricsHelper(context)
     
     private var isInitialized = false
     private var loadTrackJob: kotlinx.coroutines.Job? = null
@@ -585,9 +584,10 @@ class MusicPlayerViewModel @Inject constructor(
         lyricsJob?.cancel()
         lyricsJob = viewModelScope.launch {
             _uiState.update { it.copy(
-                isLyricsLoading = true, 
+                isLyricsLoading = true,
                 lyrics = null,
-                syncedLyrics = emptyList()
+                syncedLyrics = emptyList(),
+                lyricsProviderName = ""
             ) }
             
             val cleanArtist = cleanName(artist)
@@ -595,13 +595,6 @@ class MusicPlayerViewModel @Inject constructor(
             val targetDuration = duration ?: (_uiState.value.duration.toInt() / 1000)
 
             try {
-                val preferredProviderName = playerPreferences.preferredLyricsProvider.first()
-                val preferredProvider = PreferredLyricsProvider.fromString(preferredProviderName)
-                
-                if (lyricsHelper.preferredProvider != preferredProvider) {
-                    lyricsHelper = LyricsHelper(preferredProvider)
-                }
-                
                 val result = lyricsHelper.getLyrics(videoId, cleanTitle, cleanArtist, targetDuration, album)
                 
                 if (result != null) {
@@ -614,13 +607,15 @@ class MusicPlayerViewModel @Inject constructor(
                         _uiState.update { it.copy(
                             isLyricsLoading = false,
                             lyrics = plainText,
-                            syncedLyrics = entries
+                            syncedLyrics = entries,
+                            lyricsProviderName = providerName
                         ) }
                     } else if (entries.size == 1) {
                         _uiState.update { it.copy(
                             isLyricsLoading = false,
                             lyrics = entries[0].text,
-                            syncedLyrics = emptyList()
+                            syncedLyrics = emptyList(),
+                            lyricsProviderName = providerName
                         ) }
                     } else {
                         _uiState.update { it.copy(isLyricsLoading = false) }
@@ -628,6 +623,8 @@ class MusicPlayerViewModel @Inject constructor(
                 } else {
                     _uiState.update { it.copy(isLyricsLoading = false) }
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 android.util.Log.e("MusicPlayerViewModel", "Lyrics fetch failed", e)
                 _uiState.update { it.copy(isLyricsLoading = false) }
@@ -692,7 +689,8 @@ data class MusicPlayerUiState(
     val selectedFilter: String = FILTER_ALL,
     val relatedContent: List<MusicTrack> = emptyList(),
     val isRelatedLoading: Boolean = false,
-    val downloadedTrackIds: Set<String> = emptySet()
+    val downloadedTrackIds: Set<String> = emptySet(),
+    val lyricsProviderName: String = ""
 )
 
 const val FILTER_ALL = "ALL"

@@ -1,21 +1,12 @@
 package io.github.aedev.flow.data.lyrics
 
-/**
- * Common interface for all lyrics providers.
- * Each provider returns structured List<LyricsEntry> directly,
- * preserving word-level timestamps when available.
- */
+import android.content.Context
+
 interface LyricsProvider {
     val name: String
 
-    /**
-     * Fetch lyrics for a given track.
-     * @param id Video/track ID
-     * @param title Track title
-     * @param artist Artist name
-     * @param duration Track duration in seconds
-     * @return Result containing List<LyricsEntry> with optional word-level data
-     */
+    fun isEnabled(context: Context): Boolean = true
+
     suspend fun getLyrics(
         id: String,
         title: String,

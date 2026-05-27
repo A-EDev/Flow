@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.PlayerPreferences
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
-import io.github.aedev.flow.data.lyrics.PreferredLyricsProvider
+import io.github.aedev.flow.data.lyrics.LyricsProviderRegistry
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.painterResource
@@ -83,7 +83,9 @@ fun PlayerSettingsScreen(
     val shortsAutoScrollSeconds by playerPreferences.shortsAutoScrollSeconds.collectAsState(initial = 10)
     val preferredAudioLanguage by playerPreferences.preferredAudioLanguage.collectAsState(initial = "original")
     val playDuringCalls by playerPreferences.playDuringCalls.collectAsState(initial = false)
-    val currentLyricsProvider by playerPreferences.preferredLyricsProvider.collectAsState(initial = "LRCLIB")
+    val lyricsProviderOrder by playerPreferences.lyricsProviderOrder.collectAsState(initial = "")
+    val lyricsEnabledStates by playerPreferences.allLyricsProviderEnabledStates().collectAsState(initial = emptyMap())
+    val registry = remember { LyricsProviderRegistry.default() }
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
     val miniPlayerContinueWatchingEnabled by playerPreferences.miniPlayerContinueWatchingEnabled.collectAsState(initial = true)
     val videoLoopEnabled by playerPreferences.videoLoopEnabled.collectAsState(initial = false)
@@ -475,9 +477,13 @@ fun PlayerSettingsScreen(
                 SectionHeader(text = stringResource(R.string.lyrics_provider_title))
                 SettingsGroup {
                     SettingsClickItem(
-                        icon =painterResource(R.drawable.ic_lyrics),
+                        icon = painterResource(R.drawable.ic_lyrics),
                         title = stringResource(R.string.lyrics_provider_title),
-                        subtitle = getLyricsProviderLabel(PreferredLyricsProvider.fromString(currentLyricsProvider)),
+                        subtitle = run {
+                            val enabledCount = lyricsEnabledStates.count { it.value }
+                            val total = registry.providerNames.size
+                            "$enabledCount / $total providers enabled"
+                        },
                         onClick = { showLyricsProviderSheet = true }
                     )
                 }
@@ -646,6 +652,9 @@ fun PlayerSettingsScreen(
 
     // Lyrics Provider Selection Sheet
     if (showLyricsProviderSheet) {
+        val orderedProviders = remember(lyricsProviderOrder) {
+            registry.getOrderedProviders(lyricsProviderOrder)
+        }
         ModalBottomSheet(
             onDismissRequest = { showLyricsProviderSheet = false },
             sheetState = rememberFlowSheetState(),
@@ -663,40 +672,53 @@ fun PlayerSettingsScreen(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
                 )
+                Text(
+                    text = "Providers are tried in order. The first one that returns lyrics wins.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 0.dp).padding(bottom = 8.dp)
+                )
 
-                PreferredLyricsProvider.values().forEach { provider ->
-                    val isSelected = currentLyricsProvider == provider.name
-                    
+                orderedProviders.forEachIndexed { index, provider ->
+                    val isEnabled = lyricsEnabledStates[provider.name] ?: true
+
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable {
-                                coroutineScope.launch {
-                                    playerPreferences.setPreferredLyricsProvider(provider.name)
-                                }
-                                showLyricsProviderSheet = false
-                            }
-                            .padding(horizontal = 24.dp, vertical = 16.dp),
+                            .padding(horizontal = 24.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = getLyricsProviderLabel(provider),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                        )
-                        
-                        if (isSelected) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "${index + 1}.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.width(28.dp)
+                            )
+                            Text(
+                                text = provider.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isEnabled) FontWeight.Medium else FontWeight.Normal,
+                                color = if (isEnabled) MaterialTheme.colorScheme.onSurface
+                                       else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                             )
                         }
+                        Switch(
+                            checked = isEnabled,
+                            onCheckedChange = { enabled ->
+                                coroutineScope.launch {
+                                    playerPreferences.setLyricsProviderEnabled(provider.name, enabled)
+                                }
+                            }
+                        )
                     }
-                    
-                    if (provider != PreferredLyricsProvider.values().last()) {
+
+                    if (index < orderedProviders.lastIndex) {
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 24.dp),
                             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -762,15 +784,6 @@ fun PlayerSettingsScreen(
 
 }
 
-@Composable
-private fun getLyricsProviderLabel(provider: PreferredLyricsProvider): String {
-    return when (provider) {
-        PreferredLyricsProvider.LRCLIB -> stringResource(R.string.lyrics_provider_lrclib)
-        PreferredLyricsProvider.BETTER_LYRICS -> stringResource(R.string.lyrics_provider_better_lyrics)
-        PreferredLyricsProvider.SIMPMUSIC -> stringResource(R.string.lyrics_provider_simpmusic)
-        PreferredLyricsProvider.LYRICS_PLUS -> stringResource(R.string.lyrics_provider_lyrics_plus)
-    }
-}
 
 @Composable
 private fun SettingsClickItem(

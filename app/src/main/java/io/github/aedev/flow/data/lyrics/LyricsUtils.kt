@@ -369,6 +369,18 @@ object LyricsUtils {
         return lines.lastIndex
     }
 
+    fun filterCreditLines(entries: List<LyricsEntry>): List<LyricsEntry> {
+        return entries.filter { entry ->
+            val lower = entry.text.trim().lowercase()
+            !(lower.startsWith("synced by") ||
+              lower.startsWith("lyrics by") ||
+              lower.startsWith("music by") ||
+              lower.startsWith("arranged by") ||
+              lower.startsWith("written by") ||
+              lower.startsWith("composed by"))
+        }
+    }
+
     fun cleanTitle(title: String): String {
         return title
             .replace(Regex("\\s*[(\\[].*?[)\\]]"), "")
