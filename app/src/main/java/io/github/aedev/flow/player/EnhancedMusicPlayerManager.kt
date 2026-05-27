@@ -733,7 +733,12 @@ object EnhancedMusicPlayerManager {
     
     fun seekTo(position: Long) {
         scope.launch {
-            player?.seekTo(position)
+            val duration = player?.duration?.takeIf { it > 0 } ?: _playerState.value.duration.takeIf { it > 0 }
+            val target = duration?.let { position.coerceIn(0L, it) } ?: position.coerceAtLeast(0L)
+
+            _currentPosition.value = target
+            _playerState.value = _playerState.value.copy(position = target)
+            player?.seekTo(target)
         }
     }
 

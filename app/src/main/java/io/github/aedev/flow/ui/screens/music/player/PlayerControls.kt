@@ -52,6 +52,9 @@ import io.github.aedev.flow.data.local.SliderStyle
 import io.github.aedev.flow.ui.components.pressScale
 import io.github.aedev.flow.ui.screens.music.player.components.PlayerSliderTrack
 import io.github.aedev.flow.ui.screens.music.player.components.SquigglySlider
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 @Composable
@@ -363,7 +366,24 @@ fun PlayerProgressSlider(
     val interactionSource = remember { MutableInteractionSource() }
     val isDragged by interactionSource.collectIsDraggedAsState()
     val isPressed by interactionSource.collectIsPressedAsState()
-    val isInteracting = isDragged || isPressed
+    var isSeeking by remember { mutableStateOf(false) }
+    var seekPreviewPosition by remember { mutableFloatStateOf(currentPosition.toFloat()) }
+    val seekPreviewScope = rememberCoroutineScope()
+    var clearSeekPreviewJob by remember { mutableStateOf<Job?>(null) }
+    val sliderEnd = duration.toFloat().coerceAtPositive(1f)
+    val isInteracting = isDragged || isPressed || isSeeking
+    val displayedPosition = if (isInteracting) {
+        seekPreviewPosition.coerceIn(0f, sliderEnd)
+    } else {
+        currentPosition.toFloat().coerceIn(0f, sliderEnd)
+    }
+    val displayedPositionMs = displayedPosition.toLong()
+
+    LaunchedEffect(currentPosition, sliderEnd, isInteracting) {
+        if (!isInteracting) {
+            seekPreviewPosition = currentPosition.toFloat().coerceIn(0f, sliderEnd)
+        }
+    }
 
     val animatedTrackHeight by animateDpAsState(
         targetValue = if (isInteracting) 16.dp else 12.dp,
@@ -386,19 +406,32 @@ fun PlayerProgressSlider(
     ) {
         Box(contentAlignment = Alignment.Center) {
             val haptic = LocalHapticFeedback.current
+            fun handleSeekPreview(value: Float) {
+                clearSeekPreviewJob?.cancel()
+                seekPreviewPosition = value.coerceIn(0f, sliderEnd)
+                isSeeking = true
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            }
+
+            fun commitSeekPreview() {
+                if (isSeeking) {
+                    onSeekTo(seekPreviewPosition.toLong())
+                }
+                clearSeekPreviewJob?.cancel()
+                clearSeekPreviewJob = seekPreviewScope.launch {
+                    delay(200)
+                    isSeeking = false
+                }
+            }
             
             when (sliderStyle) {
                 SliderStyle.METROLIST -> {
                     // Metrolist Thick Style 
                     Slider(
-                        value = currentPosition.toFloat(),
-                        onValueChange = { 
-                            if (isInteracting) {
-                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            }
-                            onSeekTo(it.toLong()) 
-                        },
-                        valueRange = 0f..duration.toFloat().coerceAtPositive(1f),
+                        value = displayedPosition,
+                        onValueChange = { handleSeekPreview(it) },
+                        onValueChangeFinished = { commitSeekPreview() },
+                        valueRange = 0f..sliderEnd,
                         interactionSource = interactionSource,
                         colors = SliderDefaults.colors(
                             thumbColor = Color.White,
@@ -413,14 +446,10 @@ fun PlayerProgressSlider(
                 SliderStyle.METROLIST_SLIM -> {
                     // Metrolist Slim Style
                      Slider(
-                        value = currentPosition.toFloat(),
-                        onValueChange = { 
-                            if (isInteracting) {
-                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            }
-                            onSeekTo(it.toLong()) 
-                        },
-                        valueRange = 0f..duration.toFloat().coerceAtPositive(1f),
+                        value = displayedPosition,
+                        onValueChange = { handleSeekPreview(it) },
+                        onValueChangeFinished = { commitSeekPreview() },
+                        valueRange = 0f..sliderEnd,
                         interactionSource = interactionSource,
                          colors = SliderDefaults.colors(
                             thumbColor = Color.White,
@@ -434,9 +463,10 @@ fun PlayerProgressSlider(
                 }
                 SliderStyle.SQUIGGLY -> {
                      SquigglySlider(
-                        value = currentPosition.toFloat(),
-                        onValueChange = { onSeekTo(it.toLong()) },
-                        valueRange = 0f..duration.toFloat().coerceAtPositive(1f),
+                        value = displayedPosition,
+                        onValueChange = { handleSeekPreview(it) },
+                        onValueChangeFinished = { commitSeekPreview() },
+                        valueRange = 0f..sliderEnd,
                         colors = SliderDefaults.colors(
                             activeTrackColor = Color.White,
                             inactiveTrackColor = Color.White.copy(alpha = 0.3f),
@@ -447,12 +477,10 @@ fun PlayerProgressSlider(
                 }
                 SliderStyle.SLIM -> {
                      Slider(
-                        value = currentPosition.toFloat(),
-                        onValueChange = { 
-                             if (isInteracting) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                             onSeekTo(it.toLong()) 
-                        },
-                        valueRange = 0f..duration.toFloat().coerceAtPositive(1f),
+                        value = displayedPosition,
+                        onValueChange = { handleSeekPreview(it) },
+                        onValueChangeFinished = { commitSeekPreview() },
+                        valueRange = 0f..sliderEnd,
                         interactionSource = interactionSource,
                         thumb = { Spacer(modifier = Modifier.size(0.dp)) },
                         track = { sliderState ->
@@ -472,14 +500,10 @@ fun PlayerProgressSlider(
                 }
                 SliderStyle.DEFAULT -> {
                     Slider(
-                        value = currentPosition.toFloat(),
-                        onValueChange = { 
-                            if (isInteracting) {
-                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            }
-                            onSeekTo(it.toLong()) 
-                        },
-                        valueRange = 0f..duration.toFloat().coerceAtPositive(1f),
+                        value = displayedPosition,
+                        onValueChange = { handleSeekPreview(it) },
+                        onValueChangeFinished = { commitSeekPreview() },
+                        valueRange = 0f..sliderEnd,
                         interactionSource = interactionSource,
                         colors = SliderDefaults.colors(
                             thumbColor = Color.Transparent,
@@ -496,7 +520,7 @@ fun PlayerProgressSlider(
                             )
                         },
                         track = {
-                            val fraction = if (duration > 0) currentPosition.toFloat() / duration.toFloat().coerceAtLeast(1f) else 0f
+                            val fraction = if (duration > 0) displayedPosition / sliderEnd else 0f
                             
                             Box(
                                 modifier = Modifier
@@ -537,7 +561,7 @@ fun PlayerProgressSlider(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                formatTime(currentPosition),
+                formatTime(displayedPositionMs),
                 style = MaterialTheme.typography.labelSmall,
                 color = if (isInteracting) Color.White else Color.White.copy(alpha = 0.5f),
                 fontWeight = if (isInteracting) FontWeight.Bold else FontWeight.Medium

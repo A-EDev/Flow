@@ -1,6 +1,7 @@
 package io.github.aedev.flow.ui.screens.music
 
 import android.content.Context
+import android.os.SystemClock
 import android.widget.Toast
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,6 +13,7 @@ import io.github.aedev.flow.data.music.DownloadManager
 import io.github.aedev.flow.data.music.PlaylistRepository
 import io.github.aedev.flow.data.model.Video
 import java.util.UUID
+import java.util.Locale
 import io.github.aedev.flow.data.music.YouTubeMusicService
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.RepeatMode
@@ -31,6 +33,7 @@ import io.github.aedev.flow.data.lyrics.LyricsHelper
 import io.github.aedev.flow.data.lyrics.PreferredLyricsProvider
 import io.github.aedev.flow.data.local.PlayerPreferences
 import kotlinx.coroutines.flow.first
+import kotlin.math.abs
 
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -53,6 +56,8 @@ class MusicPlayerViewModel @Inject constructor(
     
     private var isInitialized = false
     private var loadTrackJob: kotlinx.coroutines.Job? = null
+    private var pendingSeekPosition: Long? = null
+    private var pendingSeekStartedAtMs: Long = 0L
 
     init {
         EnhancedMusicPlayerManager.initialize(context)
@@ -78,18 +83,21 @@ class MusicPlayerViewModel @Inject constructor(
         
         viewModelScope.launch {
             EnhancedMusicPlayerManager.playerState.collect { playerState ->
+                val acceptedPosition = acceptedPlaybackPosition(playerState.position)
                 _uiState.update { it.copy(
                     isPlaying = playerState.isPlaying,
                     isBuffering = playerState.isBuffering,
                     duration = playerState.duration,
-                    currentPosition = playerState.position
+                    currentPosition = acceptedPosition ?: it.currentPosition
                 ) }
             }
         }
         
         viewModelScope.launch {
             EnhancedMusicPlayerManager.currentPosition.collect { position ->
-                _uiState.update { it.copy(currentPosition = position) }
+                acceptedPlaybackPosition(position)?.let { acceptedPosition ->
+                    _uiState.update { it.copy(currentPosition = acceptedPosition) }
+                }
             }
         }
             
@@ -190,7 +198,7 @@ class MusicPlayerViewModel @Inject constructor(
     fun loadAndPlayTrack(track: MusicTrack, queue: List<MusicTrack> = emptyList(), sourceName: String? = null) {
         loadTrackJob?.cancel()
         loadTrackJob = viewModelScope.launch {
-            val finalSourceName = sourceName ?: context.getString(R.string.radio_source_template, track.artist)
+            val finalSourceName = resolveSourceName(sourceName, track)
             val activeQueue = if (queue.isNotEmpty()) queue else listOf(track)
 
             // ─── PHASE 1: Instant start ───────────────────────────────────────────
@@ -255,6 +263,57 @@ class MusicPlayerViewModel @Inject constructor(
         }
     }
 
+    private fun resolveSourceName(sourceName: String?, track: MusicTrack): String {
+        val trimmed = sourceName?.trim().orEmpty()
+        if (trimmed.isBlank()) {
+            return context.getString(R.string.radio_source_template, track.artist)
+        }
+
+        val key = trimmed.lowercase(Locale.getDefault())
+        val mapped = when (key) {
+            "listen_again" -> context.getString(R.string.section_listen_again)
+            "daily_discover" -> context.getString(R.string.section_daily_discover)
+            "quick_picks" -> context.getString(R.string.section_quick_picks)
+            "speed_dial", "speed_dial_shuffle" -> context.getString(R.string.section_speed_dial)
+            "recommended" -> context.getString(R.string.section_recommended)
+            "recently_played" -> context.getString(R.string.section_recently_played)
+            "music_videos" -> context.getString(R.string.section_music_videos)
+            "music_videos_for_you" -> context.getString(R.string.section_music_videos_for_you)
+            "live_performances" -> context.getString(R.string.section_live_performances)
+            "new_releases" -> context.getString(R.string.section_new_releases)
+            "popular_artists" -> context.getString(R.string.section_popular_artists)
+            "mixed_for_you" -> context.getString(R.string.section_mixed_for_you)
+            "moods_and_genres" -> context.getString(R.string.section_moods_and_genres)
+            "mood_and_genres" -> context.getString(R.string.section_mood_and_genres)
+            "from_the_community" -> context.getString(R.string.section_from_the_community)
+            "top_albums" -> context.getString(R.string.section_top_albums)
+            "top_picks" -> context.getString(R.string.top_picks_for_you)
+            "trending" -> context.getString(R.string.trending)
+            else -> null
+        }
+
+        if (mapped != null) return mapped
+
+        if (key.startsWith("genre_")) {
+            val genre = trimmed.substringAfter("genre_", "").replace('_', ' ').trim()
+            if (genre.isNotBlank()) return genre
+        }
+
+        return CleanSource(trimmed)
+    }
+
+    private fun CleanSource(value: String): String {
+        return value
+            .replace('_', ' ')
+            .split(' ')
+            .filter { it.isNotBlank() }
+            .joinToString(" ") { word ->
+                word.replaceFirstChar { char ->
+                    if (char.isLowerCase()) char.titlecase(Locale.getDefault()) else char.toString()
+                }
+            }
+    }
+
     fun togglePlayPause() {
         EnhancedMusicPlayerManager.togglePlayPause()
     }
@@ -313,8 +372,31 @@ class MusicPlayerViewModel @Inject constructor(
         val duration = _uiState.value.duration.takeIf { it > 0 }
             ?: EnhancedMusicPlayerManager.getDuration().takeIf { it > 0 }
         val target = duration?.let { position.coerceIn(0L, it) } ?: position.coerceAtLeast(0L)
+        pendingSeekPosition = target
+        pendingSeekStartedAtMs = SystemClock.elapsedRealtime()
         EnhancedMusicPlayerManager.seekTo(target)
         _uiState.update { it.copy(currentPosition = target) }
+    }
+
+    private fun acceptedPlaybackPosition(position: Long): Long? {
+        val pending = pendingSeekPosition ?: return position
+        val elapsedMs = SystemClock.elapsedRealtime() - pendingSeekStartedAtMs
+        val seekHasLanded = abs(position - pending) <= SEEK_POSITION_CONFIRM_TOLERANCE_MS
+        val guardExpired = elapsedMs >= SEEK_POSITION_GUARD_MS
+
+        if (seekHasLanded) {
+            if (elapsedMs >= SEEK_POSITION_MIN_HOLD_MS) {
+                pendingSeekPosition = null
+            }
+            return position
+        }
+
+        if (guardExpired) {
+            pendingSeekPosition = null
+            return position
+        }
+
+        return null
     }
 
     fun skipToNext() {
@@ -572,9 +654,10 @@ class MusicPlayerViewModel @Inject constructor(
     fun updateProgress() {
         val position = EnhancedMusicPlayerManager.getCurrentPosition()
         val duration = EnhancedMusicPlayerManager.getDuration()
+        val acceptedPosition = acceptedPlaybackPosition(position)
         
         _uiState.update { it.copy(
-            currentPosition = position,
+            currentPosition = acceptedPosition ?: it.currentPosition,
             duration = if (duration > 0) duration else it.duration
         ) }
     }
@@ -617,4 +700,8 @@ const val FILTER_DISCOVER = "DISCOVER"
 const val FILTER_POPULAR = "POPULAR"
 const val FILTER_DEEP_CUTS = "DEEP_CUTS"
 const val FILTER_WORKOUT = "WORKOUT"
+
+private const val SEEK_POSITION_CONFIRM_TOLERANCE_MS = 1_000L
+private const val SEEK_POSITION_MIN_HOLD_MS = 250L
+private const val SEEK_POSITION_GUARD_MS = 1_500L
 
