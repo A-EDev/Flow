@@ -1580,4 +1580,6 @@
     <string name="already_downloaded_toast">Già scaricato</string>
     <string name="download_started_toast">Download avviato…</string>
     <string name="download_error_toast">Eorre download: %1$s</string>
+    <string name="music_playback_warning_forbidden">L\'accesso allo streaming musicale è stato negato. YouTube potrebbe limitare questo IP; prova a ricaricare o a cambiare rete/VPN.</string>
+    <string name="music_playback_warning_network">Lo streaming musicale è fallito a causa di un problema di rete. Controlla la tua connessione o prova un\'altra rete.</string>
 </resources>
