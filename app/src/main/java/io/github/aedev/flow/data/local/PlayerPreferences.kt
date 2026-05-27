@@ -71,6 +71,7 @@ class PlayerPreferences(context: Context) {
         
         // Audio track preference
         val PREFERRED_AUDIO_LANGUAGE = stringPreferencesKey("preferred_audio_language")
+        val MUSIC_AUDIO_QUALITY = stringPreferencesKey("music_audio_quality")
 
         // Shorts quality preferences
         val SHORTS_QUALITY_WIFI = stringPreferencesKey("shorts_quality_wifi")
@@ -685,6 +686,17 @@ class PlayerPreferences(context: Context) {
     suspend fun setShortsQualityCellular(quality: VideoQuality) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SHORTS_QUALITY_CELLULAR] = quality.label
+        }
+    }
+
+    val musicAudioQuality: Flow<MusicAudioQuality> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            MusicAudioQuality.fromString(preferences[Keys.MUSIC_AUDIO_QUALITY] ?: MusicAudioQuality.AUTO.label)
+        }
+
+    suspend fun setMusicAudioQuality(quality: MusicAudioQuality) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.MUSIC_AUDIO_QUALITY] = quality.label
         }
     }
     
@@ -1939,6 +1951,19 @@ enum class VideoQuality(val label: String, val height: Int) {
             return values()
                 .filter { it != AUTO }
                 .minByOrNull { kotlin.math.abs(it.height - height) } ?: Q_720p
+        }
+    }
+}
+
+enum class MusicAudioQuality(val label: String) {
+    AUTO("Auto"),
+    HIGH("High"),
+    MEDIUM("Medium"),
+    LOW("Low");
+
+    companion object {
+        fun fromString(label: String): MusicAudioQuality {
+            return values().find { it.label == label } ?: AUTO
         }
     }
 }

@@ -241,14 +241,15 @@ object YouTubeMusicService {
     suspend fun getBestAudioStream(videoId: String): Pair<org.schabi.newpipe.extractor.stream.AudioStream, Long>? = withContext(Dispatchers.IO) {
         try {
             val streamInfo = getStreamInfo(videoId) ?: return@withContext null
-            val preferredAudioLanguage = PlayerPreferences(FlowApplication.appContext)
-                .preferredAudioLanguage
-                .first()
+            val preferences = PlayerPreferences(FlowApplication.appContext)
+            val preferredAudioLanguage = preferences.preferredAudioLanguage.first()
+            val preferredMusicAudioQuality = preferences.musicAudioQuality.first()
             val audioStream = AudioStreamSelector.selectPreferredAudioStream(
                 streams = streamInfo.audioStreams
                     ?.filter { !it.url.isNullOrEmpty() }
                     ?: emptyList(),
-                preferredAudioLanguage = preferredAudioLanguage
+                preferredAudioLanguage = preferredAudioLanguage,
+                preferredMusicAudioQuality = preferredMusicAudioQuality
             )
             
             if (audioStream != null) {
@@ -266,14 +267,15 @@ object YouTubeMusicService {
     suspend fun getAudioUrl(videoId: String): String? = withContext(Dispatchers.IO) {
         try {
             val streamInfo = getStreamInfo(videoId)
-            val preferredAudioLanguage = PlayerPreferences(FlowApplication.appContext)
-                .preferredAudioLanguage
-                .first()
+            val preferences = PlayerPreferences(FlowApplication.appContext)
+            val preferredAudioLanguage = preferences.preferredAudioLanguage.first()
+            val preferredMusicAudioQuality = preferences.musicAudioQuality.first()
             val audioStream = AudioStreamSelector.selectPreferredAudioStream(
                 streams = streamInfo?.audioStreams
                     ?.filter { !it.url.isNullOrEmpty() }
                     ?: emptyList(),
-                preferredAudioLanguage = preferredAudioLanguage
+                preferredAudioLanguage = preferredAudioLanguage,
+                preferredMusicAudioQuality = preferredMusicAudioQuality
             )
             
             audioStream?.url

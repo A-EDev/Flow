@@ -422,8 +422,8 @@
     <string name="settings_item_player_subtitle">Autoplay, Background Play, SponsorBlock</string>
     <string name="settings_item_proxy">Proxy Settings</string>
     <string name="settings_item_proxy_subtitle">Route remote traffic through HTTP or SOCKS5</string>
-    <string name="settings_item_quality">Video Quality</string>
-    <string name="settings_item_quality_subtitle">Resolution for Wi-Fi and Mobile</string>
+    <string name="settings_item_quality">Video &amp; Music Quality</string>
+    <string name="settings_item_quality_subtitle">Video resolution and music audio quality</string>
     <string name="settings_item_content_display">Content Display</string>
     <string name="settings_item_content_display_subtitle">Grid size, thumbnails, layout</string>
     <string name="settings_item_app_language">App Language</string>
@@ -836,11 +836,16 @@
     <string name="player_settings_double_tap_seek_subtitle_template">%ds per side double-tap</string>
     <string name="player_settings_double_tap_seek_dialog_title">Double-Tap Seek Duration</string>
     <string name="player_settings_double_tap_seek_dialog_body">Choose how many seconds to seek when double-tapping the left or right side of the player.</string>
-    <!-- Video Quality Settings -->
-    <string name="video_quality_title">Video Quality</string>
-    <string name="video_quality_warning">High definition uses more data</string>
+    <!-- Video and Music Quality Settings -->
+    <string name="video_quality_title">Video &amp; Music Quality</string>
+    <string name="video_quality_warning">Higher quality uses more data</string>
     <string name="video_quality_wifi_header">Wi-Fi Quality</string>
     <string name="video_quality_cellular_header">Cellular Quality</string>
+    <string name="music_quality_header">Music Audio Quality</string>
+    <string name="music_quality_auto">Auto</string>
+    <string name="music_quality_high">High</string>
+    <string name="music_quality_medium">Medium</string>
+    <string name="music_quality_low">Low</string>
     <string name="quality_144p">144p</string>
     <string name="quality_240p">240p</string>
     <string name="quality_360p">360p</string>

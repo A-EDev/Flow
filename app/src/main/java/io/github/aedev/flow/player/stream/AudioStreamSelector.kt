@@ -1,7 +1,9 @@
 package io.github.aedev.flow.player.stream
 
+import io.github.aedev.flow.data.local.MusicAudioQuality
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.AudioTrackType
+import kotlin.math.abs
 import java.util.Locale
 
 object AudioStreamSelector {
@@ -9,6 +11,7 @@ object AudioStreamSelector {
     fun selectPreferredAudioStream(
         streams: List<AudioStream>,
         preferredAudioLanguage: String,
+        preferredMusicAudioQuality: MusicAudioQuality = MusicAudioQuality.AUTO,
         compatibilityFilter: ((AudioStream) -> Boolean)? = null
     ): AudioStream? {
         if (streams.isEmpty()) return null
@@ -18,8 +21,27 @@ object AudioStreamSelector {
             ?: streams
 
         val preferredCandidates = preferredCandidates(compatibleStreams, preferredAudioLanguage)
-        return preferredCandidates.maxByOrNull { it.averageBitrate }
-            ?: compatibleStreams.maxByOrNull { it.averageBitrate }
+        return selectByQuality(preferredCandidates, preferredMusicAudioQuality)
+            ?: selectByQuality(compatibleStreams, preferredMusicAudioQuality)
+    }
+
+    private fun selectByQuality(
+        streams: List<AudioStream>,
+        preferredMusicAudioQuality: MusicAudioQuality
+    ): AudioStream? {
+        if (streams.isEmpty()) return null
+
+        val streamsWithKnownBitrate = streams.filter { it.audioBitrate() > 0 }.ifEmpty { streams }
+        return when (preferredMusicAudioQuality) {
+            MusicAudioQuality.AUTO,
+            MusicAudioQuality.HIGH -> streamsWithKnownBitrate.maxByOrNull { it.audioBitrate() }
+            MusicAudioQuality.MEDIUM -> streamsWithKnownBitrate.minByOrNull { abs(it.audioBitrate() - MEDIUM_BITRATE_TARGET) }
+            MusicAudioQuality.LOW -> streamsWithKnownBitrate.minByOrNull { it.audioBitrate() }
+        }
+    }
+
+    private fun AudioStream.audioBitrate(): Int {
+        return averageBitrate.takeIf { it > 0 } ?: bitrate
     }
 
     private fun preferredCandidates(
@@ -58,4 +80,6 @@ object AudioStreamSelector {
 
         return streams
     }
+
+    private const val MEDIUM_BITRATE_TARGET = 128_000
 }

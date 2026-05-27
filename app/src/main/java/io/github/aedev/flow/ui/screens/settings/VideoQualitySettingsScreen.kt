@@ -4,10 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import io.github.aedev.flow.R
+import io.github.aedev.flow.data.local.MusicAudioQuality
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.VideoQuality
 import kotlinx.coroutines.launch
@@ -29,6 +29,7 @@ fun VideoQualitySettingsScreen(
     
     val wifiQuality by playerPreferences.defaultQualityWifi.collectAsState(initial = VideoQuality.Q_1080p)
     val cellularQuality by playerPreferences.defaultQualityCellular.collectAsState(initial = VideoQuality.Q_480p)
+    val musicAudioQuality by playerPreferences.musicAudioQuality.collectAsState(initial = MusicAudioQuality.AUTO)
     
     val qualities = listOf(
         VideoQuality.AUTO,
@@ -40,6 +41,13 @@ fun VideoQualitySettingsScreen(
         VideoQuality.Q_360p,
         VideoQuality.Q_240p,
         VideoQuality.Q_144p
+    )
+
+    val musicQualities = listOf(
+        MusicAudioQuality.AUTO,
+        MusicAudioQuality.HIGH,
+        MusicAudioQuality.MEDIUM,
+        MusicAudioQuality.LOW
     )
 
     Scaffold(
@@ -121,6 +129,25 @@ fun VideoQualitySettingsScreen(
                     }
                 }
             }
+
+            item {
+                SectionHeader(text = androidx.compose.ui.res.stringResource(R.string.music_quality_header))
+            }
+
+            item {
+                SettingsGroup {
+                    musicQualities.forEachIndexed { index, quality ->
+                        MusicQualitySelectionItem(
+                            quality = quality,
+                            isSelected = musicAudioQuality == quality,
+                            onClick = { coroutineScope.launch { playerPreferences.setMusicAudioQuality(quality) } }
+                        )
+                        if (index < musicQualities.size - 1) {
+                            HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -165,5 +192,42 @@ private fun getQualityNameRes(quality: VideoQuality): Int {
         VideoQuality.Q_1080p -> io.github.aedev.flow.R.string.quality_1080p_full_hd
         VideoQuality.Q_1440p -> io.github.aedev.flow.R.string.quality_1440p_qhd
         VideoQuality.Q_2160p -> io.github.aedev.flow.R.string.quality_2160p_4k
+    }
+}
+
+@Composable
+private fun MusicQualitySelectionItem(
+    quality: MusicAudioQuality,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = isSelected,
+            onClick = null
+        )
+
+        Spacer(modifier = Modifier.width(16.dp))
+
+        Text(
+            text = androidx.compose.ui.res.stringResource(getMusicQualityNameRes(quality)),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+    }
+}
+
+private fun getMusicQualityNameRes(quality: MusicAudioQuality): Int {
+    return when (quality) {
+        MusicAudioQuality.AUTO -> R.string.music_quality_auto
+        MusicAudioQuality.HIGH -> R.string.music_quality_high
+        MusicAudioQuality.MEDIUM -> R.string.music_quality_medium
+        MusicAudioQuality.LOW -> R.string.music_quality_low
     }
 }

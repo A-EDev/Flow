@@ -3,6 +3,7 @@ package io.github.aedev.flow.utils
 import android.net.Uri
 import android.util.Log
 import io.github.aedev.flow.FlowApplication
+import io.github.aedev.flow.data.local.MusicAudioQuality
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
@@ -34,6 +35,7 @@ import okhttp3.Request
 import java.io.IOException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.Locale
+import kotlin.math.abs
 
 object MusicPlayerUtils {
     private const val TAG = "MusicPlayerUtils"
@@ -494,17 +496,42 @@ object MusicPlayerUtils {
             return null
         }
 
+        val playerPreferences = PlayerPreferences(FlowApplication.appContext)
         val preferredAudioLanguage = runBlocking {
-            PlayerPreferences(FlowApplication.appContext).preferredAudioLanguage.first()
+            playerPreferences.preferredAudioLanguage.first()
+        }
+        val preferredMusicAudioQuality = runBlocking {
+            playerPreferences.musicAudioQuality.first()
         }
         val preferredFormats = preferredAudioFormats(audioFormats, preferredAudioLanguage)
         
-        val bestFormat = preferredFormats.maxByOrNull { format ->
-            format.bitrate + (if (format.mimeType.contains("webm")) 10240 else 0)
-        }
+        val bestFormat = selectPreferredMusicFormat(preferredFormats, preferredMusicAudioQuality)
         
         Log.d(TAG, "Selected format: ${bestFormat?.mimeType}, bitrate: ${bestFormat?.bitrate}")
         return bestFormat
+    }
+
+    private fun selectPreferredMusicFormat(
+        formats: List<PlayerResponse.StreamingData.Format>,
+        preferredMusicAudioQuality: MusicAudioQuality
+    ): PlayerResponse.StreamingData.Format? {
+        if (formats.isEmpty()) return null
+
+        val formatsWithKnownBitrate = formats.filter { it.audioBitrate() > 0 }.ifEmpty { formats }
+        return when (preferredMusicAudioQuality) {
+            MusicAudioQuality.AUTO,
+            MusicAudioQuality.HIGH -> formatsWithKnownBitrate.maxByOrNull { it.audioQualityScore() }
+            MusicAudioQuality.MEDIUM -> formatsWithKnownBitrate.minByOrNull { abs(it.audioBitrate() - MEDIUM_BITRATE_TARGET) }
+            MusicAudioQuality.LOW -> formatsWithKnownBitrate.minByOrNull { it.audioBitrate() }
+        }
+    }
+
+    private fun PlayerResponse.StreamingData.Format.audioQualityScore(): Int {
+        return audioBitrate() + if (mimeType.contains("webm")) 10_240 else 0
+    }
+
+    private fun PlayerResponse.StreamingData.Format.audioBitrate(): Int {
+        return averageBitrate?.takeIf { it > 0 } ?: bitrate
     }
 
     private fun preferredAudioFormats(
@@ -533,6 +560,8 @@ object MusicPlayerUtils {
 
         return formats
     }
+
+    private const val MEDIUM_BITRATE_TARGET = 128_000
 
     private fun checkUrl(url: String, userAgent: String): Boolean {
         return try {
