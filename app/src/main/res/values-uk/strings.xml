@@ -1596,4 +1596,5 @@
     <string name="discovery_queries">Запити</string>
     <string name="video_download_location_label">Місце завантаження відео</string>
     <string name="music_download_location_label">Місце завантаження музики</string>
+    <string name="refresh_lyrics">Перезавантажити текст пісні</string>
 </resources>
