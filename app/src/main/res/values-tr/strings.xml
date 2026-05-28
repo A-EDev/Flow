@@ -739,4 +739,12 @@
     <string name="theme_desc_rose_gold">Lüks ve Asil</string>
     <string name="theme_name_arctic">Arktik</string>
     <string name="theme_desc_arctic">Buz gibi berrak</string>
+    <string name="settings_item_content_prefs">İçerik Tercihleri</string>
+    <string name="settings_item_content_prefs_subtitle">Görmek istemediğiniz konuları engelleyin</string>
+    <string name="settings_item_player">Oynatıcı Ayarları</string>
+    <string name="settings_item_player_subtitle">Otomatik Oynat, Arka Planda Oynat, SponsorBlock</string>
+    <string name="settings_item_proxy">Vekil Sunucu Ayarları</string>
+    <string name="settings_item_proxy_subtitle">Uzak trafiği HTTP veya SOCKS5 üzerinden yönlendirin</string>
+    <string name="settings_item_quality">Video ve Müzik Kalitesi</string>
+    <string name="settings_item_quality_subtitle">Video çözünürlüğü ve müzik ses kalitesi</string>
 </resources>
