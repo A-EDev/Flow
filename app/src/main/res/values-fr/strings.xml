@@ -1629,4 +1629,10 @@
     <string name="music_playback_warning_network">La lecture de la musique a échoué en raison d\'un problème de réseau. Vérifiez votre connexion ou essayez un autre réseau.</string>
     <string name="music_playback_warning_final">Ce titre n\'a pas pu être chargé malgré plusieurs tentatives. Si le problème persiste, essayez un autre réseau ou un VPN.</string>
     <string name="music_playback_warning_generic">La lecture de la musique a échoué. Réessayez ou changez de réseau si le problème persiste.</string>
+    <string name="add_to_library">Ajouter à la bibliothèque</string>
+    <string name="saved_to_library">Enregistré dans la bibliothèque</string>
+    <string name="failed_to_save_to_library">Échec de l\'enregistrement dans la bibliothèque</string>
+    <string name="open">Ouvrir</string>
+    <string name="video_download_location_label">Emplacement de téléchargement de la vidéo</string>
+    <string name="music_download_location_label">Emplacement de téléchargement de la musique</string>
 </resources>
