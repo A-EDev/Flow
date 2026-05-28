@@ -47,13 +47,21 @@ import io.github.aedev.flow.ui.screens.player.VideoPlayerUiState
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.innertube.models.YouTubeClient
+import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import org.schabi.newpipe.extractor.stream.VideoStream
 
 @Composable
 fun DownloadQualityDialog(
     streamInfo: org.schabi.newpipe.extractor.stream.StreamInfo?,
     streamSizes: Map<String, Long>,
+    innerTubeVideoFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
+    innerTubeAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
     video: Video,
     onDismiss: () -> Unit
 ) {
@@ -88,29 +96,57 @@ fun DownloadQualityDialog(
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
-                
+
+                val innerTubeVideoStreams = remember(innerTubeVideoFormats) {
+                    io.github.aedev.flow.player.stream.InnerTubeStreamBridge.convertVideoFormats(innerTubeVideoFormats)
+                }
+                val innerTubeAudioStreams = remember(innerTubeAudioFormats) {
+                    io.github.aedev.flow.player.stream.InnerTubeStreamBridge.convertAudioFormats(innerTubeAudioFormats)
+                }
+
+                val videoOnlyStreams = innerTubeVideoStreams.ifEmpty {
+                    streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList()
+                }
+                val muxedStreams = if (innerTubeVideoStreams.isNotEmpty()) {
+                    emptyList()
+                } else {
+                    streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList()
+                }
+                val effectiveAudioForDownload: List<org.schabi.newpipe.extractor.stream.AudioStream> =
+                    innerTubeAudioStreams.ifEmpty { streamInfo?.audioStreams ?: emptyList() }
+
+                val codecPriority = mapOf("vp9" to 0, "h264" to 1, "vp8" to 2, "hevc" to 3, "av1" to 4)
+                val distinctStreams = (videoOnlyStreams + muxedStreams)
+                    .distinctBy {
+                        "${VideoPlayerUtils.qualityHeightFromStream(it)}_${VideoPlayerUtils.codecKeyFromStream(it)}"
+                    }
+                    .sortedWith(
+                        compareByDescending<VideoStream> { VideoPlayerUtils.qualityHeightFromStream(it) }
+                            .thenBy { codecPriority[VideoPlayerUtils.codecKeyFromStream(it)] ?: 99 }
+                    )
+
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.heightIn(max = 400.dp)
                 ) {
-                    val videoOnlyStreams = streamInfo?.videoOnlyStreams
-                        ?.filterIsInstance<VideoStream>() ?: emptyList()
-                    val muxedStreams = streamInfo?.videoStreams
-                        ?.filterIsInstance<VideoStream>() ?: emptyList()
-
-                    val codecPriority = mapOf("vp9" to 0, "h264" to 1, "vp8" to 2, "hevc" to 3, "av1" to 4)
-                    val distinctStreams = (videoOnlyStreams + muxedStreams)
-                        .distinctBy {
-                            "${VideoPlayerUtils.qualityHeightFromStream(it)}_${VideoPlayerUtils.codecKeyFromStream(it)}"
-                        }
-                        .sortedWith(
-                            compareByDescending<VideoStream> { VideoPlayerUtils.qualityHeightFromStream(it) }
-                                .thenBy { codecPriority[VideoPlayerUtils.codecKeyFromStream(it)] ?: 99 }
-                        )
 
                     if (distinctStreams.isEmpty()) {
                          item {
                              Text(stringResource(R.string.no_download_streams), modifier = Modifier.padding(16.dp))
+                         }
+                         item {
+                             val scope = rememberCoroutineScope()
+                             Button(
+                                 onClick = {
+                                     onDismiss()
+                                     scope.launch {
+                                         trySabrDownloadFromDialog(context, video)
+                                     }
+                                 },
+                                 modifier = Modifier.fillMaxWidth()
+                             ) {
+                                 Text("Try SABR Download")
+                             }
                          }
                     }
 
@@ -142,7 +178,7 @@ fun DownloadQualityDialog(
                                     var audioUrl: String? = null
                                     if (stream.isVideoOnly) {
                                         val isMp4Container = codecKey != "vp9" && codecKey != "vp8"
-                                        val allAudio = streamInfo?.audioStreams ?: emptyList()
+                                        val allAudio = effectiveAudioForDownload
 
                                         fun isAacCompatible(a: org.schabi.newpipe.extractor.stream.AudioStream): Boolean {
                                             val fmt  = (a.format?.name ?: "").lowercase()
@@ -263,7 +299,7 @@ fun DownloadQualityDialog(
                     }
 
                     // ===== Audio-Only Section =====
-                    val audioStreams = streamInfo?.audioStreams?.sortedByDescending { it.averageBitrate } ?: emptyList()
+                    val audioStreams = effectiveAudioForDownload.sortedByDescending { it.averageBitrate }
                     if (audioStreams.isNotEmpty()) {
                         item {
                             Spacer(modifier = Modifier.height(8.dp))
@@ -1596,5 +1632,38 @@ fun SubtitleStyleCustomizerDialog(
                 }
             }
         }
+    }
+}
+
+private suspend fun trySabrDownloadFromDialog(context: Context, video: Video) {
+    try {
+        Toast.makeText(context, "Trying SABR download...", Toast.LENGTH_SHORT).show()
+        val sabrInfo = withContext(Dispatchers.IO) {
+            withTimeoutOrNull(8000L) {
+                val playerResponse = YouTube.player(video.id, client = YouTubeClient.ANDROID)
+                    .getOrNull() ?: return@withTimeoutOrNull null
+                SabrUrlResolver.resolve(playerResponse)
+            }
+        }
+        if (sabrInfo != null) {
+            val codecHint = if (sabrInfo.videoItag in listOf(313, 271, 308, 248, 303, 247, 302, 244, 243, 242)) "vp9" else null
+            io.github.aedev.flow.data.video.downloader.FlowDownloadService.startSabrDownload(
+                context = context,
+                video = video,
+                quality = "best",
+                sabrStreamingUrl = sabrInfo.streamingUrl,
+                audioItag = sabrInfo.audioItag,
+                audioLmt = sabrInfo.audioLmt,
+                videoItag = sabrInfo.videoItag,
+                videoLmt = sabrInfo.videoLmt,
+                durationMs = sabrInfo.durationMs,
+                videoCodec = codecHint
+            )
+            Toast.makeText(context, "SABR download started", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "No download source available", Toast.LENGTH_SHORT).show()
+        }
+    } catch (e: Exception) {
+        Toast.makeText(context, "SABR download failed: ${e.message}", Toast.LENGTH_SHORT).show()
     }
 }

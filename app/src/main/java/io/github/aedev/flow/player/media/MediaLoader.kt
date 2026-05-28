@@ -17,6 +17,9 @@ import androidx.media3.exoplayer.source.SingleSampleMediaSource
 import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.resolver.VideoPlaybackResolver
+import io.github.aedev.flow.player.sabr.integration.SabrMediaSourceFactory
+import io.github.aedev.flow.player.sabr.integration.SabrMediaSourceResult
+import io.github.aedev.flow.player.sabr.integration.SabrOrchestrator
 import io.github.aedev.flow.player.state.EnhancedPlayerState
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.surface.SurfaceManager
@@ -41,6 +44,9 @@ class MediaLoader(
 
         internal fun subtitleTrackId(index: Int): String = "flow-subtitle-$index"
     }
+
+    private var activeSabrOrchestrator: SabrOrchestrator? = null
+    var onSabrFallbackNeeded: (() -> Unit)? = null
     
     /**
      * Load media with video and audio streams.
@@ -72,7 +78,16 @@ class MediaLoader(
         preservePosition: Long? = null,
         localFilePath: String? = null,
         audioOnly: Boolean = false,
-        subtitleStreams: List<SubtitlesStream> = emptyList()
+        subtitleStreams: List<SubtitlesStream> = emptyList(),
+        sabrStreamingUrl: String? = null,
+        sabrVideoId: String? = null,
+        sabrAudioItag: Int = 0,
+        sabrAudioLmt: Long = 0,
+        sabrVideoItag: Int = 0,
+        sabrVideoLmt: Long = 0,
+        sabrPoToken: String = "",
+        sabrVisitorId: String = "",
+        sabrUstreamerConfig: ByteArray = ByteArray(0)
     ): Boolean {
         val finalDuration = when {
             durationSeconds > 0 -> durationSeconds
@@ -110,7 +125,16 @@ class MediaLoader(
                     finalDuration = finalDuration,
                     localFilePath = localFilePath,
                     audioOnly = audioOnly,
-                    subtitleStreams = subtitleStreams
+                    subtitleStreams = subtitleStreams,
+                    sabrStreamingUrl = sabrStreamingUrl,
+                    sabrVideoId = sabrVideoId,
+                    sabrAudioItag = sabrAudioItag,
+                    sabrAudioLmt = sabrAudioLmt,
+                    sabrVideoItag = sabrVideoItag,
+                    sabrVideoLmt = sabrVideoLmt,
+                    sabrPoToken = sabrPoToken,
+                    sabrVisitorId = sabrVisitorId,
+                    sabrUstreamerConfig = sabrUstreamerConfig
                 )
                 
                 if (mediaSource != null) {
@@ -150,6 +174,13 @@ class MediaLoader(
         }
     }
     
+    fun releaseSabr() {
+        activeSabrOrchestrator?.release()
+        activeSabrOrchestrator = null
+    }
+
+    fun getActiveSabrOrchestrator(): SabrOrchestrator? = activeSabrOrchestrator
+
     private fun createMediaSource(
         dataSourceFactory: DataSource.Factory,
         videoStream: VideoStream?,
@@ -161,8 +192,48 @@ class MediaLoader(
         finalDuration: Long,
         localFilePath: String?,
         audioOnly: Boolean,
-        subtitleStreams: List<SubtitlesStream>
+        subtitleStreams: List<SubtitlesStream>,
+        sabrStreamingUrl: String? = null,
+        sabrVideoId: String? = null,
+        sabrAudioItag: Int = 0,
+        sabrAudioLmt: Long = 0,
+        sabrVideoItag: Int = 0,
+        sabrVideoLmt: Long = 0,
+        sabrPoToken: String = "",
+        sabrVisitorId: String = "",
+        sabrUstreamerConfig: ByteArray = ByteArray(0)
     ): MediaSource? {
+        if (!sabrStreamingUrl.isNullOrEmpty() && sabrVideoId != null && sabrAudioItag > 0 && sabrVideoItag > 0) {
+            try {
+                releaseSabr()
+                val result = SabrMediaSourceFactory.create(
+                    streamingUrl = sabrStreamingUrl,
+                    videoId = sabrVideoId,
+                    audioItag = sabrAudioItag,
+                    audioLmt = sabrAudioLmt,
+                    videoItag = sabrVideoItag,
+                    videoLmt = sabrVideoLmt,
+                    poToken = sabrPoToken,
+                    visitorId = sabrVisitorId,
+                    ustreamerConfig = sabrUstreamerConfig,
+                    durationMs = finalDuration * 1000L
+                )
+                activeSabrOrchestrator = result.orchestrator
+                result.orchestrator.onError = { _, msg, recoverable ->
+                    if (!recoverable) {
+                        Log.w(TAG, "SABR non-recoverable error: $msg — triggering fallback")
+                        onSabrFallbackNeeded?.invoke()
+                    }
+                }
+                result.orchestrator.start()
+                Log.d(TAG, "Using SABR MediaSource for $sabrVideoId")
+                return mergeSubtitleSourcesIfNeeded(result.mediaSource, subtitleStreams, dataSourceFactory)
+            } catch (e: Exception) {
+                Log.w(TAG, "SABR MediaSource creation failed, falling back to DASH/Progressive", e)
+                releaseSabr()
+            }
+        }
+
         val mediaSource = if (localFilePath != null) {
             ProgressiveMediaSource.Factory(cacheManager?.getProgressiveDataSourceFactory() ?: dataSourceFactory)
                 .createMediaSource(MediaItem.fromUri(android.net.Uri.fromFile(File(localFilePath))))

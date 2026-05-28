@@ -45,6 +45,8 @@ fun PlayerDialogsContainer(
         DownloadQualityDialog(
             streamInfo = uiState.streamInfo,
             streamSizes = uiState.streamSizes,
+            innerTubeVideoFormats = uiState.innerTubeVideoFormats,
+            innerTubeAudioFormats = uiState.innerTubeAudioFormats,
             video = video,
             onDismiss = { screenState.showDownloadDialog = false }
         )

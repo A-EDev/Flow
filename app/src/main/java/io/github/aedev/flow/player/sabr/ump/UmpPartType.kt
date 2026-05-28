@@ -1,0 +1,71 @@
+package io.github.aedev.flow.player.sabr.ump
+
+object UmpPartType {
+    const val MEDIA_HEADER = 20
+    const val MEDIA = 21
+    const val MEDIA_END = 22
+
+    const val LIVE_METADATA = 31
+    const val HOSTNAME_CHANGE_HINT = 32
+    const val LIVE_METADATA_PROMISE = 33
+    const val LIVE_METADATA_PROMISE_CANCELLATION = 34
+
+    const val NEXT_REQUEST_POLICY = 35
+    const val USTREAMER_VIDEO_AND_FORMAT_DATA = 36
+    const val FORMAT_SELECTION_CONFIG = 37
+    const val USTREAMER_SELECTED_MEDIA_STREAM = 38
+
+    const val FORMAT_INITIALIZATION_METADATA = 42
+
+    const val SABR_REDIRECT = 43
+    const val SABR_ERROR = 44
+    const val SABR_SEEK = 45
+    const val RELOAD_PLAYER_RESPONSE = 46
+    const val PLAYBACK_START_POLICY = 47
+    const val ALLOWED_CACHED_FORMATS = 48
+    const val START_BW_SAMPLING_HINT = 49
+    const val PAUSE_BW_SAMPLING_HINT = 50
+    const val SELECTABLE_FORMATS = 51
+    const val REQUEST_IDENTIFIER = 52
+    const val REQUEST_CANCELLATION_POLICY = 53
+    const val ONESIE_PREFETCH_REJECTION = 54
+    const val TIMELINE_CONTEXT = 55
+    const val REQUEST_PIPELINING = 56
+    const val SABR_CONTEXT_UPDATE = 57
+    const val STREAM_PROTECTION_STATUS = 58
+    const val SABR_CONTEXT_SENDING_POLICY = 59
+    const val LAWNMOWER_POLICY = 60
+    const val SABR_ACK = 61
+    const val END_OF_TRACK = 62
+    const val CACHE_LOAD_POLICY = 63
+    const val LAWNMOWER_MESSAGING_POLICY = 64
+    const val PREWARM_CONNECTION = 65
+
+    const val ONESIE_HEADER = 10
+    const val ONESIE_DATA = 11
+    const val ONESIE_ENCRYPTED_MEDIA = 12
+
+    fun nameOf(type: Int): String = when (type) {
+        MEDIA_HEADER -> "MEDIA_HEADER"
+        MEDIA -> "MEDIA"
+        MEDIA_END -> "MEDIA_END"
+        LIVE_METADATA -> "LIVE_METADATA"
+        NEXT_REQUEST_POLICY -> "NEXT_REQUEST_POLICY"
+        FORMAT_SELECTION_CONFIG -> "FORMAT_SELECTION_CONFIG"
+        FORMAT_INITIALIZATION_METADATA -> "FORMAT_INITIALIZATION_METADATA"
+        SABR_REDIRECT -> "SABR_REDIRECT"
+        SABR_ERROR -> "SABR_ERROR"
+        SABR_SEEK -> "SABR_SEEK"
+        RELOAD_PLAYER_RESPONSE -> "RELOAD_PLAYER_RESPONSE"
+        PLAYBACK_START_POLICY -> "PLAYBACK_START_POLICY"
+        SELECTABLE_FORMATS -> "SELECTABLE_FORMATS"
+        SABR_CONTEXT_UPDATE -> "SABR_CONTEXT_UPDATE"
+        STREAM_PROTECTION_STATUS -> "STREAM_PROTECTION_STATUS"
+        SABR_ACK -> "SABR_ACK"
+        END_OF_TRACK -> "END_OF_TRACK"
+        ONESIE_HEADER -> "ONESIE_HEADER"
+        ONESIE_DATA -> "ONESIE_DATA"
+        ONESIE_ENCRYPTED_MEDIA -> "ONESIE_ENCRYPTED_MEDIA"
+        else -> "UNKNOWN($type)"
+    }
+}

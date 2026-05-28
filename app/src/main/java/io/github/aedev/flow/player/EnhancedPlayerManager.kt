@@ -32,6 +32,10 @@ import io.github.aedev.flow.player.error.PlayerErrorHandler
 import io.github.aedev.flow.player.factory.PlayerFactory
 import io.github.aedev.flow.player.media.MediaLoader
 import io.github.aedev.flow.player.quality.QualityManager
+import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.innertube.models.YouTubeClient
+import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
+import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.player.service.BackgroundServiceManager
 import io.github.aedev.flow.player.sponsorblock.SponsorBlockHandler
 import io.github.aedev.flow.player.state.EnhancedPlayerState
@@ -45,6 +49,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -109,6 +114,8 @@ class EnhancedPlayerManager private constructor() {
     private var pendingLiveDisplaySeekAtMs: Long = 0L
     private var pendingInitialLiveEdgeSeek = false
     
+    private var currentSabrInfo: SabrStreamInfo? = null
+
     private var isAudioOnlyMode = false
     private var videoTracksDisabled = false
     @Volatile private var videoSurfaceRestorePending = false
@@ -211,7 +218,19 @@ class EnhancedPlayerManager private constructor() {
         trackSelector = playerFactory.createTrackSelector(context)
         
         // Initialize media loader
-        mediaLoader = MediaLoader(_playerState, cacheManager, surfaceManager)
+        mediaLoader = MediaLoader(_playerState, cacheManager, surfaceManager).also { loader ->
+            loader.onSabrFallbackNeeded = {
+                scope.launch {
+                    Log.w(TAG, "SABR fallback triggered — reloading with DASH/Progressive")
+                    val pos = player?.currentPosition ?: 0L
+                    currentSabrInfo = null
+                    loader.releaseSabr()
+                    player?.stop()
+                    player?.clearMediaItems()
+                    loadMediaInternal(currentVideoStream, currentAudioStream, preservePosition = pos)
+                }
+            }
+        }
         
         // Initialize quality manager
         qualityManager = QualityManager(
@@ -271,6 +290,7 @@ class EnhancedPlayerManager private constructor() {
                 }
             },
             onLivePlaybackTick = { exoPlayer ->
+                mediaLoader?.getActiveSabrOrchestrator()?.updatePlayhead(exoPlayer.currentPosition)
                 updateLiveEdgeState(exoPlayer)
                 if (currentIsLiveStream &&
                     _playerState.value.playbackSpeed > 1.0f &&
@@ -483,13 +503,15 @@ class EnhancedPlayerManager private constructor() {
         localFilePath: String? = null,
         hlsUrl: String? = null,
         streamType: StreamType? = null,
-        startPosition: Long = 0L
+        startPosition: Long = 0L,
+        sabrInfo: SabrStreamInfo? = null
     ) {
-        Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.let(VideoCodecUtils::qualityHeightFromStream)})")
+        Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.let(VideoCodecUtils::qualityHeightFromStream)}, sabr=${sabrInfo != null})")
         resetPlaybackStateForNewVideo(videoId)
+        currentSabrInfo = sabrInfo
         isAudioOnlyMode = false
         setVideoTracksDisabled(false)
-        
+
         // Reset and load SponsorBlock
         sponsorBlockHandler?.reset()
         sponsorBlockHandler?.loadSegments(videoId)
@@ -563,6 +585,8 @@ class EnhancedPlayerManager private constructor() {
     private fun resetPlaybackStateForNewVideo(videoId: String) {
         qualityManager?.resetForNewVideo()
         playbackTracker?.reset()
+        mediaLoader?.releaseSabr()
+        currentSabrInfo = null
         currentVideoStream = null
         currentAudioStream = null
         currentDashManifestUrl = null
@@ -668,6 +692,7 @@ class EnhancedPlayerManager private constructor() {
             Log.w(TAG, "loadMediaInternal: no playable audio/video streams")
             return false
         }
+        val sabr = currentSabrInfo
         return mediaLoader?.loadMedia(
             player = player,
             context = appContext,
@@ -682,7 +707,13 @@ class EnhancedPlayerManager private constructor() {
             preservePosition = preservePosition,
             localFilePath = localFilePath,
             audioOnly = audioOnly,
-            subtitleStreams = availableSubtitles
+            subtitleStreams = availableSubtitles,
+            sabrStreamingUrl = sabr?.streamingUrl,
+            sabrVideoId = currentVideoId,
+            sabrAudioItag = sabr?.audioItag ?: 0,
+            sabrAudioLmt = sabr?.audioLmt ?: 0,
+            sabrVideoItag = sabr?.videoItag ?: 0,
+            sabrVideoLmt = sabr?.videoLmt ?: 0
         ) ?: false
     }
 
@@ -885,6 +916,15 @@ class EnhancedPlayerManager private constructor() {
                     error = null
                 )
 
+                val sabrDeferred = async(Dispatchers.IO) {
+                    try {
+                        withTimeoutOrNull(6000L) {
+                            YouTube.player(video.id, client = YouTubeClient.ANDROID)
+                                .getOrNull()?.let { SabrUrlResolver.resolve(it) }
+                        }
+                    } catch (_: Exception) { null }
+                }
+
                 val streamInfo = fetchStreamInfoForPlayback(video.id) ?: run {
                     _playerState.value = _playerState.value.copy(
                         isBuffering = false,
@@ -893,6 +933,7 @@ class EnhancedPlayerManager private constructor() {
                     return@launch
                 }
 
+                val sabrInfo = sabrDeferred.await()
                 val enrichedVideo = videoFromStreamInfo(video.id, streamInfo, fallback = video)
                 GlobalPlayerState.setCurrentVideo(enrichedVideo)
                 startBackgroundService(
@@ -927,7 +968,8 @@ class EnhancedPlayerManager private constructor() {
                     dashManifestUrl = streamInfo.dashMpdUrl,
                     hlsUrl = streamInfo.hlsUrl,
                     streamType = streamInfo.streamType,
-                    startPosition = 0L
+                    startPosition = 0L,
+                    sabrInfo = sabrInfo
                 )
                 play()
             } catch (e: CancellationException) {
@@ -1487,6 +1529,7 @@ class EnhancedPlayerManager private constructor() {
         isAudioOnlyMode = false
         setVideoTracksDisabled(false)
         updateLivePlaybackMode(isLive = false)
+        mediaLoader?.releaseSabr()
         player?.stop()
         player?.clearMediaItems()
         qualityManager?.resetForNewVideo()
@@ -1557,6 +1600,7 @@ class EnhancedPlayerManager private constructor() {
         Log.d(TAG, "release() called")
         pendingReloadJob?.cancel()
         pendingReloadJob = null
+        mediaLoader?.releaseSabr()
         playbackTracker?.stop()
         audioFeaturesManager?.clearPlayer()
         surfaceManager?.release(player)

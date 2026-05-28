@@ -115,3 +115,4 @@ ENGINE
 CORE:
 - Add native channel content extraction via InnerTube API
 - Bump NewPipeExtractor version to v0.26.2
+- Add SABR stream decoders and native InnerTube API video stream extraction with NewPipeExtractor as fallback

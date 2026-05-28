@@ -32,6 +32,10 @@ import io.github.aedev.flow.data.video.VideoDownloadManager
 import io.github.aedev.flow.data.local.entity.DownloadItemStatus
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.innertube.models.YouTubeClient
+import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import javax.inject.Inject
 
 /**
@@ -280,23 +284,39 @@ class QuickActionsViewModel @Inject constructor(
             try {
                 io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils.promptStoragePermissionIfNeeded(context)
 
-                // Read the user's preferred download quality (with AUTO = best available)
                 val targetQuality = playerPreferences.defaultDownloadQuality.first()
-                val targetHeight = targetQuality.height 
+                val targetHeight = targetQuality.height
 
                 Toast.makeText(context, "Fetching download links...", Toast.LENGTH_SHORT).show()
+
+                // Try innertube extraction first (HD+ quality, direct URLs)
+                val innerTubeResult = withContext(Dispatchers.IO) {
+                    kotlinx.coroutines.withTimeoutOrNull(8000L) {
+                        io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor.extract(video.id)
+                    }
+                }
+
+                if (innerTubeResult != null && innerTubeResult.videoFormats.isNotEmpty() && innerTubeResult.audioFormats.isNotEmpty()) {
+                    downloadFromInnerTube(video, innerTubeResult, targetHeight)
+                    return@launch
+                }
+
+                // Fall back to NewPipe StreamInfo
                 val streamInfo = withContext(Dispatchers.IO) {
                     repository.getVideoStreamInfo(video.id)
                 }
 
                 if (streamInfo != null) {
-                    // ── Video-stream selection ────────────────────────────────────────────
-                    val combinedStreams = streamInfo.videoStreams
-                        ?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
-                        ?: emptyList()
-                    val videoOnlyStreams = streamInfo.videoOnlyStreams
-                        ?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
-                        ?: emptyList()
+                    val videoStreams = io.github.aedev.flow.player.stream.InnerTubeStreamBridge.convertVideoFormats(
+                        innerTubeResult?.videoFormats ?: emptyList()
+                    ).ifEmpty {
+                        (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
+                            .filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
+                    }
+                    val audioStreams: List<org.schabi.newpipe.extractor.stream.AudioStream> =
+                        io.github.aedev.flow.player.stream.InnerTubeStreamBridge.convertAudioFormats(
+                            innerTubeResult?.audioFormats ?: emptyList()
+                        ).ifEmpty { streamInfo.audioStreams ?: emptyList() }
 
                     fun isMp4Video(s: org.schabi.newpipe.extractor.stream.VideoStream): Boolean {
                         val mime  = (s.format?.mimeType ?: "").lowercase()
@@ -318,19 +338,20 @@ class QuickActionsViewModel @Inject constructor(
                     fun List<org.schabi.newpipe.extractor.stream.VideoStream>.bestForTarget():
                             org.schabi.newpipe.extractor.stream.VideoStream? {
                         if (isEmpty()) return null
-                        if (targetHeight == 0) return maxByOrNull { qualityHeight(it) } // AUTO
+                        if (targetHeight == 0) return maxByOrNull { qualityHeight(it) }
                         return filter { qualityHeight(it) <= targetHeight }.maxByOrNull { qualityHeight(it) }
-                            ?: minByOrNull { qualityHeight(it) } // fallback: lowest if nothing fits
+                            ?: minByOrNull { qualityHeight(it) }
                     }
+
+                    val videoOnlyStreams = videoStreams.filter { it.isVideoOnly }
+                    val combinedStreams = videoStreams.filter { !it.isVideoOnly }
 
                     val bestMp4VideoOnly  = videoOnlyStreams.filter { isMp4Video(it) }.bestForTarget()
                     val bestVp9VideoOnly  = videoOnlyStreams.filter { isVp9Video(it) }.bestForTarget()
-                    val bestAnyVideoOnly  = videoOnlyStreams.bestForTarget()
                     val bestCombined      = combinedStreams.bestForTarget()
                     val preferredAudioLanguage = playerPreferences.preferredAudioLanguage.first()
 
-                    // ── Audio selection (codec-aware) ────────────────────────────────────
-                    val allAudio = streamInfo.audioStreams ?: emptyList()
+                    val allAudio = audioStreams
 
                     fun isAacCompatible(a: org.schabi.newpipe.extractor.stream.AudioStream): Boolean {
                         val mime  = (a.format?.mimeType ?: "").lowercase()
@@ -397,21 +418,21 @@ class QuickActionsViewModel @Inject constructor(
                         }
                     }
 
-                    // NewPipe DASH VideoStreams store the real URL in .content; .url may be null.
                     val videoUrl = selectedStream?.content ?: selectedStream?.url
-                    if (selectedStream != null && videoUrl != null) {
-                        val fullVideo = Video(
-                            id = video.id,
-                            title = video.title.ifBlank { streamInfo.name ?: "Unknown" },
-                            channelName = video.channelName.ifBlank { streamInfo.uploaderName ?: "" },
-                            channelId = video.channelId.ifBlank { streamInfo.uploaderUrl?.substringAfterLast("/") ?: "local" },
-                            thumbnailUrl = video.thumbnailUrl.ifBlank { streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "" },
-                            duration = if (video.duration > 0) video.duration else streamInfo.duration.toInt(),
-                            viewCount = video.viewCount,
-                            uploadDate = video.uploadDate,
-                            description = video.description.ifBlank { streamInfo.description?.content ?: "" }
-                        )
 
+                    val fullVideo = Video(
+                        id = video.id,
+                        title = video.title.ifBlank { streamInfo.name ?: "Unknown" },
+                        channelName = video.channelName.ifBlank { streamInfo.uploaderName ?: "" },
+                        channelId = video.channelId.ifBlank { streamInfo.uploaderUrl?.substringAfterLast("/") ?: "local" },
+                        thumbnailUrl = video.thumbnailUrl.ifBlank { streamInfo.thumbnails?.maxByOrNull { it.height }?.url ?: "" },
+                        duration = if (video.duration > 0) video.duration else streamInfo.duration.toInt(),
+                        viewCount = video.viewCount,
+                        uploadDate = video.uploadDate,
+                        description = video.description.ifBlank { streamInfo.description?.content ?: "" }
+                    )
+
+                    if (selectedStream != null && videoUrl != null) {
                         io.github.aedev.flow.data.video.downloader.FlowDownloadService.startDownload(
                             context = context,
                             video = fullVideo,
@@ -422,13 +443,99 @@ class QuickActionsViewModel @Inject constructor(
                         )
                         Toast.makeText(context, "Download started: ${fullVideo.title}", Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(context, "No suitable stream found", Toast.LENGTH_SHORT).show()
+                        trySabrDownload(fullVideo, targetHeight)
                     }
                 } else {
-                    Toast.makeText(context, "Failed to fetch video info", Toast.LENGTH_SHORT).show()
+                    trySabrDownload(video, 0)
                 }
             } catch (e: Exception) {
                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun downloadFromInnerTube(
+        video: Video,
+        result: io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor.VideoExtractionResult,
+        targetHeight: Int
+    ) {
+        val videoFormats = result.videoFormats.filter { it.url != null && it.height != null }
+        val audioFormats = result.audioFormats.filter { it.url != null }
+
+        val bestVideo = if (targetHeight == 0) {
+            videoFormats.maxByOrNull { (it.height ?: 0) * 10000 + it.bitrate }
+        } else {
+            videoFormats.filter { (it.height ?: 0) <= targetHeight }
+                .maxByOrNull { (it.height ?: 0) * 10000 + it.bitrate }
+                ?: videoFormats.minByOrNull { it.height ?: Int.MAX_VALUE }
+        }
+
+        if (bestVideo == null) return
+
+        val isMp4 = bestVideo.mimeType.contains("mp4", ignoreCase = true)
+        val bestAudio = if (isMp4) {
+            audioFormats.filter { it.mimeType.contains("mp4", ignoreCase = true) }
+                .maxByOrNull { it.bitrate }
+                ?: audioFormats.maxByOrNull { it.bitrate }
+        } else {
+            audioFormats.filter { it.mimeType.contains("webm", ignoreCase = true) }
+                .maxByOrNull { it.bitrate }
+                ?: audioFormats.maxByOrNull { it.bitrate }
+        }
+
+        val videoCodec = when {
+            bestVideo.mimeType.contains("vp9", true) || bestVideo.mimeType.contains("vp09", true) -> "vp9"
+            bestVideo.mimeType.contains("av01", true) -> "av1"
+            else -> null
+        }
+
+        io.github.aedev.flow.data.video.downloader.FlowDownloadService.startDownload(
+            context = context,
+            video = video,
+            url = bestVideo.url!!,
+            quality = "${bestVideo.height}p",
+            audioUrl = bestAudio?.url,
+            videoCodec = videoCodec
+        )
+        Toast.makeText(context, "Download started: ${video.title}", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun trySabrDownload(video: Video, targetHeight: Int) {
+        viewModelScope.launch {
+            try {
+                Toast.makeText(context, "Trying SABR download...", Toast.LENGTH_SHORT).show()
+                val sabrInfo = withContext(Dispatchers.IO) {
+                    withTimeoutOrNull(8000L) {
+                        val playerResponse = YouTube.player(video.id, client = YouTubeClient.ANDROID)
+                            .getOrNull() ?: return@withTimeoutOrNull null
+                        if (targetHeight > 0) {
+                            SabrUrlResolver.resolveForQuality(playerResponse, targetHeight)
+                        } else {
+                            SabrUrlResolver.resolve(playerResponse)
+                        }
+                    }
+                }
+
+                if (sabrInfo != null) {
+                    val codecHint = if (sabrInfo.videoItag in listOf(313, 271, 308, 248, 303, 247, 302, 244, 243, 242)) "vp9" else null
+                    io.github.aedev.flow.data.video.downloader.FlowDownloadService.startSabrDownload(
+                        context = context,
+                        video = video,
+                        quality = "${targetHeight.takeIf { it > 0 } ?: "best"}p",
+                        sabrStreamingUrl = sabrInfo.streamingUrl,
+                        audioItag = sabrInfo.audioItag,
+                        audioLmt = sabrInfo.audioLmt,
+                        videoItag = sabrInfo.videoItag,
+                        videoLmt = sabrInfo.videoLmt,
+                        durationMs = sabrInfo.durationMs,
+                        videoCodec = codecHint
+                    )
+                    Toast.makeText(context, "SABR download started: ${video.title}", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "No download source available", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "SABR download failed: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
