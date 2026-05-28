@@ -97,7 +97,13 @@ class VideoPlayerViewModel @Inject constructor(
     private var lastReportedTimestamp: Long = 0L
     private var activeLoadJob: Job? = null
     private var playbackLoadToken: Long = 0L
-    
+
+    private var streamExpiryVideoId: String? = null
+    private var streamExpiryCount: Int = 0
+    private companion object {
+        const val MAX_STREAM_EXPIRY_RETRIES = 3
+    }
+
     private val _canGoPrevious = MutableStateFlow(false)
     val canGoPrevious: StateFlow<Boolean> = _canGoPrevious.asStateFlow()
 
@@ -143,7 +149,36 @@ class VideoPlayerViewModel @Inject constructor(
         viewModelScope.launch {
             EnhancedPlayerManager.getInstance().streamExpiredEvent.collect {
                 val videoId = _uiState.value.cachedVideo?.id ?: return@collect
-                Log.w("VideoPlayerViewModel", "Stream expired — re-fetching streams for $videoId")
+
+                if (streamExpiryVideoId != videoId) {
+                    streamExpiryVideoId = videoId
+                    streamExpiryCount = 0
+                }
+                streamExpiryCount++
+
+                if (streamExpiryCount > MAX_STREAM_EXPIRY_RETRIES) {
+                    Log.e("VideoPlayerViewModel", "Stream expiry retry limit ($MAX_STREAM_EXPIRY_RETRIES) reached for $videoId — giving up")
+                    EnhancedPlayerManager.getInstance().getPlayer()?.stop()
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = "Unable to play this video. All stream sources returned errors.",
+                            errorHint = "Try again later or check your network connection."
+                        )
+                    }
+                    return@collect
+                }
+
+                Log.w("VideoPlayerViewModel", "Stream expired — re-fetching streams for $videoId (attempt $streamExpiryCount/$MAX_STREAM_EXPIRY_RETRIES)")
+
+                if (streamExpiryCount >= 2) {
+                    try {
+                        EnhancedPlayerManager.getInstance().clearCacheForCurrentVideo()
+                    } catch (e: Exception) {
+                        Log.w("VideoPlayerViewModel", "Cache eviction failed: ${e.message}")
+                    }
+                }
+
                 _uiState.update { it.copy(error = null, errorHint = null, isLoading = true) }
                 loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true)
             }
@@ -397,6 +432,9 @@ class VideoPlayerViewModel @Inject constructor(
     fun playVideo(video: Video) {
         nextPlaybackLoadToken()
         cancelActivePlaybackLoad()
+
+        streamExpiryVideoId = null
+        streamExpiryCount = 0
 
         // Stop current playback and clear everything (including any active queue)
         EnhancedPlayerManager.getInstance().pause()
@@ -1046,7 +1084,9 @@ class VideoPlayerViewModel @Inject constructor(
                             hlsUrl = liveHlsUrl,
                             isAdaptiveMode = preferredQuality == VideoQuality.AUTO,
                             loadToken = loadToken,
-                            sabrInfo = resolvedSabrInfo
+                            sabrInfo = resolvedSabrInfo,
+                            itVideoFormats = innerTubeResult?.videoFormats ?: emptyList(),
+                            itAudioFormats = innerTubeResult?.audioFormats ?: emptyList()
                         )
 
                         // PARALLEL FETCH: Channel info and stream sizes simultaneously
@@ -1289,7 +1329,9 @@ class VideoPlayerViewModel @Inject constructor(
         hlsUrl: String?,
         isAdaptiveMode: Boolean,
         loadToken: Long,
-        sabrInfo: SabrStreamInfo? = null
+        sabrInfo: SabrStreamInfo? = null,
+        itVideoFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
+        itAudioFormats: List<PlayerResponse.StreamingData.Format> = emptyList()
     ) = withContext(Dispatchers.Main) {
         if (!isPlaybackLoadCurrent(loadToken)) return@withContext
         val manager = EnhancedPlayerManager.getInstance()
@@ -1332,7 +1374,9 @@ class VideoPlayerViewModel @Inject constructor(
                 hlsUrl = hlsUrl,
                 streamType = streamInfo.streamType,
                 startPosition = resumePosition,
-                sabrInfo = sabrInfo
+                sabrInfo = sabrInfo,
+                itVideoFormats = itVideoFormats,
+                itAudioFormats = itAudioFormats
             )
         }
         applyRememberedPlaybackSpeed(isLive = !hlsUrl.isNullOrEmpty(), manager = manager)

@@ -761,7 +761,8 @@ fun GlobalPlayerOverlay(
                             video = video,
                             resizeMode = screenState.resizeMode,
                             modifier = Modifier.fillMaxSize(),
-                            onVideoAspectRatioChanged = { videoAspectRatio = it }
+                            onVideoAspectRatioChanged = { videoAspectRatio = it },
+                            cornerRadiusDp = if (isMinimized && !localIsInPipMode) 12f else 0f
                         )
                         if (!isMinimized && !localIsInPipMode) {
                             Media3SubtitleOverlay(

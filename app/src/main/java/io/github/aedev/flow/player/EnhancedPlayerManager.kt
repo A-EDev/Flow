@@ -103,6 +103,8 @@ class EnhancedPlayerManager private constructor() {
     private var currentVideoStream: VideoStream? = null
     private var currentAudioStream: AudioStream? = null
     private var selectedSubtitleIndex: Int? = null
+    private var innerTubeVideoFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList()
+    private var innerTubeAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList()
     
     // Duration and manifest info
     private var currentDurationSeconds: Long = -1
@@ -504,11 +506,15 @@ class EnhancedPlayerManager private constructor() {
         hlsUrl: String? = null,
         streamType: StreamType? = null,
         startPosition: Long = 0L,
-        sabrInfo: SabrStreamInfo? = null
+        sabrInfo: SabrStreamInfo? = null,
+        itVideoFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
+        itAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList()
     ) {
-        Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.let(VideoCodecUtils::qualityHeightFromStream)}, sabr=${sabrInfo != null})")
+        Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.let(VideoCodecUtils::qualityHeightFromStream)}, sabr=${sabrInfo != null}, itVideo=${itVideoFormats.size}, itAudio=${itAudioFormats.size})")
         resetPlaybackStateForNewVideo(videoId)
         currentSabrInfo = sabrInfo
+        innerTubeVideoFormats = itVideoFormats
+        innerTubeAudioFormats = itAudioFormats
         isAudioOnlyMode = false
         setVideoTracksDisabled(false)
 
@@ -545,7 +551,7 @@ class EnhancedPlayerManager private constructor() {
         // Update quality manager with available streams
         qualityManager?.setAvailableStreams(availableVideoStreams)
         qualityManager?.isDashSource = !currentDashManifestUrl.isNullOrEmpty()
-        
+
         // Quality selection: respect user preference
         if (videoStream != null) {
             currentVideoStream = videoStream
@@ -585,8 +591,11 @@ class EnhancedPlayerManager private constructor() {
     private fun resetPlaybackStateForNewVideo(videoId: String) {
         qualityManager?.resetForNewVideo()
         playbackTracker?.reset()
+        errorHandler?.resetExpiryCounter()
         mediaLoader?.releaseSabr()
         currentSabrInfo = null
+        innerTubeVideoFormats = emptyList()
+        innerTubeAudioFormats = emptyList()
         currentVideoStream = null
         currentAudioStream = null
         currentDashManifestUrl = null
@@ -693,7 +702,7 @@ class EnhancedPlayerManager private constructor() {
             return false
         }
         val sabr = currentSabrInfo
-        return mediaLoader?.loadMedia(
+        val result = mediaLoader?.loadMedia(
             player = player,
             context = appContext,
             videoStream = videoStream,
@@ -713,8 +722,17 @@ class EnhancedPlayerManager private constructor() {
             sabrAudioItag = sabr?.audioItag ?: 0,
             sabrAudioLmt = sabr?.audioLmt ?: 0,
             sabrVideoItag = sabr?.videoItag ?: 0,
-            sabrVideoLmt = sabr?.videoLmt ?: 0
+            sabrVideoLmt = sabr?.videoLmt ?: 0,
+            sabrPoToken = sabr?.poToken.orEmpty(),
+            sabrVisitorId = sabr?.visitorId.orEmpty(),
+            sabrUstreamerConfig = sabr?.ustreamerConfig ?: ByteArray(0),
+            innerTubeVideoFormats = innerTubeVideoFormats,
+            innerTubeAudioFormats = innerTubeAudioFormats
         ) ?: false
+        if (result) {
+            qualityManager?.isDashSource = !currentDashManifestUrl.isNullOrEmpty()
+        }
+        return result
     }
 
     private fun setVideoTracksDisabled(disabled: Boolean) {
@@ -1495,6 +1513,10 @@ class EnhancedPlayerManager private constructor() {
     
     fun getCacheSize(): Long = cacheManager?.getCacheSize() ?: 0L
     fun clearCache() = cacheManager?.clearCache()
+    fun clearCacheForCurrentVideo() {
+        Log.d(TAG, "Clearing media cache due to persistent stream errors")
+        cacheManager?.clearCache()
+    }
     
     fun startBackgroundService(videoId: String, title: String, channel: String, thumbnail: String) =
         backgroundServiceManager.startService(appContext, videoId, title, channel, thumbnail)

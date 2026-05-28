@@ -51,7 +51,11 @@ class PlayerErrorHandler(
 ) {
     companion object {
         private const val TAG = "PlayerErrorHandler"
+        private const val MAX_CONSECUTIVE_EXPIRY = 5
     }
+
+    private var consecutiveExpiryCount = 0
+    private var lastExpiryVideoUrl: String? = null
 
     // ── Public entry point ────────────────────────────────────────────────────
 
@@ -249,13 +253,38 @@ class PlayerErrorHandler(
     }
 
     private fun handleStreamExpired(reason: String) {
-        Log.w(TAG, "Stream expired ($reason) — requesting full extractor reload")
+        val currentUrl = getCurrentVideoStream()?.getContent()
+        if (currentUrl != null && currentUrl == lastExpiryVideoUrl) {
+            consecutiveExpiryCount++
+        } else {
+            consecutiveExpiryCount = 1
+            lastExpiryVideoUrl = currentUrl
+        }
+
+        if (consecutiveExpiryCount > MAX_CONSECUTIVE_EXPIRY) {
+            Log.e(TAG, "Stream expiry limit reached ($consecutiveExpiryCount/$MAX_CONSECUTIVE_EXPIRY) for reason=$reason — stopping playback")
+            PlayerDiagnostics.logError(TAG, "Giving up after $consecutiveExpiryCount consecutive stream expiry errors")
+            stateFlow.value = stateFlow.value.copy(
+                isBuffering = false,
+                isPlaying = false,
+                error = "Unable to play — stream URLs keep expiring.",
+                recoveryAttempted = true
+            )
+            return
+        }
+
+        Log.w(TAG, "Stream expired ($reason) — requesting full extractor reload (attempt $consecutiveExpiryCount/$MAX_CONSECUTIVE_EXPIRY)")
         stateFlow.value = stateFlow.value.copy(
             isBuffering = true,
             error = null,
             recoveryAttempted = true
         )
         onStreamExpired()
+    }
+
+    fun resetExpiryCounter() {
+        consecutiveExpiryCount = 0
+        lastExpiryVideoUrl = null
     }
 
     private fun handleParsingError(error: PlaybackException) {

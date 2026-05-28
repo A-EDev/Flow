@@ -1,9 +1,12 @@
 package io.github.aedev.flow.ui.screens.player.components
 
+import android.graphics.Outline
+import android.os.Build
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewOutlineProvider
 import android.widget.FrameLayout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -16,6 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -27,22 +31,32 @@ import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
 
+private fun pickPlayerViewLayoutRes(): Int =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+        R.layout.video_player_view_surface
+    } else {
+        R.layout.video_player_view
+    }
+
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 fun VideoPlayerSurface(
     video: Video,
     resizeMode: Int,
     modifier: Modifier = Modifier,
-    onVideoAspectRatioChanged: ((Float) -> Unit)? = null
+    onVideoAspectRatioChanged: ((Float) -> Unit)? = null,
+    cornerRadiusDp: Float = 0f
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var surfaceRestoreTrigger by remember { mutableIntStateOf(0) }
     var attachedVideoId by remember { mutableStateOf<String?>(null) }
+    val cornerRadiusPx = with(density) { cornerRadiusDp.dp.toPx() }
 
     val playerView = remember(video.id) {
-        Log.d("EnhancedVideoPlayer", "Creating shared PlayerView")
-        (LayoutInflater.from(context).inflate(R.layout.video_player_view, null) as PlayerView).apply {
+        Log.d("EnhancedVideoPlayer", "Creating shared PlayerView (sdk=${Build.VERSION.SDK_INT})")
+        (LayoutInflater.from(context).inflate(pickPlayerViewLayoutRes(), null) as PlayerView).apply {
             layoutParams = FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
@@ -117,17 +131,45 @@ fun VideoPlayerSurface(
                 }
 
                 view.subtitleView?.let { subtitleView ->
-                    subtitleView.visibility = View.GONE
+                    if (subtitleView.visibility != View.GONE) {
+                        subtitleView.visibility = View.GONE
+                    }
                 }
 
-                view.resizeMode = when (resizeMode) {
+                val desiredResizeMode = when (resizeMode) {
                     0 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                     1 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
                     2 -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     else -> androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                 }
+                if (view.resizeMode != desiredResizeMode) {
+                    view.resizeMode = desiredResizeMode
+                }
+
+                applyOutlineCornerRadius(view, cornerRadiusPx)
             },
             modifier = modifier.fillMaxSize()
         )
     }
 }
+
+private fun applyOutlineCornerRadius(view: PlayerView, radiusPx: Float) {
+    val current = view.getTag(R.id.player_view) as? Float
+    if (current != null && current == radiusPx) return
+    if (radiusPx <= 0f) {
+        view.clipToOutline = false
+        view.outlineProvider = ViewOutlineProvider.BACKGROUND
+    } else {
+        view.outlineProvider = object : ViewOutlineProvider() {
+            override fun getOutline(v: View, outline: Outline) {
+                outline.setRoundRect(0, 0, v.width, v.height, radiusPx)
+            }
+        }
+        view.clipToOutline = true
+    }
+    view.invalidateOutline()
+    view.setTag(R.id.player_view, radiusPx)
+}
+
+private val Float.dp: androidx.compose.ui.unit.Dp
+    get() = androidx.compose.ui.unit.Dp(this)

@@ -14,6 +14,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -51,8 +53,9 @@ import androidx.compose.ui.geometry.Size
 import io.github.aedev.flow.data.model.SponsorBlockSegment
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -69,6 +72,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.core.graphics.BitmapCompat
 import androidx.core.math.MathUtils
 import org.schabi.newpipe.extractor.stream.StreamSegment
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 // Custom seekbar with preview thumbnails
@@ -101,10 +105,11 @@ fun SeekbarWithPreview(
     val previewH = previewBitmap?.let { with(density) { it.height.toDp() } } ?: fallbackPreviewH
     
     var sliderWidth by remember { mutableFloatStateOf(0f) }
+    var edgePointerActive by remember { mutableStateOf(false) }
     
     val isPressed by interactionSource.collectIsPressedAsState()
     val isDragged by interactionSource.collectIsDraggedAsState()
-    val isInteracting = isPressed || isDragged
+    val isInteracting = isPressed || isDragged || edgePointerActive
     
     // Internal value to keep the thumb following the finger smoothly
     var internalValue by remember { mutableFloatStateOf(value) }
@@ -167,28 +172,21 @@ fun SeekbarWithPreview(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .layout { measurable, constraints ->
-                val placeable = measurable.measure(constraints)
-                val reportedHeight = 32.dp.roundToPx()
-                layout(placeable.width, reportedHeight) {
-                    placeable.placeRelative(0, 0)
-                }
-            }
     ) {
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(32.dp)
+                .height(if (edgeAligned) 20.dp else 32.dp)
                 .onGloballyPositioned { coordinates ->
                     sliderWidth = coordinates.size.width.toFloat()
                 },
-            contentAlignment = Alignment.Center
+            contentAlignment = if (edgeAligned) Alignment.BottomCenter else Alignment.Center
         ) {
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(if (edgeAligned) 32.dp else trackHeight)
+                .height(if (edgeAligned) 20.dp else trackHeight)
         ) {
             val trackHeightPx = trackHeight.toPx()
             val width = size.width
@@ -320,7 +318,7 @@ fun SeekbarWithPreview(
             onValueChangeFinished = {
                 onValueChangeFinished?.invoke()
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = if (edgeAligned) Modifier.fillMaxSize() else Modifier.fillMaxWidth(),
             enabled = enabled,
             valueRange = valueRange,
             steps = steps,
@@ -354,6 +352,74 @@ fun SeekbarWithPreview(
                 }
             }
         )
+
+        if (edgeAligned) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .pointerInput(enabled, valueRange, steps) {
+                        if (!enabled) return@pointerInput
+
+                        fun valueForX(x: Float): Float {
+                            val width = size.width.toFloat().coerceAtLeast(1f)
+                            val fraction = (x / width).coerceIn(0f, 1f)
+                            val steppedFraction = if (steps > 0) {
+                                val intervals = steps + 1
+                                (fraction * intervals).roundToInt()
+                                    .coerceIn(0, intervals)
+                                    .toFloat() / intervals.toFloat()
+                            } else {
+                                fraction
+                            }
+                            return valueRange.start +
+                                (valueRange.endInclusive - valueRange.start) * steppedFraction
+                        }
+
+                        fun updateValueFromX(x: Float) {
+                            val newValue = valueForX(x)
+                            if (abs(newValue - internalValue) > 0.0001f) {
+                                internalValue = newValue
+                                onValueChange(newValue)
+
+                                if (previewEnabled && seekbarPreviewHelper != null) {
+                                    previewPosition = with(density) { (newValue * sliderWidth).toDp().value }
+                                }
+                            }
+                        }
+
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            edgePointerActive = true
+                            down.consume()
+                            updateValueFromX(down.position.x)
+
+                            try {
+                                var activePointerId = down.id
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.id == activePointerId }
+                                        ?: event.changes.firstOrNull { it.pressed }
+                                        ?: break
+
+                                    activePointerId = change.id
+                                    if (!change.pressed) {
+                                        change.consume()
+                                        break
+                                    }
+
+                                    if (change.positionChange() != Offset.Zero) {
+                                        updateValueFromX(change.position.x)
+                                    }
+                                    change.consume()
+                                }
+                            } finally {
+                                edgePointerActive = false
+                                onValueChangeFinished?.invoke()
+                            }
+                        }
+                    }
+            )
+        }
         } 
 
         val triangleH = 7.dp

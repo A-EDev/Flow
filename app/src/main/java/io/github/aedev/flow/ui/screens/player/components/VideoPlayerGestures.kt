@@ -82,6 +82,9 @@ fun Modifier.videoPlayerControls(
     var pendingBackTargetMs by remember { mutableStateOf<Long?>(null) }
     val accumulationWindowMs = 1000L
 
+    val lastBrightnessApplied = remember { floatArrayOf(-2f) }
+    val lastBrightnessAppliedAt = remember { longArrayOf(0L) }
+
     this
         .pointerInput(Unit) {
             detectTapGestures(
@@ -174,12 +177,10 @@ fun Modifier.videoPlayerControls(
                     }
                 },
                 onLongPress = { offset ->
-                    val screenWidth = size.width
-                    val tapPosition = offset.x
-                    
-                    if (tapPosition < screenWidth * 0.2f || tapPosition > screenWidth * 0.8f) {
-                    }
-                    
+                    val screenHeight = size.height
+                    val bottomExclusionZone = if (currentIsFullscreen) 80f else 120f
+                    if (offset.y > screenHeight - bottomExclusionZone) return@detectTapGestures
+
                     val player = EnhancedPlayerManager.getInstance().getPlayer()
                     if (player != null && !currentIsSpeedBoostActive) {
                         currentOnSpeedBoostChange(true)
@@ -292,14 +293,24 @@ fun Modifier.videoPlayerControls(
                                      }
                                      
                                      currentOnBrightnessChange(newBrightness)
-                                     
-                                     try {
-                                         currentActivity?.window?.let { window ->
-                                            val layoutParams = window.attributes
-                                            layoutParams.screenBrightness = newBrightness
-                                            window.attributes = layoutParams
-                                         }
-                                     } catch (e: Exception) {}
+
+                                     val now = android.os.SystemClock.uptimeMillis()
+                                     val brightnessDelta = abs(newBrightness - lastBrightnessApplied[0])
+                                     val timeDelta = now - lastBrightnessAppliedAt[0]
+                                     // Apply window brightness only when the change is perceptible
+                                     // or 16 ms has elapsed; this keeps WindowManager relayouts off
+                                     // every drag tick so the video pipeline doesn't drop frames.
+                                     if (brightnessDelta > 0.004f || timeDelta >= 16L) {
+                                         try {
+                                             currentActivity?.window?.let { window ->
+                                                val layoutParams = window.attributes
+                                                layoutParams.screenBrightness = newBrightness
+                                                window.attributes = layoutParams
+                                             }
+                                             lastBrightnessApplied[0] = newBrightness
+                                             lastBrightnessAppliedAt[0] = now
+                                         } catch (e: Exception) {}
+                                     }
                                      currentOnShowBrightnessChange(true)
                                  } else if (dragPosition >= screenWidth / 2 && currentVolumeSwipeGesturesEnabled) {
                                      // Right side - volume

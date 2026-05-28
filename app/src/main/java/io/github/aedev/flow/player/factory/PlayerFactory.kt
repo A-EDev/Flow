@@ -23,36 +23,65 @@ import io.github.aedev.flow.player.renderer.CustomRenderersFactory
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
-/**
- * Factory for creating and configuring ExoPlayer instances.
- */
 @UnstableApi
 class PlayerFactory {
-    
+
     companion object {
         private const val TAG = "PlayerFactory"
     }
-    
-    /**
-     * Create a configured bandwidth meter.
-     */
+
+    private class CachedPrefs(
+        val audioLanguage: String,
+        val minBufferMs: Int,
+        val maxBufferMs: Int,
+        val bufferForPlaybackMs: Int,
+        val bufferRebufferMs: Int,
+        val playDuringCalls: Boolean
+    )
+
+    private var cachedPrefs: CachedPrefs? = null
+
+    private fun ensurePrefs(context: Context): CachedPrefs {
+        cachedPrefs?.let { return it }
+        val prefs = PlayerPreferences(context)
+        val result = runBlocking {
+            CachedPrefs(
+                audioLanguage = prefs.preferredAudioLanguage.first(),
+                minBufferMs = prefs.minBufferMs.first(),
+                maxBufferMs = prefs.maxBufferMs.first(),
+                bufferForPlaybackMs = prefs.bufferForPlaybackMs.first(),
+                bufferRebufferMs = prefs.bufferForPlaybackAfterRebufferMs.first(),
+                playDuringCalls = prefs.playDuringCalls.first()
+            )
+        }
+        cachedPrefs = result
+        return result
+    }
+
+    suspend fun preloadPreferences(context: Context) {
+        if (cachedPrefs != null) return
+        val prefs = PlayerPreferences(context)
+        cachedPrefs = CachedPrefs(
+            audioLanguage = prefs.preferredAudioLanguage.first(),
+            minBufferMs = prefs.minBufferMs.first(),
+            maxBufferMs = prefs.maxBufferMs.first(),
+            bufferForPlaybackMs = prefs.bufferForPlaybackMs.first(),
+            bufferRebufferMs = prefs.bufferForPlaybackAfterRebufferMs.first(),
+            playDuringCalls = prefs.playDuringCalls.first()
+        )
+    }
+
     fun createBandwidthMeter(context: Context): DefaultBandwidthMeter {
         return DefaultBandwidthMeter.Builder(context)
             .setInitialBitrateEstimate(PlayerConfig.INITIAL_BANDWIDTH_ESTIMATE)
             .setResetOnNetworkTypeChange(false)
             .build()
     }
-    
-    /**
-     * Create a configured track selector.
-     * Reads the user's preferred audio language from PlayerPreferences.
-     */
+
     fun createTrackSelector(context: Context): DefaultTrackSelector {
         val trackSelectionFactory = AdaptiveTrackSelection.Factory()
-        
-        val prefs = PlayerPreferences(context)
-        val audioLangPref = runBlocking { prefs.preferredAudioLanguage.first() }
-        
+        val prefs = ensurePrefs(context)
+
         return DefaultTrackSelector(context, trackSelectionFactory).apply {
             val builder = buildUponParameters()
                 .setPreferredVideoMimeTypes(*PlayerConfig.PREFERRED_VIDEO_MIME_TYPES)
@@ -62,22 +91,16 @@ class PlayerFactory {
                 .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
                 .setViewportSizeToPhysicalDisplaySize(context, true)
                 .setMaxVideoSize(PlayerConfig.MAX_VIDEO_WIDTH, PlayerConfig.MAX_VIDEO_HEIGHT)
-            
-            when (audioLangPref) {
-                "original", "" -> {
-                }
-                else -> {
-                    builder.setPreferredAudioLanguage(audioLangPref)
-                }
+
+            when (prefs.audioLanguage) {
+                "original", "" -> {}
+                else -> builder.setPreferredAudioLanguage(prefs.audioLanguage)
             }
-            
+
             setParameters(builder.build())
         }
     }
-    
-    /**
-     * Create a configured load control with buffer settings.
-     */
+
     fun createLoadControl(context: Context): DefaultLoadControl {
         val allocator = DefaultAllocator(true, PlayerConfig.ALLOCATOR_BUFFER_SIZE)
         val activityManager = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
@@ -103,17 +126,12 @@ class PlayerFactory {
         } else {
             PlayerConfig.BACK_BUFFER_DURATION_MS
         }
-        
-        // Fetch buffer settings from preferences
-        val prefs = PlayerPreferences(context)
-        val minBufferMs = runBlocking { prefs.minBufferMs.first() }
-            .coerceIn(2_500, maxSafeMinBufferMs)
-        val maxBufferMs = runBlocking { prefs.maxBufferMs.first() }
-            .coerceIn(minBufferMs + 5_000, maxSafeBufferMs)
-        val bufferForPlaybackMs = runBlocking { prefs.bufferForPlaybackMs.first() }
-            .coerceIn(250, minBufferMs)
-        val bufferRebufferMs = runBlocking { prefs.bufferForPlaybackAfterRebufferMs.first() }
-            .coerceIn(750, maxBufferMs)
+
+        val prefs = ensurePrefs(context)
+        val minBufferMs = prefs.minBufferMs.coerceIn(2_500, maxSafeMinBufferMs)
+        val maxBufferMs = prefs.maxBufferMs.coerceIn(minBufferMs + 5_000, maxSafeBufferMs)
+        val bufferForPlaybackMs = prefs.bufferForPlaybackMs.coerceIn(250, minBufferMs)
+        val bufferRebufferMs = prefs.bufferRebufferMs.coerceIn(750, maxBufferMs)
 
         Log.d(TAG, "Buffer config: min=${minBufferMs}ms, max=${maxBufferMs}ms, playback=${bufferForPlaybackMs}ms, rebuffer=${bufferRebufferMs}ms, target=${targetBufferBytes / 1024 / 1024}MB, back=${backBufferMs}ms, heap=${memoryClassMb}MB")
 
@@ -125,20 +143,13 @@ class PlayerFactory {
             .setTargetBufferBytes(targetBufferBytes)
             .build()
     }
-    
-    /**
-     * Create a renderers factory.
-     * Skip-silence is handled via ExoPlayer.skipSilenceEnabled
-     */
+
     fun createRenderersFactory(context: Context): DefaultRenderersFactory {
         return CustomRenderersFactory(context)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
             .setEnableDecoderFallback(true)
     }
-    
-    /**
-     * Create a fully configured ExoPlayer instance.
-     */
+
     fun createPlayer(
         context: Context,
         trackSelector: DefaultTrackSelector,
@@ -147,8 +158,7 @@ class PlayerFactory {
         dataSourceFactory: DataSource.Factory?
     ): ExoPlayer {
         val factory = dataSourceFactory ?: DefaultDataSource.Factory(context)
-        val prefs = PlayerPreferences(context)
-        val playDuringCalls = runBlocking { prefs.playDuringCalls.first() }
+        val prefs = ensurePrefs(context)
 
         return ExoPlayer.Builder(context, renderersFactory)
             .setTrackSelector(trackSelector)
@@ -157,7 +167,7 @@ class PlayerFactory {
                     .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
                     .setUsage(C.USAGE_MEDIA)
                     .build(),
-                !playDuringCalls
+                !prefs.playDuringCalls
             )
             .setHandleAudioBecomingNoisy(true)
             .setLoadControl(loadControl)

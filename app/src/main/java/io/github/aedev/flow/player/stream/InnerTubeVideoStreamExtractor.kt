@@ -6,6 +6,7 @@ import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
+import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -35,6 +36,8 @@ object InnerTubeVideoStreamExtractor {
     suspend fun extract(videoId: String): VideoExtractionResult? = withContext(Dispatchers.IO) {
         Log.d(TAG, "Starting extraction for $videoId with ${VIDEO_STREAM_CLIENTS.size} clients")
 
+        val failureReasons = mutableListOf<String>()
+
         for ((index, client) in VIDEO_STREAM_CLIENTS.withIndex()) {
             try {
                 Log.d(TAG, "Trying client ${index + 1}/${VIDEO_STREAM_CLIENTS.size}: ${client.clientName} v${client.clientVersion}")
@@ -44,24 +47,34 @@ object InnerTubeVideoStreamExtractor {
                 }
 
                 if (playerResponse == null) {
-                    Log.d(TAG, "${client.clientName}: no response")
+                    val reason = "${client.clientName}: timeout or null response"
+                    Log.w(TAG, reason)
+                    failureReasons.add(reason)
                     continue
                 }
 
                 if (playerResponse.playabilityStatus.status != "OK") {
-                    Log.d(TAG, "${client.clientName}: status=${playerResponse.playabilityStatus.status}, reason=${playerResponse.playabilityStatus.reason}")
+                    val reason = "${client.clientName}: status=${playerResponse.playabilityStatus.status}, reason=${playerResponse.playabilityStatus.reason}"
+                    Log.w(TAG, reason)
+                    failureReasons.add(reason)
                     continue
                 }
 
                 val adaptiveFormats = playerResponse.streamingData?.adaptiveFormats
                 if (adaptiveFormats.isNullOrEmpty()) {
-                    Log.d(TAG, "${client.clientName}: no adaptive formats")
+                    val reason = "${client.clientName}: no adaptive formats in response"
+                    Log.w(TAG, reason)
+                    failureReasons.add(reason)
                     continue
                 }
 
-                val formatsWithUrl = adaptiveFormats.filter { !it.url.isNullOrEmpty() }
+                val formatsWithUrl = adaptiveFormats
+                    .filter { !it.url.isNullOrEmpty() }
+                    .map { it.withPlayableUrl(videoId) }
                 if (formatsWithUrl.isEmpty()) {
-                    Log.d(TAG, "${client.clientName}: adaptive formats have no direct URLs (cipher-only)")
+                    val reason = "${client.clientName}: ${adaptiveFormats.size} adaptive formats but none have direct URLs (cipher-only)"
+                    Log.w(TAG, reason)
+                    failureReasons.add(reason)
                     continue
                 }
 
@@ -69,11 +82,15 @@ object InnerTubeVideoStreamExtractor {
                 val audioFormats = formatsWithUrl.filter { it.isAudio }
 
                 if (videoFormats.isEmpty()) {
-                    Log.d(TAG, "${client.clientName}: no video formats with direct URLs")
+                    val reason = "${client.clientName}: no video formats with direct URLs (${formatsWithUrl.size} total formats)"
+                    Log.w(TAG, reason)
+                    failureReasons.add(reason)
                     continue
                 }
                 if (audioFormats.isEmpty()) {
-                    Log.d(TAG, "${client.clientName}: no audio formats with direct URLs")
+                    val reason = "${client.clientName}: no audio formats with direct URLs"
+                    Log.w(TAG, reason)
+                    failureReasons.add(reason)
                     continue
                 }
 
@@ -95,11 +112,31 @@ object InnerTubeVideoStreamExtractor {
                     sabrInfo = sabrInfo,
                 )
             } catch (e: Exception) {
-                Log.w(TAG, "${client.clientName} failed: ${e.message}")
+                val reason = "${client.clientName}: exception=${e.javaClass.simpleName}: ${e.message}"
+                Log.w(TAG, reason)
+                failureReasons.add(reason)
             }
         }
 
-        Log.w(TAG, "All clients failed for $videoId")
+        Log.e(TAG, "All ${VIDEO_STREAM_CLIENTS.size} clients failed for $videoId. Reasons: ${failureReasons.joinToString(" | ")}")
         null
+    }
+
+    private suspend fun PlayerResponse.StreamingData.Format.withPlayableUrl(
+        videoId: String
+    ): PlayerResponse.StreamingData.Format {
+        val rawUrl = url ?: return this
+        if (!rawUrl.contains("n=")) return this
+
+        return try {
+            val transformedUrl = CipherDeobfuscator.transformNParamInUrl(rawUrl)
+            if (transformedUrl != rawUrl) {
+                Log.d(TAG, "Applied n-transform for $videoId itag=$itag")
+            }
+            copy(url = transformedUrl)
+        } catch (e: Exception) {
+            Log.w(TAG, "n-transform failed for $videoId itag=$itag: ${e.message}")
+            this
+        }
     }
 }

@@ -629,10 +629,9 @@ fun DraggablePlayerLayout(
                                 scaleY = miniScale
                                 shadowElevation =
                                     if (fraction > 0.95f) with(density) { 8.dp.toPx() } else 0f
-                                shape = RoundedCornerShape(
-                                    if (fraction > 0.1f) 12.dp else 0.dp
-                                )
-                                clip = true
+                                val cornerRadius = if (fraction > 0.1f) 12.dp else 0.dp
+                                shape = RoundedCornerShape(cornerRadius)
+                                clip = fraction > 0.1f
                             }
                             .background(Color.Black)
                             //  Pinch-to-resize 

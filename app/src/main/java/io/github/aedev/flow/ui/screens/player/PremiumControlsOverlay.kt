@@ -164,7 +164,7 @@ fun PremiumControlsOverlay(
     val topControlHorizontalPadding = if (isFullscreen) 56.dp else 20.dp
     val topControlVerticalPadding = if (isFullscreen) 8.dp else 0.dp
     val bottomControlHorizontalPadding = if (isFullscreen) 56.dp else 10.dp
-    val bottomControlsSeekbarOverlap = if (isFullscreen) 0.dp else 14.dp
+    val bottomControlsSeekbarOverlap = 0.dp
     val seekbarHorizontalPadding = if (isFullscreen) fullscreenSeekbarHorizontalPaddingDp.dp else 0.dp
     val chapterMaxWidth = if (isFullscreen) 240.dp else 96.dp
     val compactQualityLabel = remember(qualityLabel) { qualityLabel?.toCompactQualityLabel() }
@@ -802,12 +802,13 @@ fun PremiumControlsOverlay(
                         edgeAligned = !isFullscreen,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .zIndex(2f)
                             .padding(horizontal = seekbarHorizontalPadding)
                     )
                 }
-            } 
+            }
         }
-            } 
+            }
         }
         }
 
@@ -892,7 +893,7 @@ fun PremiumControlsOverlay(
                 }
             }
         }
-    } 
+    }
 }
 
 @Composable

@@ -1,5 +1,6 @@
 package io.github.aedev.flow.player.sabr.integration
 
+import android.net.Uri
 import android.util.Log
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 
@@ -9,7 +10,10 @@ data class SabrStreamInfo(
     val audioLmt: Long,
     val videoItag: Int,
     val videoLmt: Long,
-    val durationMs: Long
+    val durationMs: Long,
+    val poToken: String = "",
+    val visitorId: String = "",
+    val ustreamerConfig: ByteArray = ByteArray(0)
 )
 
 object SabrUrlResolver {
@@ -32,6 +36,12 @@ object SabrUrlResolver {
         val sabrUrl = streamingData.serverAbrStreamingUrl
         if (sabrUrl.isNullOrEmpty()) {
             Log.d(TAG, "No serverAbrStreamingUrl in player response")
+            return null
+        }
+        val poToken = queryParameter(sabrUrl, "pot").orEmpty()
+        val visitorId = playerResponse.responseContext.visitorData.orEmpty()
+        if (poToken.isEmpty() || visitorId.isEmpty()) {
+            Log.d(TAG, "Skipping SABR: missing token context (pot=${poToken.isNotEmpty()}, visitor=${visitorId.isNotEmpty()})")
             return null
         }
 
@@ -66,7 +76,9 @@ object SabrUrlResolver {
             audioLmt = selectedAudio.lastModified ?: 0L,
             videoItag = selectedVideo.itag,
             videoLmt = selectedVideo.lastModified ?: 0L,
-            durationMs = durationMs
+            durationMs = durationMs,
+            poToken = poToken,
+            visitorId = visitorId
         )
     }
 
@@ -76,6 +88,12 @@ object SabrUrlResolver {
     ): SabrStreamInfo? {
         val streamingData = playerResponse.streamingData ?: return null
         val sabrUrl = streamingData.serverAbrStreamingUrl ?: return null
+        val poToken = queryParameter(sabrUrl, "pot").orEmpty()
+        val visitorId = playerResponse.responseContext.visitorData.orEmpty()
+        if (poToken.isEmpty() || visitorId.isEmpty()) {
+            Log.d(TAG, "Skipping SABR quality resolve: missing token context")
+            return null
+        }
 
         val adaptiveFormats = streamingData.adaptiveFormats
         val audioFormats = adaptiveFormats.filter { it.isAudio }
@@ -95,8 +113,18 @@ object SabrUrlResolver {
             audioLmt = selectedAudio.lastModified ?: 0L,
             videoItag = selectedVideo.itag,
             videoLmt = selectedVideo.lastModified ?: 0L,
-            durationMs = durationMs
+            durationMs = durationMs,
+            poToken = poToken,
+            visitorId = visitorId
         )
+    }
+
+    private fun queryParameter(url: String, name: String): String? {
+        return try {
+            Uri.parse(url).getQueryParameter(name)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun selectBestAudio(

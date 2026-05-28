@@ -87,7 +87,9 @@ class MediaLoader(
         sabrVideoLmt: Long = 0,
         sabrPoToken: String = "",
         sabrVisitorId: String = "",
-        sabrUstreamerConfig: ByteArray = ByteArray(0)
+        sabrUstreamerConfig: ByteArray = ByteArray(0),
+        innerTubeVideoFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
+        innerTubeAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList()
     ): Boolean {
         val finalDuration = when {
             durationSeconds > 0 -> durationSeconds
@@ -134,7 +136,9 @@ class MediaLoader(
                     sabrVideoLmt = sabrVideoLmt,
                     sabrPoToken = sabrPoToken,
                     sabrVisitorId = sabrVisitorId,
-                    sabrUstreamerConfig = sabrUstreamerConfig
+                    sabrUstreamerConfig = sabrUstreamerConfig,
+                    innerTubeVideoFormats = innerTubeVideoFormats,
+                    innerTubeAudioFormats = innerTubeAudioFormats
                 )
                 
                 if (mediaSource != null) {
@@ -201,7 +205,9 @@ class MediaLoader(
         sabrVideoLmt: Long = 0,
         sabrPoToken: String = "",
         sabrVisitorId: String = "",
-        sabrUstreamerConfig: ByteArray = ByteArray(0)
+        sabrUstreamerConfig: ByteArray = ByteArray(0),
+        innerTubeVideoFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
+        innerTubeAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList()
     ): MediaSource? {
         if (!sabrStreamingUrl.isNullOrEmpty() && sabrVideoId != null && sabrAudioItag > 0 && sabrVideoItag > 0) {
             try {
@@ -248,7 +254,7 @@ class MediaLoader(
                     ?: cacheManager?.getHlsDataSourceFactory()
                     ?: dataSourceFactory
             )
-            
+
             val selectedStreams = if (audioOnly) {
                 emptyList()
             } else if (videoStream != null) {
