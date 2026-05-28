@@ -247,7 +247,7 @@
     <string name="app_icon_picker_subtitle">اختر نمط أيقونة المشغل. سيتم تطبيق التغيير فورًا وسيتم تحديث المشغل لفترة وجيزة.</string>
     <string name="app_icon_picker_warning">تنبيه: تغيير الأيقونات يستخدم آلية في نظام أندرويد و التي تؤدي إلى إزالة إختصار التطبيق من شاشتك الرئيسية. اضغط مطولاً على مشغل التطبيقات لإعادتها مرة أخري إذا لزم الأمر.</string>
     <string name="icon_name_amoled">AMOLED مظلم</string>
-    <string name="icon_name_monochrome">أحادي اللون (رمادي)</string>
+    <string name="icon_name_monochrome">أُحادي اللون</string>
     <string name="icon_name_ghost">شبحي</string>
     <string name="player_appearance_title">مظهر المشغل</string>
     <string name="player_appearance_header">خصص عناصر تحكم المشغل</string>
@@ -1103,7 +1103,7 @@
     <string name="settings_item_time_management_subtitle">إحصائيات الاستخدام، تذكيرات وقت النوم</string>
     <string name="app_icon_apply_toast">تم تحديث الأيقونة - سيتم تحديث مشغل التطبيقات الخاص بك</string>
     <string name="icon_name_flow_red">Flow أحمر</string>
-    <string name="icon_name_dynamic">Material You صيغة</string>
+    <string name="icon_name_dynamic">نمط Material You</string>
     <string name="player_nav_btn_subtitle">إظهار أزرار الفيديو التالي و السابق في المشغل المصغر</string>
     <string name="lyrics_provider_title">مُقدّم كلمات الأغاني</string>
     <string name="lyrics_provider_subtitle">اختر المصدر المفضل لديك لكلمات الأغاني</string>
@@ -1214,7 +1214,7 @@
     <string name="appearance_role_on_surface_variant">علي بديل السطح</string>
     <string name="appearance_role_error">خطأ</string>
     <string name="appearance_role_on_error">علي الخطأ</string>
-    <string name="theme_name_monochrome">أحادي اللون</string>
+    <string name="theme_name_monochrome">أُحادي اللون</string>
     <string name="theme_desc_monochrome">أسود نقي و أبيض ناصع</string>
     <string name="theme_name_custom">مخصص</string>
     <string name="theme_desc_custom">ابتكر لوحة ألوان إحترافية خاصة بك</string>
@@ -1471,8 +1471,8 @@
     <string name="appearance_system_light_theme">الوضع الفاتح</string>
     <string name="appearance_system_dark_theme">الوضع الداكن</string>
     <string name="icon_name_flow_light">Flow فاتح</string>
-    <string name="icon_name_material_sky">صيغة Material Sky</string>
-    <string name="icon_name_material_mint">Material Mint</string>
+    <string name="icon_name_material_sky">سماوي Material</string>
+    <string name="icon_name_material_mint">نعناع Material</string>
     <string name="theme_name_material_you">Material You</string>
     <string name="theme_desc_material_you">ألوان خلفية الشاشة على نظام أندرويد 12+</string>
     <string name="content_settings_comments_preview_title">معاينة التعليقات</string>
@@ -1575,7 +1575,7 @@
     <string name="player_background_style_gradient">‎تدرج الألوان</string>
     <string name="player_background_style_default">السطح الإفتراضي</string>
     <string name="similar_content">محتوي مشابه</string>
-    <string name="no_similar_content_found">لم يتم العثور على محتوى مشابه</string>
+    <string name="no_similar_content_found">لم يتم العثور على أي محتوى مشابه</string>
     <string name="unknown_source">مصدر غير معروف</string>
     <string name="added_to_playlist_toast">تمت إضافته إلى قائمة التشغيل</string>
     <string name="already_downloaded_toast">‎تم تنزيلها بالفعل</string>
@@ -1598,4 +1598,5 @@
     <string name="music_playback_warning_generic">فشل تشغيل الموسيقى. حاول مرة أخرى أو غيّر الشبكة إذا استمر هذا الأمر.</string>
     <string name="video_download_location_label">مجلد تحميل الفيديو</string>
     <string name="music_download_location_label">مجلد تحميل الموسيقي</string>
+    <string name="refresh_lyrics">إعادة تحديث الكلمات</string>
 </resources>
