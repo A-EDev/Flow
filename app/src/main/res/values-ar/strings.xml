@@ -20,7 +20,7 @@
     <string name="clear_all">مسح الكل</string>
     <string name="clear_watch_history_alert_title">مسح سجل المشاهدة؟</string>
     <string name="share">مشاركة</string>
-    <string name="downloaded">محملة</string>
+    <string name="downloaded">تم التنزيل</string>
     <string name="download">تحميل</string>
     <string name="save">حفظ</string>
     <string name="lyrics">الكلمات</string>
@@ -673,7 +673,7 @@
     <string name="location_preset_header">المواقع المحددة مسبقًا</string>
     <string name="location_custom_header">موقع تخزين مخصص</string>
     <string name="location_downloads_label">Downloads / Flow</string>
-    <string name="location_movies_label">أفلام / Flow</string>
+    <string name="location_movies_label">Movies / Flow</string>
     <string name="location_internal_app_label">التخزين الداخلي للتطبيق</string>
     <string name="location_internal_app_desc">تخزين في التطبيق — قد يتم حذف الملفات في حالة إلغاء التثبيت</string>
     <string name="location_custom_saf_label">تصفح…</string>
@@ -1596,4 +1596,6 @@
     <string name="music_playback_warning_network">فشل بث الموسيقى بسبب مشكلة في الشبكة. تحقق من إتصالك بالإنترنت أو جرب شبكة أخرى.</string>
     <string name="music_playback_warning_final">لم يتم تحميل هذه الأغنية بعد عدة محاولات. جرّب شبكة أخرى أو استخدام VPN إذا استمرت مشكلة تحميل الأغاني.</string>
     <string name="music_playback_warning_generic">فشل تشغيل الموسيقى. حاول مرة أخرى أو غيّر الشبكة إذا استمر هذا الأمر.</string>
+    <string name="video_download_location_label">مجلد تحميل الفيديو</string>
+    <string name="music_download_location_label">مجلد تحميل الموسيقي</string>
 </resources>
