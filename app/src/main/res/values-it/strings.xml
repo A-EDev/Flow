@@ -1589,4 +1589,10 @@
     <string name="music_quality_low">Bassa</string>
     <string name="music_playback_warning_final">Impossibile caricare questo brano dopo diversi tentativi. Se il problema persiste, prova a cambiare rete o a usare una VPN.</string>
     <string name="music_playback_warning_generic">Riproduzione musicale non riuscita. Riprova o cambia rete se il problema persiste</string>
+    <string name="add_to_library">Aggiungi alla libreria</string>
+    <string name="saved_to_library">Salvato nella libreria</string>
+    <string name="failed_to_save_to_library">Impossibile salvare nella libreria</string>
+    <string name="open">Apri</string>
+    <string name="video_download_location_label">Posizione di download del video</string>
+    <string name="music_download_location_label">Posizione di download della musica</string>
 </resources>
