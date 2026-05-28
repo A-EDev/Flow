@@ -213,8 +213,8 @@
     <string name="settings_item_content_prefs_subtitle">إحجب المواضيع التي لا ترغب في رؤيتها</string>
     <string name="settings_item_player">إعدادات المشغل</string>
     <string name="settings_item_player_subtitle">التشغيل التلقائي، التشغيل في الخلفية، SponsorBlock</string>
-    <string name="settings_item_quality">دقة الفيديو</string>
-    <string name="settings_item_quality_subtitle">دقة العرض لشبكة الواي فاي والهاتف المحمول</string>
+    <string name="settings_item_quality">دقة الفيديو و الموسيقي</string>
+    <string name="settings_item_quality_subtitle">دقة العرض و جودة صوت الموسيقي</string>
     <string name="settings_item_content_display">عرض المحتوى</string>
     <string name="settings_item_content_display_subtitle">حجم الشبكة، الصور المصغرة، التخطيط</string>
     <string name="settings_item_buffer">إعدادات المخزن المؤقت</string>
@@ -473,7 +473,7 @@
     <string name="player_settings_double_tap_seek_subtitle_template">%ds لكل نقرة مزدوجة جانبية</string>
     <string name="player_settings_double_tap_seek_dialog_title">النقر المزدوج لتقديم و تأخير الفيديو</string>
     <string name="player_settings_double_tap_seek_dialog_body">اختر عدد الثواني التي تريد تقديم أو تأخيرها عند النقر المزدوج على الجانب الأيسر أو الأيمن من المشغل.</string>
-    <string name="video_quality_title">جودة الفيديو</string>
+    <string name="video_quality_title">جودة الفيديو و الموسيقي</string>
     <string name="video_quality_warning">الدقة العالية تستخدم بيانات أكثر</string>
     <string name="video_quality_wifi_header">جودة Wi-Fi</string>
     <string name="video_quality_cellular_header">الجودة الخلوية</string>
@@ -763,7 +763,7 @@
     <string name="category_news_current_events">الأخبار و الأحداث الجارية</string>
     <string name="flow_control_center">مركز تحكم Flow</string>
     <string name="action_refresh">إعادة التحميل</string>
-    <string name="loading_neural_matrix">Loading Neural Matrix...</string>
+    <string name="loading_neural_matrix">جار تحميل دماغ المحتوى...</string>
     <string name="neural_interest_map_subtitle">خريطة إهتماماتك العصبية</string>
     <string name="cognitive_fingerprint">البصمة المعرفية</string>
     <string name="content_dna_subtitle">الحمض النووي للمحتوى الخاص بك</string>
@@ -908,7 +908,7 @@
     <string name="add_video_to_queue">أضف إلى قائمة الانتظار</string>
     <string name="add_video_to_queue_desc">إضافة في نهاية قائمة الانتظار الفيديو</string>
     <string name="added_to_queue_toast">تمت إضافته إلى قائمة الانتظار</string>
-    <string name="play_next_toast">سيتم تشغيله تالي</string>
+    <string name="play_next_toast">سيتم تشغيله تالياً</string>
     <string name="no_active_queue_toast">لا توجد قائمة انتظار فيديو نشطة. ابدأ تشغيل فيديو أولاً.</string>
     <string name="download_video">تحميل الفيديو</string>
     <string name="select_quality">اختر الجودة المفضلة لديك</string>
@@ -1103,7 +1103,7 @@
     <string name="settings_item_time_management_subtitle">إحصائيات الاستخدام، تذكيرات وقت النوم</string>
     <string name="app_icon_apply_toast">تم تحديث الأيقونة - سيتم تحديث مشغل التطبيقات الخاص بك</string>
     <string name="icon_name_flow_red">Flow أحمر</string>
-    <string name="icon_name_dynamic">Material You</string>
+    <string name="icon_name_dynamic">Material You صيغة</string>
     <string name="player_nav_btn_subtitle">إظهار أزرار الفيديو التالي و السابق في المشغل المصغر</string>
     <string name="lyrics_provider_title">مُقدّم كلمات الأغاني</string>
     <string name="lyrics_provider_subtitle">اختر المصدر المفضل لديك لكلمات الأغاني</string>
@@ -1146,11 +1146,11 @@
     <string name="settings_categories_nav_tab_subtitle">اعرض علامة تبويب \"الأكثر رواجاً والفئات\" في شريط التنقل السفلي.</string>
     <string name="nav_explore">استكشاف</string>
     <string name="settings_continue_watching_subtitle">اعرض رفًا يحتوي على مقاطع الفيديو قيد التقدم على الشاشة الرئيسية.</string>
-    <string name="player_settings_sponsorblock">حظر اعلانات المدعمة</string>
+    <string name="player_settings_sponsorblock">SponsorBlock</string>
     <string name="player_settings_sponsorblock_subtitle">تخطي المقاطع الدعائية</string>
     <string name="player_settings_dearrow">DeArrow</string>
     <string name="dearrow_badge">DeArrow</string>
-    <string name="sb_segments_header">إجراءات أقسام حظر الاعلانات المدعمة</string>
+    <string name="sb_segments_header">SponsorBlock Segment Actions</string>
     <string name="sb_contribute_toggle_subtitle">أظهر زرًا في المشغل لإرسال تقطيعات جديدة</string>
     <string name="sb_user_id_title">معرف المستخدم لSponsorBlock</string>
     <string name="sb_user_id_dialog_title">معرف المستخدم لSponsorBlock</string>
@@ -1174,11 +1174,11 @@
     <string name="quality_2160p_4k">2160p 4K</string>
     <string name="buffer_settings_header_profile">ملف تعريف الأداء</string>
     <string name="buffer_label_playback">أبدا التشغيل: %1$ds</string>
-    <string name="section_singles">مفردات</string>
+    <string name="section_singles">Singles</string>
     <string name="section_featured_on">مقترحة لك</string>
     <string name="section_fans_also_like">الأخرون يحبون أيضا</string>
     <string name="empty_moods_genres">لا توجد حالات مزاجية أو أنواع موسيقية متاحة</string>
-    <string name="subtitle_single_template">مفردات · %1$s</string>
+    <string name="subtitle_single_template">Single · %1$s</string>
     <string name="section_vibe_vibes">أجواء %1$s</string>
     <string name="playlist_description_community">قائمة تشغيل منتقاة من موسيقى %1$s من مجتمعنا</string>
     <string name="template_bass_boost">تعزيز الجهير: %1$ddB</string>
@@ -1284,7 +1284,7 @@
     <string name="appearance_customizer_format_hint">تنسيق Hex: #RRGGBB أو #AARRGGBB</string>
     <string name="appearance_role_tertiary">مرحلة ثالثة</string>
     <string name="appearance_role_on_tertiary">علي المرحلة الثالثة</string>
-    <string name="appearance_role_outline">Outline</string>
+    <string name="appearance_role_outline">الخطوط العريضة/الخارجية</string>
     <string name="deep_flow_mode_title">وضع تعلم Flow العميق</string>
     <string name="sb_settings_title">SponsorBlock, DeArrow &amp; RYD</string>
     <string name="sb_settings_subtitle">إجراءات التقسيمات، خيارات DeArrow، و اعدادت عداد عدم الإعجاب</string>
@@ -1471,9 +1471,9 @@
     <string name="appearance_system_light_theme">الوضع الفاتح</string>
     <string name="appearance_system_dark_theme">الوضع الداكن</string>
     <string name="icon_name_flow_light">Flow فاتح</string>
-    <string name="icon_name_material_sky">المادة Sky</string>
+    <string name="icon_name_material_sky">صيغة Material Sky</string>
     <string name="icon_name_material_mint">Material Mint</string>
-    <string name="theme_name_material_you">المواد أنت</string>
+    <string name="theme_name_material_you">Material You</string>
     <string name="theme_desc_material_you">ألوان خلفية الشاشة على نظام أندرويد 12+</string>
     <string name="content_settings_comments_preview_title">معاينة التعليقات</string>
     <string name="content_settings_comments_preview_subtitle">إعرض أحدث تعليق داخل بطاقة التعليقات</string>
@@ -1583,4 +1583,17 @@
     <string name="download_error_toast">خطأ في التنزيل: %1$s</string>
     <string name="radio_source_template">%1$sراديو</string>
     <string name="topic_score_prefix">أدلة الموضوع</string>
+    <string name="add_to_library">أضف إلي المكتبة</string>
+    <string name="saved_to_library">تم الحفظ في المكتبة</string>
+    <string name="failed_to_save_to_library">فشل الحفظ إلي المكتبة</string>
+    <string name="open">مفتوح</string>
+    <string name="music_quality_header">دقة صوت الموسيقي</string>
+    <string name="music_quality_auto">تلقائي</string>
+    <string name="music_quality_high">عالي</string>
+    <string name="music_quality_medium">متوسط</string>
+    <string name="music_quality_low">منخفضة</string>
+    <string name="music_playback_warning_forbidden">تم رفض الوصول إلى بث الموسيقى. قد يكون موقع يوتيوب يقيّد الوصول إلى هذا العنوان IP؛ حاول إعادة تحميل الصفحة أو تغيير الشبكة/VPN.</string>
+    <string name="music_playback_warning_network">فشل بث الموسيقى بسبب مشكلة في الشبكة. تحقق من إتصالك بالإنترنت أو جرب شبكة أخرى.</string>
+    <string name="music_playback_warning_final">لم يتم تحميل هذه الأغنية بعد عدة محاولات. جرّب شبكة أخرى أو استخدام VPN إذا استمرت مشكلة تحميل الأغاني.</string>
+    <string name="music_playback_warning_generic">فشل تشغيل الموسيقى. حاول مرة أخرى أو غيّر الشبكة إذا استمر هذا الأمر.</string>
 </resources>
