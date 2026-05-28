@@ -779,4 +779,23 @@
     <string name="sb_category_preview">Vorschau / Rückblick</string>
     <string name="sb_category_exclusive_access">Exklusiver Zugang</string>
     <string name="sb_action_skip">Überspringen</string>
+    <string name="add_to_library">Zur Bibliothek hinzufügen</string>
+    <string name="saved_to_library">In der Bibliothek gespeichert</string>
+    <string name="failed_to_save_to_library">Das Speichern in der Bibliothek ist fehlgeschlagen</string>
+    <string name="open">Öffnen</string>
+    <string name="sb_action_mute">Stummschalten</string>
+    <string name="sb_action_show_toast">Nur benachrichtigen</string>
+    <string name="sb_action_ignore">Ignorieren</string>
+    <string name="sb_submit_dialog_title">Segment übermitteln</string>
+    <string name="sb_submit_start_time">Startzeit</string>
+    <string name="sb_submit_end_time">Endzeit</string>
+    <string name="sb_submit_category">Kategorie</string>
+    <string name="sb_submit_swap">Zeitstempel tauschen</string>
+    <string name="sb_submit_create">Segment erstellen</string>
+    <string name="sb_submit_success">✓ Segment erfolgreich übermittelt</string>
+    <string name="sb_submit_error">Das Segment konnte nicht übermittelt werden. Bitte versuchen Sie es erneut.</string>
+    <string name="section_channel">Kanal</string>
+    <string name="section_algorithm">Algorithmus</string>
+    <string name="section_options">Optionen</string>
+    <string name="dont_show_channel">Diesen Kanal nicht anzeigen</string>
 </resources>
