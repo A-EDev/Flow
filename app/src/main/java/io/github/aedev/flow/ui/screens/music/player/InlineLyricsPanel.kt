@@ -2,7 +2,7 @@
  * Lyrics rendering in this file is adapted from Metrolist's GPL-3.0 lyrics
  * engine and canvas implementation.
  *
- * Upstream project: https://github.com/mostafaalagamy/Metrolist
+ * Upstream project: https://github.com/MetrolistGroup/Metrolist
  * Upstream files: ui/component/ExperimentalLyrics.kt, LyricsLine.kt,
  * LyricsCommon.kt, and ui/utils/FadingEdge.kt.
  */
@@ -163,11 +163,14 @@ fun InlineLyricsPanel(
     }
 
     val lines = remember(lyrics, syncedLyrics) {
-        buildMetrolistLines(lyrics = lyrics, syncedLyrics = syncedLyrics)
+        buildLines(lyrics = lyrics, syncedLyrics = syncedLyrics)
     }
     val mergedLyricsList = remember(lines) { buildMergedLyricsList(lines) }
     val hasWordTimings = remember(lines) { lines.any { !it.words.isNullOrEmpty() } }
-    val isSynced = remember(syncedLyrics) { syncedLyrics.isNotEmpty() }
+    val isSynced = remember(lines, syncedLyrics) {
+        syncedLyrics.isNotEmpty() && entriesLookSynced(syncedLyrics) &&
+            lines.any { it.time in 1L..999_999L }
+    }
 
     var activeLineIndices by remember { mutableStateOf(emptySet<Int>()) }
     var scrollTargetIndex by remember { mutableIntStateOf(-1) }
@@ -579,7 +582,7 @@ fun InlineLyricsPanel(
                                         activeLineIndices.contains(index) ||
                                         isInGapWithMain)
 
-                                MetrolistLyricsLine(
+                                LyricsLine(
                                     index = index,
                                     item = item,
                                     isSynced = isSynced,
@@ -656,8 +659,8 @@ fun InlineLyricsPanel(
                     color = expressiveAccent.copy(alpha = 0.6f * providerAlpha),
                     style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 8.dp, end = 16.dp)
+                        .align(Alignment.TopCenter)
+                        .padding(top = 38.dp)
                 )
             }
         }
@@ -765,7 +768,7 @@ private fun adaptiveLyricsTextSize(baseSize: Float, textLength: Int, isBackgroun
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun MetrolistLyricsLine(
+private fun LyricsLine(
     index: Int,
     item: LyricsEntry,
     isSynced: Boolean,
@@ -1423,11 +1426,14 @@ private fun WordLevelLyrics(
     }
 }
 
-private fun buildMetrolistLines(lyrics: String?, syncedLyrics: List<LyricsEntry>): List<LyricsEntry> {
-    if (syncedLyrics.isNotEmpty()) {
+private fun buildLines(lyrics: String?, syncedLyrics: List<LyricsEntry>): List<LyricsEntry> {
+    if (syncedLyrics.isNotEmpty() && entriesLookSynced(syncedLyrics)) {
         return listOf(LyricsEntry(time = 0L, text = "")) + syncedLyrics.sorted()
     }
-    val plainLines = lyrics
+
+    val plainSource = lyrics?.takeIf { it.isNotBlank() }
+        ?: syncedLyrics.joinToString("\n") { it.text }.takeIf { it.isNotBlank() }
+    val plainLines = plainSource
         ?.lines()
         ?.map { it.trim() }
         ?.filter { it.isNotBlank() }
@@ -1436,6 +1442,20 @@ private fun buildMetrolistLines(lyrics: String?, syncedLyrics: List<LyricsEntry>
     return plainLines.mapIndexed { index, line ->
         LyricsEntry(time = 1_000_000L + index, text = line)
     }
+}
+
+private fun entriesLookSynced(entries: List<LyricsEntry>): Boolean {
+    if (entries.size < 2) return false
+    val main = entries.filter { !it.isBackground }
+    val list = if (main.size >= 2) main else entries
+    val distinctTimes = list.map { it.time }.distinct()
+    if (distinctTimes.size < 2) return false
+    val firstPositive = distinctTimes.firstOrNull { it > 0L } ?: return false
+    val maxTime = list.maxOf { it.time }
+    if (maxTime - firstPositive < 5_000L) return false
+    if (entries.any { !it.words.isNullOrEmpty() }) return true
+    val distinctTimedLines = list.count { it.time > 0L }
+    return distinctTimedLines >= (list.size * 0.5).toInt().coerceAtLeast(2)
 }
 
 private fun buildMergedLyricsList(lines: List<LyricsEntry>): List<LyricsListItem> {
@@ -1463,19 +1483,32 @@ private fun findActiveLineIndices(lines: List<LyricsEntry>, position: Long): Set
     val active = mutableSetOf<Int>()
     val hasWordTimings = lines.any { !it.words.isNullOrEmpty() }
 
+    val distinctMainTimes = lines.asSequence()
+        .filter { !it.isBackground }
+        .map { it.time }
+        .distinct()
+        .take(3)
+        .toList()
+    if (distinctMainTimes.size < 2) return active
+
     for (index in lines.indices) {
         val line = lines[index]
         if (line.time > position) break
         val lineEndMs = if (!line.words.isNullOrEmpty()) {
             line.words.last().endTime
         } else {
-            if (index + 1 < lines.size) lines[index + 1].time else Long.MAX_VALUE
+
+            (index + 1 until lines.size)
+                .asSequence()
+                .map { lines[it].time }
+                .firstOrNull { it > line.time }
+                ?: Long.MAX_VALUE
         }
         if (position <= lineEndMs) active.add(index)
     }
 
     if (!hasWordTimings && active.size > 1) {
-        val mainActive = active.filter { lines[it].isBackground == false }
+        val mainActive = active.filter { !lines[it].isBackground }
         if (mainActive.size > 1) {
             val maxTime = mainActive.maxOf { lines[it].time }
             active.removeAll { it in mainActive && lines[it].time < maxTime }

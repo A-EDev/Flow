@@ -512,14 +512,31 @@ fun EnhancedMusicPlayerScreen(
 
                 Spacer(modifier = Modifier.width(12.dp))
 
-                PlayerMainActionButtons(
-                    isLiked = uiState.isLiked,
-                    isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId),
-                    onLikeClick = { viewModel.toggleLike() },
-                    onDownloadClick = { viewModel.downloadTrack() },
-                    onAddToPlaylist = { viewModel.showAddToPlaylistDialog(true) },
-                    accentColor = animatedAccentColor
-                )
+                AnimatedContent(
+                    targetState = showInlineLyrics,
+                    transitionSpec = {
+                        (fadeIn(tween(220)) + scaleIn(tween(220), initialScale = 0.9f)) togetherWith
+                            (fadeOut(tween(160)) + scaleOut(tween(160), targetScale = 0.9f))
+                    },
+                    label = "lyricsActionsSwap"
+                ) { lyricsActive ->
+                    if (lyricsActive) {
+                        PlayerLyricsRefreshButton(
+                            isLoading = uiState.isLyricsLoading,
+                            accentColor = animatedAccentColor,
+                            onRefresh = { viewModel.refreshLyrics() }
+                        )
+                    } else {
+                        PlayerMainActionButtons(
+                            isLiked = uiState.isLiked,
+                            isDownloaded = uiState.downloadedTrackIds.contains(uiState.currentTrack?.videoId),
+                            onLikeClick = { viewModel.toggleLike() },
+                            onDownloadClick = { viewModel.downloadTrack() },
+                            onAddToPlaylist = { viewModel.showAddToPlaylistDialog(true) },
+                            accentColor = animatedAccentColor
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(28.dp))

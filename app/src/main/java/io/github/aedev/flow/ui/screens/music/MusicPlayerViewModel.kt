@@ -609,30 +609,23 @@ class MusicPlayerViewModel @Inject constructor(
 
             try {
                 val result = lyricsHelper.getLyrics(videoId, cleanTitle, cleanArtist, targetDuration, album)
-                
+
                 if (result != null) {
                     val (entries, providerName) = result
                     val hasWords = entries.any { it.words != null }
-                    android.util.Log.d("MusicPlayerViewModel", "Got ${entries.size} lyrics lines from $providerName (word-sync=$hasWords)")
-                    
-                    if (entries.size > 1 || (entries.size == 1 && entries[0].time > 0)) {
-                        val plainText = entries.joinToString("\n") { it.text }
-                        _uiState.update { it.copy(
-                            isLyricsLoading = false,
-                            lyrics = plainText,
-                            syncedLyrics = entries,
-                            lyricsProviderName = providerName
-                        ) }
-                    } else if (entries.size == 1) {
-                        _uiState.update { it.copy(
-                            isLyricsLoading = false,
-                            lyrics = entries[0].text,
-                            syncedLyrics = emptyList(),
-                            lyricsProviderName = providerName
-                        ) }
-                    } else {
-                        _uiState.update { it.copy(isLyricsLoading = false) }
-                    }
+                    val isSynced = lyricsHelper.entriesAreSynced(entries)
+                    android.util.Log.d(
+                        "MusicPlayerViewModel",
+                        "Got ${entries.size} lyrics lines from $providerName (word-sync=$hasWords, synced=$isSynced)"
+                    )
+
+                    val plainText = entries.joinToString("\n") { it.text }
+                    _uiState.update { it.copy(
+                        isLyricsLoading = false,
+                        lyrics = plainText.takeIf { it.isNotBlank() },
+                        syncedLyrics = if (isSynced) entries else emptyList(),
+                        lyricsProviderName = providerName
+                    ) }
                 } else {
                     _uiState.update { it.copy(isLyricsLoading = false) }
                 }
@@ -659,6 +652,18 @@ class MusicPlayerViewModel @Inject constructor(
         if (!state.syncedLyrics.isNullOrEmpty()) return
         if (!state.lyrics.isNullOrEmpty()) return
         fetchLyrics(track.videoId, track.artist, track.title, track.duration, track.album)
+    }
+
+    fun refreshLyrics() {
+        val track = _uiState.value.currentTrack ?: return
+        viewModelScope.launch {
+            try {
+                lyricsHelper.forceRefresh(track.videoId)
+            } catch (e: Exception) {
+                android.util.Log.w("MusicPlayerViewModel", "forceRefresh failed: ${e.message}")
+            }
+            fetchLyrics(track.videoId, track.artist, track.title, track.duration, track.album)
+        }
     }
 
     fun updateProgress() {

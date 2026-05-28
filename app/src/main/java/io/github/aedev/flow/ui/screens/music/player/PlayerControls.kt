@@ -19,6 +19,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.OfflinePin
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Shuffle
@@ -662,6 +663,74 @@ fun PlayerMainActionButtons(
                 contentDescription = stringResource(R.string.like),
                 tint = if (isLiked) accentColor else Color.White,
                 modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun PlayerLyricsRefreshButton(
+    isLoading: Boolean,
+    accentColor: Color,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val rotation = remember { Animatable(0f) }
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(isLoading) {
+        if (isLoading) {
+            while (true) {
+                rotation.snapTo(0f)
+                rotation.animateTo(
+                    targetValue = 360f,
+                    animationSpec = tween(durationMillis = 900, easing = LinearEasing)
+                )
+            }
+        } else {
+            rotation.snapTo(0f)
+        }
+    }
+
+    val interactionSource = remember { MutableInteractionSource() }
+
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(32.dp))
+            .background(Color.White.copy(alpha = 0.08f))
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(32.dp)
+            )
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        IconButton(
+            onClick = {
+                if (!isLoading) {
+                    coroutineScope.launch {
+                        rotation.snapTo(0f)
+                        rotation.animateTo(
+                            targetValue = 360f,
+                            animationSpec = tween(durationMillis = 520, easing = FastOutSlowInEasing)
+                        )
+                    }
+                    onRefresh()
+                }
+            },
+            modifier = Modifier
+                .size(40.dp)
+                .pressScale(interactionSource),
+            interactionSource = interactionSource
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Refresh,
+                contentDescription = stringResource(R.string.refresh_lyrics),
+                tint = if (isLoading) accentColor else Color.White,
+                modifier = Modifier
+                    .size(22.dp)
+                    .graphicsLayer { rotationZ = rotation.value }
             )
         }
     }
