@@ -85,6 +85,14 @@ class NewPipeUtils(
             YoutubeJavaScriptPlayerManager.getSignatureTimestamp(videoId)
         }
 
+    fun deobfuscateThrottling(videoId: String, url: String): String? =
+        try {
+            YoutubeJavaScriptPlayerManager.getUrlWithThrottlingParameterDeobfuscated(videoId, url)
+        } catch (e: Exception) {
+            android.util.Log.w("NewPipeUtils", "nsig deobfuscation threw: ${e.javaClass.simpleName}: ${e.message}")
+            null
+        }
+
     fun getStreamUrl(
         format: PlayerResponse.StreamingData.Format,
         videoId: String,
@@ -144,12 +152,30 @@ object NewPipeExtractor {
         newPipeUtils = null
         isInitialized = false
         lastProxySignature = null
+        nsigThrewThisSession = false
     }
 
     fun getSignatureTimestamp(videoId: String): Result<Int> {
         init()
         return newPipeUtils?.getSignatureTimestamp(videoId)
             ?: Result.failure(Exception("NewPipeUtils not initialized"))
+    }
+
+    @Volatile
+    private var nsigThrewThisSession = false
+
+    fun deobfuscateThrottling(videoId: String, url: String): String? {
+        if (nsigThrewThisSession) return null
+        init()
+        val result = newPipeUtils?.deobfuscateThrottling(videoId, url)
+        if (result == null || (url.contains("n=") && result == url)) {
+            nsigThrewThisSession = true
+            android.util.Log.w(
+                "NewPipeExtractor",
+                "NewPipe nsig ineffective (${if (result == null) "threw" else "unchanged"}) — disabling for this session, falling back to home-grown"
+            )
+        }
+        return result
     }
 
     fun getStreamUrl(

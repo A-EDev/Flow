@@ -5,9 +5,11 @@ import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
 import io.github.aedev.flow.innertube.models.YouTubeLocale
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
+import io.github.aedev.flow.utils.cipher.PipePipeNsigDecoder
 import io.github.aedev.flow.utils.potoken.WebPoTokenSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +29,10 @@ object InnerTubeVideoStreamExtractor {
         YouTubeClient.ANDROID_VR_NO_AUTH,
         YouTubeClient.IPADOS,
         YouTubeClient.IOS,
+    )
+
+    private val BOT_RESISTANT_CLIENTS: List<YouTubeClient> = listOf(
+        YouTubeClient.TVHTML5_SIMPLY_EMBEDDED_PLAYER,
     )
 
     // Last-resort token-free clients tried after the durable WEB+SABR path
@@ -56,6 +62,11 @@ object InnerTubeVideoStreamExtractor {
             }
         }
 
+        tryDirectClients(videoId, BOT_RESISTANT_CLIENTS, failureReasons)?.let {
+            Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=DIRECT/embedded)")
+            return@withContext it
+        }
+
         // 2) Durable path: WEB + BotGuard PoToken + SABR. Survives the LOGIN_REQUIRED bot wall
         tryWebSabr(videoId, failureReasons)?.let {
             Log.w(TAG, "Extraction OK for $videoId via WEB (mode=SABR)")
@@ -77,13 +88,22 @@ object InnerTubeVideoStreamExtractor {
         clients: List<YouTubeClient>,
         failureReasons: MutableList<String>,
     ): VideoExtractionResult? {
+        val sts: Int? = if (clients.any { it.useSignatureTimestamp }) {
+            NewPipeExtractor.getSignatureTimestamp(videoId).getOrNull()
+        } else null
+
         for (client in clients) {
             try {
                 Log.d(TAG, "Trying ${client.clientName} v${client.clientVersion}")
 
                 val playerResponse = withTimeoutOrNull(PER_CLIENT_TIMEOUT_MS) {
                     // Force en-US extraction locale so the response is deterministic across regions.
-                    YouTube.player(videoId, client = client, localeOverride = YouTubeLocale.EXTRACTION).getOrNull()
+                    YouTube.player(
+                        videoId,
+                        client = client,
+                        signatureTimestamp = if (client.useSignatureTimestamp) sts else null,
+                        localeOverride = YouTubeLocale.EXTRACTION,
+                    ).getOrNull()
                 }
 
                 if (playerResponse == null) {
@@ -106,11 +126,11 @@ object InnerTubeVideoStreamExtractor {
                     continue
                 }
 
-                val formatsWithUrl = adaptiveFormats
-                    .filter { !it.url.isNullOrEmpty() }
-                    .map { it.withPlayableUrl(videoId) }
+                PipePipeNsigDecoder.prefetch(adaptiveFormats.mapNotNull { it.url })
+
+                val formatsWithUrl = adaptiveFormats.mapNotNull { it.toPlayableFormat(videoId) }
                 if (formatsWithUrl.isEmpty()) {
-                    failureReasons.add("${client.clientName}: ${adaptiveFormats.size} formats, none with direct URLs (SABR-only/cipher)")
+                    failureReasons.add("${client.clientName}: ${adaptiveFormats.size} formats, none resolvable (SABR-only)")
                     continue
                 }
 
@@ -166,7 +186,8 @@ object InnerTubeVideoStreamExtractor {
                 Log.w(TAG, "WEB+SABR: PoToken mint returned null (WebView missing/broken?)")
                 return null
             }
-            val sts = CipherDeobfuscator.ensureSignatureTimestamp()
+            val sts = NewPipeExtractor.getSignatureTimestamp(videoId).getOrNull()
+                ?: CipherDeobfuscator.ensureSignatureTimestamp()
 
             val playerResponse = withTimeoutOrNull(WEB_PLAYER_TIMEOUT_MS) {
                 YouTube.playerWeb(
@@ -204,7 +225,9 @@ object InnerTubeVideoStreamExtractor {
             }
 
             val sabrInfo = try {
-                val transformed = CipherDeobfuscator.transformNParamInUrl(resolved.streamingUrl)
+                val npUrl = NewPipeExtractor.deobfuscateThrottling(videoId, resolved.streamingUrl)
+                val transformed = if (!npUrl.isNullOrEmpty()) npUrl
+                    else CipherDeobfuscator.transformNParamInUrl(resolved.streamingUrl)
                 if (transformed != resolved.streamingUrl) resolved.copy(streamingUrl = transformed) else resolved
             } catch (e: CancellationException) {
                 throw e
@@ -242,6 +265,24 @@ object InnerTubeVideoStreamExtractor {
             reason.contains("not a bot", ignoreCase = true) ||
             reason.contains("Inicia sesión", ignoreCase = true) // localized "sign in"
     }
+    
+    private suspend fun PlayerResponse.StreamingData.Format.toPlayableFormat(
+        videoId: String
+    ): PlayerResponse.StreamingData.Format? {
+        if (!url.isNullOrEmpty()) return withPlayableUrl(videoId)
+        if (!signatureCipher.isNullOrEmpty() || !cipher.isNullOrEmpty()) {
+            val resolved = try {
+                NewPipeExtractor.getStreamUrl(this, videoId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "cipher resolve failed for $videoId itag=$itag: ${e.message}")
+                null
+            }
+            return if (!resolved.isNullOrEmpty()) copy(url = resolved) else null
+        }
+        return null
+    }
 
     private suspend fun PlayerResponse.StreamingData.Format.withPlayableUrl(
         videoId: String
@@ -250,11 +291,21 @@ object InnerTubeVideoStreamExtractor {
         if (!rawUrl.contains("n=")) return this
 
         return try {
-            val transformedUrl = CipherDeobfuscator.transformNParamInUrl(rawUrl)
-            if (transformedUrl != rawUrl) {
-                Log.d(TAG, "Applied n-transform for $videoId itag=$itag")
+            var transformed: String? = NewPipeExtractor.deobfuscateThrottling(videoId, rawUrl)
+                ?.takeIf { it != rawUrl }
+            if (transformed == null) {
+                transformed = CipherDeobfuscator.transformNParamInUrl(rawUrl).takeIf { it != rawUrl }
             }
-            copy(url = transformedUrl)
+            if (transformed == null) {
+                transformed = PipePipeNsigDecoder.deobfuscateUrl(rawUrl)
+            }
+            val finalUrl = transformed ?: rawUrl
+            if (finalUrl != rawUrl) {
+                Log.d(TAG, "Applied n-transform for $videoId itag=$itag")
+            } else {
+                Log.w(TAG, "n-transform produced NO change for $videoId itag=$itag — URL will likely throttle to 403")
+            }
+            copy(url = finalUrl)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

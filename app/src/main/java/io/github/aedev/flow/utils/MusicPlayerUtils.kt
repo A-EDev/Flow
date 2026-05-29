@@ -349,7 +349,11 @@ object MusicPlayerUtils {
 
         val streamUrl = if (resolved.needsNTransform) {
             try {
-                var transformedUrl = CipherDeobfuscator.transformNParamInUrl(rawStreamUrl)
+                var transformedUrl = NewPipeExtractor.deobfuscateThrottling(videoId, rawStreamUrl)
+                    ?.takeIf { it != rawStreamUrl }
+                    ?: CipherDeobfuscator.transformNParamInUrl(rawStreamUrl).takeIf { it != rawStreamUrl }
+                    ?: io.github.aedev.flow.utils.cipher.PipePipeNsigDecoder.deobfuscateUrl(rawStreamUrl)
+                    ?: rawStreamUrl
                 if (usedClient.useWebPoTokens) {
                     val streamingPoToken = getPoTokenForWebClient()?.streamingDataPoToken
                     if (streamingPoToken != null && !transformedUrl.contains("pot=")) {
@@ -590,26 +594,26 @@ object MusicPlayerUtils {
         }
 
         try {
-            val deobfuscatorSts = io.github.aedev.flow.utils.cipher.CipherDeobfuscator.getSignatureTimestamp()
-            if (deobfuscatorSts != null) {
-                Log.d(TAG, "Signature timestamp obtained from CipherDeobfuscator: $deobfuscatorSts")
-                cachedSignatureTimestamp = deobfuscatorSts
-                return deobfuscatorSts
+            val npSts = NewPipeExtractor.getSignatureTimestamp(videoId)
+                .onSuccess { Log.d(TAG, "Signature timestamp from NewPipeExtractor: $it") }
+                .onFailure { Log.w(TAG, "Failed to get signature timestamp from NewPipe: ${it.message}") }
+                .getOrNull()
+            if (npSts != null) {
+                cachedSignatureTimestamp = npSts
+                return npSts
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to get signature timestamp from CipherDeobfuscator: ${e.message}")
+            Log.e(TAG, "Error getting signature timestamp from NewPipe", e)
         }
 
         return try {
-            NewPipeExtractor.getSignatureTimestamp(videoId)
-                .onSuccess { 
-                    Log.d(TAG, "Signature timestamp from NewPipeExtractor: $it") 
+            io.github.aedev.flow.utils.cipher.CipherDeobfuscator.getSignatureTimestamp()
+                ?.also {
+                    Log.d(TAG, "Signature timestamp obtained from CipherDeobfuscator: $it")
                     cachedSignatureTimestamp = it
                 }
-                .onFailure { Log.w(TAG, "Failed to get signature timestamp from NewPipe: ${it.message}") }
-                .getOrNull()
         } catch (e: Exception) {
-            Log.e(TAG, "Error getting signature timestamp from NewPipe", e)
+            Log.w(TAG, "Failed to get signature timestamp from CipherDeobfuscator: ${e.message}")
             null
         }
     }
