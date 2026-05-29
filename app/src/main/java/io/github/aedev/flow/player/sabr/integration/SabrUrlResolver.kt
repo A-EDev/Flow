@@ -13,7 +13,9 @@ data class SabrStreamInfo(
     val durationMs: Long,
     val poToken: String = "",
     val visitorId: String = "",
-    val ustreamerConfig: ByteArray = ByteArray(0)
+    val ustreamerConfig: ByteArray = ByteArray(0),
+    val audioMimeType: String = "",
+    val videoMimeType: String = ""
 )
 
 object SabrUrlResolver {
@@ -31,15 +33,28 @@ object SabrUrlResolver {
         240  to listOf(242, 133)
     )
 
-    fun resolve(playerResponse: PlayerResponse): SabrStreamInfo? {
+    /**
+     * Resolve a SABR session from a player response.
+     *
+     * @param injectedPoToken the GVS/streaming PoToken (base64) to send in StreamerContext.po_token.
+     *   Preferred over any `pot` query param on the URL (which is the non-SABR mechanism).
+     * @param injectedVisitorData the session-bound visitorData, must match the one used to mint the token.
+     */
+    fun resolve(
+        playerResponse: PlayerResponse,
+        injectedPoToken: String? = null,
+        injectedVisitorData: String? = null
+    ): SabrStreamInfo? {
         val streamingData = playerResponse.streamingData ?: return null
         val sabrUrl = streamingData.serverAbrStreamingUrl
         if (sabrUrl.isNullOrEmpty()) {
             Log.d(TAG, "No serverAbrStreamingUrl in player response")
             return null
         }
-        val poToken = queryParameter(sabrUrl, "pot").orEmpty()
-        val visitorId = playerResponse.responseContext.visitorData.orEmpty()
+        val poToken = injectedPoToken?.takeIf { it.isNotEmpty() }
+            ?: queryParameter(sabrUrl, "pot").orEmpty()
+        val visitorId = injectedVisitorData?.takeIf { it.isNotEmpty() }
+            ?: playerResponse.responseContext.visitorData.orEmpty()
         if (poToken.isEmpty() || visitorId.isEmpty()) {
             Log.d(TAG, "Skipping SABR: missing token context (pot=${poToken.isNotEmpty()}, visitor=${visitorId.isNotEmpty()})")
             return null
@@ -68,7 +83,7 @@ object SabrUrlResolver {
             ?: 0L
 
         Log.d(TAG, "Resolved SABR: audioItag=${selectedAudio.itag}, videoItag=${selectedVideo.itag}, " +
-            "video=${selectedVideo.width}x${selectedVideo.height}, duration=${durationMs}ms")
+            "video=${selectedVideo.width}x${selectedVideo.height}, duration=${durationMs}ms, ustreamer=${extractUstreamerConfig(playerResponse).size}B")
 
         return SabrStreamInfo(
             streamingUrl = sabrUrl,
@@ -78,18 +93,25 @@ object SabrUrlResolver {
             videoLmt = selectedVideo.lastModified ?: 0L,
             durationMs = durationMs,
             poToken = poToken,
-            visitorId = visitorId
+            visitorId = visitorId,
+            ustreamerConfig = extractUstreamerConfig(playerResponse),
+            audioMimeType = selectedAudio.mimeType,
+            videoMimeType = selectedVideo.mimeType
         )
     }
 
     fun resolveForQuality(
         playerResponse: PlayerResponse,
-        targetHeight: Int
+        targetHeight: Int,
+        injectedPoToken: String? = null,
+        injectedVisitorData: String? = null
     ): SabrStreamInfo? {
         val streamingData = playerResponse.streamingData ?: return null
         val sabrUrl = streamingData.serverAbrStreamingUrl ?: return null
-        val poToken = queryParameter(sabrUrl, "pot").orEmpty()
-        val visitorId = playerResponse.responseContext.visitorData.orEmpty()
+        val poToken = injectedPoToken?.takeIf { it.isNotEmpty() }
+            ?: queryParameter(sabrUrl, "pot").orEmpty()
+        val visitorId = injectedVisitorData?.takeIf { it.isNotEmpty() }
+            ?: playerResponse.responseContext.visitorData.orEmpty()
         if (poToken.isEmpty() || visitorId.isEmpty()) {
             Log.d(TAG, "Skipping SABR quality resolve: missing token context")
             return null
@@ -115,8 +137,27 @@ object SabrUrlResolver {
             videoLmt = selectedVideo.lastModified ?: 0L,
             durationMs = durationMs,
             poToken = poToken,
-            visitorId = visitorId
+            visitorId = visitorId,
+            ustreamerConfig = extractUstreamerConfig(playerResponse),
+            audioMimeType = selectedAudio.mimeType,
+            videoMimeType = selectedVideo.mimeType
         )
+    }
+
+    // Decode the base64 `videoPlaybackUstreamerConfig` required by the SABR POST body. 
+    private fun extractUstreamerConfig(playerResponse: PlayerResponse): ByteArray {
+        val b64 = playerResponse.playerConfig
+            ?.mediaCommonConfig
+            ?.mediaUstreamerRequestConfig
+            ?.videoPlaybackUstreamerConfig
+            ?.takeIf { it.isNotEmpty() }
+            ?: return ByteArray(0)
+        return try {
+            android.util.Base64.decode(b64, android.util.Base64.DEFAULT)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to decode videoPlaybackUstreamerConfig: ${e.message}")
+            ByteArray(0)
+        }
     }
 
     private fun queryParameter(url: String, name: String): String? {

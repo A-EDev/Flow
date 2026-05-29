@@ -154,6 +154,14 @@ class FlowApplication : Application(), ImageLoaderFactory {
         }
 
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try {
+                io.github.aedev.flow.utils.potoken.WebPoTokenSession.prewarm()
+            } catch (e: Exception) {
+                Log.w(TAG, "WebPoTokenSession prewarm failed: ${e.message}")
+            }
+        }
+
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             combine(
                 playerPreferences.appLanguage,
                 playerPreferences.trendingRegion

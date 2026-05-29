@@ -1391,8 +1391,18 @@ object YouTube {
         innerTube.deletePlaylist(WEB_REMIX, playlistId)
     }
 
-    suspend fun player(videoId: String, playlistId: String? = null, client: YouTubeClient, signatureTimestamp: Int? = null, poToken: String? = null): Result<PlayerResponse> = runCatching {
-        innerTube.player(client, videoId, playlistId, signatureTimestamp, poToken).body<PlayerResponse>()
+    suspend fun player(videoId: String, playlistId: String? = null, client: YouTubeClient, signatureTimestamp: Int? = null, poToken: String? = null, localeOverride: YouTubeLocale? = null): Result<PlayerResponse> = runCatching {
+        innerTube.player(client, videoId, playlistId, signatureTimestamp, poToken, localeOverride).body<PlayerResponse>()
+    }
+
+    suspend fun playerWeb(
+        videoId: String,
+        signatureTimestamp: Int?,
+        poToken: String?,
+        visitorData: String?,
+        locale: YouTubeLocale,
+    ): Result<PlayerResponse> = runCatching {
+        innerTube.playerWeb(videoId, signatureTimestamp, poToken, visitorData, locale).body<PlayerResponse>()
     }
 
     suspend fun registerPlayback(playlistId: String? = null, playbackTracking: String) = runCatching {

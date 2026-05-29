@@ -223,13 +223,12 @@ class EnhancedPlayerManager private constructor() {
         mediaLoader = MediaLoader(_playerState, cacheManager, surfaceManager).also { loader ->
             loader.onSabrFallbackNeeded = {
                 scope.launch {
-                    Log.w(TAG, "SABR fallback triggered — reloading with DASH/Progressive")
-                    val pos = player?.currentPosition ?: 0L
+                    Log.w(TAG, "SABR fallback triggered — requesting full re-extraction")
                     currentSabrInfo = null
                     loader.releaseSabr()
                     player?.stop()
                     player?.clearMediaItems()
-                    loadMediaInternal(currentVideoStream, currentAudioStream, preservePosition = pos)
+                    _streamExpiredEvent.emit(Unit)
                 }
             }
         }
@@ -726,6 +725,8 @@ class EnhancedPlayerManager private constructor() {
             sabrPoToken = sabr?.poToken.orEmpty(),
             sabrVisitorId = sabr?.visitorId.orEmpty(),
             sabrUstreamerConfig = sabr?.ustreamerConfig ?: ByteArray(0),
+            sabrAudioMimeType = sabr?.audioMimeType.orEmpty(),
+            sabrVideoMimeType = sabr?.videoMimeType.orEmpty(),
             innerTubeVideoFormats = innerTubeVideoFormats,
             innerTubeAudioFormats = innerTubeAudioFormats
         ) ?: false
@@ -934,12 +935,13 @@ class EnhancedPlayerManager private constructor() {
                     error = null
                 )
 
-                val sabrDeferred = async(Dispatchers.IO) {
+                val extractionDeferred = async(Dispatchers.IO) {
                     try {
-                        withTimeoutOrNull(6000L) {
-                            YouTube.player(video.id, client = YouTubeClient.ANDROID)
-                                .getOrNull()?.let { SabrUrlResolver.resolve(it) }
+                        withTimeoutOrNull(25000L) {
+                            io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor.extract(video.id)
                         }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
                     } catch (_: Exception) { null }
                 }
 
@@ -951,7 +953,8 @@ class EnhancedPlayerManager private constructor() {
                     return@launch
                 }
 
-                val sabrInfo = sabrDeferred.await()
+                val extraction = extractionDeferred.await()
+                val sabrInfo = extraction?.sabrInfo
                 val enrichedVideo = videoFromStreamInfo(video.id, streamInfo, fallback = video)
                 GlobalPlayerState.setCurrentVideo(enrichedVideo)
                 startBackgroundService(
@@ -987,7 +990,9 @@ class EnhancedPlayerManager private constructor() {
                     hlsUrl = streamInfo.hlsUrl,
                     streamType = streamInfo.streamType,
                     startPosition = 0L,
-                    sabrInfo = sabrInfo
+                    sabrInfo = sabrInfo,
+                    itVideoFormats = extraction?.videoFormats ?: emptyList(),
+                    itAudioFormats = extraction?.audioFormats ?: emptyList()
                 )
                 play()
             } catch (e: CancellationException) {

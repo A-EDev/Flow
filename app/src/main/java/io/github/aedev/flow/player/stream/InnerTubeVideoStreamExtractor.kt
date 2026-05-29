@@ -3,10 +3,13 @@ package io.github.aedev.flow.player.stream
 import android.util.Log
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
+import io.github.aedev.flow.innertube.models.YouTubeLocale
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.utils.cipher.CipherDeobfuscator
+import io.github.aedev.flow.utils.potoken.WebPoTokenSession
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -14,13 +17,20 @@ import kotlinx.coroutines.withTimeoutOrNull
 object InnerTubeVideoStreamExtractor {
     private const val TAG = "InnerTubeVideoExtractor"
     private const val PER_CLIENT_TIMEOUT_MS = 6000L
+    private const val WEB_PLAYER_TIMEOUT_MS = 10000L
 
-    private val VIDEO_STREAM_CLIENTS: List<YouTubeClient> = listOf(
+    //* Fast, token-free clients tried first. They return direct adaptive URLs (played via normal DASH/progressive) when not bot-walled
+     
+    private val FAST_CLIENTS: List<YouTubeClient> = listOf(
         YouTubeClient.ANDROID_VR_1_43_32,
         YouTubeClient.ANDROID_VR_1_61_48,
         YouTubeClient.ANDROID_VR_NO_AUTH,
         YouTubeClient.IPADOS,
         YouTubeClient.IOS,
+    )
+
+    // Last-resort token-free clients tried after the durable WEB+SABR path
+    private val LAST_RESORT_CLIENTS: List<YouTubeClient> = listOf(
         YouTubeClient.MOBILE,
         YouTubeClient.ANDROID_CREATOR,
     )
@@ -34,37 +44,53 @@ object InnerTubeVideoStreamExtractor {
     )
 
     suspend fun extract(videoId: String): VideoExtractionResult? = withContext(Dispatchers.IO) {
-        Log.d(TAG, "Starting extraction for $videoId with ${VIDEO_STREAM_CLIENTS.size} clients")
-
+        Log.d(TAG, "Starting extraction for $videoId")
         val failureReasons = mutableListOf<String>()
 
-        for ((index, client) in VIDEO_STREAM_CLIENTS.withIndex()) {
+        // 1) Fast path: token-free clients with direct URLs
+        tryDirectClients(videoId, FAST_CLIENTS, failureReasons)?.let { return@withContext it }
+
+        // 2) Durable path: WEB + BotGuard PoToken + SABR. Survives the LOGIN_REQUIRED bot wall
+        tryWebSabr(videoId, failureReasons)?.let { return@withContext it }
+
+        // 3) Last resort: remaining token-free clients
+        tryDirectClients(videoId, LAST_RESORT_CLIENTS, failureReasons)?.let { return@withContext it }
+
+        Log.e(TAG, "All clients failed for $videoId. Reasons: ${failureReasons.joinToString(" | ")}")
+        null
+    }
+
+    private suspend fun tryDirectClients(
+        videoId: String,
+        clients: List<YouTubeClient>,
+        failureReasons: MutableList<String>,
+    ): VideoExtractionResult? {
+        for (client in clients) {
             try {
-                Log.d(TAG, "Trying client ${index + 1}/${VIDEO_STREAM_CLIENTS.size}: ${client.clientName} v${client.clientVersion}")
+                Log.d(TAG, "Trying ${client.clientName} v${client.clientVersion}")
 
                 val playerResponse = withTimeoutOrNull(PER_CLIENT_TIMEOUT_MS) {
-                    YouTube.player(videoId, client = client).getOrNull()
+                    // Force en-US extraction locale so the response is deterministic across regions.
+                    YouTube.player(videoId, client = client, localeOverride = YouTubeLocale.EXTRACTION).getOrNull()
                 }
 
                 if (playerResponse == null) {
-                    val reason = "${client.clientName}: timeout or null response"
-                    Log.w(TAG, reason)
-                    failureReasons.add(reason)
+                    failureReasons.add("${client.clientName}: timeout or null response")
                     continue
                 }
 
-                if (playerResponse.playabilityStatus.status != "OK") {
-                    val reason = "${client.clientName}: status=${playerResponse.playabilityStatus.status}, reason=${playerResponse.playabilityStatus.reason}"
-                    Log.w(TAG, reason)
-                    failureReasons.add(reason)
+                val status = playerResponse.playabilityStatus.status
+                if (status != "OK") {
+                    val reason = playerResponse.playabilityStatus.reason
+                    val tag = if (isBotWall(reason)) "BOT_WALL" else "status=$status"
+                    failureReasons.add("${client.clientName}: $tag, reason=$reason")
+                    Log.w(TAG, "${client.clientName}: $tag, reason=$reason")
                     continue
                 }
 
                 val adaptiveFormats = playerResponse.streamingData?.adaptiveFormats
                 if (adaptiveFormats.isNullOrEmpty()) {
-                    val reason = "${client.clientName}: no adaptive formats in response"
-                    Log.w(TAG, reason)
-                    failureReasons.add(reason)
+                    failureReasons.add("${client.clientName}: no adaptive formats")
                     continue
                 }
 
@@ -72,54 +98,133 @@ object InnerTubeVideoStreamExtractor {
                     .filter { !it.url.isNullOrEmpty() }
                     .map { it.withPlayableUrl(videoId) }
                 if (formatsWithUrl.isEmpty()) {
-                    val reason = "${client.clientName}: ${adaptiveFormats.size} adaptive formats but none have direct URLs (cipher-only)"
-                    Log.w(TAG, reason)
-                    failureReasons.add(reason)
+                    failureReasons.add("${client.clientName}: ${adaptiveFormats.size} formats, none with direct URLs (SABR-only/cipher)")
                     continue
                 }
 
                 val videoFormats = formatsWithUrl.filter { !it.isAudio && it.height != null && it.width != null }
                 val audioFormats = formatsWithUrl.filter { it.isAudio }
-
                 if (videoFormats.isEmpty()) {
-                    val reason = "${client.clientName}: no video formats with direct URLs (${formatsWithUrl.size} total formats)"
-                    Log.w(TAG, reason)
-                    failureReasons.add(reason)
+                    failureReasons.add("${client.clientName}: no video formats with direct URLs")
                     continue
                 }
                 if (audioFormats.isEmpty()) {
-                    val reason = "${client.clientName}: no audio formats with direct URLs"
-                    Log.w(TAG, reason)
-                    failureReasons.add(reason)
+                    failureReasons.add("${client.clientName}: no audio formats with direct URLs")
                     continue
                 }
 
-                val sabrInfo = try {
-                    SabrUrlResolver.resolve(playerResponse)
-                } catch (e: Exception) {
-                    Log.d(TAG, "SABR resolution failed: ${e.message}")
-                    null
-                }
-
                 val heights = videoFormats.mapNotNull { it.height }.distinct().sorted()
-                Log.i(TAG, "Success with ${client.clientName}: ${videoFormats.size} video (${heights.joinToString()}p), ${audioFormats.size} audio, sabr=${sabrInfo != null}")
+                Log.i(TAG, "Success with ${client.clientName}: ${videoFormats.size} video (${heights.joinToString()}p), ${audioFormats.size} audio (direct URLs)")
 
-                return@withContext VideoExtractionResult(
+                return VideoExtractionResult(
                     videoFormats = videoFormats,
                     audioFormats = audioFormats,
                     playerResponse = playerResponse,
                     usedClient = client,
-                    sabrInfo = sabrInfo,
+                    sabrInfo = null,
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                val reason = "${client.clientName}: exception=${e.javaClass.simpleName}: ${e.message}"
-                Log.w(TAG, reason)
-                failureReasons.add(reason)
+                failureReasons.add("${client.clientName}: exception=${e.javaClass.simpleName}: ${e.message}")
+                Log.w(TAG, "${client.clientName} failed: ${e.message}")
             }
         }
+        return null
+    }
 
-        Log.e(TAG, "All ${VIDEO_STREAM_CLIENTS.size} clients failed for $videoId. Reasons: ${failureReasons.joinToString(" | ")}")
-        null
+    /**
+     * WEB client + a WebView BotGuard PoToken + forced en-US locale.
+     * Produces a SABR session (the response is SABR-only). Returns null when no visitorData / PoToken is available
+     */
+    private suspend fun tryWebSabr(
+        videoId: String,
+        failureReasons: MutableList<String>,
+    ): VideoExtractionResult? {
+        try {
+            val visitorData = WebPoTokenSession.sessionVisitorData()
+            if (visitorData.isNullOrEmpty()) {
+                failureReasons.add("WEB: no visitorData")
+                return null
+            }
+            val poToken = WebPoTokenSession.mint(videoId)
+            if (poToken == null) {
+                failureReasons.add("WEB: PoToken unavailable (WebView missing/broken?)")
+                return null
+            }
+            val sts = CipherDeobfuscator.ensureSignatureTimestamp()
+
+            val playerResponse = withTimeoutOrNull(WEB_PLAYER_TIMEOUT_MS) {
+                YouTube.playerWeb(
+                    videoId = videoId,
+                    signatureTimestamp = sts,
+                    poToken = poToken.playerRequestPoToken,
+                    visitorData = visitorData,
+                    locale = YouTubeLocale.EXTRACTION,
+                ).getOrNull()
+            }
+            if (playerResponse == null) {
+                failureReasons.add("WEB: timeout or null response")
+                return null
+            }
+
+            val status = playerResponse.playabilityStatus.status
+            if (status != "OK") {
+                val reason = playerResponse.playabilityStatus.reason
+                val tag = if (isBotWall(reason)) "BOT_WALL" else "status=$status"
+                failureReasons.add("WEB: $tag, reason=$reason")
+                Log.w(TAG, "WEB: $tag, reason=$reason")
+                return null
+            }
+
+            val resolved = SabrUrlResolver.resolve(
+                playerResponse,
+                injectedPoToken = poToken.streamingDataPoToken,
+                injectedVisitorData = visitorData,
+            )
+            if (resolved == null) {
+                failureReasons.add("WEB: SABR resolve failed (no serverAbrStreamingUrl / formats)")
+                return null
+            }
+
+            val sabrInfo = try {
+                val transformed = CipherDeobfuscator.transformNParamInUrl(resolved.streamingUrl)
+                if (transformed != resolved.streamingUrl) resolved.copy(streamingUrl = transformed) else resolved
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                resolved
+            }
+
+            val adaptiveFormats = playerResponse.streamingData?.adaptiveFormats.orEmpty()
+            val videoFormats = adaptiveFormats.filter { !it.isAudio && it.height != null }
+            val audioFormats = adaptiveFormats.filter { it.isAudio }
+
+            val heights = videoFormats.mapNotNull { it.height }.distinct().sorted()
+            Log.i(TAG, "Success with WEB+PoToken (SABR): ${videoFormats.size} video (${heights.joinToString()}p), ${audioFormats.size} audio, sabr=true")
+
+            return VideoExtractionResult(
+                videoFormats = videoFormats,
+                audioFormats = audioFormats,
+                playerResponse = playerResponse,
+                usedClient = YouTubeClient.WEB,
+                sabrInfo = sabrInfo,
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            failureReasons.add("WEB: exception=${e.javaClass.simpleName}: ${e.message}")
+            Log.w(TAG, "WEB+SABR failed: ${e.message}")
+            return null
+        }
+    }
+
+    private fun isBotWall(reason: String?): Boolean {
+        if (reason == null) return false
+        return reason.contains("Sign in to confirm", ignoreCase = true) ||
+            reason.contains("confirm you", ignoreCase = true) ||
+            reason.contains("not a bot", ignoreCase = true) ||
+            reason.contains("Inicia sesión", ignoreCase = true) // localized "sign in"
     }
 
     private suspend fun PlayerResponse.StreamingData.Format.withPlayableUrl(
@@ -134,6 +239,8 @@ object InnerTubeVideoStreamExtractor {
                 Log.d(TAG, "Applied n-transform for $videoId itag=$itag")
             }
             copy(url = transformedUrl)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "n-transform failed for $videoId itag=$itag: ${e.message}")
             this
