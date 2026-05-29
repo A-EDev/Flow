@@ -798,4 +798,15 @@
     <string name="section_algorithm">Algorithmus</string>
     <string name="section_options">Optionen</string>
     <string name="dont_show_channel">Diesen Kanal nicht anzeigen</string>
+    <string name="refresh_lyrics">Songtext aktualisieren</string>
+    <string name="dont_show_channel_desc">Aus den Empfehlungen entfernen</string>
+    <string name="channel_blocked_toast">%1$s wird nicht in deinem Feed angezeigt</string>
+    <string name="btn_save">Speichern</string>
+    <string name="btn_cancel">Abbrechen</string>
+    <string name="player_settings_show_pip">Bild-in-Bild-Schaltfläche anzeigen</string>
+    <string name="player_settings_show_pip_subtitle">Bild-in-Bild-Schaltfläche in den Player-Steuerelementen anzeigen</string>
+    <string name="player_settings_header_audio">Audio</string>
+    <string name="player_settings_play_during_calls">Während eines Anrufs abspielen</string>
+    <string name="player_settings_play_during_calls_subtitle">Wiedergabe während Telefon- oder VoIP-Anrufen (z. B. WhatsApp) fortsetzen</string>
+    <string name="player_settings_audio_language">Bevorzugte Audio-Sprache</string>
 </resources>

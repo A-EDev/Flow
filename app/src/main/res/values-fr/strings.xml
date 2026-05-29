@@ -821,7 +821,7 @@
     <!-- Contrôles du Lecteur -->
     <string name="btn_minimize">Minimiser</string>
     <string name="captions">Sous-titres</string>
-    <string name="pip_mode">Picture-in-Picture</string>
+    <string name="pip_mode">Incrustation d\'image (Picture-in-Picture)</string>
     <string name="previous_video">Vidéo précédente</string>
     <string name="next_video">Vidéo suivante</string>
     <string name="fullscreen">Plein écran</string>
@@ -1245,10 +1245,10 @@
     <string name="link_with_timestamp_copied">Lien avec horodatage copié</string>
     <string name="player_live_label">EN DIRECT</string>
     <string name="action_not_interested">Ça ne m\'intéresse pas</string>
-    <string name="action_want_more">Vous en voulez d\'autres comme ça ?</string>
-    <string name="settings_item_diagnostics">Diagnostics</string>
+    <string name="action_want_more">En voir plus comme ça</string>
+    <string name="settings_item_diagnostics">Diagnostiques</string>
     <string name="settings_item_diagnostics_subtitle">Consulter les journaux d\'erreurs et les rapports d\'incident</string>
-    <string name="diagnostics_title">Diagnostics</string>
+    <string name="diagnostics_title">Diagnostiques</string>
     <string name="diagnostics_tab_session">Journaux de session</string>
     <string name="diagnostics_tab_crashes">Rapports d\'accident</string>
     <string name="diagnostics_copy">Copier le rapport</string>
@@ -1635,4 +1635,5 @@
     <string name="open">Ouvrir</string>
     <string name="video_download_location_label">Emplacement de téléchargement de la vidéo</string>
     <string name="music_download_location_label">Emplacement de téléchargement de la musique</string>
+    <string name="refresh_lyrics">Actualiser les paroles</string>
 </resources>

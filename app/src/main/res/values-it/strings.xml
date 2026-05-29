@@ -1595,4 +1595,5 @@
     <string name="open">Apri</string>
     <string name="video_download_location_label">Posizione di download del video</string>
     <string name="music_download_location_label">Posizione di download della musica</string>
+    <string name="refresh_lyrics">Aggiorna testi</string>
 </resources>
