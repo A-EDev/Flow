@@ -842,7 +842,7 @@
     <string name="subtitle_similar_to">بناءً على سجل استماعك</string>
     <string name="subtitle_community_playlists">قوائم تشغيل المجتمع</string>
     <string name="playlist_author_community">قائمة تشغيل المجتمع</string>
-    <string name="radio">الراديو</string>
+    <string name="radio">Radio</string>
     <string name="audio_settings_title">إعدادات الصوت</string>
     <string name="label_preset">محددة مسبقا</string>
     <string name="label_tempo_pitch">الإيقاع و درجة الصوت</string>
@@ -1581,7 +1581,7 @@
     <string name="already_downloaded_toast">‎تم تنزيلها بالفعل</string>
     <string name="download_started_toast">بدأ التنزيل…</string>
     <string name="download_error_toast">خطأ في التنزيل: %1$s</string>
-    <string name="radio_source_template">%1$sراديو</string>
+    <string name="radio_source_template">Radio • %1$s</string>
     <string name="topic_score_prefix">أدلة الموضوع</string>
     <string name="add_to_library">أضف إلي المكتبة</string>
     <string name="saved_to_library">تم الحفظ في المكتبة</string>
