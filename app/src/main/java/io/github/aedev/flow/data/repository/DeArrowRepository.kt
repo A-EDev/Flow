@@ -53,19 +53,18 @@ object DeArrowRepository {
                 .header("User-Agent", "FlowYouTube/1.0")
                 .build()
 
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) {
-                return@withContext null
-            } else {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@withContext null
+                }
                 val body = response.body?.string()
                 if (body.isNullOrBlank()) {
                     cache.put(videoId, Optional(null))
                     return@withContext null
-                } else {
-                    val parsed = parseResponse(body, videoId)
-                    cache.put(videoId, Optional(parsed))
-                    return@withContext parsed
                 }
+                val parsed = parseResponse(body, videoId)
+                cache.put(videoId, Optional(parsed))
+                return@withContext parsed
             }
         } catch (e: Exception) {
             return@withContext null

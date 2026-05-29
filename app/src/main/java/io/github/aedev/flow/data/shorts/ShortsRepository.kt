@@ -13,8 +13,10 @@ import io.github.aedev.flow.data.recommendation.FlowNeuroEngine
 import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
+import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.player.quality.QualityManager
+import io.github.aedev.flow.player.stream.InnerTubeVideoStreamExtractor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
@@ -529,6 +531,8 @@ class ShortsRepository private constructor(private val context: Context) {
         targetHeight: Int,
         preferredAudioLanguage: String
     ): ShortPlaybackStreams? {
+        resolveFromUnifiedExtractor(videoId, targetHeight, preferredAudioLanguage)?.let { return it }
+
         resolveFromInnerTubePlayer(videoId, targetHeight, preferredAudioLanguage)?.let { return it }
 
         val streamInfo = resolveStreamInfo(videoId) ?: return null
@@ -567,6 +571,112 @@ class ShortsRepository private constructor(private val context: Context) {
         )
     }
 
+    suspend fun getAvailableVideoQualities(videoId: String): List<ShortVideoQuality> = withContext(Dispatchers.IO) {
+        try {
+            val result = withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
+                InnerTubeVideoStreamExtractor.extract(videoId)
+            }
+            val formats = result?.videoFormats?.filter { !it.url.isNullOrBlank() }.orEmpty()
+            if (formats.isNotEmpty()) {
+                return@withContext formats
+                    .groupBy { shortsQualityClass(it) }
+                    .mapNotNull { (cls, group) ->
+                        val best = group.maxByOrNull { it.averageBitrate ?: it.bitrate } ?: return@mapNotNull null
+                        val url = best.url ?: return@mapNotNull null
+                        ShortVideoQuality(cls, "${cls}p", url, codecLabelFromMime(best.mimeType))
+                    }
+                    .sortedByDescending { it.heightClass }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "getAvailableVideoQualities (unified) failed for $videoId: ${e.message}")
+        }
+
+        val streamInfo = resolveStreamInfo(videoId) ?: return@withContext emptyList()
+        (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
+            .filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
+            .groupBy { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) }
+            .mapNotNull { (cls, group) ->
+                val best = group.maxByOrNull { it.bitrate } ?: return@mapNotNull null
+                val url = best.content ?: best.url ?: return@mapNotNull null
+                ShortVideoQuality(cls, "${cls}p", url, best.format?.name?.uppercase() ?: "")
+            }
+            .sortedByDescending { it.heightClass }
+    }
+
+    private fun codecLabelFromMime(mime: String): String = when {
+        mime.contains("av01", true) -> "AV1"
+        mime.contains("vp9", true) || mime.contains("vp09", true) -> "VP9"
+        mime.contains("avc", true) || mime.contains("mp4", true) -> "H.264"
+        mime.contains("vp8", true) -> "VP8"
+        else -> ""
+    }
+
+    private fun shortsQualityClass(f: PlayerResponse.StreamingData.Format): Int {
+        f.qualityLabel?.let { label ->
+            Regex("(\\d+)p").find(label)?.groupValues?.getOrNull(1)?.toIntOrNull()?.let { return it }
+        }
+        val w = f.width ?: 0
+        val h = f.height ?: 0
+        return if (w > 0 && h > 0) minOf(w, h) else maxOf(w, h)
+    }
+
+    private fun selectVideoForTarget(
+        videoFormats: List<PlayerResponse.StreamingData.Format>,
+        targetHeight: Int
+    ): PlayerResponse.StreamingData.Format? =
+        if (targetHeight == 0) {
+            videoFormats.maxByOrNull { shortsQualityClass(it) }
+        } else {
+            videoFormats.filter { shortsQualityClass(it) <= targetHeight }.maxByOrNull { shortsQualityClass(it) }
+                ?: videoFormats.minByOrNull { shortsQualityClass(it) }
+        }
+
+    private fun selectAudioForLanguage(
+        audioFormats: List<PlayerResponse.StreamingData.Format>,
+        preferredAudioLanguage: String
+    ): PlayerResponse.StreamingData.Format? {
+        val sorted = audioFormats.sortedByDescending {
+            (it.averageBitrate ?: it.bitrate) + if (it.mimeType.contains("webm", true)) 10_000 else 0
+        }
+        return when (preferredAudioLanguage) {
+            "original", "" -> sorted.firstOrNull { it.isOriginal } ?: sorted.firstOrNull()
+            else -> sorted.firstOrNull { format ->
+                format.audioTrack?.id?.substringAfterLast(".")?.startsWith(preferredAudioLanguage, true) == true
+            } ?: sorted.firstOrNull { it.isOriginal } ?: sorted.firstOrNull()
+        }
+    }
+
+    private suspend fun resolveFromUnifiedExtractor(
+        videoId: String,
+        targetHeight: Int,
+        preferredAudioLanguage: String
+    ): ShortPlaybackStreams? {
+        return try {
+            val result = withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
+                InnerTubeVideoStreamExtractor.extract(videoId)
+            } ?: return null
+
+            val videoFormats = result.videoFormats.filter { !it.url.isNullOrBlank() }
+            if (videoFormats.isEmpty()) return null
+
+            val selectedVideo = selectVideoForTarget(videoFormats, targetHeight) ?: return null
+            val videoUrl = selectedVideo.url ?: return null
+
+            val audioFormats = result.audioFormats.filter { !it.url.isNullOrBlank() }
+            val selectedAudio = selectAudioForLanguage(audioFormats, preferredAudioLanguage)
+
+            Log.d(TAG, "✓ Unified extractor resolved $videoId at ${shortsQualityClass(selectedVideo)}p via ${result.usedClient.clientName}")
+            ShortPlaybackStreams(
+                videoUrl = videoUrl,
+                audioUrl = selectedAudio?.url,
+                durationMs = result.playerResponse.videoDetails?.lengthSeconds?.toLongOrNull()?.times(1000L)
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Unified extractor resolve failed for $videoId: ${e.message}")
+            null
+        }
+    }
+
     private suspend fun resolveFromInnerTubePlayer(
         videoId: String,
         targetHeight: Int,
@@ -593,21 +703,8 @@ class ShortsRepository private constructor(private val context: Context) {
                     .filter { !it.isAudio && (!it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank()) }
             }
 
-            val selectedVideo = if (targetHeight == 0) {
-                videoFormats.maxByOrNull { it.height ?: 0 }
-            } else {
-                videoFormats.filter { (it.height ?: 0) <= targetHeight }.maxByOrNull { it.height ?: 0 }
-                    ?: videoFormats.minByOrNull { it.height ?: Int.MAX_VALUE }
-            } ?: return null
-
-            val selectedAudio = when (preferredAudioLanguage) {
-                "original", "" -> audioFormats.firstOrNull { it.isOriginal } ?: audioFormats.firstOrNull()
-                else -> audioFormats.firstOrNull { format ->
-                    format.audioTrack?.id
-                        ?.substringAfterLast(".")
-                        ?.startsWith(preferredAudioLanguage, true) == true
-                } ?: audioFormats.firstOrNull { it.isOriginal } ?: audioFormats.firstOrNull()
-            }
+            val selectedVideo = selectVideoForTarget(videoFormats, targetHeight) ?: return null
+            val selectedAudio = selectAudioForLanguage(audioFormats, preferredAudioLanguage)
 
             val videoUrl = NewPipeExtractor.getStreamUrl(selectedVideo, videoId) ?: return null
             val audioUrl = selectedAudio?.let { NewPipeExtractor.getStreamUrl(it, videoId) }
@@ -855,4 +952,11 @@ data class ShortPlaybackStreams(
     val videoUrl: String,
     val audioUrl: String?,
     val durationMs: Long?
+)
+
+data class ShortVideoQuality(
+    val heightClass: Int,
+    val label: String,
+    val videoUrl: String,
+    val codecLabel: String
 )

@@ -45,12 +45,12 @@ object PlayerConfig {
     const val LOW_MEMORY_MAX_SAFE_MAIN_BUFFER_MS = 25_000
     const val LOW_MEMORY_MAX_SAFE_MAIN_MIN_BUFFER_MS = 12_000
 
-    /** Explicit target buffer budget for the main player. */
-    const val MAIN_TARGET_BUFFER_BYTES = 24 * 1024 * 1024
+
+    const val MAIN_TARGET_BUFFER_BYTES = 48 * 1024 * 1024
 
     /** Smaller target buffer budgets for devices with 256-384 MB app heaps. */
     const val LOW_MEMORY_MAIN_TARGET_BUFFER_BYTES = 8 * 1024 * 1024
-    const val MID_MEMORY_MAIN_TARGET_BUFFER_BYTES = 12 * 1024 * 1024
+    const val MID_MEMORY_MAIN_TARGET_BUFFER_BYTES = 24 * 1024 * 1024
 
     /** Explicit target buffer budget per shorts player in the pooled shorts stack. */
     const val SHORTS_TARGET_BUFFER_BYTES = 8 * 1024 * 1024

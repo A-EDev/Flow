@@ -173,11 +173,10 @@ class MediaLoader(
     }
     
     private fun reattachSurface(player: ExoPlayer) {
-        surfaceManager?.getSurfaceHolder()?.let { holder ->
-            val surface = holder.surface
-            if (surface != null && surface.isValid) {
-                player.setVideoSurface(surface)
-                Log.d(TAG, "Reattached surface before media load")
+        surfaceManager?.let { sm ->
+            val holder = sm.getSurfaceHolder()
+            if (holder?.surface?.isValid == true) {
+                sm.attachVideoSurface(holder, player, forceAttach = false)
             }
         }
     }

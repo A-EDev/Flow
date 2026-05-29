@@ -116,7 +116,7 @@ fun ShortVideoPage(
     var showAudioTrackSheet by remember { mutableStateOf(false) }
     var showQualitySheet by remember { mutableStateOf(false) }
     var availableAudioStreams by remember { mutableStateOf<List<org.schabi.newpipe.extractor.stream.AudioStream>>(emptyList()) }
-    var availableVideoStreams by remember { mutableStateOf<List<org.schabi.newpipe.extractor.stream.VideoStream>>(emptyList()) }
+    var availableQualities by remember { mutableStateOf<List<io.github.aedev.flow.data.shorts.ShortVideoQuality>>(emptyList()) }
     var selectedAudioIndex by remember { mutableStateOf(0) }
     var selectedQualityHeight by remember { mutableStateOf(-1) }
     var isLoadingStreams by remember { mutableStateOf(false) }
@@ -845,13 +845,9 @@ fun ShortVideoPage(
                 if (!isLoadingStreams) {
                     isLoadingStreams = true
                     scope.launch {
-                        val streamInfo = viewModel.getVideoStreamInfo(video.id)
-                        availableVideoStreams = (
-                            (streamInfo?.videoStreams?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>() ?: emptyList()) +
-                            (streamInfo?.videoOnlyStreams?.filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>() ?: emptyList())
-                        ).distinctBy { it.height }.sortedByDescending { it.height }
+                        availableQualities = viewModel.getAvailableQualities(video.id)
                         isLoadingStreams = false
-                        if (availableVideoStreams.isNotEmpty()) showQualitySheet = true
+                        if (availableQualities.isNotEmpty()) showQualitySheet = true
                     }
                 }
             },
@@ -876,16 +872,13 @@ fun ShortVideoPage(
     }
 
     // ── Quality Selection Sheet ──
-    if (showQualitySheet && availableVideoStreams.isNotEmpty()) {
+    if (showQualitySheet && availableQualities.isNotEmpty()) {
         ShortsQualitySheet(
-            videoStreams = availableVideoStreams,
+            qualities = availableQualities,
             selectedHeight = selectedQualityHeight.takeIf { it >= 0 },
-            onQualitySelected = { stream ->
-                val videoUrl = stream.content ?: stream.url
-                if (videoUrl != null) {
-                    playerPool.reloadWithVideoUrl(pageIndex, video.id, videoUrl)
-                    selectedQualityHeight = stream.height
-                }
+            onQualitySelected = { quality ->
+                playerPool.reloadWithVideoUrl(pageIndex, video.id, quality.videoUrl)
+                selectedQualityHeight = quality.heightClass
                 showQualitySheet = false
             },
             onDismiss = { showQualitySheet = false }
@@ -1207,9 +1200,9 @@ private fun ShortsAudioTrackSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ShortsQualitySheet(
-    videoStreams: List<org.schabi.newpipe.extractor.stream.VideoStream>,
+    qualities: List<io.github.aedev.flow.data.shorts.ShortVideoQuality>,
     selectedHeight: Int?,
-    onQualitySelected: (org.schabi.newpipe.extractor.stream.VideoStream) -> Unit,
+    onQualitySelected: (io.github.aedev.flow.data.shorts.ShortVideoQuality) -> Unit,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
@@ -1226,12 +1219,12 @@ private fun ShortsQualitySheet(
             )
             HorizontalDivider()
             LazyColumn {
-                items(videoStreams) { stream ->
-                    val isSelected = stream.height == selectedHeight
-                    val label = "${stream.height}p"
-                    val formatLabel = stream.format?.name?.uppercase() ?: ""
+                items(qualities) { quality ->
+                    val isSelected = quality.heightClass == selectedHeight
+                    val label = quality.label
+                    val formatLabel = quality.codecLabel
                     Surface(
-                        onClick = { onQualitySelected(stream) },
+                        onClick = { onQualitySelected(quality) },
                         color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
                         modifier = Modifier.fillMaxWidth()
                     ) {

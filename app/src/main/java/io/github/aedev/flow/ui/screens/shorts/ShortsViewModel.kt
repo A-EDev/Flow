@@ -324,6 +324,9 @@ class ShortsViewModel @Inject constructor(
 
     suspend fun getPlaybackStreams(videoId: String, targetHeight: Int, preferredAudioLanguage: String) =
         shortsRepository.resolvePlaybackStreams(videoId, targetHeight, preferredAudioLanguage)
+
+    suspend fun getAvailableQualities(videoId: String) =
+        shortsRepository.getAvailableVideoQualities(videoId)
     
     // USER ACTIONS
     suspend fun toggleLike(short: ShortVideo) {
