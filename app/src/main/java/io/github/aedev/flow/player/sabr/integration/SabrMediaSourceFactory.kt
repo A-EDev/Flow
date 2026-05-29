@@ -26,7 +26,9 @@ object SabrMediaSourceFactory {
         poToken: String,
         visitorId: String,
         ustreamerConfig: ByteArray,
-        durationMs: Long
+        durationMs: Long,
+        audioMimeType: String = "",
+        videoMimeType: String = ""
     ): SabrMediaSourceResult {
         val sessionState = SabrSessionState().apply {
             this.streamingUrl = streamingUrl
@@ -39,9 +41,14 @@ object SabrMediaSourceFactory {
             this.visitorId = visitorId
             this.ustreamerConfig = ustreamerConfig
             this.durationMs = durationMs
+            this.clientNameId = WEB_CLIENT_NAME_ID
+            this.clientVersion = io.github.aedev.flow.innertube.models.YouTubeClient.WEB.clientVersion
+            this.osName = "Windows"
+            this.osVersion = "10.0"
         }
 
-        val userAgent = "com.google.android.youtube/21.03.38 (Linux; U; Android 14) gzip"
+        // WEB user-agent so the GVS/SABR request 
+        val userAgent = io.github.aedev.flow.innertube.models.YouTubeClient.USER_AGENT_WEB
         val dataSource = SabrDataSource(userAgent, visitorId.ifEmpty { null })
         val controller = SabrStreamController(dataSource, sessionState)
         val orchestrator = SabrOrchestrator(controller)
@@ -59,31 +66,41 @@ object SabrMediaSourceFactory {
         val audioUri = Uri.parse("sabr://$videoId/audio")
         val videoUri = Uri.parse("sabr://$videoId/video")
 
+        val audioItemBuilder = MediaItem.Builder().setUri(audioUri)
+        containerMimeType(audioMimeType, isAudio = true)?.let { audioItemBuilder.setMimeType(it) }
+        val videoItemBuilder = MediaItem.Builder().setUri(videoUri)
+        containerMimeType(videoMimeType, isAudio = false)?.let { videoItemBuilder.setMimeType(it) }
+
         val audioSource = ProgressiveMediaSource.Factory(audioDataSourceFactory)
-            .createMediaSource(
-                MediaItem.Builder()
-                    .setUri(audioUri)
-                    .setMimeType(MimeTypes.AUDIO_WEBM)
-                    .build()
-            )
+            .createMediaSource(audioItemBuilder.build())
 
         val videoSource = ProgressiveMediaSource.Factory(videoDataSourceFactory)
-            .createMediaSource(
-                MediaItem.Builder()
-                    .setUri(videoUri)
-                    .setMimeType(MimeTypes.VIDEO_WEBM)
-                    .build()
-            )
+            .createMediaSource(videoItemBuilder.build())
 
         val mergedSource = MergingMediaSource(true, true, videoSource, audioSource)
 
         Log.d(TAG, "Created SABR MediaSource: video=$videoId, " +
-            "audioItag=$audioItag, videoItag=$videoItag")
+            "audioItag=$audioItag ($audioMimeType), videoItag=$videoItag ($videoMimeType)")
 
         return SabrMediaSourceResult(
             mediaSource = mergedSource,
             orchestrator = orchestrator
         )
+    }
+
+    private const val WEB_CLIENT_NAME_ID = 1
+
+    /**
+     * Map a YouTube format mimeType (e.g. `audio/webm; codecs="opus"`) to an ExoPlayer
+     * container MIME constant. Returns null when unknown so ExoPlayer sniffs the stream.
+     */
+    private fun containerMimeType(mimeType: String, isAudio: Boolean): String? {
+        val mt = mimeType.lowercase()
+        return when {
+            mt.contains("webm") -> if (isAudio) MimeTypes.AUDIO_WEBM else MimeTypes.VIDEO_WEBM
+            mt.contains("mp4") -> if (isAudio) MimeTypes.AUDIO_MP4 else MimeTypes.VIDEO_MP4
+            else -> null
+        }
     }
 }
 

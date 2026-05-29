@@ -149,6 +149,10 @@ class VideoPlayerViewModel @Inject constructor(
         viewModelScope.launch {
             EnhancedPlayerManager.getInstance().streamExpiredEvent.collect {
                 val videoId = _uiState.value.cachedVideo?.id ?: return@collect
+                if (activeLoadJob?.isActive == true) {
+                    Log.d("VideoPlayerViewModel", "Stream expiry for $videoId coalesced — a stream load is already in flight")
+                    return@collect
+                }
 
                 if (streamExpiryVideoId != videoId) {
                     streamExpiryVideoId = videoId
@@ -825,9 +829,11 @@ class VideoPlayerViewModel @Inject constructor(
 
                 val innerTubeDeferred = async(PerformanceDispatcher.networkIO) {
                     try {
-                        withTimeoutOrNull(8000L) {
+                        withTimeoutOrNull(25000L) {
                             InnerTubeVideoStreamExtractor.extract(videoId)
                         }
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
                     } catch (e: Exception) {
                         Log.d("VideoPlayerViewModel", "InnerTube extraction failed for $videoId: ${e.message}")
                         null

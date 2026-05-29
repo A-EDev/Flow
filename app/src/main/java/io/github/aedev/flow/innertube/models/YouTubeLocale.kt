@@ -6,4 +6,8 @@ import kotlinx.serialization.Serializable
 data class YouTubeLocale(
     val gl: String, // geolocation
     val hl: String, // host language
-)
+) {
+    companion object {
+        val EXTRACTION = YouTubeLocale(gl = "US", hl = "en")
+    }
+}

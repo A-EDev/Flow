@@ -88,6 +88,8 @@ class MediaLoader(
         sabrPoToken: String = "",
         sabrVisitorId: String = "",
         sabrUstreamerConfig: ByteArray = ByteArray(0),
+        sabrAudioMimeType: String = "",
+        sabrVideoMimeType: String = "",
         innerTubeVideoFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
         innerTubeAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList()
     ): Boolean {
@@ -137,10 +139,12 @@ class MediaLoader(
                     sabrPoToken = sabrPoToken,
                     sabrVisitorId = sabrVisitorId,
                     sabrUstreamerConfig = sabrUstreamerConfig,
+                    sabrAudioMimeType = sabrAudioMimeType,
+                    sabrVideoMimeType = sabrVideoMimeType,
                     innerTubeVideoFormats = innerTubeVideoFormats,
                     innerTubeAudioFormats = innerTubeAudioFormats
                 )
-                
+
                 if (mediaSource != null) {
                     exoPlayer.setMediaSource(mediaSource)
                     exoPlayer.prepare()
@@ -206,6 +210,8 @@ class MediaLoader(
         sabrPoToken: String = "",
         sabrVisitorId: String = "",
         sabrUstreamerConfig: ByteArray = ByteArray(0),
+        sabrAudioMimeType: String = "",
+        sabrVideoMimeType: String = "",
         innerTubeVideoFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
         innerTubeAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList()
     ): MediaSource? {
@@ -222,6 +228,8 @@ class MediaLoader(
                     poToken = sabrPoToken,
                     visitorId = sabrVisitorId,
                     ustreamerConfig = sabrUstreamerConfig,
+                    audioMimeType = sabrAudioMimeType,
+                    videoMimeType = sabrVideoMimeType,
                     durationMs = finalDuration * 1000L
                 )
                 activeSabrOrchestrator = result.orchestrator

@@ -32,10 +32,25 @@ class SabrSessionState {
     var poToken: String = ""
     var visitorId: String = ""
 
+    var clientNameId: Int = 1
+    var clientVersion: String = ""
+    var osName: String = ""
+    var osVersion: String = ""
+
     var screenWidthPixels: Int = 1920
     var screenHeightPixels: Int = 1080
     var screenDensity: Float = 2.0f
     var estimatedBandwidthBps: Long = 100_000_000
+
+    fun poTokenBytes(): ByteArray {
+        if (poToken.isEmpty()) return ByteArray(0)
+        return try {
+            val normalized = poToken.replace('-', '+').replace('_', '/')
+            android.util.Base64.decode(normalized, android.util.Base64.DEFAULT)
+        } catch (e: Exception) {
+            ByteArray(0)
+        }
+    }
 
     val initSegments = mutableMapOf<Int, ByteArray>()
     val formatMetadata = mutableMapOf<Int, FormatInitializationMetadata>()

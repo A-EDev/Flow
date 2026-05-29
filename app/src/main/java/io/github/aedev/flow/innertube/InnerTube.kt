@@ -342,12 +342,13 @@ class InnerTube {
         playlistId: String?,
         signatureTimestamp: Int?,
         poToken: String? = null,
+        localeOverride: YouTubeLocale? = null,
     ) = withRetry {
         httpClient.post("player") {
             ytClient(client, setLogin = true)
             setBody(
                 PlayerBody(
-                    context = client.toContext(locale, visitorData, dataSyncId).let {
+                    context = client.toContext(localeOverride ?: locale, visitorData, dataSyncId).let {
                         if (client.isEmbedded) {
                             it.copy(
                                 thirdParty = Context.ThirdParty(
@@ -366,6 +367,44 @@ class InnerTube {
                         )
                     } else null,
                 serviceIntegrityDimensions = poToken?.let { PlayerBody.ServiceIntegrityDimensions(it) },
+                )
+            )
+        }
+    }
+
+    suspend fun playerWeb(
+        videoId: String,
+        signatureTimestamp: Int?,
+        poToken: String?,
+        visitorData: String?,
+        locale: YouTubeLocale,
+    ) = withRetry {
+        val client = YouTubeClient.WEB
+        httpClient.post("https://www.youtube.com/youtubei/v1/player") {
+            headers {
+                append("X-Goog-Api-Format-Version", "1")
+                append("X-YouTube-Client-Name", client.clientId)
+                append("X-YouTube-Client-Version", client.clientVersion)
+                append("X-Origin", "https://www.youtube.com")
+                append("Referer", "https://www.youtube.com/")
+                visitorData?.let { append("X-Goog-Visitor-Id", it) }
+            }
+            contentType(ContentType.Application.Json)
+            userAgent(client.userAgent)
+            parameter("prettyPrint", false)
+            setBody(
+                PlayerBody(
+                    context = client.toContext(locale, visitorData, null),
+                    videoId = videoId,
+                    playlistId = null,
+                    playbackContext = if (signatureTimestamp != null) {
+                        PlayerBody.PlaybackContext(
+                            PlayerBody.PlaybackContext.ContentPlaybackContext(signatureTimestamp)
+                        )
+                    } else null,
+                    serviceIntegrityDimensions = poToken?.let { PlayerBody.ServiceIntegrityDimensions(it) },
+                    contentCheckOk = true,
+                    racyCheckOk = true,
                 )
             )
         }

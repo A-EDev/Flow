@@ -245,23 +245,24 @@ data class PlaybackStartPolicy(val minBufferBeforePlaybackMs: Long = 0) {
     }
 }
 
+//  ClientAbrState — field numbers per LuanRT/googlevideo `client_abr_state.proto`
 data class ClientAbrState(
-    val playheadPositionMs: Long = 0,
-    val bufferedRanges: List<FormatBufferedRange> = emptyList(),
-    val isPlaying: Boolean = false,
-    val isSeeking: Boolean = false,
-    val estimatedBandwidthBps: Long = 0,
-    val playerWidthPixels: Int = 0,
-    val playerHeightPixels: Int = 0
+    val playerTimeMs: Long = 0,            // field 28 (playhead)
+    val bandwidthEstimateBps: Long = 0,    // field 23
+    val viewportWidthPx: Int = 0,          // field 18
+    val viewportHeightPx: Int = 0,         // field 19
+    val timeSinceLastSeekMs: Long = 0,     // field 29
+    val enabledTrackTypesBitfield: Int = -1, // field 40 (-1 = unset → server defaults to audio+video)
+    val drcEnabled: Boolean = false        // field 46
 ) {
     fun encode(): ByteArray = ProtobufWriter.encode {
-        if (playheadPositionMs != 0L) writeInt64(1, playheadPositionMs)
-        bufferedRanges.forEach { writeBytes(2, it.encode()) }
-        if (isPlaying) writeBool(3, true)
-        if (isSeeking) writeBool(4, true)
-        if (estimatedBandwidthBps != 0L) writeInt64(5, estimatedBandwidthBps)
-        if (playerWidthPixels != 0) writeInt32(6, playerWidthPixels)
-        if (playerHeightPixels != 0) writeInt32(7, playerHeightPixels)
+        if (viewportWidthPx != 0) writeInt32(18, viewportWidthPx)
+        if (viewportHeightPx != 0) writeInt32(19, viewportHeightPx)
+        if (bandwidthEstimateBps != 0L) writeInt64(23, bandwidthEstimateBps)
+        if (playerTimeMs != 0L) writeInt64(28, playerTimeMs)
+        if (timeSinceLastSeekMs != 0L) writeInt64(29, timeSinceLastSeekMs)
+        if (enabledTrackTypesBitfield >= 0) writeInt32(40, enabledTrackTypesBitfield)
+        if (drcEnabled) writeBool(46, true)
     }
 }
 
@@ -293,26 +294,74 @@ data class ClientScreenInfo(
     }
 }
 
+/**
+ * ClientInfo — nested inside [StreamerContext]. Field numbers per
+ * LuanRT/googlevideo `streamer_context.proto`. For the WEB client, [clientName] = 1.
+ */
+data class ClientInfo(
+    val clientName: Int = 1,          // field 16 (WEB = 1)
+    val clientVersion: String = "",   // field 17
+    val osName: String = "",          // field 18
+    val osVersion: String = "",       // field 19
+    val deviceMake: String = "",      // field 12
+    val deviceModel: String = ""      // field 13
+) {
+    fun encode(): ByteArray = ProtobufWriter.encode {
+        if (deviceMake.isNotEmpty()) writeString(12, deviceMake)
+        if (deviceModel.isNotEmpty()) writeString(13, deviceModel)
+        writeInt32(16, clientName)
+        if (clientVersion.isNotEmpty()) writeString(17, clientVersion)
+        if (osName.isNotEmpty()) writeString(18, osName)
+        if (osVersion.isNotEmpty()) writeString(19, osVersion)
+    }
+}
+
+// A single SABR context to send back to the server ({type, value})
+data class SabrContext(
+    val type: Int = 0,                   
+    val value: ByteArray = ByteArray(0) 
+) {
+    fun encode(): ByteArray = ProtobufWriter.encode {
+        if (type != 0) writeInt32(1, type)
+        if (value.isNotEmpty()) writeBytes(2, value)
+    }
+}
+
+/**
+ * StreamerContext (request field 19) — carries the client identity AND the PoToken.
+ * The GVS/streaming PoToken is sent HERE as base64-decoded bytes (field 2), not as a
+ * top-level string nor a `&pot=` URL param
+ */
+data class StreamerContext(
+    val clientInfo: ClientInfo? = null,            // field 1
+    val poToken: ByteArray = ByteArray(0),         // field 2 (bytes)
+    val playbackCookie: ByteArray = ByteArray(0),  // field 3
+    val sabrContexts: List<SabrContext> = emptyList() // field 5 (repeated)
+) {
+    fun encode(): ByteArray = ProtobufWriter.encode {
+        clientInfo?.let { writeBytes(1, it.encode()) }
+        if (poToken.isNotEmpty()) writeBytes(2, poToken)
+        if (playbackCookie.isNotEmpty()) writeBytes(3, playbackCookie)
+        sabrContexts.forEach { writeBytes(5, it.encode()) }
+    }
+}
+
+ // VideoPlaybackAbrRequest — field numbers per LuanRT/googlevideo `video_playback_abr_request.proto`
+ 
 data class VideoPlaybackAbrRequest(
-    val clientAbrState: ClientAbrState? = null,
-    val selectedVideoFormatId: FormatId? = null,
-    val selectedAudioFormatId: FormatId? = null,
-    val videoPlaybackUstreamerConfig: ByteArray = ByteArray(0),
-    val poToken: String = "",
-    val playbackCookie: ByteArray = ByteArray(0),
-    val clientScreenInfo: ClientScreenInfo? = null,
-    val sabrContext: ByteArray = ByteArray(0),
-    val requestNumber: Int = 0
+    val clientAbrState: ClientAbrState? = null,             // field 1
+    val selectedFormatIds: List<FormatId> = emptyList(),    // field 2 (repeated)
+    val bufferedRanges: List<FormatBufferedRange> = emptyList(), // field 3 (repeated)
+    val playerTimeMs: Long = 0,                             // field 4
+    val videoPlaybackUstreamerConfig: ByteArray = ByteArray(0), // field 5
+    val streamerContext: StreamerContext? = null            // field 19
 ) {
     fun encode(): ByteArray = ProtobufWriter.encode {
         clientAbrState?.let { writeBytes(1, it.encode()) }
-        selectedVideoFormatId?.let { writeBytes(2, it.encode()) }
-        selectedAudioFormatId?.let { writeBytes(3, it.encode()) }
+        selectedFormatIds.forEach { writeBytes(2, it.encode()) }
+        bufferedRanges.forEach { writeBytes(3, it.encode()) }
+        if (playerTimeMs != 0L) writeInt64(4, playerTimeMs)
         if (videoPlaybackUstreamerConfig.isNotEmpty()) writeBytes(5, videoPlaybackUstreamerConfig)
-        if (poToken.isNotEmpty()) writeString(6, poToken)
-        if (playbackCookie.isNotEmpty()) writeBytes(7, playbackCookie)
-        clientScreenInfo?.let { writeBytes(8, it.encode()) }
-        if (sabrContext.isNotEmpty()) writeBytes(9, sabrContext)
-        if (requestNumber != 0) writeInt32(10, requestNumber)
+        streamerContext?.let { writeBytes(19, it.encode()) }
     }
 }

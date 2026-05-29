@@ -52,10 +52,12 @@ class PlayerErrorHandler(
     companion object {
         private const val TAG = "PlayerErrorHandler"
         private const val MAX_CONSECUTIVE_EXPIRY = 5
+        private const val EXPIRY_DEBOUNCE_MS = 1500L
     }
 
     private var consecutiveExpiryCount = 0
     private var lastExpiryVideoUrl: String? = null
+    private var lastExpiryTriggerMs = 0L
 
     // ── Public entry point ────────────────────────────────────────────────────
 
@@ -253,6 +255,13 @@ class PlayerErrorHandler(
     }
 
     private fun handleStreamExpired(reason: String) {
+        val now = System.currentTimeMillis()
+        if (now - lastExpiryTriggerMs < EXPIRY_DEBOUNCE_MS) {
+            Log.d(TAG, "Stream expiry ($reason) within debounce window — coalescing into the in-flight reload")
+            return
+        }
+        lastExpiryTriggerMs = now
+
         val currentUrl = getCurrentVideoStream()?.getContent()
         if (currentUrl != null && currentUrl == lastExpiryVideoUrl) {
             consecutiveExpiryCount++
@@ -285,6 +294,7 @@ class PlayerErrorHandler(
     fun resetExpiryCounter() {
         consecutiveExpiryCount = 0
         lastExpiryVideoUrl = null
+        lastExpiryTriggerMs = 0L
     }
 
     private fun handleParsingError(error: PlaybackException) {

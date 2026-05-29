@@ -35,6 +35,21 @@ object CipherDeobfuscator {
 
     fun getSignatureTimestamp(): Int? = cachedSignatureTimestamp
 
+    /**
+     * Ensure the signature timestamp is available, fetching/analyzing the player JS if needed.
+     * Required by the WEB client player request. Safe to call repeatedly (cached after first).
+     */
+    suspend fun ensureSignatureTimestamp(): Int? {
+        cachedSignatureTimestamp?.let { return it }
+        return try {
+            getOrCreateWebView(forceRefresh = false)
+            cachedSignatureTimestamp
+        } catch (e: Exception) {
+            Log.w(TAG, "ensureSignatureTimestamp failed: ${e.message}")
+            cachedSignatureTimestamp
+        }
+    }
+
     fun invalidateSignatureTimestamp() {
         Log.d(TAG, "Invalidating signature timestamp")
         cachedSignatureTimestamp = null
