@@ -85,7 +85,8 @@ class ShortsPlayerPool private constructor() {
     private var isInitialized = false
     private var dataSourceFactory: DefaultDataSource.Factory? = null
     private var preferredAudioLanguage: String = "original"
-    private var shortsPlaybackMode: String = "loop" 
+    private var shortsPlaybackMode: String = "loop"
+    private var basePlaybackSpeed: Float = 1f
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -406,7 +407,10 @@ class ShortsPlayerPool private constructor() {
     }
 
     fun play() {
-        findActivePlayer()?.playWhenReady = true
+        findActivePlayer()?.let { player ->
+            player.setPlaybackSpeed(basePlaybackSpeed)
+            player.playWhenReady = true
+        }
     }
 
     fun pause() {
@@ -427,8 +431,15 @@ class ShortsPlayerPool private constructor() {
     }
 
     fun resetPlaybackSpeed() {
-        findActivePlayer()?.setPlaybackSpeed(1f)
+        findActivePlayer()?.setPlaybackSpeed(basePlaybackSpeed)
     }
+
+    fun setBasePlaybackSpeed(speed: Float) {
+        basePlaybackSpeed = speed
+        findActivePlayer()?.setPlaybackSpeed(speed)
+    }
+
+    fun getBasePlaybackSpeed(): Float = basePlaybackSpeed
 
     /** Pause ALL players */
     fun pauseAll() {

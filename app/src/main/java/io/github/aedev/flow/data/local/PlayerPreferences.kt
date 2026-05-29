@@ -9,6 +9,9 @@ import androidx.compose.ui.graphics.toArgb
 import io.github.aedev.flow.network.AppProxyConfig
 import io.github.aedev.flow.network.AppProxyType
 import io.github.aedev.flow.ui.components.SubtitleStyle
+import io.github.aedev.flow.utils.DateContextMode
+import io.github.aedev.flow.utils.DateDisplayMode
+import io.github.aedev.flow.utils.DateFormatStyle
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -257,6 +260,19 @@ class PlayerPreferences(context: Context) {
 
         // Return YouTube Dislikes
         val RYTD_ENABLED = booleanPreferencesKey("rytd_enabled")
+
+        // Volume boost: opt-in, default off 
+        val ALLOW_VOLUME_BOOST = booleanPreferencesKey("allow_volume_boost")
+
+        // Shorts playback speed: remembered across sessions
+        val SHORTS_PLAYBACK_SPEED = floatPreferencesKey("shorts_playback_speed")
+
+        // Date & time display
+        val DATE_DISPLAY_MODE = stringPreferencesKey("date_display_mode")
+        val DATE_FORMAT_STYLE = stringPreferencesKey("date_format_style")
+        val DATE_MODE_LISTS = stringPreferencesKey("date_mode_lists")
+        val DATE_MODE_WATCH = stringPreferencesKey("date_mode_watch")
+        val DATE_MODE_DESCRIPTION = stringPreferencesKey("date_mode_description")
     }
     
     // Grid item size preference
@@ -269,6 +285,66 @@ class PlayerPreferences(context: Context) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.GRID_ITEM_SIZE] = size
         }
+    }
+
+    // ── Volume boost (#491): opt-in, default OFF ──
+    val allowVolumeBoost: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.ALLOW_VOLUME_BOOST] ?: false
+        }
+
+    suspend fun setAllowVolumeBoost(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.ALLOW_VOLUME_BOOST] = enabled
+        }
+    }
+
+    // ── Shorts playback speed (#496): remembered across sessions ──
+    val shortsPlaybackSpeed: Flow<Float> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            preferences[Keys.SHORTS_PLAYBACK_SPEED] ?: 1.0f
+        }
+
+    suspend fun setShortsPlaybackSpeed(speed: Float) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SHORTS_PLAYBACK_SPEED] = speed
+        }
+    }
+
+    // ── Date & time display──
+    val dateDisplayMode: Flow<DateDisplayMode> = context.playerPreferencesDataStore.data
+        .map { preferences -> DateDisplayMode.fromString(preferences[Keys.DATE_DISPLAY_MODE]) }
+
+    suspend fun setDateDisplayMode(mode: DateDisplayMode) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DATE_DISPLAY_MODE] = mode.name
+        }
+    }
+
+    val dateFormatStyle: Flow<DateFormatStyle> = context.playerPreferencesDataStore.data
+        .map { preferences -> DateFormatStyle.fromString(preferences[Keys.DATE_FORMAT_STYLE]) }
+
+    suspend fun setDateFormatStyle(style: DateFormatStyle) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DATE_FORMAT_STYLE] = style.name
+        }
+    }
+
+    val dateModeLists: Flow<DateContextMode> = context.playerPreferencesDataStore.data
+        .map { DateContextMode.fromString(it[Keys.DATE_MODE_LISTS]) }
+    val dateModeWatch: Flow<DateContextMode> = context.playerPreferencesDataStore.data
+        .map { DateContextMode.fromString(it[Keys.DATE_MODE_WATCH]) }
+    val dateModeDescription: Flow<DateContextMode> = context.playerPreferencesDataStore.data
+        .map { DateContextMode.fromString(it[Keys.DATE_MODE_DESCRIPTION]) }
+
+    suspend fun setDateModeLists(mode: DateContextMode) {
+        context.playerPreferencesDataStore.edit { it[Keys.DATE_MODE_LISTS] = mode.name }
+    }
+    suspend fun setDateModeWatch(mode: DateContextMode) {
+        context.playerPreferencesDataStore.edit { it[Keys.DATE_MODE_WATCH] = mode.name }
+    }
+    suspend fun setDateModeDescription(mode: DateContextMode) {
+        context.playerPreferencesDataStore.edit { it[Keys.DATE_MODE_DESCRIPTION] = mode.name }
     }
 
     // Swipe gestures (brightness/volume) enabled preference

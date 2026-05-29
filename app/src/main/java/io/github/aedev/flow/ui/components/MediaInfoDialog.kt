@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.ui.screens.music.MusicTrack
+import io.github.aedev.flow.utils.DateContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -130,6 +131,7 @@ fun MediaInfoDialog(
             val videoIdLabel = stringResource(R.string.video_id_label)
             val channelIdLabel = stringResource(R.string.channel_id)
             val uploadedLabel = stringResource(R.string.uploaded)
+            val dateSettings = rememberDateDisplaySettings()
             val itagLabel = stringResource(R.string.itag)
             val mimeTypeLabel = stringResource(R.string.mime_type)
             val bitrateLabel = stringResource(R.string.bitrate_label)
@@ -171,8 +173,8 @@ fun MediaInfoDialog(
                     if (info?.authorId != null) details.add(channelIdLabel to info.authorId)
                     else if (track?.channelId?.isNotEmpty() == true) details.add(channelIdLabel to track.channelId)
 
-                    if (info?.uploadDate != null) details.add(uploadedLabel to info.uploadDate)
-                    else if (video?.uploadDate != null) details.add(uploadedLabel to video.uploadDate)
+                    if (info?.uploadDate != null) details.add(uploadedLabel to dateSettings.format(info.uploadDate, DateContext.WATCH))
+                    else if (video?.uploadDate != null) details.add(uploadedLabel to dateSettings.format(video.uploadDate, DateContext.WATCH, video.timestamp))
                     
                     // Stream Info
                     if (info?.videoId_tag != null) details.add(itagLabel to info.videoId_tag.toString())

@@ -53,6 +53,8 @@ import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.utils.formatLikeCount
 import io.github.aedev.flow.utils.formatTimeAgo
 import io.github.aedev.flow.utils.formatViewCount
+import io.github.aedev.flow.utils.DateContext
+import io.github.aedev.flow.utils.DateDisplayMode
 import kotlinx.coroutines.launch
 
 fun parseHtmlDescription(rawHtml: String): AnnotatedString {
@@ -328,10 +330,18 @@ fun FlowDescriptionBottomSheet(
                         label = stringResource(R.string.views)
                     )
                     VerticalHorizontalDivider()
-                    StatItem(
-                        value = formatTimeAgo(video.uploadDate).replace(" ago", ""), // "5d" instead of "5d ago"
-                        label = formatTimeAgo(video.uploadDate).let { if(it.contains("mo") || it.contains("yr")) stringResource(R.string.ago) else stringResource(R.string.since) }
-                    )
+                    val dateSettings = rememberDateDisplaySettings()
+                    if (dateSettings.resolve(DateContext.DESCRIPTION) == DateDisplayMode.RELATIVE) {
+                        StatItem(
+                            value = formatTimeAgo(video.uploadDate).replace(" ago", ""), // "5d" instead of "5d ago"
+                            label = formatTimeAgo(video.uploadDate).let { if(it.contains("mo") || it.contains("yr")) stringResource(R.string.ago) else stringResource(R.string.since) }
+                        )
+                    } else {
+                        StatItem(
+                            value = dateSettings.format(video.uploadDate, DateContext.DESCRIPTION, video.timestamp),
+                            label = stringResource(R.string.uploaded)
+                        )
+                    }
                 }
 
                 HorizontalDivider(

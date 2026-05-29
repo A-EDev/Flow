@@ -306,6 +306,7 @@ fun NavGraphBuilder.flowAppGraph(
             onNavigateToVideoQuality = { navController.navigate("settings/video_quality") },
             onNavigateToShortsQuality = { navController.navigate("settings/shorts_quality") },
             onNavigateToContentSettings = { navController.navigate("settings/content") },
+            onNavigateToDateTimeSettings = { navController.navigate("settings/datetime") },
             onNavigateToBufferSettings = { navController.navigate("settings/buffer") },
             onNavigateToSearchHistory = { navController.navigate("settings/search_history") },
             onNavigateToAbout = { navController.navigate("settings/about") },
@@ -404,6 +405,14 @@ fun NavGraphBuilder.flowAppGraph(
         showBottomNav.value = false
         io.github.aedev.flow.ui.screens.settings.ContentSettingsScreen(
             onBackClick = { navController.popBackStack() }
+        )
+    }
+
+    composable("settings/datetime") {
+        currentRoute.value = "settings/datetime"
+        showBottomNav.value = false
+        io.github.aedev.flow.ui.screens.settings.DateTimeSettingsScreen(
+            onNavigateBack = { navController.popBackStack() }
         )
     }
     

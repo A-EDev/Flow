@@ -163,6 +163,7 @@ fun GlobalPlayerOverlay(
     val rememberBrightnessEnabled by playerPreferences.rememberBrightnessEnabled.collectAsState(initial = false)
     val rememberedBrightnessLevel by playerPreferences.rememberedBrightnessLevel.collectAsState(initial = -1f)
     val volumeSwipeGesturesEnabled by playerPreferences.volumeSwipeGesturesEnabled.collectAsState(initial = true)
+    val allowVolumeBoost by playerPreferences.allowVolumeBoost.collectAsState(initial = false)
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
     val disableShortsPlayer by playerPreferences.disableShortsPlayer.collectAsState(initial = false)
@@ -678,6 +679,7 @@ fun GlobalPlayerOverlay(
                             activity = activity,
                             brightnessSwipeGesturesEnabled = brightnessSwipeGesturesEnabled,
                             volumeSwipeGesturesEnabled = volumeSwipeGesturesEnabled,
+                            allowVolumeBoost = allowVolumeBoost,
                             doubleTapSeekMs = doubleTapSeekSeconds * 1000L,
                             onExitFullscreen = { screenState.isFullscreen = false }
                         )

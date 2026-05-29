@@ -47,13 +47,14 @@ import coil.compose.AsyncImage
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.model.toShortVideo
-import io.github.aedev.flow.utils.formatTimeAgo
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.shorts.ShortsPlayerPool
 import io.github.aedev.flow.ui.components.ChannelAvatarImage
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
+import io.github.aedev.flow.ui.components.rememberDateDisplaySettings
+import io.github.aedev.flow.utils.DateContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -115,6 +116,12 @@ fun ShortVideoPage(
     var showShortsOptionsSheet by remember { mutableStateOf(false) }
     var showAudioTrackSheet by remember { mutableStateOf(false) }
     var showQualitySheet by remember { mutableStateOf(false) }
+    var showSpeedSheet by remember { mutableStateOf(false) }
+    val shortsSpeed by playerPreferences.shortsPlaybackSpeed.collectAsState(initial = 1f)
+
+    LaunchedEffect(isActive, shortsSpeed) {
+        if (isActive) playerPool.setBasePlaybackSpeed(shortsSpeed)
+    }
     var availableAudioStreams by remember { mutableStateOf<List<org.schabi.newpipe.extractor.stream.AudioStream>>(emptyList()) }
     var availableQualities by remember { mutableStateOf<List<io.github.aedev.flow.data.shorts.ShortVideoQuality>>(emptyList()) }
     var selectedAudioIndex by remember { mutableStateOf(0) }
@@ -639,7 +646,7 @@ fun ShortVideoPage(
                         }
                         if (video.uploadDate.isNotBlank()) {
                             Text(
-                                text = formatTimeAgo(video.uploadDate),
+                                text = rememberDateDisplaySettings().format(video.uploadDate, DateContext.WATCH, video.timestamp),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.White.copy(alpha = 0.6f)
                             )
@@ -851,7 +858,24 @@ fun ShortVideoPage(
                     }
                 }
             },
+            currentSpeed = shortsSpeed,
+            onSpeedClick = {
+                showShortsOptionsSheet = false
+                showSpeedSheet = true
+            },
             onDismiss = { showShortsOptionsSheet = false }
+        )
+    }
+
+    if (showSpeedSheet) {
+        ShortsSpeedSheet(
+            currentSpeed = shortsSpeed,
+            onSpeedSelected = { speed ->
+                scope.launch { playerPreferences.setShortsPlaybackSpeed(speed) }
+                playerPool.setBasePlaybackSpeed(speed)
+                showSpeedSheet = false
+            },
+            onDismiss = { showSpeedSheet = false }
         )
     }
 
@@ -906,6 +930,8 @@ private fun ShortsOptionsSheet(
     onDownloadClick: () -> Unit,
     onAudioTrackClick: () -> Unit,
     onQualityClick: () -> Unit,
+    currentSpeed: Float = 1f,
+    onSpeedClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
@@ -1093,6 +1119,94 @@ private fun ShortsOptionsSheet(
                     if (isLoadingStreams) {
                         Spacer(Modifier.weight(1f))
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                    }
+                }
+            }
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp))
+            Surface(
+                onClick = onSpeedClick,
+                color = Color.Transparent,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Speed,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.shorts_playback_speed),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        text = if (currentSpeed == 1f) stringResource(R.string.speed_normal) else "${currentSpeed}x",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ShortsSpeedSheet(
+    currentSpeed: Float,
+    onSpeedSelected: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.shorts_playback_speed),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)
+            )
+            HorizontalDivider()
+            LazyColumn {
+                items(speeds) { speed ->
+                    val isSelected = speed == currentSpeed
+                    Surface(
+                        onClick = { onSpeedSelected(speed) },
+                        color = Color.Transparent,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (speed == 1.0f) stringResource(R.string.speed_normal) else "${speed}x",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary
+                                        else MaterialTheme.colorScheme.onSurface
+                            )
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     }
                 }
             }

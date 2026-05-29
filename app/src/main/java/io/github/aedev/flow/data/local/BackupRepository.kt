@@ -98,6 +98,21 @@ private data class FreeTubeHistoryExportEntry(
     val watchProgress: Double? = null
 )
 
+private data class YouTubeTakeoutHistoryEntryOut(
+    val header: String = "YouTube",
+    val title: String,
+    val titleUrl: String,
+    val subtitles: List<YouTubeTakeoutSubtitleOut>,
+    val time: String,
+    val products: List<String> = listOf("YouTube"),
+    val activityControls: List<String> = listOf("YouTube watch history")
+)
+
+private data class YouTubeTakeoutSubtitleOut(
+    val name: String,
+    val url: String
+)
+
 private data class YouTubeArchiveSubtitle(
     val name: String? = null,
     val url: String? = null
@@ -247,7 +262,7 @@ class BackupRepository(private val context: Context) {
             )
 
             val json = gson.toJson(backupData)
-            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+            context.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
                 OutputStreamWriter(outputStream).use { writer ->
                     writer.write(json)
                 }
@@ -280,22 +295,55 @@ class BackupRepository(private val context: Context) {
     suspend fun exportSubscriptionsAsNewPipe(uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val subscriptions = subscriptionRepo.getAllSubscriptions().first()
-            val payload = NewPipeSubscriptionExport(
-                subscriptions = subscriptions.mapNotNull { sub ->
-                    val channelId = sub.channelId.trim()
-                    if (channelId.isEmpty()) return@mapNotNull null
-
-                    NewPipeSubscriptionItem(
-                        serviceId = 0,
-                        url = toNewPipeChannelUrl(channelId),
-                        name = sub.channelName.ifBlank { channelId }
-                    )
-                }
-            )
+            val items = subscriptions.mapNotNull { sub ->
+                val url = toNewPipeChannelUrl(sub.channelId) ?: return@mapNotNull null
+                NewPipeSubscriptionItem(
+                    serviceId = 0,
+                    url = url,
+                    name = sub.channelName.ifBlank { sub.channelId.trim() }
+                )
+            }
+            val payload = NewPipeSubscriptionExport(subscriptions = items)
 
             val json = gson.toJson(payload)
-            context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                OutputStreamWriter(outputStream).use { writer ->
+            context.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
+                OutputStreamWriter(outputStream, Charsets.UTF_8).use { writer ->
+                    writer.write(json)
+                }
+            } ?: return@withContext Result.failure(Exception("Could not open output stream"))
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun exportWatchHistory(uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val history = viewHistory.getAllHistory().first()
+            val ucIdRegex = Regex("UC[0-9A-Za-z_-]{22}")
+            val items = history.mapNotNull { entry ->
+                val videoId = entry.videoId.trim()
+                if (videoId.isEmpty()) return@mapNotNull null
+                val channelUrl = ucIdRegex.find(entry.channelId.trim())?.value
+                    ?.let { "https://www.youtube.com/channel/$it" }
+                    ?: "https://www.youtube.com/"
+                YouTubeTakeoutHistoryEntryOut(
+                    title = "Watched ${entry.title}",
+                    titleUrl = "https://www.youtube.com/watch?v=$videoId",
+                    subtitles = listOf(
+                        YouTubeTakeoutSubtitleOut(
+                            name = entry.channelName.ifBlank { "YouTube" },
+                            url = channelUrl
+                        )
+                    ),
+                    time = Instant.ofEpochMilli(entry.timestamp).toString()
+                )
+            }
+
+            val json = gson.toJson(items)
+            context.contentResolver.openOutputStream(uri, "wt")?.use { outputStream ->
+                OutputStreamWriter(outputStream, Charsets.UTF_8).use { writer ->
                     writer.write(json)
                 }
             } ?: return@withContext Result.failure(Exception("Could not open output stream"))
@@ -1785,7 +1833,7 @@ class BackupRepository(private val context: Context) {
 
             val brainBytes = exportBrainBytes()
 
-            context.contentResolver.openOutputStream(uri)?.use { out ->
+            context.contentResolver.openOutputStream(uri, "wt")?.use { out ->
                 ZipOutputStream(out).use { zip ->
                     zip.putNextEntry(ZipEntry("app_data.json"))
                     zip.write(appDataJson.toByteArray(Charsets.UTF_8))
@@ -1922,17 +1970,24 @@ class BackupRepository(private val context: Context) {
         }
     }
 
-    private fun toNewPipeChannelUrl(channelId: String): String {
-        val value = channelId.trim()
-        return when {
-            value.startsWith("http://", ignoreCase = true) || value.startsWith("https://", ignoreCase = true) -> value
-            value.startsWith("@") -> "https://www.youtube.com/$value"
-            value.startsWith("channel/") -> "https://www.youtube.com/$value"
-            value.startsWith("user/") -> "https://www.youtube.com/$value"
-            value.startsWith("c/") -> "https://www.youtube.com/$value"
-            value.startsWith("UC") -> "https://www.youtube.com/channel/$value"
-            else -> "https://www.youtube.com/channel/$value"
+    private fun toNewPipeChannelUrl(channelId: String): String? {
+        val trimmed = channelId.trim()
+        if (trimmed.isEmpty()) return null
+
+        val ucId = Regex("UC[0-9A-Za-z_-]{22}").find(trimmed)?.value
+        if (ucId != null) {
+            return "https://www.youtube.com/channel/$ucId"
         }
+
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+            return trimmed
+        }
+
+        if (trimmed.startsWith("@")) {
+            return "https://www.youtube.com/$trimmed"
+        }
+
+        return "https://www.youtube.com/@$trimmed"
     }
 
     private suspend fun writeToFolder(

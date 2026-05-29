@@ -45,6 +45,7 @@ fun Modifier.videoPlayerControls(
     activity: Activity?,
     brightnessSwipeGesturesEnabled: Boolean = true,
     volumeSwipeGesturesEnabled: Boolean = true,
+    allowVolumeBoost: Boolean = false,
     doubleTapSeekMs: Long = 10_000L,
     onExitFullscreen: (() -> Unit)? = null
 ): Modifier = composed {
@@ -70,6 +71,7 @@ fun Modifier.videoPlayerControls(
     val currentActivity by rememberUpdatedState(activity)
     val currentBrightnessSwipeGesturesEnabled by rememberUpdatedState(brightnessSwipeGesturesEnabled)
     val currentVolumeSwipeGesturesEnabled by rememberUpdatedState(volumeSwipeGesturesEnabled)
+    val currentAllowVolumeBoost by rememberUpdatedState(allowVolumeBoost)
     val currentDoubleTapSeekMs by rememberUpdatedState(doubleTapSeekMs)
     val currentOnSeekAccumulate by rememberUpdatedState(onSeekAccumulate)
     val currentOnExitFullscreen by rememberUpdatedState(onExitFullscreen)
@@ -317,7 +319,7 @@ fun Modifier.videoPlayerControls(
                                      val sensitivity = 1.5f
                                      val delta = -dragAmount.y / screenHeight * sensitivity
                                      
-                                     val newVolumeLevel = (currentVolumeLevel + delta).coerceIn(0f, 2.0f)
+                                     val newVolumeLevel = (currentVolumeLevel + delta).coerceIn(0f, if (currentAllowVolumeBoost) 2.0f else 1.0f)
                                      currentOnVolumeChange(newVolumeLevel)
                                      
                                      if (newVolumeLevel <= 1.0f) {

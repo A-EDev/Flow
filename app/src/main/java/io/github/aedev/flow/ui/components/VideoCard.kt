@@ -63,6 +63,7 @@ import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.utils.formatDuration
 import io.github.aedev.flow.utils.formatPremiereDate
+import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.utils.formatViewCount
 import kotlinx.coroutines.flow.collectLatest
 
@@ -260,13 +261,14 @@ fun VideoCard(
                 // Metadata Row
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     val premiereDate = formatPremiereDate(video.uploadDate)
+                    val displayDate = rememberDateDisplaySettings().format(video.uploadDate, DateContext.LISTS, video.timestamp)
                     Text(
                         text = if (video.isUpcoming)
                             premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
                         else if (video.viewCount >= 0L)
                             stringResource(R.string.video_metadata_short_template, video.channelName, stringResource(R.string.views_template, formatViewCount(video.viewCount)))
                         else
-                            "${video.channelName} · ${video.uploadDate}",
+                            "${video.channelName} · $displayDate",
                         style = MaterialTheme.typography.labelSmall,
                         color = if (video.isUpcoming) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -493,13 +495,14 @@ fun VideoCardHorizontal(
                 )
 
                 val premiereDate = formatPremiereDate(video.uploadDate)
+                val displayDate = rememberDateDisplaySettings().format(video.uploadDate, DateContext.LISTS, video.timestamp)
                 Text(
                     text = if (video.isUpcoming)
                                premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
                            else if (video.viewCount >= 0L)
-                               stringResource(R.string.video_metadata_short_template, stringResource(R.string.views_template, formatViewCount(video.viewCount)), video.uploadDate)
+                               stringResource(R.string.video_metadata_short_template, stringResource(R.string.views_template, formatViewCount(video.viewCount)), displayDate)
                            else
-                               "${video.channelName} · ${video.uploadDate}",
+                               "${video.channelName} · $displayDate",
                     style = MaterialTheme.typography.bodySmall,
                     color = if (video.isUpcoming) MaterialTheme.colorScheme.primary
                             else MaterialTheme.extendedColors.textSecondary
@@ -699,13 +702,14 @@ fun VideoCardFullWidth(
                 )
 
                 val premiereDate = formatPremiereDate(video.uploadDate)
+                val displayDate = rememberDateDisplaySettings().format(video.uploadDate, DateContext.LISTS, video.timestamp)
                 Text(
                     text = if (video.isUpcoming)
                                premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
                            else if (video.viewCount >= 0L)
-                               stringResource(R.string.video_metadata_template, video.channelName, stringResource(R.string.views_template, formatViewCount(video.viewCount)), video.uploadDate)
+                               stringResource(R.string.video_metadata_template, video.channelName, stringResource(R.string.views_template, formatViewCount(video.viewCount)), displayDate)
                            else
-                               "${video.channelName} · ${video.uploadDate}",
+                               "${video.channelName} · $displayDate",
                     style = MaterialTheme.typography.bodySmall,
                     color = if (video.isUpcoming) MaterialTheme.colorScheme.primary
                             else MaterialTheme.extendedColors.textSecondary,
@@ -1004,10 +1008,11 @@ fun CompactVideoCard(
             )
             
             val premiereDate = formatPremiereDate(video.uploadDate)
+            val displayDate = rememberDateDisplaySettings().format(video.uploadDate, DateContext.LISTS, video.timestamp)
             Text(
                 text = if (video.viewCount < 0L)
                            premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
-                       else stringResource(R.string.video_metadata_short_template, stringResource(R.string.views_template, formatViewCount(video.viewCount)), video.uploadDate),
+                       else stringResource(R.string.video_metadata_short_template, stringResource(R.string.views_template, formatViewCount(video.viewCount)), displayDate),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (video.viewCount < 0L) MaterialTheme.colorScheme.primary
                         else MaterialTheme.extendedColors.textSecondary.copy(alpha = 0.8f),

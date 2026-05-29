@@ -169,6 +169,10 @@ class ViewHistory private constructor(private val context: Context) {
         dao.clearAll()
     }
 
+    suspend fun clearShortsHistory() {
+        dao.clearShorts()
+    }
+
     // ── Reads ────────────────────────────────────────────────────────────────
 
     fun getPlaybackPosition(videoId: String): Flow<Long> =

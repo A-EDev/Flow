@@ -27,6 +27,9 @@ interface WatchHistoryDao {
     @Query("DELETE FROM watch_history")
     suspend fun clearAll()
 
+    @Query("DELETE FROM watch_history WHERE isShort = 1")
+    suspend fun clearShorts()
+
     // ── Reads ────────────────────────────────────────────────────────────────
 
     @Query("SELECT * FROM watch_history ORDER BY timestamp DESC")

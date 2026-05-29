@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -90,6 +91,7 @@ fun HistoryScreen(
     val searchFocusRequester = remember { FocusRequester() }
 
     var showClearDialog by remember { mutableStateOf(false) }
+    var showClearShortsDialog by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedFilter by rememberSaveable { mutableStateOf(HistoryContentFilter.All) }
@@ -135,6 +137,7 @@ fun HistoryScreen(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -170,6 +173,14 @@ fun HistoryScreen(
                             expanded = showMenu,
                             onDismissRequest = { showMenu = false }
                         ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.history_delete_shorts)) },
+                                enabled = uiState.historyEntries.any { it.isShort },
+                                onClick = {
+                                    showMenu = false
+                                    showClearShortsDialog = true
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.clear_all)) },
                                 enabled = uiState.historyEntries.isNotEmpty(),
@@ -261,6 +272,29 @@ fun HistoryScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    if (showClearShortsDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearShortsDialog = false },
+            title = { Text(stringResource(R.string.history_delete_shorts_title)) },
+            text = { Text(stringResource(R.string.history_delete_shorts_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.clearShortsHistory()
+                        showClearShortsDialog = false
+                    }
+                ) {
+                    Text(stringResource(R.string.clear))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearShortsDialog = false }) {
                     Text(stringResource(R.string.cancel))
                 }
             }

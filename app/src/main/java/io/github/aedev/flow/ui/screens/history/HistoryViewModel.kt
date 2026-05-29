@@ -159,6 +159,12 @@ class HistoryViewModel : ViewModel() {
         }
     }
 
+    fun clearShortsHistory() {
+        viewModelScope.launch {
+            viewHistory.clearShortsHistory()
+        }
+    }
+
     fun removeFromHistory(videoId: String) {
         viewModelScope.launch {
             viewHistory.clearVideoHistory(videoId)

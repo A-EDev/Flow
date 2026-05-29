@@ -78,6 +78,7 @@ fun SettingsScreen(
     onNavigateToVideoQuality: () -> Unit,
     onNavigateToShortsQuality: () -> Unit,
     onNavigateToContentSettings: () -> Unit,
+    onNavigateToDateTimeSettings: () -> Unit,
     onNavigateToBufferSettings: () -> Unit,
     onNavigateToSearchHistory: () -> Unit,
     onNavigateToAbout: () -> Unit,
@@ -229,6 +230,7 @@ fun SettingsScreen(
         SettingSearchEntry(Icons.Outlined.AppShortcut, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_app_icon_subtitle), secAppearance, onNavigateToAppIconPicker),
         SettingSearchEntry(Icons.Outlined.Tune, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_appearance), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_appearance_subtitle), secAppearance, onNavigateToPlayerAppearance),
         SettingSearchEntry(Icons.Outlined.GridView, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display_subtitle), secAppearance, onNavigateToContentSettings),
+        SettingSearchEntry(Icons.Outlined.Schedule, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_datetime), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_datetime_subtitle), secAppearance, onNavigateToDateTimeSettings),
         SettingSearchEntry(Icons.Outlined.FilterAlt, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_prefs), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_prefs_subtitle), secContentPlayback, onNavigateToUserPreferences),
         SettingSearchEntry(Icons.Outlined.PlayCircle, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_player_subtitle), secContentPlayback, onNavigateToPlayerSettings),
         SettingSearchEntry(Icons.Outlined.Public, androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_proxy), androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_proxy_subtitle), secContentPlayback, onNavigateToProxySettings),
@@ -696,6 +698,13 @@ item {
                          title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display),
                          subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_content_display_subtitle),
                          onClick = onNavigateToContentSettings
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsItem(
+                         icon = Icons.Outlined.Schedule,
+                         title = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_datetime),
+                         subtitle = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.settings_item_datetime_subtitle),
+                         onClick = onNavigateToDateTimeSettings
                     )
                 }
             }

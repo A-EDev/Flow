@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-28
+DATE: 2026-05-30
 STATUS: PRE-RELEASE
 
 FEATURES
@@ -33,6 +33,11 @@ FEATURES
 - Add new lyrics engine (Based on Metrolist's ExperimentalLyrics.kt, LyricsLine.kt, LyricsCommon.kt, and FadingEdge.kt.)
 - Add new Music Audio Quality selector #521
 - Add external music downloads #256
+- Add shorts history delete option #514
+- Add LireTube history export option #507
+- Add shorts playback speed selection #496
+- Add option to disable volume boost #491
+- Add date and time format customization #481 
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361

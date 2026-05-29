@@ -49,6 +49,7 @@ import io.github.aedev.flow.ui.theme.extendedColors
 import io.github.aedev.flow.utils.formatSubscriberCount
 import io.github.aedev.flow.utils.formatViewCount
 import io.github.aedev.flow.utils.formatRichText
+import io.github.aedev.flow.utils.DateContext
 import io.github.aedev.flow.R
 import androidx.compose.ui.res.stringResource
 
@@ -95,6 +96,7 @@ fun VideoInfoSection(
         val prefs = remember { PlayerPreferences(context) }
         val titleMaxLinesPref by prefs.videoTitleMaxLines.collectAsState(initial = 1)
         val titleMaxLines = if (titleMaxLinesPref <= 0) Int.MAX_VALUE else titleMaxLinesPref
+        val dateSettings = rememberDateDisplaySettings()
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge.copy(
@@ -135,7 +137,7 @@ fun VideoInfoSection(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    text = uploadDate,
+                    text = dateSettings.format(uploadDate, DateContext.WATCH, video.timestamp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

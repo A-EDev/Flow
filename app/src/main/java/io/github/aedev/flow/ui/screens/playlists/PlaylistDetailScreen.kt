@@ -69,6 +69,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.withPermit
 import androidx.compose.foundation.lazy.items
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
+import io.github.aedev.flow.ui.components.rememberDateDisplaySettings
+import io.github.aedev.flow.utils.DateContext
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import io.github.aedev.flow.ui.components.ReorderHandle
@@ -922,9 +924,7 @@ private fun PlaylistVideoItem(
                 )
 
                 val premiereDate = formatPremiereDate(video.uploadDate)
-                val uploadDate = remember(video.uploadDate, video.timestamp) {
-                    video.formattedPlaylistUploadDate()
-                }
+                val uploadDate = rememberDateDisplaySettings().format(video.uploadDate, DateContext.LISTS, video.timestamp)
                 Text(
                     text = if (video.viewCount < 0L)
                            premiereDate?.let { stringResource(R.string.premiere_date_prefix, it) } ?: stringResource(R.string.premiere_soon)
@@ -1109,11 +1109,6 @@ private fun List<Video>.sortedForPlaylist(sortOrder: PlaylistSortOrder): List<Vi
         PlaylistSortOrder.DATE_PUBLISHED_NEWEST -> sortedByDescending { it.effectivePlaylistUploadTimestamp() }
         PlaylistSortOrder.DATE_PUBLISHED_OLDEST -> sortedBy { it.effectivePlaylistUploadTimestamp() }
     }
-}
-
-private fun Video.formattedPlaylistUploadDate(now: Long = System.currentTimeMillis()): String {
-    val timestamp = effectivePlaylistUploadTimestamp(now)
-    return if (timestamp > 0L) formatRelativeTime(timestamp, now) else uploadDate
 }
 
 private fun Video.effectivePlaylistUploadTimestamp(now: Long = System.currentTimeMillis()): Long {

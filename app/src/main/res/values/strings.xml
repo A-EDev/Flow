@@ -1679,4 +1679,43 @@
     <string name="taste_chart_now">Now</string>
     <!-- Topic Evidence -->
     <string name="topic_score_prefix"></string>
+
+    <!-- Date & Time Display (#481) -->
+    <string name="settings_item_datetime">Date &amp; Time</string>
+    <string name="settings_item_datetime_subtitle">Customize how upload dates are shown</string>
+    <string name="datetime_title">Date &amp; Time Display</string>
+    <string name="datetime_preview_header">Preview</string>
+    <string name="datetime_mode_header">Time display</string>
+    <string name="datetime_format_header">Exact date format</string>
+    <string name="datetime_overrides_header">Per-section overrides</string>
+    <string name="datetime_overrides_note">Override the time display for specific places. \"Default\" follows the setting above.</string>
+    <string name="datetime_sample_relative">7 months ago</string>
+    <string name="datetime_mode_relative">Relative time (e.g. 7 months ago)</string>
+    <string name="datetime_mode_exact">Exact date</string>
+    <string name="datetime_mode_both">Both</string>
+    <string name="datetime_format_system">System default</string>
+    <string name="datetime_format_iso_hint">ISO 8601</string>
+    <string name="datetime_context_lists">Lists &amp; cards</string>
+    <string name="datetime_context_watch">Watch page</string>
+    <string name="datetime_context_description">Description</string>
+    <string name="datetime_override_default">Default</string>
+    <string name="datetime_override_relative">Relative</string>
+    <string name="datetime_override_exact">Exact</string>
+    <string name="datetime_override_both">Both</string>
+
+    <!-- Volume boost (#491) -->
+    <string name="player_appearance_volume_boost_title">Allow extra volume boost</string>
+    <string name="player_appearance_volume_boost_subtitle">When off, the volume swipe gesture stops at the maximum system volume. Turn on to make audio even louder.</string>
+
+    <!-- Shorts playback speed (#496) -->
+    <string name="shorts_playback_speed">Playback speed</string>
+    <string name="speed_normal">Normal</string>
+
+    <!-- Export / delete watch history (#507) -->
+    <string name="export_watch_history_title">Watch history</string>
+    <string name="export_watch_history_desc">Export as YouTube-history JSON (imports into LibreTube and Flow)</string>
+    <string name="history_export_failed">Failed to export watch history</string>
+    <string name="history_delete_shorts">Delete Shorts from history</string>
+    <string name="history_delete_shorts_title">Delete Shorts?</string>
+    <string name="history_delete_shorts_body">This removes all Shorts from your watch history. Other videos are kept.</string>
 </resources>

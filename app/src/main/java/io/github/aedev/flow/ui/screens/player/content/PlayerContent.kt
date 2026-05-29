@@ -70,6 +70,7 @@ fun PlayerContent(
     val deArrowEnabled by playerPrefs.deArrowEnabled.collectAsState(initial = false)
     val lockModeEnabled by playerPrefs.overlayLockModeEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPrefs.doubleTapSeekSeconds.collectAsState(initial = 10)
+    val allowVolumeBoost by playerPrefs.allowVolumeBoost.collectAsState(initial = false)
     val deArrowResult by produceState<DeArrowResult?>(
         initialValue = null,
         key1 = video.id,
@@ -134,6 +135,7 @@ fun PlayerContent(
                         maxVolume = maxVolume,
                         audioManager = audioManager,
                         activity = activity,
+                        allowVolumeBoost = allowVolumeBoost,
                         doubleTapSeekMs = doubleTapSeekSeconds * 1000L,
                         onExitFullscreen = { screenState.isFullscreen = false }
                     )
