@@ -198,7 +198,7 @@ object MusicPlayerUtils {
 
         var response: PlayerResponse? = null
         var usedClient: YouTubeClient? = null
-        var extraction: Pair<PlayerResponse.StreamingData.Format, String>? = null
+        var extraction: Pair<PlayerResponse.StreamingData.Format, ResolvedUrl>? = null
         var mainPlayerResponse: PlayerResponse? = null
 
         Log.d(TAG, "Starting fast direct stream lookup...")
@@ -334,22 +334,18 @@ object MusicPlayerUtils {
             throw IOException("Failed to resolve stream for $videoId after trying all clients")
         }
 
-        val (format, rawStreamUrl) = extraction
+        val (format, resolved) = extraction
+        val rawStreamUrl = resolved.url
 
-        // Apply n-transform and append pot= for web clients
-        val needsNTransform = usedClient.useWebPoTokens ||
-            usedClient.clientName in setOf("WEB", "WEB_REMIX", "WEB_CREATOR", "TVHTML5")
-        val streamUrl = if (needsNTransform) {
+        val streamUrl = if (resolved.needsNTransform) {
             try {
                 var transformedUrl = CipherDeobfuscator.transformNParamInUrl(rawStreamUrl)
-                val streamingPoToken = if (usedClient.useWebPoTokens) {
-                    getPoTokenForWebClient()?.streamingDataPoToken
-                } else {
-                    poToken?.streamingDataPoToken
-                }
-                if (streamingPoToken != null) {
-                    val separator = if ("?" in transformedUrl) "&" else "?"
-                    transformedUrl = "${transformedUrl}${separator}pot=${Uri.encode(streamingPoToken)}"
+                if (usedClient.useWebPoTokens) {
+                    val streamingPoToken = getPoTokenForWebClient()?.streamingDataPoToken
+                    if (streamingPoToken != null && !transformedUrl.contains("pot=")) {
+                        val separator = if ("?" in transformedUrl) "&" else "?"
+                        transformedUrl = "${transformedUrl}${separator}pot=${Uri.encode(streamingPoToken)}"
+                    }
                 }
                 transformedUrl
             } catch (e: Exception) {
@@ -389,12 +385,12 @@ object MusicPlayerUtils {
         allowCipherFallback: Boolean = true,
         allowNewPipeFallback: Boolean = true,
         allowStreamInfoFallback: Boolean = true
-    ): Pair<PlayerResponse.StreamingData.Format, String>? {
+    ): Pair<PlayerResponse.StreamingData.Format, ResolvedUrl>? {
         if (response?.playabilityStatus?.status != "OK") return null
-        
+
         val format = findBestAudioFormat(response, requireDirectUrl) ?: return null
-        
-        val url = findUrlOrNull(
+
+        val resolved = findUrlOrNull(
             format = format,
             videoId = videoId,
             playerResponse = response,
@@ -402,21 +398,23 @@ object MusicPlayerUtils {
             allowNewPipeFallback = allowNewPipeFallback,
             allowStreamInfoFallback = allowStreamInfoFallback
         )
-        if (url == null) {
+        if (resolved == null) {
             Log.d(TAG, "Could not find stream URL for format ${format.itag}")
             return null
         }
-        
+
         val needsValidation = validate &&
             !client.clientName.startsWith("ANDROID") &&
             client.clientName != "IOS"
-        if (needsValidation && !checkUrl(url, client.userAgent)) {
+        if (needsValidation && !checkUrl(resolved.url, client.userAgent)) {
             Log.d(TAG, "URL validation failed for ${client.clientName}")
             return null
         }
 
-        return Pair(format, url)
+        return Pair(format, resolved)
     }
+
+    private data class ResolvedUrl(val url: String, val needsNTransform: Boolean)
 
     private suspend fun findUrlOrNull(
         format: PlayerResponse.StreamingData.Format,
@@ -425,41 +423,37 @@ object MusicPlayerUtils {
         allowCipherFallback: Boolean,
         allowNewPipeFallback: Boolean,
         allowStreamInfoFallback: Boolean
-    ): String? {
-        // 1. Direct URL from format
+    ): ResolvedUrl? {
         if (!format.url.isNullOrEmpty()) {
             Log.d(TAG, "URL obtained from format directly")
-            return format.url
+            return ResolvedUrl(format.url, needsNTransform = true)
         }
 
-        // 2. SignatureCipher deobfuscation via CipherDeobfuscator
         val signatureCipher = format.signatureCipher ?: format.cipher
         if (allowCipherFallback && !signatureCipher.isNullOrEmpty()) {
             Log.d(TAG, "Format has signatureCipher, using CipherDeobfuscator")
             val deobfuscatedUrl = CipherDeobfuscator.deobfuscateStreamUrl(signatureCipher, videoId)
             if (deobfuscatedUrl != null) {
                 Log.d(TAG, "URL obtained via CipherDeobfuscator")
-                return deobfuscatedUrl
+                return ResolvedUrl(deobfuscatedUrl, needsNTransform = true)
             }
         }
 
-        // 3. NewPipe deobfuscation
         if (allowNewPipeFallback) {
             val deobfuscatedUrl = NewPipeExtractor.getStreamUrl(format, videoId)
             if (deobfuscatedUrl != null) {
                 Log.d(TAG, "URL obtained via NewPipe")
-                return deobfuscatedUrl
+                return ResolvedUrl(deobfuscatedUrl, needsNTransform = false)
             }
         }
 
-        // 4. StreamInfo fallback
         if (allowStreamInfoFallback) {
             val streamUrls = YouTube.getNewPipeStreamUrls(videoId)
             if (streamUrls.isNotEmpty()) {
                 val exactMatch = streamUrls.find { it.first == format.itag }?.second
                 if (exactMatch != null) {
                     Log.d(TAG, "URL obtained from StreamInfo (exact itag match)")
-                    return exactMatch
+                    return ResolvedUrl(exactMatch, needsNTransform = false)
                 }
 
                 val audioStream = streamUrls.find { urlPair ->
@@ -470,7 +464,7 @@ object MusicPlayerUtils {
 
                 if (audioStream != null) {
                     Log.d(TAG, "Audio stream URL obtained from StreamInfo")
-                    return audioStream
+                    return ResolvedUrl(audioStream, needsNTransform = false)
                 }
             }
         }
