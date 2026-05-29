@@ -19,6 +19,7 @@ import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.TVHTML5_SIM
 import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.WEB
 import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.WEB_CREATOR
 import io.github.aedev.flow.innertube.models.YouTubeClient.Companion.WEB_REMIX
+import io.github.aedev.flow.innertube.models.YouTubeLocale
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.innertube.pages.NewPipeExtractor
 import io.github.aedev.flow.network.AppProxyManager
@@ -90,6 +91,7 @@ object MusicPlayerUtils {
     private data class CachedResult(val result: Result<PlaybackData>, val expiryMs: Long)
     private val resultCache = ConcurrentHashMap<String, CachedResult>()
     private const val MAX_RESULT_CACHE_TTL_MS = 600_000L // 10 minutes
+    private const val ESCALATION_WINDOW_MS = 120_000L
     
     private val videoRefreshTimestamps = ConcurrentHashMap<String, Long>()
 
@@ -201,6 +203,13 @@ object MusicPlayerUtils {
         var extraction: Pair<PlayerResponse.StreamingData.Format, ResolvedUrl>? = null
         var mainPlayerResponse: PlayerResponse? = null
 
+        val escalate = videoRefreshTimestamps[videoId]
+            ?.let { System.currentTimeMillis() - it < ESCALATION_WINDOW_MS } == true
+        if (escalate) {
+            Log.w(TAG, "Escalating music resolve for $videoId — skipping fast direct clients (post-failure retry)")
+        }
+
+        if (!escalate) {
         Log.d(TAG, "Starting fast direct stream lookup...")
         val fastClients = (FAST_DIRECT_STREAM_CLIENTS.asSequence() + STREAM_FALLBACK_CLIENTS.asSequence())
             .distinctBy { "${it.clientName}:${it.clientVersion}:${it.clientId}" }
@@ -217,7 +226,7 @@ object MusicPlayerUtils {
             try {
                 val clientSts = getStsForClient(client)
                 val clientPoToken = if (client.useWebPoTokens) getPoTokenForWebClient()?.playerRequestPoToken else null
-                val fallbackResponse = YouTube.player(videoId, playlistId, client, clientSts, clientPoToken).getOrNull()
+                val fallbackResponse = YouTube.player(videoId, playlistId, client, clientSts, clientPoToken, localeOverride = YouTubeLocale.EXTRACTION).getOrNull()
 
                 if (fallbackResponse?.playabilityStatus?.status == "OK") {
                     val result = tryExtract(
@@ -243,12 +252,13 @@ object MusicPlayerUtils {
                 Log.w(TAG, "Client ${client.clientName} threw exception: ${e.message}")
             }
         }
+        }
 
         if (usedClient == null) {
             Log.d(TAG, "Trying MAIN_CLIENT after direct clients: ${MAIN_CLIENT.clientName}")
             val mainSts = getStsForClient(MAIN_CLIENT)
             val mainPoToken = if (MAIN_CLIENT.useWebPoTokens) getPoTokenForWebClient()?.playerRequestPoToken else null
-            mainPlayerResponse = YouTube.player(videoId, playlistId, MAIN_CLIENT, mainSts, mainPoToken).getOrNull()
+            mainPlayerResponse = YouTube.player(videoId, playlistId, MAIN_CLIENT, mainSts, mainPoToken, localeOverride = YouTubeLocale.EXTRACTION).getOrNull()
 
             if (mainPlayerResponse?.playabilityStatus?.status == "OK") {
                 extraction = tryExtract(
@@ -301,7 +311,7 @@ object MusicPlayerUtils {
                     try {
                         val clientSts = getStsForClient(client)
                         val clientPoToken = if (client.useWebPoTokens) getPoTokenForWebClient()?.playerRequestPoToken else null
-                        val fallbackResponse = YouTube.player(videoId, playlistId, client, clientSts, clientPoToken).getOrNull()
+                        val fallbackResponse = YouTube.player(videoId, playlistId, client, clientSts, clientPoToken, localeOverride = YouTubeLocale.EXTRACTION).getOrNull()
 
                         if (fallbackResponse?.playabilityStatus?.status == "OK") {
                             val result = tryExtract(

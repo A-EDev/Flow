@@ -97,6 +97,7 @@ class VideoPlayerViewModel @Inject constructor(
     private var lastReportedTimestamp: Long = 0L
     private var activeLoadJob: Job? = null
     private var playbackLoadToken: Long = 0L
+    private var loadingVideoId: String? = null
 
     private var streamExpiryVideoId: String? = null
     private var streamExpiryCount: Int = 0
@@ -184,7 +185,7 @@ class VideoPlayerViewModel @Inject constructor(
                 }
 
                 _uiState.update { it.copy(error = null, errorHint = null, isLoading = true) }
-                loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true)
+                loadVideoInfo(videoId, isWifi = detectIsWifi(), forceRefresh = true, escalateToSabr = true)
             }
         }
 
@@ -712,10 +713,13 @@ class VideoPlayerViewModel @Inject constructor(
      * PERFORMANCE OPTIMIZED: Load video info with aggressive parallel fetching
      * Uses SupervisorScope for error isolation and optimized dispatcher for network operations
      * @param forceRefresh If true, forces a fresh load even if the video appears to be already loaded
+     * @param escalateToSabr If true (a 403-expiry reload), skip the fast direct-URL clients and
+     *   extract straight through the durable WEB+PoToken+SABR path — fast clients return the same
+     *   session-gated URLs that just 403'd, so re-trying them loops.
      */
-    fun loadVideoInfo(videoId: String, isWifi: Boolean = true, forceRefresh: Boolean = false) {
+    fun loadVideoInfo(videoId: String, isWifi: Boolean = true, forceRefresh: Boolean = false, escalateToSabr: Boolean = false) {
         val currentState = _uiState.value
-        Log.d("VideoPlayerViewModel", "loadVideoInfo: Request=$videoId. Current=${currentState.streamInfo?.id}, IsLoading=${currentState.isLoading}, ForceRefresh=$forceRefresh")
+        Log.d("VideoPlayerViewModel", "loadVideoInfo: Request=$videoId. Current=${currentState.streamInfo?.id}, IsLoading=${currentState.isLoading}, ForceRefresh=$forceRefresh, escalateToSabr=$escalateToSabr")
 
         currentState.cachedVideo
             ?.takeIf { it.id == videoId && it.isUpcoming }
@@ -785,14 +789,20 @@ class VideoPlayerViewModel @Inject constructor(
             upcomingReleaseTimeMs = null
         )
 
+        if (activeLoadJob?.isActive == true && loadingVideoId == videoId) {
+            Log.d("VideoPlayerViewModel", "loadVideoInfo: extraction already in flight for $videoId — ignoring redundant trigger")
+            return
+        }
+
         cancelActivePlaybackLoad()
         val loadToken = nextPlaybackLoadToken()
+        loadingVideoId = videoId
 
         activeLoadJob = viewModelScope.launch(PerformanceDispatcher.networkIO) {
             Log.d("VideoPlayerViewModel", "Starting loadVideoInfo for $videoId")
             var isOfflineAvailable = false
             var offlineLocalPath: String? = null
-            
+
             try {
                 val streamInfoDeferred = async(PerformanceDispatcher.networkIO) {
                     var info: StreamInfo? = null
@@ -830,7 +840,7 @@ class VideoPlayerViewModel @Inject constructor(
                 val innerTubeDeferred = async(PerformanceDispatcher.networkIO) {
                     try {
                         withTimeoutOrNull(25000L) {
-                            InnerTubeVideoStreamExtractor.extract(videoId)
+                            InnerTubeVideoStreamExtractor.extract(videoId, forceSabr = escalateToSabr)
                         }
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e

@@ -579,13 +579,19 @@ class ShortsRepository private constructor(private val context: Context) {
             } ?: return null
 
             val streamingData = response.streamingData ?: return null
-            val allFormats = streamingData.formats.orEmpty() + streamingData.adaptiveFormats
-            val videoFormats = allFormats
-                .filter { !it.isAudio && (!it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank()) }
 
             val audioFormats = streamingData.adaptiveFormats
                 .filter { it.isAudio && (!it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank()) }
                 .sortedByDescending { (it.averageBitrate ?: it.bitrate) + if (it.mimeType.contains("webm", true)) 10_000 else 0 }
+
+            val adaptiveVideo = streamingData.adaptiveFormats
+                .filter { !it.isAudio && it.height != null && (!it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank()) }
+            val videoFormats = if (adaptiveVideo.isNotEmpty() && audioFormats.isNotEmpty()) {
+                adaptiveVideo
+            } else {
+                (streamingData.formats.orEmpty() + streamingData.adaptiveFormats)
+                    .filter { !it.isAudio && (!it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank()) }
+            }
 
             val selectedVideo = if (targetHeight == 0) {
                 videoFormats.maxByOrNull { it.height ?: 0 }

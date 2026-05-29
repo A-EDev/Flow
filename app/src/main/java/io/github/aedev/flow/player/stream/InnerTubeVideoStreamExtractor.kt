@@ -43,20 +43,32 @@ object InnerTubeVideoStreamExtractor {
         val sabrInfo: SabrStreamInfo?,
     )
 
-    suspend fun extract(videoId: String): VideoExtractionResult? = withContext(Dispatchers.IO) {
-        Log.d(TAG, "Starting extraction for $videoId")
+
+    suspend fun extract(videoId: String, forceSabr: Boolean = false): VideoExtractionResult? = withContext(Dispatchers.IO) {
+        Log.w(TAG, "Extraction start for $videoId (forceSabr=$forceSabr)")
         val failureReasons = mutableListOf<String>()
 
         // 1) Fast path: token-free clients with direct URLs
-        tryDirectClients(videoId, FAST_CLIENTS, failureReasons)?.let { return@withContext it }
+        if (!forceSabr) {
+            tryDirectClients(videoId, FAST_CLIENTS, failureReasons)?.let {
+                Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=DIRECT)")
+                return@withContext it
+            }
+        }
 
         // 2) Durable path: WEB + BotGuard PoToken + SABR. Survives the LOGIN_REQUIRED bot wall
-        tryWebSabr(videoId, failureReasons)?.let { return@withContext it }
+        tryWebSabr(videoId, failureReasons)?.let {
+            Log.w(TAG, "Extraction OK for $videoId via WEB (mode=SABR)")
+            return@withContext it
+        }
 
         // 3) Last resort: remaining token-free clients
-        tryDirectClients(videoId, LAST_RESORT_CLIENTS, failureReasons)?.let { return@withContext it }
+        tryDirectClients(videoId, LAST_RESORT_CLIENTS, failureReasons)?.let {
+            Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=DIRECT/last-resort)")
+            return@withContext it
+        }
 
-        Log.e(TAG, "All clients failed for $videoId. Reasons: ${failureReasons.joinToString(" | ")}")
+        Log.e(TAG, "All clients failed for $videoId (forceSabr=$forceSabr). Reasons: ${failureReasons.joinToString(" | ")}")
         null
     }
 
@@ -145,11 +157,13 @@ object InnerTubeVideoStreamExtractor {
             val visitorData = WebPoTokenSession.sessionVisitorData()
             if (visitorData.isNullOrEmpty()) {
                 failureReasons.add("WEB: no visitorData")
+                Log.w(TAG, "WEB+SABR: no visitorData available")
                 return null
             }
             val poToken = WebPoTokenSession.mint(videoId)
             if (poToken == null) {
                 failureReasons.add("WEB: PoToken unavailable (WebView missing/broken?)")
+                Log.w(TAG, "WEB+SABR: PoToken mint returned null (WebView missing/broken?)")
                 return null
             }
             val sts = CipherDeobfuscator.ensureSignatureTimestamp()
@@ -165,6 +179,7 @@ object InnerTubeVideoStreamExtractor {
             }
             if (playerResponse == null) {
                 failureReasons.add("WEB: timeout or null response")
+                Log.w(TAG, "WEB+SABR: player request timeout/null")
                 return null
             }
 
@@ -184,6 +199,7 @@ object InnerTubeVideoStreamExtractor {
             )
             if (resolved == null) {
                 failureReasons.add("WEB: SABR resolve failed (no serverAbrStreamingUrl / formats)")
+                Log.w(TAG, "WEB+SABR: resolve failed — no serverAbrStreamingUrl/formats (pot/ustreamer present?)")
                 return null
             }
 
@@ -201,7 +217,7 @@ object InnerTubeVideoStreamExtractor {
             val audioFormats = adaptiveFormats.filter { it.isAudio }
 
             val heights = videoFormats.mapNotNull { it.height }.distinct().sorted()
-            Log.i(TAG, "Success with WEB+PoToken (SABR): ${videoFormats.size} video (${heights.joinToString()}p), ${audioFormats.size} audio, sabr=true")
+            Log.w(TAG, "WEB+PoToken (SABR) resolved: ${videoFormats.size} video (${heights.joinToString()}p), ${audioFormats.size} audio, sabr=true")
 
             return VideoExtractionResult(
                 videoFormats = videoFormats,
