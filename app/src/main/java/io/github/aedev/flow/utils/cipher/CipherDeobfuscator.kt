@@ -169,16 +169,20 @@ object CipherDeobfuscator {
         cachedSignatureTimestamp = analysis.signatureTimestamp
         Log.d(TAG, "Extracted signatureTimestamp: $cachedSignatureTimestamp")
 
-        if (analysis.sigInfo == null) {
-            Log.e(TAG, "Could not extract signature function info from player JS")
+        if (analysis.sigInfo == null && analysis.nFuncInfo == null) {
+            Log.e(TAG, "Could not extract signature or n-function info from player JS")
             return null
+        }
+
+        if (analysis.sigInfo == null) {
+            Log.w(TAG, "Could not extract signature function info from player JS; n-transform may still work")
         }
 
         if (analysis.nFuncInfo == null) {
             Log.w(TAG, "Could not extract n-function info from player JS (will try brute-force)")
         }
 
-        Log.d(TAG, "Creating CipherWebView: sig=${analysis.sigInfo.name}, nFunc=${analysis.nFuncInfo?.name}")
+        Log.d(TAG, "Creating CipherWebView: sig=${analysis.sigInfo?.name}, nFunc=${analysis.nFuncInfo?.name}")
         val webView = CipherWebView.create(
             context = appContext,
             playerJs = playerJs,

@@ -842,7 +842,7 @@
     <string name="player_settings_double_tap_seek_dialog_title">Double-Tap Seek Duration</string>
     <string name="player_settings_double_tap_seek_dialog_body">Choose how many seconds to seek when double-tapping the left or right side of the player.</string>
     <!-- Video and Music Quality Settings -->
-    <string name="video_quality_title">Video &amp; Music Quality</string>
+    <string name="video_quality_title">Video Quality</string>
     <string name="video_quality_warning">Higher quality uses more data</string>
     <string name="video_quality_wifi_header">Wi-Fi Quality</string>
     <string name="video_quality_cellular_header">Cellular Quality</string>
@@ -1394,6 +1394,19 @@
     <string name="download_video">Download Video</string>
     <string name="select_quality">Select your preferred quality</string>
     <string name="no_download_streams">No download streams available</string>
+    <!-- Compact download dialog -->
+    <string name="download_audio">Audio</string>
+    <string name="download_title_label">Title</string>
+    <string name="download_format_label">Format</string>
+    <string name="download_threads_label">Threads</string>
+    <string name="download_no_compatible_audio">No compatible audio stream — download cannot proceed</string>
+    <!-- Download dialog style (Content settings) -->
+    <string name="download_menu_style_title">Download menu style</string>
+    <string name="download_menu_style_subtitle">Choose how the download dialog looks</string>
+    <string name="download_menu_style_classic">Classic</string>
+    <string name="download_menu_style_classic_desc">Full list of every quality and codec</string>
+    <string name="download_menu_style_compact">Compact</string>
+    <string name="download_menu_style_compact_desc">Editable title, dropdowns and thread count</string>
     <string name="downloading_template">Downloading %1$s...</string>
     <string name="section_downloading">Downloading</string>
     <string name="section_incomplete_downloads">Incomplete downloads</string>

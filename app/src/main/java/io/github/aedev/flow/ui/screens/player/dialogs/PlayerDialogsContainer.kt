@@ -42,14 +42,28 @@ fun PlayerDialogsContainer(
 
     // Download Quality Dialog
     if (screenState.showDownloadDialog) {
-        DownloadQualityDialog(
-            streamInfo = uiState.streamInfo,
-            streamSizes = uiState.streamSizes,
-            innerTubeVideoFormats = uiState.innerTubeVideoFormats,
-            innerTubeAudioFormats = uiState.innerTubeAudioFormats,
-            video = video,
-            onDismiss = { screenState.showDownloadDialog = false }
+        val downloadDialogStyle by playerPreferences.downloadDialogStyle.collectAsState(
+            initial = io.github.aedev.flow.data.local.DownloadDialogStyle.FULL
         )
+        if (downloadDialogStyle == io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT) {
+            DownloadQualityDialogCompact(
+                streamInfo = uiState.streamInfo,
+                streamSizes = uiState.streamSizes,
+                innerTubeVideoFormats = uiState.innerTubeVideoFormats,
+                innerTubeAudioFormats = uiState.innerTubeAudioFormats,
+                video = video,
+                onDismiss = { screenState.showDownloadDialog = false }
+            )
+        } else {
+            DownloadQualityDialog(
+                streamInfo = uiState.streamInfo,
+                streamSizes = uiState.streamSizes,
+                innerTubeVideoFormats = uiState.innerTubeVideoFormats,
+                innerTubeAudioFormats = uiState.innerTubeAudioFormats,
+                video = video,
+                onDismiss = { screenState.showDownloadDialog = false }
+            )
+        }
     }
 
     val settingsInitialPage = when {
@@ -69,9 +83,10 @@ fun PlayerDialogsContainer(
         QualitySelectorDialog(
             availableQualities = playerState.availableQualities,
             currentQuality = playerState.currentQuality,
+            currentQualityKey = playerState.currentQualityKey,
             onDismiss = { screenState.showQualitySelector = false },
-            onQualitySelected = { height ->
-                EnhancedPlayerManager.getInstance().switchQuality(height)
+            onQualitySelected = { option ->
+                EnhancedPlayerManager.getInstance().switchQuality(option)
             },
             onBack = {
                 screenState.showQualitySelector = false
@@ -137,8 +152,8 @@ fun PlayerDialogsContainer(
                 screenState.showPlaybackSpeedSelector = false
                 screenState.showSubtitleSelector = false
             },
-            onQualitySelected = { height ->
-                EnhancedPlayerManager.getInstance().switchQuality(height)
+            onQualitySelected = { option ->
+                EnhancedPlayerManager.getInstance().switchQuality(option)
             },
             onAudioTrackSelected = { index ->
                 EnhancedPlayerManager.getInstance().switchAudioTrack(index)
@@ -239,9 +254,10 @@ fun ShowQualityDialog(
         QualitySelectorDialog(
             availableQualities = playerState.availableQualities,
             currentQuality = playerState.currentQuality,
+            currentQualityKey = playerState.currentQualityKey,
             onDismiss = onDismiss,
-            onQualitySelected = { height ->
-                EnhancedPlayerManager.getInstance().switchQuality(height)
+            onQualitySelected = { option ->
+                EnhancedPlayerManager.getInstance().switchQuality(option)
             }
         )
     }

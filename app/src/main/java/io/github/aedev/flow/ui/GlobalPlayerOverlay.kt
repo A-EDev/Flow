@@ -1144,8 +1144,8 @@ fun GlobalPlayerOverlay(
                             screenState.showPlaybackSpeedSelector = false
                             screenState.showSubtitleSelector = false
                         },
-                        onQualitySelected = { height ->
-                            EnhancedPlayerManager.getInstance().switchQuality(height)
+                        onQualitySelected = { option ->
+                            EnhancedPlayerManager.getInstance().switchQuality(option)
                         },
                         onAudioTrackSelected = { index ->
                             EnhancedPlayerManager.getInstance().switchAudioTrack(index)

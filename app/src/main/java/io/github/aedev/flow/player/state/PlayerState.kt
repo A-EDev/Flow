@@ -9,6 +9,7 @@ data class EnhancedPlayerState(
     val hasEnded: Boolean = false,
     val currentQuality: Int = 0,
     val effectiveQuality: Int = 0,
+    val currentQualityKey: String? = null,
     val currentAudioTrack: Int = 0,
     val availableQualities: List<QualityOption> = emptyList(),
     val availableAudioTracks: List<AudioTrackOption> = emptyList(),
@@ -33,7 +34,9 @@ data class EnhancedPlayerState(
 data class QualityOption(
     val height: Int,
     val label: String,
-    val bitrate: Long
+    val bitrate: Long,
+    val codecKey: String = "",
+    val streamKey: String? = null
 )
 
 // audio track option for the audio selector.

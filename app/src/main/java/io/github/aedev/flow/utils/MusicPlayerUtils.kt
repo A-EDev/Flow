@@ -116,6 +116,11 @@ object MusicPlayerUtils {
         io.github.aedev.flow.utils.cipher.CipherDeobfuscator.invalidateSignatureTimestamp()
     }
 
+    fun clearPlaybackCache() {
+        resultCache.clear()
+        Log.d(TAG, "Cleared all cached playback results")
+    }
+
     suspend fun playerResponseForPlayback(
         videoId: String,
         playlistId: String? = null

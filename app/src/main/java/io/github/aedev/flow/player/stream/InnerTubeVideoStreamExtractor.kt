@@ -1,5 +1,6 @@
 package io.github.aedev.flow.player.stream
 
+import android.net.Uri
 import android.util.Log
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
@@ -20,6 +21,7 @@ object InnerTubeVideoStreamExtractor {
     private const val TAG = "InnerTubeVideoExtractor"
     private const val PER_CLIENT_TIMEOUT_MS = 6000L
     private const val WEB_PLAYER_TIMEOUT_MS = 10000L
+    private val N_PARAM_REGEX = Regex("""(?:^|[?&])n=([^&]+)""")
 
     //* Fast, token-free clients tried first. They return direct adaptive URLs (played via normal DASH/progressive) when not bot-walled
      
@@ -74,7 +76,7 @@ object InnerTubeVideoStreamExtractor {
         }
 
         // 3) Last resort: remaining token-free clients
-        tryDirectClients(videoId, LAST_RESORT_CLIENTS, failureReasons)?.let {
+        tryDirectClients(videoId, LAST_RESORT_CLIENTS, failureReasons, allowUntransformedN = true)?.let {
             Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=DIRECT/last-resort)")
             return@withContext it
         }
@@ -87,6 +89,7 @@ object InnerTubeVideoStreamExtractor {
         videoId: String,
         clients: List<YouTubeClient>,
         failureReasons: MutableList<String>,
+        allowUntransformedN: Boolean = false,
     ): VideoExtractionResult? {
         val sts: Int? = if (clients.any { it.useSignatureTimestamp }) {
             NewPipeExtractor.getSignatureTimestamp(videoId).getOrNull()
@@ -128,7 +131,7 @@ object InnerTubeVideoStreamExtractor {
 
                 PipePipeNsigDecoder.prefetch(adaptiveFormats.mapNotNull { it.url })
 
-                val formatsWithUrl = adaptiveFormats.mapNotNull { it.toPlayableFormat(videoId) }
+                val formatsWithUrl = adaptiveFormats.mapNotNull { it.toPlayableFormat(videoId, allowUntransformedN) }
                 if (formatsWithUrl.isEmpty()) {
                     failureReasons.add("${client.clientName}: ${adaptiveFormats.size} formats, none resolvable (SABR-only)")
                     continue
@@ -225,14 +228,23 @@ object InnerTubeVideoStreamExtractor {
             }
 
             val sabrInfo = try {
-                val npUrl = NewPipeExtractor.deobfuscateThrottling(videoId, resolved.streamingUrl)
-                val transformed = if (!npUrl.isNullOrEmpty()) npUrl
-                    else CipherDeobfuscator.transformNParamInUrl(resolved.streamingUrl)
-                if (transformed != resolved.streamingUrl) resolved.copy(streamingUrl = transformed) else resolved
+                val transformedUrl = transformNParamInUrlOrNull(
+                    videoId = videoId,
+                    rawUrl = resolved.streamingUrl,
+                    label = "SABR"
+                )
+                if (transformedUrl == null) {
+                    failureReasons.add("WEB: SABR URL n-transform failed")
+                    Log.w(TAG, "WEB+SABR: refusing SABR URL with untransformed n parameter")
+                    return null
+                }
+                if (transformedUrl != resolved.streamingUrl) resolved.copy(streamingUrl = transformedUrl) else resolved
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                resolved
+                failureReasons.add("WEB: SABR URL n-transform exception=${e.javaClass.simpleName}: ${e.message}")
+                Log.w(TAG, "WEB+SABR: SABR URL n-transform threw: ${e.message}")
+                return null
             }
 
             val adaptiveFormats = playerResponse.streamingData?.adaptiveFormats.orEmpty()
@@ -267,9 +279,10 @@ object InnerTubeVideoStreamExtractor {
     }
     
     private suspend fun PlayerResponse.StreamingData.Format.toPlayableFormat(
-        videoId: String
+        videoId: String,
+        allowUntransformedN: Boolean,
     ): PlayerResponse.StreamingData.Format? {
-        if (!url.isNullOrEmpty()) return withPlayableUrl(videoId)
+        if (!url.isNullOrEmpty()) return withPlayableUrl(videoId, allowUntransformedN)
         if (!signatureCipher.isNullOrEmpty() || !cipher.isNullOrEmpty()) {
             val resolved = try {
                 NewPipeExtractor.getStreamUrl(this, videoId)
@@ -279,38 +292,70 @@ object InnerTubeVideoStreamExtractor {
                 Log.w(TAG, "cipher resolve failed for $videoId itag=$itag: ${e.message}")
                 null
             }
-            return if (!resolved.isNullOrEmpty()) copy(url = resolved) else null
+            return if (!resolved.isNullOrEmpty()) copy(url = resolved).withPlayableUrl(videoId, allowUntransformedN) else null
         }
         return null
     }
 
     private suspend fun PlayerResponse.StreamingData.Format.withPlayableUrl(
-        videoId: String
-    ): PlayerResponse.StreamingData.Format {
+        videoId: String,
+        allowUntransformedN: Boolean,
+    ): PlayerResponse.StreamingData.Format? {
         val rawUrl = url ?: return this
-        if (!rawUrl.contains("n=")) return this
+        val transformed = transformNParamInUrlOrNull(videoId, rawUrl, "itag=$itag")
+        return when {
+            transformed != null -> copy(url = transformed)
+            allowUntransformedN -> {
+                Log.w(TAG, "Using untransformed n URL as last-resort fallback for $videoId itag=$itag; playback may throttle")
+                this
+            }
+            else -> {
+                Log.w(TAG, "Rejecting untransformed n URL for $videoId itag=$itag; direct playback would likely throttle")
+                null
+            }
+        }
+    }
 
+    private suspend fun transformNParamInUrlOrNull(
+        videoId: String,
+        rawUrl: String,
+        label: String,
+    ): String? {
+        val rawN = extractNParameter(rawUrl) ?: return rawUrl
         return try {
             var transformed: String? = NewPipeExtractor.deobfuscateThrottling(videoId, rawUrl)
-                ?.takeIf { it != rawUrl }
+                ?.takeIf { isNParameterTransformed(rawN, it) }
             if (transformed == null) {
-                transformed = CipherDeobfuscator.transformNParamInUrl(rawUrl).takeIf { it != rawUrl }
+                transformed = CipherDeobfuscator.transformNParamInUrl(rawUrl)
+                    .takeIf { isNParameterTransformed(rawN, it) }
             }
             if (transformed == null) {
                 transformed = PipePipeNsigDecoder.deobfuscateUrl(rawUrl)
+                    ?.takeIf { isNParameterTransformed(rawN, it) }
             }
-            val finalUrl = transformed ?: rawUrl
-            if (finalUrl != rawUrl) {
-                Log.d(TAG, "Applied n-transform for $videoId itag=$itag")
-            } else {
-                Log.w(TAG, "n-transform produced NO change for $videoId itag=$itag — URL will likely throttle to 403")
+            if (transformed != null) {
+                Log.d(TAG, "Applied n-transform for $videoId $label")
             }
-            copy(url = finalUrl)
+            transformed
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.w(TAG, "n-transform failed for $videoId itag=$itag: ${e.message}")
-            this
+            Log.w(TAG, "n-transform failed for $videoId $label: ${e.message}")
+            null
+        }
+    }
+
+    private fun isNParameterTransformed(rawN: String, candidateUrl: String): Boolean {
+        if (candidateUrl.isBlank()) return false
+        val candidateN = extractNParameter(candidateUrl) ?: return candidateUrl != rawN
+        return candidateN != rawN
+    }
+
+    private fun extractNParameter(url: String): String? {
+        return try {
+            Uri.parse(url).getQueryParameter("n")
+        } catch (_: Exception) {
+            N_PARAM_REGEX.find(url)?.groupValues?.getOrNull(1)
         }
     }
 }

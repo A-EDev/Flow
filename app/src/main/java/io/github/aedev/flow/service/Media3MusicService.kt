@@ -148,13 +148,53 @@ class Media3MusicService : MediaLibraryService() {
         }
         
         serviceScope.launch {
-            io.github.aedev.flow.player.EnhancedMusicPlayerManager.isLiked.collectLatest { 
+            io.github.aedev.flow.player.EnhancedMusicPlayerManager.isLiked.collectLatest {
                 updateNotification()
             }
         }
-        
+
+        serviceScope.launch {
+            val prefs = io.github.aedev.flow.data.local.PlayerPreferences(this@Media3MusicService)
+            var lastQuality: io.github.aedev.flow.data.local.MusicAudioQuality? = null
+            prefs.musicAudioQuality.collect { quality ->
+                val previous = lastQuality
+                lastQuality = quality
+                if (previous != null && previous != quality) {
+                    applyMusicQualityChange()
+                }
+            }
+        }
+
         initializePlayer()
         initializeSession()
+    }
+
+    private fun applyMusicQualityChange() {
+        Log.d(TAG, "Music quality changed — clearing resolution caches")
+        try {
+            downloadUtil.clearUrlCache()
+            MusicPlayerUtils.clearPlaybackCache()
+            io.github.aedev.flow.player.EnhancedMusicPlayerManager.clearUrlCache()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to clear caches on quality change: ${e.message}")
+        }
+
+        val currentIndex = player.currentMediaItemIndex
+        if (currentIndex == C.INDEX_UNSET) return
+        val mediaId = player.currentMediaItem?.mediaId ?: return
+        if (downloadUtil.isFullyDownloaded(mediaId)) return
+
+        try {
+            val position = player.currentPosition
+            val wasPlaying = player.playWhenReady
+            downloadUtil.performAggressiveCacheClear(mediaId)
+            refreshCurrentMediaItem(mediaId, position)
+            player.prepare()
+            player.playWhenReady = wasPlaying
+            Log.d(TAG, "Re-streaming $mediaId at new quality from ${position}ms")
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to reload current track on quality change: ${e.message}")
+        }
     }
 
     private fun initializePlayer() {

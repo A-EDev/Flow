@@ -76,10 +76,10 @@ class CipherWebView private constructor(
         usingHardcodedMode = isHardcoded
 
         val exports = buildList {
-            if (sigFuncName != null) {
-                val sigConstArgs = sigInfo!!.constantArgs
-                val preprocessFunc = sigInfo!!.preprocessFunc
-                val preprocessArgs = sigInfo!!.preprocessArgs
+            sigInfo?.let { sig ->
+                val sigConstArgs = sig.constantArgs
+                val preprocessFunc = sig.preprocessFunc
+                val preprocessArgs = sig.preprocessArgs
                 if (!sigConstArgs.isNullOrEmpty() && preprocessFunc != null && !preprocessArgs.isNullOrEmpty()) {
                     val mainArgsStr = sigConstArgs.joinToString(", ")
                     val prepArgsStr = preprocessArgs.joinToString(", ")
@@ -93,9 +93,11 @@ class CipherWebView private constructor(
                     add("window._cipherSigFunc = typeof $sigFuncName !== 'undefined' ? $sigFuncName : null;")
                 }
             }
-            if (nFuncName != null) {
-                val nConstArgs = nFuncInfo!!.constantArgs
-                if (!nConstArgs.isNullOrEmpty()) {
+            nFuncInfo?.let { nFunc ->
+                val nConstArgs = nFunc.constantArgs
+                if (nFunc.acceptsUrl) {
+                    add("window._nUrlTransformFunc = typeof $nFuncName !== 'undefined' ? $nFuncName : null;")
+                } else if (!nConstArgs.isNullOrEmpty()) {
                     val argsStr = nConstArgs.joinToString(", ")
                     add("window._nTransformFunc = function(n) { return $nFuncName($argsStr, n); };")
                 } else {
@@ -160,11 +162,15 @@ function deobfuscateSig(funcName, constantArg, obfuscatedSig) {
 function transformN(nValue) {
     try {
         var func = window._nTransformFunc;
-        if (typeof func !== 'function') {
-            CipherBridge.onNError("N-transform func not available (type: " + typeof func + ")");
+        var result = null;
+        if (typeof func === 'function') {
+            result = func(nValue);
+        } else if (typeof window._nUrlTransformFunc === 'function') {
+            result = runNUrlTransform(nValue);
+        } else {
+            CipherBridge.onNError("N-transform func not available (n type: " + typeof func + ", url type: " + typeof window._nUrlTransformFunc + ")");
             return;
         }
-        var result = func(nValue);
         if (result === undefined || result === null) {
             CipherBridge.onNError("N-transform returned null/undefined");
             return;
@@ -173,6 +179,19 @@ function transformN(nValue) {
     } catch (error) {
         CipherBridge.onNError(error + "\n" + (error.stack || ""));
     }
+}
+function runNUrlTransform(nValue) {
+    var encoded = encodeURIComponent(nValue);
+    var probeUrl = "https://rr1---sn.googlevideo.com/videoplayback/n/" + encoded + "/itag/18";
+    var transformedUrl = window._nUrlTransformFunc(probeUrl);
+    if (typeof transformedUrl !== 'string') {
+        throw "N URL transform returned " + typeof transformedUrl;
+    }
+    var match = transformedUrl.match(/\/n\/([^\/]+)/);
+    if (!match || !match[1]) {
+        throw "N URL transform did not return an /n/ segment";
+    }
+    return decodeURIComponent(match[1]);
 }
 function discoverAndInit() {
     var nFuncName = "";
@@ -197,6 +216,22 @@ function discoverAndInit() {
             window._nTransformFunc = null;
         }
     }
+    if (!nFuncName && typeof window._nUrlTransformFunc === 'function') {
+        try {
+            var testInputUrl = "T2Xw3pWQ_Wk0xbOg";
+            var testResultUrl = runNUrlTransform(testInputUrl);
+            if (typeof testResultUrl === 'string' && testResultUrl !== testInputUrl && testResultUrl.length >= 5 && /^[a-zA-Z0-9_-]+${"$"}.test(testResultUrl)) {
+                nFuncName = "exported_n_url_func";
+                info = "export_url_valid";
+            } else {
+                info = "export_url_bad_result";
+                window._nUrlTransformFunc = null;
+            }
+        } catch(e) {
+            info = "export_url_threw:" + e;
+            window._nUrlTransformFunc = null;
+        }
+    }
     if (!nFuncName) {
         try {
             var testInput = "T2Xw3pWQ_Wk0xbOg";
@@ -205,7 +240,7 @@ function discoverAndInit() {
             for (var i = 0; i < keys.length; i++) {
                 try {
                     var key = keys[i];
-                    if (key.startsWith("webkit") || key.startsWith("on") || key === "CipherBridge" || key === "_cipherSigFunc" || key === "_nTransformFunc" || key === "window" || key === "self") continue;
+                    if (key.startsWith("webkit") || key.startsWith("on") || key === "CipherBridge" || key === "_cipherSigFunc" || key === "_nTransformFunc" || key === "_nUrlTransformFunc" || key === "window" || key === "self") continue;
                     var fn = window[key];
                     if (typeof fn !== 'function' || fn.length !== 1) continue;
                     tested++;

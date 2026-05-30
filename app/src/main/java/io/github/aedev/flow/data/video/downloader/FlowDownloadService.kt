@@ -89,6 +89,7 @@ class FlowDownloadService : Service() {
          * instead of .mp4, since Android's MediaMuxer cannot mux VP9 into MPEG-4.
          */
         const val EXTRA_VIDEO_CODEC = "video_codec"
+        const val EXTRA_THREADS = "download_threads"
 
         private const val EXTRA_SABR_STREAMING_URL = "sabr_streaming_url"
         private const val EXTRA_SABR_AUDIO_ITAG = "sabr_audio_itag"
@@ -158,7 +159,8 @@ class FlowDownloadService : Service() {
             videoCodec: String? = null,
             audioExtension: String? = null,
             audioMimeType: String? = null,
-            isMusic: Boolean = false
+            isMusic: Boolean = false,
+            threads: Int? = null
         ) {
             val intent = Intent(context, FlowDownloadService::class.java).apply {
                 action = ACTION_START_DOWNLOAD
@@ -176,6 +178,7 @@ class FlowDownloadService : Service() {
                 if (videoCodec != null) putExtra(EXTRA_VIDEO_CODEC, videoCodec)
                 if (audioExtension != null) putExtra(EXTRA_AUDIO_EXTENSION, audioExtension)
                 if (audioMimeType != null) putExtra(EXTRA_AUDIO_MIME_TYPE, audioMimeType)
+                if (threads != null) putExtra(EXTRA_THREADS, threads)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -245,6 +248,7 @@ class FlowDownloadService : Service() {
                 val audioExtension = intent.getStringExtra(EXTRA_AUDIO_EXTENSION)
                 val audioMimeType = intent.getStringExtra(EXTRA_AUDIO_MIME_TYPE)
                 val isMusic = intent.getBooleanExtra(EXTRA_IS_MUSIC, false)
+                val threadsOverride = intent.getIntExtra(EXTRA_THREADS, 0).takeIf { it > 0 }
 
                 val sabrStreamingUrl = intent.getStringExtra(EXTRA_SABR_STREAMING_URL)
                 val sabrAudioItag = intent.getIntExtra(EXTRA_SABR_AUDIO_ITAG, 0)
@@ -260,6 +264,7 @@ class FlowDownloadService : Service() {
                     videoId, title, url, audioUrl, quality,
                     thumbnail, channel, duration, audioOnly, userAgent, videoCodec,
                     audioExtension, audioMimeType, isMusic,
+                    threadsOverride = threadsOverride,
                     sabrStreamingUrl = sabrStreamingUrl,
                     sabrAudioItag = sabrAudioItag,
                     sabrAudioLmt = sabrAudioLmt,
@@ -296,6 +301,7 @@ class FlowDownloadService : Service() {
         audioExtension: String? = null,
         audioMimeType: String? = null,
         isMusic: Boolean = false,
+        threadsOverride: Int? = null,
         sabrStreamingUrl: String? = null,
         sabrAudioItag: Int = 0,
         sabrAudioLmt: Long = 0,
@@ -356,10 +362,11 @@ class FlowDownloadService : Service() {
             val effectiveUrl = if (audioOnly && audioUrl != null) audioUrl else url
             val effectiveAudioUrl = if (audioOnly) null else audioUrl
 
-            val threadCount = kotlinx.coroutines.runBlocking(Dispatchers.IO) {
-                preferences.downloadThreads.firstOrNull() ?: 3
-            }
-            Log.d(TAG, "handleStartDownload: Using $threadCount download threads")
+            val threadCount = threadsOverride
+                ?: kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                    preferences.downloadThreads.firstOrNull() ?: 3
+                }
+            Log.d(TAG, "handleStartDownload: Using $threadCount download threads${if (threadsOverride != null) " (per-download override)" else ""}")
 
             val mission = if (userAgent != null) {
                 FlowDownloadMission(

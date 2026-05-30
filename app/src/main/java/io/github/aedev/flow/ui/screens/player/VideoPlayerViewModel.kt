@@ -989,12 +989,9 @@ class VideoPlayerViewModel @Inject constructor(
                             InnerTubeStreamBridge.convertAudioFormats(it.audioFormats)
                         } ?: emptyList()
 
-                        val effectiveVideoStreams: List<VideoStream> = innerTubeVideoStreams.ifEmpty {
-                            (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>()
-                        }
-                        val effectiveAudioStreams: List<AudioStream> = innerTubeAudioStreams.ifEmpty {
-                            streamInfo.audioStreams
-                        }
+                        val extractorVideoStreams = (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>()
+                        val effectiveVideoStreams: List<VideoStream> = mergeVideoStreams(innerTubeVideoStreams, extractorVideoStreams)
+                        val effectiveAudioStreams: List<AudioStream> = mergeAudioStreams(innerTubeAudioStreams, streamInfo.audioStreams)
 
                         if (innerTubeVideoStreams.isNotEmpty()) {
                             Log.i("VideoPlayerViewModel", "Using InnerTube streams: ${innerTubeVideoStreams.size} video, ${innerTubeAudioStreams.size} audio (client=${innerTubeResult?.usedClient?.clientName})")
@@ -1455,10 +1452,11 @@ class VideoPlayerViewModel @Inject constructor(
             val audioLangPref = playerPreferences.preferredAudioLanguage.first()
             val innerTubeVideoStreams = InnerTubeStreamBridge.convertVideoFormats(state.innerTubeVideoFormats)
             val innerTubeAudioStreams = InnerTubeStreamBridge.convertAudioFormats(state.innerTubeAudioFormats)
-            val effectiveVideo = innerTubeVideoStreams.ifEmpty {
+            val effectiveVideo = mergeVideoStreams(
+                innerTubeVideoStreams,
                 (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>()
-            }
-            val effectiveAudio: List<AudioStream> = innerTubeAudioStreams.ifEmpty { streamInfo.audioStreams }
+            )
+            val effectiveAudio: List<AudioStream> = mergeAudioStreams(innerTubeAudioStreams, streamInfo.audioStreams)
             val streams = selectStreamsFromLists(effectiveVideo, effectiveAudio, quality, audioLangPref)
 
             _uiState.value = state.copy(
@@ -1835,6 +1833,40 @@ class VideoPlayerViewModel @Inject constructor(
     ): Triple<VideoStream?, AudioStream?, VideoQuality> {
         val videoStreams = (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>()
         return selectStreamsFromLists(videoStreams, streamInfo.audioStreams, preferredQuality, preferredAudioLanguage)
+    }
+
+    private fun mergeVideoStreams(
+        primary: List<VideoStream>,
+        fallback: List<VideoStream>
+    ): List<VideoStream> {
+        return (primary + fallback)
+            .filter { it.getContent().isNotBlank() }
+            .distinctBy { stream ->
+                val url = stream.getContent()
+                if (url.isNotBlank()) url else "${VideoCodecUtils.qualityHeightFromStream(stream)}_${VideoCodecUtils.codecKeyFromStream(stream)}_${stream.bitrate}"
+            }
+            .sortedWith(
+                compareByDescending<VideoStream> { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) }
+                    .thenBy { VideoCodecUtils.playbackCodecRank(it) }
+                    .thenByDescending { it.bitrate }
+            )
+    }
+
+    private fun mergeAudioStreams(
+        primary: List<AudioStream>,
+        fallback: List<AudioStream>
+    ): List<AudioStream> {
+        return (primary + fallback)
+            .filter { it.getContent().isNotBlank() }
+            .distinctBy { stream ->
+                listOf(
+                    stream.getContent(),
+                    stream.format?.mimeType.orEmpty(),
+                    stream.audioTrackId.orEmpty(),
+                    stream.averageBitrate.takeIf { it > 0 } ?: stream.bitrate
+                ).joinToString("|")
+            }
+            .sortedByDescending { it.averageBitrate.takeIf { bitrate -> bitrate > 0 } ?: it.bitrate }
     }
 
     private fun selectStreamsFromLists(

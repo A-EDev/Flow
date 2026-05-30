@@ -132,6 +132,9 @@ fun ShortVideoPage(
     var showDownloadDialog by remember { mutableStateOf(false) }
     var currentStreamInfo by remember { mutableStateOf<org.schabi.newpipe.extractor.stream.StreamInfo?>(null) }
     var currentStreamSizes by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
+    var currentInnerTubeVideoFormats by remember { mutableStateOf<List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format>>(emptyList()) }
+    var currentInnerTubeAudioFormats by remember { mutableStateOf<List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format>>(emptyList()) }
+    val downloadDialogStyle by playerPreferences.downloadDialogStyle.collectAsState(initial = io.github.aedev.flow.data.local.DownloadDialogStyle.FULL)
 
     // ── PlayerView instance ──
     val playerView = remember {
@@ -816,7 +819,10 @@ fun ShortVideoPage(
                     scope.launch {
                         val streamInfo = viewModel.getVideoStreamInfo(video.id)
                         currentStreamInfo = streamInfo
-                        if (streamInfo != null) {
+                        val (itVideo, itAudio) = viewModel.getInnerTubeDownloadFormats(video.id)
+                        currentInnerTubeVideoFormats = itVideo
+                        currentInnerTubeAudioFormats = itAudio
+                        if (streamInfo != null || itVideo.isNotEmpty()) {
                             currentStreamSizes = viewModel.fetchStreamSizes(video.id)
                             showDownloadDialog = true
                         }
@@ -910,13 +916,26 @@ fun ShortVideoPage(
     }
 
     // ── Download Dialog ──
-    if (showDownloadDialog && currentStreamInfo != null) {
-        io.github.aedev.flow.ui.screens.player.components.DownloadQualityDialog(
-            streamInfo = currentStreamInfo,
-            streamSizes = currentStreamSizes,
-            video = video,
-            onDismiss = { showDownloadDialog = false }
-        )
+    if (showDownloadDialog && (currentStreamInfo != null || currentInnerTubeVideoFormats.isNotEmpty())) {
+        if (downloadDialogStyle == io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT) {
+            io.github.aedev.flow.ui.screens.player.components.DownloadQualityDialogCompact(
+                streamInfo = currentStreamInfo,
+                streamSizes = currentStreamSizes,
+                innerTubeVideoFormats = currentInnerTubeVideoFormats,
+                innerTubeAudioFormats = currentInnerTubeAudioFormats,
+                video = video,
+                onDismiss = { showDownloadDialog = false }
+            )
+        } else {
+            io.github.aedev.flow.ui.screens.player.components.DownloadQualityDialog(
+                streamInfo = currentStreamInfo,
+                streamSizes = currentStreamSizes,
+                innerTubeVideoFormats = currentInnerTubeVideoFormats,
+                innerTubeAudioFormats = currentInnerTubeAudioFormats,
+                video = video,
+                onDismiss = { showDownloadDialog = false }
+            )
+        }
     }
 }
 

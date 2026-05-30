@@ -85,18 +85,19 @@ object VideoPlayerUtils {
         }
     }
 
-    fun startDownload(context: Context, video: Video, url: String, qualityLabel: String, audioUrl: String? = null, videoCodec: String? = null) {
+    fun startDownload(context: Context, video: Video, url: String, qualityLabel: String, audioUrl: String? = null, videoCodec: String? = null, threads: Int? = null) {
         try {
             promptStoragePermissionIfNeeded(context)
 
             // Start the optimized parallel download service
             io.github.aedev.flow.data.video.downloader.FlowDownloadService.startDownload(
-                context, 
-                video, 
-                url, 
+                context,
+                video,
+                url,
                 qualityLabel,
                 audioUrl,
-                videoCodec = videoCodec
+                videoCodec = videoCodec,
+                threads = threads
             )
             
             Toast.makeText(context, "Started download: ${video.title}", Toast.LENGTH_SHORT).show()

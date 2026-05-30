@@ -7,6 +7,7 @@ import org.schabi.newpipe.extractor.stream.DeliveryMethod
 import org.schabi.newpipe.extractor.stream.Stream
 import org.schabi.newpipe.extractor.stream.VideoStream
 import org.schabi.newpipe.extractor.MediaFormat
+import org.schabi.newpipe.extractor.services.youtube.ItagItem
 
 object InnerTubeStreamBridge {
     private const val TAG = "InnerTubeStreamBridge"
@@ -22,6 +23,7 @@ object InnerTubeStreamBridge {
             try {
                 VideoStream.Builder()
                     .setId(format.itag.toString())
+                    .setItagItem(itagItemOrNull(format.itag))
                     .setContent(url, true)
                     .setMediaFormat(mediaFormat)
                     .setResolution("${height}p")
@@ -46,6 +48,7 @@ object InnerTubeStreamBridge {
             try {
                 AudioStream.Builder()
                     .setId(format.itag.toString())
+                    .setItagItem(itagItemOrNull(format.itag))
                     .setContent(url, true)
                     .setMediaFormat(mediaFormat)
                     .setAverageBitrate(bitrate)
@@ -81,6 +84,15 @@ object InnerTubeStreamBridge {
                 Log.d(TAG, "Unknown audio MIME: $mimeType")
                 null
             }
+        }
+    }
+
+    private fun itagItemOrNull(itag: Int): ItagItem? {
+        return try {
+            ItagItem.getItag(itag)
+        } catch (e: Exception) {
+            Log.d(TAG, "No NewPipe ItagItem metadata for itag=$itag: ${e.message}")
+            null
         }
     }
 }

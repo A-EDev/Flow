@@ -146,7 +146,10 @@ class SabrOrchestrator(
 
             is SabrEvent.ReloadRequired -> {
                 Log.w(TAG, "Reload required: ${event.reason}")
-                onError?.invoke(-2, event.reason, true)
+                isRunning = false
+                audioBuffer.signalEndOfStream()
+                videoBuffer.signalEndOfStream()
+                onError?.invoke(-2, event.reason, false)
             }
 
             is SabrEvent.SeekDirective -> {

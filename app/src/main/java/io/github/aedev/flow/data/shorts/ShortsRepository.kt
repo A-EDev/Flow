@@ -603,6 +603,23 @@ class ShortsRepository private constructor(private val context: Context) {
             .sortedByDescending { it.heightClass }
     }
 
+    suspend fun getInnerTubeDownloadFormats(
+        videoId: String
+    ): Pair<List<PlayerResponse.StreamingData.Format>, List<PlayerResponse.StreamingData.Format>> =
+        withContext(Dispatchers.IO) {
+            try {
+                val result = withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
+                    InnerTubeVideoStreamExtractor.extract(videoId)
+                } ?: return@withContext emptyList<PlayerResponse.StreamingData.Format>() to emptyList<PlayerResponse.StreamingData.Format>()
+                val video = result.videoFormats.filter { !it.url.isNullOrBlank() }
+                val audio = result.audioFormats.filter { !it.url.isNullOrBlank() }
+                video to audio
+            } catch (e: Exception) {
+                Log.w(TAG, "getInnerTubeDownloadFormats failed for $videoId: ${e.message}")
+                emptyList<PlayerResponse.StreamingData.Format>() to emptyList<PlayerResponse.StreamingData.Format>()
+            }
+        }
+
     private fun codecLabelFromMime(mime: String): String = when {
         mime.contains("av01", true) -> "AV1"
         mime.contains("vp9", true) || mime.contains("vp09", true) -> "VP9"

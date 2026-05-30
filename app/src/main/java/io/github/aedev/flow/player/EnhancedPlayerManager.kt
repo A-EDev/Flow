@@ -39,6 +39,7 @@ import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.player.service.BackgroundServiceManager
 import io.github.aedev.flow.player.sponsorblock.SponsorBlockHandler
 import io.github.aedev.flow.player.state.EnhancedPlayerState
+import io.github.aedev.flow.player.state.QualityOption
 import io.github.aedev.flow.player.stream.StreamProcessor
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.player.surface.SurfaceManager
@@ -577,6 +578,7 @@ class EnhancedPlayerManager private constructor() {
             availableAudioTracks = StreamProcessor.toAudioTrackOptions(availableAudioStreams),
             availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles),
             currentQuality = if (isAutoMode) 0 else (currentVideoStream?.let { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) } ?: 0),
+            currentQualityKey = if (isAutoMode) null else currentVideoStream?.getContent()?.takeIf { it.isNotBlank() },
             currentAudioTrack = currentAudioStream?.let { availableAudioStreams.indexOf(it).coerceAtLeast(0) } ?: 0,
             isLive = currentIsLiveStream,
             isAtLiveEdge = false,
@@ -614,6 +616,7 @@ class EnhancedPlayerManager private constructor() {
         _playerState.value = _playerState.value.copy(
             currentVideoId = videoId, isBuffering = true, error = null,
             hasEnded = false, isPrepared = false, recoveryAttempted = false, currentQuality = 0,
+            currentQualityKey = null,
             playWhenReady = player?.playWhenReady ?: true,
             isAtLiveEdge = false,
             liveDurationMs = 0L
@@ -1319,6 +1322,7 @@ class EnhancedPlayerManager private constructor() {
     
     fun switchQualityByHeight(height: Int) = qualityManager?.switchQualityByHeight(height, player?.currentPosition ?: 0L)
     fun switchQuality(height: Int) = switchQualityByHeight(height)
+    fun switchQuality(option: QualityOption) = qualityManager?.switchQuality(option, player?.currentPosition ?: 0L)
     
     fun switchAudioTrack(index: Int) {
         if (index in availableAudioStreams.indices) {
@@ -1569,6 +1573,7 @@ class EnhancedPlayerManager private constructor() {
         currentAudioStream = null
         _playerState.value = _playerState.value.copy(
             isPlaying = false, currentVideoId = null, currentQuality = 0,
+            currentQualityKey = null,
             bufferedPercentage = 0f, isBuffering = false, isPrepared = false, hasEnded = false,
             isLive = false, isAtLiveEdge = false, liveDurationMs = 0L
         )

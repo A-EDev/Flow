@@ -64,6 +64,13 @@ class PlayerPreferences(context: Context) {
         val DEFAULT_DOWNLOAD_QUALITY = stringPreferencesKey("default_download_quality")
         val DOWNLOAD_LOCATION = stringPreferencesKey("download_location")
         val MUSIC_DOWNLOAD_LOCATION = stringPreferencesKey("music_download_location")
+
+        // Download dialog style + remembered last-used download options (compact dialog)
+        val DOWNLOAD_DIALOG_STYLE = stringPreferencesKey("download_dialog_style")
+        val LAST_DOWNLOAD_TYPE = stringPreferencesKey("last_download_type")
+        val LAST_DOWNLOAD_HEIGHT = intPreferencesKey("last_download_height")
+        val LAST_DOWNLOAD_CODEC = stringPreferencesKey("last_download_codec")
+        val LAST_DOWNLOAD_AUDIO_LABEL = stringPreferencesKey("last_download_audio_label")
         val PROXY_ENABLED = booleanPreferencesKey("proxy_enabled")
         val PROXY_TYPE = stringPreferencesKey("proxy_type")
         val PROXY_HOST = stringPreferencesKey("proxy_host")
@@ -1613,6 +1620,44 @@ class PlayerPreferences(context: Context) {
         }
     }
 
+    // Download dialog style (Classic full dialog vs new Compact dialog)
+    val downloadDialogStyle: Flow<DownloadDialogStyle> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            runCatching { DownloadDialogStyle.valueOf(preferences[Keys.DOWNLOAD_DIALOG_STYLE] ?: DownloadDialogStyle.FULL.name) }
+                .getOrDefault(DownloadDialogStyle.FULL)
+        }
+
+    suspend fun setDownloadDialogStyle(style: DownloadDialogStyle) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DOWNLOAD_DIALOG_STYLE] = style.name
+        }
+    }
+
+    // Remembered last-used download options (used by the compact dialog to preselect).
+    val lastDownloadType: Flow<String?> = context.playerPreferencesDataStore.data
+        .map { it[Keys.LAST_DOWNLOAD_TYPE] }
+    val lastDownloadHeight: Flow<Int?> = context.playerPreferencesDataStore.data
+        .map { it[Keys.LAST_DOWNLOAD_HEIGHT] }
+    val lastDownloadCodec: Flow<String?> = context.playerPreferencesDataStore.data
+        .map { it[Keys.LAST_DOWNLOAD_CODEC] }
+    val lastDownloadAudioLabel: Flow<String?> = context.playerPreferencesDataStore.data
+        .map { it[Keys.LAST_DOWNLOAD_AUDIO_LABEL] }
+
+    suspend fun setLastDownloadVideoChoice(height: Int, codec: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.LAST_DOWNLOAD_TYPE] = "VIDEO"
+            preferences[Keys.LAST_DOWNLOAD_HEIGHT] = height
+            preferences[Keys.LAST_DOWNLOAD_CODEC] = codec
+        }
+    }
+
+    suspend fun setLastDownloadAudioChoice(audioLabel: String) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.LAST_DOWNLOAD_TYPE] = "AUDIO"
+            preferences[Keys.LAST_DOWNLOAD_AUDIO_LABEL] = audioLabel
+        }
+    }
+
     val parallelDownloadEnabled: Flow<Boolean> = context.playerPreferencesDataStore.data
         .map { preferences ->
             preferences[Keys.PARALLEL_DOWNLOAD_ENABLED] ?: true
@@ -2094,6 +2139,11 @@ enum class SliderStyle {
     METROLIST_SLIM,
     SQUIGGLY,
     SLIM
+}
+
+enum class DownloadDialogStyle {
+    FULL,
+    COMPACT
 }
 
 enum class MusicPlayerBackgroundStyle {

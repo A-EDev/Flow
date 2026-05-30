@@ -27,7 +27,8 @@ object FunctionNameExtractor {
         val name: String,
         val arrayIndex: Int?,
         val constantArgs: List<Int>? = null, 
-        val isHardcoded: Boolean = false
+        val isHardcoded: Boolean = false,
+        val acceptsUrl: Boolean = false
     )
 
     data class HardcodedPlayerConfig(
@@ -95,6 +96,11 @@ object FunctionNameExtractor {
         Regex("""\.get\("n"\);if\([a-zA-Z0-9$]+\)\s*\{[^}]*match"""),
         Regex("""\(\s*([a-zA-Z0-9$]+)\s*=\s*String\.fromCharCode\(110\)"""),
         Regex("""([a-zA-Z0-9$]+)\s*=\s*function\([a-zA-Z0-9]\)\s*\{[^}]*?enhanced_except_"""),
+    )
+
+    private val N_URL_WRAPPER_PATTERNS = listOf(
+        Regex("""([a-zA-Z0-9${'$'}]+)\s*=\s*function\(([a-zA-Z0-9${'$'}]+)\)\s*\{\s*try\s*\{\s*var\s+[a-zA-Z0-9${'$'}]+\s*=\s*\(new\s+g\.[a-zA-Z0-9${'$'}]+\(\2\s*,\s*!0\)\)\.get\("n"\)"""),
+        Regex("""([a-zA-Z0-9${'$'}]+)\s*=\s*function\(([a-zA-Z0-9${'$'}]+)\)\s*\{[^{}]{0,300}\.get\("n"\)[^{}]{0,300}/\\?/n\\?/""")
     )
 
     // ==================== EXTRACTION FUNCTIONS ====================
@@ -213,6 +219,17 @@ object FunctionNameExtractor {
         Log.d(TAG, "========== EXTRACTING N-FUNCTION ==========")
         Log.d(TAG, "Player.js size: ${playerJs.length} chars")
 
+        for ((index, pattern) in N_URL_WRAPPER_PATTERNS.withIndex()) {
+            Log.v(TAG, "Trying n-url-wrapper pattern $index: ${pattern.pattern.take(60)}...")
+            val match = pattern.find(playerJs)
+            if (match != null) {
+                val name = match.groupValues[1]
+                Log.d(TAG, "N URL WRAPPER FOUND via pattern $index:")
+                Log.d(TAG, "  name=$name")
+                return NFunctionInfo(name, null, isHardcoded = false, acceptsUrl = true)
+            }
+        }
+
         for ((index, pattern) in N_FUNCTION_PATTERNS.withIndex()) {
             Log.v(TAG, "Trying n-func pattern $index: ${pattern.pattern.take(60)}...")
             val match = pattern.find(playerJs)
@@ -321,7 +338,7 @@ object FunctionNameExtractor {
         Log.d(TAG, "Q-Array Obfuscated: $hasQArray")
         Log.d(TAG, "Sig Function:       ${sigInfo?.name ?: "NOT FOUND"} (hardcoded=${sigInfo?.isHardcoded})")
         Log.d(TAG, "Sig Constant Arg:   ${sigInfo?.constantArg}")
-        Log.d(TAG, "N-Function:         ${nFuncInfo?.name ?: "NOT FOUND"} (hardcoded=${nFuncInfo?.isHardcoded})")
+        Log.d(TAG, "N-Function:         ${nFuncInfo?.name ?: "NOT FOUND"} (hardcoded=${nFuncInfo?.isHardcoded}, acceptsUrl=${nFuncInfo?.acceptsUrl})")
         Log.d(TAG, "N-Array Index:      ${nFuncInfo?.arrayIndex}")
         Log.d(TAG, "Signature TS:       $signatureTimestamp")
 

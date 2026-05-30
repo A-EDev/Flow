@@ -173,6 +173,11 @@ object EnhancedMusicPlayerManager {
         Log.d("EnhancedMusicPlayer", "Invalidated resolved URL cache for $videoId")
     }
 
+    fun clearUrlCache() {
+        urlCache.evictAll()
+        Log.d("EnhancedMusicPlayer", "Cleared all resolved URL cache entries")
+    }
+
     fun initialize(context: Context) {
         if (isInitialized) return
         appContext = context.applicationContext

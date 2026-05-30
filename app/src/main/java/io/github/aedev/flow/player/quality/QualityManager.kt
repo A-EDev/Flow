@@ -173,15 +173,25 @@ class QualityManager(
         return listOf(
             QualityOption(height = 0, label = "Auto", bitrate = 0L)
         ) + availableVideoStreams
-            .groupBy { qualityHeight(it) }
-            .toSortedMap(compareByDescending { it })
-            .map { (height, streams) ->
+            .groupBy { "${qualityHeight(it)}_${VideoCodecUtils.codecKeyFromStream(it)}" }
+            .values
+            .mapNotNull { streams ->
+                val bestStream = streams.maxByOrNull { it.bitrate } ?: return@mapNotNull null
+                val height = qualityHeight(bestStream)
+                val codecKey = VideoCodecUtils.codecKeyFromStream(bestStream)
                 QualityOption(
                     height = height,
-                    label = "${height}p",
-                    bitrate = streams.maxOfOrNull { it.bitrate.toLong() } ?: 0L
+                    label = "${height}p ${VideoCodecUtils.codecLabelFromKey(codecKey)}",
+                    bitrate = bestStream.bitrate.toLong(),
+                    codecKey = codecKey,
+                    streamKey = streamKey(bestStream)
                 )
             }
+            .sortedWith(
+                compareByDescending<QualityOption> { it.height }
+                    .thenBy { VideoCodecUtils.playbackCodecRank(it.codecKey) }
+                    .thenByDescending { it.bitrate }
+            )
     }
     
     /**
@@ -220,13 +230,46 @@ class QualityManager(
         
         val targetHeight = qualityHeight(targetStream)
         currentVideoStream = targetStream
+        onQualitySwitch(targetStream, currentPosition)
+        
+        stateFlow.value = stateFlow.value.copy(
+            currentQuality = targetHeight,
+            effectiveQuality = targetHeight,
+            currentQualityKey = streamKey(targetStream)
+        )
+        return true
+    }
+
+    fun switchQuality(option: QualityOption, currentPosition: Long): Boolean {
+        option.streamKey?.let { return switchQualityByStreamKey(it, currentPosition) }
+        return switchQualityByHeight(option.height, currentPosition)
+    }
+
+    fun switchQualityByStreamKey(streamKey: String, currentPosition: Long): Boolean {
+        val targetStream = availableVideoStreams.firstOrNull { streamKey(it) == streamKey }
+        if (targetStream == null) {
+            Log.w(TAG, "No stream found for key=$streamKey")
+            return false
+        }
+
+        val targetHeight = qualityHeight(targetStream)
+        val targetCodec = VideoCodecUtils.codecKeyFromStream(targetStream)
+        isAdaptiveQualityEnabled = false
+        manualQualityHeight = targetHeight
+        currentVideoStream = targetStream
+        Log.d(TAG, "Switching to FIXED quality: ${targetHeight}p ${VideoCodecUtils.codecLabelFromKey(targetCodec)}")
+
         if (isDashSource) {
             switchDashQualitySeamlessly(targetStream.height, targetHeight)
         } else {
             onQualitySwitch(targetStream, currentPosition)
         }
-        
-        stateFlow.value = stateFlow.value.copy(currentQuality = targetHeight, effectiveQuality = targetHeight)
+
+        stateFlow.value = stateFlow.value.copy(
+            currentQuality = targetHeight,
+            effectiveQuality = targetHeight,
+            currentQualityKey = streamKey
+        )
         return true
     }
     
@@ -262,11 +305,12 @@ class QualityManager(
             
             stateFlow.value = stateFlow.value.copy(
                 currentQuality = 0,
-                effectiveQuality = selectedHeight
+                effectiveQuality = selectedHeight,
+                currentQualityKey = null
             )
             lastAdaptiveQualityHeight = selectedHeight
         } else {
-            stateFlow.value = stateFlow.value.copy(currentQuality = 0)
+            stateFlow.value = stateFlow.value.copy(currentQuality = 0, currentQualityKey = null)
             lastAdaptiveQualityHeight = currentVideoStream?.let(::qualityHeight) ?: 0
         }
     }
@@ -362,7 +406,8 @@ class QualityManager(
         
         stateFlow.value = stateFlow.value.copy(
             currentQuality = 0,
-            effectiveQuality = targetHeight
+            effectiveQuality = targetHeight,
+            currentQualityKey = null
         )
     }
     
@@ -401,6 +446,8 @@ class QualityManager(
             selector.setParameters(params)
         }
     }
+
+    private fun streamKey(stream: VideoStream): String = stream.getContent().takeIf { it.isNotBlank() } ?: stream.hashCode().toString()
     
     /**
      * Increment buffering count for adaptive quality tracking.
@@ -477,6 +524,7 @@ class QualityManager(
             
             stateFlow.value = stateFlow.value.copy(
                 currentQuality = lowerHeight,
+                currentQualityKey = streamKey(lowerQualityStream),
                 isBuffering = true
             )
             

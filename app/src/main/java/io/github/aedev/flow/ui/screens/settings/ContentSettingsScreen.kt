@@ -96,6 +96,7 @@ fun ContentSettingsScreen(
     val subscriptionShowLive by preferences.subscriptionShowLive.collectAsState(initial = true)
     val navTabOrder by preferences.navTabOrder.collectAsState(initial = io.github.aedev.flow.data.local.DEFAULT_NAV_TAB_ORDER)
     val defaultNavTabIndex by preferences.defaultNavTabIndex.collectAsState(initial = 0)
+    val downloadDialogStyle by preferences.downloadDialogStyle.collectAsState(initial = io.github.aedev.flow.data.local.DownloadDialogStyle.FULL)
     
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -179,6 +180,59 @@ fun ContentSettingsScreen(
                                 onClick = {
                                     coroutineScope.launch {
                                         preferences.setGridItemSize("SMALL")
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Download Menu Style Section
+            item {
+                SectionHeader(text = stringResource(R.string.download_menu_style_title))
+                SettingsGroup {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Outlined.ViewAgenda,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Text(
+                                text = stringResource(R.string.download_menu_style_subtitle),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            GridSizeOption(
+                                title = stringResource(R.string.download_menu_style_classic),
+                                description = stringResource(R.string.download_menu_style_classic_desc),
+                                isSelected = downloadDialogStyle == io.github.aedev.flow.data.local.DownloadDialogStyle.FULL,
+                                onClick = {
+                                    coroutineScope.launch {
+                                        preferences.setDownloadDialogStyle(io.github.aedev.flow.data.local.DownloadDialogStyle.FULL)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                            GridSizeOption(
+                                title = stringResource(R.string.download_menu_style_compact),
+                                description = stringResource(R.string.download_menu_style_compact_desc),
+                                isSelected = downloadDialogStyle == io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT,
+                                onClick = {
+                                    coroutineScope.launch {
+                                        preferences.setDownloadDialogStyle(io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT)
                                     }
                                 },
                                 modifier = Modifier.weight(1f)

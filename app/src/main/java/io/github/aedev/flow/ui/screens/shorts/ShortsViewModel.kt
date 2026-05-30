@@ -327,6 +327,9 @@ class ShortsViewModel @Inject constructor(
 
     suspend fun getAvailableQualities(videoId: String) =
         shortsRepository.getAvailableVideoQualities(videoId)
+
+    suspend fun getInnerTubeDownloadFormats(videoId: String) =
+        shortsRepository.getInnerTubeDownloadFormats(videoId)
     
     // USER ACTIONS
     suspend fun toggleLike(short: ShortVideo) {

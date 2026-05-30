@@ -39,7 +39,6 @@ import androidx.compose.ui.window.Dialog
 import io.github.aedev.flow.data.local.VideoQuality
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.*
-import io.github.aedev.flow.player.stream.AudioStreamSelector
 import io.github.aedev.flow.ui.components.SubtitleCustomizer
 import io.github.aedev.flow.ui.components.SubtitleStyle
 import io.github.aedev.flow.ui.components.rememberFlowSheetState
@@ -104,18 +103,14 @@ fun DownloadQualityDialog(
                     io.github.aedev.flow.player.stream.InnerTubeStreamBridge.convertAudioFormats(innerTubeAudioFormats)
                 }
 
-                val videoOnlyStreams = innerTubeVideoStreams.ifEmpty {
-                    streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList()
-                }
-                val muxedStreams = if (innerTubeVideoStreams.isNotEmpty()) {
-                    emptyList()
-                } else {
-                    streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList()
-                }
+                val extractedVideoOnlyStreams = streamInfo?.videoOnlyStreams?.filterIsInstance<VideoStream>() ?: emptyList()
+                val extractedMuxedStreams = streamInfo?.videoStreams?.filterIsInstance<VideoStream>() ?: emptyList()
+                val videoOnlyStreams = innerTubeVideoStreams + extractedVideoOnlyStreams
+                val muxedStreams = extractedMuxedStreams
                 val effectiveAudioForDownload: List<org.schabi.newpipe.extractor.stream.AudioStream> =
-                    innerTubeAudioStreams.ifEmpty { streamInfo?.audioStreams ?: emptyList() }
+                    mergeAudioDownloadStreams(innerTubeAudioStreams, streamInfo?.audioStreams ?: emptyList())
 
-                val codecPriority = mapOf("vp9" to 0, "h264" to 1, "vp8" to 2, "hevc" to 3, "av1" to 4)
+                val codecPriority = mapOf("vp9" to 0, "h264" to 1, "av1" to 2, "vp8" to 3, "hevc" to 4)
                 val distinctStreams = (videoOnlyStreams + muxedStreams)
                     .distinctBy {
                         "${VideoPlayerUtils.qualityHeightFromStream(it)}_${VideoPlayerUtils.codecKeyFromStream(it)}"
@@ -171,13 +166,13 @@ fun DownloadQualityDialog(
                         }
 
                         Surface(
-                            onClick = {
+                            onClick = downloadVideo@{
                                 onDismiss()
-                                val downloadUrl = stream.content ?: stream.url
+                                val downloadUrl = stream.getContent().takeIf { it.isNotBlank() }
                                 if (downloadUrl != null) {
                                     var audioUrl: String? = null
                                     if (stream.isVideoOnly) {
-                                        val isMp4Container = codecKey != "vp9" && codecKey != "vp8"
+                                        val isMp4Container = codecKey == "h264" || codecKey == "hevc"
                                         val allAudio = effectiveAudioForDownload
 
                                         fun isAacCompatible(a: org.schabi.newpipe.extractor.stream.AudioStream): Boolean {
@@ -231,9 +226,9 @@ fun DownloadQualityDialog(
                                                 "No compatible audio stream — download cannot proceed",
                                                 android.widget.Toast.LENGTH_LONG
                                             ).show()
-                                            return@Surface
+                                            return@downloadVideo
                                         }
-                                        audioUrl = compatibleAudio.let { it.content ?: it.url }
+                                        audioUrl = compatibleAudio.getContent().takeIf { it.isNotBlank() }
                                     }
 
                                     VideoPlayerUtils.startDownload(
@@ -306,7 +301,7 @@ fun DownloadQualityDialog(
                             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Audio Only (MP3/M4A)",
+                                text = "Audio Only",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary,
@@ -314,15 +309,12 @@ fun DownloadQualityDialog(
                             )
                         }
                         
-                        // Show best audio stream
-                        val bestAudio = AudioStreamSelector.selectPreferredAudioStream(
-                            streams = audioStreams,
-                            preferredAudioLanguage = preferredLang
-                        ) ?: audioStreams.first()
-                        item {
-                            val bitrate = bestAudio.averageBitrate / 1000
-                            val audioFormat = bestAudio.format?.name ?: "M4A"
-                            val audioUrl = bestAudio.content ?: bestAudio.url
+                        items(audioStreams) { audioStream ->
+                            val bitrate = audioBitrateKbps(audioStream)
+                            val audioFormat = audioFormatLabel(audioStream)
+                            val audioUrl = audioStream.getContent().takeIf { it.isNotBlank() }
+                            val languageLabel = audioLanguageLabel(audioStream)
+                            val trackTypeLabel = audioTrackTypeLabel(audioStream)
 
                             Surface(
                                 onClick = {
@@ -333,9 +325,11 @@ fun DownloadQualityDialog(
                                             video = video,
                                             url = audioUrl,
                                             quality = "${bitrate}kbps",
-                                            audioOnly = true
+                                            audioOnly = true,
+                                            audioExtension = audioFileExtension(audioStream),
+                                            audioMimeType = audioStream.format?.mimeType
                                         )
-                                        Toast.makeText(context, "Downloading audio: ${bitrate}kbps", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Downloading audio: ${bitrate}kbps $audioFormat", Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 shape = RoundedCornerShape(16.dp),
@@ -369,12 +363,12 @@ fun DownloadQualityDialog(
 
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "Audio ${bitrate}kbps",
+                                            text = "$audioFormat ${bitrate}kbps",
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.SemiBold
                                         )
                                         Text(
-                                            text = "$audioFormat • Audio only",
+                                            text = listOfNotNull(languageLabel, trackTypeLabel, "Audio only").joinToString(" • "),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -398,13 +392,89 @@ fun DownloadQualityDialog(
     }
 }
 
+private fun mergeAudioDownloadStreams(
+    innerTubeStreams: List<org.schabi.newpipe.extractor.stream.AudioStream>,
+    extractorStreams: List<org.schabi.newpipe.extractor.stream.AudioStream>
+): List<org.schabi.newpipe.extractor.stream.AudioStream> {
+    return (innerTubeStreams + extractorStreams)
+        .filter { it.getContent().isNotBlank() }
+        .distinctBy { stream ->
+            listOf(
+                audioFormatLabel(stream),
+                audioBitrateKbps(stream).toString(),
+                stream.audioTrackId.orEmpty(),
+                stream.audioLocale?.toLanguageTag().orEmpty(),
+                stream.audioTrackType?.name.orEmpty()
+            ).joinToString("|")
+        }
+        .sortedWith(
+            compareBy<org.schabi.newpipe.extractor.stream.AudioStream> { audioFormatSortRank(it) }
+                .thenByDescending { audioBitrateKbps(it) }
+                .thenBy { it.audioLocale?.displayLanguage.orEmpty() }
+        )
+}
+
+private fun audioBitrateKbps(stream: org.schabi.newpipe.extractor.stream.AudioStream): Int {
+    val raw = stream.averageBitrate.takeIf { it > 0 } ?: stream.bitrate
+    return if (raw > 1000) raw / 1000 else raw.coerceAtLeast(0)
+}
+
+private fun audioFormatLabel(stream: org.schabi.newpipe.extractor.stream.AudioStream): String {
+    val mime = stream.format?.mimeType.orEmpty().lowercase()
+    val name = stream.format?.name.orEmpty().lowercase()
+    return when {
+        "opus" in mime || "opus" in name -> "OPUS"
+        "webm" in mime || "webm" in name -> "WEBM"
+        "mp4" in mime || "m4a" in name -> "M4A"
+        "mpeg" in mime || "mp3" in name -> "MP3"
+        name.isNotBlank() -> name.uppercase()
+        else -> "Audio"
+    }
+}
+
+private fun audioFileExtension(stream: org.schabi.newpipe.extractor.stream.AudioStream): String {
+    val mime = stream.format?.mimeType.orEmpty().lowercase()
+    val name = stream.format?.name.orEmpty().lowercase()
+    return when {
+        "webm" in mime || "webm" in name -> "webm"
+        "ogg" in mime || "opus" in name -> "ogg"
+        "mpeg" in mime || "mp3" in name -> "mp3"
+        else -> "m4a"
+    }
+}
+
+private fun audioLanguageLabel(stream: org.schabi.newpipe.extractor.stream.AudioStream): String? {
+    return stream.audioTrackName?.takeIf { it.isNotBlank() }
+        ?: stream.audioLocale?.displayLanguage?.takeIf { it.isNotBlank() }
+        ?: stream.audioTrackId?.takeIf { it.isNotBlank() }
+}
+
+private fun audioTrackTypeLabel(stream: org.schabi.newpipe.extractor.stream.AudioStream): String? {
+    return when (stream.audioTrackType) {
+        org.schabi.newpipe.extractor.stream.AudioTrackType.ORIGINAL -> "Original"
+        org.schabi.newpipe.extractor.stream.AudioTrackType.DUBBED -> "Dubbed"
+        null -> null
+        else -> stream.audioTrackType?.name?.lowercase()?.replaceFirstChar { it.uppercase() }
+    }
+}
+
+private fun audioFormatSortRank(stream: org.schabi.newpipe.extractor.stream.AudioStream): Int {
+    return when (audioFormatLabel(stream)) {
+        "OPUS", "WEBM" -> 0
+        "M4A" -> 1
+        "MP3" -> 2
+        else -> 3
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QualitySelectorDialog(
     availableQualities: List<QualityOption>,
     currentQuality: Int,
+    currentQualityKey: String?,
     onDismiss: () -> Unit,
-    onQualitySelected: (Int) -> Unit,
+    onQualitySelected: (QualityOption) -> Unit,
     onBack: (() -> Unit)? = null
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberFlowSheetState()) {
@@ -440,9 +510,9 @@ fun QualitySelectorDialog(
             HorizontalDivider()
             LazyColumn {
                 items(availableQualities.sortedByDescending { it.height }) { quality ->
-                    val isSelected = quality.height == currentQuality
+                    val isSelected = quality.isSelected(currentQuality, currentQualityKey)
                     Surface(
-                        onClick = { onQualitySelected(quality.height); onDismiss() },
+                        onClick = { onQualitySelected(quality); onDismiss() },
                         color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Color.Transparent,
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -697,7 +767,7 @@ fun SettingsMenuDialog(
     subtitlesEnabled: Boolean,
     onDismiss: () -> Unit,
     initialPage: PlayerSettingsPage = PlayerSettingsPage.Main,
-    onQualitySelected: (Int) -> Unit = {},
+    onQualitySelected: (QualityOption) -> Unit = {},
     onAudioTrackSelected: (Int) -> Unit = {},
     onSpeedSelected: (Float) -> Unit = {},
     selectedSubtitleUrl: String? = null,
@@ -1015,6 +1085,7 @@ fun SettingsMenuDialog(
                 PlayerSettingsPage.Quality -> PlayerSettingsQualityPage(
                     availableQualities = playerState.availableQualities,
                     currentQuality = playerState.currentQuality,
+                    currentQualityKey = playerState.currentQualityKey,
                     onQualitySelected = {
                         onQualitySelected(it)
                         currentPage = PlayerSettingsPage.Main
@@ -1071,20 +1142,29 @@ enum class PlayerSettingsPage {
 private fun PlayerSettingsQualityPage(
     availableQualities: List<QualityOption>,
     currentQuality: Int,
-    onQualitySelected: (Int) -> Unit
+    currentQualityKey: String?,
+    onQualitySelected: (QualityOption) -> Unit
 ) {
     availableQualities.sortedByDescending { it.height }.forEach { quality ->
-        val isSelected = quality.height == currentQuality
+        val isSelected = quality.isSelected(currentQuality, currentQualityKey)
         PlayerSettingsSelectionRow(
             label = if (quality.height == 0) stringResource(R.string.quality_auto) else quality.displayLabel(),
             selected = isSelected,
-            onClick = { onQualitySelected(quality.height) }
+            onClick = { onQualitySelected(quality) }
         )
     }
 }
 
 private fun QualityOption.displayLabel(): String {
     return label.takeIf { it.isNotBlank() } ?: "${height}p"
+}
+
+private fun QualityOption.isSelected(currentQuality: Int, currentQualityKey: String?): Boolean {
+    return if (height == 0) {
+        currentQuality == 0
+    } else {
+        streamKey != null && streamKey == currentQualityKey
+    }
 }
 
 @Composable

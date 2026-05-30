@@ -6,17 +6,18 @@ import org.schabi.newpipe.extractor.stream.VideoStream
 object VideoCodecUtils {
     private val QUALITY_HEIGHT_REGEX = Regex("""(\d+)p""")
 
-    private val AV1_ITAGS = setOf(394, 395, 396, 397, 398, 399, 400, 401, 571, 694, 695, 696, 697, 698, 699, 700, 701)
+    private val AV1_ITAGS = setOf(394, 395, 396, 397, 398, 399, 400, 401, 402, 571, 694, 695, 696, 697, 698, 699, 700, 701)
     private val VP9_ITAGS = setOf(
-        242, 243, 244, 245, 246, 247, 248, 271, 272,
+        242, 243, 244, 245, 246, 247, 248, 271, 272, 278,
         302, 303, 308, 313, 315,
         330, 331, 332, 333, 334, 335, 336, 337
     )
     private val H264_ITAGS = setOf(
-        133, 134, 135, 136, 137, 138, 160,
+        133, 134, 135, 136, 137, 138, 160, 212,
         264, 266, 298, 299, 300, 301, 304, 305,
-        18, 22, 43, 59
+        18, 22, 34, 35, 37, 38, 59, 78
     )
+    private val VP8_ITAGS = setOf(43)
 
     fun codecKeyFromMimeType(mimeType: String): String {
         val m = mimeType.lowercase()
@@ -38,15 +39,12 @@ object VideoCodecUtils {
         } catch (_: Exception) {
             ""
         }
-        val itag = try {
-            Uri.parse(url).getQueryParameter("itag")?.toIntOrNull()
-        } catch (_: Exception) {
-            null
-        }
+        val itag = itagFromUrl(url) ?: itagFromId(stream)
 
         when (itag) {
             in AV1_ITAGS -> return "av1"
             in VP9_ITAGS -> return "vp9"
+            in VP8_ITAGS -> return "vp8"
             in H264_ITAGS -> return "h264"
         }
 
@@ -89,10 +87,27 @@ object VideoCodecUtils {
     fun playbackCodecRank(codecKey: String): Int = when (codecKey) {
         "vp9" -> 0
         "h264" -> 1
-        "vp8" -> 2
-        "hevc" -> 3
-        "av1" -> 4
+        "av1" -> 2
+        "vp8" -> 3
+        "hevc" -> 4
         else -> 5
+    }
+
+    private fun itagFromUrl(url: String): Int? {
+        if (url.isBlank()) return null
+        return try {
+            Uri.parse(url).getQueryParameter("itag")?.toIntOrNull()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun itagFromId(stream: VideoStream): Int? {
+        return try {
+            stream.id?.toIntOrNull()
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun parseQualityHeight(value: String?): Int? {
