@@ -1630,4 +1630,15 @@
     <string name="history_delete_shorts">حذف Shorts من السجل</string>
     <string name="history_delete_shorts_title">هل تريد حذف الshorts؟</string>
     <string name="history_delete_shorts_body">سيؤدي هذا إلى حذف جميع الفيديوهات القصيرة من سجل المشاهدة. أما الفيديوهات الأخرى فستبقى محفوظة.</string>
+    <string name="download_audio">الصوت</string>
+    <string name="download_title_label">العنوان</string>
+    <string name="download_format_label">التنسيق</string>
+    <string name="download_threads_label">التقسيمات</string>
+    <string name="download_no_compatible_audio">لا يوجد دفق صوتي متوافق — لا يمكن بدء التنزيل</string>
+    <string name="download_menu_style_title">نمط قائمة التنزيل</string>
+    <string name="download_menu_style_subtitle">اختر شكل مربع حوار التنزيل</string>
+    <string name="download_menu_style_classic">كلاسيكي</string>
+    <string name="download_menu_style_classic_desc">‎قائمة كاملة بكل جودة و برنامج ترميز</string>
+    <string name="download_menu_style_compact">‎مدمج</string>
+    <string name="download_menu_style_compact_desc">عنوان قابل للتعديل، قوائم منسدلة، وعدد التقسيمات</string>
 </resources>
