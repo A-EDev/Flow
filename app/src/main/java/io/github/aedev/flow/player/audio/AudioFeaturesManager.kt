@@ -44,17 +44,22 @@ class AudioFeaturesManager(
     }
     
     private var playerRef: ExoPlayer? = null
-    
+
     private var pendingSkipSilence: Boolean? = null
     private var pendingStableVolume: Boolean? = null
     private var loudnessEnhancer: LoudnessEnhancer? = null
-    
+    private var desiredPlaybackSpeed: Float = 1.0f
+
     /**
      * Set the player reference. Must be called after ExoPlayer is created.
      * Applies any pending skip-silence state that was set before the player was ready.
      */
     fun setPlayer(player: ExoPlayer) {
         this.playerRef = player
+        if (desiredPlaybackSpeed != 1.0f) {
+            player.setPlaybackParameters(PlaybackParameters(desiredPlaybackSpeed))
+            Log.d(TAG, "Re-applied playback speed on new player: ${desiredPlaybackSpeed}x")
+        }
         pendingSkipSilence?.let { pending ->
             player.skipSilenceEnabled = pending
             pendingSkipSilence = null
@@ -106,11 +111,14 @@ class AudioFeaturesManager(
      * Set playback speed.
      */
     fun setPlaybackSpeed(player: ExoPlayer?, speed: Float) {
-        player?.let { exoPlayer ->
-            val params = PlaybackParameters(speed)
-            exoPlayer.setPlaybackParameters(params)
-            stateFlow.value = stateFlow.value.copy(playbackSpeed = speed)
+        desiredPlaybackSpeed = speed
+        stateFlow.value = stateFlow.value.copy(playbackSpeed = speed)
+        val target = player ?: playerRef
+        if (target != null) {
+            target.setPlaybackParameters(PlaybackParameters(speed))
             Log.d(TAG, "Playback speed set to: ${speed}x")
+        } else {
+            Log.d(TAG, "Player not ready, queued playback speed: ${speed}x")
         }
     }
 

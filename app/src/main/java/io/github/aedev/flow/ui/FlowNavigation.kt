@@ -1087,7 +1087,10 @@ fun NavGraphBuilder.flowAppGraph(
         val playerVisible = playerVisibleState.value
 
         LaunchedEffect(effectiveVideoId) {
-            if (playerUiState.cachedVideo?.id != effectiveVideoId || !playerVisible) {
+            val isAlreadyPlayingThis = playerUiState.cachedVideo?.id == effectiveVideoId &&
+                playerVisible &&
+                !playerUiState.isRestoredSession
+            if (!isAlreadyPlayingThis) {
                 val placeholder = Video(
                     id = effectiveVideoId,
                     title = "",

@@ -1128,8 +1128,10 @@ class PlayerPreferences(context: Context) {
         }
     
     suspend fun setPlaybackSpeed(speed: Float) {
-        context.playerPreferencesDataStore.edit { preferences ->
-            preferences[Keys.PLAYBACK_SPEED] = speed
+        kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+            context.playerPreferencesDataStore.edit { preferences ->
+                preferences[Keys.PLAYBACK_SPEED] = speed
+            }
         }
     }
 

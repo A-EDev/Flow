@@ -1413,14 +1413,11 @@ class VideoPlayerViewModel @Inject constructor(
         if (manager.isPreparedForPlayback(videoId)) return@withContext
 
         manager.initialize(context)
-        val queueSize = manager.playerState.value.queueSize
         manager.playLocalFile(
             videoId = videoId,
             filePath = localFilePath,
             savedSegments = offlineSegments,
-            preservePosition = savedPosition
-                .takeIf { it > 500L }
-                ?.takeIf { queueSize <= 1 }
+            preservePosition = savedPosition.takeIf { it > 500L }
         )
         applyRememberedPlaybackSpeed(isLive = false, manager = manager)
 

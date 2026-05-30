@@ -317,11 +317,15 @@ class EnhancedPlayerManager private constructor() {
         
         audioFeaturesManager?.setPlayer(player!!)
         
-        // Apply initial loop preference
+        // Apply initial loop preference + restore remembered playback speed
         scope.launch {
             val prefs = PlayerPreferences(context)
             val loopEnabled = prefs.videoLoopEnabled.first()
             player?.repeatMode = if (loopEnabled) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+            if (prefs.rememberPlaybackSpeed.first()) {
+                val savedSpeed = prefs.playbackSpeed.first()
+                if (savedSpeed != 1.0f) setPlaybackSpeed(savedSpeed)
+            }
         }
         
         surfaceManager?.reattachSurfaceIfValid(player)

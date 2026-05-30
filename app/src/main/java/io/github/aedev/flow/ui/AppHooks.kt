@@ -28,9 +28,13 @@ fun HandleDeepLinks(
                 try {
                     if (navController.currentDestination != null) {
                         if (isShort) {
-                            navController.navigate("shorts?startVideoId=$deeplinkVideoId")
+                            navController.navigate("shorts?startVideoId=$deeplinkVideoId") {
+                                launchSingleTop = true
+                            }
                         } else {
-                            navController.navigate("player/$deeplinkVideoId")
+                            navController.navigate("player/$deeplinkVideoId") {
+                                launchSingleTop = true
+                            }
                         }
                         navigated = true
                         break

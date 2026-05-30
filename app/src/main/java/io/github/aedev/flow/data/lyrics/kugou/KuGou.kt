@@ -107,7 +107,6 @@ object KuGou {
         return try {
             val request = Request.Builder()
                 .url(url)
-                .header("Accept-Encoding", "gzip, deflate")
                 .build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
