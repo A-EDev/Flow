@@ -1596,4 +1596,18 @@
     <string name="video_download_location_label">Posizione di download del video</string>
     <string name="music_download_location_label">Posizione di download della musica</string>
     <string name="refresh_lyrics">Aggiorna testi</string>
+    <string name="datetime_preview_header">Anteprima</string>
+    <string name="datetime_sample_relative">7 mesi fa</string>
+    <string name="datetime_mode_relative">Tempo relativo (es. 7 mesi fa)</string>
+    <string name="datetime_mode_exact">Data esatta</string>
+    <string name="datetime_format_system">Predefinito di sistema</string>
+    <string name="datetime_format_iso_hint">ISO 8601</string>
+    <string name="datetime_context_lists">Elenchi e schede</string>
+    <string name="datetime_context_description">Descrizione</string>
+    <string name="datetime_override_default">Predefinito</string>
+    <string name="player_appearance_volume_boost_title">Consenti l\'amplificazione extra del volume</string>
+    <string name="player_appearance_volume_boost_subtitle">Quando è disattivato, il gesto di scorrimento del volume si ferma al volume massimo di sistema. Attivalo per rendere l\'audio ancora più forte.</string>
+    <string name="shorts_playback_speed">Velocità di riproduzione</string>
+    <string name="speed_normal">Normale</string>
+    <string name="export_watch_history_title">Cronologia di visualizzazione</string>
 </resources>
