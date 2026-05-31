@@ -553,7 +553,7 @@
     <string name="player_settings_audio_original_desc">Використовує рідну звукову доріжку відео</string>
     <string name="player_settings_header_gestures">Жести</string>
     <string name="player_settings_double_tap_seek_dialog_body">Виберіть, на скільки секунд потрібно переходити при подвійному натисканні на ліву або праву частину плеєра.</string>
-    <string name="video_quality_title">Якість відео та музики</string>
+    <string name="video_quality_title">Якість відео</string>
     <string name="video_quality_warning">Вища якість використовує більше трафіку</string>
     <string name="video_quality_wifi_header">Якість з Wi-Fi</string>
     <string name="video_quality_cellular_header">Якість з мобільним інтернетом</string>
@@ -1628,4 +1628,15 @@
     <string name="history_delete_shorts">Видалити Shorts з історії</string>
     <string name="history_delete_shorts_title">Видалити Shorts?</string>
     <string name="history_delete_shorts_body">Це вилучить усі Shorts з вашої історії переглядів. Інші відео будуть збережені.</string>
+    <string name="download_audio">Аудіо</string>
+    <string name="download_title_label">Назва</string>
+    <string name="download_format_label">Формат</string>
+    <string name="download_threads_label">Потоки</string>
+    <string name="download_no_compatible_audio">Немає сумісного аудіопотоку — завантаження неможливо продовжити</string>
+    <string name="download_menu_style_title">Стиль меню завантаження</string>
+    <string name="download_menu_style_subtitle">Виберіть вигляд діалогового вікна завантаження</string>
+    <string name="download_menu_style_classic">Класичний</string>
+    <string name="download_menu_style_classic_desc">Повний перелік усіх якостей та кодеків</string>
+    <string name="download_menu_style_compact">Компактний</string>
+    <string name="download_menu_style_compact_desc">Редагований заголовок, випадні списки та кількість потоків</string>
 </resources>
