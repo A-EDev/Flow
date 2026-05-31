@@ -473,7 +473,7 @@
     <string name="player_settings_double_tap_seek_subtitle_template">%ds لكل نقرة مزدوجة جانبية</string>
     <string name="player_settings_double_tap_seek_dialog_title">النقر المزدوج لتقديم و تأخير الفيديو</string>
     <string name="player_settings_double_tap_seek_dialog_body">اختر عدد الثواني التي تريد تقديم أو تأخيرها عند النقر المزدوج على الجانب الأيسر أو الأيمن من المشغل.</string>
-    <string name="video_quality_title">جودة الفيديو و الموسيقي</string>
+    <string name="video_quality_title">جودة الفيديو</string>
     <string name="video_quality_warning">الدقة العالية تستخدم بيانات أكثر</string>
     <string name="video_quality_wifi_header">جودة Wi-Fi</string>
     <string name="video_quality_cellular_header">الجودة الخلوية</string>
