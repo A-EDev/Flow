@@ -40,10 +40,14 @@ jobs:
         run: chmod +x gradlew
 
       - name: Decode Keystore
-        if: ${{ secrets.RELEASE_KEYSTORE_BASE64 != '' }}
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
-        run: echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > release.keystore
+        run: |
+          if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > release.keystore
+          else
+            echo "Release keystore secret is not available. Skipping decoding."
+          fi
 
       # Build all variants in a single Gradle invocation so tasks share the
       # configuration phase, classpath resolution and incremental build cache.
