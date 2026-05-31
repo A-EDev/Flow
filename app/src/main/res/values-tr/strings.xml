@@ -16,7 +16,7 @@
     <string name="library_section_header">İçeriğin</string>
     <string name="library_history_label">Geçmiş</string>
     <string name="library_playlists_label">Oynatma listeleri</string>
-    <string name="library_music_playlists_label">Müzik Oynatma listeleri</string>
+    <string name="library_music_playlists_label">Müzik Oynatma Listeleri</string>
     <string name="library_music_playlists_subtitle">Müzik koleksiyonların</string>
     <string name="library_liked_videos_label">Beğenilen Videolar</string>
     <string name="library_saved_shorts_label">Kaydedilen Shorts\'lar</string>
@@ -79,9 +79,9 @@
     <string name="channels_label">Kanallar</string>
     <string name="audio_info_not_available">Ses akışı bilgileri henüz mevcut değil.</string>
     <string name="undo">Geri al</string>
-    <string name="subscribed_to">%s\'a abone olundu</string>
+    <string name="subscribed_to">%s kanalına abone olundu</string>
     <string name="unsubscribe">Abonelikten çık</string>
-    <string name="unsubscribed_from">%s\'nin aboneliğinden çıkıldı</string>
+    <string name="unsubscribed_from">%s aboneliğinden çıkıldı</string>
     <string name="share_video">Videoyu paylaş</string>
     <string name="related_videos">İlgili Videolar</string>
     <string name="quality_auto">Otomatik</string>
@@ -101,7 +101,7 @@
     <string name="action_undo">Geri al</string>
     <string name="watch_later">Daha sonra izle</string>
     <string name="create">Oluştur</string>
-    <string name="details_metadata">Ayrıntılar &amp; Meta verisi</string>
+    <string name="details_metadata">Ayrıntılar &amp; Meta verileri</string>
     <string name="mark_as_watched">İzlendi olarak işaretle</string>
     <string name="channel_id">Kanal Kimliği</string>
     <string name="uploaded">Yüklendi</string>
@@ -131,7 +131,7 @@
     <string name="remove">Kaldır</string>
     <string name="filter_workout">Antrenman</string>
     <string name="codec_label">Kodek</string>
-    <string name="check_out_video_template">Bu videoya bak: %1$s\nhttps://youtube.com/watch?v=%2$s</string>
+    <string name="check_out_video_template">Şu videoya göz at: %1$s\nhttps://youtube.com/watch?v=%2$s</string>
     <string name="play_mode_suggestion_title">Çalma modu önerisi</string>
     <string name="play_mode_suggestion_body">Bu video 2 dakikadan daha kısa. Özel bir oynatıcıya geçmek ister misin?</string>
     <string name="action_go_to_home">Ana sayfaya git</string>
@@ -140,18 +140,18 @@
     <string name="cd_video_thumbnail">%1$s için video önizlemesi</string>
     <string name="cd_track_artwork">%1$s için parça kapağı</string>
     <string name="save_to">Buraya kaydet...</string>
-    <string name="playlist_private">Özel</string>
+    <string name="playlist_private">Gizli</string>
     <string name="views">Görüntülemeler</string>
     <string name="empty_subscriptions_body">Son videoları görmek için\nkanala abone ol</string>
     <string name="subscriptions_last_refreshed_template">Son yenilenme %1$s - %2$d video kontrol edildi</string>
-    <string name="share_message_template">Bu şarkıya göz at: %1$s, söyleyen: %2$s\nhttps://music.youtube.com/watch?v=%3$s</string>
+    <string name="share_message_template">Şu parçaya göz at: %1$s - %2$s\nhttps://music.youtube.com/watch?v=%3$s</string>
     <string name="playlist_public">Herkese açık</string>
     <string name="create_new_playlist">Yeni oynatma listesi oluştur</string>
     <string name="playlist_name">İsim</string>
     <string name="playlist_description_optional">Açıklama (opsiyonel)</string>
     <string name="save_to_playlist">Oynatma listesine kaydet</string>
     <string name="not_interested">İlgilenmiyorum</string>
-    <string name="i_like_this">Bunun gibi daha fazla görmek istiyorum</string>
+    <string name="i_like_this">İlgimi çekti</string>
     <string name="empty_offline_body">İndirdiğin %1$s burada görünecek.\nİnternetin olmasa bile içeriğinin keyfini çıkar.</string>
     <string name="watch_later_unsave">Daha Sonra İzle\'den Kaldır</string>
     <string name="mark_as_watched_toast">İzlendi olarak işaretlendi — önerilerin gelişecek!</string>
@@ -168,7 +168,7 @@
     <string name="upcoming_video_reminder_action">Bana hatırlat</string>
     <string name="upcoming_video_reminder_enabled">Hatırlatıcı ayarlandı</string>
     <string name="upcoming_video_reminder_badge">Hatırlatıcı etkinleştirildi</string>
-    <string name="copied_to_clipboard">Kopyalandı %1$s</string>
+    <string name="copied_to_clipboard">%1$s kopyalandı</string>
     <string name="unknown">Bilinmiyor</string>
     <string name="subscriptions_video_section_title">Video abonelikleri</string>
     <string name="subscriptions_music_section_title">Müzik abonelikleri</string>
@@ -235,14 +235,14 @@
     <string name="no_videos_saved">Kaydedilen video yok</string>
     <string name="no_videos_saved_body">Daha sonra izlemek üzere kaydettiğin videolar burada görünecek</string>
     <string name="search_hint">Ara</string>
-    <string name="search_videos_channels_placeholder">Video, kanal arayın...</string>
+    <string name="search_videos_channels_placeholder">Video, kanal ara...</string>
     <string name="recent_searches">Son Aramalar</string>
     <string name="trending">Trendler</string>
     <string name="channels_header">Kanallar</string>
     <string name="videos_header">Videolar</string>
     <string name="end_of_results">Sonuçların sonu</string>
     <string name="clear_search_history">Arama geçmişini temizle</string>
-    <string name="filter_upload_date">Yükleme zamanı</string>
+    <string name="filter_upload_date">Yükleme tarihi</string>
     <string name="filter_duration">Süre</string>
     <string name="filter_hd">HD</string>
     <string name="filter_4k">4K</string>
@@ -288,7 +288,7 @@
     <string name="notif_interval_24h">24 saat</string>
     <string name="settings_item_theme">Tema</string>
     <string name="settings_item_app_icon">Uygulama Simgesi</string>
-    <string name="video_quality_title">Video &amp; Müzik Kalitesi</string>
+    <string name="video_quality_title">Video Kalitesi</string>
     <string name="video_quality_warning">Yüksek kalite daha fazla veri kullanır</string>
     <string name="video_quality_wifi_header">Wi-Fi Kalitesi</string>
     <string name="video_quality_cellular_header">Hücresel Kalitesi</string>
@@ -326,7 +326,7 @@
     <string name="playback_header">Oynatma</string>
     <string name="play_next">Sonrakini oynat</string>
     <string name="play_next_desc">Sıranın başına ekle</string>
-    <string name="add_to_queue">Listeye ekle</string>
+    <string name="add_to_queue">Sıraya ekle</string>
     <string name="add_to_queue_desc">Sıranın sonuna ekle</string>
     <string name="audio_effects">Ses Efektleri</string>
     <string name="more_header">Daha fazla</string>
@@ -373,7 +373,7 @@
     <string name="deep_flow_learning_paused">ÖĞRENME DURDURULDU</string>
     <string name="deep_flow_expires_in">%s içinde sona eriyor</string>
     <string name="deep_flow_expire_duration_title">Otomatik devre dışı bırak</string>
-    <string name="deep_flow_expire_duration_subtitle">%s sonra öğrenme otomatik olarak devam eder</string>
+    <string name="deep_flow_expire_duration_subtitle">Otomatik devam etme: %s</string>
     <string name="deep_flow_dialog_title">Durdurma Süresi</string>
     <string name="deep_flow_dialog_body">Öğrenim ne kadar süre durdurulmalı?</string>
     <string name="deep_flow_enabled_message">Derin Flow aktif</string>
@@ -425,7 +425,7 @@
     <string name="notif_master_toggle">Bildirimleri etkinleştir</string>
     <string name="notif_master_toggle_subtitle">Bildirim denetimleri ve uyarılar için Flow\'un arka planda çalışmasına izin ver</string>
     <string name="notif_check_interval">Yeni video kontrol sıklığı</string>
-    <string name="notif_check_interval_subtitle_template">Her %s kontrol et</string>
+    <string name="notif_check_interval_subtitle_template">%s aralıklarla kontrol et</string>
     <string name="notif_check_interval_disabled">Arka plan bildirim denetimleri kapalı</string>
     <string name="notif_check_interval_dialog_title">Kontrol sıklığı</string>
     <string name="notif_check_interval_dialog_body">Flow\'un, abone olduğun kanallardaki yeni videoları ne sıklıkla kontrol edeceğini seç.</string>
@@ -448,7 +448,7 @@
     <string name="btn_close">Kapat</string>
     <string name="loading_shorts">Shorts yükleniyor…</string>
     <string name="error_short_load">Bir hata oluştu</string>
-    <string name="share_short_template">Bu shorts\'a bir göz at: https://youtu.be/%1$s</string>
+    <string name="share_short_template">Bu Shorts\'a bir göz at: https://youtu.be/%1$s</string>
     <string name="speed_2x">2x Hız</string>
     <string name="cd_liked">Beğenildi</string>
     <string name="cd_pause">Duraklat</string>
@@ -527,7 +527,7 @@
     <string name="sleep_timer_max_label">120 dakika</string>
     <string name="sleep_timer_custom_label">Özel süre</string>
     <string name="sleep_timer_unit">dakika</string>
-    <string name="sleep_timer_input_error">1-1440 arası bir değer girin</string>
+    <string name="sleep_timer_input_error">1-1440 arası bir değer gir</string>
     <string name="sleep_timer_end_of_song">Şarkı / video sonunda</string>
     <string name="sleep_timer_start">Başlat</string>
     <string name="sleep_timer_stops_in">Kalan süre</string>
@@ -536,7 +536,7 @@
     <string name="sleep_timer_cancel_timer">Zamanlayıcıyı İptal Et</string>
     <string name="sleep_timer_active_label">Uyku zamanlayıcısı aktif</string>
     <string name="sleep_timer_close_app">Zamanlayıcı bitince uygulamayı kapat</string>
-    <string name="sleep_timer_close_app_desc">Pil tasarrufu sağlamak için uygulamadan çıkın</string>
+    <string name="sleep_timer_close_app_desc">Pil tasarrufu sağlamak için uygulamadan çık</string>
     <string name="sleep_timer_will_close_app">Zamanlayıcı bittiğinde uygulama kapatılacak</string>
     <string name="search_history_title">Arama Geçmişi</string>
     <string name="save_search_history_title">Arama Geçmişini Kaydet</string>
@@ -564,15 +564,15 @@
     <string name="period_one_year">1 yıl</string>
     <string name="days_count_template">%1$d gün</string>
     <string name="import_data_title">Verileri İçe Aktar</string>
-    <string name="import_flow_backup_success">Flow yedeklemeyi başarıyla içe aktardı</string>
+    <string name="import_flow_backup_success">Flow yedeği başarıyla içe aktardı</string>
     <string name="import_flow_backup_failed_template">Flow yedeği içe aktarılamadı: %1$s</string>
-    <string name="import_newpipe_success_template">NewPipe\'tan %1$d abonelikler içeri aktarıldı</string>
+    <string name="import_newpipe_success_template">NewPipe\'tan %1$d abonelik içeri aktarıldı</string>
     <string name="import_newpipe_failed_template">NewPipe yedeklemesi içe aktarılamadı: %1$s</string>
-    <string name="import_youtube_success_template">YouTube\'dan %1$d abonelikler içeri aktarıldı</string>
+    <string name="import_youtube_success_template">YouTube\'dan %1$d abonelik içeri aktarıldı</string>
     <string name="import_youtube_failed_template">YouTube yedeklemesi içe aktarılamadı: %1$s</string>
     <string name="import_flow_backup_item_title">Flow yedeğini içe aktar</string>
     <string name="import_flow_backup_desc">Geçmişini, ayarlarını ve aboneliklerini bir Flow yedeğinden geri yükle.</string>
-    <string name="import_from_newpipe">NewPipe\'tan içeri aktar</string>
+    <string name="import_from_newpipe">NewPipe\'tan içe aktar</string>
     <string name="import_from_newpipe_desc">NewPipe yedek dosyasından (JSON) abonelikleri içe aktar.</string>
     <string name="import_from_libretube">LibreTube\'dan içeri aktar</string>
     <string name="import_from_libretube_desc">LibreTube yedek dosyasından (JSON) abonelikleri içe aktar.</string>
@@ -591,7 +591,7 @@
     <string name="settings_item_export_data">Verileri Dışa Aktar</string>
     <string name="settings_item_export_data_subtitle">Verileri Yedekle</string>
     <string name="settings_item_import_data">Verileri İçe Aktar</string>
-    <string name="settings_item_import_data_subtitle">Yedekleri geri yükle yada diğer uygulamadan içe aktar</string>
+    <string name="settings_item_import_data_subtitle">Yedekleri geri yükle ya da diğer uygulamadan içe aktar</string>
     <string name="settings_item_about_flow">Flow Hakkında</string>
     <string name="settings_item_about_flow_subtitle">Sürüm, Lisans, Katkıda bulunanlar</string>
     <string name="settings_item_support">Destek &amp; Bağış</string>
@@ -619,20 +619,20 @@
     <string name="appearance_customizer_reset">Sıfırla</string>
     <string name="appearance_customizer_save">Temayı Kaydet</string>
     <string name="appearance_role_primary">Ana Renk</string>
-    <string name="appearance_role_on_primary">Ana Renk İçeriği</string>
+    <string name="appearance_role_on_primary">Ana Renk Metni</string>
     <string name="appearance_role_secondary">Yardımcı Renk</string>
-    <string name="appearance_role_on_secondary">Yardımcı Renk İçeriği</string>
+    <string name="appearance_role_on_secondary">Yardımcı Renk Metni</string>
     <string name="appearance_role_tertiary">Detay Rengi</string>
-    <string name="appearance_role_on_tertiary">Detay Rengi İçeriği</string>
+    <string name="appearance_role_on_tertiary">Üçüncül Renk Metni</string>
     <string name="appearance_role_background">Arka Plan</string>
-    <string name="appearance_role_on_background">Arka Plan İçeriği</string>
+    <string name="appearance_role_on_background">Arka Plan Metni</string>
     <string name="appearance_role_surface">Zemin</string>
-    <string name="appearance_role_on_surface">Zemin İçeriği</string>
-    <string name="appearance_role_surface_variant">İkincil Zemin</string>
-    <string name="appearance_role_on_surface_variant">İkincil Zemin İçeriği</string>
+    <string name="appearance_role_on_surface">Yüzey Metni</string>
+    <string name="appearance_role_surface_variant">Alternatif Yüzey</string>
+    <string name="appearance_role_on_surface_variant">Alternatif Yüzey Metni</string>
     <string name="appearance_role_error">Hata</string>
-    <string name="appearance_role_on_error">Hata Yazısı</string>
-    <string name="appearance_role_outline">Çerçeve</string>
+    <string name="appearance_role_on_error">Hata Rengi Metni</string>
+    <string name="appearance_role_outline">Dış Çizgi</string>
     <string name="appearance_role_scrim">Arka Plan Karartması</string>
     <string name="appearance_system_defaults_title">Varsayılan Sistem Temaları</string>
     <string name="appearance_system_defaults_subtitle">Cihazın aydınlık ve karanlık mod arasında geçiş yaptığında kullanılacak temayı seç.</string>
@@ -659,7 +659,7 @@
     <string name="player_background_style_gradient">Renk Paleti Geçişi</string>
     <string name="player_background_style_default">Varsayılan Zemin</string>
     <string name="settings_item_player_appearance">Oynatıcı Görünümü</string>
-    <string name="settings_item_player_appearance_subtitle">İlerleme çubuğu stilini özelleştirme</string>
+    <string name="settings_item_player_appearance_subtitle">İlerleme çubuğu stilini özelleştir</string>
     <string name="style_default">Varsayılan (Flow)</string>
     <string name="style_metrolist">Metrolist (Kalın)</string>
     <string name="style_metrolist_slim">Metrolist (İnce)</string>
@@ -700,7 +700,7 @@
     <string name="lyrics_provider_better_lyrics">Better lyrics</string>
     <string name="lyrics_provider_simpmusic">Simpmusic</string>
     <string name="lyrics_provider_lyrics_plus">Lyricsplus</string>
-    <string name="theme_name_system_default">Sistem Varsayılanı­</string>
+    <string name="theme_name_system_default">Sistem Varsayılanı</string>
     <string name="theme_desc_system_default">Cihaz temasıyla senkronize et</string>
     <string name="theme_name_material_you">Dinamik</string>
     <string name="theme_desc_material_you">Android 12+ cihazlarda duvar kağıdı renkleri</string>
@@ -866,7 +866,7 @@
     <string name="proxy_settings_enabled_subtitle">Uzak ağ trafiği için yapılandırılmış vekil sunucuyu kullan</string>
     <string name="proxy_settings_type">Vekil Sunucu Türü</string>
     <string name="proxy_settings_host">Sunucu</string>
-    <string name="proxy_settings_port">Bağlantı Noktası</string>
+    <string name="proxy_settings_port">Port</string>
     <string name="proxy_settings_username">Kullanıcı Adı</string>
     <string name="proxy_settings_password">Şifre</string>
     <string name="proxy_settings_optional_auth">Kimlik doğrulaması gerektirmeyen vekil sunucular için kullanıcı adını ve şifreyi boş bırak.</string>
@@ -956,7 +956,7 @@
     <string name="sb_submit_swap">Zaman damgalarının yerini değiştir</string>
     <string name="sb_submit_create">Bölüm Oluştur</string>
     <string name="sb_submit_success">✓ Bölüm başarıyla gönderildi</string>
-    <string name="sb_submit_error">Bölüm gönderilemedi. Lütfen tekrar deneyin.</string>
+    <string name="sb_submit_error">Bölüm gönderilemedi. Lütfen tekrar dene.</string>
     <string name="section_channel">Kanal</string>
     <string name="section_algorithm">Algoritma</string>
     <string name="section_options">Seçenekler</string>
@@ -969,7 +969,7 @@
     <string name="player_settings_show_pip_subtitle">Oynatıcı ayarlarında resim içinde resim düğmesini göster</string>
     <string name="player_settings_header_audio">Ses</string>
     <string name="player_settings_play_during_calls">Aramalar Sırasında Oynat</string>
-    <string name="player_settings_play_during_calls_subtitle">Telefon veya VoIP aramaları sırasında oynatmaya devam edin</string>
+    <string name="player_settings_play_during_calls_subtitle">Telefon veya VoIP aramaları sırasında oynatmaya devam et</string>
     <string name="player_settings_audio_language">Tercih Edilen Ses Dili</string>
     <string name="player_settings_audio_language_dialog_title">Ses Dili</string>
     <string name="player_settings_audio_language_dialog_body">Tercih ettiğin ses dilini seç. Mevcut değilse orijinal dil kullanılacak.</string>
@@ -1027,8 +1027,8 @@
     <string name="import_yt_music_playlist_desc">YouTube Music Takeout\'un CSV\'sinden bir müzik oynatma listesini içe aktar. Müzik Oynatma Listeleri altında görünür.</string>
     <string name="import_yt_history_success_template">YouTube izleme geçmişinden %1$d kayıt içe aktarıldı</string>
     <string name="import_yt_history_failed_template">İzleme geçmişi içe aktarılamadı: %1$s</string>
-    <string name="import_yt_playlist_success_template">%2$d videodan oluşan “%1$s” numaralı oynatma listesi içe aktarıldı</string>
-    <string name="import_yt_playlist_failed_template">Çalma listesi içe aktarılamadı: %1$s</string>
+    <string name="import_yt_playlist_success_template">%2$d videodan oluşan “%1$s” isimli oynatma listesi içe aktarıldı</string>
+    <string name="import_yt_playlist_failed_template">Oynatma listesi içe aktarılamadı: %1$s</string>
     <string name="import_yt_history_empty_error">Dosyada hiçbir izleme geçmişi kaydı bulunamadı. YouTube Takeout\'tan watch-history.html dosyası olduğundan emin ol.</string>
     <string name="import_yt_playlist_empty_error">Bu CSV\'de hiç video bulunamadı. YouTube Takeout\'tan oynatma listesi CSV dosyası olduğundan emin ol.</string>
     <string name="download_settings_title">İndirme Ayarları</string>
@@ -1133,7 +1133,7 @@
     <string name="playlist_empty_desc">Oynatıcıdan videolar ekleyerek\noynatma listeni oluştur</string>
     <string name="delete_playlist_dialog_title">Oynatma listesi silinsin mi?</string>
     <string name="delete_playlist_dialog_text">Bu işlem, \'%1$s\' oynatma listesini ve içindeki tüm videoları kalıcı olarak silecek.</string>
-    <string name="playlist_metadata_private_template">Oynatma listesi • Gizli • %1$d video</string>
+    <string name="playlist_metadata_private_template">Oynatma Listesi • Gizli • %1$d video</string>
     <string name="playlist_metadata_public_template">Oynatma Listesi • Herkese Açık • %1$d video</string>
     <string name="playlist_sort_options">Oynatma listesi sıralama seçenekleri</string>
     <string name="playlist_sort_manual">Manuel</string>
@@ -1232,7 +1232,7 @@
     <string name="action_remove_from_favorites">Favorilerden Kaldır</string>
     <string name="action_add_to_favorites">Favorilere Ekle</string>
     <string name="action_listen_now">Şimdi Dinle</string>
-    <string name="action_play_all">Tümünü oynat</string>
+    <string name="action_play_all">Hepsini oynat</string>
     <string name="loading_music">Müzik yükleniyor...</string>
     <string name="screen_title_music">MÜZİK</string>
     <string name="section_listen_again">Yeniden dinle</string>
@@ -1264,7 +1264,7 @@
     <string name="similar_to">Benzerleri</string>
     <string name="section_similar_to">%1$s benzeri</string>
     <string name="subtitle_similar_to">Dinleme geçmişine göre</string>
-    <string name="section_vibe_vibes">%1$s Esintisi</string>
+    <string name="section_vibe_vibes">%1$s Vibes</string>
     <string name="subtitle_community_playlists">Topluluk Oynatma Listeleri</string>
     <string name="playlist_author_community">Topluluk Oynatma Listesi</string>
     <string name="playlist_description_community">Topluluğumuz tarafından özenle seçilen %1$s müzikleri oynatma listesi</string>
@@ -1316,7 +1316,7 @@
     <string name="total_size">Toplam Boyut</string>
     <string name="tracks_count_template">%1$s parça</string>
     <string name="btn_minimize">Küçült</string>
-    <string name="captions">Altyazılar</string>
+    <string name="captions">Açıklamalı Altyazılar</string>
     <string name="pip_mode">Resim içinde Resim</string>
     <string name="previous_video">Önceki Video</string>
     <string name="next_video">Sonraki Video</string>
@@ -1326,7 +1326,7 @@
     <string name="resize_fill">Doldur</string>
     <string name="resize_zoom">Yakınlaştır</string>
     <string name="shorts_audio_track">Ses Parçası</string>
-    <string name="shorts_auto_scroll_active_template">Otomatik %1$dsn</string>
+    <string name="shorts_auto_scroll_active_template">Otomatik %1$d sn</string>
     <string name="shorts_quality">Kalite</string>
     <string name="shorts_no_audio_tracks">Kullanılabilir ses parçası yok</string>
     <string name="shorts_audio_original">Orijinal</string>
@@ -1342,7 +1342,7 @@
     <string name="add_video_to_queue_desc">Video sırasının sonuna ekle</string>
     <string name="added_to_queue_toast">Sıraya eklendi</string>
     <string name="play_next_toast">Sıradaki olarak oynatılacak</string>
-    <string name="no_active_queue_toast">Etkin video sırası yok. Önce bir video oynatmaya başlayın.</string>
+    <string name="no_active_queue_toast">Etkin video sırası yok. Önce bir video oynatmaya başla.</string>
     <string name="download_video">Videoyu İndir</string>
     <string name="select_quality">Tercih ettiğin kaliteyi seç</string>
     <string name="no_download_streams">Kullanılabilir indirme akışı yok</string>
@@ -1521,7 +1521,7 @@
     <string name="metric_interactions">Etkileşimler</string>
     <string name="metric_interactions_detail">tıklamalar, izlemeler, atlamalar</string>
     <string name="metric_topics">Konular</string>
-    <string name="metric_topics_detail">Ağırlıklı ilgi alanları</string>
+    <string name="metric_topics_detail">ağırlıklı ilgi alanları</string>
     <string name="metric_evidence">Kanıt</string>
     <string name="metric_evidence_detail">onaylanmış konular</string>
     <string name="metric_channels">Kanallar</string>
@@ -1618,9 +1618,20 @@
     <string name="shorts_playback_speed">Oynatma hızı</string>
     <string name="speed_normal">Normal</string>
     <string name="export_watch_history_title">İzleme geçmişi</string>
-    <string name="export_watch_history_desc">YouTube geçmişi JSON dosyası olarak dışa aktar (LibreTube ve Flow\'a içe aktarılabilir)</string>
+    <string name="export_watch_history_desc">YouTube geçmişini JSON dosyası olarak dışa aktar (LibreTube ve Flow\'a içe aktarılabilir)</string>
     <string name="history_export_failed">İzleme geçmişi dışa aktarılamadı</string>
     <string name="history_delete_shorts">Shorts videolarını geçmişten sil</string>
     <string name="history_delete_shorts_title">Shorts videoları silinsin mi?</string>
     <string name="history_delete_shorts_body">Bu işlem tüm Shorts videolarını izleme geçmişinden kaldırır. Diğer videolar korunur.</string>
+    <string name="download_audio">Ses</string>
+    <string name="download_title_label">Başlık</string>
+    <string name="download_format_label">Format</string>
+    <string name="download_threads_label">İş Parçacığı</string>
+    <string name="download_no_compatible_audio">Uyumlu ses akışı yok — indirme işlemine devam edilemiyor</string>
+    <string name="download_menu_style_title">İndirme Menüsü Stili</string>
+    <string name="download_menu_style_subtitle">İndirme menüsünün nasıl görüneceğini seç</string>
+    <string name="download_menu_style_classic">Klasik</string>
+    <string name="download_menu_style_classic_desc">Tüm kalite ve kodeklerin tam listesi</string>
+    <string name="download_menu_style_compact">Kompakt</string>
+    <string name="download_menu_style_compact_desc">Düzenlenebilir başlık, açılır menüler ve iş parçacığı sayısı</string>
 </resources>
