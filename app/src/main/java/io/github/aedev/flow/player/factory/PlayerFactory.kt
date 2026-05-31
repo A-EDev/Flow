@@ -146,7 +146,7 @@ class PlayerFactory {
 
     fun createRenderersFactory(context: Context): DefaultRenderersFactory {
         return CustomRenderersFactory(context)
-            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             .setEnableDecoderFallback(true)
     }
 

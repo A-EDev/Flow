@@ -22,18 +22,7 @@ class QualityManager(
         private const val TAG = "QualityManager"
 
         fun normalizeQualityHeight(rawHeight: Int): Int {
-            return when {
-                rawHeight <= 0 -> 0
-                rawHeight in setOf(2160, 1440, 1080, 720, 480, 360, 240, 144) -> rawHeight
-                rawHeight >= 3300 -> 2160
-                rawHeight in 2400..3299 -> 1440
-                rawHeight in 1800..2399 -> 1080
-                rawHeight in 1200..1799 -> 720
-                rawHeight in 800..1199 -> 480
-                rawHeight in 560..799 -> 360
-                rawHeight in 300..559 -> 240
-                else -> 144
-            }
+            return VideoCodecUtils.normalizeQualityHeight(rawHeight)
         }
     }
     

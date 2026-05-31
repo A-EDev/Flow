@@ -25,6 +25,7 @@ import io.github.aedev.flow.utils.ThumbnailUrlResolver
 
 // Modular components
 import io.github.aedev.flow.player.audio.AudioFeaturesManager
+import io.github.aedev.flow.player.analytics.PlaybackAnalyticsLogger
 import io.github.aedev.flow.player.cache.PlayerCacheManager
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.data.model.Video
@@ -34,6 +35,7 @@ import io.github.aedev.flow.player.media.MediaLoader
 import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.innertube.YouTube
 import io.github.aedev.flow.innertube.models.YouTubeClient
+import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.sabr.integration.SabrStreamInfo
 import io.github.aedev.flow.player.sabr.integration.SabrUrlResolver
 import io.github.aedev.flow.player.service.BackgroundServiceManager
@@ -76,6 +78,8 @@ class EnhancedPlayerManager private constructor() {
     companion object {
         private const val TAG = PlayerConfig.TAG
         private const val LIVE_EDGE_THRESHOLD_MS = 700L
+        private const val SABR_QUALITY_KEY_PREFIX = "sabr:"
+        private val QUALITY_HEIGHT_REGEX = Regex("""(\d+)p""")
         
         @Volatile
         private var instance: EnhancedPlayerManager? = null
@@ -315,6 +319,7 @@ class EnhancedPlayerManager private constructor() {
             renderersFactory = renderersFactory,
             dataSourceFactory = cacheManager?.getDataSourceFactory()
         )
+        player?.addAnalyticsListener(PlaybackAnalyticsLogger(TAG) { currentVideoId })
         
         audioFeaturesManager?.setPlayer(player!!)
         
@@ -574,7 +579,7 @@ class EnhancedPlayerManager private constructor() {
         _playerState.value = _playerState.value.copy(
             currentVideoId = videoId,
             effectiveQuality = currentVideoStream?.let { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) } ?: 0,
-            availableQualities = qualityManager?.buildQualityOptions() ?: emptyList(),
+            availableQualities = buildAvailableQualityOptions(),
             availableAudioTracks = StreamProcessor.toAudioTrackOptions(availableAudioStreams),
             availableSubtitles = StreamProcessor.toSubtitleOptions(availableSubtitles),
             currentQuality = if (isAutoMode) 0 else (currentVideoStream?.let { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) } ?: 0),
@@ -1318,11 +1323,107 @@ class EnhancedPlayerManager private constructor() {
             p.playbackState != Player.STATE_IDLE
     }
 
+    private fun buildAvailableQualityOptions(): List<QualityOption> {
+        val directOptions = qualityManager?.buildQualityOptions().orEmpty()
+        val autoOptions = directOptions.filter { it.height == 0 }
+        val playableOptions = directOptions.filter { it.height != 0 }
+        val existingKeys = playableOptions
+            .map { "${it.height}_${it.codecKey}" }
+            .toHashSet()
+
+        val sabrOptions = if (currentSabrInfo != null) {
+            innerTubeVideoFormats
+                .filter { !it.isAudio && it.itag > 0 }
+                .groupBy { "${qualityHeightFromFormat(it)}_${VideoCodecUtils.codecKeyFromMimeType(it.mimeType)}" }
+                .values
+                .mapNotNull { formats ->
+                    val best = formats.maxByOrNull { it.averageBitrate ?: it.bitrate } ?: return@mapNotNull null
+                    val height = qualityHeightFromFormat(best)
+                    val codecKey = VideoCodecUtils.codecKeyFromMimeType(best.mimeType)
+                    if ("${height}_${codecKey}" in existingKeys) return@mapNotNull null
+                    QualityOption(
+                        height = height,
+                        label = "${qualityLabelFromFormat(best)} ${VideoCodecUtils.codecLabelFromKey(codecKey)}",
+                        bitrate = (best.averageBitrate ?: best.bitrate).toLong(),
+                        codecKey = codecKey,
+                        streamKey = "$SABR_QUALITY_KEY_PREFIX${best.itag}"
+                    )
+                }
+        } else {
+            emptyList()
+        }
+
+        val auto = autoOptions.ifEmpty { listOf(QualityOption(height = 0, label = "Auto", bitrate = 0L)) }
+        val sortedOptions = (playableOptions + sabrOptions).sortedWith(
+            compareByDescending<QualityOption> { it.height }
+                .thenBy { VideoCodecUtils.playbackCodecRank(it.codecKey) }
+                .thenByDescending { it.bitrate }
+        )
+        return auto + sortedOptions
+    }
+
+    private fun switchSabrQuality(option: QualityOption): Boolean {
+        val streamKey = option.streamKey ?: return false
+        val itag = streamKey.removePrefix(SABR_QUALITY_KEY_PREFIX).toIntOrNull() ?: return false
+        val baseSabr = currentSabrInfo ?: return false
+        val format = innerTubeVideoFormats.firstOrNull { it.itag == itag && !it.isAudio }
+        if (format == null) {
+            Log.w(TAG, "No SABR video format found for itag=$itag")
+            return false
+        }
+
+        val position = player?.currentPosition ?: 0L
+        val shouldPlay = player?.playWhenReady ?: true
+        currentSabrInfo = baseSabr.copy(
+            videoItag = format.itag,
+            videoLmt = format.lastModified ?: 0L,
+            videoMimeType = format.mimeType,
+            durationMs = format.approxDurationMs?.toLongOrNull() ?: baseSabr.durationMs
+        )
+
+        _playerState.value = _playerState.value.copy(
+            currentQuality = option.height,
+            effectiveQuality = option.height,
+            currentQualityKey = streamKey,
+            isBuffering = true
+        )
+
+        Log.d(TAG, "Switching SABR quality to ${option.label} (itag=$itag)")
+        scope.launch {
+            mediaLoader?.releaseSabr()
+            player?.stop()
+            player?.clearMediaItems()
+            val loaded = loadMediaInternal(currentVideoStream, currentAudioStream, position)
+            if (loaded) {
+                player?.playWhenReady = shouldPlay
+            }
+        }
+        return true
+    }
+
+    private fun qualityHeightFromFormat(format: PlayerResponse.StreamingData.Format): Int {
+        format.qualityLabel
+            ?.let { QUALITY_HEIGHT_REGEX.find(it)?.groupValues?.getOrNull(1)?.toIntOrNull() }
+            ?.let { return it }
+        return VideoCodecUtils.normalizeQualityHeight(format.height ?: format.width ?: 0)
+    }
+
+    private fun qualityLabelFromFormat(format: PlayerResponse.StreamingData.Format): String {
+        return format.qualityLabel
+            ?.takeIf { it.isNotBlank() }
+            ?: "${qualityHeightFromFormat(format)}p"
+    }
+
     // ===== Quality & Audio Management =====
     
     fun switchQualityByHeight(height: Int) = qualityManager?.switchQualityByHeight(height, player?.currentPosition ?: 0L)
     fun switchQuality(height: Int) = switchQualityByHeight(height)
-    fun switchQuality(option: QualityOption) = qualityManager?.switchQuality(option, player?.currentPosition ?: 0L)
+    fun switchQuality(option: QualityOption): Boolean? {
+        if (option.streamKey?.startsWith(SABR_QUALITY_KEY_PREFIX) == true) {
+            return switchSabrQuality(option)
+        }
+        return qualityManager?.switchQuality(option, player?.currentPosition ?: 0L)
+    }
     
     fun switchAudioTrack(index: Int) {
         if (index in availableAudioStreams.indices) {

@@ -10,6 +10,7 @@ import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import io.github.aedev.flow.network.AppProxyManager
 import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 
 /**
  * YouTube-specific HttpDataSource optimized for streaming performance.
@@ -34,13 +35,43 @@ class YouTubeHttpDataSource private constructor(
         private var userAgent = "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 
         override fun createDataSource(): HttpDataSource {
-            return YouTubeHttpDataSource(userAgent, requestProperties)
+            return YouTubeHttpDataSource(userAgent, requestProperties.toMap())
         }
 
         override fun setDefaultRequestProperties(defaultRequestProperties: MutableMap<String, String>): HttpDataSource.Factory {
             requestProperties.clear()
             requestProperties.putAll(defaultRequestProperties)
             return this
+        }
+    }
+
+    companion object {
+        private val clientLock = Any()
+
+        @Volatile
+        private var cachedClient: OkHttpClient? = null
+
+        @Volatile
+        private var cachedProxySignature: String = ""
+
+        private fun sharedClient(): OkHttpClient {
+            val proxySignature = AppProxyManager.currentSignature()
+            cachedClient?.takeIf { cachedProxySignature == proxySignature }?.let { return it }
+
+            return synchronized(clientLock) {
+                cachedClient?.takeIf { cachedProxySignature == proxySignature } ?: run {
+                    val client = AppProxyManager.applyTo(OkHttpClient.Builder())
+                        .connectTimeout(15, TimeUnit.SECONDS)
+                        .readTimeout(30, TimeUnit.SECONDS)
+                        .followRedirects(true)
+                        .followSslRedirects(true)
+                        .retryOnConnectionFailure(true)
+                        .build()
+                    cachedProxySignature = proxySignature
+                    cachedClient = client
+                    client
+                }
+            }
         }
     }
 
@@ -53,18 +84,16 @@ class YouTubeHttpDataSource private constructor(
         } else {
             userAgent
         }
-        val factory = OkHttpDataSource.Factory(
-            AppProxyManager.applyTo(OkHttpClient.Builder())
-                .connectTimeout(15, java.util.concurrent.TimeUnit.SECONDS)
-                .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                .followRedirects(true)
-                .followSslRedirects(true)
-                .retryOnConnectionFailure(true)
-                .build()
-        ).setUserAgent(requestUserAgent)
+        val factory = OkHttpDataSource.Factory(sharedClient())
+            .setUserAgent(requestUserAgent)
 
+        val requestHeaders = LinkedHashMap<String, String>()
+        requestHeaders.putAll(defaultRequestProperties)
         if (isYouTubeUri(dataSpec.uri)) {
-            addYouTubeHeaders(factory)
+            requestHeaders.putAll(youtubeHeaders())
+        }
+        if (requestHeaders.isNotEmpty()) {
+            factory.setDefaultRequestProperties(requestHeaders)
         }
 
         dataSource = factory.createDataSource()
@@ -111,8 +140,8 @@ class YouTubeHttpDataSource private constructor(
      * Add headers that YouTube expects/requires for video streaming.
      * These help avoid bot detection and ensure proper CDN routing.
      */
-    private fun addYouTubeHeaders(factory: OkHttpDataSource.Factory) {
-        val headers = mapOf(
+    private fun youtubeHeaders(): Map<String, String> {
+        return mapOf(
             "Origin" to "https://www.youtube.com",
             "Referer" to "https://www.youtube.com/",
             "Sec-Fetch-Dest" to "empty",
@@ -123,6 +152,5 @@ class YouTubeHttpDataSource private constructor(
             // Accept header for video content
             "Accept" to "*/*"
         )
-        factory.setDefaultRequestProperties(headers)
     }
 }

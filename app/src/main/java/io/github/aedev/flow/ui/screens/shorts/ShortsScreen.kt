@@ -236,21 +236,13 @@ fun ShortsScreen(
 
                     val settled = pagerState.settledPage
                     val playerPool = ShortsPlayerPool.getInstance()
+                    val preferredLang = audioLangPref.preferredAudioLanguage.first()
 
                     val currentShort = uiState.shorts.getOrNull(settled) ?: return@LaunchedEffect
                     try {
-                        val streamInfo = viewModel.getVideoStreamInfo(currentShort.id)
-                            ?: return@LaunchedEffect
-                        val allVideoStreams = (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
-                        val videoStream = if (newHeight == 0) {
-                            allVideoStreams.maxByOrNull { it.height }
-                        } else {
-                            allVideoStreams.filter { it.height <= newHeight }.maxByOrNull { it.height }
-                                ?: allVideoStreams.minByOrNull { it.height }
-                        }
-                        val vUrl = videoStream?.content ?: videoStream?.url
-                        if (vUrl != null) {
-                            playerPool.reloadWithVideoUrl(settled, currentShort.id, vUrl)
+                        val streams = viewModel.getPlaybackStreams(currentShort.id, newHeight, preferredLang)
+                        if (streams != null) {
+                            playerPool.reloadWithVideoUrl(settled, currentShort.id, streams.videoUrl)
                         }
                     } catch (e: Exception) {
                         Log.e("ShortsScreen", "Quality change: failed to reload ${currentShort.id}", e)
@@ -259,34 +251,16 @@ fun ShortsScreen(
                     uiState.shorts.getOrNull(settled + 1)?.let { nextShort ->
                         launch {
                             runCatching {
-                                val streamInfo = viewModel.getVideoStreamInfo(nextShort.id)
-                                    ?: return@runCatching
-                                val allVideoStreams = (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
-                                val videoStream = if (newHeight == 0) {
-                                    allVideoStreams.maxByOrNull { it.height }
-                                } else {
-                                    allVideoStreams.filter { it.height <= newHeight }.maxByOrNull { it.height }
-                                        ?: allVideoStreams.minByOrNull { it.height }
-                                }
-                                val vUrl = videoStream?.content ?: videoStream?.url
-                                if (vUrl != null) playerPool.reloadWithVideoUrl(settled + 1, nextShort.id, vUrl)
+                                val streams = viewModel.getPlaybackStreams(nextShort.id, newHeight, preferredLang)
+                                if (streams != null) playerPool.reloadWithVideoUrl(settled + 1, nextShort.id, streams.videoUrl)
                             }
                         }
                     }
                     uiState.shorts.getOrNull(settled - 1)?.let { prevShort ->
                         launch {
                             runCatching {
-                                val streamInfo = viewModel.getVideoStreamInfo(prevShort.id)
-                                    ?: return@runCatching
-                                val allVideoStreams = (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
-                                val videoStream = if (newHeight == 0) {
-                                    allVideoStreams.maxByOrNull { it.height }
-                                } else {
-                                    allVideoStreams.filter { it.height <= newHeight }.maxByOrNull { it.height }
-                                        ?: allVideoStreams.minByOrNull { it.height }
-                                }
-                                val vUrl = videoStream?.content ?: videoStream?.url
-                                if (vUrl != null) playerPool.reloadWithVideoUrl(settled - 1, prevShort.id, vUrl)
+                                val streams = viewModel.getPlaybackStreams(prevShort.id, newHeight, preferredLang)
+                                if (streams != null) playerPool.reloadWithVideoUrl(settled - 1, prevShort.id, streams.videoUrl)
                             }
                         }
                     }

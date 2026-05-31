@@ -19,6 +19,7 @@ import androidx.media3.exoplayer.trackselection.AdaptiveTrackSelection
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.exoplayer.upstream.DefaultAllocator
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.player.analytics.PlaybackAnalyticsLogger
 import io.github.aedev.flow.player.config.PlayerConfig
 import io.github.aedev.flow.player.datasource.YouTubeHttpDataSource
 import kotlinx.coroutines.CoroutineScope
@@ -164,10 +165,11 @@ class ShortsPlayerPool private constructor() {
             AdaptiveTrackSelection.Factory()
         ).apply {
             val builder = buildUponParameters()
+                .setPreferredVideoMimeTypes(*PlayerConfig.PREFERRED_VIDEO_MIME_TYPES)
                 .setAllowVideoMixedMimeTypeAdaptiveness(true)
                 .setForceHighestSupportedBitrate(false)
                 .setViewportSizeToPhysicalDisplaySize(context, true)
-                .setMaxVideoSize(1080, 1920)
+                .setMaxVideoSize(3840, 3840)
             
             if (preferredAudioLanguage != "original" && preferredAudioLanguage.isNotEmpty()) {
                 builder.setPreferredAudioLanguage(preferredAudioLanguage)
@@ -177,7 +179,7 @@ class ShortsPlayerPool private constructor() {
         }
 
         val renderersFactory = DefaultRenderersFactory(context)
-            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
             .setEnableDecoderFallback(true)
 
         return ExoPlayer.Builder(context, renderersFactory)
@@ -197,6 +199,7 @@ class ShortsPlayerPool private constructor() {
                 repeatMode = Player.REPEAT_MODE_ONE
                 playWhenReady = false
                 videoScalingMode = C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+                addAnalyticsListener(PlaybackAnalyticsLogger(TAG) { _currentVideoId.value })
             }
     }
 

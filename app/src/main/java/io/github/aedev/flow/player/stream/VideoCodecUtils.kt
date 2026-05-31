@@ -5,6 +5,7 @@ import org.schabi.newpipe.extractor.stream.VideoStream
 
 object VideoCodecUtils {
     private val QUALITY_HEIGHT_REGEX = Regex("""(\d+)p""")
+    private val CODECS_PARAMETER_REGEX = Regex("""codecs\s*=\s*["']([^"']+)["']""", RegexOption.IGNORE_CASE)
 
     private val AV1_ITAGS = setOf(394, 395, 396, 397, 398, 399, 400, 401, 402, 571, 694, 695, 696, 697, 698, 699, 700, 701)
     private val VP9_ITAGS = setOf(
@@ -21,7 +22,7 @@ object VideoCodecUtils {
 
     fun codecKeyFromMimeType(mimeType: String): String {
         val m = mimeType.lowercase()
-        val codecs = m.substringAfter("codecs=\"", "").substringBefore("\"")
+        val codecs = codecStringFromMimeType(m)
         return when {
             "av01" in codecs -> "av1"
             "vp09" in codecs || "vp9" in codecs -> "vp9"
@@ -31,6 +32,16 @@ object VideoCodecUtils {
             "webm" in m -> "vp9"
             else -> "h264"
         }
+    }
+
+    fun codecStringFromMimeType(mimeType: String): String {
+        val m = mimeType.lowercase()
+        return CODECS_PARAMETER_REGEX.find(m)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.substringBefore(",")
+            ?.trim()
+            .orEmpty()
     }
 
     fun codecKeyFromStream(stream: VideoStream): String {
@@ -73,7 +84,7 @@ object VideoCodecUtils {
         parseQualityHeight(stream.resolution)?.let { return it }
         parseQualityHeight(stream.quality)?.let { return it }
         parseQualityHeight(stream.itagItem?.resolutionString)?.let { return it }
-        return normalizeFallbackHeight(stream.height)
+        return normalizeQualityHeight(stream.height)
     }
 
     fun qualityLabelFromStream(stream: VideoStream): String {
@@ -85,13 +96,21 @@ object VideoCodecUtils {
     fun playbackCodecRank(stream: VideoStream): Int = playbackCodecRank(codecKeyFromStream(stream))
 
     fun playbackCodecRank(codecKey: String): Int = when (codecKey) {
-        "vp9" -> 0
-        "h264" -> 1
-        "av1" -> 2
-        "vp8" -> 3
-        "hevc" -> 4
+        "h264" -> 0
+        "vp9" -> 1
+        "vp8" -> 2
+        "hevc" -> 3
+        "av1" -> 4
         else -> 5
     }
+
+    fun preferredVideoMimeTypes(): Array<String> = arrayOf(
+        "video/avc",
+        "video/x-vnd.on2.vp9",
+        "video/x-vnd.on2.vp8",
+        "video/hevc",
+        "video/av01"
+    )
 
     private fun itagFromUrl(url: String): Int? {
         if (url.isBlank()) return null
@@ -115,18 +134,11 @@ object VideoCodecUtils {
         return QUALITY_HEIGHT_REGEX.find(value)?.groupValues?.getOrNull(1)?.toIntOrNull()
     }
 
-    private fun normalizeFallbackHeight(rawHeight: Int): Int {
+    fun normalizeQualityHeight(rawHeight: Int): Int {
         return when {
             rawHeight <= 0 -> 0
             rawHeight in setOf(2160, 1440, 1080, 720, 480, 360, 240, 144) -> rawHeight
-            rawHeight >= 3300 -> 2160
-            rawHeight in 2400..3299 -> 1440
-            rawHeight in 1800..2399 -> 1080
-            rawHeight in 1200..1799 -> 720
-            rawHeight in 800..1199 -> 480
-            rawHeight in 560..799 -> 360
-            rawHeight in 300..559 -> 240
-            else -> 144
+            else -> rawHeight
         }
     }
 }

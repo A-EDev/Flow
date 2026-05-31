@@ -126,6 +126,7 @@ fun ShortVideoPage(
     var availableQualities by remember { mutableStateOf<List<io.github.aedev.flow.data.shorts.ShortVideoQuality>>(emptyList()) }
     var selectedAudioIndex by remember { mutableStateOf(0) }
     var selectedQualityHeight by remember { mutableStateOf(-1) }
+    var selectedQualityUrl by remember { mutableStateOf<String?>(null) }
     var isLoadingStreams by remember { mutableStateOf(false) }
     
     // ── Download State ──
@@ -279,7 +280,7 @@ fun ShortVideoPage(
                         hasStartedPlaying = true
                     }
                 }
-                delay(250)
+                delay(500)
             }
         }
     }
@@ -906,9 +907,11 @@ fun ShortVideoPage(
         ShortsQualitySheet(
             qualities = availableQualities,
             selectedHeight = selectedQualityHeight.takeIf { it >= 0 },
+            selectedVideoUrl = selectedQualityUrl,
             onQualitySelected = { quality ->
                 playerPool.reloadWithVideoUrl(pageIndex, video.id, quality.videoUrl)
                 selectedQualityHeight = quality.heightClass
+                selectedQualityUrl = quality.videoUrl
                 showQualitySheet = false
             },
             onDismiss = { showQualitySheet = false }
@@ -1335,6 +1338,7 @@ private fun ShortsAudioTrackSheet(
 private fun ShortsQualitySheet(
     qualities: List<io.github.aedev.flow.data.shorts.ShortVideoQuality>,
     selectedHeight: Int?,
+    selectedVideoUrl: String?,
     onQualitySelected: (io.github.aedev.flow.data.shorts.ShortVideoQuality) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -1353,7 +1357,8 @@ private fun ShortsQualitySheet(
             HorizontalDivider()
             LazyColumn {
                 items(qualities) { quality ->
-                    val isSelected = quality.heightClass == selectedHeight
+                    val isSelected = selectedVideoUrl?.let { it == quality.videoUrl }
+                        ?: (quality.heightClass == selectedHeight)
                     val label = quality.label
                     val formatLabel = quality.codecLabel
                     Surface(

@@ -19,6 +19,9 @@ object InnerTubeStreamBridge {
             val url = format.url ?: return@mapNotNull null
             val height = format.height ?: return@mapNotNull null
             val mediaFormat = mapVideoMimeToMediaFormat(format.mimeType) ?: return@mapNotNull null
+            val resolutionLabel = format.qualityLabel
+                ?.takeIf { it.isNotBlank() }
+                ?: "${height}p"
 
             try {
                 VideoStream.Builder()
@@ -26,7 +29,7 @@ object InnerTubeStreamBridge {
                     .setItagItem(itagItemOrNull(format.itag))
                     .setContent(url, true)
                     .setMediaFormat(mediaFormat)
-                    .setResolution("${height}p")
+                    .setResolution(resolutionLabel)
                     .setIsVideoOnly(true)
                     .setDeliveryMethod(DeliveryMethod.PROGRESSIVE_HTTP)
                     .build()

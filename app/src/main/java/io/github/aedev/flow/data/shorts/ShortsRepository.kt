@@ -579,13 +579,22 @@ class ShortsRepository private constructor(private val context: Context) {
             val formats = result?.videoFormats?.filter { !it.url.isNullOrBlank() }.orEmpty()
             if (formats.isNotEmpty()) {
                 return@withContext formats
-                    .groupBy { shortsQualityClass(it) }
-                    .mapNotNull { (cls, group) ->
+                    .groupBy { format -> "${shortsQualityClass(format)}_${VideoCodecUtils.codecKeyFromMimeType(format.mimeType)}" }
+                    .mapNotNull { (_, group) ->
                         val best = group.maxByOrNull { it.averageBitrate ?: it.bitrate } ?: return@mapNotNull null
+                        val cls = shortsQualityClass(best)
                         val url = best.url ?: return@mapNotNull null
-                        ShortVideoQuality(cls, "${cls}p", url, codecLabelFromMime(best.mimeType))
+                        val codecKey = VideoCodecUtils.codecKeyFromMimeType(best.mimeType)
+                        ShortVideoQuality(
+                            heightClass = cls,
+                            label = "${cls}p",
+                            videoUrl = url,
+                            codecLabel = VideoCodecUtils.codecLabelFromKey(codecKey),
+                            codecKey = codecKey
+                        )
                     }
-                    .sortedByDescending { it.heightClass }
+                    .sortedWith(compareByDescending<ShortVideoQuality> { it.heightClass }
+                        .thenBy { VideoCodecUtils.playbackCodecRank(it.codecKey) })
             }
         } catch (e: Exception) {
             Log.w(TAG, "getAvailableVideoQualities (unified) failed for $videoId: ${e.message}")
@@ -594,13 +603,24 @@ class ShortsRepository private constructor(private val context: Context) {
         val streamInfo = resolveStreamInfo(videoId) ?: return@withContext emptyList()
         (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
             .filterIsInstance<org.schabi.newpipe.extractor.stream.VideoStream>()
-            .groupBy { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) }
-            .mapNotNull { (cls, group) ->
-                val best = group.maxByOrNull { it.bitrate } ?: return@mapNotNull null
-                val url = best.content ?: best.url ?: return@mapNotNull null
-                ShortVideoQuality(cls, "${cls}p", url, best.format?.name?.uppercase() ?: "")
+            .groupBy { stream ->
+                "${QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(stream))}_${VideoCodecUtils.codecKeyFromStream(stream)}"
             }
-            .sortedByDescending { it.heightClass }
+            .mapNotNull { (_, group) ->
+                val best = group.maxByOrNull { it.bitrate } ?: return@mapNotNull null
+                val cls = QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(best))
+                val url = best.content ?: best.url ?: return@mapNotNull null
+                val codecKey = VideoCodecUtils.codecKeyFromStream(best)
+                ShortVideoQuality(
+                    heightClass = cls,
+                    label = "${cls}p",
+                    videoUrl = url,
+                    codecLabel = VideoCodecUtils.codecLabelFromKey(codecKey),
+                    codecKey = codecKey
+                )
+            }
+            .sortedWith(compareByDescending<ShortVideoQuality> { it.heightClass }
+                .thenBy { VideoCodecUtils.playbackCodecRank(it.codecKey) })
     }
 
     suspend fun getInnerTubeDownloadFormats(
@@ -637,16 +657,27 @@ class ShortsRepository private constructor(private val context: Context) {
         return if (w > 0 && h > 0) minOf(w, h) else maxOf(w, h)
     }
 
+    private fun sortedVideoFormatsForPlayback(
+        formats: List<PlayerResponse.StreamingData.Format>
+    ): List<PlayerResponse.StreamingData.Format> =
+        formats.sortedWith(
+            compareByDescending<PlayerResponse.StreamingData.Format> { shortsQualityClass(it) }
+                .thenBy { VideoCodecUtils.playbackCodecRank(VideoCodecUtils.codecKeyFromMimeType(it.mimeType)) }
+                .thenByDescending { it.averageBitrate ?: it.bitrate }
+        )
+
     private fun selectVideoForTarget(
         videoFormats: List<PlayerResponse.StreamingData.Format>,
         targetHeight: Int
-    ): PlayerResponse.StreamingData.Format? =
-        if (targetHeight == 0) {
-            videoFormats.maxByOrNull { shortsQualityClass(it) }
+    ): PlayerResponse.StreamingData.Format? {
+        val candidates = if (targetHeight == 0) {
+            videoFormats
         } else {
-            videoFormats.filter { shortsQualityClass(it) <= targetHeight }.maxByOrNull { shortsQualityClass(it) }
-                ?: videoFormats.minByOrNull { shortsQualityClass(it) }
+            videoFormats.filter { shortsQualityClass(it) <= targetHeight }
         }
+        return sortedVideoFormatsForPlayback(candidates).firstOrNull()
+            ?: videoFormats.minByOrNull { shortsQualityClass(it) }
+    }
 
     private fun selectAudioForLanguage(
         audioFormats: List<PlayerResponse.StreamingData.Format>,
@@ -975,5 +1006,6 @@ data class ShortVideoQuality(
     val heightClass: Int,
     val label: String,
     val videoUrl: String,
-    val codecLabel: String
+    val codecLabel: String,
+    val codecKey: String = ""
 )

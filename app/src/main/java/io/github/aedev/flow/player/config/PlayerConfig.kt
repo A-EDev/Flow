@@ -1,16 +1,12 @@
 package io.github.aedev.flow.player.config
 
+import io.github.aedev.flow.player.stream.VideoCodecUtils
+
 object PlayerConfig {
     
     const val TAG = "EnhancedPlayerManager"
 
-    val PREFERRED_VIDEO_MIME_TYPES = arrayOf(
-        "video/x-vnd.on2.vp9",
-        "video/avc",
-        "video/x-vnd.on2.vp8",
-        "video/hevc",
-        "video/av01"
-    )
+    val PREFERRED_VIDEO_MIME_TYPES = VideoCodecUtils.preferredVideoMimeTypes()
     
     // ===== Cache Configuration =====
     /** Maximum cache size in bytes (500 MB — default) */
@@ -123,7 +119,7 @@ object PlayerConfig {
     
     // ===== Position Tracking =====
     /** Position tracker polling interval in milliseconds */
-    const val POSITION_TRACKER_INTERVAL_MS = 500L
+    const val POSITION_TRACKER_INTERVAL_MS = 1_000L
     
     /** Auto-save interval in milliseconds (30 seconds) */
     const val AUTO_SAVE_INTERVAL_MS = 30_000L

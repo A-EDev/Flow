@@ -3,6 +3,7 @@ package io.github.aedev.flow.player.sabr.integration
 import android.net.Uri
 import android.util.Log
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.player.stream.VideoCodecUtils
 
 data class SabrStreamInfo(
     val streamingUrl: String,
@@ -26,11 +27,11 @@ object SabrUrlResolver {
     private val PREFERRED_VIDEO_ITAGS_BY_HEIGHT = mapOf(
         2160 to listOf(313, 271),
         1440 to listOf(308, 271),
-        1080 to listOf(248, 303, 299),
-        720  to listOf(247, 302, 298),
-        480  to listOf(244, 218),
-        360  to listOf(243, 134),
-        240  to listOf(242, 133)
+        1080 to listOf(299, 248, 303),
+        720  to listOf(298, 247, 302),
+        480  to listOf(135, 244, 218),
+        360  to listOf(134, 243),
+        240  to listOf(133, 242)
     )
 
     /**
@@ -185,12 +186,13 @@ object SabrUrlResolver {
     private fun selectBestVideo(
         videoFormats: List<PlayerResponse.StreamingData.Format>
     ): PlayerResponse.StreamingData.Format? {
-        val webmVideos = videoFormats.filter { it.mimeType.contains("webm", ignoreCase = true) }
-
-        val best = webmVideos.maxByOrNull { (it.height ?: 0) * 10000 + it.bitrate }
-        if (best != null) return best
-
-        return videoFormats.maxByOrNull { (it.height ?: 0) * 10000 + it.bitrate }
+        return videoFormats
+            .sortedWith(
+                compareByDescending<PlayerResponse.StreamingData.Format> { it.height ?: 0 }
+                    .thenBy { VideoCodecUtils.playbackCodecRank(VideoCodecUtils.codecKeyFromMimeType(it.mimeType)) }
+                    .thenByDescending { it.averageBitrate ?: it.bitrate }
+            )
+            .firstOrNull()
     }
 
     private fun selectVideoForHeight(
@@ -204,18 +206,22 @@ object SabrUrlResolver {
             }
         }
 
-        val webmAtHeight = videoFormats
-            .filter { it.mimeType.contains("webm", ignoreCase = true) && it.height == targetHeight }
-            .maxByOrNull { it.bitrate }
-        if (webmAtHeight != null) return webmAtHeight
-
         val anyAtHeight = videoFormats
             .filter { it.height == targetHeight }
-            .maxByOrNull { it.bitrate }
+            .sortedWith(
+                compareBy<PlayerResponse.StreamingData.Format> {
+                    VideoCodecUtils.playbackCodecRank(VideoCodecUtils.codecKeyFromMimeType(it.mimeType))
+                }.thenByDescending { it.averageBitrate ?: it.bitrate }
+            )
+            .firstOrNull()
         if (anyAtHeight != null) return anyAtHeight
 
         return videoFormats
-            .sortedBy { kotlin.math.abs((it.height ?: 0) - targetHeight) }
+            .sortedWith(
+                compareBy<PlayerResponse.StreamingData.Format> { kotlin.math.abs((it.height ?: 0) - targetHeight) }
+                    .thenBy { VideoCodecUtils.playbackCodecRank(VideoCodecUtils.codecKeyFromMimeType(it.mimeType)) }
+                    .thenByDescending { it.averageBitrate ?: it.bitrate }
+            )
             .firstOrNull()
     }
 }
