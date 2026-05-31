@@ -1633,4 +1633,9 @@
     <string name="datetime_override_relative">Relativo</string>
     <string name="datetime_override_exact">Esatto</string>
     <string name="datetime_override_both">Entrambi</string>
+    <string name="export_watch_history_desc">Esporta come JSON della cronologia di YouTube (importabile in LibreTube e Flow)</string>
+    <string name="history_export_failed">Impossibile esportare la cronologia delle visualizzazioni</string>
+    <string name="history_delete_shorts">Elimina gli Shorts dalla cronologia</string>
+    <string name="history_delete_shorts_title">Eliminare gli Shorts?</string>
+    <string name="history_delete_shorts_body">Questa operazione rimuoverà gli Shorts dalla tua cronologia di visualizzazione. Gli altri video verranno mantenuti.</string>
 </resources>
