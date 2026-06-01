@@ -845,4 +845,12 @@
     <string name="buffer_desc_aggressive">Schneller Start der Wiedergabe priorisieren (mindestens 10 Sekunden, höchstens 30 Sekunden)</string>
     <string name="buffer_desc_datasaver">Reduzieren Sie den Datenverbrauch durch kleinere Puffer (mindestens 12 Sekunden)</string>
     <string name="buffer_profile_custom_desc">Puffergrößen manuell konfigurieren</string>
+    <string name="cache_size_unlimited">Unbegrenzt</string>
+    <string name="btn_back">Zurück</string>
+    <string name="back">Zurück</string>
+    <string name="btn_close">Schließen</string>
+    <string name="error_short_load">Es ist ein Fehler aufgetreten</string>
+    <string name="share_short_template">Schau dir diesen Short an: https://youtu.be/%1$s</string>
+    <string name="speed_2x">2-fache Geschwindigkeit</string>
+    <string name="cd_pause">Pause</string>
 </resources>
