@@ -17,6 +17,7 @@ import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.utils.formatYouTubeRelativeTime
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -632,25 +633,7 @@ class SubscriptionsViewModel : ViewModel() {
     }
 
     private fun formatRelativeTime(timestamp: Long, now: Long): String {
-        val diff = (now - timestamp).coerceAtLeast(0L)
-        val seconds = diff / 1000L
-        val minutes = seconds / 60L
-        val hours = minutes / 60L
-        val days = hours / 24L
-        val weeks = days / 7L
-        val months = days / 30L
-        val years = days / 365L
-
-        return when {
-            years > 0 -> "${years}y ago"
-            months > 0 -> "${months}mo ago"
-            weeks > 0 -> "${weeks}w ago"
-            days > 0 -> "${days}d ago"
-            hours > 0 -> "${hours}h ago"
-            minutes > 0 -> "${minutes}m ago"
-            seconds > 10 -> "${seconds}s ago"
-            else -> "Just now"
-        }
+        return formatYouTubeRelativeTime(timestamp, now)
     }
 
     private data class SortableVideo(

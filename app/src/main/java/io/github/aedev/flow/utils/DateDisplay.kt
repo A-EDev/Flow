@@ -96,15 +96,19 @@ fun formatUploadDateConfigured(
     timestampFallbackMs: Long = 0L,
     locale: Locale = Locale.getDefault(),
 ): String {
+    if (date?.trim().equals("live", ignoreCase = true)) return "LIVE"
+
     val timestamp = parseToTimestamp(date) ?: timestampFallbackMs.takeIf { it > 0L }
-    val relative = relativeString(date, timestamp)
+    val prefix = relativePrefix(date)
+    val relative = applyRelativePrefix(relativeString(date, timestamp), prefix)
     val exact = if (timestamp != null && timestamp > 0L) formatExactDate(timestamp, style, locale) else ""
+    val exactWithPrefix = applyExactPrefix(exact, prefix)
     return when (mode) {
         DateDisplayMode.RELATIVE -> relative
-        DateDisplayMode.EXACT -> exact.ifBlank { relative }
+        DateDisplayMode.EXACT -> exactWithPrefix.ifBlank { relative }
         DateDisplayMode.BOTH -> when {
             relative.isNotBlank() && exact.isNotBlank() -> "$relative • $exact"
-            exact.isNotBlank() -> exact
+            exactWithPrefix.isNotBlank() -> exactWithPrefix
             else -> relative
         }
     }
@@ -112,44 +116,39 @@ fun formatUploadDateConfigured(
 
 private fun relativeString(date: String?, timestamp: Long?): String {
     val s = date?.trim().orEmpty()
-    if (s.isNotEmpty() && (
-            s.contains("ago", ignoreCase = true) ||
-            s.contains("前") ||
-            s.equals("just now", ignoreCase = true) ||
-            s.contains("yesterday", ignoreCase = true) ||
-            s.contains("today", ignoreCase = true) ||
-            s.contains("streamed", ignoreCase = true) ||
-            s.contains("premier", ignoreCase = true)
-        )
-    ) {
-        return s
-    }
-    if (timestamp != null && timestamp > 0L) return relativeFromTimestamp(timestamp)
+    if (s.equals("live", ignoreCase = true)) return "LIVE"
+    if (timestamp != null && timestamp > 0L) return formatYouTubeRelativeTime(timestamp)
     return formatTimeAgo(date)
 }
 
-private fun relativeFromTimestamp(timestampMs: Long, nowMs: Long = System.currentTimeMillis()): String {
-    val diff = nowMs - timestampMs
-    if (diff < 0L) return "Just now"
-    val seconds = diff / 1000
-    val minutes = seconds / 60
-    val hours = minutes / 60
-    val days = hours / 24
-    val months = days / 30
-    val years = days / 365
+private fun relativePrefix(date: String?): String? {
+    val text = date?.trim().orEmpty().lowercase(Locale.US)
     return when {
-        years > 0 -> "${years}y ago"
-        months > 0 -> "${months}mo ago"
-        days > 0 -> "${days}d ago"
-        hours > 0 -> "${hours}h ago"
-        minutes > 0 -> "${minutes}m ago"
-        else -> "Just now"
+        text.startsWith("streamed ") -> "Streamed"
+        text.startsWith("premiered ") -> "Premiered"
+        else -> null
     }
+}
+
+private fun applyRelativePrefix(value: String, prefix: String?): String {
+    if (prefix == null || value.isBlank() || value == "LIVE") return value
+    val normalizedValue = if (value == "Just now") "just now" else value
+    return "$prefix $normalizedValue"
+}
+
+private fun applyExactPrefix(value: String, prefix: String?): String {
+    if (prefix == null || value.isBlank()) return value
+    return "$prefix $value"
 }
 
 fun parseToTimestamp(text: String?): Long? {
     val raw = text?.trim().orEmpty()
     if (raw.isEmpty()) return null
+    raw.toLongOrNull()?.takeIf { it > 100_000_000_000L }?.let { return it }
+
+    val cleanRaw = raw
+        .replace(Regex("(?i)^(streamed|premiered)\\s+"), "")
+        .trim()
 
     val absFormats = listOf(
         "yyyy-MM-dd'T'HH:mm:ssXXX", "yyyy-MM-dd'T'HH:mm:ssX", "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
@@ -161,12 +160,12 @@ fun parseToTimestamp(text: String?): Long? {
             try {
                 val sdf = java.text.SimpleDateFormat(f, loc)
                 sdf.isLenient = false
-                val d = sdf.parse(raw)
+                val d = sdf.parse(cleanRaw)
                 if (d != null) return d.time
             } catch (_: Exception) {}
         }
     }
-    return parseRelativeToTimestamp(raw)
+    return parseRelativeToTimestamp(cleanRaw)
 }
 
 private fun parseRelativeToTimestamp(text: String, now: Long = System.currentTimeMillis()): Long? {
@@ -180,15 +179,20 @@ private fun parseRelativeToTimestamp(text: String, now: Long = System.currentTim
     if (n.contains("just now") || n.contains("today")) return now
     if (n.contains("yesterday")) return now - 86_400_000L
 
-    val value = Regex("(\\d+)").find(n)?.groupValues?.getOrNull(1)?.toLongOrNull() ?: return null
+    val compactMatch = Regex("""(\d+)\s*(mo|sec|secs|second|seconds|min|mins|minute|minutes|hr|hrs|hour|hours|[smhdwy])\b""")
+        .find(n)
+    val value = compactMatch?.groupValues?.getOrNull(1)?.toLongOrNull()
+        ?: Regex("(\\d+)").find(n)?.groupValues?.getOrNull(1)?.toLongOrNull()
+        ?: return null
+    val compactUnit = compactMatch?.groupValues?.getOrNull(2)
     val unitMillis = when {
-        n.contains("second") -> 1_000L
-        n.contains("minute") -> 60_000L
-        n.contains("hour") -> 3_600_000L
-        n.contains("day") -> 86_400_000L
-        n.contains("week") -> 7L * 86_400_000L
-        n.contains("month") -> 30L * 86_400_000L
-        n.contains("year") -> 365L * 86_400_000L
+        compactUnit in listOf("s", "sec", "secs", "second", "seconds") || n.contains("second") -> 1_000L
+        compactUnit in listOf("m", "min", "mins", "minute", "minutes") || n.contains("minute") -> 60_000L
+        compactUnit in listOf("h", "hr", "hrs", "hour", "hours") || n.contains("hour") -> 3_600_000L
+        compactUnit == "d" || n.contains("day") -> 86_400_000L
+        compactUnit == "w" || n.contains("week") -> 7L * 86_400_000L
+        compactUnit == "mo" || n.contains("month") -> 30L * 86_400_000L
+        compactUnit == "y" || n.contains("year") -> 365L * 86_400_000L
         else -> return null
     }
     return now - value * unitMillis

@@ -48,6 +48,7 @@ import io.github.aedev.flow.ui.components.VideoInfoSection
 import io.github.aedev.flow.ui.screens.player.state.PlayerScreenState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import org.schabi.newpipe.extractor.stream.StreamType
 
 @Composable
 fun VideoInfoContent(
@@ -74,6 +75,16 @@ fun VideoInfoContent(
         value = if (deArrowEnabled) DeArrowRepository.getDeArrowResult(video.id) else null
     }
     val resolvedVideoTitle = deArrowResult?.title ?: uiState.streamInfo?.name ?: video.title
+    val streamUploadDate = uiState.streamInfo?.let { streamInfo ->
+        val rawDate = streamInfo.textualUploadDate?.takeIf { it.isNotBlank() }
+            ?: streamInfo.uploadDate?.toString()
+        val isArchivedLivestream = streamInfo.streamType == StreamType.POST_LIVE_STREAM
+        when {
+            rawDate.isNullOrBlank() -> null
+            isArchivedLivestream && !rawDate.startsWith("Streamed", ignoreCase = true) -> "Streamed $rawDate"
+            else -> rawDate
+        }
+    }
     val dialogVideo = remember(video, uiState.streamInfo, uiState.channelAvatarUrl, resolvedVideoTitle) {
         uiState.streamInfo?.let { streamInfo ->
             Video(
@@ -85,7 +96,7 @@ fun VideoInfoContent(
                 duration = streamInfo.duration.toInt(),
                 viewCount = streamInfo.viewCount,
                 likeCount = streamInfo.likeCount,
-                uploadDate = streamInfo.textualUploadDate ?: streamInfo.uploadDate?.run {
+                uploadDate = streamUploadDate ?: streamInfo.uploadDate?.run {
                     try {
                         val date = java.util.Date.from(offsetDateTime().toInstant())
                         val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
@@ -209,13 +220,7 @@ fun VideoInfoContent(
         video = video,
         title = resolvedVideoTitle,
         viewCount = uiState.streamInfo?.viewCount ?: video.viewCount,
-        uploadDate = uiState.streamInfo?.uploadDate?.let { 
-            try { 
-                val date = java.util.Date.from(it.offsetDateTime().toInstant())
-                val sdf = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault())
-                sdf.format(date)
-            } catch(e: Exception) { null } 
-        } ?: video.uploadDate,
+        uploadDate = streamUploadDate ?: video.uploadDate,
         description = uiState.streamInfo?.description?.content ?: video.description,
         channelName = uiState.streamInfo?.uploaderName ?: video.channelName,
         channelAvatarUrl = uiState.channelAvatarUrl ?: video.channelThumbnailUrl,

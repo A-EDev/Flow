@@ -200,6 +200,7 @@ fun BrightnessOverlay(
 fun VolumeOverlay(
     isVisible: Boolean,
     volumeLevel: Float,
+    maxVolumeLevel: Float = 2f,
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
@@ -213,6 +214,7 @@ fun VolumeOverlay(
             animationSpec = spring(stiffness = Spring.StiffnessLow),
             label = "volume"
         )
+        val fillFraction = (animatedVolume / maxVolumeLevel.coerceAtLeast(1f)).coerceIn(0f, 1f)
         
         Surface(
             modifier = Modifier
@@ -230,7 +232,7 @@ fun VolumeOverlay(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(animatedVolume / 2f) 
+                        .fillMaxHeight(fillFraction)
                         .background(
                             brush = Brush.verticalGradient(
                                 colors = if (volumeLevel > 1f) {
@@ -261,13 +263,13 @@ fun VolumeOverlay(
                                      else if (volumeLevel > 0.1f) Icons.Rounded.VolumeDown
                                      else Icons.Rounded.VolumeMute,
                         contentDescription = null,
-                        tint = if (animatedVolume > 1.6f) Color.Black.copy(alpha = 0.7f) else Color.White,
+                        tint = if (fillFraction > 0.8f) Color.Black.copy(alpha = 0.7f) else Color.White,
                         modifier = Modifier.size(22.dp)
                     )
                     
                     Text(
                         text = "${(volumeLevel * 100).toInt()}%",
-                        color = if (animatedVolume > 0.2f) Color.Black.copy(alpha = 0.7f) else Color.White,
+                        color = if (fillFraction > 0.2f) Color.Black.copy(alpha = 0.7f) else Color.White,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )

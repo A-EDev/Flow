@@ -173,6 +173,13 @@ fun GlobalPlayerOverlay(
     val lockModeEnabled by playerPreferences.overlayLockModeEnabled.collectAsState(initial = false)
     val commentsEnabled by playerPreferences.commentsEnabled.collectAsState(initial = true)
 
+    LaunchedEffect(allowVolumeBoost) {
+        if (!allowVolumeBoost && screenState.volumeLevel > 1f) {
+            screenState.volumeLevel = 1f
+            EnhancedPlayerManager.getInstance().setVolumeBoost(1f)
+        }
+    }
+
     var videoAspectRatio by remember { mutableFloatStateOf(16f / 9f) }
     val effectiveVideoAspectRatio = if (adaptivePlayerSizeEnabled || screenState.isFullscreen) {
         videoAspectRatio
@@ -811,6 +818,7 @@ fun GlobalPlayerOverlay(
                             VolumeOverlay(
                                 isVisible = screenState.showVolumeOverlay,
                                 volumeLevel = screenState.volumeLevel,
+                                maxVolumeLevel = if (allowVolumeBoost) 2f else 1f,
                                 modifier = Modifier
                                     .align(Alignment.CenterStart)
                                     .padding(start = 44.dp)

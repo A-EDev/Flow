@@ -86,6 +86,12 @@ fun PlayerContent(
         }
     }
 
+    LaunchedEffect(allowVolumeBoost) {
+        if (!allowVolumeBoost && screenState.volumeLevel > 1f) {
+            screenState.volumeLevel = 1f
+        }
+    }
+
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
     val leftSafeInset = with(density) {
@@ -179,6 +185,7 @@ fun PlayerContent(
         VolumeOverlay(
             isVisible = screenState.showVolumeOverlay,
             volumeLevel = screenState.volumeLevel,
+            maxVolumeLevel = if (allowVolumeBoost) 2f else 1f,
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = rightGestureOverlayPadding)

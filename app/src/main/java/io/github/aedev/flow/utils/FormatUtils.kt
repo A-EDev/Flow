@@ -33,11 +33,35 @@ fun formatSubscriberCount(count: Long): String {
     }
 }
 
+fun formatYouTubeRelativeTime(timestampMillis: Long, nowMillis: Long = System.currentTimeMillis()): String {
+    val diff = (nowMillis - timestampMillis).coerceAtLeast(0L)
+    val seconds = diff / 1000L
+    val minutes = seconds / 60L
+    val hours = minutes / 60L
+    val days = hours / 24L
+    val weeks = days / 7L
+    val months = days / 30L
+    val years = days / 365L
+
+    fun unit(value: Long, name: String): String =
+        "$value $name${if (value == 1L) "" else "s"} ago"
+
+    return when {
+        years > 0L -> unit(years, "year")
+        months > 0L -> unit(months, "month")
+        weeks > 0L -> unit(weeks, "week")
+        days > 0L -> unit(days, "day")
+        hours > 0L -> unit(hours, "hour")
+        minutes > 0L -> unit(minutes, "minute")
+        else -> "Just now"
+    }
+}
+
 fun formatTimeAgo(dateString: String?): String {
     if (dateString.isNullOrBlank()) return ""
     
-    // If it's already a relative time (like "16 hours ago"), return it
-    if (dateString.contains(" ago") || dateString.contains("前")) return dateString
+    normalizeRelativeTimeText(dateString)?.let { return it }
+    if (dateString.contains("前")) return dateString
 
     val formats = listOf(
         "yyyy-MM-dd'T'HH:mm:ssXXX",
@@ -62,27 +86,38 @@ fun formatTimeAgo(dateString: String?): String {
     if (date == null) return dateString
 
     return try {
-        val now = java.util.Date().time
-        val diff = now - date.time
-        
-        val seconds = diff / 1000
-        val minutes = seconds / 60
-        val hours = minutes / 60
-        val days = hours / 24
-        val months = days / 30
-        val years = days / 365
-        
-        when {
-            years > 0 -> "${years}y ago"
-            months > 0 -> "${months}mo ago"
-            days > 0 -> "${days}d ago"
-            hours > 0 -> "${hours}h ago"
-            minutes > 0 -> "${minutes}m ago"
-            else -> "Just now"
-        }
+        formatYouTubeRelativeTime(date.time)
     } catch (e: Exception) {
         dateString
     }
+}
+
+private fun normalizeRelativeTimeText(value: String): String? {
+    val text = value.trim()
+    val lower = text.lowercase(java.util.Locale.US)
+    if (!lower.contains("ago") && !lower.contains("just now")) return null
+    val prefix = when {
+        lower.startsWith("streamed ") -> "Streamed"
+        lower.startsWith("premiered ") -> "Premiered"
+        else -> null
+    }
+    if (lower.contains("just now")) return if (prefix != null) "$prefix just now" else "Just now"
+
+    val match = Regex("""(\d+)\s*(mo|sec|secs|second|seconds|min|mins|minute|minutes|hr|hrs|hour|hours|day|days|week|weeks|month|months|year|years|[smhdwy])\b""")
+        .find(lower) ?: return text
+    val count = match.groupValues[1].toLongOrNull() ?: return text
+    val unit = when (match.groupValues[2]) {
+        "s", "sec", "secs", "second", "seconds" -> "second"
+        "m", "min", "mins", "minute", "minutes" -> "minute"
+        "h", "hr", "hrs", "hour", "hours" -> "hour"
+        "d", "day", "days" -> "day"
+        "w", "week", "weeks" -> "week"
+        "mo", "month", "months" -> "month"
+        "y", "year", "years" -> "year"
+        else -> return text
+    }
+    val relative = "$count $unit${if (count == 1L) "" else "s"} ago"
+    return if (prefix != null) "$prefix $relative" else relative
 }
 
 fun formatLikeCount(count: Int): String {

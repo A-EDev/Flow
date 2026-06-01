@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.innertube
 import android.util.Log
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
+import io.github.aedev.flow.utils.formatYouTubeRelativeTime
 import io.github.aedev.flow.utils.parsePremiereTimestamp
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
@@ -389,10 +390,13 @@ object RssSubscriptionService {
             ?.takeIf { it > now + 60_000L }
             ?: overrideTimestamp?.takeIf { it > now + 60_000L }
         val isUpcoming = !forceLive && upcomingReleaseTimeMs != null
+        val isArchivedLivestream = forceLive && !item.isActiveLiveStream() && !isUpcoming
         val uploadDateStr = when {
             isUpcoming && rawDate != null && !rawDate.contains("T") && !rawDate.contains("+") -> rawDate
             uploadTimeMillis > 0L -> formatRelativeTime(uploadTimeMillis)
-            rawDate != null && !rawDate.contains("T") && !rawDate.contains("+") -> rawDate
+                .let { if (isArchivedLivestream) "Streamed $it" else it }
+            rawDate != null && !rawDate.contains("T") && !rawDate.contains("+") ->
+                if (isArchivedLivestream && !rawDate.startsWith("Streamed", ignoreCase = true)) "Streamed $rawDate" else rawDate
             else -> ""
         }
 
@@ -426,22 +430,7 @@ object RssSubscriptionService {
 
     /** Format a millisecond timestamp as a human-readable relative string. */
     private fun formatRelativeTime(timestampMillis: Long): String {
-        val diff = System.currentTimeMillis() - timestampMillis
-        if (diff < 0) return "Just now"
-        val seconds = diff / 1000
-        val minutes = seconds / 60
-        val hours = minutes / 60
-        val days = hours / 24
-        val months = days / 30
-        val years = days / 365
-        return when {
-            years > 0 -> "${years}y ago"
-            months > 0 -> "${months}mo ago"
-            days > 0 -> "${days}d ago"
-            hours > 0 -> "${hours}h ago"
-            minutes > 0 -> "${minutes}m ago"
-            else -> "Just now"
-        }
+        return formatYouTubeRelativeTime(timestampMillis)
     }
 
     private fun extractVideoId(url: String): String {
