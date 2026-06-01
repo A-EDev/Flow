@@ -50,10 +50,15 @@ class PlaybackTracker(
             
             while (true) {
                 trackPosition(player)
-                if (player.isPlaying || player.playbackState == Player.STATE_BUFFERING) {
-                    delay(PlayerConfig.POSITION_TRACKER_INTERVAL_MS)
-                } else {
-                    withTimeoutOrNull(5000) { stateFlow.first { it.isPlaying || it.isBuffering } }
+                when {
+                    player.isPlaying || player.playbackState == Player.STATE_BUFFERING ->
+                        delay(PlayerConfig.POSITION_TRACKER_INTERVAL_MS)
+
+                    stateFlow.value.isPlaying || stateFlow.value.isBuffering ->
+                        delay(PlayerConfig.POSITION_TRACKER_INTERVAL_MS)
+
+                    else ->
+                        withTimeoutOrNull(5000) { stateFlow.first { it.isPlaying || it.isBuffering } }
                 }
             }
         }

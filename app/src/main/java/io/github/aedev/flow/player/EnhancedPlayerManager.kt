@@ -991,14 +991,27 @@ class EnhancedPlayerManager private constructor() {
                 }
                 val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
                 val preferredCodecKey = prefs.defaultVideoCodec.first().codecKey
-                val selected = selectStreamsForServicePlayback(streamInfo, preferredQuality, preferredAudioLanguage, preferredCodecKey)
+                val innerTubeVideoStreams = extraction
+                    ?.let { io.github.aedev.flow.player.stream.InnerTubeStreamBridge.convertVideoFormats(it.videoFormats) }
+                    .orEmpty()
+                val innerTubeAudioStreams = extraction
+                    ?.let { io.github.aedev.flow.player.stream.InnerTubeStreamBridge.convertAudioFormats(it.audioFormats) }
+                    .orEmpty()
+                val extractorVideoStreams = (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
+                    .filterIsInstance<VideoStream>()
+                val mergedVideoStreams = mergeVideoStreams(innerTubeVideoStreams, extractorVideoStreams)
+                val mergedAudioStreams = mergeAudioStreams(innerTubeAudioStreams, streamInfo.audioStreams)
+                if (innerTubeVideoStreams.isNotEmpty()) {
+                    Log.d(TAG, "Queue advance using InnerTube streams: ${innerTubeVideoStreams.size} video, ${innerTubeAudioStreams.size} audio (merged=${mergedVideoStreams.size})")
+                }
+
+                val selected = selectStreamsForServicePlayback(mergedVideoStreams, mergedAudioStreams, preferredQuality, preferredAudioLanguage, preferredCodecKey)
                 setStreams(
                     videoId = enrichedVideo.id,
                     videoStream = selected.first,
                     audioStream = selected.second,
-                    videoStreams = (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
-                        .filterIsInstance<VideoStream>(),
-                    audioStreams = streamInfo.audioStreams,
+                    videoStreams = mergedVideoStreams,
+                    audioStreams = mergedAudioStreams,
                     subtitles = streamInfo.subtitles ?: emptyList(),
                     durationSeconds = streamInfo.duration,
                     dashManifestUrl = streamInfo.dashMpdUrl,
@@ -1050,12 +1063,13 @@ class EnhancedPlayerManager private constructor() {
     }
 
     private fun selectStreamsForServicePlayback(
-        streamInfo: StreamInfo,
+        videoCandidates: List<VideoStream>,
+        audioCandidatesAll: List<AudioStream>,
         preferredQuality: VideoQuality,
         preferredAudioLanguage: String,
         preferredCodecKey: String = "auto"
     ): Pair<VideoStream?, AudioStream?> {
-        val audioCandidates = streamInfo.audioStreams
+        val audioCandidates = audioCandidatesAll
             .distinctBy { it.url ?: it.content }
             .sortedByDescending { it.bitrate }
 
@@ -1073,8 +1087,7 @@ class EnhancedPlayerManager private constructor() {
             } ?: audioCandidates.firstOrNull()
         }
 
-        val videoStreams = (streamInfo.videoStreams + (streamInfo.videoOnlyStreams ?: emptyList()))
-            .filterIsInstance<VideoStream>()
+        val videoStreams = videoCandidates
             .filter {
                 val mime = it.format?.mimeType
                 mime?.contains("mp4", ignoreCase = true) == true ||
@@ -1108,6 +1121,40 @@ class EnhancedPlayerManager private constructor() {
             selectedVideoStream
         }
         return videoStream to audioStream
+    }
+
+    private fun mergeVideoStreams(
+        primary: List<VideoStream>,
+        fallback: List<VideoStream>
+    ): List<VideoStream> {
+        return (primary + fallback)
+            .filter { it.getContent().isNotBlank() }
+            .distinctBy { stream ->
+                val url = stream.getContent()
+                if (url.isNotBlank()) url else "${VideoCodecUtils.qualityHeightFromStream(stream)}_${VideoCodecUtils.codecKeyFromStream(stream)}_${stream.bitrate}"
+            }
+            .sortedWith(
+                compareByDescending<VideoStream> { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) }
+                    .thenBy { VideoCodecUtils.playbackCodecRank(it) }
+                    .thenByDescending { it.bitrate }
+            )
+    }
+
+    private fun mergeAudioStreams(
+        primary: List<AudioStream>,
+        fallback: List<AudioStream>
+    ): List<AudioStream> {
+        return (primary + fallback)
+            .filter { it.getContent().isNotBlank() }
+            .distinctBy { stream ->
+                listOf(
+                    stream.getContent(),
+                    stream.format?.mimeType.orEmpty(),
+                    stream.audioTrackId.orEmpty(),
+                    stream.averageBitrate.takeIf { it > 0 } ?: stream.bitrate
+                ).joinToString("|")
+            }
+            .sortedByDescending { it.averageBitrate.takeIf { bitrate -> bitrate > 0 } ?: it.bitrate }
     }
 
     private fun relatedVideosFromStreamInfo(info: StreamInfo): List<Video> =
