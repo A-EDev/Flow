@@ -65,6 +65,7 @@ fun PlayerAppearanceScreen(
     val rememberBrightnessEnabled by playerPreferences.rememberBrightnessEnabled.collectAsState(initial = false)
     val volumeSwipeGesturesEnabled by playerPreferences.volumeSwipeGesturesEnabled.collectAsState(initial = true)
     val allowVolumeBoost by playerPreferences.allowVolumeBoost.collectAsState(initial = false)
+    val longPressPlaybackSpeed by playerPreferences.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
     val showFullscreenTitle by playerPreferences.showFullscreenTitle.collectAsState(initial = false)
     val adaptivePlayerSizeEnabled by playerPreferences.adaptivePlayerSizeEnabled.collectAsState(initial = true)
     val fullscreenSeekbarPaddingMode by playerPreferences.fullscreenSeekbarPaddingMode.collectAsState(
@@ -81,6 +82,7 @@ fun PlayerAppearanceScreen(
 
     var showStyleSheet by remember { mutableStateOf(false) }
     var showBackgroundStyleSheet by remember { mutableStateOf(false) }
+    var showLongPressSpeedDialog by remember { mutableStateOf(false) }
 
     if (showStyleSheet) {
         ModalBottomSheet(
@@ -230,6 +232,16 @@ fun PlayerAppearanceScreen(
         }
     }
 
+    if (showLongPressSpeedDialog) {
+        LongPressPlaybackSpeedDialog(
+            currentSpeed = longPressPlaybackSpeed,
+            onDismiss = { showLongPressSpeedDialog = false },
+            onSpeedSelected = { speed ->
+                coroutineScope.launch { playerPreferences.setLongPressPlaybackSpeed(speed) }
+                showLongPressSpeedDialog = false
+            }
+        )
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0.dp),
@@ -366,6 +378,22 @@ fun PlayerAppearanceScreen(
                                 playerPreferences.setAllowVolumeBoost(enabled)
                             }
                         }
+                    )
+
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+
+                    SettingsItem(
+                        icon = painterResource(R.drawable.ic_swipe_gesture),
+                        title = stringResource(R.string.player_appearance_long_press_speed_title),
+                        subtitle = if (longPressPlaybackSpeed <= 0f) {
+                            stringResource(R.string.player_appearance_long_press_speed_disabled)
+                        } else {
+                            formatLongPressSpeedLabel(longPressPlaybackSpeed)
+                        },
+                        onClick = { showLongPressSpeedDialog = true }
                     )
                 }
             }
@@ -535,6 +563,67 @@ fun PlayerAppearanceScreen(
 }
 
 
+
+@Composable
+private fun LongPressPlaybackSpeedDialog(
+    currentSpeed: Float,
+    onDismiss: () -> Unit,
+    onSpeedSelected: (Float) -> Unit
+) {
+    val options = listOf(0.3f, 0.5f, 0.75f, 0f, 1.25f, 1.5f, 1.75f, 2.0f)
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.player_appearance_long_press_speed_title)) },
+        text = {
+            Column {
+                options.forEach { speed ->
+                    val selected = if (speed <= 0f) {
+                        currentSpeed <= 0f
+                    } else {
+                        kotlin.math.abs(currentSpeed - speed) < 0.01f
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSpeedSelected(speed) }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selected,
+                            onClick = { onSpeedSelected(speed) }
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = if (speed <= 0f) {
+                                stringResource(R.string.player_appearance_long_press_speed_disabled)
+                            } else {
+                                formatLongPressSpeedLabel(speed)
+                            },
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
+}
+
+private fun formatLongPressSpeedLabel(speed: Float): String {
+    val rounded = kotlin.math.round(speed * 100f) / 100f
+    return if (kotlin.math.abs(rounded - rounded.toInt()) < 0.01f) {
+        "${rounded.toInt()}x"
+    } else {
+        "${rounded.toString().trimEnd('0').trimEnd('.')}x"
+    }
+}
 
 @Composable
 fun SettingsItem(

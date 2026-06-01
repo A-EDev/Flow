@@ -73,6 +73,7 @@ class MediaLoader(
         currentVideoStream: VideoStream?,
         dashManifestUrl: String?,
         hlsUrl: String?,
+        isLiveStream: Boolean = false,
         durationSeconds: Long,
         currentDurationSeconds: Long,
         preservePosition: Long? = null,
@@ -126,6 +127,7 @@ class MediaLoader(
                     currentVideoStream = currentVideoStream,
                     dashManifestUrl = dashManifestUrl,
                     hlsUrl = hlsUrl,
+                    isLiveStream = isLiveStream,
                     finalDuration = finalDuration,
                     localFilePath = localFilePath,
                     audioOnly = audioOnly,
@@ -196,6 +198,7 @@ class MediaLoader(
         currentVideoStream: VideoStream?,
         dashManifestUrl: String?,
         hlsUrl: String?,
+        isLiveStream: Boolean,
         finalDuration: Long,
         localFilePath: String?,
         audioOnly: Boolean,
@@ -277,7 +280,8 @@ class MediaLoader(
                 audioStream,
                 dashManifestUrl = if (audioOnly) null else dashManifestUrl,
                 hlsUrl = if (audioOnly) null else hlsUrl,
-                durationSeconds = finalDuration
+                durationSeconds = finalDuration,
+                isLiveStream = isLiveStream && !audioOnly
             )
         }
 

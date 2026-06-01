@@ -166,6 +166,7 @@ fun GlobalPlayerOverlay(
     val allowVolumeBoost by playerPreferences.allowVolumeBoost.collectAsState(initial = false)
     val sbSubmitEnabled by playerPreferences.sbSubmitEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPreferences.doubleTapSeekSeconds.collectAsState(initial = 10)
+    val longPressPlaybackSpeed by playerPreferences.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
     val disableShortsPlayer by playerPreferences.disableShortsPlayer.collectAsState(initial = false)
     val savedSubtitleStyle by playerPreferences.subtitleStyle.collectAsState(initial = SubtitleStyle())
     val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
@@ -688,6 +689,7 @@ fun GlobalPlayerOverlay(
                             volumeSwipeGesturesEnabled = volumeSwipeGesturesEnabled,
                             allowVolumeBoost = allowVolumeBoost,
                             doubleTapSeekMs = doubleTapSeekSeconds * 1000L,
+                            longPressPlaybackSpeed = longPressPlaybackSpeed,
                             onExitFullscreen = { screenState.isFullscreen = false }
                         )
                         // Two-finger pinch-to-zoom gesture. Only activates for 2+ pointers,
@@ -824,9 +826,10 @@ fun GlobalPlayerOverlay(
                                     .padding(start = 44.dp)
                             )
                             
-                               // 2x Speed overlay  
+                               // Long-press speed overlay
                             SpeedBoostOverlay(
                                 isVisible = screenState.isSpeedBoostActive,
+                                speed = longPressPlaybackSpeed,
                                 modifier = Modifier
                                     .align(Alignment.TopCenter)
                                     .padding(top = 0.dp)

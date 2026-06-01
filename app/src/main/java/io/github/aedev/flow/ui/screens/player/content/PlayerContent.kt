@@ -71,6 +71,7 @@ fun PlayerContent(
     val lockModeEnabled by playerPrefs.overlayLockModeEnabled.collectAsState(initial = false)
     val doubleTapSeekSeconds by playerPrefs.doubleTapSeekSeconds.collectAsState(initial = 10)
     val allowVolumeBoost by playerPrefs.allowVolumeBoost.collectAsState(initial = false)
+    val longPressPlaybackSpeed by playerPrefs.longPressPlaybackSpeed.collectAsState(initial = 2.0f)
     val deArrowResult by produceState<DeArrowResult?>(
         initialValue = null,
         key1 = video.id,
@@ -143,6 +144,7 @@ fun PlayerContent(
                         activity = activity,
                         allowVolumeBoost = allowVolumeBoost,
                         doubleTapSeekMs = doubleTapSeekSeconds * 1000L,
+                        longPressPlaybackSpeed = longPressPlaybackSpeed,
                         onExitFullscreen = { screenState.isFullscreen = false }
                     )
                 }
@@ -194,6 +196,7 @@ fun PlayerContent(
         // Speed boost overlay
         SpeedBoostOverlay(
             isVisible = screenState.isSpeedBoostActive,
+            speed = longPressPlaybackSpeed,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 0.dp)

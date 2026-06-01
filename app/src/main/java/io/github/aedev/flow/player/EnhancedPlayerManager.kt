@@ -542,9 +542,10 @@ class EnhancedPlayerManager private constructor() {
         } else {
             0L
         }
-        val isLiveStream = !currentHlsUrl.isNullOrEmpty()
+        val isLiveStream = useLiveManifest &&
+            (!currentHlsUrl.isNullOrEmpty() || !currentDashManifestUrl.isNullOrEmpty())
         updateLivePlaybackMode(isLive = isLiveStream, forceLiveSpeedReset = true)
-        pendingInitialLiveEdgeSeek = isLiveStream && startPosition <= 0L
+        pendingInitialLiveEdgeSeek = streamType == StreamType.LIVE_STREAM
         currentVideoId = videoId
         
         // Process streams using StreamProcessor
@@ -691,6 +692,7 @@ class EnhancedPlayerManager private constructor() {
                 currentVideoStream = currentVideoStream,
                 dashManifestUrl = null,
                 hlsUrl = null,
+                isLiveStream = false,
                 durationSeconds = currentDurationSeconds,
                 currentDurationSeconds = currentDurationSeconds,
                 preservePosition = preservePosition,
@@ -724,6 +726,7 @@ class EnhancedPlayerManager private constructor() {
             currentVideoStream = currentVideoStream,
             dashManifestUrl = currentDashManifestUrl,
             hlsUrl = currentHlsUrl,
+            isLiveStream = currentIsLiveStream,
             durationSeconds = currentDurationSeconds,
             currentDurationSeconds = currentDurationSeconds,
             preservePosition = preservePosition,

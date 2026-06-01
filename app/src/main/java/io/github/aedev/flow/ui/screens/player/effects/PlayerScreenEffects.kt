@@ -33,6 +33,7 @@ import androidx.media3.common.Timeline
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.take
 import io.github.aedev.flow.player.sponsorblock.SponsorBlockHandler
+import org.schabi.newpipe.extractor.stream.StreamType
 import kotlin.math.roundToLong
 
 private const val TAG = "PlayerEffects"
@@ -42,11 +43,15 @@ private const val LIVE_DISPLAY_MAX_TICK_MS = 1_000L
 private const val LIVE_DISPLAY_RECENT_SEEK_MS = 2_000L
 private const val STARTUP_RECOVERY_DELAY_MS = 5_000L
 private const val STARTUP_BUFFERING_GRACE_MS = 4_000L
+private const val ACTIVE_POSITION_TRACKING_INTERVAL_MS = 100L
 
 private var liveDisplayVideoId: String? = null
 private var liveDisplayRawPositionMs: Long = 0L
 private var liveDisplayUpdatedAtMs: Long = 0L
 private var liveDisplayLastSeekAtMs: Long = 0L
+
+private fun VideoPlayerUiState.isCurrentLiveStream(): Boolean =
+    streamInfo?.streamType == StreamType.LIVE_STREAM || !hlsUrl.isNullOrEmpty()
 
 private data class StartupRecoverySnapshot(
     val belongsToVideo: Boolean,
@@ -205,7 +210,7 @@ fun PositionTrackingEffect(
                     updateScreenPositionFromPlayer(player, screenState)
                 }
             }
-            delay(50)
+            delay(ACTIVE_POSITION_TRACKING_INTERVAL_MS)
         }
     }
 
@@ -343,6 +348,7 @@ fun WatchProgressSaveEffect(
     LaunchedEffect(videoId) {
         delay(3000)
         val streamInfo = currentUi.streamInfo
+        if (currentUi.isCurrentLiveStream()) return@LaunchedEffect
         val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
         val channelName = streamInfo?.uploaderName ?: video.channelName
         val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
@@ -366,6 +372,7 @@ fun WatchProgressSaveEffect(
         while (isPlaying) {
             delay(10000)
             val streamInfo = currentUi.streamInfo
+            if (currentUi.isCurrentLiveStream()) continue
             val channelId = streamInfo?.uploaderUrl?.substringAfterLast("/") ?: video.channelId
             val channelName = streamInfo?.uploaderName ?: video.channelName
             val thumbnailUrl = streamInfo?.thumbnails?.maxByOrNull { it.height }?.url
@@ -673,6 +680,7 @@ fun VideoCleanupEffect(
     }
     var lastKnownChannelName by remember(videoId) { mutableStateOf(video.channelName) }
     var lastKnownChannelId by remember(videoId) { mutableStateOf(video.channelId) }
+    val currentUiState by rememberUpdatedState(uiState)
 
     SideEffect {
         val streamInfo = uiState.streamInfo
@@ -691,17 +699,19 @@ fun VideoCleanupEffect(
 
     DisposableEffect(videoId) {
         onDispose {
-            viewModel.savePlaybackPosition(
-                videoId = videoId,
-                position = lastKnownPosition,
-                duration = lastKnownDuration,
-                title = lastKnownTitle,
-                thumbnailUrl = lastKnownThumbnail,
-                channelName = lastKnownChannelName,
-                channelId = lastKnownChannelId
-            )
+            if (!currentUiState.isCurrentLiveStream()) {
+                viewModel.savePlaybackPosition(
+                    videoId = videoId,
+                    position = lastKnownPosition,
+                    duration = lastKnownDuration,
+                    title = lastKnownTitle,
+                    thumbnailUrl = lastKnownThumbnail,
+                    channelName = lastKnownChannelName,
+                    channelId = lastKnownChannelId
+                )
 
-            viewModel.reportWatchProgress(video, lastKnownPosition, lastKnownDuration)
+                viewModel.reportWatchProgress(video, lastKnownPosition, lastKnownDuration)
+            }
             Log.d(TAG, "Video cleanup disposed for $videoId")
         }
     }

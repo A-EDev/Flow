@@ -47,6 +47,7 @@ fun Modifier.videoPlayerControls(
     volumeSwipeGesturesEnabled: Boolean = true,
     allowVolumeBoost: Boolean = false,
     doubleTapSeekMs: Long = 10_000L,
+    longPressPlaybackSpeed: Float = 2.0f,
     onExitFullscreen: (() -> Unit)? = null
 ): Modifier = composed {
     val currentIsSpeedBoostActive by rememberUpdatedState(isSpeedBoostActive)
@@ -73,6 +74,7 @@ fun Modifier.videoPlayerControls(
     val currentVolumeSwipeGesturesEnabled by rememberUpdatedState(volumeSwipeGesturesEnabled)
     val currentAllowVolumeBoost by rememberUpdatedState(allowVolumeBoost)
     val currentDoubleTapSeekMs by rememberUpdatedState(doubleTapSeekMs)
+    val currentLongPressPlaybackSpeed by rememberUpdatedState(longPressPlaybackSpeed)
     val currentOnSeekAccumulate by rememberUpdatedState(onSeekAccumulate)
     val currentOnExitFullscreen by rememberUpdatedState(onExitFullscreen)
 
@@ -179,21 +181,23 @@ fun Modifier.videoPlayerControls(
                     }
                 },
                 onLongPress = { offset ->
+                    if (currentLongPressPlaybackSpeed <= 0f) return@detectTapGestures
+
                     val screenHeight = size.height
                     val bottomExclusionZone = if (currentIsFullscreen) 80f else 120f
                     if (offset.y > screenHeight - bottomExclusionZone) return@detectTapGestures
 
-                    val player = EnhancedPlayerManager.getInstance().getPlayer()
+                    val manager = EnhancedPlayerManager.getInstance()
+                    val player = manager.getPlayer()
                     if (player != null && !currentIsSpeedBoostActive) {
                         currentOnSpeedBoostChange(true)
-                        player.setPlaybackSpeed(2.0f)
+                        manager.setPlaybackSpeed(currentLongPressPlaybackSpeed.coerceIn(0.1f, 4.0f))
                     }
                 },
                 onPress = { offset ->
                     tryAwaitRelease()
                     if (currentIsSpeedBoostActive) {
-                        val player = EnhancedPlayerManager.getInstance().getPlayer()
-                        player?.setPlaybackSpeed(currentNormalSpeed)
+                        EnhancedPlayerManager.getInstance().setPlaybackSpeed(currentNormalSpeed)
                         currentOnSpeedBoostChange(false)
                     }
                 }

@@ -1362,10 +1362,11 @@ class VideoPlayerViewModel @Inject constructor(
             streamInfo.duration > 0L -> streamInfo.duration * 1000L
             else -> (_uiState.value.cachedVideo?.duration?.toLong() ?: 0L) * 1000L
         }
+        val isLiveStream = streamInfo.streamType == StreamType.LIVE_STREAM
         val resumePosition = savedPosition
             .takeIf { it > 500L }
             ?.takeIf { queueSize <= 1 }
-            ?.takeIf { hlsUrl.isNullOrEmpty() }
+            ?.takeIf { !isLiveStream && hlsUrl.isNullOrEmpty() }
             ?.takeUnless { shouldRestartCompletedPlayback(it, durationMs) }
             ?: 0L
 

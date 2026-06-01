@@ -282,6 +282,7 @@ fun VolumeOverlay(
 @Composable
 fun SpeedBoostOverlay(
     isVisible: Boolean,
+    speed: Float = 2.0f,
     modifier: Modifier = Modifier
 ) {
     AnimatedVisibility(
@@ -301,7 +302,7 @@ fun SpeedBoostOverlay(
                 horizontalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "2x",
+                    text = formatSpeedBoostLabel(speed),
                     color = Color.White,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
@@ -315,6 +316,15 @@ fun SpeedBoostOverlay(
                 )
             }
         }
+    }
+}
+
+private fun formatSpeedBoostLabel(speed: Float): String {
+    val clamped = speed.coerceIn(0.1f, 4.0f)
+    return if (kotlin.math.abs(clamped - clamped.toInt()) < 0.01f) {
+        "${clamped.toInt()}x"
+    } else {
+        "${(kotlin.math.round(clamped * 100f) / 100f).toString().trimEnd('0').trimEnd('.')}x"
     }
 }
 

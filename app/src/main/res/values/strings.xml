@@ -531,6 +531,9 @@
     <string name="player_appearance_remember_brightness_subtitle">Reuse your last player brightness level for the next videos</string>
     <string name="player_appearance_volume_gesture_title">Volume Gesture</string>
     <string name="player_appearance_volume_gesture_subtitle">Swipe the right edge in fullscreen to adjust volume</string>
+    <string name="player_appearance_long_press_speed_title">Long-press Playback Speed</string>
+    <string name="player_appearance_long_press_speed_subtitle">Choose the temporary speed used while holding the player</string>
+    <string name="player_appearance_long_press_speed_disabled">Disabled</string>
     <string name="mini_player_header">Mini Player Customizations</string>
     <string name="mini_player_size">Mini Player Size</string>
     <string name="mini_player_small">Small</string>

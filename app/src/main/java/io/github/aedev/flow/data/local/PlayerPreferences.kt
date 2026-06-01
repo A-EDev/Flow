@@ -204,6 +204,7 @@ class PlayerPreferences(context: Context) {
         val CUSTOM_SPEEDS_ENABLED = booleanPreferencesKey("custom_speeds_enabled")
         val CUSTOM_SPEED_PRESETS = stringPreferencesKey("custom_speed_presets")
         val SPEED_SLIDER_ENABLED = booleanPreferencesKey("speed_slider_enabled")
+        val LONG_PRESS_PLAYBACK_SPEED = floatPreferencesKey("long_press_playback_speed")
 
         // Content filtering
         val HIDE_WATCHED_VIDEOS = booleanPreferencesKey("hide_watched_videos")
@@ -1209,6 +1210,19 @@ class PlayerPreferences(context: Context) {
     suspend fun setSpeedSliderEnabled(enabled: Boolean) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.SPEED_SLIDER_ENABLED] = enabled
+        }
+    }
+
+    val longPressPlaybackSpeed: Flow<Float> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            (preferences[Keys.LONG_PRESS_PLAYBACK_SPEED] ?: 2.0f)
+                .let { if (it <= 0f) 0f else it.coerceIn(0.1f, 4.0f) }
+        }
+
+    suspend fun setLongPressPlaybackSpeed(speed: Float) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.LONG_PRESS_PLAYBACK_SPEED] =
+                if (speed <= 0f) 0f else speed.coerceIn(0.1f, 4.0f)
         }
     }
 

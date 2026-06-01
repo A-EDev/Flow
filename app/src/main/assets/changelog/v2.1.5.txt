@@ -36,6 +36,7 @@ FEATURES
 - Add shorts history delete option #514
 - Add LireTube history export option #507
 - Add shorts playback speed selection #496
+- Add option to disable or change long-press playback speed #475
 - Add option to disable volume boost #491
 - Add date and time format customization #481 
 - Add codec preference settings #560 
@@ -80,6 +81,7 @@ IMPROVEMENTS
 - New queue sheet design, improved queue handling and similar content fetching
 - Improve AV1 handling #548
 - Increase subscription feed cache size
+- Reduce player UI position update churn during playback to improve high-FPS fast-speed smoothness #478
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

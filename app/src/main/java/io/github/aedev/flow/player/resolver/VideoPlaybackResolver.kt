@@ -42,11 +42,12 @@ class VideoPlaybackResolver(
         audioStream: AudioStream?,
         dashManifestUrl: String?,
         hlsUrl: String?,
-        durationSeconds: Long
+        durationSeconds: Long,
+        isLiveStream: Boolean = false
     ): MediaSource? {
         Log.d(TAG, "Resolving playback: ${videoStreams.size} video streams, audio=${audioStream != null}, dash=${!dashManifestUrl.isNullOrEmpty()}, hls=${!hlsUrl.isNullOrEmpty()}, duration=${durationSeconds}s")
         
-        if (!hlsUrl.isNullOrEmpty() && !dashManifestUrl.isNullOrEmpty()) {
+        if (isLiveStream && !dashManifestUrl.isNullOrEmpty()) {
             try {
                 Log.d(TAG, "Using YouTube DASH manifest for live DVR playback: ${dashManifestUrl.take(80)}...")
 
@@ -67,7 +68,7 @@ class VideoPlaybackResolver(
             }
         }
 
-        if (!hlsUrl.isNullOrEmpty()) {
+        if (isLiveStream && !hlsUrl.isNullOrEmpty()) {
             try {
                 Log.d(TAG, "Using YouTube HLS manifest for live playback: ${hlsUrl.take(80)}...")
 
