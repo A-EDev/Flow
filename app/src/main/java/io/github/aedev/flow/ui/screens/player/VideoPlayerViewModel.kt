@@ -622,7 +622,8 @@ class VideoPlayerViewModel @Inject constructor(
                 offlineSegments = latest.offlineSponsorBlockSegments,
                 hlsUrl = latest.hlsUrl,
                 isAdaptiveMode = latest.isAdaptiveMode,
-                loadToken = loadToken
+                loadToken = loadToken,
+                preferredVideoCodec = playerPreferences.defaultVideoCodec.first().codecKey
             )
         }
     }
@@ -868,7 +869,8 @@ class VideoPlayerViewModel @Inject constructor(
                             playerPreferences.defaultQualityCellular.first()
                         }
                         val preferredAudioLang = playerPreferences.preferredAudioLanguage.first()
-                        Pair(preferredQuality, preferredAudioLang)
+                        val preferredCodec = playerPreferences.defaultVideoCodec.first().codecKey
+                        Triple(preferredQuality, preferredAudioLang, preferredCodec)
                     }
                     
                     val downloadedDeferred = async(PerformanceDispatcher.diskIO) {
@@ -884,6 +886,7 @@ class VideoPlayerViewModel @Inject constructor(
                 
                 val preferredQuality = qualityAndAudioPrefs.first
                 val preferredAudioLanguage = qualityAndAudioPrefs.second
+                val preferredCodecKey = qualityAndAudioPrefs.third
 
                 // Check for offline file immediately (video downloads and audio-only downloads)
                 val localFile = if (downloadedVideo != null) java.io.File(downloadedVideo.filePath) else null
@@ -1001,7 +1004,7 @@ class VideoPlayerViewModel @Inject constructor(
 
                         val availableQualities = extractAvailableQualitiesFromStreams(effectiveVideoStreams)
                         val initialQuality = preferredQuality
-                        val selectedStreams = selectStreamsFromLists(effectiveVideoStreams, effectiveAudioStreams, initialQuality, preferredAudioLanguage)
+                        val selectedStreams = selectStreamsFromLists(effectiveVideoStreams, effectiveAudioStreams, initialQuality, preferredAudioLanguage, preferredCodecKey)
                         var localFilePath: String? = null
                         
                         // If downloaded (video or audio-only), override with local path
@@ -1099,7 +1102,8 @@ class VideoPlayerViewModel @Inject constructor(
                             loadToken = loadToken,
                             sabrInfo = resolvedSabrInfo,
                             itVideoFormats = innerTubeResult?.videoFormats ?: emptyList(),
-                            itAudioFormats = innerTubeResult?.audioFormats ?: emptyList()
+                            itAudioFormats = innerTubeResult?.audioFormats ?: emptyList(),
+                            preferredVideoCodec = preferredCodecKey
                         )
 
                         // PARALLEL FETCH: Channel info and stream sizes simultaneously
@@ -1344,7 +1348,8 @@ class VideoPlayerViewModel @Inject constructor(
         loadToken: Long,
         sabrInfo: SabrStreamInfo? = null,
         itVideoFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
-        itAudioFormats: List<PlayerResponse.StreamingData.Format> = emptyList()
+        itAudioFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
+        preferredVideoCodec: String = "auto"
     ) = withContext(Dispatchers.Main) {
         if (!isPlaybackLoadCurrent(loadToken)) return@withContext
         val manager = EnhancedPlayerManager.getInstance()
@@ -1389,7 +1394,8 @@ class VideoPlayerViewModel @Inject constructor(
                 startPosition = resumePosition,
                 sabrInfo = sabrInfo,
                 itVideoFormats = itVideoFormats,
-                itAudioFormats = itAudioFormats
+                itAudioFormats = itAudioFormats,
+                preferredVideoCodec = preferredVideoCodec
             )
         }
         applyRememberedPlaybackSpeed(isLive = !hlsUrl.isNullOrEmpty(), manager = manager)
@@ -1450,6 +1456,7 @@ class VideoPlayerViewModel @Inject constructor(
         val streamInfo = state.streamInfo ?: return
         viewModelScope.launch {
             val audioLangPref = playerPreferences.preferredAudioLanguage.first()
+            val codecPref = playerPreferences.defaultVideoCodec.first().codecKey
             val innerTubeVideoStreams = InnerTubeStreamBridge.convertVideoFormats(state.innerTubeVideoFormats)
             val innerTubeAudioStreams = InnerTubeStreamBridge.convertAudioFormats(state.innerTubeAudioFormats)
             val effectiveVideo = mergeVideoStreams(
@@ -1457,7 +1464,7 @@ class VideoPlayerViewModel @Inject constructor(
                 (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>()
             )
             val effectiveAudio: List<AudioStream> = mergeAudioStreams(innerTubeAudioStreams, streamInfo.audioStreams)
-            val streams = selectStreamsFromLists(effectiveVideo, effectiveAudio, quality, audioLangPref)
+            val streams = selectStreamsFromLists(effectiveVideo, effectiveAudio, quality, audioLangPref, codecPref)
 
             _uiState.value = state.copy(
                 videoStream = streams.first,
@@ -1825,15 +1832,6 @@ class VideoPlayerViewModel @Inject constructor(
             }
         }
     }
-    
-    private fun selectStreams(
-        streamInfo: StreamInfo,
-        preferredQuality: VideoQuality,
-        preferredAudioLanguage: String = "original"
-    ): Triple<VideoStream?, AudioStream?, VideoQuality> {
-        val videoStreams = (streamInfo.videoStreams + streamInfo.videoOnlyStreams).filterIsInstance<VideoStream>()
-        return selectStreamsFromLists(videoStreams, streamInfo.audioStreams, preferredQuality, preferredAudioLanguage)
-    }
 
     private fun mergeVideoStreams(
         primary: List<VideoStream>,
@@ -1873,7 +1871,8 @@ class VideoPlayerViewModel @Inject constructor(
         videoStreams: List<VideoStream>,
         audioStreams: List<AudioStream>,
         preferredQuality: VideoQuality,
-        preferredAudioLanguage: String = "original"
+        preferredAudioLanguage: String = "original",
+        preferredCodecKey: String = "auto"
     ): Triple<VideoStream?, AudioStream?, VideoQuality> {
         val audioCandidates = audioStreams
             .distinctBy { it.content ?: "" }
@@ -1915,7 +1914,7 @@ class VideoPlayerViewModel @Inject constructor(
                             QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) - preferredQuality.height
                         )
                     }
-                        .thenBy { VideoCodecUtils.playbackCodecRank(it) }
+                        .thenBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
                         .thenByDescending { it.bitrate }
                 )
                 .firstOrNull()
@@ -1927,7 +1926,7 @@ class VideoPlayerViewModel @Inject constructor(
                 .sortedWith(
                     compareBy<VideoStream> { if (it.isVideoOnly) 1 else 0 }
                         .thenByDescending { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) }
-                        .thenBy { VideoCodecUtils.playbackCodecRank(it) }
+                        .thenBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
                         .thenByDescending { it.bitrate }
                 )
                 .firstOrNull()

@@ -835,6 +835,10 @@
     <string name="player_settings_audio_language_dialog_body">Select your preferred audio track language. If not available, the original language will be used.</string>
     <string name="player_settings_audio_original">Original (Native)</string>
     <string name="player_settings_audio_original_desc">Uses the video\'s native audio track</string>
+    <string name="player_settings_video_codec">Default Video Codec</string>
+    <string name="player_settings_video_codec_dialog_title">Default Video Codec</string>
+    <string name="player_settings_video_codec_dialog_body">Choose which codec is used by default at the selected resolution. This does not change which qualities are listed — you can still pick any codec from the quality selector. H.264 is the most compatible and smoothest on most devices; AV1/VP9 save data at higher resolutions but need more decoding power.</string>
+    <string name="player_settings_video_codec_auto_desc">Let the app choose (prefers H.264)</string>
     <!-- Player Gestures -->
     <string name="player_settings_header_gestures">Gestures</string>
     <string name="player_settings_double_tap_seek">Double-Tap Seek Duration</string>

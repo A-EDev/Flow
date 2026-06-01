@@ -48,6 +48,8 @@ class QualityManager(
     // Available streams
     private var availableVideoStreams: List<VideoStream> = emptyList()
     private var currentVideoStream: VideoStream? = null
+
+    var preferredCodecKey: String? = null
     
     // Track failed streams
     private val failedStreamUrls = mutableSetOf<String>()
@@ -145,7 +147,7 @@ class QualityManager(
         val smartStream = availableVideoStreams
             .sortedWith(
                 compareBy<VideoStream> { kotlin.math.abs(qualityHeight(it) - targetHeight) }
-                    .thenBy { VideoCodecUtils.playbackCodecRank(it) }
+                    .thenBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
                     .thenByDescending { it.bitrate }
             )
             .firstOrNull()
@@ -209,7 +211,7 @@ class QualityManager(
         val targetStream = availableVideoStreams
             .filter { qualityHeight(it) == height }
             .minWithOrNull(
-                compareBy<VideoStream> { VideoCodecUtils.playbackCodecRank(it) }
+                compareBy<VideoStream> { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
                     .thenByDescending { it.bitrate }
             )
         if (targetStream == null) {
@@ -282,7 +284,7 @@ class QualityManager(
         val targetStream = availableVideoStreams
             .sortedWith(
                 compareBy<VideoStream> { kotlin.math.abs(qualityHeight(it) - targetHeight) }
-                    .thenBy { VideoCodecUtils.playbackCodecRank(it) }
+                    .thenBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
                     .thenByDescending { it.bitrate }
             )
             .firstOrNull()

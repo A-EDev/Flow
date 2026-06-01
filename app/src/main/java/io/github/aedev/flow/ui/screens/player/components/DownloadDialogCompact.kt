@@ -35,12 +35,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +55,9 @@ import io.github.aedev.flow.innertube.models.response.PlayerResponse
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.schabi.newpipe.extractor.stream.AudioStream
 import org.schabi.newpipe.extractor.stream.StreamInfo
@@ -64,6 +65,7 @@ import org.schabi.newpipe.extractor.stream.VideoStream
 
 private const val MIN_THREADS = 1
 private const val MAX_THREADS = 8
+private val downloadPrefsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
 private val CODEC_PRIORITY = mapOf("vp9" to 0, "h264" to 1, "av1" to 2, "vp8" to 3, "hevc" to 4)
 
@@ -85,7 +87,6 @@ fun DownloadQualityDialogCompact(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val prefs = remember(context) { PlayerPreferences(context) }
     val preferredLang by prefs.preferredAudioLanguage.collectAsState(initial = "")
     val defaultThreads by prefs.downloadThreads.collectAsState(initial = 3)
@@ -125,8 +126,7 @@ fun DownloadQualityDialogCompact(
     val hasAudio = audioStreams.isNotEmpty()
 
     var title by remember(video.id) { mutableStateOf(video.title) }
-    var threads by remember { mutableStateOf(-1) }
-    LaunchedEffect(defaultThreads) { if (threads < MIN_THREADS) threads = defaultThreads.coerceIn(MIN_THREADS, MAX_THREADS) }
+    var threads by remember(defaultThreads) { mutableStateOf(defaultThreads.coerceIn(MIN_THREADS, MAX_THREADS)) }
 
     var isAudioMode by remember(lastType, hasVideo, hasAudio) {
         mutableStateOf((lastType == "AUDIO" && hasAudio) || !hasVideo)
@@ -183,7 +183,7 @@ fun DownloadQualityDialogCompact(
                 threads = threads
             )
             Toast.makeText(context, context.getString(R.string.downloading_template, audioOptionLabel(stream)), Toast.LENGTH_SHORT).show()
-            scope.launch {
+            downloadPrefsScope.launch {
                 prefs.setLastDownloadAudioChoice(audioOptionLabel(stream))
                 prefs.setDownloadThreads(threads)
             }
@@ -222,7 +222,7 @@ fun DownloadQualityDialogCompact(
             threads = threads
         )
         Toast.makeText(context, context.getString(R.string.downloading_template, qualityLabel), Toast.LENGTH_SHORT).show()
-        scope.launch {
+        downloadPrefsScope.launch {
             prefs.setLastDownloadVideoChoice(selectedHeight, selectedCodec)
             prefs.setDownloadThreads(threads)
         }

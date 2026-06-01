@@ -42,7 +42,7 @@ object PlayerConfig {
     const val LOW_MEMORY_MAX_SAFE_MAIN_MIN_BUFFER_MS = 12_000
 
 
-    const val MAIN_TARGET_BUFFER_BYTES = 48 * 1024 * 1024
+    const val MAIN_TARGET_BUFFER_BYTES = 64 * 1024 * 1024
 
     /** Smaller target buffer budgets for devices with 256-384 MB app heaps. */
     const val LOW_MEMORY_MAIN_TARGET_BUFFER_BYTES = 8 * 1024 * 1024

@@ -26,7 +26,7 @@ object InnerTubeStreamBridge {
             try {
                 VideoStream.Builder()
                     .setId(format.itag.toString())
-                    .setItagItem(itagItemOrNull(format.itag))
+                    .setItagItem(buildItagItem(format, isAudio = false))
                     .setContent(url, true)
                     .setMediaFormat(mediaFormat)
                     .setResolution(resolutionLabel)
@@ -51,7 +51,7 @@ object InnerTubeStreamBridge {
             try {
                 AudioStream.Builder()
                     .setId(format.itag.toString())
-                    .setItagItem(itagItemOrNull(format.itag))
+                    .setItagItem(buildItagItem(format, isAudio = true))
                     .setContent(url, true)
                     .setMediaFormat(mediaFormat)
                     .setAverageBitrate(bitrate)
@@ -90,12 +90,42 @@ object InnerTubeStreamBridge {
         }
     }
 
-    private fun itagItemOrNull(itag: Int): ItagItem? {
-        return try {
-            ItagItem.getItag(itag)
+    private fun buildItagItem(
+        format: PlayerResponse.StreamingData.Format,
+        isAudio: Boolean
+    ): ItagItem? {
+        val item = try {
+            ItagItem.getItag(format.itag)
         } catch (e: Exception) {
-            Log.d(TAG, "No NewPipe ItagItem metadata for itag=$itag: ${e.message}")
-            null
+            Log.d(TAG, "No NewPipe ItagItem metadata for itag=${format.itag}: ${e.message}")
+            return null
         }
+
+        VideoCodecUtils.codecStringFromMimeType(format.mimeType)
+            .takeIf { it.isNotBlank() }
+            ?.let { item.codec = it }
+        item.bitrate = format.averageBitrate ?: format.bitrate
+        format.contentLength?.let { item.contentLength = it }
+        format.approxDurationMs?.toLongOrNull()?.let { item.approxDurationMs = it }
+        format.lastModified?.let { item.lastModified = it }
+        format.initRange?.let { range ->
+            range.start?.toIntOrNull()?.let { item.initStart = it }
+            range.end?.toIntOrNull()?.let { item.initEnd = it }
+        }
+        format.indexRange?.let { range ->
+            range.start?.toIntOrNull()?.let { item.indexStart = it }
+            range.end?.toIntOrNull()?.let { item.indexEnd = it }
+        }
+
+        if (isAudio) {
+            format.audioChannels?.let { item.audioChannels = it }
+            format.audioSampleRate?.let { item.sampleRate = it }
+        } else {
+            format.width?.let { item.width = it }
+            format.height?.let { item.height = it }
+            format.fps?.let { item.fps = it }
+            item.quality = format.quality
+        }
+        return item
     }
 }

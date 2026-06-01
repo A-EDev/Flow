@@ -24,13 +24,12 @@ object InnerTubeVideoStreamExtractor {
     private val N_PARAM_REGEX = Regex("""(?:^|[?&])n=([^&]+)""")
 
     //* Fast, token-free clients tried first. They return direct adaptive URLs (played via normal DASH/progressive) when not bot-walled
-     
     private val FAST_CLIENTS: List<YouTubeClient> = listOf(
-        YouTubeClient.ANDROID_VR_1_43_32,
         YouTubeClient.ANDROID_VR_1_61_48,
         YouTubeClient.ANDROID_VR_NO_AUTH,
         YouTubeClient.IPADOS,
         YouTubeClient.IOS,
+        YouTubeClient.ANDROID_VR_1_43_32,
     )
 
     private val BOT_RESISTANT_CLIENTS: List<YouTubeClient> = listOf(

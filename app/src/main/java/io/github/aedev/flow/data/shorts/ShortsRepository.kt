@@ -3,6 +3,7 @@ package io.github.aedev.flow.data.shorts
 import android.content.Context
 import android.util.Log
 import android.util.LruCache
+import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.local.SubscriptionRepository
 import io.github.aedev.flow.data.local.ViewHistory
 import io.github.aedev.flow.data.model.ShortVideo
@@ -505,13 +506,14 @@ class ShortsRepository private constructor(private val context: Context) {
         targetHeight: Int,
         preferredAudioLanguage: String
     ): ShortPlaybackStreams? = withContext(Dispatchers.IO) {
-        val cacheKey = "$videoId|$targetHeight|$preferredAudioLanguage"
+        val preferredCodecKey = PlayerPreferences(context).defaultVideoCodec.first().codecKey
+        val cacheKey = "$videoId|$targetHeight|$preferredAudioLanguage|$preferredCodecKey"
         playbackStreamsCache.get(cacheKey)?.let { return@withContext it }
 
         val inFlight = streamResolveMutex.withLock {
             playbackStreamsInFlight[cacheKey]?.let { return@withLock it }
             repositoryScope.async {
-                resolvePlaybackStreamsUncached(videoId, targetHeight, preferredAudioLanguage)
+                resolvePlaybackStreamsUncached(videoId, targetHeight, preferredAudioLanguage, preferredCodecKey)
             }.also { playbackStreamsInFlight[cacheKey] = it }
         }
 
@@ -529,21 +531,28 @@ class ShortsRepository private constructor(private val context: Context) {
     private suspend fun resolvePlaybackStreamsUncached(
         videoId: String,
         targetHeight: Int,
-        preferredAudioLanguage: String
+        preferredAudioLanguage: String,
+        preferredCodecKey: String = "auto"
     ): ShortPlaybackStreams? {
-        resolveFromUnifiedExtractor(videoId, targetHeight, preferredAudioLanguage)?.let { return it }
+        resolveFromUnifiedExtractor(videoId, targetHeight, preferredAudioLanguage, preferredCodecKey)?.let { return it }
 
-        resolveFromInnerTubePlayer(videoId, targetHeight, preferredAudioLanguage)?.let { return it }
+        resolveFromInnerTubePlayer(videoId, targetHeight, preferredAudioLanguage, preferredCodecKey)?.let { return it }
 
         val streamInfo = resolveStreamInfo(videoId) ?: return null
         val allVideoStreams = (streamInfo.videoStreams.orEmpty() + streamInfo.videoOnlyStreams.orEmpty())
         fun qualityHeight(stream: org.schabi.newpipe.extractor.stream.VideoStream): Int {
             return QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(stream))
         }
+        // Pick the height tier first (respecting the cap), then the user's preferred codec within it.
+        fun pickAtHeight(streams: List<org.schabi.newpipe.extractor.stream.VideoStream>): org.schabi.newpipe.extractor.stream.VideoStream? {
+            val height = streams.maxOfOrNull { qualityHeight(it) } ?: return null
+            return streams.filter { qualityHeight(it) == height }
+                .minWithOrNull(compareBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) })
+        }
         val videoStream = if (targetHeight == 0) {
-            allVideoStreams.maxByOrNull { qualityHeight(it) }
+            pickAtHeight(allVideoStreams)
         } else {
-            allVideoStreams.filter { qualityHeight(it) <= targetHeight }.maxByOrNull { qualityHeight(it) }
+            pickAtHeight(allVideoStreams.filter { qualityHeight(it) <= targetHeight })
                 ?: allVideoStreams.minByOrNull { qualityHeight(it) }
         }
 
@@ -658,24 +667,26 @@ class ShortsRepository private constructor(private val context: Context) {
     }
 
     private fun sortedVideoFormatsForPlayback(
-        formats: List<PlayerResponse.StreamingData.Format>
+        formats: List<PlayerResponse.StreamingData.Format>,
+        preferredCodecKey: String = "auto"
     ): List<PlayerResponse.StreamingData.Format> =
         formats.sortedWith(
             compareByDescending<PlayerResponse.StreamingData.Format> { shortsQualityClass(it) }
-                .thenBy { VideoCodecUtils.playbackCodecRank(VideoCodecUtils.codecKeyFromMimeType(it.mimeType)) }
+                .thenBy { VideoCodecUtils.codecRankWithPreference(VideoCodecUtils.codecKeyFromMimeType(it.mimeType), preferredCodecKey) }
                 .thenByDescending { it.averageBitrate ?: it.bitrate }
         )
 
     private fun selectVideoForTarget(
         videoFormats: List<PlayerResponse.StreamingData.Format>,
-        targetHeight: Int
+        targetHeight: Int,
+        preferredCodecKey: String = "auto"
     ): PlayerResponse.StreamingData.Format? {
         val candidates = if (targetHeight == 0) {
             videoFormats
         } else {
             videoFormats.filter { shortsQualityClass(it) <= targetHeight }
         }
-        return sortedVideoFormatsForPlayback(candidates).firstOrNull()
+        return sortedVideoFormatsForPlayback(candidates, preferredCodecKey).firstOrNull()
             ?: videoFormats.minByOrNull { shortsQualityClass(it) }
     }
 
@@ -697,7 +708,8 @@ class ShortsRepository private constructor(private val context: Context) {
     private suspend fun resolveFromUnifiedExtractor(
         videoId: String,
         targetHeight: Int,
-        preferredAudioLanguage: String
+        preferredAudioLanguage: String,
+        preferredCodecKey: String = "auto"
     ): ShortPlaybackStreams? {
         return try {
             val result = withTimeoutOrNull(STREAM_RESOLVE_TIMEOUT_MS) {
@@ -707,7 +719,7 @@ class ShortsRepository private constructor(private val context: Context) {
             val videoFormats = result.videoFormats.filter { !it.url.isNullOrBlank() }
             if (videoFormats.isEmpty()) return null
 
-            val selectedVideo = selectVideoForTarget(videoFormats, targetHeight) ?: return null
+            val selectedVideo = selectVideoForTarget(videoFormats, targetHeight, preferredCodecKey) ?: return null
             val videoUrl = selectedVideo.url ?: return null
 
             val audioFormats = result.audioFormats.filter { !it.url.isNullOrBlank() }
@@ -728,7 +740,8 @@ class ShortsRepository private constructor(private val context: Context) {
     private suspend fun resolveFromInnerTubePlayer(
         videoId: String,
         targetHeight: Int,
-        preferredAudioLanguage: String
+        preferredAudioLanguage: String,
+        preferredCodecKey: String = "auto"
     ): ShortPlaybackStreams? {
         return try {
             val response = withTimeoutOrNull(3_500L) {
@@ -751,7 +764,7 @@ class ShortsRepository private constructor(private val context: Context) {
                     .filter { !it.isAudio && (!it.url.isNullOrBlank() || !it.signatureCipher.isNullOrBlank()) }
             }
 
-            val selectedVideo = selectVideoForTarget(videoFormats, targetHeight) ?: return null
+            val selectedVideo = selectVideoForTarget(videoFormats, targetHeight, preferredCodecKey) ?: return null
             val selectedAudio = selectAudioForLanguage(audioFormats, preferredAudioLanguage)
 
             val videoUrl = NewPipeExtractor.getStreamUrl(selectedVideo, videoId) ?: return null

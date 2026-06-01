@@ -74,7 +74,9 @@ data class PlayerResponse(
             val lastModified: Long?,
             val signatureCipher: String?,
             val cipher: String? = null,
-            val audioTrack: AudioTrack?
+            val audioTrack: AudioTrack? = null,
+            val initRange: Range? = null,
+            val indexRange: Range? = null,
         ) {
             val isAudio: Boolean
                 get() = width == null
@@ -86,6 +88,12 @@ data class PlayerResponse(
                 val displayName: String?,
                 val id: String?,
                 val isAutoDubbed: Boolean?,
+            )
+
+            @Serializable
+            data class Range(
+                val start: String? = null,
+                val end: String? = null,
             )
         }
     }

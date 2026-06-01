@@ -517,7 +517,8 @@ class EnhancedPlayerManager private constructor() {
         startPosition: Long = 0L,
         sabrInfo: SabrStreamInfo? = null,
         itVideoFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
-        itAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList()
+        itAudioFormats: List<io.github.aedev.flow.innertube.models.response.PlayerResponse.StreamingData.Format> = emptyList(),
+        preferredVideoCodec: String = "auto"
     ) {
         Log.d(TAG, "setStreams(id=$videoId, videoHeight=${videoStream?.let(VideoCodecUtils::qualityHeightFromStream)}, sabr=${sabrInfo != null}, itVideo=${itVideoFormats.size}, itAudio=${itAudioFormats.size})")
         resetPlaybackStateForNewVideo(videoId)
@@ -559,6 +560,7 @@ class EnhancedPlayerManager private constructor() {
         
         // Update quality manager with available streams
         qualityManager?.setAvailableStreams(availableVideoStreams)
+        qualityManager?.preferredCodecKey = preferredVideoCodec
         qualityManager?.isDashSource = !currentDashManifestUrl.isNullOrEmpty()
 
         // Quality selection: respect user preference
@@ -988,7 +990,8 @@ class EnhancedPlayerManager private constructor() {
                     prefs.defaultQualityCellular.first()
                 }
                 val preferredAudioLanguage = prefs.preferredAudioLanguage.first()
-                val selected = selectStreamsForServicePlayback(streamInfo, preferredQuality, preferredAudioLanguage)
+                val preferredCodecKey = prefs.defaultVideoCodec.first().codecKey
+                val selected = selectStreamsForServicePlayback(streamInfo, preferredQuality, preferredAudioLanguage, preferredCodecKey)
                 setStreams(
                     videoId = enrichedVideo.id,
                     videoStream = selected.first,
@@ -1004,7 +1007,8 @@ class EnhancedPlayerManager private constructor() {
                     startPosition = 0L,
                     sabrInfo = sabrInfo,
                     itVideoFormats = extraction?.videoFormats ?: emptyList(),
-                    itAudioFormats = extraction?.audioFormats ?: emptyList()
+                    itAudioFormats = extraction?.audioFormats ?: emptyList(),
+                    preferredVideoCodec = preferredCodecKey
                 )
                 play()
             } catch (e: CancellationException) {
@@ -1048,7 +1052,8 @@ class EnhancedPlayerManager private constructor() {
     private fun selectStreamsForServicePlayback(
         streamInfo: StreamInfo,
         preferredQuality: VideoQuality,
-        preferredAudioLanguage: String
+        preferredAudioLanguage: String,
+        preferredCodecKey: String = "auto"
     ): Pair<VideoStream?, AudioStream?> {
         val audioCandidates = streamInfo.audioStreams
             .distinctBy { it.url ?: it.content }
@@ -1078,18 +1083,24 @@ class EnhancedPlayerManager private constructor() {
 
         val selectedVideoStream = when (preferredQuality) {
             VideoQuality.AUTO -> null
-            else -> videoStreams.minByOrNull {
-                kotlin.math.abs(
-                    QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) - preferredQuality.height
+            else -> videoStreams
+                .sortedWith(
+                    compareBy<VideoStream> {
+                        kotlin.math.abs(
+                            QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) - preferredQuality.height
+                        )
+                    }
+                        .thenBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
+                        .thenByDescending { it.bitrate }
                 )
-            }
+                .firstOrNull()
         }
         val videoStream = if (audioStream == null && selectedVideoStream == null) {
             videoStreams
                 .sortedWith(
                     compareBy<VideoStream> { if (it.isVideoOnly) 1 else 0 }
                         .thenByDescending { QualityManager.normalizeQualityHeight(VideoCodecUtils.qualityHeightFromStream(it)) }
-                        .thenBy { VideoCodecUtils.playbackCodecRank(it) }
+                        .thenBy { VideoCodecUtils.codecRankWithPreference(it, preferredCodecKey) }
                         .thenByDescending { it.bitrate }
                 )
                 .firstOrNull()

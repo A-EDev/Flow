@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-05-30
+DATE: 2026-06-01
 STATUS: PRE-RELEASE
 
 FEATURES
@@ -38,6 +38,7 @@ FEATURES
 - Add shorts playback speed selection #496
 - Add option to disable volume boost #491
 - Add date and time format customization #481 
+- Add codec preference settings #560 
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361
@@ -51,7 +52,7 @@ IMPROVEMENTS
 - Add to playlist sheet redesign and video addition to multiple playlists #391
 - Improve comments and description sheets design and interactions #397
 - Chapters sheet redesign
-- Battery optimization #383
+- Battery optimization #383 #559
 - Personality/control center redesign and optimization
 - Improve dislike signals from video player
 - Improve topics categories
@@ -77,6 +78,7 @@ IMPROVEMENTS
 - Improve Music feed and add more sections
 - Music player and its components redesign
 - New queue sheet design, improved queue handling and similar content fetching
+- Improve AV1 handling #548
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

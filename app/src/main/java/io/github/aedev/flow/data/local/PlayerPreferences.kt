@@ -29,6 +29,7 @@ class PlayerPreferences(context: Context) {
     private object Keys {
         val DEFAULT_QUALITY_WIFI = stringPreferencesKey("default_quality_wifi")
         val DEFAULT_QUALITY_CELLULAR = stringPreferencesKey("default_quality_cellular")
+        val DEFAULT_VIDEO_CODEC = stringPreferencesKey("default_video_codec")
         val BACKGROUND_PLAY_ENABLED = booleanPreferencesKey("background_play_enabled")
         val AUTOPLAY_ENABLED = booleanPreferencesKey("autoplay_enabled")
         val VIDEO_LOOP_ENABLED = booleanPreferencesKey("video_loop_enabled")
@@ -755,6 +756,17 @@ class PlayerPreferences(context: Context) {
     suspend fun setDefaultQualityCellular(quality: VideoQuality) {
         context.playerPreferencesDataStore.edit { preferences ->
             preferences[Keys.DEFAULT_QUALITY_CELLULAR] = quality.label
+        }
+    }
+
+    val defaultVideoCodec: Flow<VideoCodec> = context.playerPreferencesDataStore.data
+        .map { preferences ->
+            VideoCodec.fromString(preferences[Keys.DEFAULT_VIDEO_CODEC] ?: VideoCodec.H264.label)
+        }
+
+    suspend fun setDefaultVideoCodec(codec: VideoCodec) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.DEFAULT_VIDEO_CODEC] = codec.label
         }
     }
 
@@ -2082,12 +2094,12 @@ enum class BufferProfile(
     val playbackBuffer: Int,
     val rebufferBuffer: Int
 ) {
-    // Fast Start: Prioritize quick playback start over buffer stability
-    AGGRESSIVE("Fast Start", 3_000, 18_000, 250, 750),
+    // Fast Start: Prioritize quick playback start
+    AGGRESSIVE("Fast Start", 5_000, 30_000, 500, 2_500),
     // Balanced: Good default for most connections
-    STABLE("Balanced", 10_000, 40_000, 750, 1_500),
+    STABLE("Balanced", 30_000, 50_000, 2_500, 5_000),
     // Data Saver: Minimize data usage with smaller buffers
-    DATASAVER("Data Saver", 12_000, 25_000, 1_500, 3_000),                   
+    DATASAVER("Data Saver", 12_000, 25_000, 1_500, 3_000),
     // Custom: User-defined values
     CUSTOM("Custom", -1, -1, -1, -1);                                    
 
@@ -2117,6 +2129,17 @@ enum class VideoQuality(val label: String, val height: Int) {
                 .filter { it != AUTO }
                 .minByOrNull { kotlin.math.abs(it.height - height) } ?: Q_720p
         }
+    }
+}
+
+enum class VideoCodec(val label: String, val codecKey: String) {
+    AUTO("Auto", "auto"),
+    H264("H.264", "h264"),
+    VP9("VP9", "vp9"),
+    AV1("AV1", "av1");
+
+    companion object {
+        fun fromString(label: String): VideoCodec = values().find { it.label == label } ?: H264
     }
 }
 

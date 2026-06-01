@@ -104,6 +104,13 @@ object VideoCodecUtils {
         else -> 5
     }
 
+    fun codecRankWithPreference(codecKey: String, preferred: String?): Int =
+        if (!preferred.isNullOrBlank() && preferred != "auto" && codecKey == preferred) -1
+        else playbackCodecRank(codecKey)
+
+    fun codecRankWithPreference(stream: VideoStream, preferred: String?): Int =
+        codecRankWithPreference(codecKeyFromStream(stream), preferred)
+
     fun preferredVideoMimeTypes(): Array<String> = arrayOf(
         "video/avc",
         "video/x-vnd.on2.vp9",

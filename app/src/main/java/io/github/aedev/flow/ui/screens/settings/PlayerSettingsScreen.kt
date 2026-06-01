@@ -22,6 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.aedev.flow.data.local.PlayerPreferences
+import io.github.aedev.flow.data.local.VideoCodec
 import androidx.compose.ui.res.stringResource
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.lyrics.LyricsProviderRegistry
@@ -82,6 +83,7 @@ fun PlayerSettingsScreen(
     val shortsPlaybackMode by playerPreferences.shortsPlaybackMode.collectAsState(initial = "loop")
     val shortsAutoScrollSeconds by playerPreferences.shortsAutoScrollSeconds.collectAsState(initial = 10)
     val preferredAudioLanguage by playerPreferences.preferredAudioLanguage.collectAsState(initial = "original")
+    val defaultVideoCodec by playerPreferences.defaultVideoCodec.collectAsState(initial = VideoCodec.H264)
     val playDuringCalls by playerPreferences.playDuringCalls.collectAsState(initial = false)
     val lyricsProviderOrder by playerPreferences.lyricsProviderOrder.collectAsState(initial = "")
     val lyricsEnabledStates by playerPreferences.allLyricsProviderEnabledStates().collectAsState(initial = emptyMap())
@@ -92,6 +94,7 @@ fun PlayerSettingsScreen(
     val rememberPlaybackSpeed by playerPreferences.rememberPlaybackSpeed.collectAsState(initial = false)
     
     var showAudioLanguageDialog by remember { mutableStateOf(false) }
+    var showVideoCodecDialog by remember { mutableStateOf(false) }
     var showLyricsProviderSheet by remember { mutableStateOf(false) }
     var showSeekDurationDialog by remember { mutableStateOf(false) }
     var showShortsPlaybackModeDialog by remember { mutableStateOf(false) }
@@ -439,9 +442,16 @@ fun PlayerSettingsScreen(
                     SettingsClickItem(
                         icon = Icons.Outlined.VolumeUp,
                         title = stringResource(R.string.player_settings_audio_language),
-                        subtitle = audioLanguageOptions.find { it.first == preferredAudioLanguage }?.second 
+                        subtitle = audioLanguageOptions.find { it.first == preferredAudioLanguage }?.second
                             ?: stringResource(R.string.player_settings_audio_original),
                         onClick = { showAudioLanguageDialog = true }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp))
+                    SettingsClickItem(
+                        icon = Icons.Outlined.HighQuality,
+                        title = stringResource(R.string.player_settings_video_codec),
+                        subtitle = defaultVideoCodec.label,
+                        onClick = { showVideoCodecDialog = true }
                     )
                     HorizontalDivider(Modifier.padding(start = 56.dp))
                     SettingsSwitchItem(
@@ -559,6 +569,71 @@ fun PlayerSettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showAudioLanguageDialog = false }) {
+                    Text(stringResource(R.string.btn_close))
+                }
+            }
+        )
+    }
+
+    // Default Video Codec Selection Dialog
+    if (showVideoCodecDialog) {
+        AlertDialog(
+            onDismissRequest = { showVideoCodecDialog = false },
+            title = {
+                Text(
+                    stringResource(R.string.player_settings_video_codec_dialog_title),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Text(
+                        stringResource(R.string.player_settings_video_codec_dialog_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    VideoCodec.values().forEach { codec ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    coroutineScope.launch {
+                                        playerPreferences.setDefaultVideoCodec(codec)
+                                    }
+                                    showVideoCodecDialog = false
+                                }
+                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = defaultVideoCodec == codec,
+                                onClick = null
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = codec.label,
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                                if (codec == VideoCodec.AUTO) {
+                                    Text(
+                                        text = stringResource(R.string.player_settings_video_codec_auto_desc),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showVideoCodecDialog = false }) {
                     Text(stringResource(R.string.btn_close))
                 }
             }
