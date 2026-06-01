@@ -896,7 +896,7 @@
     <string name="deep_flow_mode_title">Mode Deep Flow</string>
     <string name="deep_flow_mode_subtitle">Mettre l\'apprentissage en pause — naviguer sans influencer votre profil</string>
     <string name="deep_flow_learning_paused">APPRENTISSAGE EN PAUSE</string>
-    <string name="deep_flow_expires_in">Expire dans %s</string>
+    <string name="deep_flow_expires_in">Se désactive dans %s</string>
     <string name="deep_flow_expire_duration_title">Désactivation automatique après</string>
     <string name="deep_flow_expire_duration_subtitle">L\'apprentissage reprend automatiquement après %s</string>
     <string name="deep_flow_dialog_title">Durée de la pause</string>
@@ -1529,7 +1529,7 @@
     <string name="appearance_system_defaults_subtitle">Choisissez le thème à utiliser lorsque votre appareil passe du mode clair au mode sombre.</string>
     <string name="appearance_system_light_theme">Thème en mode clair</string>
     <string name="appearance_system_dark_theme">Thème en mode sombre</string>
-    <string name="icon_name_flow_light">Flow Light</string>
+    <string name="icon_name_flow_light">Flow clair</string>
     <string name="icon_name_material_sky">Material Sky</string>
     <string name="icon_name_material_mint">Material Mint</string>
     <string name="theme_name_material_you">Material You</string>
