@@ -376,7 +376,7 @@ fun GlobalPlayerOverlay(
         videoId = video.id,
         video = video,
         isPlaying = playerState.playWhenReady,
-        currentPosition = screenState.currentPosition,
+        currentPosition = { screenState.currentPosition },
         duration = screenState.duration,
         uiState = playerUiState,
         viewModel = playerViewModel
@@ -656,7 +656,7 @@ fun GlobalPlayerOverlay(
                             onShowSeekBackChange = { screenState.showSeekBackAnimation = it },
                             onShowSeekForwardChange = { screenState.showSeekForwardAnimation = it },
                             onSeekAccumulate = { screenState.seekAccumulation = kotlin.math.abs(it) },
-                            currentPosition = screenState.currentPosition,
+                            currentPosition = { screenState.currentPosition },
                             duration = screenState.duration,
                             normalSpeed = screenState.normalSpeed,
                             scope = scope,

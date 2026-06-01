@@ -37,10 +37,15 @@ class PlaybackAnalyticsLogger(
         initializationDurationMs: Long
     ) {
         activeDecoderName = decoderName
-        PlayerDiagnostics.logInfo(
-            tag,
-            "Video decoder: $decoderName init=${initializationDurationMs}ms format=$activeFormatSummary"
-        )
+        val isSoftware = decoderName.startsWith("c2.android.") ||
+            decoderName.startsWith("OMX.google.")
+        val message = "Video decoder: $decoderName (${if (isSoftware) "SOFTWARE" else "hardware"}) " +
+            "init=${initializationDurationMs}ms format=$activeFormatSummary"
+        if (isSoftware) {
+            PlayerDiagnostics.logWarning(tag, "⚠ SOFTWARE video decode — high battery cost. $message")
+        } else {
+            PlayerDiagnostics.logInfo(tag, message)
+        }
     }
 
     override fun onDroppedVideoFrames(

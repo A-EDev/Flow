@@ -1575,6 +1575,7 @@ class EnhancedPlayerManager private constructor() {
         val p = player ?: return
         isAudioOnlyMode = true
         setVideoTracksDisabled(true)
+        p.setWakeMode(androidx.media3.common.C.WAKE_MODE_NETWORK)
         if (p.playWhenReady && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
             p.play()
         }
@@ -1584,6 +1585,7 @@ class EnhancedPlayerManager private constructor() {
         val p = player ?: return
         isAudioOnlyMode = false
         setVideoTracksDisabled(false)
+        p.setWakeMode(androidx.media3.common.C.WAKE_MODE_LOCAL)
         if (p.playWhenReady && !p.isPlaying && p.playbackState != Player.STATE_ENDED) {
             p.play()
         }

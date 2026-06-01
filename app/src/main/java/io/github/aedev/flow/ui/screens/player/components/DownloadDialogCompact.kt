@@ -49,10 +49,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.media3.common.util.UnstableApi
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.innertube.models.response.PlayerResponse
+import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.stream.InnerTubeStreamBridge
 import io.github.aedev.flow.ui.screens.player.util.VideoPlayerUtils
 import kotlinx.coroutines.launch
@@ -71,6 +73,7 @@ private fun containerForCodec(codecKey: String): String = when (codecKey) {
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
+@androidx.annotation.OptIn(UnstableApi::class)
 @Composable
 fun DownloadQualityDialogCompact(
     streamInfo: StreamInfo?,
@@ -78,6 +81,7 @@ fun DownloadQualityDialogCompact(
     innerTubeVideoFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
     innerTubeAudioFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
     video: Video,
+    currentPlayingHeight: Int = 0,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
@@ -89,6 +93,11 @@ fun DownloadQualityDialogCompact(
     val lastHeight by prefs.lastDownloadHeight.collectAsState(initial = null)
     val lastCodec by prefs.lastDownloadCodec.collectAsState(initial = null)
     val lastAudioLabel by prefs.lastDownloadAudioLabel.collectAsState(initial = null)
+
+    val currentPlayingCodec = remember {
+        EnhancedPlayerManager.getInstance().getPlayer()?.videoFormat?.sampleMimeType
+            ?.let { VideoPlayerUtils.codecKeyFromMimeType(it) }
+    }
 
     val videoStreams = remember(innerTubeVideoFormats, streamInfo) {
         val itVideo = InnerTubeStreamBridge.convertVideoFormats(innerTubeVideoFormats)
@@ -123,7 +132,11 @@ fun DownloadQualityDialogCompact(
         mutableStateOf((lastType == "AUDIO" && hasAudio) || !hasVideo)
     }
     var selectedHeight by remember(heights, lastHeight) {
-        mutableStateOf(heights.firstOrNull { it == lastHeight } ?: heights.firstOrNull() ?: 0)
+        mutableStateOf(
+            heights.firstOrNull { it == lastHeight }
+                ?: heights.firstOrNull { it == currentPlayingHeight }
+                ?: heights.firstOrNull() ?: 0
+        )
     }
     val codecsForHeight = videoStreams
         .filter { VideoPlayerUtils.qualityHeightFromStream(it) == selectedHeight }
@@ -131,11 +144,17 @@ fun DownloadQualityDialogCompact(
         .distinct()
         .sortedBy { CODEC_PRIORITY[it] ?: 99 }
     var selectedCodec by remember(selectedHeight, lastCodec) {
-        mutableStateOf(codecsForHeight.firstOrNull { it == lastCodec } ?: codecsForHeight.firstOrNull() ?: "")
+        mutableStateOf(
+            codecsForHeight.firstOrNull { it == lastCodec }
+                ?: codecsForHeight.firstOrNull { it == currentPlayingCodec }
+                ?: codecsForHeight.firstOrNull() ?: ""
+        )
     }
     var selectedAudioIndex by remember(audioStreams, lastAudioLabel) {
         mutableStateOf(
-            audioStreams.indexOfFirst { audioOptionLabel(it) == lastAudioLabel }.takeIf { it >= 0 } ?: 0
+            audioStreams.indexOfFirst { audioOptionLabel(it) == lastAudioLabel }.takeIf { it >= 0 }
+                ?: audioStreams.indices.maxByOrNull { DownloadStreamHelpers.audioBitrateKbps(audioStreams[it]) }
+                ?: 0
         )
     }
 

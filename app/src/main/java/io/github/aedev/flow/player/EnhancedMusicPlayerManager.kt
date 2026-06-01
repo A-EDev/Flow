@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.stream.AudioStream
 import java.util.concurrent.ExecutionException
 import android.util.Log
@@ -428,13 +429,14 @@ object EnhancedMusicPlayerManager {
         positionUpdateJob?.cancel()
         positionUpdateJob = scope.launch {
             while (true) {
-                player?.let { p ->
-                    if (p.isPlaying) {
-                        _currentPosition.value = p.currentPosition
-                        _playerState.value = _playerState.value.copy(position = p.currentPosition)
-                    }
+                val p = player
+                if (p != null && p.isPlaying) {
+                    _currentPosition.value = p.currentPosition
+                    _playerState.value = _playerState.value.copy(position = p.currentPosition)
+                    kotlinx.coroutines.delay(1000)
+                } else {
+                    withTimeoutOrNull(5000) { _playerState.first { it.isPlaying } }
                 }
-                kotlinx.coroutines.delay(1000)
             }
         }
     }

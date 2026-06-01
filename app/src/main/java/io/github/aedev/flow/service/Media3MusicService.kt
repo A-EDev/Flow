@@ -756,7 +756,7 @@ class Media3MusicService : MediaLibraryService() {
         }
 
         lockReleaseJob = serviceScope.launch {
-            delay(30_000L)
+            delay(12_000L)
             if (!isPlaybackActive()) {
                 releaseLocks()
                 if (!isAppInForeground()) {

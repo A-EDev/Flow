@@ -10,8 +10,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,7 +41,7 @@ import io.github.aedev.flow.ui.components.PlaylistQueueDock
 fun EnhancedVideoPlayerScreen(
     viewModel: VideoPlayerViewModel,
     video: Video,
-    alpha: Float,
+    alpha: () -> Float,
     videoPlayerHeight: androidx.compose.ui.unit.Dp = 0.dp,
     screenState: PlayerScreenState, // Shared screenState from FlowApp
     onVideoClick: (Video) -> Unit,
@@ -63,7 +63,7 @@ fun EnhancedVideoPlayerScreen(
     Box(
         modifier = Modifier
         .fillMaxSize()
-        .alpha(alpha)
+        .graphicsLayer { this.alpha = alpha() }
         .background(MaterialTheme.colorScheme.background)
     ) {
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {

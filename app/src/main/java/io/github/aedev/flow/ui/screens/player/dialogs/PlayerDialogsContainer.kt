@@ -41,28 +41,29 @@ fun PlayerDialogsContainer(
     }
 
     // Download Quality Dialog
+    val downloadDialogStyle by playerPreferences.downloadDialogStyle.collectAsState(initial = null)
     if (screenState.showDownloadDialog) {
-        val downloadDialogStyle by playerPreferences.downloadDialogStyle.collectAsState(
-            initial = io.github.aedev.flow.data.local.DownloadDialogStyle.FULL
-        )
-        if (downloadDialogStyle == io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT) {
-            DownloadQualityDialogCompact(
-                streamInfo = uiState.streamInfo,
-                streamSizes = uiState.streamSizes,
-                innerTubeVideoFormats = uiState.innerTubeVideoFormats,
-                innerTubeAudioFormats = uiState.innerTubeAudioFormats,
-                video = video,
-                onDismiss = { screenState.showDownloadDialog = false }
-            )
-        } else {
-            DownloadQualityDialog(
-                streamInfo = uiState.streamInfo,
-                streamSizes = uiState.streamSizes,
-                innerTubeVideoFormats = uiState.innerTubeVideoFormats,
-                innerTubeAudioFormats = uiState.innerTubeAudioFormats,
-                video = video,
-                onDismiss = { screenState.showDownloadDialog = false }
-            )
+        when (downloadDialogStyle) {
+            io.github.aedev.flow.data.local.DownloadDialogStyle.COMPACT ->
+                DownloadQualityDialogCompact(
+                    streamInfo = uiState.streamInfo,
+                    streamSizes = uiState.streamSizes,
+                    innerTubeVideoFormats = uiState.innerTubeVideoFormats,
+                    innerTubeAudioFormats = uiState.innerTubeAudioFormats,
+                    video = video,
+                    currentPlayingHeight = playerState.effectiveQuality,
+                    onDismiss = { screenState.showDownloadDialog = false }
+                )
+            io.github.aedev.flow.data.local.DownloadDialogStyle.FULL ->
+                DownloadQualityDialog(
+                    streamInfo = uiState.streamInfo,
+                    streamSizes = uiState.streamSizes,
+                    innerTubeVideoFormats = uiState.innerTubeVideoFormats,
+                    innerTubeAudioFormats = uiState.innerTubeAudioFormats,
+                    video = video,
+                    onDismiss = { screenState.showDownloadDialog = false }
+                )
+            null -> { }
         }
     }
 

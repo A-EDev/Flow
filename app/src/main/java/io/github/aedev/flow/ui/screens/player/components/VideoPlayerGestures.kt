@@ -28,7 +28,7 @@ fun Modifier.videoPlayerControls(
     onShowSeekBackChange: (Boolean) -> Unit,
     onShowSeekForwardChange: (Boolean) -> Unit,
     onSeekAccumulate: (Int) -> Unit = {},
-    currentPosition: Long,
+    currentPosition: () -> Long,
     duration: Long,
     normalSpeed: Float,
     scope: CoroutineScope,
@@ -55,7 +55,7 @@ fun Modifier.videoPlayerControls(
     val currentOnShowControlsChange by rememberUpdatedState(onShowControlsChange)
     val currentOnShowSeekBackChange by rememberUpdatedState(onShowSeekBackChange)
     val currentOnShowSeekForwardChange by rememberUpdatedState(onShowSeekForwardChange)
-    val currentPositionValue by rememberUpdatedState(currentPosition)
+    val currentPositionProvider by rememberUpdatedState(currentPosition)
     val currentDuration by rememberUpdatedState(duration)
     val currentNormalSpeed by rememberUpdatedState(normalSpeed)
     val currentIsFullscreen by rememberUpdatedState(isFullscreen)
@@ -126,7 +126,7 @@ fun Modifier.videoPlayerControls(
                         val manager = EnhancedPlayerManager.getInstance()
                         val player = manager.getPlayer()
                         val isLive = manager.playerState.value.isLive || player?.isCurrentMediaItemLive == true
-                        val actualBackBase = player?.currentPosition ?: currentPositionValue
+                        val actualBackBase = player?.currentPosition ?: currentPositionProvider()
                         val backBase = pendingBackTargetMs?.takeIf { continuingBackSeek } ?: actualBackBase
                         val target = (backBase - currentDoubleTapSeekMs).coerceAtLeast(0)
                         pendingBackTargetMs = target
@@ -155,7 +155,7 @@ fun Modifier.videoPlayerControls(
                         val manager = EnhancedPlayerManager.getInstance()
                         val player = manager.getPlayer()
                         val isLive = manager.playerState.value.isLive || player?.isCurrentMediaItemLive == true
-                        val actualForwardBase = player?.currentPosition ?: currentPositionValue
+                        val actualForwardBase = player?.currentPosition ?: currentPositionProvider()
                         val forwardBase = pendingForwardTargetMs?.takeIf { continuingForwardSeek } ?: actualForwardBase
                         val target = (forwardBase + currentDoubleTapSeekMs).coerceAtMost(currentDuration)
                         pendingForwardTargetMs = target

@@ -675,7 +675,7 @@ class VideoPlayerService : Service() {
         }
 
         lockReleaseJob = serviceScope.launch {
-            delay(30_000L)
+            delay(12_000L)
             releaseLocks()
         }
     }

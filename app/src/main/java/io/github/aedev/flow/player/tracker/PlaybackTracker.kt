@@ -10,7 +10,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
     
 @UnstableApi
 class PlaybackTracker(
@@ -48,7 +50,11 @@ class PlaybackTracker(
             
             while (true) {
                 trackPosition(player)
-                delay(PlayerConfig.POSITION_TRACKER_INTERVAL_MS)
+                if (player.isPlaying || player.playbackState == Player.STATE_BUFFERING) {
+                    delay(PlayerConfig.POSITION_TRACKER_INTERVAL_MS)
+                } else {
+                    withTimeoutOrNull(5000) { stateFlow.first { it.isPlaying || it.isBuffering } }
+                }
             }
         }
     }

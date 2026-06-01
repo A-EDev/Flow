@@ -331,12 +331,12 @@ fun WatchProgressSaveEffect(
     videoId: String,
     video: Video,
     isPlaying: Boolean,
-    currentPosition: Long,
+    currentPosition: () -> Long,
     duration: Long,
     uiState: VideoPlayerUiState,
     viewModel: VideoPlayerViewModel
 ) {
-    val currentPos by rememberUpdatedState(currentPosition)
+    val currentPosProvider by rememberUpdatedState(currentPosition)
     val currentDur by rememberUpdatedState(duration)
     val currentUi by rememberUpdatedState(uiState)
 
@@ -352,7 +352,7 @@ fun WatchProgressSaveEffect(
         if (title.isNotEmpty() && currentDur > 0) {
             viewModel.savePlaybackPosition(
                 videoId = videoId,
-                position = currentPos,
+                position = currentPosProvider(),
                 duration = currentDur,
                 title = title,
                 thumbnailUrl = thumbnailUrl,
@@ -375,7 +375,7 @@ fun WatchProgressSaveEffect(
             if (currentDur > 0 && title.isNotEmpty()) {
                 viewModel.savePlaybackPosition(
                     videoId = videoId,
-                    position = currentPos,
+                    position = currentPosProvider(),
                     duration = currentDur,
                     title = title,
                     thumbnailUrl = thumbnailUrl,

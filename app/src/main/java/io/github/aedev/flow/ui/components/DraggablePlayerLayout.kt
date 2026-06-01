@@ -16,7 +16,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -37,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import io.github.aedev.flow.player.GlobalPlayerState
@@ -51,10 +51,17 @@ private fun lerpFloat(start: Float, stop: Float, fraction: Float): Float =
 enum class PlayerSheetValue { Expanded, Collapsed }
 enum class MiniPlayerCorner { TopLeft, TopRight, BottomLeft, BottomRight }
 
-private fun playerExpandSpring() = spring<Float>(dampingRatio = 0.86f, stiffness = 520f)
-private fun miniSnapSpring() = spring<Float>(dampingRatio = 0.82f, stiffness = 500f)
-private fun miniResizeSpring() = spring<Float>(dampingRatio = 0.72f, stiffness = 280f)
-private fun miniDismissSpring() = spring<Float>(dampingRatio = 0.9f, stiffness = 340f)
+private val playerExpandSpringSpec = spring<Float>(dampingRatio = 0.86f, stiffness = 520f)
+private val miniSnapSpringSpec     = spring<Float>(dampingRatio = 0.82f, stiffness = 500f)
+private val miniResizeSpringSpec   = spring<Float>(dampingRatio = 0.72f, stiffness = 280f)
+private val miniDismissSpringSpec  = spring<Float>(dampingRatio = 0.9f,  stiffness = 340f)
+private val dragPressSpringSpec    = spring<Float>(dampingRatio = 0.7f,  stiffness = 600f)
+private val dragReleaseSpringSpec  = spring<Float>(dampingRatio = 0.55f, stiffness = 500f)
+
+private fun playerExpandSpring() = playerExpandSpringSpec
+private fun miniSnapSpring()     = miniSnapSpringSpec
+private fun miniResizeSpring()   = miniResizeSpringSpec
+private fun miniDismissSpring()  = miniDismissSpringSpec
 
 // ---------------------------------------------------------------------------
 // State
@@ -260,8 +267,8 @@ fun rememberPlayerDraggableState(): PlayerDraggableState {
 fun DraggablePlayerLayout(
     state: PlayerDraggableState,
     videoContent: @Composable (Modifier) -> Unit,
-    bodyContent: @Composable (Float, androidx.compose.ui.unit.Dp) -> Unit,
-    miniControls: @Composable (Float) -> Unit,
+    bodyContent: @Composable (() -> Float, androidx.compose.ui.unit.Dp) -> Unit,
+    miniControls: @Composable (() -> Float) -> Unit,
     progress: Float,
     isFullscreen: Boolean,
     thumbnailUrl: String? = null,
@@ -523,12 +530,13 @@ fun DraggablePlayerLayout(
                 }
             }
 
-            // 5. Background scrim 
-            val expandedScrimAlpha by remember {
-                derivedStateOf { (1f - state.expandFraction.value).coerceIn(0f, 1f) }
+            val scrimVisible by remember {
+                derivedStateOf { state.expandFraction.value < 0.999f }
             }
-            if (!showImmersiveFullscreen && expandedScrimAlpha > 0f && !state.isInlineMode) {
-                Box(modifier = Modifier.fillMaxSize().alpha(expandedScrimAlpha)) {
+            if (!showImmersiveFullscreen && scrimVisible && !state.isInlineMode) {
+                Box(modifier = Modifier.fillMaxSize().graphicsLayer {
+                    alpha = (1f - state.expandFraction.value).coerceIn(0f, 1f)
+                }) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -544,11 +552,13 @@ fun DraggablePlayerLayout(
                 }
             }
 
-            // 6. Body content 
-            val bodyAlpha by remember {
-                derivedStateOf { (1f - state.expandFraction.value * 1.25f).coerceIn(0f, 1f) }
+            val bodyVisible by remember {
+                derivedStateOf { state.expandFraction.value < 0.8f }
             }
-            if (!showImmersiveFullscreen && bodyAlpha > 0f && !state.isInlineMode) {
+            if (!showImmersiveFullscreen && bodyVisible && !state.isInlineMode) {
+                val bodyAlphaProvider = remember {
+                    { (1f - state.expandFraction.value * 1.25f).coerceIn(0f, 1f) }
+                }
                 val videoHeightPlaceholder =
                     if (isSplitLayout) with(density) { currentExpandedVideoHeight.toDp() } else 0.dp
                 val bodyPaddingTop =
@@ -560,12 +570,12 @@ fun DraggablePlayerLayout(
                             .fillMaxSize()
                             .padding(top = with(density) { bodyPaddingTop.toDp() })
                             .graphicsLayer {
-                                alpha = bodyAlpha
+                                alpha = bodyAlphaProvider()
                                 translationY = state.expandFraction.value * 80f
                             }
                             .nestedScroll(nestedScrollConnection)
                     ) {
-                        bodyContent(bodyAlpha, videoHeightPlaceholder)
+                        bodyContent(bodyAlphaProvider, videoHeightPlaceholder)
                     }
                 }
             }
@@ -654,74 +664,83 @@ fun DraggablePlayerLayout(
                                     val wideCapWidth = _maxWideWidth.value
                                     val maxScale =
                                         (wideCapWidth / _baseMiniWidth.value).coerceAtLeast(1f)
-                                    var resizeSnapJob: Job? = null
+                                    val snapSignal = Channel<Unit>(Channel.CONFLATED)
+                                    var pScale = startScale
+                                    var pX = state.offsetX.value
+                                    var pY = state.offsetY.value
+                                    val pinchDriver = state.scope.launch {
+                                        for (ignored in snapSignal) {
+                                            state.miniSizeScale.snapTo(pScale)
+                                            state.offsetX.snapTo(pX)
+                                            state.offsetY.snapTo(pY)
+                                        }
+                                    }
 
-                                    while (true) {
-                                        val e  = awaitPointerEvent(
-                                            androidx.compose.ui.input.pointer.PointerEventPass.Main
-                                        )
-                                        val p1 =
-                                            e.changes.firstOrNull { it.id == ptr1Id } ?: break
-                                        val p2 =
-                                            e.changes.firstOrNull { it.id == ptr2Id } ?: break
-                                        if (!p1.pressed || !p2.pressed) {
-                                            resizeSnapJob?.cancel()
-                                            val targetScale =
-                                                if (state.miniSizeScale.value > 1.5f) maxScale
-                                                else 1f
-                                            state.scope.launch {
-                                                state.miniSizeScale.animateTo(
-                                                    targetScale,
-                                                    miniResizeSpring()
-                                                )
-                                                if (targetScale <= 1f) {
-                                                    launch {
-                                                        state.offsetX.animateTo(
-                                                            state.cachedTargetX,
-                                                            miniResizeSpring()
-                                                        )
-                                                        state.offsetY.animateTo(
-                                                            state.cachedTargetY,
-                                                            miniResizeSpring()
-                                                        )
-                                                    }
-                                                } else {
-                                                    if (_isLargeScreen.value) {
-                                                        val newMiniW =
-                                                            (_baseMiniWidth.value * targetScale)
-                                                                .coerceAtMost(wideCapWidth)
-                                                        val newMaxX =
-                                                            (_screenWidth.value - newMiniW - _margin.value)
-                                                                .coerceAtLeast(_margin.value)
-                                                        val clampedX = state.offsetX.value
-                                                            .coerceIn(_margin.value, newMaxX)
+                                    try {
+                                        while (true) {
+                                            val e  = awaitPointerEvent(
+                                                androidx.compose.ui.input.pointer.PointerEventPass.Main
+                                            )
+                                            val p1 =
+                                                e.changes.firstOrNull { it.id == ptr1Id } ?: break
+                                            val p2 =
+                                                e.changes.firstOrNull { it.id == ptr2Id } ?: break
+                                            if (!p1.pressed || !p2.pressed) {
+                                                snapSignal.close()
+                                                pinchDriver.cancel()
+                                                val targetScale =
+                                                    if (state.miniSizeScale.value > 1.5f) maxScale
+                                                    else 1f
+                                                state.scope.launch {
+                                                    state.miniSizeScale.animateTo(
+                                                        targetScale,
+                                                        miniResizeSpring()
+                                                    )
+                                                    if (targetScale <= 1f) {
                                                         launch {
                                                             state.offsetX.animateTo(
-                                                                clampedX,
+                                                                state.cachedTargetX,
+                                                                miniResizeSpring()
+                                                            )
+                                                            state.offsetY.animateTo(
+                                                                state.cachedTargetY,
                                                                 miniResizeSpring()
                                                             )
                                                         }
                                                     } else {
-                                                        launch {
-                                                            state.offsetX.animateTo(
-                                                                _stablePhoneCenteredX.value,
-                                                                miniResizeSpring()
-                                                            )
+                                                        if (_isLargeScreen.value) {
+                                                            val newMiniW =
+                                                                (_baseMiniWidth.value * targetScale)
+                                                                    .coerceAtMost(wideCapWidth)
+                                                            val newMaxX =
+                                                                (_screenWidth.value - newMiniW - _margin.value)
+                                                                    .coerceAtLeast(_margin.value)
+                                                            val clampedX = state.offsetX.value
+                                                                .coerceIn(_margin.value, newMaxX)
+                                                            launch {
+                                                                state.offsetX.animateTo(
+                                                                    clampedX,
+                                                                    miniResizeSpring()
+                                                                )
+                                                            }
+                                                        } else {
+                                                            launch {
+                                                                state.offsetX.animateTo(
+                                                                    _stablePhoneCenteredX.value,
+                                                                    miniResizeSpring()
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 }
+                                                break
                                             }
-                                            break
-                                        }
-                                        p1.consume(); p2.consume()
-                                        val currentDist  =
-                                            (p1.position - p2.position).getDistance()
-                                        val gestureScale = currentDist / initialDist
-                                        val newScale     =
-                                            (startScale * gestureScale).coerceIn(1f, maxScale)
-                                        resizeSnapJob?.cancel()
-                                        resizeSnapJob = state.scope.launch {
-                                            state.miniSizeScale.snapTo(newScale)
+                                            p1.consume(); p2.consume()
+                                            val currentDist  =
+                                                (p1.position - p2.position).getDistance()
+                                            val gestureScale = currentDist / initialDist
+                                            val newScale     =
+                                                (startScale * gestureScale).coerceIn(1f, maxScale)
                                             val newMiniW =
                                                 (_baseMiniWidth.value * newScale)
                                                     .coerceAtMost(wideCapWidth)
@@ -742,15 +761,19 @@ fun DraggablePlayerLayout(
                                             }
                                             val clampedY =
                                                 state.offsetY.value.coerceIn(minY, newMaxY)
-                                            state.offsetX.snapTo(clampedX)
-                                            state.offsetY.snapTo(clampedY)
+                                            pScale = newScale
+                                            pX = clampedX
+                                            pY = clampedY
+                                            snapSignal.trySend(Unit)
                                         }
+                                    } finally {
+                                        snapSignal.close()
+                                        pinchDriver.cancel()
                                     }
                                 }
                             }
                             .pointerInput(Unit) {
                                 val velocityTracker = VelocityTracker()
-                                var snapJob: Job? = null
                                 var lastTapTime = 0L
                                 var singleTapJob: Job? = null
                                 awaitEachGesture {
@@ -770,7 +793,6 @@ fun DraggablePlayerLayout(
 
                                     velocityTracker.resetTracking()
                                     velocityTracker.addPosition(down.uptimeMillis, down.position)
-                                    snapJob?.cancel(); snapJob = null
 
                                     if (isCollapseDrag) {
                                         state.scope.launch {
@@ -786,7 +808,7 @@ fun DraggablePlayerLayout(
                                             state.offsetY.stop()
                                             state.dragScale.animateTo(
                                                 0.97f,
-                                                spring(dampingRatio = 0.7f, stiffness = 600f)
+                                                dragPressSpringSpec
                                             )
                                         }
                                     }
@@ -838,6 +860,21 @@ fun DraggablePlayerLayout(
                                     var totalUpwardDrag = 0f
 
                                     if (hasCrossedSlop) {
+                                        val snapSignal = Channel<Unit>(Channel.CONFLATED)
+                                        var pendingFraction = state.expandFraction.value
+                                        var pendingX = state.offsetX.value
+                                        var pendingY = state.offsetY.value
+                                        var pendingMode = 0 
+                                        val snapDriver = state.scope.launch {
+                                            for (ignored in snapSignal) {
+                                                if (pendingMode == 0) {
+                                                    state.expandFraction.snapTo(pendingFraction)
+                                                } else {
+                                                    state.offsetX.snapTo(pendingX)
+                                                    state.offsetY.snapTo(pendingY)
+                                                }
+                                            }
+                                        }
                                         try {
                                             drag(dragPointerId) { change ->
                                                 val delta = change.positionChange()
@@ -855,10 +892,9 @@ fun DraggablePlayerLayout(
                                                         (startFraction +
                                                             cumulativeDragY / collapseTravel)
                                                             .coerceIn(0f, 1f)
-                                                    snapJob?.cancel()
-                                                    snapJob = state.scope.launch {
-                                                        state.expandFraction.snapTo(rawFraction)
-                                                    }
+                                                    pendingFraction = rawFraction
+                                                    pendingMode = 0
+                                                    snapSignal.trySend(Unit)
                                                 } else if (isCollapseDrag &&
                                                     detectedDirection == -1) {
                                                     change.consume()
@@ -876,34 +912,33 @@ fun DraggablePlayerLayout(
 
                                                         when {
                                                             state.isInlineMode && !_isLargeScreen.value -> {
-                                                                snapJob?.cancel()
-                                                                snapJob = state.scope.launch {
-                                                                    state.offsetY.snapTo(clampedY)
-                                                                    state.offsetX.snapTo(_stablePhoneCenteredX.value)
-                                                                }
+                                                                pendingX = _stablePhoneCenteredX.value
+                                                                pendingY = clampedY
+                                                                pendingMode = 1
+                                                                snapSignal.trySend(Unit)
                                                             }
                                                             else -> {
                                                                 val rawX     =
                                                                     state.offsetX.value + delta.x
                                                                 val clampedX =
                                                                     rawX.coerceIn(currentMinX, currentMaxX)
-                                                                snapJob?.cancel()
-                                                                snapJob = state.scope.launch {
-                                                                    state.offsetX.snapTo(clampedX)
-                                                                    state.offsetY.snapTo(clampedY)
-                                                                }
+                                                                pendingX = clampedX
+                                                                pendingY = clampedY
+                                                                pendingMode = 1
+                                                                snapSignal.trySend(Unit)
                                                             }
                                                         }
                                                     }
                                                 }
                                             }
                                         } finally {
-                                            snapJob?.cancel(); snapJob = null
+                                            snapSignal.close()
+                                            snapDriver.cancel()
                                             state.isDragging = false
                                             state.scope.launch {
                                                 state.dragScale.animateTo(
                                                     1f,
-                                                    spring(dampingRatio = 0.55f, stiffness = 500f)
+                                                    dragReleaseSpringSpec
                                                 )
                                             }
                                         }
@@ -1139,31 +1174,37 @@ fun DraggablePlayerLayout(
                 ) {
                     videoContent(Modifier.fillMaxSize())
 
-                    val fraction by remember { derivedStateOf { state.expandFraction.value } }
-                    if (!showImmersiveFullscreen && fraction > 0.6f) {
-                        val controlsProgress = ((fraction - 0.6f) / 0.25f).coerceIn(0f, 1f)
+                    val miniControlsVisible by remember {
+                        derivedStateOf { state.expandFraction.value > 0.6f }
+                    }
+                    val fractionProvider = remember { { state.expandFraction.value } }
+                    if (!showImmersiveFullscreen && miniControlsVisible) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .graphicsLayer {
+                                    val controlsProgress =
+                                        ((state.expandFraction.value - 0.6f) / 0.25f).coerceIn(0f, 1f)
                                     alpha = controlsProgress
                                     scaleX = lerpFloat(0.96f, 1f, controlsProgress)
                                     scaleY = lerpFloat(0.96f, 1f, controlsProgress)
                                 }
                         ) {
-                            miniControls(fraction)
+                            miniControls(fractionProvider)
                         }
                     }
 
-                    if (!showImmersiveFullscreen && fraction > 0.6f) {
-                        val progressAlpha = ((fraction - 0.72f) / 0.18f).coerceIn(0f, 1f)
+                    if (!showImmersiveFullscreen && miniControlsVisible) {
                         LinearProgressIndicator(
                             progress = { progress },
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .fillMaxWidth()
                                 .height(2.dp)
-                                .alpha(progressAlpha),
+                                .graphicsLayer {
+                                    alpha = ((state.expandFraction.value - 0.72f) / 0.18f)
+                                        .coerceIn(0f, 1f)
+                                },
                             color = Color.Red,
                             trackColor = Color.Transparent
                         )
