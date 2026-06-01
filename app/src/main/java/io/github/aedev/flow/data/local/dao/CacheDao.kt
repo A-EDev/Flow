@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface CacheDao {
     // Subscriptions
-    @Query("SELECT * FROM subscription_feed_cache ORDER BY timestamp DESC LIMIT 600")
+    @Query("SELECT * FROM subscription_feed_cache ORDER BY timestamp DESC LIMIT 1500")
     fun getSubscriptionFeed(): Flow<List<SubscriptionFeedEntity>>
 
     /** Returns how many rows are currently in the cache. */

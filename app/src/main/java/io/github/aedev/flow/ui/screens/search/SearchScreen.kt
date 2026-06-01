@@ -94,6 +94,28 @@ fun SearchScreen(
 
     var liveSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var isLoadingSuggestions by remember { mutableStateOf(false) }
+    val matchingHistorySuggestions = remember(searchHistory, searchQuery.text) {
+        val queryText = searchQuery.text.trim()
+        if (queryText.isBlank()) {
+            emptyList()
+        } else {
+            val normalizedQuery = queryText.lowercase()
+            val matchingQueries = searchHistory
+                .asSequence()
+                .map { it.query.trim() }
+                .filter { it.isNotBlank() && it.contains(queryText, ignoreCase = true) }
+                .distinctBy { it.lowercase() }
+                .toList()
+            val prefixMatches = matchingQueries.filter { it.lowercase().startsWith(normalizedQuery) }
+            val containsMatches = matchingQueries.filterNot { it.lowercase().startsWith(normalizedQuery) }
+            (prefixMatches + containsMatches).take(5)
+        }
+    }
+    val orderedSuggestions = remember(matchingHistorySuggestions, liveSuggestions) {
+        (matchingHistorySuggestions + liveSuggestions)
+            .distinctBy { it.trim().lowercase() }
+            .take(10)
+    }
 
     val dismissKeyboard: () -> Unit = remember(focusManager, keyboardController) {
         {
@@ -196,8 +218,9 @@ fun SearchScreen(
                 liveSuggestions = emptyList()
             }
             isLoadingSuggestions = false
-        } else if (queryText.length < 2) {
+        } else {
             liveSuggestions = emptyList()
+            isLoadingSuggestions = false
         }
     }
 
@@ -286,13 +309,13 @@ fun SearchScreen(
 
         AnimatedVisibility(
             visible = isSearchFocused && searchQuery.text.isNotEmpty() &&
-                    (liveSuggestions.isNotEmpty() || isLoadingSuggestions),
+                    (orderedSuggestions.isNotEmpty() || isLoadingSuggestions),
             enter = expandVertically() + fadeIn(),
             exit = shrinkVertically() + fadeOut()
         ) {
             SuggestionsCard(
                 query = searchQuery.text,
-                suggestions = liveSuggestions,
+                suggestions = orderedSuggestions,
                 isLoading = isLoadingSuggestions,
                 onSuggestionClick = { s ->
                     dismissKeyboard()

@@ -395,6 +395,7 @@ class LocalDataManager @Inject constructor(@ApplicationContext private val conte
         prefs.asMap().entries.forEach { (key, value) ->
             val name = key.name
             if (name == "theme_mode" || name == "accent_color" || name == "custom_theme_colors" ||
+                name == "system_light_theme_mode" || name == "system_dark_theme_mode" ||
                 name == "bedtime_reminder" || name == "break_reminder" ||
                 name.startsWith("bedtime_") || name == "break_frequency") {
                 
@@ -413,7 +414,8 @@ class LocalDataManager @Inject constructor(@ApplicationContext private val conte
     suspend fun restoreData(backup: SettingsBackup) {
         context.dataStore.edit { prefs ->
             backup.strings.forEach { (k, v) -> 
-                if (k == "theme_mode" || k == "accent_color" || k == "custom_theme_colors") {
+                if (k == "theme_mode" || k == "accent_color" || k == "custom_theme_colors" ||
+                    k == "system_light_theme_mode" || k == "system_dark_theme_mode") {
                     prefs[stringPreferencesKey(k)] = v 
                 }
             }

@@ -36,8 +36,9 @@ class SubscriptionsViewModel : ViewModel() {
          */
         private const val FEED_CACHE_TTL_MS = 30 * 60 * 1000L // 30 minutes
         private const val SOFT_REFRESH_MAX_AGE_MS = 10 * 60 * 1000L // 10 minutes
-        private const val SUBSCRIPTION_CACHE_WINDOW_MS = 60L * 24L * 60L * 60L * 1000L
-        private const val MAX_SUBSCRIPTION_CACHE_ITEMS = 600
+        private const val SUBSCRIPTION_FEED_LOOKBACK_DAYS = 60L
+        private const val SUBSCRIPTION_CACHE_WINDOW_MS = SUBSCRIPTION_FEED_LOOKBACK_DAYS * 24L * 60L * 60L * 1000L
+        private const val MAX_SUBSCRIPTION_CACHE_ITEMS = 1500
         private const val SUSPICIOUS_FRESH_TIMESTAMP_MS = 5L * 60L * 1000L
         private const val RELATIVE_TIME_TICK_MS = 60L * 1000L
     }
@@ -282,7 +283,7 @@ class SubscriptionsViewModel : ViewModel() {
             var finalVideos: List<Video> = emptyList()
             io.github.aedev.flow.data.innertube.RssSubscriptionService.fetchSubscriptionVideos(
                 channelIds = channelIds,
-                maxTotal = 600,
+                maxTotal = MAX_SUBSCRIPTION_CACHE_ITEMS,
                 knownVideoIds = cachedVideoIds,
                 onProgress = { processed, total ->
                     _uiState.update {

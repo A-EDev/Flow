@@ -14,6 +14,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.withTimeoutOrNull
 import org.schabi.newpipe.extractor.NewPipe
 import org.schabi.newpipe.extractor.ServiceList
+import org.schabi.newpipe.extractor.stream.ContentAvailability
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.stream.StreamType
 import org.schabi.newpipe.extractor.kiosk.KioskExtractor
@@ -369,6 +370,7 @@ class YouTubeRepository @Inject constructor(
                 playlistExtractor.fetchPage()
                 val page = playlistExtractor.initialPage
                 val items = page.items.filterIsInstance<StreamInfoItem>()
+                    .filterNot { it.isPaidOrMembersOnly() }
                     .take(limitPerChannel)
                     .map { it.toVideo() }
                 return@withContext items
@@ -397,7 +399,10 @@ class YouTubeRepository @Inject constructor(
                 emptyList()
             }
 
-            pageItems.take(limitPerChannel).map { it.toVideo() }
+            pageItems
+                .filterNot { it.isPaidOrMembersOnly() }
+                .take(limitPerChannel)
+                .map { it.toVideo() }
         } catch (e: Exception) {
             Log.w(TAG, "${e::class.simpleName}: ${e.message}")
             emptyList()
@@ -814,6 +819,11 @@ class YouTubeRepository @Inject constructor(
             uploadDate = "",
             isMusic = false
         )
+    }
+
+    private fun StreamInfoItem.isPaidOrMembersOnly(): Boolean {
+        return contentAvailability == ContentAvailability.PAID ||
+            contentAvailability == ContentAvailability.MEMBERSHIP
     }
 
     /**

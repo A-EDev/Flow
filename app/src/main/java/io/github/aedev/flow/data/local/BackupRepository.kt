@@ -1909,9 +1909,7 @@ class BackupRepository(private val context: Context) {
             if (entries.isNotEmpty()) viewHistory.bulkSaveHistoryEntries(entries)
         }
         backupData.likedVideos?.forEach { info -> likedVideosRepo.likeVideo(info) }
-        backupData.searchHistory?.forEach { item ->
-            searchHistoryRepo.saveSearchQuery(item.query, item.type)
-        }
+        backupData.searchHistory?.let { searchHistoryRepo.replaceSearchHistory(it) }
         backupData.subscriptions?.let { subs ->
             subs.forEach { subscriptionRepo.subscribe(it) }
             val channelNames = subs.map { it.channelName }.filter { it.isNotEmpty() }
@@ -2106,6 +2104,7 @@ class BackupRepository(private val context: Context) {
                 playlists = database.playlistDao().getAllPlaylists().first(),
                 playlistVideos = database.playlistDao().getAllPlaylistVideoCrossRefs(),
                 videos = database.videoDao().getAllVideos(),
+                subscriptionGroups = database.subscriptionGroupDao().getAllGroupsOnce(),
                 likedVideos = likedVideosRepo.getAllLikedVideos().first(),
                 contentPreferences = getContentPreferencesBackup(),
                 settings = mergedSettings

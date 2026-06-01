@@ -131,6 +131,21 @@ class SearchHistoryRepository(private val context: Context) {
             preferences[SEARCH_HISTORY_KEY] = gson.toJson(emptyList<SearchHistoryItem>())
         }
     }
+
+    suspend fun replaceSearchHistory(items: List<SearchHistoryItem>) {
+        context.searchDataStore.edit { preferences ->
+            val maxSize = preferences[MAX_HISTORY_SIZE_KEY] ?: DEFAULT_MAX_HISTORY_SIZE
+            val restoredHistory = items
+                .asSequence()
+                .filter { it.query.isNotBlank() }
+                .sortedByDescending { it.timestamp }
+                .distinctBy { it.query.trim().lowercase() }
+                .take(maxSize)
+                .toList()
+
+            preferences[SEARCH_HISTORY_KEY] = gson.toJson(restoredHistory)
+        }
+    }
     
     // Settings: Enable/disable search history
     suspend fun setSearchHistoryEnabled(enabled: Boolean) {

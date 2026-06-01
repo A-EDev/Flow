@@ -79,6 +79,7 @@ IMPROVEMENTS
 - Music player and its components redesign
 - New queue sheet design, improved queue handling and similar content fetching
 - Improve AV1 handling #548
+- Increase subscription feed cache size
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

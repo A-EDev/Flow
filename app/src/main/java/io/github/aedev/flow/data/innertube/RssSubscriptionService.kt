@@ -28,17 +28,17 @@ object RssSubscriptionService {
     private const val CHANNEL_CHUNK_SIZE = 8
     private const val CHANNEL_BATCH_SIZE = 50
     private val CHANNEL_BATCH_DELAY = (100L..400L)
-    private const val MAX_FEED_AGE_DAYS = 60L
+    private const val SUBSCRIPTION_FEED_LOOKBACK_DAYS = 60L
 
-    private const val MAX_REGULAR_VIDEOS = 500
-    private const val MAX_SHORTS = 120
+    private const val MAX_REGULAR_VIDEOS = 1200
+    private const val MAX_SHORTS = 300
     private const val MAX_VIDEOS_PER_CHANNEL = 60
     private const val MAX_SHORTS_PER_CHANNEL = 20
     private const val MAX_LIVE_PER_CHANNEL = 20
 
     fun fetchSubscriptionVideos(
         channelIds: List<String>,
-        maxTotal: Int = 600,
+        maxTotal: Int = 1500,
         knownVideoIds: Set<String> = emptySet(),
         onProgress: ((processedChannels: Int, totalChannels: Int) -> Unit)? = null
     ): Flow<List<Video>> = flow {
@@ -53,8 +53,8 @@ object RssSubscriptionService {
         val allRegular = mutableListOf<Video>()
         val allShorts = mutableListOf<Video>()
         val channelExtractionCount = AtomicInteger(0)
-        val minimumDateMillis = System.currentTimeMillis() - (MAX_FEED_AGE_DAYS * 86400000L)
-        Log.i(TAG, "Age cutoff: ${java.util.Date(minimumDateMillis)} (${MAX_FEED_AGE_DAYS}d)")
+        val minimumDateMillis = System.currentTimeMillis() - (SUBSCRIPTION_FEED_LOOKBACK_DAYS * 86400000L)
+        Log.i(TAG, "Age cutoff: ${java.util.Date(minimumDateMillis)} (${SUBSCRIPTION_FEED_LOOKBACK_DAYS}d)")
 
         // ── Fetch RSS dates for ALL channels upfront ────────────────────────
         val rssDateMap = mutableMapOf<String, Long>()
