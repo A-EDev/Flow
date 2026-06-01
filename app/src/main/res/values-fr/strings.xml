@@ -175,7 +175,7 @@
     <string name="settings">Paramètres</string>
     <string name="select_artist">Sélectionner un artiste</string>
     <string name="description">Description</string>
-    <string name="ago">Ago</string>
+    <string name="ago">Il y a quelque temps</string>
     <string name="since">Depuis</string>
     <string name="add_to_playlist">Ajouter à la playlist</string>
     <string name="playback_header">Lecture</string>
@@ -1678,4 +1678,11 @@
     <string name="download_menu_style_compact">Compact</string>
     <string name="download_menu_style_compact_desc">Titre modifiable, menus déroulants et nombre de messages</string>
     <string name="download_menu_style_title">Télécharger le style de menu</string>
+    <string name="player_appearance_long_press_speed_title">Appui long sur la vitesse de lecture</string>
+    <string name="player_appearance_long_press_speed_subtitle">Choisissez la vitesse temporaire à appliquer lorsque le lecteur est maintenu enfoncé</string>
+    <string name="player_appearance_long_press_speed_disabled">Désactivé</string>
+    <string name="player_settings_video_codec">Codec vidéo par défaut</string>
+    <string name="player_settings_video_codec_dialog_title">Codec vidéo par défaut</string>
+    <string name="player_settings_video_codec_dialog_body">Choisissez le codec à utiliser par défaut pour la résolution sélectionnée. Cela ne modifie pas les options de qualité proposées : vous pouvez toujours choisir n\'importe quel codec dans le sélecteur de qualité. Le H.264 est le plus compatible et offre la meilleure fluidité sur la plupart des appareils ; les codecs AV1/VP9 permettent de réduire la taille des fichiers aux résolutions élevées, mais nécessitent une puissance de décodage plus importante.</string>
+    <string name="player_settings_video_codec_auto_desc">Laisser l\'application choisir (H.264 de préférence)</string>
 </resources>
