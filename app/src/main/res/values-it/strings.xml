@@ -1638,4 +1638,11 @@
     <string name="history_delete_shorts">Elimina gli Shorts dalla cronologia</string>
     <string name="history_delete_shorts_title">Eliminare gli Shorts?</string>
     <string name="history_delete_shorts_body">Questa operazione rimuoverà gli Shorts dalla tua cronologia di visualizzazione. Gli altri video verranno mantenuti.</string>
+    <string name="player_appearance_long_press_speed_title">Velocità di riproduzione con pressione prolungata</string>
+    <string name="player_appearance_long_press_speed_subtitle">Scegli la velocità temporanea da usare tenendo premuto sul player</string>
+    <string name="player_appearance_long_press_speed_disabled">Disabilitato</string>
+    <string name="player_settings_video_codec">Codec video predefinito</string>
+    <string name="player_settings_video_codec_dialog_title">Codec video predefinito</string>
+    <string name="player_settings_video_codec_dialog_body">Scegli quale codec utilizzare come predefinito alla risoluzione selezionata. Questo non modifica le qualità in elenco: puoi comunque scegliere qualsiasi codec dal selettore di qualità. H.264 offre la massima compatibilità e fluidità sulla maggior parte dei dispositivi; AV1/VP9 risparmiano dati alle risoluzioni più elevate ma richiedono maggiore potenza di calcolo per la decodifica.</string>
+    <string name="player_settings_video_codec_auto_desc">Scelta automatica dell\'app (predilige H.264)</string>
 </resources>
