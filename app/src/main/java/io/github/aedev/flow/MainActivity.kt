@@ -61,6 +61,9 @@ class MainActivity : ComponentActivity() {
     private val _pendingUpdateInfo = mutableStateOf<UpdateInfo?>(null)
     val pendingUpdateInfo: State<UpdateInfo?> = _pendingUpdateInfo
 
+    private val _openMusicPlayerRequest = mutableIntStateOf(0)
+    val openMusicPlayerRequest: State<Int> = _openMusicPlayerRequest
+
     // Cached auto-PiP preference
     private var cachedAutoPipEnabled = false
 
@@ -308,6 +311,7 @@ class MainActivity : ComponentActivity() {
                     // By the time splash fades, this is ready.
                     val deeplinkVideoId by this@MainActivity.deeplinkVideoId
                     val isDeeplinkShort by this@MainActivity.isDeeplinkShort
+                    val openMusicPlayerRequest by this@MainActivity.openMusicPlayerRequest
 
                     FlowApp(
                         currentTheme = themeMode,
@@ -340,6 +344,7 @@ class MainActivity : ComponentActivity() {
                         },
                         deeplinkVideoId = deeplinkVideoId,
                         isShort = isDeeplinkShort,
+                        openMusicPlayerRequest = openMusicPlayerRequest,
                         onDeeplinkConsumed = {
                             consumeDeeplink()
                         }
@@ -384,6 +389,16 @@ class MainActivity : ComponentActivity() {
     private fun handleIntent(intent: Intent) {
         val data = intent.data
         val notificationVideoId = intent.getStringExtra("notification_video_id") ?: intent.getStringExtra("video_id")
+
+        if (intent.getBooleanExtra("open_music_player", false)) {
+            _deeplinkVideoId.value = null
+            _isDeeplinkShort.value = false
+            _openMusicPlayerRequest.intValue += 1
+            intent.removeExtra("notification_video_id")
+            intent.removeExtra("video_id")
+            intent.removeExtra("deeplink_video_id")
+            return
+        }
         
         // Reset shorts flag
         _isDeeplinkShort.value = false

@@ -24,7 +24,7 @@ object RssSubscriptionService {
     private const val TAG = "InnertubeSubs"
     private const val YOUTUBE_URL = "https://www.youtube.com"
 
-    private const val RSS_CHUNK_SIZE = 24
+    private const val RSS_CHUNK_SIZE = 48
     private const val CHANNEL_CHUNK_SIZE = 8
     private const val CHANNEL_BATCH_SIZE = 50
     private val CHANNEL_BATCH_DELAY = (100L..400L)
@@ -59,6 +59,7 @@ object RssSubscriptionService {
         // ── Fetch RSS dates for ALL channels upfront ────────────────────────
         val rssDateMap = mutableMapOf<String, Long>()
         val rssChannelHasRecent = mutableMapOf<String, Boolean>()
+        val rssNeedsChannelFallback = mutableMapOf<String, Boolean>()
 
         Log.i(TAG, "Phase 1: Fetching RSS feeds for all ${uniqueChannelIds.size} channels")
         val rssChunks = uniqueChannelIds.chunked(RSS_CHUNK_SIZE)
@@ -72,7 +73,9 @@ object RssSubscriptionService {
             }
             for ((channelId, result) in results) {
                 rssChannelHasRecent[channelId] = result.hasRecent
+                rssNeedsChannelFallback[channelId] = result.needsChannelFallback
                 rssDateMap.putAll(result.videoTimestamps)
+                allRegular.addAll(result.videos)
             }
             onProgress?.invoke(((ci + 1) * RSS_CHUNK_SIZE).coerceAtMost(uniqueChannelIds.size), uniqueChannelIds.size)
             emit(buildFeed(allRegular, allShorts, maxTotal))
@@ -82,8 +85,10 @@ object RssSubscriptionService {
         }
         Log.i(TAG, "Phase 1 complete: RSS dates for ${rssDateMap.size} videos from ${uniqueChannelIds.size} channels")
 
-        val activeChannelIds = uniqueChannelIds.filter { rssChannelHasRecent[it] != false }
-        Log.i(TAG, "Phase 2: Fetching NewPipe channel tabs for ${activeChannelIds.size} active channels (${uniqueChannelIds.size - activeChannelIds.size} skipped as stale)")
+        val activeChannelIds = uniqueChannelIds.filter {
+            rssNeedsChannelFallback[it] == true && rssChannelHasRecent[it] != false
+        }
+        Log.i(TAG, "Phase 2: Fetching NewPipe channel tabs for ${activeChannelIds.size} RSS fallback channels (${uniqueChannelIds.size - activeChannelIds.size} satisfied/skipped by RSS)")
 
         var processedChannels = uniqueChannelIds.size - activeChannelIds.size
         if (processedChannels > 0) {
@@ -181,7 +186,9 @@ object RssSubscriptionService {
 
     private data class RssResult(
         val hasRecent: Boolean,
-        val videoTimestamps: Map<String, Long>
+        val videoTimestamps: Map<String, Long>,
+        val videos: List<Video>,
+        val needsChannelFallback: Boolean
     )
 
     /**
@@ -200,10 +207,16 @@ object RssSubscriptionService {
             val feedItems = feedInfo.relatedItems.filterIsInstance<StreamInfoItem>()
 
             if (feedItems.isEmpty()) {
-                return RssResult(hasRecent = true, videoTimestamps = emptyMap())
+                return RssResult(
+                    hasRecent = true,
+                    videoTimestamps = emptyMap(),
+                    videos = emptyList(),
+                    needsChannelFallback = true
+                )
             }
 
             val timestamps = mutableMapOf<String, Long>()
+            val videos = mutableListOf<Video>()
             var newestTimestamp = 0L
 
             for (item in feedItems) {
@@ -213,22 +226,43 @@ object RssSubscriptionService {
                 if (t > newestTimestamp) {
                     newestTimestamp = t
                 }
+                if (t > minimumDateMillis && !item.isPaidOrMembersOnly()) {
+                    videos += streamInfoItemToVideo(
+                        item = item,
+                        channelId = channelId,
+                        channelAvatar = null,
+                        channelNameOverride = item.uploaderName,
+                        overrideTimestamp = t
+                    )
+                }
             }
 
             if (timestamps.isEmpty()) {
-                RssResult(hasRecent = true, videoTimestamps = emptyMap())
+                RssResult(
+                    hasRecent = true,
+                    videoTimestamps = emptyMap(),
+                    videos = emptyList(),
+                    needsChannelFallback = true
+                )
             } else {
                 val hasUnknownRecentUpload = timestamps.any { (videoId, timestamp) ->
                     timestamp > minimumDateMillis && videoId !in knownVideoIds
                 }
                 RssResult(
                     hasRecent = newestTimestamp > minimumDateMillis || hasUnknownRecentUpload,
-                    videoTimestamps = timestamps
+                    videoTimestamps = timestamps,
+                    videos = videos,
+                    needsChannelFallback = videos.isEmpty() && newestTimestamp > minimumDateMillis
                 )
             }
         } catch (e: Exception) {
             Log.w(TAG, "[$channelId] RSS FAILED: ${e::class.simpleName}: ${e.message}")
-            RssResult(hasRecent = true, videoTimestamps = emptyMap())
+            RssResult(
+                hasRecent = true,
+                videoTimestamps = emptyMap(),
+                videos = emptyList(),
+                needsChannelFallback = true
+            )
         }
     }
 
@@ -453,8 +487,30 @@ object RssSubscriptionService {
     }
 
     private fun StreamInfoItem.isPaidOrMembersOnly(): Boolean {
-        return contentAvailability == ContentAvailability.PAID ||
+        if (contentAvailability == ContentAvailability.PAID ||
             contentAvailability == ContentAvailability.MEMBERSHIP
+        ) {
+            return true
+        }
+
+        val restrictionText = listOfNotNull(
+            name,
+            shortDescription
+        ).joinToString(" ").lowercase(Locale.US)
+
+        return listOf(
+            "members only",
+            "member-only",
+            "requires membership",
+            "join this channel",
+            "channel members",
+            "premium members",
+            "paid content",
+            "paid video",
+            "rent or buy",
+            "buy or rent",
+            "purchase this"
+        ).any { marker -> restrictionText.contains(marker) }
     }
 
     private fun parseRelativeUploadDate(text: String): Long? {

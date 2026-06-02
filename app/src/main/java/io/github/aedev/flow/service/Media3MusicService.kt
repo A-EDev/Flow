@@ -3,12 +3,15 @@ package io.github.aedev.flow.service
 import android.app.ActivityManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.net.Uri
 import androidx.media3.datasource.HttpDataSource
 import java.util.Locale
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -22,6 +25,7 @@ import io.github.aedev.flow.data.model.ParametricEQ
 import io.github.aedev.flow.player.audio.CustomEqualizerAudioProcessor
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.media3.session.DefaultMediaNotificationProvider
+import androidx.media3.session.LibraryResult
 import com.google.common.collect.ImmutableList
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.CommandButton
@@ -62,6 +66,9 @@ class Media3MusicService : MediaLibraryService() {
         private const val ACTION_TOGGLE_SHUFFLE = "ACTION_TOGGLE_SHUFFLE"
         private const val ACTION_TOGGLE_REPEAT = "ACTION_TOGGLE_REPEAT"
         private const val ACTION_STOP = "ACTION_STOP"
+        private const val AUTO_ROOT_ID = "flow_auto_root"
+        private const val AUTO_QUEUE_ID = "flow_auto_queue"
+        private const val AUTO_CURRENT_ID = "flow_auto_current"
         const val ACTION_SET_EQ = "ACTION_SET_EQ"
         
         private const val MAX_RETRY_PER_SONG = 5
@@ -668,10 +675,14 @@ class Media3MusicService : MediaLibraryService() {
     }
     @OptIn(UnstableApi::class)
     private fun initializeSession() {
-        val intent = Intent(this, MainActivity::class.java)
+        val intent = Intent(this, MainActivity::class.java).apply {
+            action = "io.github.aedev.flow.action.OPEN_MUSIC_PLAYER"
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("open_music_player", true)
+        }
         val pendingIntent = PendingIntent.getActivity(
             this,
-            0,
+            1001,
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
@@ -890,9 +901,71 @@ class Media3MusicService : MediaLibraryService() {
             
         mediaLibrarySession.setCustomLayout(listOf(likeButton, shuffleButton, repeatButton, closeButton))
     }
-
+    
     @OptIn(UnstableApi::class)
     private inner class LibrarySessionCallback : MediaLibrarySession.Callback {
+        override fun onGetLibraryRoot(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            params: MediaLibraryService.LibraryParams?
+        ): ListenableFuture<LibraryResult<MediaItem>> {
+            return Futures.immediateFuture(
+                LibraryResult.ofItem(
+                    browsableMediaItem(
+                        mediaId = AUTO_ROOT_ID,
+                        title = getString(R.string.app_name)
+                    ),
+                    params
+                )
+            )
+        }
+
+        override fun onGetChildren(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            parentId: String,
+            page: Int,
+            pageSize: Int,
+            params: MediaLibraryService.LibraryParams?
+        ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+            val items = when (parentId) {
+                AUTO_ROOT_ID -> listOf(
+                    browsableMediaItem(AUTO_QUEUE_ID, "Queue"),
+                    browsableMediaItem(AUTO_CURRENT_ID, "Now playing")
+                )
+                AUTO_QUEUE_ID -> io.github.aedev.flow.player.EnhancedMusicPlayerManager.queue.value
+                    .map { it.toAutoMediaItem() }
+                AUTO_CURRENT_ID -> io.github.aedev.flow.player.EnhancedMusicPlayerManager.currentTrack.value
+                    ?.let { listOf(it.toAutoMediaItem()) }
+                    ?: emptyList()
+                else -> emptyList()
+            }
+
+            return Futures.immediateFuture(
+                LibraryResult.ofItemList(ImmutableList.copyOf(items), params)
+            )
+        }
+
+        override fun onGetItem(
+            session: MediaLibrarySession,
+            browser: MediaSession.ControllerInfo,
+            mediaId: String
+        ): ListenableFuture<LibraryResult<MediaItem>> {
+            val track = autoTrackForMediaId(mediaId)
+            val item = when {
+                mediaId == AUTO_ROOT_ID -> browsableMediaItem(AUTO_ROOT_ID, getString(R.string.app_name))
+                mediaId == AUTO_QUEUE_ID -> browsableMediaItem(AUTO_QUEUE_ID, "Queue")
+                mediaId == AUTO_CURRENT_ID -> browsableMediaItem(AUTO_CURRENT_ID, "Now playing")
+                track != null -> track.toAutoMediaItem()
+                else -> null
+            }
+
+            return Futures.immediateFuture(
+                item?.let { LibraryResult.ofItem(it, null) }
+                    ?: LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
+            )
+        }
+
         override fun onConnect(
             session: MediaSession,
             controller: MediaSession.ControllerInfo
@@ -955,6 +1028,46 @@ class Media3MusicService : MediaLibraryService() {
              
              return super.onCustomCommand(session, controller, customCommand, args)
         }
+    }
+
+    private fun browsableMediaItem(mediaId: String, title: String): MediaItem =
+        MediaItem.Builder()
+            .setMediaId(mediaId)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setIsBrowsable(true)
+                    .setIsPlayable(false)
+                    .setMediaType(MediaMetadata.MEDIA_TYPE_FOLDER_MIXED)
+                    .build()
+            )
+            .build()
+
+    private fun io.github.aedev.flow.ui.screens.music.MusicTrack.toAutoMediaItem(): MediaItem {
+        val artwork = highResThumbnailUrl.ifBlank { thumbnailUrl }
+            .takeIf { it.isNotBlank() }
+            ?.let(Uri::parse)
+
+        return MediaItem.Builder()
+            .setMediaId(videoId)
+            .setUri("music://$videoId")
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(title)
+                    .setArtist(artist)
+                    .setArtworkUri(artwork)
+                    .setIsBrowsable(false)
+                    .setIsPlayable(true)
+                    .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                    .build()
+            )
+            .build()
+    }
+
+    private fun autoTrackForMediaId(mediaId: String): io.github.aedev.flow.ui.screens.music.MusicTrack? {
+        val manager = io.github.aedev.flow.player.EnhancedMusicPlayerManager
+        return manager.queue.value.firstOrNull { it.videoId == mediaId }
+            ?: manager.currentTrack.value?.takeIf { it.videoId == mediaId }
     }
     
     @OptIn(UnstableApi::class)

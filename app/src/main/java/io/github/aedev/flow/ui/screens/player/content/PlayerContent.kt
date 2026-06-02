@@ -130,6 +130,7 @@ fun PlayerContent(
                         currentPosition = { screenState.currentPosition },
                         duration = screenState.duration,
                         normalSpeed = screenState.normalSpeed,
+                        onNormalSpeedChange = { screenState.normalSpeed = it },
                         scope = scope,
                         isFullscreen = screenState.isFullscreen,
                         onBrightnessChange = { screenState.brightnessLevel = it },

@@ -72,6 +72,7 @@ fun FlowApp(
     onSystemDarkThemeChange: (ThemeMode) -> Unit,
     deeplinkVideoId: String? = null,
     isShort: Boolean = false,
+    openMusicPlayerRequest: Int = 0,
     onDeeplinkConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -242,6 +243,7 @@ fun FlowApp(
     
     val currentMusicTrack by EnhancedMusicPlayerManager.currentTrack.collectAsStateWithLifecycle()
     var suppressMusicMiniAfterVideo by remember { mutableStateOf(false) }
+    var handledMusicPlayerRequest by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(activeVideo?.id) {
         if (activeVideo != null) {
@@ -266,6 +268,17 @@ fun FlowApp(
             musicPlayerSheetState.collapse()
         } else if (currentMusicTrack == null) {
             musicPlayerSheetState.dismiss()
+        }
+    }
+
+    LaunchedEffect(openMusicPlayerRequest, currentMusicTrack?.videoId) {
+        if (openMusicPlayerRequest > handledMusicPlayerRequest && currentMusicTrack != null) {
+            handledMusicPlayerRequest = openMusicPlayerRequest
+            suppressMusicMiniAfterVideo = false
+            if (playerVisible) {
+                playerSheetState.collapse()
+            }
+            musicPlayerSheetState.expand()
         }
     }
 

@@ -31,6 +31,7 @@ fun Modifier.videoPlayerControls(
     currentPosition: () -> Long,
     duration: Long,
     normalSpeed: Float,
+    onNormalSpeedChange: (Float) -> Unit = {},
     scope: CoroutineScope,
     isFullscreen: Boolean,
     onBrightnessChange: (Float) -> Unit,
@@ -59,6 +60,7 @@ fun Modifier.videoPlayerControls(
     val currentPositionProvider by rememberUpdatedState(currentPosition)
     val currentDuration by rememberUpdatedState(duration)
     val currentNormalSpeed by rememberUpdatedState(normalSpeed)
+    val currentOnNormalSpeedChange by rememberUpdatedState(onNormalSpeedChange)
     val currentIsFullscreen by rememberUpdatedState(isFullscreen)
     val currentOnBrightnessChange by rememberUpdatedState(onBrightnessChange)
     val currentOnShowBrightnessChange by rememberUpdatedState(onShowBrightnessChange)
@@ -84,6 +86,7 @@ fun Modifier.videoPlayerControls(
     var lastBackTapTime by remember { mutableStateOf(0L) }
     var pendingForwardTargetMs by remember { mutableStateOf<Long?>(null) }
     var pendingBackTargetMs by remember { mutableStateOf<Long?>(null) }
+    var speedBeforeLongPress by remember { mutableStateOf<Float?>(null) }
     val accumulationWindowMs = 1000L
 
     val lastBrightnessApplied = remember { floatArrayOf(-2f) }
@@ -190,6 +193,11 @@ fun Modifier.videoPlayerControls(
                     val manager = EnhancedPlayerManager.getInstance()
                     val player = manager.getPlayer()
                     if (player != null && !currentIsSpeedBoostActive) {
+                        val restoreSpeed = manager.playerState.value.playbackSpeed
+                            .takeIf { it > 0f }
+                            ?: player.playbackParameters.speed
+                        speedBeforeLongPress = restoreSpeed
+                        currentOnNormalSpeedChange(restoreSpeed)
                         currentOnSpeedBoostChange(true)
                         manager.setPlaybackSpeed(currentLongPressPlaybackSpeed.coerceIn(0.1f, 4.0f))
                     }
@@ -197,7 +205,10 @@ fun Modifier.videoPlayerControls(
                 onPress = { offset ->
                     tryAwaitRelease()
                     if (currentIsSpeedBoostActive) {
-                        EnhancedPlayerManager.getInstance().setPlaybackSpeed(currentNormalSpeed)
+                        val restoreSpeed = speedBeforeLongPress ?: currentNormalSpeed
+                        EnhancedPlayerManager.getInstance().setPlaybackSpeed(restoreSpeed)
+                        currentOnNormalSpeedChange(restoreSpeed)
+                        speedBeforeLongPress = null
                         currentOnSpeedBoostChange(false)
                     }
                 }

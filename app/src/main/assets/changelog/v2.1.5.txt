@@ -40,6 +40,7 @@ FEATURES
 - Add option to disable volume boost #491
 - Add date and time format customization #481 
 - Add codec preference settings #560 
+- Add Android Auto support
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361

@@ -376,9 +376,10 @@ class MusicPlaybackService : Service() {
     private fun showNotification(track: MusicTrack, albumArt: Bitmap?) {
         val contentIntent = PendingIntent.getActivity(
             this,
-            0,
+            1001,
             Intent(this, MainActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
+                action = "io.github.aedev.flow.action.OPEN_MUSIC_PLAYER"
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 putExtra("open_music_player", true)
             },
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE

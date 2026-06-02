@@ -59,6 +59,7 @@ class SubscriptionsViewModel : ViewModel() {
     private var latestFeedVideos: List<Video> = emptyList()
     private var watchedVideoIds: Set<String> = emptySet()
     private var excludedShortsChannelIds: Set<String> = emptySet()
+    private var observedChannelIds: List<String>? = null
 
     fun initialize(context: Context) {
         if (isInitialized) return
@@ -208,6 +209,9 @@ class SubscriptionsViewModel : ViewModel() {
                 .distinctUntilChanged()
                 .collect { channelIds ->
                     Log.i(TAG, "Channel IDs changed: ${channelIds.size} channels \u2014 triggering fetch")
+                    val previousChannelIds = observedChannelIds
+                    observedChannelIds = channelIds
+                    val subscriptionSetChanged = previousChannelIds != null && previousChannelIds != channelIds
 
                     val allSubs = subscriptionRepository.getAllSubscriptions().first()
                     val channels = allSubs.map { sub ->
@@ -237,14 +241,15 @@ class SubscriptionsViewModel : ViewModel() {
                         val isCacheStale = cacheCount == 0 || cacheAgeMs > FEED_CACHE_TTL_MS
                         val hasNewUploadSignal = hasNewUploadSignalSinceCache(latestCachedAt)
 
-                        if (isCacheStale || hasNewUploadSignal) {
+                        if (isCacheStale || hasNewUploadSignal || subscriptionSetChanged) {
                             Log.i(
                                 TAG,
-                                "Refreshing subscriptions feed (stale=$isCacheStale, newSignal=$hasNewUploadSignal, age=${cacheAgeMs / 60_000}min, rows=$cacheCount)"
+                                "Refreshing subscriptions feed (stale=$isCacheStale, newSignal=$hasNewUploadSignal, subscriptionsChanged=$subscriptionSetChanged, age=${cacheAgeMs / 60_000}min, rows=$cacheCount)"
                             )
                             fetchAndCacheSubscriptionFeed(
                                 channelIds = channels.map { it.id },
-                                showLoading = true
+                                showLoading = true,
+                                replaceCache = subscriptionSetChanged
                             )
                         } else {
                             Log.i(TAG, "Feed cache is fresh (age=${cacheAgeMs / 60_000}min, rows=$cacheCount) — skipping network fetch")
@@ -261,7 +266,8 @@ class SubscriptionsViewModel : ViewModel() {
 
     private suspend fun fetchAndCacheSubscriptionFeed(
         channelIds: List<String>,
-        showLoading: Boolean
+        showLoading: Boolean,
+        replaceCache: Boolean = false
     ) {
         if (channelIds.isEmpty()) return
         if (isNetworkFetchRunning) {
@@ -283,7 +289,7 @@ class SubscriptionsViewModel : ViewModel() {
                 cachedVideos = cachedBeforeFetch,
                 now = System.currentTimeMillis()
             )
-            val cachedVideoIds = cachedBeforeFetch.map { it.id }.toHashSet()
+            val cachedVideoIds = if (replaceCache) emptySet() else cachedBeforeFetch.map { it.id }.toHashSet()
             var finalVideos: List<Video> = emptyList()
             io.github.aedev.flow.data.innertube.RssSubscriptionService.fetchSubscriptionVideos(
                 channelIds = channelIds,
@@ -313,12 +319,20 @@ class SubscriptionsViewModel : ViewModel() {
                 }
             }
             val refreshTime = System.currentTimeMillis()
-            if (finalVideos.isNotEmpty()) {
-                val mergedVideos = mergeSubscriptionFeed(
-                    freshVideos = finalVideos,
-                    cachedVideos = refreshPreviewVideos.ifEmpty { cachedBeforeFetch },
-                    now = refreshTime
-                ).withHighQualityThumbnails().withSubscriptionAvatars()
+            if (finalVideos.isNotEmpty() || replaceCache) {
+                val mergedVideos = if (replaceCache) {
+                    finalVideos
+                        .withStableUploadSortKeys(refreshTime)
+                        .take(MAX_SUBSCRIPTION_CACHE_ITEMS)
+                        .withHighQualityThumbnails()
+                        .withSubscriptionAvatars()
+                } else {
+                    mergeSubscriptionFeed(
+                        freshVideos = finalVideos,
+                        cachedVideos = refreshPreviewVideos.ifEmpty { cachedBeforeFetch },
+                        now = refreshTime
+                    ).withHighQualityThumbnails().withSubscriptionAvatars()
+                }
                 val entities = mergedVideos.map { video -> video.toSubscriptionFeedEntity(refreshTime) }
                 withContext(PerformanceDispatcher.diskIO) {
                     database.withTransaction {
@@ -739,7 +753,8 @@ class SubscriptionsViewModel : ViewModel() {
             }
             fetchAndCacheSubscriptionFeed(
                 channelIds = channels.map { it.id },
-                showLoading = true
+                showLoading = true,
+                replaceCache = true
             )
         }
     }
