@@ -1645,4 +1645,13 @@
     <string name="player_settings_video_codec_dialog_title">Codec video predefinito</string>
     <string name="player_settings_video_codec_dialog_body">Scegli quale codec utilizzare come predefinito alla risoluzione selezionata. Questo non modifica le qualità in elenco: puoi comunque scegliere qualsiasi codec dal selettore di qualità. H.264 offre la massima compatibilità e fluidità sulla maggior parte dei dispositivi; AV1/VP9 risparmiano dati alle risoluzioni più elevate ma richiedono maggiore potenza di calcolo per la decodifica.</string>
     <string name="player_settings_video_codec_auto_desc">Scelta automatica dell\'app (predilige H.264)</string>
+    <string name="live_chat">Chat live</string>
+    <string name="live_chat_connecting">Connessione alla chat live…</string>
+    <string name="live_chat_empty">In attesa di messaggi…</string>
+    <string name="live_chat_show">Mostra chat</string>
+    <string name="live_chat_hide">Nascondi chat</string>
+    <string name="live_chat_jump_to_latest">Vai all\'ultimo messaggio della chat</string>
+    <string name="content_settings_subs_show_checked_count_title">Conteggio dei video verificati</string>
+    <string name="content_settings_subs_show_checked_count_subtitle">Mostra il numero di video verificati accanto all\'ora dell\'ultimo aggiornamento</string>
+    <string name="subscriptions_last_refreshed_time_only_template">Ultimo aggiornamento %1$s</string>
 </resources>
