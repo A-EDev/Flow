@@ -1640,5 +1640,4 @@
     <string name="download_menu_style_compact">Компактний</string>
     <string name="download_menu_style_compact_desc">Редагований заголовок, випадні списки та кількість потоків</string>
     <string name="player_appearance_long_press_speed_title">Швидкість відтворення при тривалому натисканні</string>
-    <string name="player_appearance_long_press_speed_subtitle"></string>
 </resources>
