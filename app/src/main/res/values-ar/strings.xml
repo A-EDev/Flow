@@ -214,7 +214,7 @@
     <string name="settings_item_player">إعدادات المشغل</string>
     <string name="settings_item_player_subtitle">التشغيل التلقائي، التشغيل في الخلفية، SponsorBlock</string>
     <string name="settings_item_quality">دقة الفيديو و الموسيقي</string>
-    <string name="settings_item_quality_subtitle">دقة العرض و جودة صوت الموسيقي</string>
+    <string name="settings_item_quality_subtitle">دقة العرض و جودة الموسيقي</string>
     <string name="settings_item_content_display">عرض المحتوى</string>
     <string name="settings_item_content_display_subtitle">حجم الشبكة، الصور المصغرة، التخطيط</string>
     <string name="settings_item_buffer">إعدادات المخزن المؤقت</string>
@@ -1641,4 +1641,11 @@
     <string name="download_menu_style_classic_desc">‎قائمة كاملة بكل جودة و برنامج ترميز</string>
     <string name="download_menu_style_compact">‎مدمج</string>
     <string name="download_menu_style_compact_desc">عنوان قابل للتعديل، قوائم منسدلة، وعدد التقسيمات</string>
+    <string name="player_appearance_long_press_speed_title">سرعة الضغط المطول علي المشغل</string>
+    <string name="player_appearance_long_press_speed_subtitle">إختر السرعة المؤقتة المستخدمة أثناء الضغط المطول علي المشغل</string>
+    <string name="player_appearance_long_press_speed_disabled">معطلة</string>
+    <string name="player_settings_video_codec">ترميز الفيديو الافتراضي</string>
+    <string name="player_settings_video_codec_dialog_title">برنامج ترميز الفيديو الافتراضي</string>
+    <string name="player_settings_video_codec_dialog_body">‪إختر برنامج الترميز المستخدم إفتراضيًا عند الدقة المحددة. لن يؤثر هذا على جودة الفيديو المعروضة، إذ يمكنك اختيار أي برنامج ترميز من قائمة الجودة. يُعدّ H.264 الأكثر توافقًا وسلاسةً على معظم الأجهزة؛ بينما يحافظ AV1/VP9 على البيانات بدقة أعلى، لكنهما يتطلبان قدرة فك تشفير أكبر.</string>
+    <string name="player_settings_video_codec_auto_desc">دع التطبيق يختار (يُفضِل H.264)</string>
 </resources>
