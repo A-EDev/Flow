@@ -1133,6 +1133,13 @@
     <string name="thank_you_support_message">Thank you for your support! ❤️</string>
     <string name="address_copied_toast">Address copied to clipboard</string>
     <string name="donation_address_clip_label">Donation Address</string>
+    <!-- One-time support prompt -->
+    <string name="donation_prompt_title">Enjoying Flow?</string>
+    <string name="donation_prompt_message">Flow is free, open-source, and built without ads or trackers. If it has earned a place on your device, please consider supporting its development — it genuinely helps keep the project alive.</string>
+    <string name="donation_prompt_methods">Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
+    <string name="donation_prompt_support">Support development</string>
+    <string name="donation_prompt_later">Maybe later</string>
+    <string name="donation_prompt_never">Don\'t show again</string>
     <!-- About Screen -->
     <string name="about_creator">Creator</string>
     <string name="about_website">Website</string>

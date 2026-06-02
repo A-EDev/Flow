@@ -1302,21 +1302,16 @@ fun VideoThumbnailImage(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit
 ) {
-    val primaryModel = remember(videoId, model) {
-        when (model) {
-            is String -> model.takeIf { it.isNotBlank() }
-                ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId)
-            null -> ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(videoId)
-            else -> model
+    val models = remember(videoId, model) {
+        when {
+            model is String || model == null ->
+                ThumbnailUrlResolver.resolveVideoThumbnailCandidates(videoId, model as? String)
+            else -> listOf(model)
         }
-    }
-    val fallbackModel = remember(videoId, primaryModel) {
-        (primaryModel as? String)?.let { ThumbnailUrlResolver.fallbackVideoThumbnail(videoId, it) }
     }
 
     SafeAsyncImage(
-        model = primaryModel,
-        fallbackModel = fallbackModel,
+        models = models,
         contentDescription = contentDescription,
         modifier = modifier,
         contentScale = contentScale
@@ -1325,55 +1320,32 @@ fun VideoThumbnailImage(
 
 @Composable
 private fun SafeAsyncImage(
-    model: Any?,
-    fallbackModel: Any? = null,
+    models: List<Any>,
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Fit
 ) {
-    var currentModel by remember(model, fallbackModel) { mutableStateOf(model) }
-    var didFallback by remember(model, fallbackModel) { mutableStateOf(false) }
-    var hasError by remember(model, fallbackModel) { mutableStateOf(false) }
+    var index by remember(models) { mutableStateOf(0) }
+    val currentModel = models.getOrNull(index)
 
-    if (currentModel is ImageVector) {
-        Image(
-            imageVector = currentModel as ImageVector,
+    when {
+        currentModel is ImageVector -> Image(
+            imageVector = currentModel,
             contentDescription = contentDescription,
             modifier = modifier,
             contentScale = contentScale,
             colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(MaterialTheme.colorScheme.onSurfaceVariant)
         )
-    } else {
-        val isValidModel = when (currentModel) {
-            is String -> (currentModel as String).isNotEmpty()
-            is Int -> true // Resource ID
-            else -> false
-        }
-
-        if (isValidModel && !hasError) {
-            AsyncImage(
-                model = currentModel,
-                contentDescription = contentDescription,
-                modifier = modifier,
-                contentScale = contentScale,
-                onError = {
-                    val canFallback = !didFallback &&
-                        fallbackModel is String &&
-                        fallbackModel.isNotEmpty() &&
-                        fallbackModel != currentModel
-
-                    if (canFallback) {
-                        didFallback = true
-                        currentModel = fallbackModel
-                    } else {
-                        hasError = true
-                    }
-                }
-            )
-        } else {
-            // Fallback placeholder
-            Box(modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant))
-        }
+        (currentModel is String && currentModel.isNotEmpty()) || currentModel is Int -> AsyncImage(
+            model = currentModel,
+            contentDescription = contentDescription,
+            modifier = modifier,
+            contentScale = contentScale,
+            onError = {
+                index = if (index < models.lastIndex) index + 1 else models.size
+            }
+        )
+        else -> Box(modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant))
     }
 }
 
@@ -1390,11 +1362,12 @@ fun ChannelAvatarImage(
     modifier: Modifier = Modifier
 ) {
     var currentModel by remember(url) {
-        val initial = url?.takeIf { it.isNotEmpty() } ?: Icons.Default.AccountCircle
+        val highQualityUrl = ThumbnailUrlResolver.resolveChannelAvatar(url)
+        val initial = highQualityUrl.takeIf { it.isNotEmpty() } ?: Icons.Default.AccountCircle
         if (initial is ImageVector) {
             Log.d(AVATAR_TAG, "null/empty url for '$contentDescription', using icon")
         } else {
-            Log.d(AVATAR_TAG, "init url='$url' for '$contentDescription'")
+            Log.d(AVATAR_TAG, "init url='$highQualityUrl' for '$contentDescription'")
         }
         mutableStateOf<Any>(initial)
     }

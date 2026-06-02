@@ -283,7 +283,10 @@ object RssSubscriptionService {
 
         try {
             val channelInfo = ChannelInfo.getInfo(service, channelUrl)
-            val channelAvatar = channelInfo.avatars.maxByOrNull { it.height }?.url  // null if empty → fallback below kicks in
+            val channelAvatar = channelInfo.avatars
+                .maxByOrNull { it.height }
+                ?.url
+                ?.let { ThumbnailUrlResolver.resolveChannelAvatar(it) }
             val tabNames = channelInfo.tabs.map { it.contentFilters.joinToString() }
             Log.d(TAG, "[$channelId] ChannelInfo: found tabs: $tabNames")
 
@@ -446,6 +449,7 @@ object RssSubscriptionService {
             timestamp = uploadTimeMillis,
             channelThumbnailUrl = channelAvatar?.takeIf { it.isNotBlank() }
                 ?: item.uploaderAvatars.maxByOrNull { it.height }?.url
+                    ?.let { ThumbnailUrlResolver.resolveChannelAvatar(it) }
                 ?: "",
             isShort = forceShort || item.isLikelyShort(),
             isLive = forceLive || item.isActiveLiveStream(),

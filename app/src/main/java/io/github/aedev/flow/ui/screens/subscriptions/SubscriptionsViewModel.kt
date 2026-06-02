@@ -14,10 +14,14 @@ import io.github.aedev.flow.data.local.entity.SubscriptionGroupEntity
 import io.github.aedev.flow.data.model.Channel
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.data.repository.YouTubeRepository
+import io.github.aedev.flow.innertube.YouTube
+import io.github.aedev.flow.innertube.models.YouTubeClient
+import io.github.aedev.flow.network.AppProxyManager
 import io.github.aedev.flow.utils.PerformanceDispatcher
 import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.data.local.PlayerPreferences
 import io.github.aedev.flow.utils.formatYouTubeRelativeTime
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -26,6 +30,9 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import androidx.room.withTransaction
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.TimeUnit
 
 class SubscriptionsViewModel : ViewModel() {
     companion object {
@@ -39,6 +46,12 @@ class SubscriptionsViewModel : ViewModel() {
         private const val SUBSCRIPTION_FEED_LOOKBACK_DAYS = 60L
         private const val SUBSCRIPTION_CACHE_WINDOW_MS = SUBSCRIPTION_FEED_LOOKBACK_DAYS * 24L * 60L * 60L * 1000L
         private const val MAX_SUBSCRIPTION_CACHE_ITEMS = 1500
+        private const val MISSING_DURATION_ENRICHMENT_LIMIT = 96
+        private const val DURATION_ENRICHMENT_BATCH_SIZE = 8
+        private const val DURATION_METADATA_TIMEOUT_MS = 4_000L
+        private const val THUMBNAIL_PROMOTION_LIMIT = 96
+        private const val THUMBNAIL_PROMOTION_BATCH_SIZE = 8
+        private const val THUMBNAIL_PROMOTION_TIMEOUT_MS = 3_000L
         private const val SUSPICIOUS_FRESH_TIMESTAMP_MS = 5L * 60L * 1000L
         private const val RELATIVE_TIME_TICK_MS = 60L * 1000L
     }
@@ -60,6 +73,15 @@ class SubscriptionsViewModel : ViewModel() {
     private var watchedVideoIds: Set<String> = emptySet()
     private var excludedShortsChannelIds: Set<String> = emptySet()
     private var observedChannelIds: List<String>? = null
+    private var isDurationEnrichmentRunning = false
+    private val durationEnrichmentAttemptedIds = mutableSetOf<String>()
+    private val thumbnailPromotionAttemptedIds = mutableSetOf<String>()
+    private val thumbnailProbeClient: OkHttpClient by lazy {
+        AppProxyManager.applyTo(OkHttpClient.Builder())
+            .followRedirects(true)
+            .callTimeout(THUMBNAIL_PROMOTION_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            .build()
+    }
 
     fun initialize(context: Context) {
         if (isInitialized) return
@@ -190,6 +212,7 @@ class SubscriptionsViewModel : ViewModel() {
                 Log.d(TAG, "Cache observer: calling updateVideos with ${videos.size} videos")
                 latestFeedVideos = videos
                 updateVideos(videos)
+                scheduleMissingDurationEnrichment(videos)
                 
             }
         }
@@ -218,7 +241,7 @@ class SubscriptionsViewModel : ViewModel() {
                         Channel(
                             id = sub.channelId,
                             name = sub.channelName,
-                            thumbnailUrl = sub.channelThumbnail,
+                            thumbnailUrl = ThumbnailUrlResolver.resolveChannelAvatar(sub.channelThumbnail),
                             subscriberCount = 0L,
                             isSubscribed = true,
                             isMusic = sub.isMusic
@@ -321,7 +344,12 @@ class SubscriptionsViewModel : ViewModel() {
             val refreshTime = System.currentTimeMillis()
             if (finalVideos.isNotEmpty() || replaceCache) {
                 val mergedVideos = if (replaceCache) {
+                    val priorById = (latestFeedVideos + cachedBeforeFetch)
+                        .filter { it.id.isNotBlank() }
+                        .groupBy { it.id }
+                        .mapValues { (_, candidates) -> mergeDuplicateSubscriptionVideo(candidates, refreshTime) }
                     finalVideos
+                        .map { fresh -> fresh.preservingEnrichedMetadata(priorById[fresh.id]) }
                         .withStableUploadSortKeys(refreshTime)
                         .take(MAX_SUBSCRIPTION_CACHE_ITEMS)
                         .withHighQualityThumbnails()
@@ -343,6 +371,7 @@ class SubscriptionsViewModel : ViewModel() {
                 }
                 latestFeedVideos = mergedVideos
                 updateVideos(mergedVideos)
+                scheduleMissingDurationEnrichment(mergedVideos)
             } else if (cachedBeforeFetch.isNotEmpty()) {
                 withContext(PerformanceDispatcher.diskIO) {
                     playerPreferences.setSubscriptionLastRefresh(refreshTime, cachedBeforeFetch.size)
@@ -424,6 +453,17 @@ class SubscriptionsViewModel : ViewModel() {
         )
     }
 
+    private fun Video.preservingEnrichedMetadata(prior: Video?): Video {
+        if (prior == null) return this
+        return copy(
+            duration = if (duration > 0) duration else prior.duration,
+            viewCount = maxOf(viewCount, prior.viewCount),
+            thumbnailUrl = thumbnailUrl.ifBlank { prior.thumbnailUrl },
+            channelThumbnailUrl = channelThumbnailUrl.ifBlank { prior.channelThumbnailUrl },
+            description = description.ifBlank { prior.description }
+        )
+    }
+
     private suspend fun updateVideos(videos: List<Video>) {
         val sortNow = System.currentTimeMillis()
         val sortedVideos = videos.withHighQualityThumbnails().withSubscriptionAvatars()
@@ -491,6 +531,93 @@ class SubscriptionsViewModel : ViewModel() {
                 shorts = groupFilteredShorts.withRelativeUploadDates(sortNow)
             )
         }
+        scheduleThumbnailQualityPromotion(groupFilteredRegular + groupFilteredShorts)
+    }
+
+    private fun scheduleThumbnailQualityPromotion(videos: List<Video>) {
+        val candidates = videos
+            .asSequence()
+            .filter { it.id.isNotBlank() }
+            .distinctBy { it.id }
+            .filter { it.id !in thumbnailPromotionAttemptedIds }
+            .take(THUMBNAIL_PROMOTION_LIMIT)
+            .toList()
+
+        if (candidates.isEmpty()) return
+        thumbnailPromotionAttemptedIds += candidates.map { it.id }
+
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            val promotions = mutableListOf<ThumbnailPromotion>()
+            candidates.chunked(THUMBNAIL_PROMOTION_BATCH_SIZE).forEach { batch ->
+                val promotedBatch = supervisorScope {
+                    batch.map { video ->
+                        async { promoteThumbnailQuality(video) }
+                    }.awaitAll()
+                }.filterNotNull()
+                promotions += promotedBatch
+            }
+            val distinctPromotions = promotions.distinctBy { it.videoId }
+
+            if (distinctPromotions.isEmpty()) return@launch
+
+            withContext(PerformanceDispatcher.diskIO) {
+                distinctPromotions.forEach { promotion ->
+                    cacheDao.updateSubscriptionFeedThumbnail(promotion.videoId, promotion.thumbnailUrl)
+                }
+            }
+
+            val promotedById = distinctPromotions.associate { it.videoId to it.thumbnailUrl }
+            val updatedVideos = latestFeedVideos.map { video ->
+                promotedById[video.id]?.let { thumbnailUrl ->
+                    if (video.thumbnailUrl == thumbnailUrl) video else video.copy(thumbnailUrl = thumbnailUrl)
+                } ?: video
+            }
+
+            if (updatedVideos != latestFeedVideos) {
+                latestFeedVideos = updatedVideos
+                updateVideos(updatedVideos)
+            }
+        }
+    }
+
+    private suspend fun promoteThumbnailQuality(video: Video): ThumbnailPromotion? {
+        val bestThumbnail = ThumbnailUrlResolver.resolveVideoThumbnailCandidates(video.id, video.thumbnailUrl)
+            .firstOrNull { candidate -> canLoadThumbnail(candidate) }
+            ?: return null
+
+        return ThumbnailPromotion(video.id, bestThumbnail)
+    }
+
+    private suspend fun canLoadThumbnail(url: String): Boolean {
+        return withTimeoutOrNull(THUMBNAIL_PROMOTION_TIMEOUT_MS) {
+            runCatching {
+                val headRequest = thumbnailProbeRequest(url, useHead = true)
+                if (executeThumbnailProbe(headRequest)) return@withTimeoutOrNull true
+
+                val rangeRequest = thumbnailProbeRequest(url, useHead = false)
+                executeThumbnailProbe(rangeRequest)
+            }.getOrDefault(false)
+        } ?: false
+    }
+
+    private fun thumbnailProbeRequest(url: String, useHead: Boolean): Request {
+        val builder = Request.Builder()
+            .url(url)
+            .header("User-Agent", "Mozilla/5.0")
+
+        return if (useHead) {
+            builder.head().build()
+        } else {
+            builder.header("Range", "bytes=0-0").build()
+        }
+    }
+
+    private fun executeThumbnailProbe(request: Request): Boolean {
+        thumbnailProbeClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return false
+            val contentType = response.header("Content-Type").orEmpty()
+            return contentType.isBlank() || contentType.startsWith("image/", ignoreCase = true)
+        }
     }
 
     private fun List<Video>.withHighQualityThumbnails(): List<Video> =
@@ -504,17 +631,130 @@ class SubscriptionsViewModel : ViewModel() {
         val avatarByChannelId = _uiState.value.subscribedChannels
             .asSequence()
             .filter { it.thumbnailUrl.isNotBlank() }
-            .associate { it.id to it.thumbnailUrl }
+            .associate { it.id to ThumbnailUrlResolver.resolveChannelAvatar(it.thumbnailUrl) }
         if (avatarByChannelId.isEmpty()) return this
 
         return map { video ->
+            val normalizedExistingAvatar = ThumbnailUrlResolver.resolveChannelAvatar(video.channelThumbnailUrl)
             if (video.channelThumbnailUrl.isBlank()) {
                 avatarByChannelId[video.channelId]?.let { avatar ->
                     video.copy(channelThumbnailUrl = avatar)
                 } ?: video
+            } else if (normalizedExistingAvatar != video.channelThumbnailUrl) {
+                video.copy(channelThumbnailUrl = normalizedExistingAvatar)
             } else {
                 video
             }
+        }
+    }
+
+    private fun scheduleMissingDurationEnrichment(videos: List<Video>) {
+        if (videos.isEmpty() || isDurationEnrichmentRunning) return
+
+        val candidates = videos
+            .withHighQualityThumbnails()
+            .withSubscriptionAvatars()
+            .withStableUploadSortKeys(System.currentTimeMillis())
+            .filter { video ->
+                video.id.isNotBlank() &&
+                    video.duration <= 0 &&
+                    !video.isLive &&
+                    !video.isUpcoming &&
+                    video.id !in durationEnrichmentAttemptedIds
+            }
+            .take(MISSING_DURATION_ENRICHMENT_LIMIT)
+
+        if (candidates.isEmpty()) return
+
+        durationEnrichmentAttemptedIds += candidates.map { it.id }
+        isDurationEnrichmentRunning = true
+
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            var appliedCount = 0
+            try {
+                Log.d(TAG, "Enriching ${candidates.size} subscription durations via player() metadata")
+                val enrichedById = enrichMissingDurations(candidates)
+                    .associateBy { it.id }
+                if (enrichedById.isEmpty()) return@launch
+                appliedCount = enrichedById.size
+
+                val currentVideos = latestFeedVideos.ifEmpty { videos }
+                val mergedVideos = currentVideos.map { video ->
+                    enrichedById[video.id]?.let { enriched ->
+                        video.copy(
+                            title = enriched.title.takeIf { it.isNotBlank() } ?: video.title,
+                            channelName = enriched.channelName.takeIf { it.isNotBlank() } ?: video.channelName,
+                            channelId = enriched.channelId.takeIf { it.isNotBlank() } ?: video.channelId,
+                            thumbnailUrl = enriched.thumbnailUrl.takeIf { it.isNotBlank() } ?: video.thumbnailUrl,
+                            duration = enriched.duration.takeIf { it > 0 } ?: video.duration,
+                            viewCount = maxOf(video.viewCount, enriched.viewCount),
+                            isLive = video.isLive || enriched.isLive
+                        )
+                    } ?: video
+                }
+                    .withHighQualityThumbnails()
+                    .withSubscriptionAvatars()
+
+                latestFeedVideos = mergedVideos
+                updateVideos(mergedVideos)
+
+                val refreshTime = System.currentTimeMillis()
+                val entities = mergedVideos.map { it.toSubscriptionFeedEntity(refreshTime) }
+                withContext(PerformanceDispatcher.diskIO) {
+                    database.withTransaction {
+                        cacheDao.clearSubscriptionFeed()
+                        cacheDao.insertSubscriptionFeed(entities)
+                    }
+                    playerPreferences.setSubscriptionLastRefresh(refreshTime, mergedVideos.size)
+                }
+                Log.d(TAG, "Duration enrichment applied to ${enrichedById.size} subscription videos")
+            } finally {
+                isDurationEnrichmentRunning = false
+                if (appliedCount > 0) {
+                    latestFeedVideos.takeIf { it.isNotEmpty() }?.let(::scheduleMissingDurationEnrichment)
+                }
+            }
+        }
+    }
+
+    private suspend fun enrichMissingDurations(videos: List<Video>): List<Video> = supervisorScope {
+        val enriched = mutableListOf<Video>()
+        videos.chunked(DURATION_ENRICHMENT_BATCH_SIZE).forEach { batch ->
+            enriched += batch.map { video ->
+                async(PerformanceDispatcher.networkIO) {
+                    fetchDurationFromPlayerMetadata(video)
+                }
+            }.awaitAll().filterNotNull()
+        }
+        enriched
+    }
+
+    private suspend fun fetchDurationFromPlayerMetadata(video: Video): Video? {
+        return withTimeoutOrNull(DURATION_METADATA_TIMEOUT_MS) {
+            val response = YouTube.player(video.id, client = YouTubeClient.ANDROID).getOrNull()
+                ?: YouTube.player(video.id, client = YouTubeClient.MOBILE).getOrNull()
+                ?: return@withTimeoutOrNull null
+            val details = response.videoDetails ?: return@withTimeoutOrNull null
+            val isLive = details.isLive == true || details.isLiveContent == true
+            val duration = details.lengthSeconds.toIntOrNull()?.takeIf { it > 0 } ?: 0
+            if (!isLive && duration <= 0) return@withTimeoutOrNull null
+
+            val bestThumbnail = details.thumbnail
+                ?.thumbnails
+                ?.maxByOrNull { (it.width ?: 0) * (it.height ?: 0) }
+                ?.url
+                ?.let { ThumbnailUrlResolver.normalizeVideoThumbnail(video.id, it) }
+                ?: ThumbnailUrlResolver.normalizeVideoThumbnail(video.id, video.thumbnailUrl)
+
+            video.copy(
+                title = details.title?.takeIf { it.isNotBlank() } ?: video.title,
+                channelName = details.author?.takeIf { it.isNotBlank() } ?: video.channelName,
+                channelId = details.channelId.takeIf { it.isNotBlank() } ?: video.channelId,
+                thumbnailUrl = bestThumbnail,
+                duration = if (isLive) 0 else duration,
+                viewCount = maxOf(video.viewCount, details.viewCount?.toLongOrNull() ?: 0L),
+                isLive = video.isLive || isLive
+            )
         }
     }
     
@@ -866,6 +1106,11 @@ data class SubscriptionsUiState(
     val showSubscriptionShorts: Boolean = true,
     val showSubscriptionLive: Boolean = true,
     val excludedShortsChannelIds: Set<String> = emptySet()
+)
+
+private data class ThumbnailPromotion(
+    val videoId: String,
+    val thumbnailUrl: String
 )
 
 data class SubscriptionGroup(

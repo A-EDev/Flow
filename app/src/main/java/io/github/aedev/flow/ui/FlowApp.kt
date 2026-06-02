@@ -42,6 +42,7 @@ import io.github.aedev.flow.player.DeepFlowManager
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.ui.components.DonationPromptHost
 import io.github.aedev.flow.ui.components.FloatingBottomNavBar
 import io.github.aedev.flow.ui.components.MusicPlayerBottomSheet
 import io.github.aedev.flow.ui.components.MusicPlayerSheetState
@@ -563,7 +564,12 @@ fun FlowApp(
                 bottom = snackbarBottomPadding
             )
     )
-  } 
+
+    DonationPromptHost(
+        enabled = needsOnboarding == false && !isInPipMode && !playerVisible,
+        onNavigateToDonations = { navController.navigate("donations") }
+    )
+  }
 }
 
 private fun navRouteForIndex(index: Int): String = when (index) {

@@ -1,0 +1,8 @@
+- Added native SABR stream decoding & InnerTube API extraction
+- Added Material You dynamic theming and custom light/dark modes
+- Added new lyrics engine and music audio quality selector
+- Added proxy manager, Shorts blocking, and external music downloads
+- Massive battery optimizations and 120Hz UI smoothness improvements
+- Fixed PiP freezes, background playback, and casting resolution bugs
+- Upgraded NewPipeExtractor to v0.26.2
+- Dozens of UI redesigns for playlists, library, and player
