@@ -453,11 +453,18 @@ fun SubscriptionsScreen(
                                             )
                                         } else if (uiState.lastRefreshText != null) {
                                             Text(
-                                                text = stringResource(
-                                                    R.string.subscriptions_last_refreshed_template,
-                                                    uiState.lastRefreshText!!,
-                                                    uiState.lastRefreshVideoCount
-                                                ),
+                                                text = if (uiState.showLastRefreshVideoCount) {
+                                                    stringResource(
+                                                        R.string.subscriptions_last_refreshed_template,
+                                                        uiState.lastRefreshText!!,
+                                                        uiState.lastRefreshVideoCount
+                                                    )
+                                                } else {
+                                                    stringResource(
+                                                        R.string.subscriptions_last_refreshed_time_only_template,
+                                                        uiState.lastRefreshText!!
+                                                    )
+                                                },
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)

@@ -137,14 +137,18 @@ class SubscriptionsViewModel : ViewModel() {
         viewModelScope.launch(PerformanceDispatcher.diskIO) {
             combine(
                 playerPreferences.subscriptionLastRefreshTime,
-                playerPreferences.subscriptionLastRefreshedCount
-            ) { time, count -> time to count }
-                .collect { (time, count) ->
+                playerPreferences.subscriptionLastRefreshedCount,
+                playerPreferences.subscriptionShowCheckedVideoCount
+            ) { time, count, showCheckedCount ->
+                Triple(time, count, showCheckedCount)
+            }
+                .collect { (time, count, showCheckedCount) ->
                     _uiState.update {
                         it.copy(
                             lastRefreshTime = time,
                             lastRefreshText = if (time > 0L) formatTimestamp(time) else null,
-                            lastRefreshVideoCount = count
+                            lastRefreshVideoCount = count,
+                            showLastRefreshVideoCount = showCheckedCount
                         )
                     }
                 }
@@ -842,6 +846,7 @@ data class SubscriptionsUiState(
     val lastRefreshTime: Long = 0L,
     val lastRefreshText: String? = null,
     val lastRefreshVideoCount: Int = 0,
+    val showLastRefreshVideoCount: Boolean = true,
     val showSubscriptionVideos: Boolean = true,
     val showSubscriptionShorts: Boolean = true,
     val showSubscriptionLive: Boolean = true,

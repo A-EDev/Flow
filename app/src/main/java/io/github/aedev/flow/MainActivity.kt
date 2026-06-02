@@ -73,6 +73,32 @@ class MainActivity : ComponentActivity() {
     private var pipDismissCheckJob: Job? = null
     private var pendingAutoPip = false
 
+    private fun videoPlaybackStateName(state: Int?): String = when (state) {
+        androidx.media3.common.Player.STATE_IDLE -> "IDLE"
+        androidx.media3.common.Player.STATE_BUFFERING -> "BUFFERING"
+        androidx.media3.common.Player.STATE_READY -> "READY"
+        androidx.media3.common.Player.STATE_ENDED -> "ENDED"
+        null -> "NO_PLAYER"
+        else -> "UNKNOWN($state)"
+    }
+
+    private fun lifecyclePlaybackSnapshot(): String {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
+        val playerState = playerManager.playerState.value
+        val player = playerManager.getPlayer()
+        return "interactive=${powerManager?.isInteractive} lifecycle=${lifecycle.currentState} " +
+            "pip=$isInPictureInPictureMode pendingAutoPip=$pendingAutoPip " +
+            "bgPref=$cachedBackgroundPlayEnabled shortsBgPref=$cachedShortsBackgroundPlay " +
+            "video=${playerState.currentVideoId} exo=${videoPlaybackStateName(player?.playbackState)} " +
+            "pwr=${player?.playWhenReady} playing=${player?.isPlaying} buffering=${playerState.isBuffering} " +
+            "pos=${player?.currentPosition}/${player?.duration} idx=${player?.currentMediaItemIndex} count=${player?.mediaItemCount}"
+    }
+
+    private fun videoLifecycleLog(message: String) {
+        Log.w("FlowVideoLifecycle", "$message | ${lifecyclePlaybackSnapshot()}")
+    }
+
     override fun attachBaseContext(newBase: Context) {
         val selectedLanguage = AppLanguageManager.loadSelectedLanguageTag(newBase)
         super.attachBaseContext(AppLanguageManager.wrapContext(newBase, selectedLanguage))
@@ -333,6 +359,7 @@ class MainActivity : ComponentActivity() {
     }
     
     override fun onDestroy() {
+        videoLifecycleLog("onDestroy")
         val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
         val playerState = playerManager.playerState.value
         val shouldKeepBackgroundPlayback =
@@ -420,6 +447,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        videoLifecycleLog("onPictureInPictureModeChanged pip=$isInPictureInPictureMode")
         GlobalPlayerState.setPipMode(isInPictureInPictureMode)
         pendingAutoPip = false
 
@@ -439,12 +467,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        videoLifecycleLog("onResume")
         pendingAutoPip = false
         pipDismissCheckJob?.cancel()
     }
 
     override fun onStop() {
         super.onStop()
+        videoLifecycleLog("onStop")
         if (!isInPictureInPictureMode) {
             requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             if (!cachedShortsBackgroundPlay) {
@@ -471,6 +501,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
+        videoLifecycleLog("onUserLeaveHint")
         // Only enter PiP mode if video is playing and has progressed
         // We use the EnhancedPlayerManager directly to get the immediate state
         val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
@@ -484,11 +515,15 @@ class MainActivity : ComponentActivity() {
         
         // Only enter PiP for video, not for music (which uses background service)
         if (isVideoPlaying && !isMusicPlaying && cachedAutoPipEnabled) {
-            enterPlayerPictureInPictureMode(
-                aspectRatioWidth = 16,
-                aspectRatioHeight = 9,
-                isPlaying = true
-            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                pendingAutoPip = true
+            } else {
+                enterPlayerPictureInPictureMode(
+                    aspectRatioWidth = 16,
+                    aspectRatioHeight = 9,
+                    isPlaying = true
+                )
+            }
         }
     }
 
@@ -514,6 +549,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handOffVideoPlaybackToBackground() {
+        videoLifecycleLog("handOffVideoPlaybackToBackground")
         val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
         val playerState = playerManager.playerState.value
         if (
@@ -532,6 +568,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleBackgroundPlaybackOnStop() {
+        videoLifecycleLog("handleBackgroundPlaybackOnStop")
         val playerManager = io.github.aedev.flow.player.EnhancedPlayerManager.getInstance()
         val playerState = playerManager.playerState.value
         val hasActiveVideo =
@@ -541,8 +578,10 @@ class MainActivity : ComponentActivity() {
         if (!hasActiveVideo) return
 
         if (cachedBackgroundPlayEnabled) {
+            videoLifecycleLog("handleBackgroundPlaybackOnStop handoff")
             handOffVideoPlaybackToBackground()
         } else {
+            videoLifecycleLog("handleBackgroundPlaybackOnStop pause")
             playerManager.pause()
             playerManager.stopBackgroundService()
         }

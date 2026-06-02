@@ -114,8 +114,22 @@ fun PipParamsUpdateEffect(
                 aspectRatioWidth = 16,
                 aspectRatioHeight = 9,
                 isPlaying = isPlaying,
-                autoEnterEnabled = autoPipEnabled
+                autoEnterEnabled = autoPipEnabled && isPlaying
             )
+        }
+    }
+
+    DisposableEffect(activity) {
+        onDispose {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity != null) {
+                PictureInPictureHelper.updatePipParams(
+                    activity = activity,
+                    aspectRatioWidth = 16,
+                    aspectRatioHeight = 9,
+                    isPlaying = false,
+                    autoEnterEnabled = false
+                )
+            }
         }
     }
 }
@@ -172,7 +186,7 @@ fun SetupPipEffects(
     // Update PiP params
     PipParamsUpdateEffect(
         isPlaying = isPlaying,
-        autoPipEnabled = false,
+        autoPipEnabled = pipPreferences.autoPipEnabled,
         activity = activity
     )
 }

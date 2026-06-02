@@ -1,7 +1,9 @@
 package io.github.aedev.flow.ui.screens.player.components
 
 import android.graphics.Outline
+import android.content.Context
 import android.os.Build
+import android.os.PowerManager
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -30,6 +32,7 @@ import androidx.media3.ui.PlayerView
 import io.github.aedev.flow.R
 import io.github.aedev.flow.data.model.Video
 import io.github.aedev.flow.player.EnhancedPlayerManager
+import io.github.aedev.flow.player.PictureInPictureHelper
 
 private fun pickPlayerViewLayoutRes(): Int =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -52,6 +55,7 @@ fun VideoPlayerSurface(
     val lifecycleOwner = LocalLifecycleOwner.current
     var surfaceRestoreTrigger by remember { mutableIntStateOf(0) }
     var attachedVideoId by remember { mutableStateOf<String?>(null) }
+    var lastAudioOnlySkipLogKey by remember { mutableStateOf<Pair<Boolean, Boolean>?>(null) }
     val cornerRadiusPx = with(density) { cornerRadiusDp.dp.toPx() }
 
     val playerView = remember(video.id) {
@@ -81,6 +85,22 @@ fun VideoPlayerSurface(
         onDispose {
             playerView.player?.removeListener(videoSizeListener)
             playerView.player = null
+        }
+    }
+
+    DisposableEffect(playerView) {
+        val rect = android.graphics.Rect()
+        val updateHint = {
+            if (playerView.getGlobalVisibleRect(rect) && !rect.isEmpty) {
+                PictureInPictureHelper.sourceRectHint = android.graphics.Rect(rect)
+            }
+        }
+        val listener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateHint() }
+        playerView.addOnLayoutChangeListener(listener)
+        updateHint()
+        onDispose {
+            playerView.removeOnLayoutChangeListener(listener)
+            PictureInPictureHelper.sourceRectHint = null
         }
     }
 
@@ -118,8 +138,23 @@ fun VideoPlayerSurface(
                 }
 
                 if (newPlayer != null && manager.isInAudioOnlyMode()) {
-                    Log.d("VideoPlayerSurface", "Restoring video output after audio-only background mode")
-                    manager.restoreVideoOutput()
+                    val lifecycleReadyForVideo =
+                        lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+                    val displayInteractive = context.isDisplayInteractive()
+                    if (lifecycleReadyForVideo && displayInteractive) {
+                        Log.d("VideoPlayerSurface", "Restoring video output after audio-only background mode")
+                        lastAudioOnlySkipLogKey = null
+                        manager.restoreVideoOutput()
+                    } else {
+                        val skipLogKey = lifecycleReadyForVideo to displayInteractive
+                        if (lastAudioOnlySkipLogKey != skipLogKey) {
+                            Log.d(
+                                "VideoPlayerSurface",
+                                "Keeping audio-only background mode (started=$lifecycleReadyForVideo interactive=$displayInteractive)"
+                            )
+                            lastAudioOnlySkipLogKey = skipLogKey
+                        }
+                    }
                 }
 
                 if (newPlayer != null &&
@@ -170,6 +205,11 @@ private fun applyOutlineCornerRadius(view: PlayerView, radiusPx: Float) {
     view.invalidateOutline()
     view.setTag(R.id.player_view, radiusPx)
 }
+
+private fun Context.isDisplayInteractive(): Boolean =
+    runCatching {
+        (getSystemService(Context.POWER_SERVICE) as PowerManager).isInteractive
+    }.getOrDefault(true)
 
 private val Float.dp: androidx.compose.ui.unit.Dp
     get() = androidx.compose.ui.unit.Dp(this)

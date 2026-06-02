@@ -10,6 +10,7 @@
     <string name="home_refresh_feed">Refresh Feed</string>
     <string name="subscriptions_refresh_progress_template">Refreshing %1$d of %2$d channels</string>
     <string name="subscriptions_last_refreshed_template">Last refreshed %1$s - %2$d videos checked</string>
+    <string name="subscriptions_last_refreshed_time_only_template">Last refreshed %1$s</string>
     <string name="retry">Retry</string>
     <string name="shorts">Shorts</string>
     <string name="failed_to_load_channel">Failed to load channel</string>
@@ -680,6 +681,8 @@
     <string name="content_settings_comments_preview_subtitle">Show the latest comment inside the comments card</string>
     <string name="content_settings_subs_startup_refresh_title">Refresh subscriptions at startup</string>
     <string name="content_settings_subs_startup_refresh_subtitle">Check your subscription feed when the app opens</string>
+    <string name="content_settings_subs_show_checked_count_title">Checked video count</string>
+    <string name="content_settings_subs_show_checked_count_subtitle">Show how many videos were checked beside the last refresh time</string>
     <string name="content_settings_subs_show_videos_title">Subscription videos</string>
     <string name="content_settings_subs_show_videos_subtitle">Show regular videos in the subscription feed</string>
     <string name="content_settings_subs_show_shorts_title">Subscription shorts</string>

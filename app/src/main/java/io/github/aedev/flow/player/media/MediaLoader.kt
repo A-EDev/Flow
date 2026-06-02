@@ -174,6 +174,38 @@ class MediaLoader(
         return false
     }
     
+    fun buildPreloadMediaSource(
+        context: Context?,
+        videoStream: VideoStream?,
+        audioStream: AudioStream?,
+        availableVideoStreams: List<VideoStream>,
+        dashManifestUrl: String?,
+        durationSeconds: Long,
+        subtitleStreams: List<SubtitlesStream> = emptyList()
+    ): MediaSource? {
+        val ctx = context ?: return null
+        val dataSourceFactory = cacheManager?.getDataSourceFactory() ?: DefaultDataSource.Factory(ctx)
+        return try {
+            createMediaSource(
+                dataSourceFactory = dataSourceFactory,
+                videoStream = videoStream,
+                audioStream = audioStream,
+                availableVideoStreams = availableVideoStreams,
+                currentVideoStream = videoStream,
+                dashManifestUrl = dashManifestUrl,
+                hlsUrl = null,
+                isLiveStream = false,
+                finalDuration = durationSeconds,
+                localFilePath = null,
+                audioOnly = false,
+                subtitleStreams = subtitleStreams
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "buildPreloadMediaSource failed", e)
+            null
+        }
+    }
+
     private fun reattachSurface(player: ExoPlayer) {
         surfaceManager?.let { sm ->
             val holder = sm.getSurfaceHolder()

@@ -1,7 +1,7 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-06-01
-STATUS: PRE-RELEASE
+DATE: 2026-06-02
+STATUS: RELEASE
 
 FEATURES
 - Add new Proxy manager and routing #362
@@ -82,6 +82,7 @@ IMPROVEMENTS
 - Improve AV1 handling #548
 - Increase subscription feed cache size
 - Reduce player UI position update churn during playback to improve high-FPS fast-speed smoothness #478
+- Improve playlist and background playback STABILITY
 
 FIXES AND STABILITY
 - Fix play mode switch pop up #378

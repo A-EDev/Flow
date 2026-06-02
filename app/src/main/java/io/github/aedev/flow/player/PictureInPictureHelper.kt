@@ -32,6 +32,9 @@ object PictureInPictureHelper {
     private const val REQUEST_CODE_PREVIOUS = 3
     private const val REQUEST_CODE_NEXT = 4
     private const val REQUEST_CODE_CLOSE = 5
+
+    @Volatile
+    var sourceRectHint: android.graphics.Rect? = null
     
     /**
      * Check if the device supports PiP
@@ -155,13 +158,14 @@ object PictureInPictureHelper {
         val builder = PictureInPictureParams.Builder()
             .setAspectRatio(aspectRatio)
             .setActions(actions)
-        
-        // Auto-enter PiP when user goes to home screen (Android 12+)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && autoEnterEnabled) {
-            builder.setAutoEnterEnabled(true)
-            builder.setSeamlessResizeEnabled(true)
+
+        sourceRectHint?.takeIf { !it.isEmpty }?.let { builder.setSourceRectHint(it) }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setAutoEnterEnabled(autoEnterEnabled)
+            builder.setSeamlessResizeEnabled(false)
         }
-        
+
         return builder.build()
     }
     

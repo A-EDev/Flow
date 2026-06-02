@@ -89,6 +89,7 @@ fun ContentSettingsScreen(
     val videoCardActionsEnabled by preferences.videoCardActionsEnabled.collectAsState(initial = false)
     val videoCardMarkWatchedEnabled by preferences.videoCardMarkWatchedEnabled.collectAsState(initial = false)
     val subscriptionRefreshOnStartup by preferences.subscriptionRefreshOnStartup.collectAsState(initial = false)
+    val subscriptionShowCheckedVideoCount by preferences.subscriptionShowCheckedVideoCount.collectAsState(initial = true)
     val commentsEnabled by preferences.commentsEnabled.collectAsState(initial = true)
     val commentsPreviewEnabled by preferences.commentsPreviewEnabled.collectAsState(initial = true)
     val subscriptionShowVideos by preferences.subscriptionShowVideos.collectAsState(initial = true)
@@ -531,6 +532,18 @@ fun ContentSettingsScreen(
                         onCheckedChange = { enabled ->
                             coroutineScope.launch {
                                 preferences.setSubscriptionRefreshOnStartup(enabled)
+                            }
+                        }
+                    )
+                    HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    SettingsSwitchItem(
+                        icon = Icons.Outlined.Visibility,
+                        title = stringResource(R.string.content_settings_subs_show_checked_count_title),
+                        subtitle = stringResource(R.string.content_settings_subs_show_checked_count_subtitle),
+                        checked = subscriptionShowCheckedVideoCount,
+                        onCheckedChange = { enabled ->
+                            coroutineScope.launch {
+                                preferences.setSubscriptionShowCheckedVideoCount(enabled)
                             }
                         }
                     )

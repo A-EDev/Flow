@@ -19,7 +19,6 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.collectLatest
 import io.github.aedev.flow.ui.TabScrollEventBus
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.*
@@ -138,11 +137,6 @@ fun EnhancedMusicScreen(
                         color = MaterialTheme.colorScheme.onBackground,
                         letterSpacing = 2.sp
                     )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.btn_back))
-                    }
                 },
                 actions = {
                     IconButton(onClick = onSearchClick) {

@@ -189,6 +189,7 @@ class PlayerPreferences(context: Context) {
         val SUBS_REFRESH_ON_STARTUP = booleanPreferencesKey("subs_refresh_on_startup")
         val SUBS_LAST_REFRESH_TIME = longPreferencesKey("subs_last_refresh_time")
         val SUBS_LAST_REFRESHED_COUNT = intPreferencesKey("subs_last_refreshed_count")
+        val SUBS_SHOW_CHECKED_VIDEO_COUNT = booleanPreferencesKey("subs_show_checked_video_count")
 
         // Navigation tab preferences
         val NAV_TAB_ORDER = stringPreferencesKey("nav_tab_order")
@@ -1265,6 +1266,15 @@ class PlayerPreferences(context: Context) {
 
     val subscriptionLastRefreshedCount: Flow<Int> = context.playerPreferencesDataStore.data
         .map { preferences -> preferences[Keys.SUBS_LAST_REFRESHED_COUNT] ?: 0 }
+
+    val subscriptionShowCheckedVideoCount: Flow<Boolean> = context.playerPreferencesDataStore.data
+        .map { preferences -> preferences[Keys.SUBS_SHOW_CHECKED_VIDEO_COUNT] ?: true }
+
+    suspend fun setSubscriptionShowCheckedVideoCount(enabled: Boolean) {
+        context.playerPreferencesDataStore.edit { preferences ->
+            preferences[Keys.SUBS_SHOW_CHECKED_VIDEO_COUNT] = enabled
+        }
+    }
 
     suspend fun setSubscriptionLastRefresh(timeMillis: Long, count: Int) {
         context.playerPreferencesDataStore.edit { preferences ->
