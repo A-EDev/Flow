@@ -334,17 +334,10 @@ class YouTubeRepository @Inject constructor(
      * Get related videos
      */
     suspend fun getRelatedVideos(videoId: String): List<Video> = withContext(Dispatchers.IO) {
-        try {
-            val url = "https://www.youtube.com/watch?v=$videoId"
-            val streamInfo = StreamInfo.getInfo(service, url)
-            
-            streamInfo.relatedItems.filterIsInstance<StreamInfoItem>().map { item ->
-                item.toVideo()
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "${e::class.simpleName}: ${e.message}")
-            emptyList()
-        }
+        val streamInfo = fetchWatchStreamInfoWithAlternates(videoId) ?: return@withContext emptyList()
+        getRelatedVideosFromStreamInfo(streamInfo)
+            .filter { it.id.isNotBlank() && it.id != videoId }
+            .distinctBy { it.id }
     }
 
     /**
@@ -770,10 +763,145 @@ class YouTubeRepository @Inject constructor(
      */
     fun getRelatedVideosFromStreamInfo(info: StreamInfo): List<Video> {
         return try {
-            info.relatedItems.filterIsInstance<StreamInfoItem>().map { it.toVideo() }
+            info.relatedItems.filterIsInstance<StreamInfoItem>()
+                .map { it.toVideo() }
+                .filter { it.id.isNotBlank() }
+                .distinctBy { it.id }
         } catch (e: Exception) {
             emptyList()
         }
+    }
+
+    data class LiveWatchMetadata(
+        val title: String?,
+        val channelName: String?,
+        val channelId: String?,
+        val channelAvatarUrl: String?,
+        val subscriberCount: Long?,
+        val viewCount: Long?,
+        val description: String?,
+        val relatedVideos: List<Video>,
+    )
+
+    suspend fun getLiveWatchMetadata(videoId: String): LiveWatchMetadata? = withContext(Dispatchers.IO) {
+        val resp = YouTube.watchMetadata(videoId).getOrNull() ?: return@withContext null
+        val relatedRows = resp.relatedVideos()
+        val related = relatedRows.mapNotNull { cv ->
+            val id = cv.videoId ?: return@mapNotNull null
+            val viewText = cv.viewCountText?.text()
+            val isLive = cv.isLive || viewText.isLiveViewCountText()
+            Video(
+                id = id,
+                title = cv.title?.text() ?: "",
+                channelName = cv.longBylineText?.text() ?: "",
+                channelId = "",
+                thumbnailUrl = cv.thumbnail?.bestUrl()?.let { ThumbnailUrlResolver.normalizeVideoThumbnail(id, it) }
+                    ?: ThumbnailUrlResolver.buildHighQualityYoutubeThumbnail(id),
+                duration = if (isLive) 0 else parseDurationTextToSeconds(cv.lengthText?.text()),
+                viewCount = parseAbbreviatedCount(viewText) ?: 0L,
+                uploadDate = cv.publishedTimeText?.text() ?: "",
+                isLive = isLive
+            )
+        }
+        Log.i(TAG, "InnerTube watch metadata for $videoId: rawRelated=${resp.relatedResultCount()} parsedRelated=${related.size}")
+        LiveWatchMetadata(
+            title = resp.title(),
+            channelName = resp.channelName(),
+            channelId = resp.channelId(),
+            channelAvatarUrl = resp.channelAvatarUrl(),
+            subscriberCount = parseAbbreviatedCount(resp.subscriberCountText()),
+            viewCount = parseAbbreviatedCount(resp.viewCountText()),
+            description = resp.description(),
+            relatedVideos = related
+        )
+    }
+
+    suspend fun getLiveRelatedVideosBySearch(
+        videoId: String,
+        title: String?,
+        channelName: String?,
+    ): List<Video> = withContext(Dispatchers.IO) {
+        val query = listOfNotNull(
+            channelName?.takeIf { it.isNotBlank() },
+            title?.takeIf { it.isNotBlank() }
+        ).joinToString(" ").takeIf { it.isNotBlank() } ?: return@withContext emptyList()
+        val videos = withTimeoutOrNull(8_000L) { searchVideos(query).first }.orEmpty()
+            .filter { it.id.isNotBlank() && it.id != videoId }
+            .distinctBy { it.id }
+            .take(20)
+        Log.i(TAG, "Live related search fallback for $videoId: query='$query' results=${videos.size}")
+        videos
+    }
+
+    suspend fun getLiveWatchMetadataFromNewPipe(videoId: String): LiveWatchMetadata? = withContext(Dispatchers.IO) {
+        val info = fetchWatchStreamInfoWithAlternates(videoId) ?: return@withContext null
+        val thumbnail = info.uploaderAvatars
+            .sortedByDescending { it.height }
+            .firstOrNull()
+            ?.url
+        LiveWatchMetadata(
+            title = info.name,
+            channelName = info.uploaderName,
+            channelId = extractChannelId(info.uploaderUrl),
+            channelAvatarUrl = thumbnail,
+            subscriberCount = null,
+            viewCount = info.viewCount.takeIf { it > 0L },
+            description = info.description?.content,
+            relatedVideos = getRelatedVideosFromStreamInfo(info)
+                .filter { it.id != videoId }
+                .distinctBy { it.id }
+        )
+    }
+
+    private suspend fun fetchWatchStreamInfoWithAlternates(videoId: String): StreamInfo? {
+        val urls = listOf(
+            "https://www.youtube.com/watch?v=$videoId",
+            "https://youtu.be/$videoId",
+            "https://m.youtube.com/watch?v=$videoId",
+            "https://www.youtube.com/live/$videoId"
+        )
+        var lastError: Throwable? = null
+        urls.forEach { url ->
+            val info = try {
+                withTimeoutOrNull(6_000L) { StreamInfo.getInfo(service, url) }
+            } catch (e: Exception) {
+                lastError = e
+                null
+            }
+            if (info != null) return info
+        }
+        Log.w(TAG, "NewPipe watch metadata unavailable for $videoId: ${lastError?.message}")
+        return null
+    }
+
+    private fun parseAbbreviatedCount(text: String?): Long? {
+        if (text.isNullOrBlank()) return null
+        val match = Regex("""([\d.,]+)\s*([KkMmBb])?""").find(text) ?: return null
+        val number = match.groupValues[1].replace(",", "").toDoubleOrNull() ?: return null
+        val mult = when (match.groupValues[2].lowercase(Locale.US)) {
+            "k" -> 1_000.0
+            "m" -> 1_000_000.0
+            "b" -> 1_000_000_000.0
+            else -> 1.0
+        }
+        return (number * mult).toLong()
+    }
+
+    private fun parseDurationTextToSeconds(text: String?): Int {
+        if (text.isNullOrBlank()) return 0
+        val parts = text.split(":").mapNotNull { it.trim().toIntOrNull() }
+        return when (parts.size) {
+            3 -> parts[0] * 3600 + parts[1] * 60 + parts[2]
+            2 -> parts[0] * 60 + parts[1]
+            1 -> parts[0]
+            else -> 0
+        }
+    }
+
+    private fun String?.isLiveViewCountText(): Boolean {
+        if (isNullOrBlank()) return false
+        val lower = lowercase(Locale.US)
+        return lower.contains("watching") || lower.contains("viewer")
     }
 
     private suspend fun fetchInnertubePlaylistVideos(

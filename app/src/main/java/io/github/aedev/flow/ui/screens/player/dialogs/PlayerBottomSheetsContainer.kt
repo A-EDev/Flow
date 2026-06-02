@@ -19,6 +19,7 @@ import io.github.aedev.flow.ui.components.FlowChaptersBottomSheet
 import io.github.aedev.flow.ui.components.CommentSortFilter
 import io.github.aedev.flow.ui.components.FlowCommentsBottomSheet
 import io.github.aedev.flow.ui.components.FlowDescriptionBottomSheet
+import io.github.aedev.flow.ui.components.FlowLiveChatBottomSheet
 import io.github.aedev.flow.ui.components.FlowPlaylistQueueBottomSheet
 import io.github.aedev.flow.ui.components.SleepTimerSheet
 import io.github.aedev.flow.ui.components.VideoQuickActionsBottomSheet
@@ -154,6 +155,15 @@ fun PlayerBottomSheetsContainer(
             },
             expandedHeight = mediaSheetExpandedHeight,
             onDismiss = { screenState.showCommentsSheet = false }
+        )
+    }
+
+    if (screenState.showLiveChatSheet && uiState.isLiveChatAvailable) {
+        FlowLiveChatBottomSheet(
+            messages = uiState.liveChatMessages,
+            isLoading = uiState.isLiveChatLoading,
+            expandedHeight = mediaSheetExpandedHeight,
+            onDismiss = { screenState.showLiveChatSheet = false }
         )
     }
 

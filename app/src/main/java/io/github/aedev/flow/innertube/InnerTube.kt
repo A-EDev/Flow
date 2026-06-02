@@ -498,6 +498,54 @@ class InnerTube {
         }
     }
 
+    private fun HttpRequestBuilder.webYouTubeHeaders(client: YouTubeClient) {
+        headers {
+            append("X-Goog-Api-Format-Version", "1")
+            append("X-YouTube-Client-Name", client.clientId)
+            append("X-YouTube-Client-Version", client.clientVersion)
+            append("X-Origin", "https://www.youtube.com")
+            append("Referer", "https://www.youtube.com/")
+            visitorData?.let { append("X-Goog-Visitor-Id", it) }
+        }
+        contentType(ContentType.Application.Json)
+        userAgent(client.userAgent)
+        parameter("prettyPrint", false)
+    }
+
+    suspend fun nextForLiveChat(videoId: String) = withRetry {
+        val client = YouTubeClient.WEB
+        httpClient.post("https://www.youtube.com/youtubei/v1/next") {
+            webYouTubeHeaders(client)
+            setBody(
+                NextBody(
+                    context = client.toContext(locale, visitorData, null),
+                    videoId = videoId,
+                    playlistId = null,
+                    playlistSetVideoId = null,
+                    index = null,
+                    params = null,
+                    continuation = null,
+                )
+            )
+        }
+    }
+
+    suspend fun getLiveChat(continuation: String, offsetMs: Long? = null) = withRetry {
+        val client = YouTubeClient.WEB
+        httpClient.post("https://www.youtube.com/youtubei/v1/live_chat/get_live_chat") {
+            webYouTubeHeaders(client)
+            setBody(
+                GetLiveChatBody(
+                    context = client.toContext(locale, visitorData, null),
+                    continuation = continuation,
+                    currentPlayerState = offsetMs?.let {
+                        GetLiveChatBody.CurrentPlayerState(playerOffsetMs = it.toString())
+                    },
+                )
+            )
+        }
+    }
+
     suspend fun feedback(
         client: YouTubeClient,
         tokens: List<String>

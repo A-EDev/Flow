@@ -22,7 +22,18 @@ data class PlayerResponse(
     data class PlayabilityStatus(
         val status: String,
         val reason: String?,
-    )
+        val liveStreamability: LiveStreamability? = null,
+    ) {
+        @Serializable
+        data class LiveStreamability(
+            val liveStreamabilityRenderer: LiveStreamabilityRenderer? = null,
+        ) {
+            @Serializable
+            data class LiveStreamabilityRenderer(
+                val videoId: String? = null,
+            )
+        }
+    }
 
     @Serializable
     data class PlayerConfig(
@@ -48,10 +59,12 @@ data class PlayerResponse(
 
     @Serializable
     data class StreamingData(
-        val formats: List<Format>?,
-        val adaptiveFormats: List<Format>,
-        val expiresInSeconds: Int,
+        val formats: List<Format>? = null,
+        val adaptiveFormats: List<Format> = emptyList(),
+        val expiresInSeconds: Int = 0,
         val serverAbrStreamingUrl: String? = null,
+        val hlsManifestUrl: String? = null,
+        val dashManifestUrl: String? = null,
     ) {
         @Serializable
         data class Format(
@@ -104,10 +117,14 @@ data class PlayerResponse(
         val title: String?,
         val author: String?,
         val channelId: String,
-        val lengthSeconds: String,
-        val musicVideoType: String?,
-        val viewCount: String?,
-        val thumbnail: Thumbnails,
+        val lengthSeconds: String = "0",
+        val musicVideoType: String? = null,
+        val viewCount: String? = null,
+        val thumbnail: Thumbnails? = null,
+        val isLive: Boolean? = null,
+        val isLiveContent: Boolean? = null,
+        val isLiveDvrEnabled: Boolean? = null,
+        val isPostLiveDvr: Boolean? = null,
     )
 
     @Serializable

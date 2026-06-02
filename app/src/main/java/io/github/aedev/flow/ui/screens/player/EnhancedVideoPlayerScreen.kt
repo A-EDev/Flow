@@ -103,17 +103,52 @@ fun EnhancedVideoPlayerScreen(
                             onChannelClick = onChannelClick
                         )
                     }
-                    LazyColumn(
-                        Modifier.weight(relatedWeight), 
-                        contentPadding = PaddingValues(bottom = 80.dp)
-                    ) {
-                        if (showRelatedVideos) {
-                            relatedVideosContent(
-                                relatedVideos = uiState.relatedVideos,
-                                onVideoClick = onVideoClick,
-                                onChannelClick = onChannelClick,
-                                cardStyle = relatedCardStyle
+                    if (uiState.isLiveChatAvailable && screenState.showLiveChatPanel) {
+                        Column(Modifier.weight(relatedWeight).fillMaxHeight()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.live_chat),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(Modifier.weight(1f))
+                                TextButton(onClick = { screenState.showLiveChatPanel = false }) {
+                                    Text(androidx.compose.ui.res.stringResource(io.github.aedev.flow.R.string.live_chat_hide))
+                                }
+                            }
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                            io.github.aedev.flow.ui.components.LiveChatList(
+                                messages = uiState.liveChatMessages,
+                                isLoading = uiState.isLiveChatLoading,
+                                modifier = Modifier.fillMaxWidth().weight(1f),
+                                contentPadding = PaddingValues(vertical = 8.dp, horizontal = 0.dp)
                             )
+                        }
+                    } else {
+                        LazyColumn(
+                            Modifier.weight(relatedWeight),
+                            contentPadding = PaddingValues(bottom = 80.dp)
+                        ) {
+                            if (uiState.isLiveChatAvailable) {
+                                item {
+                                    io.github.aedev.flow.ui.components.LiveChatPreview(
+                                        onClick = { screenState.showLiveChatPanel = true }
+                                    )
+                                }
+                            }
+                            if (showRelatedVideos) {
+                                relatedVideosContent(
+                                    relatedVideos = uiState.relatedVideos,
+                                    onVideoClick = onVideoClick,
+                                    onChannelClick = onChannelClick,
+                                    cardStyle = relatedCardStyle
+                                )
+                            }
                         }
                     }
                 }

@@ -66,7 +66,7 @@ fun VideoPlayerSurface(
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
             setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
-            setKeepContentOnPlayerReset(false)
+            setKeepContentOnPlayerReset(true)
         }
     }
 

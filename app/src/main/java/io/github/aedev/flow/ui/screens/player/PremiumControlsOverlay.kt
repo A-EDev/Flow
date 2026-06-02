@@ -99,6 +99,8 @@ fun PremiumControlsOverlay(
     isCasting: Boolean = false,
     isLive: Boolean = false,
     onLiveClick: () -> Unit = {},
+    isLiveChatAvailable: Boolean = false,
+    onLiveChatClick: () -> Unit = {},
     onSleepTimerClick: () -> Unit = {},
     isSleepTimerActive: Boolean = false,
     showRemainingTime: Boolean = false,
@@ -443,6 +445,20 @@ fun PremiumControlsOverlay(
                             Icon(
                                 imageVector = Icons.Rounded.Lock,
                                 contentDescription = stringResource(R.string.player_lock_controls),
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    if (isLiveChatAvailable && isFullscreen) {
+                        IconButton(
+                            onClick = onLiveChatClick,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.ChatBubbleOutline,
+                                contentDescription = stringResource(R.string.live_chat),
                                 tint = Color.White,
                                 modifier = Modifier.size(24.dp)
                             )

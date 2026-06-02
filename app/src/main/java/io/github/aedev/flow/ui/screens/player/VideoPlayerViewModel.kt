@@ -15,6 +15,7 @@ import io.github.aedev.flow.data.repository.YouTubeRepository
 import io.github.aedev.flow.player.EnhancedPlayerManager
 import io.github.aedev.flow.player.EnhancedMusicPlayerManager
 import io.github.aedev.flow.player.GlobalPlayerState
+import io.github.aedev.flow.utils.ThumbnailUrlResolver
 import io.github.aedev.flow.player.quality.QualityManager
 import io.github.aedev.flow.player.stream.VideoCodecUtils
 import io.github.aedev.flow.innertube.YouTube
@@ -46,6 +47,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 
 
@@ -68,7 +70,8 @@ class VideoPlayerViewModel @Inject constructor(
     private val interestProfile: InterestProfile,
     private val playerPreferences: PlayerPreferences,
     private val videoDownloadManager: VideoDownloadManager,
-    private val sponsorBlockRepository: SponsorBlockRepository
+    private val sponsorBlockRepository: SponsorBlockRepository,
+    private val liveChatRepository: io.github.aedev.flow.data.repository.LiveChatRepository
 ) : ViewModel() {
     
     private val _uiState = MutableStateFlow(VideoPlayerUiState())
@@ -98,11 +101,20 @@ class VideoPlayerViewModel @Inject constructor(
     private var activeLoadJob: Job? = null
     private var playbackLoadToken: Long = 0L
     private var loadingVideoId: String? = null
+    private var liveChatJob: Job? = null
+    private var liveChatVideoId: String? = null
 
     private var streamExpiryVideoId: String? = null
     private var streamExpiryCount: Int = 0
     private companion object {
         const val MAX_STREAM_EXPIRY_RETRIES = 3
+        const val MAX_LIVE_CHAT_MESSAGES = 200
+        const val MAX_LIVE_CHAT_SEEN_IDS = 1500
+        const val LIVE_CHAT_RETRY_MS = 3000L
+        const val LIVE_CHAT_MAX_FAILURES = 6
+        const val LIVE_CHAT_INITIAL_BACKFILL_MESSAGES = 12
+        const val LIVE_CHAT_MIN_DRIP_MS = 90L
+        const val LIVE_CHAT_MAX_DRIP_MS = 250L
     }
 
     private val _canGoPrevious = MutableStateFlow(false)
@@ -118,6 +130,89 @@ class VideoPlayerViewModel @Inject constructor(
     private fun cancelActivePlaybackLoad() {
         activeLoadJob?.cancel()
         activeLoadJob = null
+    }
+
+    fun maybeStartLiveChat(videoId: String) {
+        if (liveChatVideoId == videoId && liveChatJob?.isActive == true) return
+        stopLiveChat()
+        liveChatVideoId = videoId
+        _uiState.update { it.copy(isLiveChatLoading = true, isLiveChatAvailable = false, liveChatMessages = emptyList()) }
+
+        liveChatJob = viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            val seed = liveChatRepository.initialContinuation(videoId)
+            if (seed == null) {
+                if (liveChatVideoId == videoId) {
+                    _uiState.update { it.copy(isLiveChatAvailable = false, isLiveChatLoading = false) }
+                }
+                return@launch
+            }
+            if (liveChatVideoId != videoId || !isActive) return@launch
+            _uiState.update { it.copy(isLiveChatAvailable = true, isLiveChatLoading = false) }
+
+            val seen = LinkedHashSet<String>()
+            var continuation: String? = seed
+            var consecutiveFailures = 0
+            var isInitialPage = true
+            while (isActive && continuation != null && liveChatVideoId == videoId) {
+                val page = liveChatRepository.poll(continuation)
+                if (page == null) {
+                    consecutiveFailures++
+                    if (consecutiveFailures >= LIVE_CHAT_MAX_FAILURES) break
+                    delay(LIVE_CHAT_RETRY_MS)
+                    continue
+                }
+                consecutiveFailures = 0
+
+                val fresh = page.messages.filter { seen.add(it.id) }
+                val visibleFresh = if (isInitialPage) {
+                    isInitialPage = false
+                    fresh.takeLast(LIVE_CHAT_INITIAL_BACKFILL_MESSAGES)
+                } else {
+                    fresh
+                }
+                while (seen.size > MAX_LIVE_CHAT_SEEN_IDS) {
+                    val it = seen.iterator()
+                    if (it.hasNext()) { it.next(); it.remove() } else break
+                }
+                continuation = page.nextContinuation
+
+                if (visibleFresh.isEmpty()) {
+                    delay(page.timeoutMs)
+                } else {
+                    val interval = (page.timeoutMs / visibleFresh.size)
+                        .coerceIn(LIVE_CHAT_MIN_DRIP_MS, LIVE_CHAT_MAX_DRIP_MS)
+                    var consumed = 0L
+                    for (msg in visibleFresh) {
+                        if (!isActive || liveChatVideoId != videoId) break
+                        appendLiveChatMessage(msg)
+                        delay(interval)
+                        consumed += interval
+                    }
+                    if (consumed < page.timeoutMs) delay(page.timeoutMs - consumed)
+                }
+            }
+        }
+    }
+
+    private fun appendLiveChatMessage(message: io.github.aedev.flow.data.model.LiveChatMessage) {
+        _uiState.update { state ->
+            val combined = state.liveChatMessages + message
+            val trimmed = if (combined.size > MAX_LIVE_CHAT_MESSAGES) {
+                combined.takeLast(MAX_LIVE_CHAT_MESSAGES)
+            } else combined
+            state.copy(liveChatMessages = trimmed)
+        }
+    }
+
+    fun stopLiveChat() {
+        liveChatJob?.cancel()
+        liveChatJob = null
+        liveChatVideoId = null
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        stopLiveChat()
     }
 
     val downloadedVideoIds = videoDownloadManager.downloadedVideos
@@ -398,7 +493,7 @@ class VideoPlayerViewModel @Inject constructor(
     fun syncWithCurrentPlayerVideo(video: Video) {
         val state = _uiState.value
         val alreadySynced = state.cachedVideo?.id == video.id &&
-            (state.streamInfo?.id == video.id || state.isLoading)
+            (state.streamInfo?.id == video.id || state.isLoading || state.isLive || !state.hlsUrl.isNullOrEmpty())
         if (alreadySynced) return
 
         if (applyUpcomingState(video)) {
@@ -787,8 +882,13 @@ class VideoPlayerViewModel @Inject constructor(
             localFilePath = null,
             localFileVideoId = null,
             isUpcoming = false,
-            upcomingReleaseTimeMs = null
+            upcomingReleaseTimeMs = null,
+            isLive = false,
+            isLiveChatAvailable = false,
+            liveChatMessages = emptyList(),
+            isLiveChatLoading = false
         )
+        stopLiveChat()
 
         if (activeLoadJob?.isActive == true && loadingVideoId == videoId) {
             Log.d("VideoPlayerViewModel", "loadVideoInfo: extraction already in flight for $videoId — ignoring redundant trigger")
@@ -929,14 +1029,18 @@ class VideoPlayerViewModel @Inject constructor(
                     val (streamInfo, streamError) = streamInfoDeferred.await()
                     ensureActive()
                     if (!isPlaybackLoadCurrent(loadToken)) return@withTimeout
-                    
+
+                    val innerTubeResult = innerTubeDeferred.await()
+                    val liveFromInnerTube = innerTubeResult?.isLive == true &&
+                        (!innerTubeResult.liveHlsUrl.isNullOrEmpty() || !innerTubeResult.liveDashUrl.isNullOrEmpty())
+
                     // Extract related videos directly from the stream info (avoids extra network call)
                     val relatedVideos = if (streamInfo != null) {
                         repository.getRelatedVideosFromStreamInfo(streamInfo)
                     } else {
                         emptyList()
                     }
-                    
+
                     if (streamInfo != null) {
                         // Record interaction for Flow Neuro Engine
                         try {
@@ -984,7 +1088,6 @@ class VideoPlayerViewModel @Inject constructor(
                             }
                         }
 
-                        val innerTubeResult = innerTubeDeferred.await()
                         val innerTubeVideoStreams = innerTubeResult?.let {
                             InnerTubeStreamBridge.convertVideoFormats(it.videoFormats)
                         } ?: emptyList()
@@ -1038,10 +1141,10 @@ class VideoPlayerViewModel @Inject constructor(
 
                         val subtitles = extractSubtitles(streamInfo)
                         val chapters = streamInfo.streamSegments ?: emptyList()
-                        val liveHlsUrl = streamInfo.hlsUrl.takeIf {
-                            streamInfo.streamType == StreamType.LIVE_STREAM ||
-                                streamInfo.streamType == StreamType.POST_LIVE_STREAM
-                        }
+                        val liveType = streamInfo.streamType == StreamType.LIVE_STREAM ||
+                            streamInfo.streamType == StreamType.POST_LIVE_STREAM
+                        val liveHlsUrl = streamInfo.hlsUrl?.takeIf { liveType && it.isNotEmpty() }
+                            ?: innerTubeResult?.liveHlsUrl?.takeIf { liveFromInnerTube }
                         
                         // Load saved playback position
                         val savedPosition = viewHistory.getPlaybackPosition(videoId)
@@ -1077,6 +1180,7 @@ class VideoPlayerViewModel @Inject constructor(
                             localFileVideoId = if (localFilePath != null) videoId else null,
                             offlineSponsorBlockSegments = offlineSegments,
                             hlsUrl = liveHlsUrl,
+                            isLive = streamInfo.streamType == StreamType.LIVE_STREAM,
                             isUpcoming = false,
                             upcomingReleaseTimeMs = null,
                             innerTubeVideoFormats = innerTubeResult?.videoFormats ?: emptyList(),
@@ -1105,6 +1209,29 @@ class VideoPlayerViewModel @Inject constructor(
                             itAudioFormats = innerTubeResult?.audioFormats ?: emptyList(),
                             preferredVideoCodec = preferredCodecKey
                         )
+
+                        if (streamInfo.streamType == StreamType.LIVE_STREAM) {
+                            maybeStartLiveChat(videoId)
+                            refreshLiveWatchMetadata(
+                                videoId = videoId,
+                                fallbackVideo = Video(
+                                    id = videoId,
+                                    title = streamInfo.name ?: _uiState.value.cachedVideo?.title ?: "Live",
+                                    channelName = streamInfo.uploaderName ?: _uiState.value.cachedVideo?.channelName ?: "",
+                                    channelId = streamInfo.uploaderUrl?.substringAfterLast("/")
+                                        ?: _uiState.value.cachedVideo?.channelId ?: "",
+                                    thumbnailUrl = streamInfo.thumbnails.maxByOrNull { it.height }?.url
+                                        ?: _uiState.value.cachedVideo?.thumbnailUrl
+                                        ?: ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, null),
+                                    duration = 0,
+                                    viewCount = streamInfo.viewCount,
+                                    uploadDate = "",
+                                    description = streamInfo.description?.content ?: _uiState.value.cachedVideo?.description ?: "",
+                                    isLive = true
+                                ),
+                                loadToken = loadToken
+                            )
+                        }
 
                         // PARALLEL FETCH: Channel info and stream sizes simultaneously
                         viewModelScope.launch(PerformanceDispatcher.networkIO) {
@@ -1208,6 +1335,9 @@ class VideoPlayerViewModel @Inject constructor(
                                 }
                             }
                         }
+                    } else if (liveFromInnerTube && innerTubeResult != null) {
+                        Log.w("VideoPlayerViewModel", "Live fallback for $videoId via InnerTube manifest (NewPipe StreamInfo null)")
+                        prepareLiveStreamFromInnerTube(videoId, innerTubeResult, relatedVideos, loadToken)
                     } else {
                         // Offline fallback
                         if (isOfflineAvailable) {
@@ -1403,6 +1533,159 @@ class VideoPlayerViewModel @Inject constructor(
 
         if (!isPlaybackLoadCurrent(loadToken)) return@withContext
         manager.play()
+    }
+
+    private suspend fun prepareLiveStreamFromInnerTube(
+        videoId: String,
+        result: InnerTubeVideoStreamExtractor.VideoExtractionResult,
+        relatedVideos: List<Video>,
+        loadToken: Long
+    ) = withContext(Dispatchers.Main) {
+        if (!isPlaybackLoadCurrent(loadToken)) return@withContext
+
+        val details = result.playerResponse.videoDetails
+        val cached = _uiState.value.cachedVideo
+        val title = details?.title?.takeIf { it.isNotBlank() } ?: cached?.title ?: "Live"
+        val channel = details?.author?.takeIf { it.isNotBlank() } ?: cached?.channelName ?: ""
+        val channelId = details?.channelId?.takeIf { it.isNotBlank() } ?: cached?.channelId ?: ""
+        val thumbnail = details?.thumbnail?.thumbnails?.maxByOrNull { it.height ?: 0 }?.url
+            ?: cached?.thumbnailUrl ?: ThumbnailUrlResolver.normalizeVideoThumbnail(videoId, null)
+
+        val enrichedVideo = (cached ?: Video(
+            id = videoId, title = "", channelName = "", channelId = "",
+            thumbnailUrl = "", duration = 0, viewCount = 0L, uploadDate = ""
+        )).copy(
+            title = title,
+            channelName = channel,
+            channelId = channelId,
+            thumbnailUrl = thumbnail,
+            duration = 0
+        )
+        GlobalPlayerState.setCurrentVideo(enrichedVideo)
+
+        val manager = EnhancedPlayerManager.getInstance()
+        manager.initialize(context)
+        manager.startBackgroundService(
+            videoId = videoId,
+            title = title,
+            channel = channel,
+            thumbnail = thumbnail
+        )
+
+        val autoplay = playerPreferences.autoplayEnabled.first()
+        manager.setAutoplayCandidates(sourceVideoId = videoId, videos = relatedVideos, enabled = autoplay)
+
+        _uiState.update {
+            it.copy(
+                streamInfo = null,
+                relatedVideos = relatedVideos,
+                isLoading = false,
+                error = null,
+                errorHint = null,
+                hlsUrl = result.liveHlsUrl,
+                isLive = true,
+                isUpcoming = false,
+                upcomingReleaseTimeMs = null,
+                innerTubeVideoFormats = emptyList(),
+                innerTubeAudioFormats = emptyList()
+            )
+        }
+
+        if (!isPlaybackLoadCurrent(loadToken)) return@withContext
+        if (manager.isPreparedForPlayback(videoId)) return@withContext
+
+        manager.setStreams(
+            videoId = videoId,
+            videoStream = null,
+            audioStream = null,
+            videoStreams = emptyList(),
+            audioStreams = emptyList(),
+            subtitles = emptyList(),
+            durationSeconds = 0L,
+            dashManifestUrl = result.liveDashUrl,
+            hlsUrl = result.liveHlsUrl,
+            streamType = StreamType.LIVE_STREAM,
+            startPosition = 0L
+        )
+        applyRememberedPlaybackSpeed(isLive = true, manager = manager)
+
+        if (!isPlaybackLoadCurrent(loadToken)) return@withContext
+        manager.play()
+
+        maybeStartLiveChat(videoId)
+
+        refreshLiveWatchMetadata(videoId, enrichedVideo, loadToken)
+    }
+
+    private fun refreshLiveWatchMetadata(
+        videoId: String,
+        fallbackVideo: Video,
+        loadToken: Long
+    ) {
+        viewModelScope.launch(PerformanceDispatcher.networkIO) {
+            val newPipeMeta = withTimeoutOrNull(12_000L) {
+                repository.getLiveWatchMetadataFromNewPipe(videoId)
+            }
+            val innerTubeMeta = if (
+                newPipeMeta == null ||
+                newPipeMeta.relatedVideos.isEmpty() ||
+                newPipeMeta.subscriberCount == null
+            ) {
+                withTimeoutOrNull(8000L) { repository.getLiveWatchMetadata(videoId) }
+            } else {
+                null
+            }
+            val meta = newPipeMeta ?: innerTubeMeta ?: return@launch
+            if (!isPlaybackLoadCurrent(loadToken)) return@launch
+
+            val likes = if (playerPreferences.rytdEnabled.first()) {
+                withTimeoutOrNull(5000L) { fetchReturnYouTubeLikes(videoId) }
+            } else null
+            val enriched = fallbackVideo.copy(
+                title = meta.title?.takeIf { it.isNotBlank() } ?: fallbackVideo.title,
+                channelName = meta.channelName?.takeIf { it.isNotBlank() } ?: fallbackVideo.channelName,
+                channelId = meta.channelId?.takeIf { it.isNotBlank() } ?: fallbackVideo.channelId,
+                description = meta.description ?: fallbackVideo.description,
+                channelThumbnailUrl = meta.channelAvatarUrl ?: fallbackVideo.channelThumbnailUrl,
+                viewCount = meta.viewCount ?: fallbackVideo.viewCount,
+                likeCount = likes ?: fallbackVideo.likeCount,
+                isLive = true
+            )
+            val metadataRelated = (newPipeMeta?.relatedVideos?.takeIf { it.isNotEmpty() }
+                ?: innerTubeMeta?.relatedVideos
+                ?: meta.relatedVideos)
+                .filter { it.id.isNotBlank() && it.id != videoId }
+                .distinctBy { it.id }
+            val related = metadataRelated.ifEmpty {
+                withTimeoutOrNull(8_000L) {
+                    repository.getLiveRelatedVideosBySearch(
+                        videoId = videoId,
+                        title = enriched.title,
+                        channelName = enriched.channelName
+                    )
+                }.orEmpty()
+            }
+            val autoplay = playerPreferences.autoplayEnabled.first()
+
+            withContext(Dispatchers.Main) {
+                if (!isPlaybackLoadCurrent(loadToken)) return@withContext
+                GlobalPlayerState.setCurrentVideo(enriched)
+                if (related.isNotEmpty()) {
+                    EnhancedPlayerManager.getInstance()
+                        .setAutoplayCandidates(sourceVideoId = videoId, videos = related, enabled = autoplay)
+                }
+                _uiState.update {
+                    it.copy(
+                        cachedVideo = enriched,
+                        relatedVideos = related.ifEmpty { it.relatedVideos },
+                        channelAvatarUrl = meta.channelAvatarUrl ?: it.channelAvatarUrl,
+                        channelSubscriberCount = meta.subscriberCount
+                            ?: innerTubeMeta?.subscriberCount
+                            ?: it.channelSubscriberCount
+                    )
+                }
+            }
+        }
     }
 
     private suspend fun prepareLocalMediaForPlayback(
@@ -2032,6 +2315,27 @@ class VideoPlayerViewModel @Inject constructor(
             null
         }
     }
+
+    private suspend fun fetchReturnYouTubeLikes(videoId: String): Long? = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        try {
+            val url = java.net.URL("https://returnyoutubedislikeapi.com/votes?videoId=$videoId")
+            val connection = url.openConnection() as java.net.HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
+            connection.connect()
+
+            if (connection.responseCode == 200) {
+                val response = connection.inputStream.bufferedReader().use { it.readText() }
+                val likes = org.json.JSONObject(response).optLong("likes", -1L)
+                likes.takeIf { it >= 0L }
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
 }
 
 
@@ -2079,7 +2383,11 @@ data class VideoPlayerUiState(
     /** SponsorBlock segments loaded from local DB for offline playback. Null when streaming online. */
     val offlineSponsorBlockSegments: List<SponsorBlockSegment>? = null,
     val innerTubeVideoFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
-    val innerTubeAudioFormats: List<PlayerResponse.StreamingData.Format> = emptyList()
+    val innerTubeAudioFormats: List<PlayerResponse.StreamingData.Format> = emptyList(),
+    val isLive: Boolean = false,
+    val isLiveChatAvailable: Boolean = false,
+    val liveChatMessages: List<io.github.aedev.flow.data.model.LiveChatMessage> = emptyList(),
+    val isLiveChatLoading: Boolean = false
 )
 
 data class SubtitleInfo(

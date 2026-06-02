@@ -334,6 +334,12 @@ fun VideoInfoContent(
         onDescriptionClick = { screenState.showDescriptionSheet = true }
     )
 
+    if (uiState.isLiveChatAvailable) {
+        io.github.aedev.flow.ui.components.LiveChatPreview(
+            onClick = { screenState.showLiveChatSheet = true }
+        )
+    }
+
     if (commentsEnabled) {
         CommentsPreview(
             latestComment = if (showCommentsPreview) comments.firstOrNull()?.text else null,

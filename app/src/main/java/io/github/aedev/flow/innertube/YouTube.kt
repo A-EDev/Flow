@@ -1405,6 +1405,40 @@ object YouTube {
         innerTube.playerWeb(videoId, signatureTimestamp, poToken, visitorData, locale).body<PlayerResponse>()
     }
 
+    suspend fun liveChatContinuation(videoId: String): Result<String?> = runCatching {
+        innerTube.nextForLiveChat(videoId)
+            .body<io.github.aedev.flow.innertube.models.response.LiveChatSeedResponse>()
+            .seedContinuation()
+    }
+
+    suspend fun liveChat(
+        continuation: String,
+        offsetMs: Long? = null,
+    ): Result<io.github.aedev.flow.innertube.models.response.GetLiveChatResponse> = runCatching {
+        innerTube.getLiveChat(continuation, offsetMs)
+            .body<io.github.aedev.flow.innertube.models.response.GetLiveChatResponse>()
+    }
+
+    suspend fun watchMetadata(
+        videoId: String,
+    ): Result<io.github.aedev.flow.innertube.models.response.WatchMetadataResponse> = runCatching {
+        val primary = innerTube.next(WEB, videoId, null, null, null, null, null)
+            .body<io.github.aedev.flow.innertube.models.response.WatchMetadataResponse>()
+        if (primary.relatedVideos().isNotEmpty()) {
+            primary
+        } else {
+            val webWatch = runCatching {
+                innerTube.nextForLiveChat(videoId)
+                    .body<io.github.aedev.flow.innertube.models.response.WatchMetadataResponse>()
+            }.getOrNull()
+            if (webWatch != null && webWatch.relatedVideos().size > primary.relatedVideos().size) {
+                webWatch
+            } else {
+                primary
+            }
+        }
+    }
+
     suspend fun registerPlayback(playlistId: String? = null, playbackTracking: String) = runCatching {
         val cpn = (1..16).map {
             "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"[Random.Default.nextInt(

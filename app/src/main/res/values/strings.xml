@@ -193,6 +193,13 @@
     <string name="subscriptions_music_chip_label">Music</string>
     <string name="subscriptions_music_badge_cd">Music subscription</string>
     <string name="no_subscriptions_found">No subscriptions found</string>
+    <!-- Live chat -->
+    <string name="live_chat">Live chat</string>
+    <string name="live_chat_connecting">Connecting to live chat…</string>
+    <string name="live_chat_empty">Waiting for messages…</string>
+    <string name="live_chat_show">Show chat</string>
+    <string name="live_chat_hide">Hide chat</string>
+    <string name="live_chat_jump_to_latest">Jump to latest chat message</string>
     <!-- Comments -->
     <string name="comments">Comments</string>
     <string name="filter_top">Top</string>

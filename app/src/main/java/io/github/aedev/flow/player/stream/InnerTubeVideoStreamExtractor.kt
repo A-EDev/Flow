@@ -42,30 +42,48 @@ object InnerTubeVideoStreamExtractor {
         YouTubeClient.ANDROID_CREATOR,
     )
 
+    private val LIVE_MANIFEST_CLIENTS: List<YouTubeClient> = listOf(
+        YouTubeClient.IOS,
+        YouTubeClient.IPADOS,
+        YouTubeClient.TVHTML5_SIMPLY_EMBEDDED_PLAYER,
+        YouTubeClient.ANDROID_VR_1_61_48,
+    )
+
     data class VideoExtractionResult(
         val videoFormats: List<PlayerResponse.StreamingData.Format>,
         val audioFormats: List<PlayerResponse.StreamingData.Format>,
         val playerResponse: PlayerResponse,
         val usedClient: YouTubeClient,
         val sabrInfo: SabrStreamInfo?,
+        val isLive: Boolean = false,
+        val liveHlsUrl: String? = null,
+        val liveDashUrl: String? = null,
     )
 
 
     suspend fun extract(videoId: String, forceSabr: Boolean = false): VideoExtractionResult? = withContext(Dispatchers.IO) {
         Log.w(TAG, "Extraction start for $videoId (forceSabr=$forceSabr)")
         val failureReasons = mutableListOf<String>()
+        val liveDetected = booleanArrayOf(false)
 
         // 1) Fast path: token-free clients with direct URLs
         if (!forceSabr) {
-            tryDirectClients(videoId, FAST_CLIENTS, failureReasons)?.let {
-                Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=DIRECT)")
+            tryDirectClients(videoId, FAST_CLIENTS, failureReasons, liveDetected = liveDetected)?.let {
+                Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=${if (it.isLive) "LIVE" else "DIRECT"})")
                 return@withContext it
             }
         }
 
-        tryDirectClients(videoId, BOT_RESISTANT_CLIENTS, failureReasons)?.let {
-            Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=DIRECT/embedded)")
+        tryDirectClients(videoId, BOT_RESISTANT_CLIENTS, failureReasons, liveDetected = liveDetected)?.let {
+            Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=${if (it.isLive) "LIVE" else "DIRECT/embedded"})")
             return@withContext it
+        }
+
+        if (liveDetected[0]) {
+            tryLiveClients(videoId, failureReasons)?.let {
+                Log.w(TAG, "Live manifest for $videoId via ${it.usedClient.clientName} (live-clients)")
+                return@withContext it
+            }
         }
 
         // 2) Durable path: WEB + BotGuard PoToken + SABR. Survives the LOGIN_REQUIRED bot wall
@@ -75,7 +93,7 @@ object InnerTubeVideoStreamExtractor {
         }
 
         // 3) Last resort: remaining token-free clients
-        tryDirectClients(videoId, LAST_RESORT_CLIENTS, failureReasons, allowUntransformedN = true)?.let {
+        tryDirectClients(videoId, LAST_RESORT_CLIENTS, failureReasons, allowUntransformedN = true, liveDetected = liveDetected)?.let {
             Log.w(TAG, "Extraction OK for $videoId via ${it.usedClient.clientName} (mode=DIRECT/last-resort)")
             return@withContext it
         }
@@ -89,6 +107,7 @@ object InnerTubeVideoStreamExtractor {
         clients: List<YouTubeClient>,
         failureReasons: MutableList<String>,
         allowUntransformedN: Boolean = false,
+        liveDetected: BooleanArray? = null,
     ): VideoExtractionResult? {
         val sts: Int? = if (clients.any { it.useSignatureTimestamp }) {
             NewPipeExtractor.getSignatureTimestamp(videoId).getOrNull()
@@ -119,6 +138,13 @@ object InnerTubeVideoStreamExtractor {
                     val tag = if (isBotWall(reason)) "BOT_WALL" else "status=$status"
                     failureReasons.add("${client.clientName}: $tag, reason=$reason")
                     Log.w(TAG, "${client.clientName}: $tag, reason=$reason")
+                    continue
+                }
+
+                if (playerResponse.isLiveNow()) {
+                    playerResponse.toLiveResultOrNull(client)?.let { return it }
+                    liveDetected?.set(0, true)
+                    failureReasons.add("${client.clientName}: live but no hls/dash manifest")
                     continue
                 }
 
@@ -267,6 +293,70 @@ object InnerTubeVideoStreamExtractor {
             Log.w(TAG, "WEB+SABR failed: ${e.message}")
             return null
         }
+    }
+
+    private suspend fun tryLiveClients(
+        videoId: String,
+        failureReasons: MutableList<String>,
+    ): VideoExtractionResult? {
+        val sts: Int? = if (LIVE_MANIFEST_CLIENTS.any { it.useSignatureTimestamp }) {
+            NewPipeExtractor.getSignatureTimestamp(videoId).getOrNull()
+        } else null
+
+        for (client in LIVE_MANIFEST_CLIENTS) {
+            try {
+                val playerResponse = withTimeoutOrNull(PER_CLIENT_TIMEOUT_MS) {
+                    YouTube.player(
+                        videoId,
+                        client = client,
+                        signatureTimestamp = if (client.useSignatureTimestamp) sts else null,
+                        localeOverride = YouTubeLocale.EXTRACTION,
+                    ).getOrNull()
+                }
+                if (playerResponse == null) {
+                    failureReasons.add("${client.clientName}(live): timeout or null response")
+                    continue
+                }
+                if (playerResponse.playabilityStatus.status != "OK") {
+                    failureReasons.add("${client.clientName}(live): status=${playerResponse.playabilityStatus.status}")
+                    continue
+                }
+                playerResponse.toLiveResultOrNull(client)?.let {
+                    Log.w(TAG, "Live manifest via ${client.clientName} (hls=${it.liveHlsUrl != null}, dash=${it.liveDashUrl != null})")
+                    return it
+                }
+                failureReasons.add("${client.clientName}(live): no hls/dash manifest")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failureReasons.add("${client.clientName}(live): exception=${e.javaClass.simpleName}: ${e.message}")
+            }
+        }
+        return null
+    }
+
+    private fun PlayerResponse.isLiveNow(): Boolean {
+        val details = videoDetails
+        return details?.isLive == true ||
+            details?.isPostLiveDvr == true ||
+            playabilityStatus.liveStreamability != null ||
+            !streamingData?.hlsManifestUrl.isNullOrBlank()
+    }
+
+    private fun PlayerResponse.toLiveResultOrNull(client: YouTubeClient): VideoExtractionResult? {
+        val hls = streamingData?.hlsManifestUrl?.takeIf { it.isNotBlank() }
+        val dash = streamingData?.dashManifestUrl?.takeIf { it.isNotBlank() }
+        if (hls == null && dash == null) return null
+        return VideoExtractionResult(
+            videoFormats = emptyList(),
+            audioFormats = emptyList(),
+            playerResponse = this,
+            usedClient = client,
+            sabrInfo = null,
+            isLive = true,
+            liveHlsUrl = hls,
+            liveDashUrl = dash,
+        )
     }
 
     private fun isBotWall(reason: String?): Boolean {

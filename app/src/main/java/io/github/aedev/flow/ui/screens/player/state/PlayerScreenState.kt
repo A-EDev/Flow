@@ -37,7 +37,10 @@ class PlayerScreenState {
     var showDescriptionSheet by mutableStateOf(false)
     var showChaptersSheet by mutableStateOf(false)
     var showPlaylistQueueSheet by mutableStateOf(false)
-    
+    var showLiveChatSheet by mutableStateOf(false)
+    var showLiveChatPanel by mutableStateOf(true)
+    var showLiveChatFullscreen by mutableStateOf(false)
+
     // Comment Sorting
     var commentSortFilter by mutableStateOf(CommentSortFilter.TOP)
     
@@ -111,6 +114,9 @@ class PlayerScreenState {
         showCommentsSheet = false
         showDescriptionSheet = false
         showChaptersSheet = false
+        showLiveChatSheet = false
+        showLiveChatPanel = true
+        showLiveChatFullscreen = false
         zoomScale = 1f
         zoomOffsetX = 0f
         zoomOffsetY = 0f
@@ -122,6 +128,8 @@ class PlayerScreenState {
         showCommentsSheet = false
         showDescriptionSheet = false
         showChaptersSheet = false
+        showLiveChatSheet = false
+        showLiveChatFullscreen = false
         showPlaylistQueueSheet = false
         showSettingsMenu = false
         showQualitySelector = false

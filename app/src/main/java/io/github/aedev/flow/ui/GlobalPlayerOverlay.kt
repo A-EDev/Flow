@@ -558,8 +558,9 @@ fun GlobalPlayerOverlay(
             screenState.showAudioTrackSelector ||
             screenState.showPlaybackSpeedSelector ||
             screenState.showSubtitleSelector
+        val showLiveChatSidePanel = screenState.showLiveChatFullscreen && playerUiState.isLiveChatAvailable
         val fullscreenSidePanelVisible = canUseFullscreenSidePanel &&
-            (showSettingsSurface || screenState.showChaptersSheet)
+            (showSettingsSurface || screenState.showChaptersSheet || showLiveChatSidePanel)
         val fullscreenSidePanelTargetWidth = maxWidth * 0.36f
         val fullscreenSidePanelTargetWidthPx = with(density) { fullscreenSidePanelTargetWidth.toPx() }
         val fullscreenSidePanelWidthPx = remember { Animatable(0f) }
@@ -1015,6 +1016,15 @@ fun GlobalPlayerOverlay(
                                 onLiveClick = {
                                     EnhancedPlayerManager.getInstance().seekToLiveEdge(resetSpeed = true)
                                 },
+                                isLiveChatAvailable = playerUiState.isLiveChatAvailable,
+                                onLiveChatClick = {
+                                    if (screenState.showLiveChatFullscreen) {
+                                        screenState.showLiveChatFullscreen = false
+                                    } else {
+                                        screenState.dismissMediaSheets()
+                                        screenState.showLiveChatFullscreen = true
+                                    }
+                                },
                                 onSleepTimerClick = { screenState.showSleepTimerSheet = true },
                                 isSleepTimerActive = io.github.aedev.flow.player.SleepTimerManager.isActive,
                                 showRemainingTime = showRemainingTime,
@@ -1221,6 +1231,34 @@ fun GlobalPlayerOverlay(
                         modifier = Modifier.fillMaxSize(),
                         onDismiss = { screenState.showChaptersSheet = false }
                     )
+                } else if (showLiveChatSidePanel) {
+                    androidx.compose.foundation.layout.Column(Modifier.fillMaxSize()) {
+                        androidx.compose.foundation.layout.Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.live_chat),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(Modifier.weight(1f))
+                            IconButton(onClick = { screenState.showLiveChatFullscreen = false }) {
+                                Icon(
+                                    Icons.Rounded.Close,
+                                    contentDescription = stringResource(R.string.close)
+                                )
+                            }
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                        io.github.aedev.flow.ui.components.LiveChatList(
+                            messages = playerUiState.liveChatMessages,
+                            isLoading = playerUiState.isLiveChatLoading,
+                            modifier = Modifier.fillMaxWidth().weight(1f)
+                        )
+                    }
                 }
             }
         }

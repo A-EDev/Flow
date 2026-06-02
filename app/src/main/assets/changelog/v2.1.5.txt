@@ -1,6 +1,6 @@
 FLOW CHANGE LOG
 VERSION: 2.1.5
-DATE: 2026-06-02
+DATE: 2026-06-03
 STATUS: RELEASE
 
 FEATURES
@@ -41,6 +41,7 @@ FEATURES
 - Add date and time format customization #481 
 - Add codec preference settings #560 
 - Add Android Auto support
+- Add live chat support
 
 IMPROVEMENTS
 - Seekbar preview and slider optimization #360 #361

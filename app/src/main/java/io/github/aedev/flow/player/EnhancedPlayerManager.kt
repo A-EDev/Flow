@@ -90,6 +90,7 @@ class EnhancedPlayerManager private constructor() {
         private const val TAG = PlayerConfig.TAG
         private const val LIVE_EDGE_THRESHOLD_MS = 700L
         private const val SABR_QUALITY_KEY_PREFIX = "sabr:"
+        private const val LIVE_QUALITY_KEY_PREFIX = "live:"
         private const val PRELOAD_RETRY_DELAY_MS = 10_000L
         private const val MAX_PRELOAD_RETRIES = 3
         private const val AUTO_NEXT_TAG = "FlowVideoAutoNext"
@@ -130,6 +131,8 @@ class EnhancedPlayerManager private constructor() {
     private var currentDashManifestUrl: String? = null
     private var currentHlsUrl: String? = null
     private var currentIsLiveStream = false
+    private var liveQualityHeights: List<Int> = emptyList()
+    private var lastLiveEdgeRecoveryMs = 0L
     private var preLivePlaybackSpeed: Float? = null
     private var pendingLiveDisplaySeekPositionMs: Long? = null
     private var pendingLiveDisplaySeekAtMs: Long = 0L
@@ -559,18 +562,33 @@ class EnhancedPlayerManager private constructor() {
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
+                val exoLive = player?.isCurrentMediaItemLive == true
                 _playerState.value = _playerState.value.copy(
                     isBuffering = playbackState == Player.STATE_BUFFERING,
                     playWhenReady = player?.playWhenReady ?: false,
-                    hasEnded = playbackState == Player.STATE_ENDED && !isRecoveringFromBackground
+                    hasEnded = playbackState == Player.STATE_ENDED && !isRecoveringFromBackground && !exoLive
                 )
                 if (playbackState == Player.STATE_READY ||
                     playbackState == Player.STATE_ENDED ||
                     playbackState == Player.STATE_BUFFERING
                 ) {
-                    autoNextLog("onPlaybackStateChanged ${playerStateName(playbackState)} recovering=$isRecoveringFromBackground")
+                    autoNextLog("onPlaybackStateChanged ${playerStateName(playbackState)} recovering=$isRecoveringFromBackground live=$exoLive")
                 }
-                
+
+                if (playbackState == Player.STATE_ENDED && !isRecoveringFromBackground && exoLive) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastLiveEdgeRecoveryMs < 2500L) {
+                        autoNextLog("STATE_ENDED on live again too soon -> stop recovering")
+                        _playerState.value = _playerState.value.copy(hasEnded = true)
+                    } else {
+                        lastLiveEdgeRecoveryMs = now
+                        autoNextLog("STATE_ENDED on live -> seekToLiveEdge")
+                        seekToLiveEdge(resetSpeed = false)
+                        player?.play()
+                    }
+                    return
+                }
+
                 if (playbackState == Player.STATE_ENDED && !isRecoveringFromBackground) {
                     acquireAdvanceWakeLock()
                     autoNextLog("STATE_ENDED branch entered")
@@ -657,6 +675,7 @@ class EnhancedPlayerManager private constructor() {
 
             override fun onTracksChanged(tracks: Tracks) {
                 applySubtitleTrackSelection()
+                if (currentIsLiveStream) updateLiveQualityOptions(tracks)
             }
         })
     }
@@ -832,6 +851,8 @@ class EnhancedPlayerManager private constructor() {
 
     private fun resetPlaybackStateForNewVideo(videoId: String) {
         currentVideoId = videoId
+        liveQualityHeights = emptyList()
+        lastLiveEdgeRecoveryMs = 0L
         qualityManager?.resetForNewVideo()
         playbackTracker?.reset()
         errorHandler?.resetExpiryCounter()
@@ -2140,13 +2161,69 @@ class EnhancedPlayerManager private constructor() {
 
     // ===== Quality & Audio Management =====
     
-    fun switchQualityByHeight(height: Int) = qualityManager?.switchQualityByHeight(height, player?.currentPosition ?: 0L)
+    fun switchQualityByHeight(height: Int) =
+        if (currentIsLiveStream) switchLiveQuality(height)
+        else qualityManager?.switchQualityByHeight(height, player?.currentPosition ?: 0L)
     fun switchQuality(height: Int) = switchQualityByHeight(height)
     fun switchQuality(option: QualityOption): Boolean? {
         if (option.streamKey?.startsWith(SABR_QUALITY_KEY_PREFIX) == true) {
             return switchSabrQuality(option)
         }
+        if (currentIsLiveStream) return switchLiveQuality(option.height)
         return qualityManager?.switchQuality(option, player?.currentPosition ?: 0L)
+    }
+
+    private fun updateLiveQualityOptions(tracks: Tracks) {
+        val heightToFps = HashMap<Int, Int>()
+        tracks.groups.asSequence()
+            .filter { it.type == C.TRACK_TYPE_VIDEO }
+            .forEach { group ->
+                for (i in 0 until group.length) {
+                    val format = group.getTrackFormat(i)
+                    val h = format.height.takeIf { it > 0 } ?: continue
+                    val height = VideoCodecUtils.normalizeQualityHeight(h)
+                    val fps = if (format.frameRate > 0f) format.frameRate.toInt() else 0
+                    heightToFps[height] = maxOf(heightToFps[height] ?: 0, fps)
+                }
+            }
+        val heights = heightToFps.keys.sortedDescending()
+        if (heights.isEmpty() || heights == liveQualityHeights) return
+        liveQualityHeights = heights
+
+        val options = listOf(QualityOption(height = 0, label = "Auto", bitrate = 0L)) +
+            heights.map { h ->
+                val fps = heightToFps[h] ?: 0
+                val label = if (fps >= 50) "${h}p$fps" else "${h}p"
+                QualityOption(height = h, label = label, bitrate = 0L, streamKey = "$LIVE_QUALITY_KEY_PREFIX$h")
+            }
+        val manualHeight = _playerState.value.currentQualityKey
+            ?.removePrefix(LIVE_QUALITY_KEY_PREFIX)?.toIntOrNull()
+        _playerState.value = _playerState.value.copy(
+            availableQualities = options,
+            effectiveQuality = manualHeight ?: heights.first()
+        )
+    }
+
+    private fun switchLiveQuality(height: Int): Boolean {
+        val selector = trackSelector ?: return false
+        val builder = selector.buildUponParameters()
+            .setPreferredVideoMimeTypes(*PlayerConfig.PREFERRED_VIDEO_MIME_TYPES)
+        if (height <= 0) {
+            builder.clearVideoSizeConstraints()
+                .setMaxVideoSize(PlayerConfig.MAX_VIDEO_WIDTH, PlayerConfig.MAX_VIDEO_HEIGHT)
+                .setForceHighestSupportedBitrate(false)
+        } else {
+            builder.setMinVideoSize(0, 0)
+                .setMaxVideoSize(Int.MAX_VALUE, height)
+                .setForceHighestSupportedBitrate(true)
+        }
+        selector.setParameters(builder.build())
+        _playerState.value = _playerState.value.copy(
+            currentQuality = if (height <= 0) 0 else height,
+            effectiveQuality = if (height <= 0) (liveQualityHeights.firstOrNull() ?: 0) else height,
+            currentQualityKey = if (height <= 0) null else "$LIVE_QUALITY_KEY_PREFIX$height"
+        )
+        return true
     }
     
     fun switchAudioTrack(index: Int) {

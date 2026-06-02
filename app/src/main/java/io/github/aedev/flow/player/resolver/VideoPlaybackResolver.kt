@@ -47,27 +47,6 @@ class VideoPlaybackResolver(
     ): MediaSource? {
         Log.d(TAG, "Resolving playback: ${videoStreams.size} video streams, audio=${audioStream != null}, dash=${!dashManifestUrl.isNullOrEmpty()}, hls=${!hlsUrl.isNullOrEmpty()}, duration=${durationSeconds}s")
         
-        if (isLiveStream && !dashManifestUrl.isNullOrEmpty()) {
-            try {
-                Log.d(TAG, "Using YouTube DASH manifest for live DVR playback: ${dashManifestUrl.take(80)}...")
-
-                val liveDashItem = androidx.media3.common.MediaItem.Builder()
-                    .setUri(dashManifestUrl)
-                    .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_MPD)
-                    .setLiveConfiguration(
-                        androidx.media3.common.MediaItem.LiveConfiguration.Builder()
-                            .setTargetOffsetMs(PlayerConfig.LIVE_EDGE_GAP_MS)
-                            .build()
-                    )
-                    .build()
-
-                return androidx.media3.exoplayer.dash.DashMediaSource.Factory(liveDashDataSourceFactory)
-                    .createMediaSource(liveDashItem)
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to build live DASH media source, falling back to HLS", e)
-            }
-        }
-
         if (isLiveStream && !hlsUrl.isNullOrEmpty()) {
             try {
                 Log.d(TAG, "Using YouTube HLS manifest for live playback: ${hlsUrl.take(80)}...")
@@ -94,7 +73,28 @@ class VideoPlaybackResolver(
                     }
                     .createMediaSource(liveItem)
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to build live HLS media source", e)
+                Log.w(TAG, "Failed to build live HLS media source, falling back to DASH", e)
+            }
+        }
+
+        if (isLiveStream && !dashManifestUrl.isNullOrEmpty()) {
+            try {
+                Log.d(TAG, "Using YouTube DASH manifest for live DVR playback: ${dashManifestUrl.take(80)}...")
+
+                val liveDashItem = androidx.media3.common.MediaItem.Builder()
+                    .setUri(dashManifestUrl)
+                    .setMimeType(androidx.media3.common.MimeTypes.APPLICATION_MPD)
+                    .setLiveConfiguration(
+                        androidx.media3.common.MediaItem.LiveConfiguration.Builder()
+                            .setTargetOffsetMs(PlayerConfig.LIVE_EDGE_GAP_MS)
+                            .build()
+                    )
+                    .build()
+
+                return androidx.media3.exoplayer.dash.DashMediaSource.Factory(liveDashDataSourceFactory)
+                    .createMediaSource(liveDashItem)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to build live DASH media source", e)
             }
         }
         
