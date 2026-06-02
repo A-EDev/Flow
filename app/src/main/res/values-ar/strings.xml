@@ -1080,7 +1080,7 @@
     <string name="view_replies_template">عرض %1$d تعليق</string>
     <string name="pinned_comment">تعليق مثبت</string>
     <string name="pinned_by_creator">تم التثبيت بواسطة منشئ المحتوى</string>
-    <string name="nav_shorts">مقاطع القصيرة</string>
+    <string name="nav_shorts">Shorts</string>
     <string name="nav_music">موسيقى</string>
     <string name="tags">العلامات</string>
     <string name="ago">منذ</string>
@@ -1648,4 +1648,7 @@
     <string name="player_settings_video_codec_dialog_title">برنامج ترميز الفيديو الافتراضي</string>
     <string name="player_settings_video_codec_dialog_body">‪إختر برنامج الترميز المستخدم إفتراضيًا عند الدقة المحددة. لن يؤثر هذا على جودة الفيديو المعروضة، إذ يمكنك اختيار أي برنامج ترميز من قائمة الجودة. يُعدّ H.264 الأكثر توافقًا وسلاسةً على معظم الأجهزة؛ بينما يحافظ AV1/VP9 على البيانات بدقة أعلى، لكنهما يتطلبان قدرة فك تشفير أكبر.</string>
     <string name="player_settings_video_codec_auto_desc">دع التطبيق يختار (يُفضِل H.264)</string>
+    <string name="content_settings_subs_show_checked_count_subtitle">‎أظهر عدد مقاطع الفيديو التي تم فحصها بجانب وقت إعادة التحديث الأخير</string>
+    <string name="subscriptions_last_refreshed_time_only_template">آخر تحديث %1$s</string>
+    <string name="content_settings_subs_show_checked_count_title">عدد الفيديوهات التي تم فحصها</string>
 </resources>
