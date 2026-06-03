@@ -1483,12 +1483,12 @@
     <string name="content_settings_nav_order_subtitle">إستخدم الأسهم لإعادة ترتيب علامات التبويب. حدد علامة التبويب الإفتراضية بإستخدام زر الإختيار.</string>
     <string name="content_settings_comments_enabled_title">التعليقات</string>
     <string name="content_settings_comments_enabled_subtitle">تحميل قسم التعليقات وعرضه على شاشة مشغل الفيديو</string>
-    <string name="content_settings_subs_show_videos_title">فيديوهات الإشتراك</string>
+    <string name="content_settings_subs_show_videos_title">فيديوهات في الإشتراكات</string>
     <string name="content_settings_subs_show_videos_subtitle">إعرض مقاطع الفيديو العادية في موجز الاشتراكات</string>
-    <string name="content_settings_subs_show_shorts_title">شورتز الإشتراك</string>
+    <string name="content_settings_subs_show_shorts_title">Shorts في الإشتراكات</string>
     <string name="content_settings_subs_show_shorts_subtitle">‏عرض الفيديوهات القصيرة في موجز الإشتراكات</string>
-    <string name="content_settings_subs_show_live_title">البث المباشر للإشتراك</string>
-    <string name="content_settings_subs_show_live_subtitle">عرض البث المباشر والبث الذي انتهى مؤخرًا في موجز الإشتراك</string>
+    <string name="content_settings_subs_show_live_title">البثوث المباشرة في الإشتراكات</string>
+    <string name="content_settings_subs_show_live_subtitle">عرض البث المباشر والبث الذي انتهى مؤخرًا في موجز الإشتراكات</string>
     <string name="history_tab_videos">الفيديوهات</string>
     <string name="history_tab_shorts">الشورتز</string>
     <string name="hide_channel_shorts">إخفاء الفيديوهات القصيرة من هذه القناة</string>
@@ -1651,4 +1651,16 @@
     <string name="content_settings_subs_show_checked_count_subtitle">‎أظهر عدد مقاطع الفيديو التي تم فحصها بجانب وقت إعادة التحديث الأخير</string>
     <string name="subscriptions_last_refreshed_time_only_template">آخر تحديث %1$s</string>
     <string name="content_settings_subs_show_checked_count_title">عدد الفيديوهات التي تم فحصها</string>
+    <string name="live_chat">الدردشة المباشرة</string>
+    <string name="live_chat_connecting">جارٍ الاتصال بالدردشة المباشرة…</string>
+    <string name="live_chat_empty">في إنتظار الرسائل…</string>
+    <string name="live_chat_show">إظهار الدردشة</string>
+    <string name="live_chat_hide">إخفاء الدردشة</string>
+    <string name="live_chat_jump_to_latest">إنتقل إلى أحدث رسالة دردشة</string>
+    <string name="donation_prompt_title">هل تستمتع بFlow؟</string>
+    <string name="donation_prompt_message">تطبيق Flow مجاني ومفتوح المصدر، ومصمم بدون إعلانات أو أدوات تتبع. إذا كان قد إكتسب مكانً في جهازك، فنرجو منك التفكير في دعم تطويره — فهذا يُسهم حقًا في استمرار المشروع.</string>
+    <string name="donation_prompt_methods">Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
+    <string name="donation_prompt_support">إدعم التطوير</string>
+    <string name="donation_prompt_later">رُبما لاحقاً</string>
+    <string name="donation_prompt_never">لا تظهر مجدداً</string>
 </resources>
