@@ -1640,4 +1640,25 @@
     <string name="download_menu_style_compact">Компактний</string>
     <string name="download_menu_style_compact_desc">Редагований заголовок, випадні списки та кількість потоків</string>
     <string name="player_appearance_long_press_speed_title">Швидкість відтворення при тривалому натисканні</string>
+    <string name="subscriptions_last_refreshed_time_only_template">Востаннє оновлено %1$s</string>
+    <string name="live_chat">Живий чат</string>
+    <string name="live_chat_connecting">З’єднання з живим чатом…</string>
+    <string name="live_chat_empty">Очікуємо на повідомлення…</string>
+    <string name="live_chat_show">Показати чат</string>
+    <string name="live_chat_hide">Приховати чат</string>
+    <string name="live_chat_jump_to_latest">Перейти до останнього повідомлення в чаті</string>
+    <string name="player_appearance_long_press_speed_subtitle">Виберіть тимчасову швидкість, яка використовується під час утримання програвача</string>
+    <string name="player_appearance_long_press_speed_disabled">Вимкнено</string>
+    <string name="content_settings_subs_show_checked_count_title">Перевірена кількість відео</string>
+    <string name="content_settings_subs_show_checked_count_subtitle">Показати, скільки відео було перевірено, поруч із часом останнього оновлення</string>
+    <string name="player_settings_video_codec">Типовий відеокодек</string>
+    <string name="player_settings_video_codec_dialog_title">Типовий відеокодек</string>
+    <string name="player_settings_video_codec_dialog_body">Виберіть кодек, який використовуватиметься як типовий для вибраної роздільності. Це не змінює перелік доступних якостей — ви все одно можете вибрати будь-який кодек у виборі якості. H.264 є найбільш сумісним і забезпечує найплавніше відтворення на більшості пристроїв; AV1/VP9 економлять трафік при вищій роздільності, але потребують більше потужності для декодування.</string>
+    <string name="player_settings_video_codec_auto_desc">Дозволити застосунку вибрати (перевага надається H.264)</string>
+    <string name="donation_prompt_title">Насолоджуєтеся Flow?</string>
+    <string name="donation_prompt_message">Flow — це безплатний проєкт з відкритим вихідним кодом, створений без реклами та відстежувачів. Якщо він став вам у пригоді, будь ласка, підтримайте його розробку — це справді допомагає підтримувати життя проєкта.</string>
+    <string name="donation_prompt_methods">Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
+    <string name="donation_prompt_support">Підтримати розробку</string>
+    <string name="donation_prompt_later">Можливо пізніше</string>
+    <string name="donation_prompt_never">Більше не показувати</string>
 </resources>
