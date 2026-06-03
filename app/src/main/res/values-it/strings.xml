@@ -1294,7 +1294,7 @@
     <string name="dearrow_badge_toggle">Mostra badge DeArrow</string>
     <string name="dearrow_badge_toggle_subtitle">Mostra un badge sulle miniature corrette da DeArrow</string>
     <string name="sb_settings_title">SponsorBlock, DeArrow e RYD</string>
-    <string name="sb_settings_subtitle">Azioni suo segmenti, controlli di DeArrow e impostazioni di conteggio dei non mi piace</string>
+    <string name="sb_settings_subtitle">Azioni sui segmenti, controlli di DeArrow e impostazioni del conteggio dei non mi piace</string>
     <string name="sb_settings_general_header">Generale</string>
     <string name="tap_to_close">Tocca per chiudere</string>
     <string name="channel_search_hint">Cerca nel canale</string>
@@ -1593,7 +1593,7 @@
     <string name="saved_to_library">Salvato nella libreria</string>
     <string name="failed_to_save_to_library">Impossibile salvare nella libreria</string>
     <string name="open">Apri</string>
-    <string name="video_download_location_label">Posizione di download del video</string>
+    <string name="video_download_location_label">Posizione di download dei video</string>
     <string name="music_download_location_label">Posizione di download della musica</string>
     <string name="refresh_lyrics">Aggiorna testi</string>
     <string name="datetime_preview_header">Anteprima</string>
