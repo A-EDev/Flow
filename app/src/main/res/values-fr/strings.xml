@@ -1685,4 +1685,19 @@
     <string name="player_settings_video_codec_dialog_title">Codec vidéo par défaut</string>
     <string name="player_settings_video_codec_dialog_body">Choisissez le codec à utiliser par défaut pour la résolution sélectionnée. Cela ne modifie pas les options de qualité proposées : vous pouvez toujours choisir n\'importe quel codec dans le sélecteur de qualité. Le H.264 est le plus compatible et offre la meilleure fluidité sur la plupart des appareils ; les codecs AV1/VP9 permettent de réduire la taille des fichiers aux résolutions élevées, mais nécessitent une puissance de décodage plus importante.</string>
     <string name="player_settings_video_codec_auto_desc">Laisser l\'application choisir (H.264 de préférence)</string>
+    <string name="subscriptions_last_refreshed_time_only_template">Dernière mise à jour : %1$s</string>
+    <string name="live_chat">Chat en direct</string>
+    <string name="live_chat_connecting">Connexion au chat en direct…</string>
+    <string name="live_chat_empty">En attente de messages…</string>
+    <string name="live_chat_show">Afficher le chat</string>
+    <string name="live_chat_hide">Masquer la discussion</string>
+    <string name="live_chat_jump_to_latest">Aller au dernier message du chat</string>
+    <string name="content_settings_subs_show_checked_count_title">Nombre de vidéos vérifiées</string>
+    <string name="content_settings_subs_show_checked_count_subtitle">Indiquer le nombre de vidéos visionnées à côté de la date de la dernière mise à jour</string>
+    <string name="donation_prompt_title">Vous appréciez Flow ?</string>
+    <string name="donation_prompt_message">Flow est une application gratuite et open source, conçue sans publicité ni traceurs. Si elle a trouvé sa place sur votre appareil, pensez à soutenir son développement : cela contribue réellement à assurer la pérennité du projet.</string>
+    <string name="donation_prompt_methods">Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
+    <string name="donation_prompt_support">Soutenir le développement</string>
+    <string name="donation_prompt_later">Peut-être plus tard</string>
+    <string name="donation_prompt_never">Ne plus afficher</string>
 </resources>
