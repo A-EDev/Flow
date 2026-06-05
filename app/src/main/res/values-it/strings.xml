@@ -109,7 +109,7 @@
     <string name="tab_videos">Video</string>
     <string name="tab_music">Musica</string>
     <string name="action_delete">Elimina</string>
-    <string name="empty_offline_body">I tuoi %1$s scaricati appariranno qui.\nGoditi i contenuti anche senza internet.</string>
+    <string name="empty_offline_body">Qui compariranno i tuoi download relativi a: %1$s.\nGoditi i tuoi contenuti anche senza internet.</string>
     <string name="action_go_to_home">Vai alla home</string>
     <string name="downloads_title">Download</string>
     <string name="download_deleted">Download eliminato</string>
@@ -212,7 +212,7 @@
     <string name="trending">Tendenza</string>
     <string name="channels_header">Canali</string>
     <string name="videos_header">Video</string>
-    <string name="empty_offline_title">Offline %1$s</string>
+    <string name="empty_offline_title">%1$s offline</string>
     <string name="dislikes">Non mi piace</string>
     <string name="channel_id">ID canale</string>
     <string name="uploaded">Caricato</string>
@@ -734,7 +734,7 @@
     <string name="stats_disclaimer">Le statistiche si basano sulla cronologia delle visualizzazioni in questa app. L\'utilizzo effettivo potrebbe variare.</string>
     <string name="tools_to_manage_time">Strumenti per gestire il tuo utilizzo</string>
     <string name="up_next">A SEGUIRE</string>
-    <string name="deep_flow_mode_subtitle">Sospendi l\'apprendimento — sfoglia senza influenzare il tuo profilo</string>
+    <string name="deep_flow_mode_subtitle">Sospendi l\'apprendimento — naviga senza influenzare il tuo profilo</string>
     <string name="deep_flow_mode_title">Modalità Deep Flow</string>
     <string name="deep_flow_learning_paused">APPRENDIMENTO SOSPESO</string>
     <string name="deep_flow_expires_in">Scade tra %s</string>
@@ -1428,7 +1428,7 @@
     <string name="discovery_query_memory_detail">set di token recenti</string>
     <string name="discovery_rejections">Rifiuti</string>
     <string name="discovery_rejections_detail">pattern degli argomenti</string>
-    <string name="discovery_shorts_seen">Short visti</string>
+    <string name="discovery_shorts_seen">Shorts visti</string>
     <string name="discovery_shorts_seen_detail">filtro ripetizioni</string>
     <string name="blocked_content_title">Filtri</string>
     <string name="blocked_content_subtitle">Argomenti e canali esclusi dai suggerimenti</string>
@@ -1501,7 +1501,7 @@
     <string name="history_no_results">Nessuna cronologia corrispondente</string>
     <string name="history_no_results_body">Prova una ricerca o un filtro diverso</string>
     <string name="history_tab_videos">Video</string>
-    <string name="history_tab_shorts">Short</string>
+    <string name="history_tab_shorts">Shorts</string>
     <string name="empty_liked_videos">Nessun video piaciuto</string>
     <string name="empty_liked_music">Nessun brano piaciuto</string>
     <string name="empty_liked_music_body">I brano che ti piacciono appariranno qui</string>
@@ -1534,7 +1534,7 @@
     <string name="player_settings_overlay_speed_indicator_subtitle">Mostra la velocità attuale sul player video</string>
     <string name="player_fullscreen_seekbar_width_title">Larghezza della barra di riproduzione a schermo intero</string>
     <string name="player_fullscreen_seekbar_width_subtitle">%1$d dp di spaziatura su ogni lato</string>
-    <string name="player_fullscreen_seekbar_width_full">Larghezza intera</string>
+    <string name="player_fullscreen_seekbar_width_full">Estesa</string>
     <string name="player_fullscreen_seekbar_width_default">Predefinita</string>
     <string name="player_fullscreen_seekbar_width_custom">Personalizzata</string>
     <string name="player_fullscreen_seekbar_width_value">%1$d dp</string>
@@ -1558,7 +1558,7 @@
     <string name="player_background_style_blur">Copertina sfocata</string>
     <string name="player_background_style_gradient">Sfumatura colori</string>
     <string name="player_background_style_default">Superficie predefinita</string>
-    <string name="section_daily_discover">Le tua scopeeta quotidiana</string>
+    <string name="section_daily_discover">Scoperte del giorno</string>
     <string name="section_speed_dial">Scelte rapide</string>
     <string name="shuffle_play">Riproduzione casuale</string>
     <string name="feeling_lucky">Ti senti fortunato?</string>
@@ -1654,4 +1654,10 @@
     <string name="content_settings_subs_show_checked_count_title">Conteggio dei video verificati</string>
     <string name="content_settings_subs_show_checked_count_subtitle">Mostra il numero di video verificati accanto all\'ora dell\'ultimo aggiornamento</string>
     <string name="subscriptions_last_refreshed_time_only_template">Ultimo aggiornamento %1$s</string>
+    <string name="donation_prompt_title">Ti piace Flow?</string>
+    <string name="donation_prompt_message">Flow è gratuito, open-source e creato senza pubblicità o tracciamenti. Se ha trovato spazio sul tuo dispositivo, considera di sostenerne lo svilupp e aiuta concretamente a mantenere in vita il progetto.</string>
+    <string name="donation_prompt_methods">Patreon · Bitcoin · Ethereum · Solana · USDT · Monero</string>
+    <string name="donation_prompt_support">Supporta lo sviluppo</string>
+    <string name="donation_prompt_later">Forse più tardi</string>
+    <string name="donation_prompt_never">Non mostrare più</string>
 </resources>
